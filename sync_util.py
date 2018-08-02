@@ -1,13 +1,3 @@
-import h5py
-import json
-import numpy as np
-import pandas as pd
-import pickle
-import os.path
-import exceptions
-from dataset import Dataset
-from Dataset2p import Dataset2p
-
 '''
 sync_util.py
 
@@ -21,6 +11,16 @@ Date: August, 2018
 Note: this code uses python 2.7.
 
 '''
+
+import h5py
+import json
+import numpy as np
+import pandas as pd
+import pickle
+import os.path
+import exceptions
+from dataset import Dataset
+from Dataset2p import Dataset2p
 
 # set a few basic parameters
 ASSUMED_DELAY = 0.0351
@@ -171,24 +171,19 @@ def calculate_delay(sync_data, stim_vsync_fall, sample_frequency):
     return delay
 
 ###############################################################################
-def get_stim_frames(datadir, pkl_file_name, syn_file_name, df_pkl_name):
+def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
 
     '''
-    get_stim_frames(data_directory, input_pickle_file, sync_file, output_pickle_file)
+    get_stim_frames(stim_pickle_file, stim_sync_file, output_pickle_file)
 
-    Pulls out the stimulus frame information from the input pickle file, as
-    well as synchronization information from the sync file, and stores
+    Pulls out the stimulus frame information from the stimulus pickle file, as
+    well as synchronization information from the stimulus sync file, and stores
     synchronized stimulus frame information in the output pickle file.
 
     Required arguments:
-        - data_directory (string)    : name of the directory where the data is
-                                       located (and where the output file will go)
-        - input_pickle_file (string) : name of the experiment stim pickle file,
-                                       e.g. 712483302_389778_20180621_stim.pkl
-        - sync_file (string)         : name of the experiment sync hdf5 file,
-                                       e.g. 712483302_389778_20180621_sync.h5
-        - output_pickle_file (string): name of the output pickle file to create,
-                                       e.g. 712483302_389778_20180621_frames.pkl
+        - stim_pickle_file (string)  : full path name of the experiment stim pickle file
+        - stim_sync_file (string)    : full path name of the experiment sync hdf5 file
+        - output_pickle_file (string): full path name of the output pickle file to create
 
     Outputs:
         - stimulus_alignment (array): array of length equal to the number of stimulus
@@ -196,20 +191,11 @@ def get_stim_frames(datadir, pkl_file_name, syn_file_name, df_pkl_name):
                                       corresponds to that frame
     '''
 
-    # check that the directory exists
-    if not os.path.isdir(datadir):
-        raise exceptions.FileNotFoundError('data_directory either does not exist or is not a directory')
-
-    # modify the file names to include the directory
-    pkl_file_name = datadir + "/" + pkl_file_name
-    syn_file_name = datadir + "/" + syn_file_name
-    df_pkl_name   = datadir + "/" + df_pkl_name
-
     # check that the input files exist
     if not os.path.isfile(pkl_file_name):
-        raise exceptions.FileNotFoundError('input_pickle_file does not exist in data_directory')
+        raise exceptions.OSError('%s does not exist' %(pkl_file_name))
     if not os.path.isfile(syn_file_name):
-        raise exceptions.FileNotFoundError('sync_file does not exist in data_directory')
+        raise exceptions.OSError('%s does not exist' %(syn_file_name))
 
     num_stimtypes = 2 #bricks and Gabors
 
@@ -300,10 +286,10 @@ def get_stim_frames(datadir, pkl_file_name, syn_file_name, df_pkl_name):
     return stimulus_alignment
 
 ###############################################################################
-def get_run_speed(datadir, pkl_file_name):
+def get_run_speed(pkl_file_name):
 
     '''
-    get_run_speeds(data_directory, stim_pickle_file)
+    get_run_speeds(stim_pickle_file)
 
     Pulls out the running speed information from the stim pickle file, returns
     as a numpy array. Note: the length of the array is equivalent to the array
@@ -312,27 +298,16 @@ def get_run_speed(datadir, pkl_file_name):
     done using the stimulus_alignment array.
 
     Required arguments:
-            - data_directory (string)    : name of the directory where the data is
-                                           located (and where the output file will go)
-            - stim_pickle_file (string)  : name of the experiment stim pickle file,
-                                           e.g. 712483302_389778_20180621_stim.pkl
+            - stim_pickle_file (string)  : full path name of the experiment stim pickle file
 
     Outputs:
         - running_speed (array): array of length equal to the number of stimulus
                                  frames, each element indicates running speed for
                                  that stimulus frame
     '''
-
-    # check that the directory exists
-    if not os.path.isdir(datadir):
-        raise exceptions.FileNotFoundError('data_directory either does not exist or is not a directory')
-
-    # modify the file names to include the directory
-    pkl_file_name = datadir + "/" + pkl_file_name
-
     # check that the input file exists
     if not os.path.isfile(pkl_file_name):
-        raise exceptions.FileNotFoundError('input_pickle_file does not exist in data_directory')
+        raise exceptions.OSError('%s does not exist' %(pkl_file_name))
 
     # read the input pickle file and call it "pkl"
     file = open(pkl_file_name, 'rb')
