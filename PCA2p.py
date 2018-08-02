@@ -20,6 +20,7 @@ from matplotlib import pyplot as plt
 import scipy.stats as stats
 from sklearn.decomposition import PCA, RandomizedPCA
 import exceptions
+import pdb
 
 ###############################################################################
 def run_pca(datafile, outfile, ncomps = 20, nframes=500, range=(1000,-1000), crop=(500, 500)):
@@ -50,7 +51,7 @@ def run_pca(datafile, outfile, ncomps = 20, nframes=500, range=(1000,-1000), cro
                                        default = (500,500)
 
     Outputs:
-        - principle components (array): array of the principle components, with shape
+        - principle_components (array): array of the principle components, with shape
                                         [ncomps, crop[0]*crop[1]]
     '''
 
@@ -83,10 +84,62 @@ def run_pca(datafile, outfile, ncomps = 20, nframes=500, range=(1000,-1000), cro
     princomps = PCA(ncomps,svd_solver='randomized').fit(data)
 
     # create a dictionary
-    pcadict = {'base': baselineF, 'pca': princomps, 'crop': crop}
+    pcadict = {'baseline': baselineF, 'pca': princomps, 'crop': crop}
 
     # save the pickle file
     with open(outfile,"wb") as output_file:
         pickle.dump(pcadict,output_file)
 
     return princomps.components_
+
+###############################################################################
+def project_data(datafile, pcafile, frames):
+    '''
+    project_data(data_file, pca_file, frames)
+
+    Projects the 2p data in frames onto the principle components stored in pca_file.
+
+    Required arguments:
+            - data_file  (string)  : full path name of the motion corrected data
+            - pca_file (string)    : full path name for the pickle file with the PCA results
+            - frames (list of ints): frames to extract data from and project with
+
+    Outputs:
+        - projection (array): array of the data projected onto the principle components
+                              shape is [len(frames), crop[0]*crop[1]] where crop is pulled
+                              from pca_file
+    '''
+
+    # open the data file
+    try:
+        fdata = h5py.File(datafile,'r')
+    except:
+        raise exceptions.IOError('Could not open %s for reading' %datafile)
+
+    # open the pickle file
+    try:
+        pklfile = open(pcafile,'rb')
+        pcapkl  = pickle.load(pklfile)
+        pklfile.close()
+    except:
+        raise exceptions.IOError('Could not open %s for reading' %pcafile)
+
+    # get the crop info
+    crop = pcapkl['crop']
+
+    # get the baseline fluorescence
+    #baseline = pcapkl['baseline']
+    #pdb.set_trace()
+
+    # get the pca components
+    comps = pcapkl['pca'].components_
+
+    # initialize the return array
+    proj = np.zeros((comps.shape[0],len(frames)))
+
+    # for each frame, project the data
+    for f in frames:
+        proj[:,f] = np.dot(comps,np.array(fdata['data'][f,0:crop[0],0:crop[1]]).reshape([crop[0]*crop[1],1])).squeeze()
+
+    return proj
+        
