@@ -199,18 +199,21 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
 
     num_stimtypes = 2 #bricks and Gabors
 
-    # read the input pickle file and call it "pkl"
-    file = open(pkl_file_name, 'rb')
-    pkl = pickle.load(file)
-    file.close()
+    # read the pickle file and call it "pkl"
+    with open(pkl_file_name, 'rb') as f:
+        pkl = pickle.load(f)
 
+    num_stimtypes = 2 # bricks and Gabors
+    if len(pkl['stimuli']) != num_stimtypes:
+        raise ValueError('{} stimuli types expected, but {} found'
+                         .format(num_stimtypes, len(pkl['stimuli'])))
+        
     # create a Dataset object with the sync file
     sync_data = Dataset(syn_file_name)
 
     # create Dataset2p object which will be used for the delay
     dset = Dataset2p(syn_file_name)
 
-    # get the 2p sample frequency
     sample_frequency = sync_data.meta_data['ni_daq']['counter_output_freq']
 
     # calculate the valid twop_vsync fall
@@ -220,7 +223,7 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
     stim_vsync_fall = calculate_stim_vsync_fall(sync_data, sample_frequency)
 
     # find the delay
-    #delay = calculate_delay(sync_data, stim_vsync_fall, sample_frequency)
+    # delay = calculate_delay(sync_data, stim_vsync_fall, sample_frequency)
     delay = dset.display_lag
 
     # adjust stimulus time with monitor delay
@@ -229,13 +232,46 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
     # find the alignment
     stimulus_alignment = calculate_stimulus_alignment(stim_time, valid_twop_vsync_fall)
     offset = int(pkl['pre_blank_sec'] *pkl['fps'])
-
+    
     print("Creating the stim_df:")
-    total_stimsegs = 6600 #
-    segs = [1799] + [4800] #[1799] + [4800]. 86400 frames for the Gabors: 18 x 4800. 60*1799 for the bricks
-    framesper = [60] + [18] 
-    stim_df = pd.DataFrame(index=range(total_stimsegs), columns=['stimType', 'stimPar1', 'stimPar2', 'surp', 
-                                                                 'stimSeg', 'GABORFRAME', 'start_frame', 'end_frame', 'num_frames'])
+    
+    # get number of segments expected and actually recorded for each stimulus
+    segs = []
+    segs_exp = []
+    frames_per_seg = []
+    stim_types = []
+    
+    for i in range(num_stimtypes):
+        # records the max num of segs in the frame list for each stimulus
+        segs.extend([np.max(pkl['stimuli'][i]['frame_list'])+1])
+        
+        # calculates the expected number of segs based on fps, display duration (s) and seg length
+        fps = pkl['stimuli'][i]['fps']
+        
+        if pkl['stimuli'][i]['stimParams']['elemParams']['name'] == 'bricks':
+            stim_types.extend(['b'])
+            frames_per_seg.extend([fps])
+            segs_exp.extend([int(60.*np.sum(np.diff(pkl['stimuli'][i]['display_sequence']))/frames_per_seg[i])])
+        elif pkl['stimuli'][i]['stimParams']['elemParams']['name'] == 'gabors':
+            stim_types.extend(['g'])
+            frames_per_seg.extend([fps/1000.*300])
+            segs_exp.extend([int(60.*np.sum(np.diff(pkl['stimuli'][i]['display_sequence']))/frames_per_seg[i]*4./5)]) # to exclude grey seg
+        else:
+            raise ValueError('{} stimulus type not recognized.'.format(pkl['stimuli'][i]['stimParams']['elemParams']['name']))
+        
+        
+        # check whether the actual number of frames is within a small range of expected
+        # about two frames per sequence?
+        n_seq = pkl['stimuli'][0]['display_sequence'].shape[0] * 2
+        if np.abs(segs[i] - segs_exp[i]) > n_seq:
+            raise ValueError('Expected {} frames for stimulus {}, but found {}.'
+                             .format(segs_exp[i], i, segs[i]))
+    
+    total_stimsegs = np.sum(segs)
+    
+    stim_df = pd.DataFrame(index=range(np.sum(total_stimsegs)), columns=['stimType', 'stimPar1', 'stimPar2', 'surp', 
+                                                             'stimSeg', 'GABORFRAME', 'start_frame', 'end_frame', 'num_frames'])
+    
     zz = 0
     # For gray-screen pre_blank
     stim_df.ix[zz, 'stimType'] = -1
@@ -257,7 +293,7 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
         for segment in range(segs[stype]):
             seg_inds = np.where(movie_segs == segment)[0]
             tup = (segment, int(stimulus_alignment[seg_inds[0] + offset]), \
-                   int(stimulus_alignment[seg_inds[framesper[stype]-1] + 1 + offset]))
+                   int(stimulus_alignment[seg_inds[-1] + 1 + offset]))
 
             stim_df.ix[zz, 'stimType'] = stype
             stim_df.ix[zz, 'stimSeg'] = segment
@@ -265,13 +301,13 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
             stim_df.ix[zz, 'end_frame'] = tup[2]
             stim_df.ix[zz, 'num_frames'] = tup[2] - tup[1]
 
-            if stype == 0:
+            if stim_types[stype] == 'b':
                 stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][0]['stimParams']['subj_params']['flipdirecarray'][segment][1] #big or small
                 stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][0]['stimParams']['subj_params']['flipdirecarray'][segment][3] #L or R
                 stim_df.ix[zz, 'surp'] = pkl['stimuli'][0]['stimParams']['subj_params']['flipdirecarray'][segment][0] #SURP
                 stim_df.ix[zz, 'GABORFRAME'] = -1
             
-            if stype == 1:
+            if stim_types[stype] == 'g':
                 stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][1]['stimParams']['subj_params']['oriparsurps'][int(np.floor(segment/4))][0] #angle
                 stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][1]['stimParams']['subj_params']['oriparsurps'][int(np.floor(segment/4))][1] #angular var
                 stim_df.ix[zz, 'surp'] = pkl['stimuli'][1]['stimParams']['subj_params']['oriparsurps'][int(np.floor(segment/4))][2] #SURP
@@ -310,9 +346,8 @@ def get_run_speed(pkl_file_name):
         raise exceptions.OSError('%s does not exist' %(pkl_file_name))
 
     # read the input pickle file and call it "pkl"
-    file = open(pkl_file_name, 'rb')
-    pkl = pickle.load(file)
-    file.close()
+    with open(pkl_file_name, 'rb') as f:
+        pkl = pickle.load(f)
 
     # determine the running wheel radius TO-DO: ASK JEROME WHERE THIS IS STORED!
     wheel_radius = 1.0
