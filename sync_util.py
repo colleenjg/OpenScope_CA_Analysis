@@ -315,7 +315,14 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
 
             zz += 1
             tf += 1
-
+            
+    # check whether any 2P frames are in associated to 2 stimuli
+    overlap = np.any((np.sort(stim_df['start_frame'])[1:] - 
+                     np.sort(stim_df['end_frame'])[:-1]) < 0)
+    if overlap:
+        raise ValueError('Some 2P frames associated with two stimulus \
+                         segments.')
+    
     print(stim_df)
     stim_df.to_pickle(df_pkl_name)
 

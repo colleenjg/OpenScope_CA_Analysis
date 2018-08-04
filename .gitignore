@@ -1,3 +1,7 @@
+/data/
+/jupyter_notebooks/
+
 *.h5
 *.pkl
 *.pyc
+*.txt
