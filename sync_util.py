@@ -171,6 +171,38 @@ def calculate_delay(sync_data, stim_vsync_fall, sample_frequency):
     return delay
 
 ###############################################################################
+def get_frame_rate(syn_file_name):
+    
+    '''
+    get_frame_times(stim_sync_file)
+
+    Pulls out the ophys frame times stimulus sync file and returns.
+
+    Required arguments:
+        - stim_sync_file (string)    : full path name of the experiment sync hdf5 file
+
+    Outputs:
+        - stimulus_alignment (array): array of length equal to the number of 2p frames, 
+                                      each element indicates the time at which the 2p
+                                      frame is taken
+    '''
+
+    # create a Dataset object with the sync file
+    sync_data = Dataset(syn_file_name)
+   
+    sample_frequency = sync_data.meta_data['ni_daq']['counter_output_freq']
+    
+    # calculate the valid twop_vsync fall
+    valid_twop_vsync_fall = calculate_valid_twop_vsync_fall(sync_data, sample_frequency)
+    twop_diff = np.diff(valid_twop_vsync_fall)
+    
+    twop_rate_mean = np.mean(1./twop_diff)
+    twop_rate_med = np.median(1./twop_diff)
+    twop_rate_std = np.std(1./twop_diff)
+    
+    return twop_rate_mean, twop_rate_med, twop_rate_std
+
+###############################################################################
 def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
 
     '''
@@ -356,8 +388,9 @@ def get_run_speed(pkl_file_name):
     with open(pkl_file_name, 'rb') as f:
         pkl = pickle.load(f)
 
-    # determine the running wheel radius TO-DO: ASK JEROME WHERE THIS IS STORED!
-    wheel_radius = 1.0
+    # determine the running wheel radius in cm
+    # TO-DO: ASK JEROME WHERE THIS IS HARD-CODED
+    wheel_radius = 5.5036
 
     # determine the frames per second of the running wheel recordings
     fps = pkl['fps']
@@ -366,6 +399,7 @@ def get_run_speed(pkl_file_name):
     dtheta = pkl['items']['foraging']['encoders'][0]['dx']
 
     # calculate the running speed (skip first element, since it is ignored in stimulus frames as well)
+    # TO-DO: skip last instead as this was a mistake pointed out by Jed.
     runspeed = dtheta[SKIP_FIRST_ELEMENT:] * fps * (2.0 * np.pi * wheel_radius / 360.0)
 
     return runspeed
