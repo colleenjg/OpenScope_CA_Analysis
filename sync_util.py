@@ -176,15 +176,16 @@ def get_frame_rate(syn_file_name):
     '''
     get_frame_times(stim_sync_file)
 
-    Pulls out the ophys frame times stimulus sync file and returns.
+    Pulls out the ophys frame times stimulus sync file and returns stats for
+    ophys frame rates.
 
     Required arguments:
         - stim_sync_file (string)    : full path name of the experiment sync hdf5 file
 
     Outputs:
-        - stimulus_alignment (array): array of length equal to the number of 2p frames, 
-                                      each element indicates the time at which the 2p
-                                      frame is taken
+        - twop_rate_mean: mean ophys frame rate
+        - twop_rate_med: median ophys frame rate
+        - twop_rate_std: standard deviation of ophys frame rate
     '''
 
     # create a Dataset object with the sync file
