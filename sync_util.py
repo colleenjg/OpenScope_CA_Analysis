@@ -365,7 +365,7 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
 def get_run_speed(pkl_file_name):
 
     '''
-    get_run_speeds(stim_pickle_file)
+    get_run_speed(stim_pickle_file)
 
     Pulls out the running speed information from the stim pickle file, returns
     as a numpy array. Note: the length of the array is equivalent to the array
@@ -374,7 +374,7 @@ def get_run_speed(pkl_file_name):
     done using the stimulus_alignment array.
 
     Required arguments:
-            - stim_pickle_file (string)  : full path name of the experiment stim pickle file
+        - stim_pickle_file (string)  : full path name of the experiment stim pickle file
 
     Outputs:
         - running_speed (array): array of length equal to the number of stimulus
