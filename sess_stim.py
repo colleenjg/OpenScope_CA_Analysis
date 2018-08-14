@@ -1,5 +1,5 @@
 """
-Classes to store and extract experiment and stimulus information.
+Classes to store and extract session and stimulus information.
 """
 import os
 
@@ -12,10 +12,10 @@ import scipy.stats
 import sync_util
 
 
-class Experiment(object):
+class Session(object):
     """
-    Experiment object contains information relevant to an experiment, particularly needed
-    analyse running and stimulus. Two-photon component not implemented currently implemented.
+    Session object contains information relevant to a session, particularly needed
+    analyse running and stimulus. Two-photon component not currently implemented.
     """
     def __init__(self, filename):
         self.filename = filename
@@ -45,7 +45,7 @@ class Experiment(object):
             print('WARNING: {} dropped stimulus frames out of {}.'.format(self.n_drop_frames, self.tot_frames))
         
     def load_sync_h5(self):
-        raise NotImplementedError('Loading h5 sync file of an experiment has not been implemented yet.')
+        raise NotImplementedError('Loading h5 sync file of a session has not been implemented yet.')
     
     # load alignment pickle as an attribute
     def load_align_df(self):
@@ -86,10 +86,10 @@ class Experiment(object):
 
 
 class Stim(object):
-    """Deals with the different stimuli that may appear on the screen during an experiment.
+    """Deals with the different stimuli that may appear on the screen during a session.
     """
-    def __init__(self, exp, stim_n):
-        self.exp = exp
+    def __init__(self, sess, stim_n):
+        self.sess = sess
         self._init_attribs(stim_n)
         
     def _init_attribs(self, stim_n):
@@ -97,8 +97,8 @@ class Stim(object):
             self._get_stim_disps()
         else:
             self.stim_n = stim_n
-            self.stim = self.exp.stim_dict['stimuli'][self.stim_n]
-            self.blank_seg = self.exp.stim_dict['stimuli'][self.stim_n]['blank_sweeps']
+            self.stim = self.sess.stim_dict['stimuli'][self.stim_n]
+            self.blank_seg = self.sess.stim_dict['stimuli'][self.stim_n]['blank_sweeps']
             self._get_stim_disps()
             self._get_frames()
             self._get_running()
@@ -108,9 +108,9 @@ class Stim(object):
         Note: These display sequences take into account the pre and post blank periods. (So they are shifted.)
         """
         disps = []
-        for i in range(self.exp.n_stims):
+        for i in range(self.sess.n_stims):
             # add pre-blank sec to all display seq
-            disps.append(self.exp.stim_dict['stimuli'][i]['display_sequence']+self.exp.pre_blank) 
+            disps.append(self.sess.stim_dict['stimuli'][i]['display_sequence']+self.sess.pre_blank) 
         if self.stim_type == 'gabors' or self.stim_type == 'bricks': 
             self.disp_seq = disps[self.stim_n] # stimulus display seq (in sec)
             self.block_len = np.diff(self.disp_seq) # length in sec of each display period
@@ -127,8 +127,8 @@ class Stim(object):
             for i in range(len(stim_disps_2D)-1):
                 # add intervening grayscreen display times
                 self.disp_seq.append([stim_disps_2D[i][1], stim_disps_2D[i+1][0]])
-            if self.exp.post_blank != 0: # checking if grayscr occurs after last stim
-                self.disp_seq.append([stim_disps_2D[i+1][0], stim_disps_2D[i+1][0]+self.exp.post_blank])
+            if self.sess.post_blank != 0: # checking if grayscr occurs after last stim
+                self.disp_seq.append([stim_disps_2D[i+1][0], stim_disps_2D[i+1][0]+self.sess.post_blank])
             self.block_len = np.diff(self.disp_seq)
         else:
             raise ValueError('Stimulus type \'{}\' not recognized.'.format(self.stim_type))
@@ -136,9 +136,9 @@ class Stim(object):
         
     def _get_frames(self):
         # fill out the frame_list to be the same length as running array
-        self.frame_list = int(self.exp.pre_blank*self.exp.stim_fps)*[-1] + self.stim['frame_list'].tolist() + \
-                          int((self.exp.tot_frames - len(self.stim['frame_list']) + \
-                          self.exp.post_blank)*self.exp.stim_fps)*[-1] 
+        self.frame_list = int(self.sess.pre_blank*self.sess.stim_fps)*[-1] + self.stim['frame_list'].tolist() + \
+                          int((self.sess.tot_frames - len(self.stim['frame_list']) + \
+                          self.sess.post_blank)*self.sess.stim_fps)*[-1] 
         self.seg_range = [] # range of segments in each block
         self.frame_n = [] # frame numbers for each block
         self.n_frames = [] # number of frames in each block
@@ -147,7 +147,7 @@ class Stim(object):
         for i in range(self.n_blocks):
             # get segment ranges
             up_lim += int(np.diff(self.disp_seq[i])/self.seg_len_s)
-            max_seg = np.max(self.exp.stim_dict['stimuli'][self.stim_n]['sweep_order'][:up_lim]) # max segment
+            max_seg = np.max(self.sess.stim_dict['stimuli'][self.stim_n]['sweep_order'][:up_lim]) # max segment
             self.seg_range.append([min_seg, max_seg])
             # get frame ranges
             min_ind = self.frame_list.index(min_seg)    
@@ -155,7 +155,7 @@ class Stim(object):
             self.frame_n.append([min_ind, max_ind])
             # get number of frames in block
             length = max_ind-min_ind+1
-            exp_length = self.block_len[i][0]*self.exp.stim_fps
+            sess_length = self.block_len[i][0]*self.sess.stim_fps
             self.n_frames.extend([length])
             min_seg = max_seg + 1
     
@@ -164,7 +164,7 @@ class Stim(object):
         """
         self.run = []
         for i in range(self.n_blocks):
-            self.run.extend([self.exp.run_array[self.frame_n[i][0]:self.frame_n[i][1]]])
+            self.run.extend([self.sess.run_array[self.frame_n[i][0]:self.frame_n[i][1]]])
     
     
 class Gabors(Stim):
@@ -172,7 +172,7 @@ class Gabors(Stim):
     Deals with information related to sequences where the gabors are being displayed, including the 300 ms segments
     where the screen is gray.
     """
-    def __init__(self, exp, stim_n):
+    def __init__(self, sess, stim_n):
         self.stim_type = 'gabors'
         self.seg_ps = 1/1.5*4 # 4 gabor segments (and 1 blank segment) per 1.5s
         self.seg_len_s = 0.3 # in sec
@@ -183,19 +183,19 @@ class Gabors(Stim):
         self.pre = 1*self.seg_len_s # 300 ms blank
         self.post = 4*self.seg_len_s # 1200 ms gabors
         
-        Stim.__init__(self, exp, stim_n)
+        Stim.__init__(self, sess, stim_n)
         self._get_A_frames()
         self._get_surp_frames()
     
     def _get_A_frames(self):
-        seg_ind = self.exp.align_df.loc[(self.exp.align_df['stimType'] == 1) & (self.exp.align_df['GABORFRAME'] == 0)]['stimSeg'].tolist()
+        seg_ind = self.sess.align_df.loc[(self.sess.align_df['stimType'] == 1) & (self.sess.align_df['GABORFRAME'] == 0)]['stimSeg'].tolist()
         self.A_frame_n = []
         for i in seg_ind:
             self.A_frame_n.extend([self.frame_list.index(i)])
     
     def _get_surp_frames(self):
-        seg_ind_all_surp = self.exp.align_df.loc[(self.exp.align_df['stimType'] == 1) & (self.exp.align_df['surp'] == 1)]['stimSeg'].tolist()
-        seg_ind_all_nosurp = self.exp.align_df.loc[(self.exp.align_df['stimType'] == 1) & (self.exp.align_df['surp'] == 0)]['stimSeg'].tolist()
+        seg_ind_all_surp = self.sess.align_df.loc[(self.sess.align_df['stimType'] == 1) & (self.sess.align_df['surp'] == 1)]['stimSeg'].tolist()
+        seg_ind_all_nosurp = self.sess.align_df.loc[(self.sess.align_df['stimType'] == 1) & (self.sess.align_df['surp'] == 0)]['stimSeg'].tolist()
         self.surp_frame_n = []
         self.first_surp_frame_n = []
         self.nosurp_frame_n = []
@@ -214,7 +214,7 @@ class Bricks(Stim):
     """Inherits from Stim class.
     Deals with information related to sequences where the bricks are being displayed.
     """
-    def __init__(self, exp, stim_n):
+    def __init__(self, sess, stim_n):
         self.stim_type = 'bricks'
         self.seg_ps = 1 # 1 segment per second
         self.seg_len_s = 1 # 1 segment is 1 second
@@ -223,7 +223,7 @@ class Bricks(Stim):
         self.reg_min_s = 30
         self.reg_max_s = 90
         
-        Stim.__init__(self, exp, stim_n)
+        Stim.__init__(self, sess, stim_n)
         self._get_surp_frames()
         self._get_dir_frames()
         
@@ -231,8 +231,8 @@ class Bricks(Stim):
     def _get_dir_frames(self):
         # does not include surprise frames
         for i in ['left', 'right']:
-            seg_ind = self.exp.align_df.loc[(self.exp.align_df['stimType'] == 0) & (self.exp.align_df['surp'] == 0) &
-                                           (self.exp.align_df['stimPar2'] == i)]['stimSeg'].tolist()
+            seg_ind = self.sess.align_df.loc[(self.sess.align_df['stimType'] == 0) & (self.sess.align_df['surp'] == 0) &
+                                           (self.sess.align_df['stimPar2'] == i)]['stimSeg'].tolist()
             frame_n = []
             for j in seg_ind:
                 frame_n.extend([self.frame_list.index(j)])
@@ -242,8 +242,8 @@ class Bricks(Stim):
                 self.right_frame_n = frame_n[:]
     
     def _get_surp_frames(self):
-        seg_ind_all_surp = self.exp.align_df.loc[(self.exp.align_df['stimType'] == 0) & (self.exp.align_df['surp'] == 1)]['stimSeg'].tolist()
-        seg_ind_all_nosurp = self.exp.align_df.loc[(self.exp.align_df['stimType'] == 0) & (self.exp.align_df['surp'] == 0)]['stimSeg'].tolist()
+        seg_ind_all_surp = self.sess.align_df.loc[(self.sess.align_df['stimType'] == 0) & (self.sess.align_df['surp'] == 1)]['stimSeg'].tolist()
+        seg_ind_all_nosurp = self.sess.align_df.loc[(self.sess.align_df['stimType'] == 0) & (self.sess.align_df['surp'] == 0)]['stimSeg'].tolist()
         self.surp_frame_n = []
         self.first_surp_frame_n = []
         self.nosurp_frame_n = []
@@ -264,20 +264,20 @@ class Grayscr(Stim):
     Deals with information related to sequences where the screen is gray.
     """
     
-    def __init__(self, exp):
+    def __init__(self, sess):
         self.stim_type = 'grayscr'
         
-        Stim.__init__(self, exp, None)
+        Stim.__init__(self, sess, None)
         self.min_s = 60 # hard coding a minimum secto allow short grayscr to be excluded
         self._get_frames()
         self._get_running()
         
     def _get_frames(self):
         all_stim_frames = []
-        for i in range(self.exp.n_stims): 
-            stim_frames = self.exp.stim_dict['stimuli'][i]['frame_list'].tolist()
-            stim_frames = int(self.exp.pre_blank*self.exp.stim_fps)*[-1] + stim_frames + int((self.exp.tot_frames - \
-                          len(stim_frames) + self.exp.post_blank*self.exp.stim_fps))*[-1]   
+        for i in range(self.sess.n_stims): 
+            stim_frames = self.sess.stim_dict['stimuli'][i]['frame_list'].tolist()
+            stim_frames = int(self.sess.pre_blank*self.sess.stim_fps)*[-1] + stim_frames + int((self.sess.tot_frames - \
+                          len(stim_frames) + self.sess.post_blank*self.sess.stim_fps))*[-1]   
             all_stim_frames.append(np.asarray(stim_frames))
         all_stim_frames = np.asarray(all_stim_frames)
         all_frames_sum = np.sum(all_stim_frames, axis=0, dtype=int)
@@ -289,10 +289,10 @@ class Grayscr(Stim):
         self.frame_n_excl = []
         self.n_frames_excl = []
         for i in range(len(all_frames_sum)):
-            if pos == 0 and all_frames_sum[i] == -1*self.exp.n_stims:
+            if pos == 0 and all_frames_sum[i] == -1*self.sess.n_stims:
                 start = i
                 pos = 1
-            elif pos == 1 and all_frames_sum[i] != -1*self.exp.n_stims:
+            elif pos == 1 and all_frames_sum[i] != -1*self.sess.n_stims:
                 pos = 0
                 self.frame_n_all.append([start, i])
                 self.n_frames_all.extend([i-start])
@@ -310,6 +310,6 @@ class Grayscr(Stim):
         self.run_all = [] # includes segments within stimuli (e.g., gabors)
         self.run_excl = []
         for i in range(len(self.frame_n_all)):
-            self.run_all.extend([self.exp.run_array[self.frame_n_all[i][0]:self.frame_n_all[i][1]]])
+            self.run_all.extend([self.sess.run_array[self.frame_n_all[i][0]:self.frame_n_all[i][1]]])
             if (self.n_frames_all[i]) > self.min_s:
-                self.run_excl.extend([self.exp.run_array[self.frame_n_all[i][0]:self.frame_n_all[i][1]]])
+                self.run_excl.extend([self.sess.run_array[self.frame_n_all[i][0]:self.frame_n_all[i][1]]])
