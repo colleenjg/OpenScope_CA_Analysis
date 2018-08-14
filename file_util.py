@@ -43,9 +43,9 @@ def check_datadir(datadir):
     return dirokay
 
 ###############################################################################
-def get_file_names(masterdir, session, experiment, date, extra):
+def get_file_names(masterdir, session, experiment, date, mouse):
     '''
-    get_file_names(main_directory, session, experiment, date, extra)
+    get_file_names(main_directory, session, experiment, date, mouse)
 
     Gets the full path names of all of the expected data files in the main_directory
     for the specified session and experiment on the given date that can be used for 
@@ -59,18 +59,19 @@ def get_file_names(masterdir, session, experiment, date, extra):
                                        e.g. '715925563'
         - date (string)              : date for the session in YYYYMMDD
                                        e.g. '20160802'
-        - extra (string)             : extra 6-digit string used for session
-                                       files (currently a mystery)
+        - mouse (string)             : mouse 6-digit ID string used for session
+                                       files
                                        e.g. '389778' 
                                        TO-DO: RENAME LATER
 
     Outputs:
-        - session_dir    (string): full path name of the session directory
         - experiment_dir (string): full path name of the experiment directory
         - stim_pkl_file  (string): full path name of the stimulus
                                    pickle file
         - stim_sync_file (string): full path name of the stimulus
                                    synchronization hdf5 file
+        - align_pkl_file (string): full path name of the stimulus
+                                   alignment pickle file
         - corrected_data (string): full path name of the motion
                                    corrected 2p data hdf5 file
         - zstack (string)        : full path name of the zstack
@@ -78,17 +79,18 @@ def get_file_names(masterdir, session, experiment, date, extra):
     '''
     
     # get the name of the session and experiment data directories
-    sessiondir    = masterdir + "/" + 'ophys_session_' + session
-    experimentdir = sessiondir + "/" + 'ophys_experiment_' + experiment
+    sessiondir    = os.path.join(masterdir, 'ophys_session_' + session)
+    experimentdir = os.path.join(sessiondir, 'ophys_experiment_' + experiment)
 
     # check the directory 
     if check_datadir(sessiondir):
 
         # set the file names
-        stim_pkl_file  = sessiondir + "/" + session + "_" + extra + "_" + date + '_stim.pkl'
-        stim_sync_file = sessiondir + "/" + session + "_" + extra + "_" + date + '_sync.h5'
-        corrected_data = sessiondir + "/" + 'concat_31Hz_0.h5'
-        zstack         = sessiondir + "/" + session + '_zstack_column.h5'
+        stim_pkl_file  = os.path.join(sessiondir, session + "_" + mouse + "_" + date + '_stim.pkl')
+        stim_sync_file = os.path.join(sessiondir, session + "_" + mouse + "_" + date + '_sync.h5')
+        align_pkl_file = os.path.join(sessiondir, session + "_" + mouse + "_" + date + '_df.pkl')
+        corrected_data = os.path.join(experimentdir, 'processed', 'concat_31Hz_0.h5')
+        zstack         = os.path.join(sessiondir, session + '_zstack_column.h5')
 
         # double check that the files actually exist
         if not os.path.isfile(stim_pkl_file):
@@ -97,12 +99,12 @@ def get_file_names(masterdir, session, experiment, date, extra):
             raise exceptions.OSError('%s does not exist' %(stim_sync_file))
         if not os.path.isfile(corrected_data):
             raise exceptions.OSError('%s does not exist' %(corrected_data))
-        if not os.path.isfile(zstack):
-            raise exceptions.OSError('%s does not exist' %(zstack))
+        #if not os.path.isfile(zstack): ADD THIS BACK LATER...
+        #    raise exceptions.OSError('%s does not exist' %(zstack))
 
         # TO-DO: ADD OTHER KEY FILES
 
     else:
         raise exceptions.UserWarning('%s does not conform to expected AIBS structure')
 
-    return (sessiondir, experimentdir, stim_pkl_file, stim_sync_file, corrected_data, zstack)
+    return (experimentdir, stim_pkl_file, stim_sync_file, align_pkl_file, corrected_data, zstack)
