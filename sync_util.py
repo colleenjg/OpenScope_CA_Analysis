@@ -22,6 +22,8 @@ import exceptions
 from dataset import Dataset
 from Dataset2p import Dataset2p
 
+import pdb
+
 # set a few basic parameters
 ASSUMED_DELAY = 0.0351
 DELAY_THRESHOLD = 0.001
@@ -211,17 +213,13 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
 
     Pulls out the stimulus frame information from the stimulus pickle file, as
     well as synchronization information from the stimulus sync file, and stores
-    synchronized stimulus frame information in the output pickle file.
+    synchronized stimulus frame information in the output pickle file along with
+	the stimulus alignment array.
 
     Required arguments:
         - stim_pickle_file (string)  : full path name of the experiment stim pickle file
         - stim_sync_file (string)    : full path name of the experiment sync hdf5 file
         - output_pickle_file (string): full path name of the output pickle file to create
-
-    Outputs:
-        - stimulus_alignment (array): array of length equal to the number of stimulus
-                                      frames, each element indicates which 2p image
-                                      corresponds to that frame
     '''
 
     # check that the input files exist
@@ -355,11 +353,17 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
     if overlap:
         raise ValueError('Some 2P frames associated with two stimulus \
                          segments.')
-    
-    print(stim_df)
-    stim_df.to_pickle(df_pkl_name)
-
-    return stimulus_alignment
+	
+    # create a dictionary for pickling
+    stim_dict = {'stim_df': stim_df, 'stim_align': stimulus_alignment}   
+ 
+    # store in the pickle file
+    try:
+        with open(df_pkl_name, "wb") as f:
+            pickle.dump(stim_dict,f)
+    except:
+        raise exceptions.IOError("Could not save stimulus pickle file {}".format(df_pkl_name))  
+    #stim_df.to_pickle(df_pkl_name)
 
 ###############################################################################
 def get_run_speed(pkl_file_name):
