@@ -30,6 +30,7 @@ DELAY_THRESHOLD = 0.001
 FIRST_ELEMENT_INDEX = 0
 SECOND_ELEMENT_INDEX = 1
 SKIP_FIRST_ELEMENT = 1
+SKIP_LAST_ELEMENT = -2
 ROUND_PRECISION = 4
 ZERO = 0
 ONE = 1
@@ -74,6 +75,7 @@ def calculate_valid_twop_vsync_fall(sync_data, sample_frequency):
 
 ###############################################################################
 def calculate_stim_vsync_fall(sync_data, sample_frequency):
+
     ####stimulus frames####
     # skip the first element to eliminate the DAQ pulse
     stim_vsync_fall = sync_data.get_falling_edges('stim_vsync')[SKIP_FIRST_ELEMENT:] / sample_frequency

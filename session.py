@@ -192,6 +192,29 @@ class Session(object):
                 self.bricks = Bricks(self, i)
         self.grayscr = Grayscr(self)
 
+    #############################################
+    def get_run_speed(self, frames):
+        """
+        get_run_speed(frames)
+
+        Returns the running speed for the given two-photon imaging
+        frames using linear interpolation.
+
+        Required arguments:
+            - frames (int array): set of 2p imaging frames to give speed for
+        
+        Returns:
+            - speed (float array): running speed (in cm/s) - CHECK THIS
+        """
+
+        # make sure the frames are all legit
+        if any(frames >= self.nframes or frames < 0):
+            raise UserWarning("Some of the specified frames are out of range")
+
+        # perform linear interpolation on the running speed
+        speed = np.interp(frames, self.stim_align, self.run_array)
+
+        return speed
 
 class Stim(object):
     """
