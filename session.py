@@ -92,7 +92,7 @@ class Session(object):
         self.experiment = expinfo[2]
 
         # create the filenames
-        (self.expdir, self.stim_pkl, self.stim_sync, self.align_pkl, self.corrected, self.zstack) = \
+        (self.expdir, self.procdir, self.stim_pkl, self.stim_sync, self.align_pkl, self.corrected, self.roi_traces, self.zstack) = \
                                         file_util.get_file_names(self.home, self.session, self.experiment, self.date, self.mouse)       
     
     #############################################
@@ -193,6 +193,30 @@ class Session(object):
         self.grayscr = Grayscr(self)
 
     #############################################
+    def load_roi_traces(self):
+        """
+        load_roi_traces()
+
+        Loads some basic information about ROI dF/F traces. This includes
+        the number of ROIs, their names, and the number of data points in the traces.
+        """
+        
+        try:
+            # open the roi file and get the info
+            with h5py.File(self.roi_traces,'r') as f:
+                
+                # get the names of the rois
+                self.roi_names = f['roi_names'].value.tolist()
+
+                # get the number of rois
+                self.nroi = len(self.roi_names)
+
+                # get the number of data points in the traces
+                self.nframes = f['data'].shape[1]
+        except:
+            raise exceptions.IOError("Could not open {} for reading".format(self.roi_traces))
+
+    #############################################
     def get_run_speed(self, frames):
         """
         get_run_speed(frames)
@@ -208,7 +232,7 @@ class Session(object):
         """
 
         # make sure the frames are all legit
-        if any(frames >= self.nframes or frames < 0):
+        if any(frames >= self.nframes) or any(frames < 0):
             raise UserWarning("Some of the specified frames are out of range")
 
         # perform linear interpolation on the running speed
@@ -216,6 +240,55 @@ class Session(object):
 
         return speed
 
+    #############################################
+    def get_roi_traces(self, frames, rois='all'):
+        """
+        get_roi_traces(frames)
+
+        Returns the processed ROI dF/F traces for the given two-photon imaging
+        frames and specified ROIs.
+
+        Required arguments:
+            - frames (int array): set of 2p imaging frames to give ROI dF/F for, if
+                                  any frames are out of range then NaNs returned
+
+        Optional arguments:
+            - rois (int array): set of ROIs to return traces for, if string 'all'
+                                is provided then all ROIs are returned, if an ROI
+                                that doesn't exist is requested then NaNs returned
+                                for that ROI
+                                default = 'all'
+        Returns:
+            - traces (float array): array of dF/F for the specified frames/ROIs
+        """
+        
+        # make sure the frames are all legit
+        if any(frames >= self.nframes) or any(frames < 0):
+            raise UserWarning("Some of the specified frames are out of range")
+
+        # make sure the rois are all legit
+        if rois is 'all':
+            rois = np.arange(self.nroi)
+        else:
+            if any(rois >= self.nroi) or any(rois < 0):
+                rois[rois >= self.nframes] = -1
+                rois[rois < 0] = -1
+                raise UserWarning("Some of the specified ROIs do not exist, NaNs will be returned")
+
+        # initialize the return array
+        traces = np.zeros((len(rois),len(frames))) + np.nan
+
+        # read the data points into the return array
+        with h5py.File(self.roi_traces,'r') as f:
+            for roi in rois:
+                if roi >= 0:
+                    try:
+                        traces[roi,:] = f['data'].value[roi,frames]
+                    except:
+                        raise exceptions.IOError("Could not read ROI number {}".format(roi))
+
+        return traces
+ 
 class Stim(object):
     """
     The Stim object is a higher level class for describing stimulus properties. It should
