@@ -66,6 +66,7 @@ def get_file_names(masterdir, session, experiment, date, mouse):
 
     Outputs:
         - experiment_dir (string): full path name of the experiment directory
+        - processed_dir (string) : full path name of the processed data directory
         - stim_pkl_file  (string): full path name of the stimulus
                                    pickle file
         - stim_sync_file (string): full path name of the stimulus
@@ -74,6 +75,7 @@ def get_file_names(masterdir, session, experiment, date, mouse):
                                    alignment pickle file
         - corrected_data (string): full path name of the motion
                                    corrected 2p data hdf5 file
+        - roi_trace_data (string): full path name of the ROI F trace data file
         - zstack (string)        : full path name of the zstack
                                    2p file from the session
     '''
@@ -81,6 +83,7 @@ def get_file_names(masterdir, session, experiment, date, mouse):
     # get the name of the session and experiment data directories
     sessiondir    = os.path.join(masterdir, 'ophys_session_' + session)
     experimentdir = os.path.join(sessiondir, 'ophys_experiment_' + experiment)
+    processeddir = os.path.join(experimentdir, 'processed')
 
     # check the directory 
     if check_datadir(sessiondir):
@@ -89,7 +92,8 @@ def get_file_names(masterdir, session, experiment, date, mouse):
         stim_pkl_file  = os.path.join(sessiondir, session + "_" + mouse + "_" + date + '_stim.pkl')
         stim_sync_file = os.path.join(sessiondir, session + "_" + mouse + "_" + date + '_sync.h5')
         align_pkl_file = os.path.join(sessiondir, session + "_" + mouse + "_" + date + '_df.pkl')
-        corrected_data = os.path.join(experimentdir, 'processed', 'concat_31Hz_0.h5')
+        corrected_data = os.path.join(processeddir, 'concat_31Hz_0.h5')
+        roi_trace_data = os.path.join(processeddir, 'roi_traces.h5')
         zstack         = os.path.join(sessiondir, session + '_zstack_column.h5')
 
         # double check that the files actually exist
@@ -99,6 +103,8 @@ def get_file_names(masterdir, session, experiment, date, mouse):
             raise exceptions.OSError('%s does not exist' %(stim_sync_file))
         if not os.path.isfile(corrected_data):
             raise exceptions.OSError('%s does not exist' %(corrected_data))
+        if not os.path.isfile(roi_trace_data):
+            raise exceptions.OSError('%s does not exist' %(roi_trace_data))
         #if not os.path.isfile(zstack): ADD THIS BACK LATER...
         #    raise exceptions.OSError('%s does not exist' %(zstack))
 
@@ -107,4 +113,4 @@ def get_file_names(masterdir, session, experiment, date, mouse):
     else:
         raise exceptions.UserWarning('%s does not conform to expected AIBS structure')
 
-    return (experimentdir, stim_pkl_file, stim_sync_file, align_pkl_file, corrected_data, zstack)
+    return (experimentdir, processeddir, stim_pkl_file, stim_sync_file, align_pkl_file, corrected_data, roi_trace_data, zstack)
