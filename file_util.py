@@ -34,7 +34,7 @@ def check_datadir(datadir):
 
     # check that the directory exists
     if not os.path.isdir(datadir):
-        raise exceptions.OSError('%s either does not exist or is not a directory', datadir)
+        raise exceptions.OSError('{} either does not exist or is not a directory'.format(datadir))
     else:
         dirokay = True
 
@@ -79,32 +79,32 @@ def get_file_names(masterdir, session, experiment, date, mouse):
     '''
     
     # get the name of the session and experiment data directories
-    sessiondir    = os.path.join(masterdir, 'ophys_session_' + session)
-    experimentdir = os.path.join(sessiondir, 'ophys_experiment_' + experiment)
+    sessiondir    = os.path.join(masterdir, 'ophys_session_{}'.format(session))
+    experimentdir = os.path.join(sessiondir, 'ophys_experiment_{}'.format(experiment))
 
     # check the directory 
     if check_datadir(sessiondir):
 
         # set the file names
-        stim_pkl_file  = os.path.join(sessiondir, session + "_" + mouse + "_" + date + '_stim.pkl')
-        stim_sync_file = os.path.join(sessiondir, session + "_" + mouse + "_" + date + '_sync.h5')
-        align_pkl_file = os.path.join(sessiondir, session + "_" + mouse + "_" + date + '_df.pkl')
+        stim_pkl_file  = os.path.join(sessiondir, '{}_{}_{}_stim.pkl'.format(session, mouse, date))
+        stim_sync_file = os.path.join(sessiondir, '{}_{}_{}_sync.h5'.format(session, mouse, date))
+        align_pkl_file = os.path.join(sessiondir, '{}_{}_{}_df.pkl'.format(session, mouse, date))
         corrected_data = os.path.join(experimentdir, 'processed', 'concat_31Hz_0.h5')
-        zstack         = os.path.join(sessiondir, session + '_zstack_column.h5')
+        zstack         = os.path.join(sessiondir, '{}_zstack_column.h5'.format(session))
 
         # double check that the files actually exist
         if not os.path.isfile(stim_pkl_file):
-            raise exceptions.OSError('%s does not exist' %(stim_pkl_file))
+            raise exceptions.OSError('{} does not exist'.format(stim_pkl_file))
         if not os.path.isfile(stim_sync_file):
-            raise exceptions.OSError('%s does not exist' %(stim_sync_file))
-        if not os.path.isfile(corrected_data):
-            raise exceptions.OSError('%s does not exist' %(corrected_data))
+            raise exceptions.OSError('{} does not exist'.format(stim_sync_file))
+        #if not os.path.isfile(corrected_data): ADD THIS BACK LATER...
+        #    raise exceptions.OSError('{} does not exist'.format(corrected_data))
         #if not os.path.isfile(zstack): ADD THIS BACK LATER...
         #    raise exceptions.OSError('%s does not exist' %(zstack))
 
         # TO-DO: ADD OTHER KEY FILES
 
     else:
-        raise exceptions.UserWarning('%s does not conform to expected AIBS structure')
+        raise exceptions.UserWarning('{} does not conform to expected AIBS structure'.format(sessiondir))
 
     return (experimentdir, stim_pkl_file, stim_sync_file, align_pkl_file, corrected_data, zstack)
