@@ -316,32 +316,33 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
     stim_df.ix[zz, 'num_frames'] = stimulus_alignment[offset] - stimulus_alignment[0]
     zz += 1
 
-    for stype in range(num_stimtypes):
-        print('stimtype:', stype)
-        movie_segs = pkl['stimuli'][stype]['frame_list']
+    for stype_n in range(num_stimtypes):
+        print('stimtype:', stim_types[stype_n])
+        movie_segs = pkl['stimuli'][stype_n]['frame_list']
 
         tf = 0
-        for segment in range(segs[stype]):
+        for segment in range(segs[stype_n]):
             seg_inds = np.where(movie_segs == segment)[0]
             tup = (segment, int(stimulus_alignment[seg_inds[0] + offset]), \
                    int(stimulus_alignment[seg_inds[-1] + 1 + offset]))
 
-            stim_df.ix[zz, 'stimType'] = stype
+            stim_df.ix[zz, 'stimType'] = stim_types[stype_n]
             stim_df.ix[zz, 'stimSeg'] = segment
             stim_df.ix[zz, 'start_frame'] = tup[1]
             stim_df.ix[zz, 'end_frame'] = tup[2]
             stim_df.ix[zz, 'num_frames'] = tup[2] - tup[1]
 
-            if stim_types[stype] == 'b':
-                stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][0]['stimParams']['subj_params']['flipdirecarray'][segment][1] #big or small
-                stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][0]['stimParams']['subj_params']['flipdirecarray'][segment][3] #L or R
-                stim_df.ix[zz, 'surp'] = pkl['stimuli'][0]['stimParams']['subj_params']['flipdirecarray'][segment][0] #SURP
+            if stim_types[stype_n] == 'b':
+
+                stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['flipdirecarray'][segment][1] #big or small
+                stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['flipdirecarray'][segment][3] #L or R
+                stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['flipdirecarray'][segment][0] #SURP
                 stim_df.ix[zz, 'GABORFRAME'] = -1
             
-            if stim_types[stype] == 'g':
-                stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][1]['stimParams']['subj_params']['oriparsurps'][int(np.floor(segment/4))][0] #angle
-                stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][1]['stimParams']['subj_params']['oriparsurps'][int(np.floor(segment/4))][1] #angular var
-                stim_df.ix[zz, 'surp'] = pkl['stimuli'][1]['stimParams']['subj_params']['oriparsurps'][int(np.floor(segment/4))][2] #SURP
+            if stim_types[stype_n] == 'g':
+                stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['oriparsurps'][int(np.floor(segment/4))][0] #angle
+                stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['oriparsurps'][int(np.floor(segment/4))][1] #angular var
+                stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['oriparsurps'][int(np.floor(segment/4))][2] #SURP
                 stim_df.ix[zz, 'GABORFRAME'] = np.mod(tf,4)
 
             zz += 1
