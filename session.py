@@ -424,7 +424,7 @@ class Stim(object):
                         'from the {}. block were pushed to the next sequence.'
                         'These segments will be omitted from analysis. \n'.format(i+1, self.stim_type, rem_seg, n_bl))
             # get the actual length in segments of each block
-            self.block_len_seg = np.diff(self.block_ran_seg).squeeze().tolist()
+            self.block_len_seg = np.diff(self.block_ran_seg).squeeze(2).tolist()
 
 
     #####################################
@@ -450,7 +450,7 @@ class Stim(object):
             self.block_ran_fr.append(temp)
         
         # get the length in frames of each block (flanking grayscreens are omitted in these numbers)
-        self.block_len_fr = np.diff(self.block_ran_fr).squeeze().tolist()
+        self.block_len_fr = np.diff(self.block_ran_fr).squeeze(2).tolist()
 
     ####################################
     def get_n_frames_per_seg(self, segs):
@@ -779,6 +779,34 @@ class Stim(object):
 
         return surp_frames, nosurp_frames
     
+    def get_run(self, by='block'):
+        """
+        Returns run values for stimulus blocks.
+
+        Optional argument:
+            by (default: 'block'): determines whether segments are returned in a flat list ('seg'),
+                                  grouped by block ('block'), or further grouped by display sequence ('disp')
+        
+        Output:
+            run (list): list of running values for stimulus blocks
+        """
+        
+        if not hasattr(self.sess, 'run'):
+            self.sess.load_run()
+        run = []
+        for i in self.block_ran_fr:
+            temp = []
+            for j in i:
+                temp.append(self.sess.run[j[0]: j[1]].tolist())
+            run.append(temp)
+
+        # if not returning by disp
+        if by == 'block' or by == 'frame':
+            run = [x for sub in run for x in sub]
+            if by == 'frame':
+                run = [x for sub in run for x in sub]
+    
+        return run
     
 class Gabors(Stim):
     """
