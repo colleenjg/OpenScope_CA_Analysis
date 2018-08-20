@@ -193,8 +193,7 @@ class Session(object):
             else:
                 print('{} stimulus type not recognized. No Stim object created for this stimulus. \n'.format(stim_type))
         # initialize a Grayscr object
-        # for when the grayscreen appears outside of Gabors or Bricks display times ('interstim')
-        #self.grayscr = Grayscr(self.stim_dict, 'interstim')
+        self.grayscr = Grayscr(self)
 
     #############################################
     def load_roi_traces(self):
@@ -240,7 +239,7 @@ class Session(object):
             raise UserWarning("Some of the specified frames are out of range")
 
         # perform linear interpolation on the running speed
-        speed = np.interp(frames, self.stim_align, self.run_array)
+        speed = np.interp(frames, self.stim_align, self.run)
 
         return speed
 
@@ -450,9 +449,35 @@ class Stim(object):
                 temp.append([min_ind, max_ind])
             self.block_ran_fr.append(temp)
         
-        # get the length in frames of each block
+        # get the length in frames of each block (flanking grayscreens are omitted in these numbers)
         self.block_len_fr = np.diff(self.block_ran_fr).squeeze().tolist()
 
+    ####################################
+    def get_n_frames_per_seg(self, segs):
+        """
+        get_n_frames_per_seg()
+
+        Returns a list with the number of frames for each seg passed.    
+
+        Argument:
+            segs (list): list of segments
+
+        Output:
+            n_frames (list): list of number of frames in each segment
+        """
+
+        if not isinstance(segs , list):
+            segs = [segs]
+        
+        # segs are in increasing order in dataframe and n_frames will be returned in that order
+        # so get indices for sorting in this order, to resort at the end
+
+
+        n_frames = self.sess.align_df.loc[(self.sess.align_df['stimType']==self.stim_type[0]) &
+                                          (self.sess.align_df['stimSeg'].isin(segs))]['num_frames'].tolist()
+        
+        # resort based on segs, as n_frames will be ordered in increasing segments
+        return [x for _, x in sorted(zip(segs, n_frames))]
 
     ####################################
     def get_segs_by_criteria(self, stimPar1='any', stimPar2='any', surp='any', 
@@ -485,26 +510,26 @@ class Stim(object):
 
         if stimPar1 == 'any':
             stimPar1 = self.sess.align_df['stimPar1'].unique().tolist()
-        elif not isinstance(stimPar1, (list,)):
+        elif not isinstance(stimPar1, list):
             stimPar1 = [stimPar1]
         if stimPar2 == 'any':
             stimPar2 = self.sess.align_df['stimPar2'].unique().tolist()
-        elif not isinstance(stimPar2, (list,)):
+        elif not isinstance(stimPar2, list):
             stimPar2 = [stimPar2]
         if surp == 'any':
             surp = self.sess.align_df['surp'].unique().tolist()
-        elif not isinstance(surp, (list,)):
+        elif not isinstance(surp, list):
             surp = [surp]
         if stimSeg == 'any':
             stimSeg = self.sess.align_df['stimSeg'].unique().tolist()
             # here, ensure that non seg is removed
             if -1 in stimSeg:
                 stimSeg.remove(-1)
-        elif not isinstance(stimSeg, (list,)):
+        elif not isinstance(stimSeg, list):
             stimSeg = [stimSeg]
         if gaborframe == 'any':
             gaborframe = self.sess.align_df['GABORFRAME'].unique().tolist()
-        elif not isinstance(gaborframe, (list,)):
+        elif not isinstance(gaborframe, list):
             gaborframe = [gaborframe]
         if start_frame == 'any':
             start_frame_min = int(self.sess.align_df['start_frame'].min())
@@ -553,7 +578,7 @@ class Stim(object):
         if len(segs) == 0:
              raise ValueError('No segments fit these criteria.')
 
-        # if not returning by blocks
+        # if not returning by disp
         if by == 'block' or by == 'seg':
             segs = [x for sub in segs for x in sub]
             if by == 'seg':
@@ -570,6 +595,7 @@ class Stim(object):
 
         Returns a list of stimulus frames that have the specified values in specified columns in 
         the alignment dataframe.    
+        Note: grayscreen frames are NOT returned
 
         Optional arguments:
             stimPar1 (int or list)      : stimPar1 value(s) of interest (256, 128, 45, 90)
@@ -588,32 +614,32 @@ class Stim(object):
             first_fr (default: True)    : if True, only returns the first frame of each segment
             remconsec (default: False)  : if True, consecutive segments are removed within a block
             by (default: 'block')       : determines whether segments are returned in a flat list ('frame'),
-                                        grouped by block ('block'), or further grouped by display sequence ('disp')
+                                          grouped by block ('block'), or further grouped by display sequence ('disp')
         """
 
 
         if stimPar1 == 'any':
             stimPar1 = self.sess.align_df['stimPar1'].unique().tolist()
-        elif not isinstance(stimPar1, (list,)):
+        elif not isinstance(stimPar1, list):
             stimPar1 = [stimPar1]
         if stimPar2 == 'any':
             stimPar2 = self.sess.align_df['stimPar2'].unique().tolist()
-        elif not isinstance(stimPar2, (list,)):
+        elif not isinstance(stimPar2, list):
             stimPar2 = [stimPar2]
         if surp == 'any':
             surp = self.sess.align_df['surp'].unique().tolist()
-        elif not isinstance(surp, (list,)):
+        elif not isinstance(surp, list):
             surp = [surp]
         if stimSeg == 'any':
             stimSeg = self.sess.align_df['stimSeg'].unique().tolist()
             # here, ensure that non seg is removed
             if -1 in stimSeg:
                 stimSeg.remove(-1)
-        elif not isinstance(stimSeg, (list,)):
+        elif not isinstance(stimSeg, list):
             stimSeg = [stimSeg]
         if gaborframe == 'any':
             gaborframe = self.sess.align_df['GABORFRAME'].unique().tolist()
-        elif not isinstance(gaborframe, (list,)):
+        elif not isinstance(gaborframe, list):
             gaborframe = [gaborframe]
         if start_frame == 'any':
             start_frame_min = int(self.sess.align_df['start_frame'].min())
@@ -667,7 +693,7 @@ class Stim(object):
         if len(frames) == 0:
              raise ValueError('No segments fit these criteria.')
 
-        # if not returning by blocks
+        # if not returning by disp
         if by == 'block' or by == 'frame':
             frames = [x for sub in frames for x in sub]
             if by == 'frame':
@@ -889,57 +915,169 @@ class Bricks(Stim):
         return right_frames, left_frames
         
 
-# class Grayscr(Stim):
-#     """Inherits from Stim class.
-#     Deals with information related to sequences where the screen is gray.
-#     """
+class Grayscr():
+    """
+    Class to retrieve frame number information for grayscreen frames within Gabor stimuli
+    or outside of Gabor stimuli.
+    """
+
     
-#     def __init__(self, sess):
-#         self.stim_type = 'grayscr'
+    def __init__(self, sess):
         
-#         Stim.__init__(self, sess, None)
-#         self.min_s = 60 # hard coding a minimum secto allow short grayscr to be excluded
-#         self._get_frames()
-#         self._get_running()
+        self.sess = sess
+        if hasattr(self.sess, 'gabors'):
+            self.gabors = True
         
-#     def _get_frames(self):
-#         all_stim_frames = []
-#         for i in range(self.sess.n_stims): 
-#             stim_frames = self.sess.stim_dict['stimuli'][i]['frame_list'].tolist()
-#             stim_frames = int(self.sess.pre_blank*self.sess.stim_fps)*[-1] + stim_frames + int((self.sess.tot_frames - \
-#                           len(stim_frames) + self.sess.post_blank*self.sess.stim_fps))*[-1]   
-#             all_stim_frames.append(np.asarray(stim_frames))
-#         all_stim_frames = np.asarray(all_stim_frames)
-#         all_frames_sum = np.sum(all_stim_frames, axis=0, dtype=int)
+    def get_all_nongab_frames(self):
+        """
+        Returns a lists of grayscreen frames, excluding grayscreen frames occurring duriing gabor 
+        stimulus blocks. Note that any grayscreen frames flanking gabor stimulus blocks are included in the
+        returned list.
         
-#         # get the start-end of grayscr
-#         pos = 0
-#         self.frame_n_all = []
-#         self.n_frames_all = []
-#         self.frame_n_excl = []
-#         self.n_frames_excl = []
-#         for i in range(len(all_frames_sum)):
-#             if pos == 0 and all_frames_sum[i] == -1*self.sess.n_stims:
-#                 start = i
-#                 pos = 1
-#             elif pos == 1 and all_frames_sum[i] != -1*self.sess.n_stims:
-#                 pos = 0
-#                 self.frame_n_all.append([start, i])
-#                 self.n_frames_all.extend([i-start])
-#                 if (i-start) > self.min_s:
-#                     self.frame_n_excl.append([start, i])
-#                     self.n_frames_excl.extend([i-start])
-#         if pos == 0:
-#             self.frame_n_all.append([start, i+1])
-#             self.n_frames_all.extend([i+1-start])
-#             if (i+1-start) > self.min_s:
-#                     self.frame_n_excl.append([start, i+1])
-#                     self.n_frames_excl.extend([i+1-start])
+        Outputs:
+            grays (list) : list of grayscreen frames.
+        """
+
+        frames = []
+        if self.gabors:
+            frames_gab = np.asarray(self.sess.gabors.frame_list)
+            gab_blocks = self.sess.gabors.block_ran_fr
+            for i in gab_blocks:
+                for j in i:
+                    frames_gab[j[0]:j[1]] = 0
+            frames.append(frames_gab)
+        if hasattr(self.sess, 'bricks'):
+            frames.append(np.asarray(self.sess.bricks.frame_list))
+        length = len(frames)
+        if length == 0:
+            raise ValueError('No frame lists were found for either stimulus types (gabors, bricks.')
+        elif length == 1:
+            frames_sum = np.asarray(frames)
+        else:
+            frames_sum = np.sum(np.asarray(frames), axis=0)
+        grays = np.where(frames_sum==length*-1)[0].tolist()
+
+        if length(grays) == 0:
+            raise ValueError('No grayscreen frames were found outside of gabor stimulus sequences.')
+
+        return grays
+
+    def get_first_nongab_frames(self):
+        """
+        Returns two lists of equal length:
+        - First grayscreen frames for every grayscreen sequence, excluding those 
+          occurring during gabor stimulus blocks. Note that any first grayscreen frames flanking gabor stimulus 
+          blocks are included in the returned list.
+        - Number of consecutive grayscreen frames for each sequence.
+        
+        Outputs:
+            first_grays (list) : list of first grayscreen frames for every grayscreen sequence
+            n_grays (list)     : list of number of grayscreen frames for every grayscreen sequence
+        """
+
+        grays_all = self.get_all_nongab_frames()
+        first_grays = []
+        n_grays = []
+        k=0
+
+        for i, val in enumerate(grays_all):
+            if i == 0:
+                first_grays.extend([val])
+                k=1
+            elif val != grays_all[i-1]+1:
+                n_grays.extend([k])
+                first_grays.extend([val])
+                k = 1
+            else:
+                k +=1
+        n_grays.extend([k])
+
+        return first_grays, n_grays
+
+    def get_all_gab_frames(self, by='block'):
+        """
+        Returns a list of grayscreen frames for every grayscreen sequence during a gabor block, 
+          excluding flanking grayscreen sequences.
     
-#     def _get_running(self):
-#         self.run_all = [] # includes segments within stimuli (e.g., gabors)
-#         self.run_excl = []
-#         for i in range(len(self.frame_n_all)):
-#             self.run_all.extend([self.sess.run_array[self.frame_n_all[i][0]:self.frame_n_all[i][1]]])
-#             if (self.n_frames_all[i]) > self.min_s:
-#                 self.run_excl.extend([self.sess.run_array[self.frame_n_all[i][0]:self.frame_n_all[i][1]]])
+        Optional argument:
+            by (default: 'block'): determines whether frames are returned in a flat list ('frame'),
+                                   grouped by block ('block'), or further grouped by display sequence ('disp')
+        
+        Outputs:
+            gab_grays (list) : list of grayscreen frames for every grayscreen sequence during gabors
+        """
+        
+        if self.gabors:
+            frames_gab = np.asarray(self.sess.gabors.frame_list) # make copy!!!
+            gab_blocks = self.sess.gabors.block_ran_fr
+            gab_grays = []
+            for i in gab_blocks:
+                temp = []
+                for j in i:
+                    grays = np.where(frames_gab[j[0]:j[1]]==-1)[0] + j[0]
+                    temp.append(grays.tolist())
+                gab_grays.append(temp)
+
+            # if not returning by disp
+            if by == 'block' or by == 'frame':
+                gab_grays = [x for sub in gab_grays for x in sub]
+                if by == 'seg':
+                    gab_grays = [x for sub in gab_grays for x in sub]
+            
+            return gab_grays
+        else:
+            raise IOError('Session does not have a gabors attribute. Be sure to extract stim info \
+                           and check that session contains a gabor stimulus.')
+    
+    def get_first_gab_frames(self, by='block'):
+        """
+        Returns two lists of equal length:
+        - First grayscreen frames for every grayscreen sequence during a gabor block, 
+          excluding flanking grayscreen sequences.
+        - Number of consecutive grayscreen frames for each sequence.
+
+        Optional argument:
+            by (default: 'block'): determines whether frames numbers and number of frames are returned in a flat list ('frame'),
+                                   grouped by block ('block'), or further grouped by display sequence ('disp')
+        
+        Outputs:
+            first_gab_grays (list) : list of first grayscreen frames for every grayscreen sequence during gabors
+            n_gab_grays (list)     : list of number of grayscreen frames for every grayscreen sequence during gabors
+        """
+
+        grays_gab = self.get_all_gab_frames(by='disp')
+        first_gab_grays = []
+        n_gab_grays = []
+
+        for i in grays_gab:
+            temp_first = []
+            temp_n = []
+            k=0
+            for j in i:
+                temp2_first = []
+                temp2_n = []
+                for l, val in enumerate(j): 
+                    if l == 0:
+                        temp2_first.extend([val])
+                        k = 1
+                    elif val != j[l-1]+1:
+                        temp2_n.extend([k])
+                        temp2_first.extend([val])
+                        k = 1
+                    else:
+                        k += 1
+                temp2_n.extend([k])
+                temp_first.append(temp2_first)
+                temp_n.append(temp2_n)
+            first_gab_grays.append(temp_first)
+            n_gab_grays.append(temp_n)
+
+        # if not returning by disp
+        if by == 'block' or by == 'frame':
+            first_gab_grays = [x for sub in first_gab_grays for x in sub]
+            n_gab_grays     = [x for sub in n_gab_grays for x in sub]
+            if by == 'frame':
+                first_gab_grays = [x for sub in first_gab_grays for x in sub]
+                n_gab_grays     = [x for sub in n_gab_grays for x in sub]
+
+        return first_gab_grays, n_gab_grays
