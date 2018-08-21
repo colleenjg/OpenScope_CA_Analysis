@@ -996,7 +996,7 @@ class Stim(object):
 
         # remove negatives or values above total number of stim frames
         neg_ind = np.where(np.asarray(zip(*fr_ind)[0])<0)[0].tolist()
-        over_ind = np.where(np.asarray(zip(*fr_ind)[1])>=stim.sess.tot_frames)[0].tolist()
+        over_ind = np.where(np.asarray(zip(*fr_ind)[1])>=self.sess.tot_frames)[0].tolist()
         k=0
         for i, ind in enumerate(neg_ind):
             fr_ind.pop(ind-i) # compensates for previously popped indices
