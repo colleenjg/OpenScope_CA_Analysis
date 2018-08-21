@@ -994,6 +994,16 @@ class Stim(object):
         fr_ind = zip([x + int(ran_fr[0]) for x in frame_ref], 
                      [x + int(ran_fr[1]) for x in frame_ref])
 
+        # remove negatives or values above total number of stim frames
+        neg_ind = np.where(np.asarray(zip(*fr_ind)[0])<0)[0].tolist()
+        over_ind = np.where(np.asarray(zip(*fr_ind)[1])>=stim.sess.tot_frames)[0].tolist()
+        k=0
+        for i, ind in enumerate(neg_ind):
+            fr_ind.pop(ind-i) # compensates for previously popped indices
+            k=i+1
+        for i, ind in enumerate(over_ind):
+            fr_ind.pop(ind-k-i) # compensates for previously popped indices
+
         temp = [self.sess.run[x[0]:x[1]] for x in fr_ind]
         if rand:
             temp2 = np.asarray(temp)
