@@ -1123,6 +1123,9 @@ class Stim(object):
 
         x_ran_av = np.linspace(ran_s[0], ran_s[1], np.diff(ran_fr)[0])
 
+        if isinstance(frame_ref[0], list):
+            raise IOError('Frames must be passed as a 1D list, not by block.')
+
         # get corresponding running subblocks and stats
         fr_ind = zip([x + int(ran_fr[0]) for x in frame_ref], 
                      [x + int(ran_fr[1]) for x in frame_ref])
