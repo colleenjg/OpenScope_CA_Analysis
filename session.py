@@ -15,6 +15,7 @@ import os
 import glob
 import exceptions
 import warnings
+import pdb
 
 import numpy as np
 import pickle
@@ -25,6 +26,7 @@ import scipy.stats as st
 import file_util
 import sync_util
 
+###############################################################################################
 class Session(object):
     """
     The Session object is the top-level object for analyzing a session from the 
@@ -108,9 +110,9 @@ class Session(object):
             self.date, self.mouse)       
     
     #############################################
-    def load_stim_dict(self):
+    def _load_stim_dict(self):
         """
-        load_stim_dict()
+        _load_stim_dict()
 
         Loads the stimulus dictionary from the stimulus pickle file and store a 
         few variables for easy access.
@@ -138,14 +140,14 @@ class Session(object):
                   .format(self.n_drop_frames, self.tot_frames))
         
     #############################################
-    def load_sync_h5(self):
+    def _load_sync_h5(self):
         raise NotImplementedError(('Loading h5 sync file of a session has '
                                   'not been implemented yet.'))
     
     #############################################
-    def load_align_df(self):
+    def _load_align_df(self):
         """
-        load_align_df()
+        _load_align_df()
 
         Loads the alignment dataframe object and stores it in the Session. 
         Note: this will also create a pickle file with the alignment data 
@@ -171,56 +173,20 @@ class Session(object):
     
     #############################################
     # load running speed array as an attribute
-    def load_run(self):
+    def _load_run(self):
         """
-        load_run()
+        _load_run()
 
         Loads the running wheel data into the session object.
         """
 
         # running speed per stimulus frame in cm/s
         self.run = sync_util.get_run_speed(self.stim_pkl)
-    
-    #############################################
-    # load additional info as attributes
-    def extract_stim_info(self):
-        """
-        extract_stim_info()
-
-        Runs load_align_df(), load_stim_dict() if this has not been done yet.
-        Then, initializes Stim objects (Gabors, Bricks, Grayscr) from the 
-        stimulus dictionary. 
-        """
-
-        # load the stimulus, running, alignment information 
-        if not hasattr(self, 'stim_dict'):
-            self.load_stim_dict()
-        if not hasattr(self, 'align_df'):
-            self.load_align_df()
-        
-        self.stim_types = []
-        self.n_stims    = len(self.stim_dict['stimuli'])
-        self.stims      = []
-        for i in range(self.n_stims):
-            stim      = self.stim_dict['stimuli'][i]
-            stim_type = stim['stimParams']['elemParams']['name']
-            self.stim_types.extend([stim_type])
-            # initialize a Gabors object
-            if stim_type == 'gabors':
-                self.gabors = Gabors(self, i)
-            # initialize a Bricks object
-            elif stim_type == 'bricks':
-                self.bricks = Bricks(self, i)
-            else:
-                print(('{} stimulus type not recognized. No Stim object ' 
-                      'created for this stimulus. \n').format(stim_type))
-        # initialize a Grayscr object
-        self.grayscr = Grayscr(self)
 
     #############################################
-    def load_roi_traces(self):
+    def _load_roi_traces(self):
         """
-        load_roi_traces()
+        _load_roi_traces()
 
         Loads some basic information about ROI dF/F traces. This includes
         the number of ROIs, their names, and the number of data points in the 
@@ -242,6 +208,53 @@ class Session(object):
         except:
             raise exceptions.IOError('Could not open {} for reading'
                                      .format(self.roi_traces))
+    
+    #############################################
+    def extract_info(self):
+        """
+        extract_info()
+
+        Runs _load_align_df(), _load_stim_dict(), _load_run(), and
+        _load_roi_traces(), if these have not been done yet. Then, 
+        initializes Stim objects (Gabors, Bricks, Grayscr) from the 
+        stimulus dictionary. This function should be run immediately
+        after creating a Session object. 
+        """
+
+        # load the stimulus, running, alignment and trace information 
+        if not hasattr(self, 'stim_dict'):
+            print("Loading stimulus dictionary...")
+            self._load_stim_dict()
+        if not hasattr(self, 'align_df'):
+            print("Loading alignment dataframe...")
+            self._load_align_df()
+        if not hasattr(self, 'run'):
+            print("Loading running data...")
+            self._load_run()
+        if not hasattr(self, 'roi_names'):
+            print("Loading ROI trace info...")
+            self._load_roi_traces()
+        # TODO: include load of h5 sync
+        
+        # create the stimulus fields and objects
+        self.stim_types = []
+        self.n_stims    = len(self.stim_dict['stimuli'])
+        self.stims      = []
+        for i in range(self.n_stims):
+            stim      = self.stim_dict['stimuli'][i]
+            stim_type = stim['stimParams']['elemParams']['name']
+            self.stim_types.extend([stim_type])
+            # initialize a Gabors object
+            if stim_type == 'gabors':
+                self.gabors = Gabors(self, i)
+            # initialize a Bricks object
+            elif stim_type == 'bricks':
+                self.bricks = Bricks(self, i)
+            else:
+                print(('{} stimulus type not recognized. No Stim object ' 
+                      'created for this stimulus. \n').format(stim_type))
+        # initialize a Grayscr object
+        self.grayscr = Grayscr(self)
 
     #############################################
     def get_run_speed(self, frames):
@@ -270,7 +283,7 @@ class Session(object):
     #############################################
     def get_roi_traces(self, frames, rois='all'):
         """
-        get_roi_traces(frames)
+        get_roi_traces(frames, rois='all')
 
         Returns the processed ROI dF/F traces for the given two-photon imaging
         frames and specified ROIs.
@@ -319,6 +332,126 @@ class Session(object):
 
         return traces
  
+
+    #############################################
+    def get_roi_segments(self, segframes, rois='all', padding=(0,0)):
+        """
+        get_roi_segments(segframes, rois='all', padding=(0,0))
+
+        Returns the processed ROI dF/F traces for the given stimulus segments.
+        Frames around the start and end of the segments can be requested by setting
+        the padding argument.
+
+        NOTE 1: the traces are baselined by setting the response at the start
+        of the segment to 0
+        NOTE 2: if the segments are different lengths the array is nan padded
+
+        Required arguments:
+            - segframes (list of arrays): list of arrays of 2p frames for a set of
+                                          segments to give ROI dF/F for, if any frames
+                                          are out of range then NaNs returned
+
+        Optional arguments:
+            - rois (int array): set of ROIs to return traces for, if string 
+                                'all' is provided then all ROIs are returned, 
+                                if an ROI that doesn't exist is requested then 
+                                NaNs returned for that ROI
+                                default = 'all'
+            - padding (2-tuple of ints): number of additional 2p frames to include
+                                         from start and end of segments
+        Returns:
+            - traces (float array): array of dF/F for the specified segments/ROIs with
+                                    3 axis (time, rois, segments)
+        """
+        
+        # make sure the rois are all legit
+        if rois is 'all':
+            rois = np.arange(self.nroi)
+        else:
+            if any(rois >= self.nroi) or any(rois < 0):
+                rois[rois >= self.nframes] = -1
+                rois[rois < 0] = -1
+                raise UserWarning(('Some of the specified ROIs do not exist, '
+                                  'NaNs will be returned'))
+
+        # determine the max segment length
+        maxsegl = max([len(s) for s in segframes])
+
+        # initialize the return array
+        traces = np.zeros((maxsegl+sum(padding), len(rois), len(segframes))) + np.nan
+
+        # initialize a temporary array for baselining
+        temparray = np.zeros((maxsegl+sum(padding),)) + np.nan
+       
+        # print a message 
+        print("Loading 2p frames for {} ROIs and {} stimulus segments...".format(len(rois),len(segframes)))
+        
+        # get the frames from each segment and roi
+        for i,roi in enumerate(rois):
+            for j,seg in enumerate(segframes):
+       
+                # print a message 
+                print("Loading segment {} for ROI {}...".format(j,roi))
+
+                # get the frames for this segment with padding
+                frames = np.concatenate((np.arange(seg[0]-padding[0],seg[0]),
+                                         seg,np.arange(seg[-1]+1,seg[-1]+1+padding[1]))) 
+
+                # make sure the frames are all legit
+                if any(frames >= self.nframes) or any(frames < 0):
+                    raise UserWarning("Some of the specified frames with padding are out of range")
+            
+                # read the data points into the a temporary array
+                with h5py.File(self.roi_traces,'r') as f:
+                    if roi >= 0:
+                        try:
+                            temparray[:len(frames)] = f['data'].value[roi,frames]
+                        except:
+                            raise exceptions.IOError('Could not read ROI {}'
+                                                     .format(roi))
+                # baseline the data
+                temparray = temparray - temparray[padding[0]]
+
+                # place the data in the return array
+                try:
+                    traces[:,i,j] = temparray
+                except:
+                    pdb.set_trace()
+        return traces
+ 
+    #############################################
+    def get_2pframes_by_seg(self, seglist):
+        """
+        get_2pframes_by_seg(seglist)
+
+        Returns a list of arrays containing the 2-photon frames that correspond 
+        to a given set of stimulus segments provided in a list.
+
+        Required arguments:
+            - seglist (list of ints): the stimulus segments to get 2p frames for
+
+        Returns:
+            - frames (list of int arrays): a list (one entry per segment) of
+                                           arrays containing the 2p frame indices
+        """
+
+        # initialize the frames list
+        frames = []
+
+        # get the rows in the alignment dataframe that correspond to the segments
+        rows = self.align_df.loc[self.align_df['stimSeg'].isin(seglist)]
+
+        # get the start frames and end frames from each row
+        start_frames = rows['start_frame'].values
+        end_frames   = rows['end_frame'].values
+
+        # build arrays for each segment
+        for r in range(start_frames.shape[0]):
+            frames.append(np.arange(start_frames[r],end_frames[r]))
+
+        return frames
+
+###############################################################################################
 class Stim(object):
     """
     The Stim object is a higher level class for describing stimulus properties. 
@@ -1080,8 +1213,9 @@ class Stim(object):
                              '\'block\' or \'frame\'.'))
     
         return run
-    
+   
 
+###############################################################################################
 class Gabors(Stim):
     """
     The Gabors object inherits from the Stim object and describes gabor 
@@ -1161,6 +1295,7 @@ class Gabors(Stim):
     
 
     
+###############################################################################################
 class Bricks(Stim):
     """
     The Bricks object inherits from the Stim object and describes bricks 
