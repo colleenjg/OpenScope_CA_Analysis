@@ -298,11 +298,11 @@ class Session(object):
         """
         
         # make sure the frames are all legit
-        if any(frames >= self.nframes) or any(frames < 0):
+        if max(frames) >= self.nframes or min(frames) < 0:
             raise UserWarning("Some of the specified frames are out of range")
 
         # initialize the return array
-        traces = np.zeros((self.nroi,len(frames))) + np.nan
+        traces = np.empty((self.nroi,len(frames))) + np.nan
 
         # read the data points into the return array
         with h5py.File(self.roi_traces,'r') as f:
@@ -341,40 +341,74 @@ class Session(object):
             - traces (float array): array of dF/F for the specified segments/ROIs with
                                     3 axis (time, rois, segments)
         """
+        # extend values with padding
+        if padding[0] != 0:
+            min_fr = np.asarray([min(x) for x in segframes])
+            st_padd = np.tile(np.arange(-padding[0], 0), 
+                              (len(segframes), 1)) + min_fr[:,None]
+            segframes = [np.concatenate((st_padd[i], x)) 
+                         for i, x in enumerate(segframes)]
+        if padding[1] != 0:
+            max_fr = np.asarray([max(x) for x in segframes])
+            end_padd = np.tile(np.arange(1, padding[1]+1), 
+                               (len(segframes), 1)) + max_fr[:,None]
+            segframes = [np.concatenate((x, end_padd[i])) 
+                         for i, x in enumerate(segframes)]
+        if padding[0] < 0 or padding[1] < 0:
+            raise ValueError('Negative padding not supported.')
+
+        # get length of each padded segment
+        padded_segl = np.array([len(s) for s in segframes])
+
+        # flatten the segments into one list of frames, removing any segments
+        # with unacceptable frame values (< 0 or > self.nframes) 
+        frames_flat = np.empty([sum(padded_segl)])
+        last_ind = 0
+        seg_rem = []
+        seg_rem_l = []
+        for i in range(len(segframes)):
+            if max(segframes[i]) >= self.nframes or min(segframes[i]) < 0:
+                seg_rem.extend([i])
+                seg_rem_l.extend([padded_segl[i]])
+            else:
+                frames_flat[last_ind : last_ind + padded_segl[i]] = segframes[i]
+                last_ind += padded_segl[i]
+
+        # Warn about removed segments and update padded_segl and segframes to
+        # remove these segments
+        if len(seg_rem) != 0 :
+            print(('Some of the specified frames for segments {} are out of '
+                   'range so the segment will not be included.').format(seg_rem))
+            padded_segl = np.delete(padded_segl, seg_rem)
+            segframes = np.delete(segframes, seg_rem).tolist()
+
+        # sanity check that the list is as long as expected
+        if last_ind != len(frames_flat):
+            if last_ind != len(frames_flat) - sum(seg_rem_l):
+                raise ValueError(('Concatenated frame array is {} long instead '
+                                 'of expected {}.')
+                                 .format(last_ind, len(frames_flat - sum(seg_rem_l))))
+            else:
+                frames_flat = frames_flat[: last_ind]
+
+        # convert to int
+        frames_flat = frames_flat.astype(int)
+
+        # load the traces
+        try:
+            traces_flat = self.get_roi_traces(frames_flat.tolist())
+        except:
+            pdb.set_trace()
+
+        # chop back up into segments padded with Nans
+        traces = np.empty((self.nroi, max(padded_segl), len(segframes))) + np.nan
+        last_ind = 0
+        for i in range(len(segframes)):
+            traces[:, :padded_segl[i], i] = traces_flat[:, last_ind:last_ind+padded_segl[i]]
+            last_ind += padded_segl[i]
         
-        # determine the max segment length
-        maxsegl = max([len(s) for s in segframes])
-
-        # initialize the return array
-        traces = np.zeros((self.nroi, maxsegl+sum(padding), len(segframes))) + np.nan
-
-        # initialize a temporary array for baselining
-        temparray = np.zeros((self.nroi, maxsegl+sum(padding))) + np.nan
-       
-        # print a message 
-        print("Loading 2p frames for {} stimulus segments...".format(len(segframes)))
-        
-        # get the frames from each segment
-        for i,seg in enumerate(segframes):
-
-            # print a message 
-            print("Loading segment {}".format(i))
-
-            # get the frames for this segment with padding
-            frames = np.concatenate((np.arange(seg[0]-padding[0],seg[0]),
-                                                             seg,np.arange(seg[-1]+1,seg[-1]+1+padding[1]))) 
-
-            # make sure the frames are all legit
-            if any(frames >= self.nframes) or any(frames < 0):
-                raise UserWarning("Some of the specified frames with padding are out of range")
-
-            # load the traces
-            try:
-                traces[:,:len(frames),i] = self.get_roi_traces(frames)
-            except:
-                pdb.set_trace()
-
         return traces
+
  
     #############################################
     def get_2pframes_by_seg(self, seglist):
