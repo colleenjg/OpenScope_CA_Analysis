@@ -281,9 +281,9 @@ class Session(object):
         return speed
 
     #############################################
-    def get_roi_traces(self, frames, rois='all'):
+    def get_roi_traces(self, frames):
         """
-        get_roi_traces(frames, rois='all')
+        get_roi_traces(frames)
 
         Returns the processed ROI dF/F traces for the given two-photon imaging
         frames and specified ROIs.
@@ -293,12 +293,6 @@ class Session(object):
                                   if any frames are out of range then NaNs 
                                   returned
 
-        Optional arguments:
-            - rois (int array): set of ROIs to return traces for, if string 
-                                'all' is provided then all ROIs are returned, 
-                                if an ROI that doesn't exist is requested then 
-                                NaNs returned for that ROI
-                                default = 'all'
         Returns:
             - traces (float array): array of dF/F for the specified frames/ROIs
         """
@@ -307,36 +301,24 @@ class Session(object):
         if any(frames >= self.nframes) or any(frames < 0):
             raise UserWarning("Some of the specified frames are out of range")
 
-        # make sure the rois are all legit
-        if rois is 'all':
-            rois = np.arange(self.nroi)
-        else:
-            if any(rois >= self.nroi) or any(rois < 0):
-                rois[rois >= self.nframes] = -1
-                rois[rois < 0] = -1
-                raise UserWarning(('Some of the specified ROIs do not exist, '
-                                  'NaNs will be returned'))
-
         # initialize the return array
-        traces = np.zeros((len(rois),len(frames))) + np.nan
+        traces = np.zeros((self.nroi,len(frames))) + np.nan
 
         # read the data points into the return array
         with h5py.File(self.roi_traces,'r') as f:
-            for roi in rois:
-                if roi >= 0:
-                    try:
-                        traces[roi,:] = f['data'].value[roi,frames]
-                    except:
-                        raise exceptions.IOError('Could not read ROI number {}'
-                                                 .format(roi))
+            try:
+                traces = f['data'].value[:,frames]
+            except:
+                pdb.set_trace()
+                raise exceptions.IOError('Could not read {}'.format(self.roi_traces))
 
         return traces
  
 
     #############################################
-    def get_roi_segments(self, segframes, rois='all', padding=(0,0)):
+    def get_roi_segments(self, segframes, padding=(0,0)):
         """
-        get_roi_segments(segframes, rois='all', padding=(0,0))
+        get_roi_segments(segframes, padding=(0,0))
 
         Returns the processed ROI dF/F traces for the given stimulus segments.
         Frames around the start and end of the segments can be requested by setting
@@ -352,71 +334,46 @@ class Session(object):
                                           are out of range then NaNs returned
 
         Optional arguments:
-            - rois (int array): set of ROIs to return traces for, if string 
-                                'all' is provided then all ROIs are returned, 
-                                if an ROI that doesn't exist is requested then 
-                                NaNs returned for that ROI
-                                default = 'all'
             - padding (2-tuple of ints): number of additional 2p frames to include
                                          from start and end of segments
+        
         Returns:
             - traces (float array): array of dF/F for the specified segments/ROIs with
                                     3 axis (time, rois, segments)
         """
         
-        # make sure the rois are all legit
-        if rois is 'all':
-            rois = np.arange(self.nroi)
-        else:
-            if any(rois >= self.nroi) or any(rois < 0):
-                rois[rois >= self.nframes] = -1
-                rois[rois < 0] = -1
-                raise UserWarning(('Some of the specified ROIs do not exist, '
-                                  'NaNs will be returned'))
-
         # determine the max segment length
         maxsegl = max([len(s) for s in segframes])
 
         # initialize the return array
-        traces = np.zeros((maxsegl+sum(padding), len(rois), len(segframes))) + np.nan
+        traces = np.zeros((self.nroi, maxsegl+sum(padding), len(segframes))) + np.nan
 
         # initialize a temporary array for baselining
-        temparray = np.zeros((maxsegl+sum(padding),)) + np.nan
+        temparray = np.zeros((self.nroi, maxsegl+sum(padding))) + np.nan
        
         # print a message 
-        print("Loading 2p frames for {} ROIs and {} stimulus segments...".format(len(rois),len(segframes)))
+        print("Loading 2p frames for {} stimulus segments...".format(len(segframes)))
         
-        # get the frames from each segment and roi
-        for i,roi in enumerate(rois):
-            for j,seg in enumerate(segframes):
-       
-                # print a message 
-                print("Loading segment {} for ROI {}...".format(j,roi))
+        # get the frames from each segment
+        for i,seg in enumerate(segframes):
 
-                # get the frames for this segment with padding
-                frames = np.concatenate((np.arange(seg[0]-padding[0],seg[0]),
-                                         seg,np.arange(seg[-1]+1,seg[-1]+1+padding[1]))) 
+            # print a message 
+            print("Loading segment {}".format(i))
 
-                # make sure the frames are all legit
-                if any(frames >= self.nframes) or any(frames < 0):
-                    raise UserWarning("Some of the specified frames with padding are out of range")
-            
-                # read the data points into the a temporary array
-                with h5py.File(self.roi_traces,'r') as f:
-                    if roi >= 0:
-                        try:
-                            temparray[:len(frames)] = f['data'].value[roi,frames]
-                        except:
-                            raise exceptions.IOError('Could not read ROI {}'
-                                                     .format(roi))
-                # baseline the data
-                temparray = temparray - temparray[padding[0]]
+            # get the frames for this segment with padding
+            frames = np.concatenate((np.arange(seg[0]-padding[0],seg[0]),
+                                                             seg,np.arange(seg[-1]+1,seg[-1]+1+padding[1]))) 
 
-                # place the data in the return array
-                try:
-                    traces[:,i,j] = temparray
-                except:
-                    pdb.set_trace()
+            # make sure the frames are all legit
+            if any(frames >= self.nframes) or any(frames < 0):
+                raise UserWarning("Some of the specified frames with padding are out of range")
+
+            # load the traces
+            try:
+                traces[:,:len(frames),i] = self.get_roi_traces(frames)
+            except:
+                pdb.set_trace()
+
         return traces
  
     #############################################
