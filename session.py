@@ -339,12 +339,12 @@ class Session(object):
         
         Returns:
             - traces (float array): array of dF/F for the specified segments/ROIs with
-                                    3 axis (time, rois, segments)
+                                    3 axis (rois, time, segments)
         """
         # extend values with padding
         if padding[0] != 0:
-            min_fr = np.asarray([min(x) for x in segframes])
-            st_padd = np.tile(np.arange(-padding[0], 0), 
+            min_fr    = np.asarray([min(x) for x in segframes])
+            st_padd   = np.tile(np.arange(-padding[0], 0), 
                               (len(segframes), 1)) + min_fr[:,None]
             segframes = [np.concatenate((st_padd[i], x)) 
                          for i, x in enumerate(segframes)]
