@@ -291,7 +291,9 @@ class Session(object):
         Required arguments:
             - frames (int array): set of 2p imaging frames to give ROI dF/F for,
                                   if any frames are out of range then NaNs 
-                                  returned
+                                  returned. The order is not changed, so frames
+                                  within a sequence should already be properly 
+                                  sorted (likely ascending).
 
         Returns:
             - traces (float array): array of dF/F for the specified frames/ROIs
@@ -658,7 +660,7 @@ class Stim(object):
         """
         get_n_frames_per_seg()
 
-        Returns a list with the number of frames for each seg passed.    
+        Returns a list with the number of twop frames for each seg passed.    
 
         Required argument:
             - segs (list): list of segments
@@ -1071,12 +1073,12 @@ class Stim(object):
 
     #############################################
     def get_run_chunk_stats(self, frame_ref, pre, post, rand=False, 
-                            chunks=False):
+                            chunks=False, stats='mean'):
         """
         get_run_chunk_stats()
 
-        Returns stats (mean and average) for chunks of running centered around 
-        specific frames.
+        Returns stats (mean and average or median and quartiles) for chunks of 
+        running centered around specific frames.
 
         Required arguments:
             - frame_ref (list): 1D list of frames (e.g., all 1st Gabor A frames)
@@ -1089,30 +1091,34 @@ class Stim(object):
             - rand (bool)  : also return statistics for a random permutation of 
                              the running values
             - chunks (bool): also return frame chunks, not just statistics 
+            - stats (str)  : return mean and average ('mean') or median and
+                             25th and 75th quartiles ('median')
+                             default = 'mean'
          
         Outputs:
-            - x_ran_av (1D array)      : array of time values for the frame 
+            - x_ran (1D array)         : array of time values for the frame 
                                          chunks
-            - run_chunks_av (1D array) : array of running means across frame 
-                                         chunks
-            - run_chunks_std (1D array): array of running std across frame 
-                                         chunks
+            - run_chunks_me (1D array) : array of running means or medians 
+                                         across frame chunks
+            - run_chunks_de (1D array) : array of running std or list of 
+                                         quartile arrays across frame chunks
         
         Optional outputs (if rand/if chunks):
-            - run_chunks_av_rand (1D array) : array of means of randomized 
-                                              running across frame chunks
-            - run_chunks_std_rand (1D array): array of std of randomized 
-                                              running across frame chunks
+            - run_chunks_me_rand (1D array) : array of means or medians of 
+                                              randomized running across frame 
+                                              chunks
+            - run_chunks_de_rand (1D array) : array of std or list of quartile
+                                              arrays of randomized running 
+                                              across frame chunks
             - run_chunks (2D array)         : array of running across frame 
                                               chunks by chunk
             - run_chunks_rand (2D array)    : array of randomized running 
                                               across frame chunks by chunk
         """
 
-        ran_s = [-pre, post]
+        ran_s  = [-pre, post]
         ran_fr = [x*self.stim_fps for x in ran_s]
-
-        x_ran_av = np.linspace(ran_s[0], ran_s[1], np.diff(ran_fr)[0])
+        x_ran  = np.linspace(ran_s[0], ran_s[1], np.diff(ran_fr)[0])
 
         if isinstance(frame_ref[0], list):
             raise IOError('Frames must be passed as a 1D list, not by block.')
@@ -1153,22 +1159,31 @@ class Stim(object):
                     run_chunks_rand = run_chunks_rand[:i]
 
         # gather stats
-        run_chunks_av = np.mean(run_chunks, axis=0)
-        run_chunks_std = np.std(run_chunks, axis=0)
-        if rand:
-            run_chunks_rand_av = np.mean(run_chunks_rand, axis=0)
-            run_chunks_rand_std = np.std(run_chunks_rand, axis=0)
+        if stats == 'mean':
+            run_chunks_me = np.mean(run_chunks, axis=0)
+            run_chunks_de = np.std(run_chunks, axis=0)
+            if rand:
+                run_chunks_rand_me = np.mean(run_chunks_rand, axis=0)
+                run_chunks_rand_de = np.std(run_chunks_rand, axis=0)
+        elif stats == 'median':
+            run_chunks_me = np.median(run_chunks, axis=0)
+            run_chunks_de = [np.percentile(run_chunks, 25, axis=0),
+                            np.percentile(run_chunks, 75, axis=0)]
+            if rand:
+                run_chunks_rand_me = np.median(run_chunks_rand, axis=0)
+                run_chunks_rand_de = [np.percentile(run_chunks_rand, 25, axis=0),
+                                     np.percentile(run_chunks_rand, 75, axis=0)]
         
         if rand and chunks:
-            return (x_ran_av, run_chunks_av, run_chunks_std, run_chunks_rand_av, 
-                    run_chunks_rand_std, run_chunks, run_chunks_rand)
+            return (x_ran, run_chunks_me, run_chunks_de, run_chunks_rand_me, 
+                    run_chunks_rand_de, run_chunks, run_chunks_rand)
         elif rand:
-            return (x_ran_av, run_chunks_av, run_chunks_std, run_chunks_rand_av, 
-                   run_chunks_rand_std)
+            return (x_ran, run_chunks_me, run_chunks_de, run_chunks_rand_me, 
+                   run_chunks_rand_de)
         elif chunks:
-            return x_ran_av, run_chunks_av, run_chunks_std, run_chunks
+            return x_ran, run_chunks_me, run_chunks_de, run_chunks
         else:
-            return x_ran_av, run_chunks_av, run_chunks_std
+            return x_ran, run_chunks_me, run_chunks_de
 
 
     #############################################
