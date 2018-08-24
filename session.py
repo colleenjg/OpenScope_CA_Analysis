@@ -412,37 +412,6 @@ class Session(object):
         return traces
 
  
-    #############################################
-    def get_2pframes_by_seg(self, seglist):
-        """
-        get_2pframes_by_seg(seglist)
-
-        Returns a list of arrays containing the 2-photon frames that correspond 
-        to a given set of stimulus segments provided in a list.
-
-        Required arguments:
-            - seglist (list of ints): the stimulus segments to get 2p frames for
-
-        Returns:
-            - frames (list of int arrays): a list (one entry per segment) of
-                                           arrays containing the 2p frame indices
-        """
-
-        # initialize the frames list
-        frames = []
-
-        # get the rows in the alignment dataframe that correspond to the segments
-        rows = self.align_df.loc[self.align_df['stimSeg'].isin(seglist)]
-
-        # get the start frames and end frames from each row
-        start_frames = rows['start_frame'].values
-        end_frames   = rows['end_frame'].values
-
-        # build arrays for each segment
-        for r in range(start_frames.shape[0]):
-            frames.append(np.arange(start_frames[r],end_frames[r]))
-
-        return frames
 
 ###############################################################################################
 class Stim(object):
@@ -656,9 +625,9 @@ class Stim(object):
 
 
     #############################################
-    def get_n_frames_per_seg(self, segs):
+    def get_n_2pframes_per_seg(self, segs):
         """
-        get_n_frames_per_seg()
+        get_n_2pframes_per_seg()
 
         Returns a list with the number of twop frames for each seg passed.    
 
@@ -1222,6 +1191,41 @@ class Stim(object):
                              '\'block\' or \'frame\'.'))
     
         return run
+
+    
+    #############################################
+    def get_2pframes_by_seg(self, seglist):
+        """
+        get_2pframes_by_seg(seglist)
+
+        Returns a list of arrays containing the 2-photon frames that correspond 
+        to a given set of stimulus segments provided in a list for a specific
+        stimulus.
+
+        Required arguments:
+            - seglist (list of ints): the stimulus segments to get 2p frames for
+
+        Returns:
+            - frames (list of int arrays): a list (one entry per segment) of
+                                           arrays containing the 2p frame indices
+        """
+
+        # initialize the frames list
+        frames = []
+
+        # get the rows in the alignment dataframe that correspond to the segments
+        rows = self.sess.align_df.loc[(self.sess.align_df['stimType'] == self.stim_type[0]) &
+                                      (self.sess.align_df['stimSeg'].isin(seglist))]
+
+        # get the start frames and end frames from each row
+        start_frames = rows['start_frame'].values
+        end_frames   = rows['end_frame'].values
+
+        # build arrays for each segment
+        for r in range(start_frames.shape[0]):
+            frames.append(np.arange(start_frames[r],end_frames[r]))
+
+        return frames
    
 
 ###############################################################################################
