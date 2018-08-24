@@ -7,3 +7,4 @@
 *.txt
 *.ipynb
 .vscode/
+*cjg.py
