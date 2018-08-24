@@ -726,13 +726,13 @@ class Stim(object):
             gaborframe = [gaborframe]
         if start_frame == 'any':
             start_frame_min = int(self.sess.align_df['start_frame'].min())
-            start_frame_max = int(self.sess.align_df['start_frame'].max())
+            start_frame_max = int(self.sess.align_df['start_frame'].max()+1)
         if end_frame == 'any':
             end_frame_min = int(self.sess.align_df['end_frame'].min())
-            end_frame_max = int(self.sess.align_df['end_frame'].max())
+            end_frame_max = int(self.sess.align_df['end_frame'].max()+1)
         if num_frames == 'any':
             num_frames_min = int(self.sess.align_df['num_frames'].min())
-            num_frames_max = int(self.sess.align_df['num_frames'].max())
+            num_frames_max = int(self.sess.align_df['num_frames'].max()+1)
         
         segs = []
         for i in self.block_ran_seg:
@@ -821,7 +821,7 @@ class Stim(object):
             - first_fr (bool)             : if True, only returns the first 
                                             frame of each segment
                                             (default = True)
-            - remconsec (bool)            : if True, consecutive frames are 
+            - remconsec (bool)            : if True, consecutive segs are 
                                             removed within a block
                                             default = False
             - by (str)                    : determines whether frames are 
@@ -860,13 +860,13 @@ class Stim(object):
             gaborframe = [gaborframe]
         if start_frame == 'any':
             start_frame_min = int(self.sess.align_df['start_frame'].min())
-            start_frame_max = int(self.sess.align_df['start_frame'].max())
+            start_frame_max = int(self.sess.align_df['start_frame'].max()+1)
         if end_frame == 'any':
             end_frame_min = int(self.sess.align_df['end_frame'].min())
-            end_frame_max = int(self.sess.align_df['end_frame'].max())
+            end_frame_max = int(self.sess.align_df['end_frame'].max()+1)
         if num_frames == 'any':
             num_frames_min = int(self.sess.align_df['num_frames'].min())
-            num_frames_max = int(self.sess.align_df['num_frames'].max())
+            num_frames_max = int(self.sess.align_df['num_frames'].max()+1)
         
         frames = []
         for i in self.block_ran_seg:
@@ -889,16 +889,19 @@ class Stim(object):
                                               (self.sess.align_df['stimSeg'] < j[1])]['stimSeg'].tolist()
                 
                 # get the frames for each index
-                if remconsec: # if removing consecutive values
+                if remconsec: # if removing consecutive segments
+                    inds_new = []
                     for k, val in enumerate(inds):
                         if k == 0 or val != inds[k-1]+1:
-                            temp2.extend([self.frame_list.index(val)])
-                elif first_fr: # if getting only first frame for each segment
+                            inds_new.extend([val])
+                    inds = inds_new
+                if first_fr: # if getting only first frame for each segment
                     for val in inds:
                         temp2.extend([self.frame_list.index(val)])
-                else: # if getting all frames
+                else: # if getting all frames for each segment
+                    frame_list_array = np.asarray(self.frame_list)
                     for val in inds:
-                        temp2.extend([k for k, x in enumerate(self.frame_list) if x == val])
+                        temp2.extend(np.where(frame_list_array == val)[0].tolist())
                 # check for empty
                 if len(temp2) != 0:
                     temp.append(temp2)
@@ -1417,7 +1420,7 @@ class Grayscr():
         get_all_nongab_frames()
 
         Returns a lists of grayscreen frames, excluding grayscreen frames 
-        occurring duriing gabor stimulus blocks. Note that any grayscreen 
+        occurring during gabor stimulus blocks. Note that any grayscreen 
         frames flanking gabor stimulus blocks are included in the returned list.
         
         Outputs:
@@ -1444,7 +1447,7 @@ class Grayscr():
             frames_sum = np.sum(np.asarray(frames), axis=0)
         grays = np.where(frames_sum==length*-1)[0].tolist()
 
-        if length(grays) == 0:
+        if len(grays) == 0:
             raise ValueError(('No grayscreen frames were found outside of '
                              'gabor stimulus sequences.'))
 
@@ -1510,7 +1513,7 @@ class Grayscr():
         """
         
         if self.gabors:
-            frames_gab = np.asarray(self.sess.gabors.frame_list) # make copy!!!
+            frames_gab = np.asarray(self.sess.gabors.frame_list)
             gab_blocks = self.sess.gabors.block_ran_fr
             gab_grays = []
             for i in gab_blocks:
@@ -1523,11 +1526,11 @@ class Grayscr():
             # if not returning by disp
             if by == 'block' or by == 'frame':
                 gab_grays = [x for sub in gab_grays for x in sub]
-                if by == 'seg':
+                if by == 'frame':
                     gab_grays = [x for sub in gab_grays for x in sub]
             elif by != 'disp':
                 raise ValueError(('\'by\' can only take the values \'disp\', '
-                                 '\'block\' or \'seg\'.'))
+                                 '\'block\' or \'frame\'.'))
             
             return gab_grays
         else:
