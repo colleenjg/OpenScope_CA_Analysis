@@ -1,4 +1,5 @@
 /data/
+/figures/
 /.ipynb_checkpoints/
 
 *.h5
