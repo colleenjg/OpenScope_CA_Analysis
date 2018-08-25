@@ -1268,6 +1268,29 @@ class Gabors(Stim):
         # interested in, namely: blank, A, B, C, D/E)
         self.pre  = 1*self.seg_len_s # 0.3 s blank
         self.post = self.n_seg_per_set*self.seg_len_s # 1.2 ms gabors
+        
+        # get parameters for each block
+        self._get_block_params()
+
+
+
+    #############################################
+    def _get_block_params(self):
+        self.block_params = []
+        for i, disp in enumerate(self.block_ran_seg):
+            block_par = []
+            for j, block in enumerate(disp):
+                segs = self.sess.align_df.loc[(self.sess.align_df['stimType']==self.stim_type[0]) & 
+                                                    (self.sess.align_df['stimSeg'] >= block[0]) & 
+                                                    (self.sess.align_df['stimSeg'] < block[1])]
+                # skipping stimPar1 which indicates gabor orientations which 
+                # change at each gabor sequence presentation
+                stimPar2 = segs['stimPar2'].unique().tolist()
+                if len(stimPar2) > 1:
+                    raise ValueError('Block {} of {} comprises segments with different stimPar2 values: {}'
+                                    .format(i*len(self.block_ran_seg)+j+1, self.stim_type, stimPar2))
+                block_par.extend(stimPar2)
+            self.block_params.append(block_par)
 
 
     #############################################
@@ -1338,9 +1361,38 @@ class Bricks(Stim):
         self.flipfrac = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['square_params']['flipfrac']
         self.speed = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['square_params']['speed']
         self.sizes = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['square_params']['sizes']
+        
         # number of bricks not recorded in stim parameters, so extracting from dataframe 
         self.n_bricks = pandas.unique(sess.align_df.loc[(self.sess.align_df['stimType'] == 0)]['stimPar1']).tolist() # preserves order
         self.direcs = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['square_params']['direcs']
+
+        # get parameters for each block
+        self._get_block_params()
+
+    #############################################
+    def _get_block_params(self):
+        self.block_params = []
+        for i, disp in enumerate(self.block_ran_seg):
+            block_par = []
+            for j, block in enumerate(disp):
+                segs = self.sess.align_df.loc[(self.sess.align_df['stimType']==self.stim_type[0]) & 
+                                                    (self.sess.align_df['stimSeg'] >= block[0]) & 
+                                                    (self.sess.align_df['stimSeg'] < block[1])]
+                stimPar1 = segs['stimPar1'].unique().tolist()
+                if len(stimPar1) > 1:
+                    raise ValueError('Block {} of {} comprises segments with different stimPar1 values: {}'
+                                    .format(i*len(self.block_ran_seg)+j+1, self.stim_type, stimPar1))
+                else:
+                    stimPar1 = stimPar1[0]
+                
+                stimPar2 = segs['stimPar2'].unique().tolist()
+                if len(stimPar2) > 1:
+                    raise ValueError('Block {} of {} comprises segments with different stimPar2 values: {}'
+                                    .format(i*len(self.block_ran_seg)+j+1, self.stim_type, stimPar2))
+                else:
+                    stimPar2 = stimPar2[0]
+                block_par.append([stimPar1, stimPar2])
+            self.block_params.append(block_par)
 
 
     #############################################
