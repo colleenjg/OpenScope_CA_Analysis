@@ -755,14 +755,14 @@ class Stim(object):
                 
                 # if removing consecutive values
                 if remconsec: 
-                    temp2 = []
+                    inds_new = []
                     for k, val in enumerate(inds):
                         if k == 0 or val != inds[k-1]+1:
-                            temp2.extend([val])
-                temp2 = inds
+                            inds_new.extend([val])
+                    inds = inds_new
                 # check for empty
-                if len(temp2) != 0:
-                    temp.append(temp2)
+                if len(inds) != 0:
+                    temp.append(inds)
             # check for empty      
             if len(temp) != 0:
                 segs.append(temp)
@@ -1055,9 +1055,9 @@ class Stim(object):
         Required arguments:
             - frame_ref (list): 1D list of frames (e.g., all 1st Gabor A frames)
             - pre (float)     : range of frames to include before each frame 
-                                reference (in ms)
+                                reference (in s)
             - post (float)    : range of frames to include after each frame 
-                                reference (in ms)
+                                reference (in s)
 
         Optional argument:
             - rand (bool)  : also return statistics for a random permutation of 
