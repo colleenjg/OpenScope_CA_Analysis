@@ -1,0 +1,24 @@
+name: aibs-mac
+channels:
+    - defaults
+    - conda-forge
+    - pytorch
+dependencies:
+    - python=2.7
+    - numpy
+    - scipy
+    - cython
+    - pandas
+    - h5py
+    - simplejson
+    - matplotlib
+    - seaborn
+    - holoviews
+    - jupyter
+    - scikit-learn
+    - scikit-image
+    - pytorch
+    - torchvision
+    - pip:
+        - tables
+        - allensdk

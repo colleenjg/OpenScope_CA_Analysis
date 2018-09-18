@@ -16,6 +16,7 @@ import glob
 import exceptions
 import warnings
 import pdb
+import sys
 
 import numpy as np
 import pickle
@@ -23,8 +24,10 @@ import h5py
 import pandas
 import scipy.stats as st
 
-import file_util
-import sync_util
+from allensdk.brain_observatory.dff import compute_dff
+
+import util.file_util as file_util
+import util.sync_util as sync_util
 
 ###############################################################################################
 class Session(object):
@@ -50,10 +53,10 @@ class Session(object):
             - sessionid (string): the ID for this session.
 
         Optional arguments:
-                -droptol (float): the tolerance for percentage stimulus frames 
-                                  dropped, create a Warning if this condition 
-                                  isn't met.
-                                  default = 0.0003 
+            - droptol (float): the tolerance for percentage stimulus frames 
+                               dropped, create a Warning if this condition 
+                               isn't met.
+                               default = 0.0003 
         """
 
         self.home    = datadir
@@ -210,15 +213,19 @@ class Session(object):
                                      .format(self.roi_traces))
     
     #############################################
-    def extract_info(self):
+    def extract_info(self, load_run=True):
         """
-        extract_info()
+        extract_info(load_run=True)
 
         Runs _load_align_df(), _load_stim_dict(), _load_run(), and
         _load_roi_traces(), if these have not been done yet. Then, 
         initializes Stim objects (Gabors, Bricks, Grayscr) from the 
         stimulus dictionary. This function should be run immediately
-        after creating a Session object. 
+        after creating a Session object.
+
+        Optional arguments:
+            - load_run (Boolean): whether or not to load running data
+                                  default=True 
         """
 
         # load the stimulus, running, alignment and trace information 
@@ -228,9 +235,11 @@ class Session(object):
         if not hasattr(self, 'align_df'):
             print("Loading alignment dataframe...")
             self._load_align_df()
-        if not hasattr(self, 'run'):
+        if not hasattr(self, 'run') and load_run:
             print("Loading running data...")
             self._load_run()
+        elif not hasattr(self, 'run'):
+            print("Skipping running data...")
         if not hasattr(self, 'roi_names'):
             print("Loading ROI trace info...")
             self._load_roi_traces()
@@ -281,26 +290,34 @@ class Session(object):
         return speed
 
     #############################################
-    def get_roi_traces(self, frames):
+    def get_roi_traces(self, frames=None, dfoverf=False, basewin=1000):
         """
-        get_roi_traces(frames)
+            get_roi_traces(frames=None, dfoverf=False, basewin=1000)
 
-        Returns the processed ROI dF/F traces for the given two-photon imaging
+        Returns the processed ROI traces for the given two-photon imaging
         frames and specified ROIs.
 
-        Required arguments:
+        Optional arguments:
             - frames (int array): set of 2p imaging frames to give ROI dF/F for,
                                   if any frames are out of range then NaNs 
                                   returned. The order is not changed, so frames
                                   within a sequence should already be properly 
-                                  sorted (likely ascending).
+                                  sorted (likely ascending). If None is provided,
+                                  then all frames are returned. (default=None)
+            - dfoverf (boolean): if True, then traces are converted into dF/F
+                                 before return, using a sliding window of length
+                                 basewin (see below). (default=False)
+            - basewin     (int): window length for calculating baseline fluorescence
+                                 (default=1000)
 
         Returns:
             - traces (float array): array of dF/F for the specified frames/ROIs
         """
         
-        # make sure the frames are all legit
-        if max(frames) >= self.nframes or min(frames) < 0:
+        # check if we're getting all frames, if not, make sure the frames are all legit
+        if frames is None:
+            frames = np.arange(self.nframes)
+        elif max(frames) >= self.nframes or min(frames) < 0:
             raise UserWarning("Some of the specified frames are out of range")
 
         # initialize the return array
@@ -314,15 +331,19 @@ class Session(object):
                 pdb.set_trace()
                 raise exceptions.IOError('Could not read {}'.format(self.roi_traces))
 
+        # convert to df over f if requested
+        if dfoverf:
+            traces = compute_dff(traces, mode_kernelsize=2*basewin, mean_kernelsize=basewin)
+
         return traces
  
 
     #############################################
-    def get_roi_segments(self, segframes, padding=(0,0)):
+    def get_roi_segments(self, segframes, padding=(0,0), dfoverf=False, basewin=1000):
         """
-        get_roi_segments(segframes, padding=(0,0))
+        get_roi_segments(segframes, padding=(0,0), dfoverf=False, basewin=1000)
 
-        Returns the processed ROI dF/F traces for the given stimulus segments.
+        Returns the processed ROI traces for the given stimulus segments.
         Frames around the start and end of the segments can be requested by setting
         the padding argument.
 
@@ -332,15 +353,20 @@ class Session(object):
 
         Required arguments:
             - segframes (list of arrays): list of arrays of 2p frames for a set of
-                                          segments to give ROI dF/F for, if any frames
+                                          segments to give ROI traces for, if any frames
                                           are out of range then NaNs returned
 
         Optional arguments:
             - padding (2-tuple of ints): number of additional 2p frames to include
                                          from start and end of segments
+            - dfoverf (boolean): if True, then traces are converted into dF/F
+                                 before return, using a sliding window of length
+                                 basewin (see below). (default=False)
+            - basewin     (int): window length for calculating baseline fluorescence
+                                 (default=1000)
         
         Returns:
-            - traces (float array): array of dF/F for the specified segments/ROIs with
+            - traces (float array): array of traces for the specified segments/ROIs with
                                     3 axis (rois, time, segments)
         """
         # extend values with padding
@@ -398,7 +424,7 @@ class Session(object):
 
         # load the traces
         try:
-            traces_flat = self.get_roi_traces(frames_flat.tolist())
+            traces_flat = self.get_roi_traces(frames_flat.tolist(), dfoverf, basewin)
         except:
             pdb.set_trace()
 
