@@ -1,0 +1,12 @@
+/data/
+/figures/
+/sandbox/
+/.ipynb_checkpoints/
+
+*.h5
+*.pkl
+*.pyc
+*.txt
+*.ipynb
+.vscode/
+*cjg.py
