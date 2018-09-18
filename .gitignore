@@ -1,11 +1,8 @@
-/data/
 /figures/
-/.ipynb_checkpoints/
+.vscode/
 
-*.h5
 *.pkl
 *.pyc
 *.txt
 *.ipynb
-.vscode/
 *cjg.py
