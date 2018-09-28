@@ -94,6 +94,7 @@ def get_file_names(masterdir, session, experiment, date, mouse):
         align_pkl_file = os.path.join(sessiondir, '{}_{}_{}_df.pkl'.format(session, mouse, date))
         corrected_data = os.path.join(processeddir, 'concat_31Hz_0.h5')
         roi_trace_data = os.path.join(processeddir, 'roi_traces.h5')
+        roi_trace_dff  = os.path.join(processeddir, 'roi_traces_dff.h5')
         zstack         = os.path.join(sessiondir, '{}_zstack_column.h5'.format(session))
 
         # double check that the files actually exist
@@ -112,4 +113,6 @@ def get_file_names(masterdir, session, experiment, date, mouse):
     else:
         raise exceptions.UserWarning('{} does not conform to expected AIBS structure'.format(sessiondir))
 
-    return (experimentdir, processeddir, stim_pkl_file, stim_sync_file, align_pkl_file, corrected_data, roi_trace_data, zstack)
+    return (experimentdir, processeddir, stim_pkl_file, stim_sync_file, 
+            align_pkl_file, corrected_data, roi_trace_data, roi_trace_dff, 
+            zstack)

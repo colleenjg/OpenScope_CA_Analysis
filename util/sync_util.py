@@ -178,7 +178,7 @@ def calculate_delay(sync_data, stim_vsync_fall, sample_frequency):
 def get_frame_rate(syn_file_name):
     
     '''
-    get_frame_times(stim_sync_file)
+    get_frame_rate(stim_sync_file)
 
     Pulls out the ophys frame times stimulus sync file and returns stats for
     ophys frame rates.

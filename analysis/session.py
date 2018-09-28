@@ -29,7 +29,7 @@ from allensdk.brain_observatory.dff import compute_dff
 import util.file_util as file_util
 import util.sync_util as sync_util
 
-###############################################################################################
+
 class Session(object):
     """
     The Session object is the top-level object for analyzing a session from the 
@@ -108,7 +108,8 @@ class Session(object):
 
         # create the filenames
         (self.expdir, self.procdir, self.stim_pkl, self.stim_sync, 
-        self.align_pkl, self.corrected, self.roi_traces, self.zstack) = \
+        self.align_pkl, self.corrected, self.roi_traces, self.roi_traces_dff, 
+            self.zstack) = \
             file_util.get_file_names(self.home, self.session, self.experiment, 
             self.date, self.mouse)       
     
@@ -155,7 +156,8 @@ class Session(object):
         Loads the alignment dataframe object and stores it in the Session. 
         Note: this will also create a pickle file with the alignment data 
         frame in the Session directory.
-        The stimulus alignment array is also stored.
+        The stimulus alignment array is also stored, as well as an approximate
+        measure of the 2p fps and the total number of 2p frames.
         """
         # create align_df if doesn't exist
         if not os.path.exists(self.align_pkl):
@@ -171,8 +173,10 @@ class Session(object):
         except:
             raise exceptions.IOError(('Could not read stimulus alignment '
                                      'pickle file {}').format(self.align_pkl))
-        self.align_df   = align['stim_df']
-        self.stim_align = align['stim_align']
+        self.align_df      = align['stim_df']
+        self.stim_align    = align['stim_align']
+        self.twop_fps        = sync_util.get_frame_rate(self.stim_sync)[0] # mean
+        self.tot_2p_frames = len(align['stim_align'])
     
     #############################################
     # load running speed array as an attribute
@@ -289,6 +293,22 @@ class Session(object):
 
         return speed
 
+    ############################################
+    def create_dff(self, basewin=1000):
+
+        # read the data points into the return array
+        with h5py.File(self.roi_traces,'r') as f:
+            try:
+                traces = f['data'].value
+            except:
+                pdb.set_trace()
+                raise exceptions.IOError('Could not read {}'.format(self.roi_traces))
+        
+        traces = compute_dff(traces, mode_kernelsize=2*basewin, mean_kernelsize=basewin)
+            
+        with h5py.File(self.roi_traces_dff, 'w') as hf:
+            hf.create_dataset('data',  data=traces)
+            
     #############################################
     def get_roi_traces(self, frames=None, dfoverf=False, basewin=1000):
         """
@@ -304,11 +324,11 @@ class Session(object):
                                   within a sequence should already be properly 
                                   sorted (likely ascending). If None is provided,
                                   then all frames are returned. (default=None)
-            - dfoverf (boolean): if True, then traces are converted into dF/F
-                                 before return, using a sliding window of length
-                                 basewin (see below). (default=False)
-            - basewin     (int): window length for calculating baseline fluorescence
-                                 (default=1000)
+            - dfoverf (bool)    : if True, then traces are converted into dF/F
+                                  before return, using a sliding window of length
+                                  basewin (see below). (default=False)
+            - basewin     (int) : window length for calculating baseline fluorescence
+                                  (default=1000)
 
         Returns:
             - traces (float array): array of dF/F for the specified frames/ROIs
@@ -324,19 +344,27 @@ class Session(object):
         traces = np.empty((self.nroi,len(frames))) + np.nan
 
         # read the data points into the return array
-        with h5py.File(self.roi_traces,'r') as f:
+        if dfoverf:
+            if not os.path.exists(self.roi_traces_dff):
+                print('Creating dF/F files using {} basewin'.format(basewin))
+                self.create_dff(basewin=basewin)
+            roi_traces = self.roi_traces_dff
+        else:
+            roi_traces = self.roi_traces
+        
+        with h5py.File(roi_traces,'r') as f:
             try:
                 traces = f['data'].value[:,frames]
             except:
                 pdb.set_trace()
                 raise exceptions.IOError('Could not read {}'.format(self.roi_traces))
 
-        # convert to df over f if requested
-        if dfoverf:
-            traces = compute_dff(traces, mode_kernelsize=2*basewin, mean_kernelsize=basewin)
+        # REPLACED ABOVE WHERE DFF applied to entire traces
+        # # convert to df over f if requested
+        # if dfoverf:
+        #     traces = compute_dff(traces, mode_kernelsize=2*basewin, mean_kernelsize=basewin)
 
         return traces
- 
 
     #############################################
     def get_roi_segments(self, segframes, padding=(0,0), dfoverf=False, basewin=1000):
@@ -367,7 +395,7 @@ class Session(object):
         
         Returns:
             - traces (float array): array of traces for the specified segments/ROIs with
-                                    3 axis (rois, time, segments)
+                                    3 axes (rois, time, segments)
         """
         # extend values with padding
         if padding[0] != 0:
@@ -1070,13 +1098,105 @@ class Stim(object):
     
 
     #############################################
+    def get_chunk_stats(self, x_ran, data, rand=False, chunks=False, 
+                        stats='mean'):
+        """
+        get_chunk_stats()
+
+        Returns stats (mean and std or median and quartiles) for chunks of 
+        running or roi traces centered around specific frames.
+
+        Required arguments:
+            - data (list):  list of list of frames for each chunk
+            - x_ran (list): list of relative frames pre to post center point
+
+        Optional argument:
+            - rand (bool)  : also return statistics for a random permutation of 
+                             the running values
+                             default = False
+            - chunks (bool): also return frame chunks, not just statistics 
+                             default = False 
+            - stats (str)  : return mean and std ('mean') or median and
+                             25th and 75th quartiles ('median')
+                             default = 'mean'
+         
+        Outputs:
+            - x_ran (1D array)     : array of time values for the frame 
+                                     chunks
+            - data_chunks_me (1D array) : array of means or medians 
+                                          across frame chunks
+            - data_chunks_de (1D array) : array of std or list of 
+                                          quartile arrays across frame chunks
+        
+        Optional outputs (if rand/if chunks):
+            - data_chunks_me_rand (1D array) : array of means or medians of 
+                                               randomized across frame 
+                                               chunks
+            - data_chunks_de_rand (1D array) : array of std or list of quartile
+                                               arrays of randomized 
+                                               across frame chunks
+            - data_chunks (2D array)         : array of across frame 
+                                               chunks by chunk
+            - data_chunks_rand (2D array)    : array of randomized 
+                                               across frame chunks by chunk
+        """
+
+        if rand:
+            temp = np.asarray(data)
+            np.random.shuffle(temp)
+            np.random.shuffle(temp.T)
+            temp = temp.tolist()
+        
+        data_chunks = np.empty([len(data), len(data[0])])
+        if rand:
+            data_chunks_rand = np.empty_like(data_chunks)
+        for i in range(len(data)):
+            if len(data[i]) == len(data[0]):
+                data_chunks[i] = np.asarray(data[i])
+                if rand:
+                    data_chunks_rand[i] = np.asarray(temp[i])
+            # truncate the array in this case
+            else:
+                data_chunks = data_chunks[:i]
+                if rand:
+                    data_chunks_rand = data_chunks_rand[:i]
+
+        # gather stats
+        if stats == 'mean':
+            data_chunks_me = np.mean(data_chunks, axis=0)
+            data_chunks_de = np.std(data_chunks, axis=0)
+            if rand:
+                data_chunks_rand_me = np.mean(data_chunks_rand, axis=0)
+                data_chunks_rand_de = np.std(data_chunks_rand, axis=0)
+        elif stats == 'median':
+            data_chunks_me = np.median(data_chunks, axis=0)
+            data_chunks_de = [np.percentile(data_chunks, 25, axis=0),
+                            np.percentile(data_chunks, 75, axis=0)]
+            if rand:
+                data_chunks_rand_me = np.median(data_chunks_rand, axis=0)
+                data_chunks_rand_de = [np.percentile(data_chunks_rand, 25, axis=0),
+                                      np.percentile(data_chunks_rand, 75, axis=0)]
+        
+        if rand and chunks:
+            return (x_ran, data_chunks_me, data_chunks_de, data_chunks_rand_me, 
+                    data_chunks_rand_de, data_chunks, data_chunks_rand)
+        elif rand:
+            return (x_ran, data_chunks_me, data_chunks_de, data_chunks_rand_me, 
+                   data_chunks_rand_de)
+        elif chunks:
+            return x_ran, data_chunks_me, data_chunks_de, data_chunks
+        else:
+            return x_ran, data_chunks_me, data_chunks_de
+
+
+    #############################################
     def get_run_chunk_stats(self, frame_ref, pre, post, rand=False, 
                             chunks=False, stats='mean'):
         """
         get_run_chunk_stats()
 
-        Returns stats (mean and average or median and quartiles) for chunks of 
-        running centered around specific frames.
+        Returns stats (mean and std or median and quartiles) for chunks of 
+        running traces centered around specific frames.
 
         Required arguments:
             - frame_ref (list): 1D list of frames (e.g., all 1st Gabor A frames)
@@ -1088,44 +1208,46 @@ class Stim(object):
         Optional argument:
             - rand (bool)  : also return statistics for a random permutation of 
                              the running values
+                             default = False
             - chunks (bool): also return frame chunks, not just statistics 
-            - stats (str)  : return mean and average ('mean') or median and
+                             default = False 
+            - stats (str)  : return mean and std ('mean') or median and
                              25th and 75th quartiles ('median')
                              default = 'mean'
          
         Outputs:
-            - x_ran (1D array)         : array of time values for the frame 
+            - run_chunk_stats (list): list containing:
+                - x_ran (1D array)     : array of time values for the frame 
                                          chunks
-            - run_chunks_me (1D array) : array of running means or medians 
+                - chunks_me (1D array) : array of running means or medians 
                                          across frame chunks
-            - run_chunks_de (1D array) : array of running std or list of 
+                - chunks_de (1D array) : array of running std or list of 
                                          quartile arrays across frame chunks
         
-        Optional outputs (if rand/if chunks):
-            - run_chunks_me_rand (1D array) : array of means or medians of 
-                                              randomized running across frame 
-                                              chunks
-            - run_chunks_de_rand (1D array) : array of std or list of quartile
-                                              arrays of randomized running 
-                                              across frame chunks
-            - run_chunks (2D array)         : array of running across frame 
-                                              chunks by chunk
-            - run_chunks_rand (2D array)    : array of randomized running 
-                                              across frame chunks by chunk
+                Optional outputs (if rand/if chunks):
+                    - chunks_me_rand (1D array) : array of means or medians of 
+                                                  randomized running across 
+                                                  frame chunks
+                    - chunks_de_rand (1D array) : array of std or list of quartile
+                                                  arrays of randomized running 
+                                                  across frame chunks
+                    - chunks (2D array)         : array of running across frame 
+                                                  chunks by chunk
+                    - chunks_rand (2D array)    : array of randomized running 
+                                                  across frame chunks by chunk
         """
-
         ran_s  = [-pre, post]
-        ran_fr = [x*self.stim_fps for x in ran_s]
+        ran_fr = [np.around(x*self.stim_fps) for x in ran_s]
         x_ran  = np.linspace(ran_s[0], ran_s[1], np.diff(ran_fr)[0])
 
         if isinstance(frame_ref[0], list):
             raise IOError('Frames must be passed as a 1D list, not by block.')
 
-        # get corresponding running subblocks and stats
+        # get corresponding running subblocks [[start, end]]
         fr_ind = zip([x + int(ran_fr[0]) for x in frame_ref], 
                      [x + int(ran_fr[1]) for x in frame_ref])
-
-        # remove negatives or values above total number of stim frames
+                     
+        # remove tuples with negatives or values above total number of stim frames
         neg_ind = np.where(np.asarray(zip(*fr_ind)[0])<0)[0].tolist()
         over_ind = np.where(np.asarray(zip(*fr_ind)[1])>=self.sess.tot_frames)[0].tolist()
         k=0
@@ -1135,53 +1257,119 @@ class Stim(object):
         for i, ind in enumerate(over_ind):
             fr_ind.pop(ind-k-i) # compensates for previously popped indices
 
-        temp = [self.sess.run[x[0]:x[1]] for x in fr_ind]
-        if rand:
-            temp2 = np.asarray(temp)
-            np.random.shuffle(temp2)
-            np.random.shuffle(temp2.T)
-            temp2 = temp2.tolist()
-        
-        run_chunks = np.empty([len(temp), len(temp[0])])
-        if rand:
-            run_chunks_rand = np.empty_like(run_chunks)
-        for i in range(len(temp)):
-            if len(temp[i]) == len(temp[0]):
-                run_chunks[i] = np.asarray(temp[i])
-                if rand:
-                    run_chunks_rand[i] = np.asarray(temp2[i])
-            # truncate the array in this case
-            else:
-                run_chunks = run_chunks[:i]
-                if rand:
-                    run_chunks_rand = run_chunks_rand[:i]
+        run_data = [self.sess.run[x[0]:x[1]] for x in fr_ind]
 
-        # gather stats
-        if stats == 'mean':
-            run_chunks_me = np.mean(run_chunks, axis=0)
-            run_chunks_de = np.std(run_chunks, axis=0)
-            if rand:
-                run_chunks_rand_me = np.mean(run_chunks_rand, axis=0)
-                run_chunks_rand_de = np.std(run_chunks_rand, axis=0)
-        elif stats == 'median':
-            run_chunks_me = np.median(run_chunks, axis=0)
-            run_chunks_de = [np.percentile(run_chunks, 25, axis=0),
-                            np.percentile(run_chunks, 75, axis=0)]
-            if rand:
-                run_chunks_rand_me = np.median(run_chunks_rand, axis=0)
-                run_chunks_rand_de = [np.percentile(run_chunks_rand, 25, axis=0),
-                                     np.percentile(run_chunks_rand, 75, axis=0)]
+        run_chunk_stats = self.get_chunk_stats(x_ran, run_data, rand, chunks, stats)
+
+        return run_chunk_stats
+
+    #############################################
+    def get_roi_chunk_stats(self, frame_ref, pre, post, byroi=True, dfoverf=True,
+                            remnans=True, rand=False, chunks=False, stats='mean'):
+        """
+        get_run_chunk_stats()
+
+        Returns stats (mean and std or median and quartiles) for chunks of 
+        roi traces centered around specific frames.
+
+        Required arguments:
+            - frame_ref (list): 1D list of frames (e.g., all 1st Gabor A frames)
+            - pre (float)     : range of frames to include before each frame 
+                                reference (in s)
+            - post (float)    : range of frames to include after each frame 
+                                reference (in s)
+
+        Optional argument:
+            - byroi (bool)  : if True, returns statistics for each ROI. If False,
+                              takes statistics across ROIs
+                              default = True 
+            - dfoverf (bool): if True, dF/F is used instead of raw ROI traces
+                              default = True
+            - remnans (bool): if True, ROIs with NaN values are removed if 
+                              from calculation if byroi is False
+                              default = True
+            - rand (bool)   : also return statistics for a random permutation of 
+                              the running values
+                              default = False
+            - chunks (bool) : also return frame chunks, not just statistics
+                              default = False 
+            - stats (str)   : return mean and std ('mean') or median and
+                              25th and 75th quartiles ('median')
+                              default = 'mean'
+         
+        Outputs:
+            - roi_chunk_stats (list): list containing for each roi or across rois:
+                - x_ran (1D array)     : array of time values for the frame 
+                                         chunks
+                - chunks_me (1D array) : array of roi trace means or medians 
+                                         across frame chunks
+                - chunks_de (1D array) : array of roi trace std or list of 
+                                         quartile arrays across frame chunks
         
-        if rand and chunks:
-            return (x_ran, run_chunks_me, run_chunks_de, run_chunks_rand_me, 
-                    run_chunks_rand_de, run_chunks, run_chunks_rand)
-        elif rand:
-            return (x_ran, run_chunks_me, run_chunks_de, run_chunks_rand_me, 
-                   run_chunks_rand_de)
-        elif chunks:
-            return x_ran, run_chunks_me, run_chunks_de, run_chunks
+                Optional outputs (if rand/if chunks):
+                    - chunks_me_rand (1D array) : array of means or medians of 
+                                                  randomized roi traces across 
+                                                  frame chunks
+                    - chunks_de_rand (1D array) : array of std or list of quartile
+                                                  arrays of randomized running 
+                                                  across frame chunks
+                    - chunks (2D array)         : array of roi traces across frame 
+                                                  chunks by chunk
+                    - chunks_rand (2D array)    : array of randomized roi traces 
+                                                  across frame chunks by chunk
+        """
+        
+        ran_s = [-pre, post]
+        ran_fr = [np.around(x*self.sess.twop_fps) for x in ran_s]
+        x_ran = np.linspace(ran_s[0], ran_s[1], np.diff(ran_fr)[0])
+
+        if isinstance(frame_ref[0], list):
+            raise IOError('Frames must be passed as a 1D list, not by block.')
+
+        # get corresponding roi subblocks [[start:end]]
+        fr_ind = ([range(x + int(ran_fr[0]), x + int(ran_fr[1])) 
+                  for x in frame_ref])
+
+        # remove arrays with negatives or values above total number of stim frames
+        neg_ind = np.where(np.asarray(zip(*fr_ind)[0])<0)[0].tolist()
+        over_ind = np.where(np.asarray(zip(*fr_ind)[-1])>=self.sess.tot_2p_frames)[0].tolist()
+        k=0
+        for i, ind in enumerate(neg_ind):
+            fr_ind.pop(ind-i) # compensates for previously popped indices
+            k=i+1
+        for i, ind in enumerate(over_ind):
+            fr_ind.pop(ind-k-i) # compensates for previously popped indices
+
+        # get dF/F for each segment and each ROI
+        roi_data = self.sess.get_roi_segments(fr_ind, dfoverf=dfoverf).tolist()
+
+        # get roi stats by 
+        if byroi:
+            roi_chunk_stats = [self.get_chunk_stats(x_ran, np.transpose(x), rand, chunks, stats)
+                               for x in roi_data]
         else:
-            return x_ran, run_chunks_me, run_chunks_de
+            # remove any ROIs containing NaNs or infs
+            if remnans and (sum(sum(sum(np.isnan(roi_data)))) > 0 or 
+                            sum(sum(sum(np.isinf(roi_data)))) > 0):
+                n_rois = len(roi_data)
+                rem_rois = []
+                for i in range(len(roi_data)):
+                    if (sum(sum(np.isnan(roi_data[i]))) > 0 or 
+                        sum(sum(np.isinf(roi_data[i])))):
+                        rem_rois.extend([i])
+                count = 0
+                for j in rem_rois:
+                    roi_data.pop(j-count)
+                    count += 1
+                print('Removing {}/{} ROIs: {}'
+                      .format(len(rem_rois), n_rois, ', '.join(map(str, rem_rois))))
+
+            all_chunk_stats = [self.get_chunk_stats(x_ran, np.transpose(x), rand=False, chunks=False, stats=stats)
+                               for x in roi_data]
+
+            roi_chunk_stats = self.get_chunk_stats(x_ran, zip(*all_chunk_stats)[1], rand, chunks, stats)
+        
+        return roi_chunk_stats
 
 
     #############################################
@@ -1223,7 +1411,7 @@ class Stim(object):
 
     
     #############################################
-    def get_2pframes_by_seg(self, seglist):
+    def get_2pframes_by_seg(self, seglist, first=False):
         """
         get_2pframes_by_seg(seglist)
 
@@ -1234,9 +1422,14 @@ class Stim(object):
         Required arguments:
             - seglist (list of ints): the stimulus segments to get 2p frames for
 
+        Optional arguments:
+            - first (bool): return only first frame for each seg
+                            default: Falsle
         Returns:
             - frames (list of int arrays): a list (one entry per segment) of
                                            arrays containing the 2p frame indices
+                                           OR (if first is True) a list of first
+                                           2p frames indices for each segment
         """
 
         # initialize the frames list
@@ -1248,13 +1441,17 @@ class Stim(object):
 
         # get the start frames and end frames from each row
         start_frames = rows['start_frame'].values
-        end_frames   = rows['end_frame'].values
+        if not first:
+            end_frames   = rows['end_frame'].values
 
-        # build arrays for each segment
-        for r in range(start_frames.shape[0]):
-            frames.append(np.arange(start_frames[r],end_frames[r]))
+            # build arrays for each segment
+            for r in range(start_frames.shape[0]):
+                frames.append(np.arange(start_frames[r],end_frames[r]))
+        else:
+            frames = start_frames
 
         return frames
+
    
 
 ###############################################################################################
@@ -1294,6 +1491,7 @@ class Gabors(Stim):
         # interested in, namely: blank, A, B, C, D/E)
         self.pre  = 1*self.seg_len_s # 0.3 s blank
         self.post = self.n_seg_per_set*self.seg_len_s # 1.2 ms gabors
+        self.set_len_s = self.pre+self.post
         
         # get parameters for each block
         self._get_block_params()
