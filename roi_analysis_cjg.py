@@ -162,8 +162,8 @@ if __name__ == "__main__":
 
     # specific parameters
     sess_order = 1 # 1 for first, etc. or 'last'
-    depth = 'lo' # 'hi' for dendrites or 'lo' for somata
-    gab_k = [4] # kappa value(s) to use (either [4], [16] or [4, 16])
+    depth = 'hi' # 'hi' for dendrites or 'lo' for somata
+    gab_k = [16] # kappa value(s) to use (either [4], [16] or [4, 16])
     quintiles = 4 # number of quintiles to divide stimulus into
     n_perms = 1000 # n of permutations for permutation analysis
     threshold = 95 # threshold for permutation analysis
@@ -230,75 +230,99 @@ if __name__ == "__main__":
         sessions.append(sess)
 
     # print session information
-    print('\nAnalysing gabor {} {} ROIs from session {}.'.format(cell_area, 
-                                                          gab_k_str, sess_order))
+    print('\nAnalysing gab{} {} ROIs from session {}.'.format(gab_k_str, 
+                                                          cell_area, sess_order))
 
     # get ROI traces
-    gab_surp_chunks_all = []
-    gab_surp_chunks_me = []
-    n_gab_surp = []
-    gab_no_surp_chunks_all = []
-    gab_no_surp_chunks_me = []
-    n_gab_no_surp = []
-    twop_fps = []
+    gab_no_surp_chunks_all = [] # ROI stats for no surp (sess x quintile (x ROI, if byroi=True) x frame)
+    if byroi:
+        gab_no_surp_chunks_me = [] # ROI mean/medians for no surp (sess x quintile (x ROI, if byroi=True) x frame)
+    n_gab_no_surp = [] # nbr of segs (no surp, gab_fr 3) (sess x quintile)
+
+    gab_surp_chunks_all = [] # ROI stats for surp (sess x quintile (x ROI, if byroi=True) x frame)
+    if byroi:
+        gab_surp_chunks_me = [] # ROI mean/medians for surp (sess x quintile (x ROI, if byroi=True) x frame)
+    n_gab_surp = [] # nbr of segs (surp, gab_fr 3) (sess x quintile)
+
+    twop_fps = [] # 2p fps by session
     for i, sess in enumerate(sessions):
         print('\n{}'.format(sess.session))
-        quint_min = np.floor(min(sess.gabors
-                                .get_segs_by_criteria(stimPar2=gab_k, 
-                                                      by='seg')))
-        quint_max = np.floor(max(sess.gabors
-                                 .get_segs_by_criteria(stimPar2=gab_k, 
-                                                       by='seg'))+1)
-        quints = (quint_max - quint_min)/quintiles
+        # get the min seg number for stimulus
+        seg_min = min(sess.gabors.get_segs_by_criteria(stimPar2=gab_k, by='seg'))
+        # get the max seg number for stimulus
+        seg_max = max(sess.gabors.get_segs_by_criteria(stimPar2=gab_k, by='seg'))+1
+        # calculate number of quintiles in each segment (ok if not round number)
+        quints = (seg_max - seg_min)/quintiles
         
         # no surp
         print('Getting non surprise ROI traces.')
+        # retrieve non surprise seg numbers
         no_surp_seg = sess.gabors.get_segs_by_criteria(surp=0, gaborframe=gab_fr, 
-                                                    stimPar2=gab_k, by='seg')
-        gab_no_surp_count = []
-        no_surp_qu_all = []
+                                                       stimPar2=gab_k, by='seg')
+        gab_no_surp_count = [] 
+        no_surp_qu_all = [] 
         no_surp_qu_me = []
         for j in range(quintiles):
-            quint_no_surp = [seg for seg in no_surp_seg if (seg >= j*quints+quint_min and 
-                                                            seg < (j+1)*quints+quint_min)]
+            # get no surp seg numbers for the current quintile
+            quint_no_surp = [seg for seg in no_surp_seg if (seg >= j*quints+seg_min and 
+                                                            seg < (j+1)*quints+seg_min)]
+            # store number of no surp segs for each quintile
             gab_no_surp_count.extend([len(quint_no_surp)])
+            # get the stats for ROI traces for these segs 
+            # returns [x_ran, mean/median, std/quartiles] for each ROI or across ROIs
             chunk_stats = sess.gabors.get_roi_chunk_stats(sess.gabors
                             .get_2pframes_by_seg(quint_no_surp, first=True), 
                             pre, post, byroi=byroi, dfoverf=dfoverf, 
                             remnans=remnans, rand=False, stats=plot_stat)
+            # store by quintile
             no_surp_qu_all.append(chunk_stats)
-            chunk_stats_me = []
-            for i in chunk_stats:
-                chunk_stats_me.append(i[1])
-            no_surp_qu_me.append(chunk_stats_me)
+            # retrieve the mean/median for each ROI and store
+            if byroi:
+                chunk_stats_me = []
+                for i in chunk_stats:
+                    chunk_stats_me.append(i[1])
+                # store by quintile
+                no_surp_qu_me.append(chunk_stats_me)
+        # store by session
         gab_no_surp_chunks_all.append(no_surp_qu_all)
         gab_no_surp_chunks_me.append(np.asarray(no_surp_qu_me))
         n_gab_no_surp.append(gab_no_surp_count)
         
         # start surp
         print('Getting surprise ROI traces.')
+        # retrieve surprise seg numbers
         surp_seg = sess.gabors.get_segs_by_criteria(surp=1, gaborframe=gab_fr, 
                                                     stimPar2=gab_k, by='seg')
         gab_surp_count = []
         surp_qu_all = []
         surp_qu_me = []
         for j in range(quintiles):
-            quint_surp = [seg for seg in surp_seg if (seg >= j*quints+quint_min and 
-                                                    seg < (j+1)*quints+quint_min)]
+            # get surp seg numbers for the current quintile
+            quint_surp = [seg for seg in surp_seg if (seg >= j*quints+seg_min and 
+                                                    seg < (j+1)*quints+seg_min)]
+            # store number of surp segs for each quintile
             gab_surp_count.extend([len(quint_surp)])
+            # get the stats for ROI traces for these segs 
+            # returns [x_ran, mean/median, std/quartiles] for each ROI or across ROIs
             chunk_stats = sess.gabors.get_roi_chunk_stats(sess.gabors
                         .get_2pframes_by_seg(quint_surp, first=True), 
                         pre, post, byroi=byroi, dfoverf=dfoverf, 
                         remnans=remnans, rand=False, stats=plot_stat)
+            # store by quintile
             surp_qu_all.append(chunk_stats)
+            # retrieve the mean/median for each ROI and store
             chunk_stats_me = []
-            for i in chunk_stats:
-                chunk_stats_me.append(i[1])
-            surp_qu_me.append(chunk_stats_me)
+            if byroi:
+                for i in chunk_stats:
+                    chunk_stats_me.append(i[1])
+                # store by quintile
+                surp_qu_me.append(chunk_stats_me)
+        # store by session
         gab_surp_chunks_all.append(surp_qu_all)
         gab_surp_chunks_me.append(np.asarray(surp_qu_me))
         n_gab_surp.append(gab_surp_count)
         
+        # store the 2p fps by session
         twop_fps.extend([sess.twop_fps])
 
     # If analysing average ROI traces (byroi=False), plot average traces per 
@@ -367,11 +391,14 @@ if __name__ == "__main__":
         print('\n')
         # remove ROIs with NaNs or Infs in average signal
         if remnans:
-            rem_rois = []
+            rem_rois = [] # ROI numbers removed for each session (mouse)
+            orig_roi_n = [] # original nbrs of ROIs retained for each session (mouse)
             for i in range(len(mice_n)):
                 n_rois = len(gab_surp_chunks_me[i][0])
-                temp = []
+                temp = [] # ROIs with infs or NaNs
+                temp2 = np.arange(0,n_rois) # original ROI numbers
                 for j in range(n_rois):
+                    # identify ROIs with NaNs or Infs in surprise or no surprise data
                     if (sum(sum(np.isnan(gab_surp_chunks_me[i][:, j]))) > 0 or 
                         sum(sum(np.isinf(gab_surp_chunks_me[i][:, j]))) > 0 or
                         sum(sum(np.isnan(gab_no_surp_chunks_me[i][:, j]))) > 0 or 
@@ -379,15 +406,18 @@ if __name__ == "__main__":
                             temp.extend([j])
                 gab_surp_chunks_me[i] = np.delete(gab_surp_chunks_me[i], temp, 1)
                 gab_no_surp_chunks_me[i] = np.delete(gab_no_surp_chunks_me[i], temp, 1)
+                temp2 = np.delete(temp2, temp) # remove nbrs of ROIs removed
                 print('Mouse {}: Removing {}/{} ROIs: {}'
                     .format(mice_n[i], len(temp), n_rois, ', '.join(map(str, temp))))
-                rem_rois.append(temp)
+                # store
+                rem_rois.append(temp) # store
+                orig_roi_n.append(temp2) # store
 
         # Integrate for each chunk per quintile per surp/non-surp (sum*fps)
-        gab_diff_area = []
-        gab_all_area = []
+        gab_diff_area = [] # difference in integrated dF/F (sess x quartile x ROI)
 
         for i in range(len(mice_n)):
+            # get area under the curve
             temp_surp = np.sum(gab_surp_chunks_me[i], 2)*1./twop_fps[i]
             temp_no_surp = np.sum(gab_no_surp_chunks_me[i], 2)*1./twop_fps[i]
             diff_surp = temp_surp - temp_no_surp
@@ -395,8 +425,6 @@ if __name__ == "__main__":
             # print('\nMouse {}, ROI diff 1st quint: {} \n({})'.format(i+1, 
             #       np.mean(diff_surp[0]), ', '.join('{:.3f}'.format(x) 
             #                                        for x in diff_surp[0])))
-            gab_all_area.append(np.concatenate((temp_surp, temp_no_surp), 
-                                axis=1))
             gab_diff_area.append(diff_surp)
 
         # Run permutation test for first and last quintiles
@@ -406,19 +434,18 @@ if __name__ == "__main__":
         rois_sign_first = []
         rois_sign_last = []
         for i, sess in enumerate(sessions):
-            quint_min = np.floor(min(sess.gabors
-                                .get_segs_by_criteria(stimPar2=gab_k, 
-                                                      by='seg')))
-            quint_max = np.floor(max(sess.gabors
-                                    .get_segs_by_criteria(stimPar2=gab_k, 
-                                                        by='seg'))+1)
-            quints = (quint_max - quint_min)/quintiles
+            # recalculates quintiles (like above) and gets all segs (surp or not)
+            seg_min = min(sess.gabors.get_segs_by_criteria(stimPar2=gab_k, by='seg'))
+            seg_max = max(sess.gabors.get_segs_by_criteria(stimPar2=gab_k, by='seg'))+1
+            quints = (seg_max - seg_min)/quintiles
+            # get all segs (surprise or not)
             all_seg = sess.gabors.get_segs_by_criteria(gaborframe=gab_fr, 
                                                        stimPar2=gab_k, by='seg')
             print('\nMouse {}'.format(mice_n[i]))
             for t, j in enumerate([0, quintiles-1]):
-                quint = [seg for seg in all_seg if (seg >= j*quints+quint_min and 
-                                                    seg < (j+1)*quints+quint_min)]
+                # retrieve segs for the current quintile
+                quint = [seg for seg in all_seg if (seg >= j*quints+seg_min and 
+                                                    seg < (j+1)*quints+seg_min)]
                 fr = sess.gabors.get_2pframes_by_seg(quint, first=True)
                 ran_fr = [np.around(x*sess.twop_fps) for x in [-pre, post]]
 
@@ -440,31 +467,36 @@ if __name__ == "__main__":
 
                 # get dF/F for each segment and each ROI
                 roi_data = sess.get_roi_segments(fr_ind, dfoverf=dfoverf)
+                # get area under the curve
                 roi_data_integ = np.sum(roi_data, axis=1)*1./sess.twop_fps
                 # remove ROIs with nans or infs
                 if remnans:
                     roi_data_integ = np.delete(roi_data_integ, rem_rois[i], 0)
 
-                # create permutations
+                # create permutation indices
                 perms_seg = np.argsort(np.random.rand(roi_data_integ.shape[1], 
                                                       n_perms), axis=0)[np.newaxis, :, :]
                 dim_roi = np.arange(roi_data_integ.shape[0])[:, np.newaxis, np.newaxis]
+               # generate permutation array
                 permed_roi = np.stack(roi_data_integ[dim_roi, perms_seg])
+                # calculate surp - no surp (roi x permutation)
                 diffs = (np.mean(permed_roi[:, 0:n_gab_surp[i][j]], axis=1) - 
                          np.mean(permed_roi[:, n_gab_surp[i][j]:], axis=1))
+                # calculate threshold difference for each ROI
                 threshs = np.percentile(diffs, threshold, axis=1)
+                # for first quartile, identify ROIs with diff > threshold
                 if t == 0:
                     rois_sign_first.append(np.where(gab_diff_area[i][j] > 
                                                     threshs)[0])
-                    print('first quintile: {} \n\t[{}]'.format(
-                        rois_sign_first[i], (' '.join('{:.3f}'.format(x) 
+                    print('first quintile: ROIs:{} \n\t\tdiffs: [{}]'.format(
+                        rois_sign_first[i], (' '.join('{:.2f}'.format(x) 
                         for x in gab_diff_area[i][j, rois_sign_first[i]]))))
 
                 elif t == 1:
                     rois_sign_last.append(np.where(gab_diff_area[i][j] > 
                                                   threshs)[0])
-                    print('last quintile: {} \n\t[{}]'.format(
-                        rois_sign_last[i], (' '.join('{:.3f}'.format(x) 
+                    print('last quintile: ROIs:{} \n\t\tdiffs: [{}]'.format(
+                        rois_sign_last[i], (' '.join('{:.2f}'.format(x) 
                         for x in gab_diff_area[i][j, rois_sign_last[i]]))))
 
         # get ROI numbers for each group
@@ -485,11 +517,12 @@ if __name__ == "__main__":
         rois = [surp_surp, surp_nosurp, nosurp_surp, nosurp_nosurp]
         leg = ['surp_surp', 'surp_nosurp', 'nosurp_surp', 'nosurp_nosurp']
         roi_stats = []
-        # roi_stats will have same structure as rois ([surp_surp_stats, etc.])
+        # roi_stats will have same structure as rois: 
+        # groupe (e.g., surp_surp) x mouse/session x [mean/median, std/mad] x quartile
         for i in range(len(rois)):
             roi_stats.append([])
-
         for i in range(len(mice_n)):
+            # by roi group (e.g., surp_surp)
             for j, roi in enumerate(rois):
                 me = []
                 dev = []
