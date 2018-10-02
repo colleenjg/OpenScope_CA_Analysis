@@ -13,7 +13,7 @@ from analysis import session
 #############################################
 def get_sess_per_mouse(mouse_df, sessid='any', depth='any', 
                        pass_fail='any', all_files='any', any_files='any',
-                       overall_sess=1, omit_sess=[], omit_mice=[]):
+                       overall_sess=1, omit_sess=[], omit_mice=[], min_rois=1):
     """
     Returns list of session IDs and (up to 1 per mouse) of included mice 
     based on parameters.
@@ -41,6 +41,8 @@ def get_sess_per_mouse(mouse_df, sessid='any', depth='any',
                                      (default: [])
         - mice_omit (list)         : mice to omit
                                      (default: [])
+        - min_rois (int)           : min number of ROIs
+                                     (default: 1)
     
     Returns:
         - sesses_n (list): sessions to analyse (1 per mouse)
@@ -49,6 +51,7 @@ def get_sess_per_mouse(mouse_df, sessid='any', depth='any',
     
     sesses_n = []
     mice_n = []
+    act_sess_n = []
 
     if sessid == 'any':
         sessid = mouse_df['sessionid'].unique().tolist()
@@ -85,28 +88,31 @@ def get_sess_per_mouse(mouse_df, sessid='any', depth='any',
                                 (mouse_df['depth'].isin(depth)) &
                                 (mouse_df['pass_fail'].isin(pass_fail)) &
                                 (mouse_df['all_files'].isin(all_files)) &
-                                (mouse_df['any_files'].isin(any_files))]['overall_sess_n'].tolist()
-
+                                (mouse_df['any_files'].isin(any_files)) &
+                                (mouse_df['n_rois'] >= min_rois)]['overall_sess_n'].tolist()
+        sessions = sorted(sessions)
         if len(sessions) == 0:
             continue
         elif overall_sess == 'last':
             sess_n = sessions[-1]
         else:
-            if len(sessions) < overall_sess:
-                continue
-            else:
-                sess_n = sessions[overall_sess-1]
+            # find closest sess number
+            sess_n = sessions[np.argmin(np.absolute([x-overall_sess for x in sessions]))]
         sess = mouse_df.loc[(mouse_df['mouseid'] == i+1) & 
                             (mouse_df['sessionid'].isin(sessid)) &
                             (mouse_df['depth'].isin(depth)) &
                             (mouse_df['pass_fail'].isin(pass_fail)) &
                             (mouse_df['all_files'].isin(all_files)) &
                             (mouse_df['any_files'].isin(any_files)) &
-                            (mouse_df['overall_sess_n'] == sess_n)]['sessionid'].tolist()[0]
+                            (mouse_df['overall_sess_n'] == sess_n) &
+                            (mouse_df['n_rois'] >= min_rois)]['sessionid'].tolist()[0]
+        act_n = mouse_df.loc[(mouse_df['sessionid'] == sess)]['overall_sess_n'].tolist()[0]
+
         sesses_n.append(sess)
         mice_n.append(i+1)
+        act_sess_n.append(act_n)
     
-    return sesses_n, mice_n
+    return sesses_n, mice_n, act_sess_n
 
 
 #############################################
@@ -162,11 +168,14 @@ if __name__ == "__main__":
 
     # specific parameters
     sess_order = 1 # 1 for first, etc. or 'last'
+    min_rois_d = 15 # min number of ROIs for inclusion (dendrites)
+    min_rois_s = 30 # min number of ROIs for inclusion (somata)
     depth = 'hi' # 'hi' for dendrites or 'lo' for somata
     gab_k = [16] # kappa value(s) to use (either [4], [16] or [4, 16])
     quintiles = 4 # number of quintiles to divide stimulus into
     n_perms = 1000 # n of permutations for permutation analysis
-    threshold = 95 # threshold for permutation analysis
+    p_val = 5 # p-value for permutation analysis
+    tails = 'lo' #  'up' (1 tail, upper), 'lo' (1 tail, lower) or 2 (2 tailed test)
 
     # general parameters
     gab_fr    = 3 # gabor frame to retrieve
@@ -203,18 +212,20 @@ if __name__ == "__main__":
 
     # get session numbers
     if depth == 'lo':
-        sesses_n, mice_n = get_sess_per_mouse(mouse_df, depth=[175, 375], 
+        sesses_n, mice_n, act_sess_n = get_sess_per_mouse(mouse_df, depth=[175, 375], 
                                               pass_fail='P', all_files=1, 
                                               overall_sess=sess_order, 
                                               omit_sess=omit_sess, 
-                                              omit_mice=omit_mice)
+                                              omit_mice=omit_mice,
+                                              min_rois=min_rois_s)
         cell_area = 'somata'
     elif depth == 'hi':
-        sesses_n, mice_n = get_sess_per_mouse(mouse_df, depth=[20, 75], 
+        sesses_n, mice_n, act_sess_n = get_sess_per_mouse(mouse_df, depth=[20, 75], 
                                               pass_fail='P', all_files=1, 
                                               overall_sess=sess_order, 
                                               omit_sess=omit_sess, 
-                                              omit_mice=omit_mice)
+                                              omit_mice=omit_mice,
+                                              min_rois=min_rois_d)
         cell_area = 'dendrites'
     else:
         raise ValueError('Value \'{}\' for depth not recognized.'
@@ -230,18 +241,18 @@ if __name__ == "__main__":
         sessions.append(sess)
 
     # print session information
-    print('\nAnalysing gab{} {} ROIs from session {}.'.format(gab_k_str, 
-                                                          cell_area, sess_order))
+    print('\nAnalysing gab{} {} ROIs from session {} ({} tail test).'
+          .format(gab_k_str, cell_area, sess_order, tails))
 
     # get ROI traces
-    gab_no_surp_chunks_all = [] # ROI stats for no surp (sess x quintile (x ROI, if byroi=True) x frame)
+    gab_no_surp_chunks_all = [] # ROI stats for no surp (sess x quintile (x ROI, if byroi=True) x stats x frame)
     if byroi:
-        gab_no_surp_chunks_me = [] # ROI mean/medians for no surp (sess x quintile (x ROI, if byroi=True) x frame)
+        gab_no_surp_chunks_me = [] # ROI mean/medians for no surp (sess x quintile (x ROI, if byroi=True) x stats x frame)
     n_gab_no_surp = [] # nbr of segs (no surp, gab_fr 3) (sess x quintile)
 
-    gab_surp_chunks_all = [] # ROI stats for surp (sess x quintile (x ROI, if byroi=True) x frame)
+    gab_surp_chunks_all = [] # ROI stats for surp (sess x quintile (x ROI, if byroi=True) x stats x frame)
     if byroi:
-        gab_surp_chunks_me = [] # ROI mean/medians for surp (sess x quintile (x ROI, if byroi=True) x frame)
+        gab_surp_chunks_me = [] # ROI mean/medians for surp (sess x quintile (x ROI, if byroi=True) x stats x frame)
     n_gab_surp = [] # nbr of segs (surp, gab_fr 3) (sess x quintile)
 
     twop_fps = [] # 2p fps by session
@@ -393,11 +404,12 @@ if __name__ == "__main__":
         if remnans:
             rem_rois = [] # ROI numbers removed for each session (mouse)
             orig_roi_n = [] # original nbrs of ROIs retained for each session (mouse)
+            n_rois = []
             for i in range(len(mice_n)):
-                n_rois = len(gab_surp_chunks_me[i][0])
+                n_rois_orig = len(gab_surp_chunks_me[i][0])
                 temp = [] # ROIs with infs or NaNs
-                temp2 = np.arange(0,n_rois) # original ROI numbers
-                for j in range(n_rois):
+                temp2 = np.arange(0, n_rois_orig) # original ROI numbers
+                for j in range(n_rois_orig):
                     # identify ROIs with NaNs or Infs in surprise or no surprise data
                     if (sum(sum(np.isnan(gab_surp_chunks_me[i][:, j]))) > 0 or 
                         sum(sum(np.isinf(gab_surp_chunks_me[i][:, j]))) > 0 or
@@ -408,10 +420,11 @@ if __name__ == "__main__":
                 gab_no_surp_chunks_me[i] = np.delete(gab_no_surp_chunks_me[i], temp, 1)
                 temp2 = np.delete(temp2, temp) # remove nbrs of ROIs removed
                 print('Mouse {}: Removing {}/{} ROIs: {}'
-                    .format(mice_n[i], len(temp), n_rois, ', '.join(map(str, temp))))
+                    .format(mice_n[i], len(temp), n_rois_orig, ', '.join(map(str, temp))))
                 # store
                 rem_rois.append(temp) # store
                 orig_roi_n.append(temp2) # store
+                n_rois.extend([len(gab_surp_chunks_me[i][0])]) # store
 
         # Integrate for each chunk per quintile per surp/non-surp (sum*fps)
         gab_diff_area = [] # difference in integrated dF/F (sess x quartile x ROI)
@@ -431,8 +444,16 @@ if __name__ == "__main__":
         # (gab_diff_area: mouse x qu x ROI area diff)
         print('\nRunning permutation test')
         
-        rois_sign_first = []
-        rois_sign_last = []
+        if tails == 'up' or tails == 'lo':
+            rois_sign_first = []
+            rois_sign_last = []
+        elif tails == 2:
+            rois_sign_first_up = []
+            rois_sign_first_lo = []
+            rois_sign_last_up = []
+            rois_sign_last_lo = []
+        else:
+            raise ValueError('Number of tails must be \'up\', \'lo\' or 2.')
         for i, sess in enumerate(sessions):
             # recalculates quintiles (like above) and gets all segs (surp or not)
             seg_min = min(sess.gabors.get_segs_by_criteria(stimPar2=gab_k, by='seg'))
@@ -441,7 +462,7 @@ if __name__ == "__main__":
             # get all segs (surprise or not)
             all_seg = sess.gabors.get_segs_by_criteria(gaborframe=gab_fr, 
                                                        stimPar2=gab_k, by='seg')
-            print('\nMouse {}'.format(mice_n[i]))
+            print('\nMouse {}, act sess: {}'.format(mice_n[i], act_sess_n[i]))
             for t, j in enumerate([0, quintiles-1]):
                 # retrieve segs for the current quintile
                 quint = [seg for seg in all_seg if (seg >= j*quints+seg_min and 
@@ -483,42 +504,124 @@ if __name__ == "__main__":
                 diffs = (np.mean(permed_roi[:, 0:n_gab_surp[i][j]], axis=1) - 
                          np.mean(permed_roi[:, n_gab_surp[i][j]:], axis=1))
                 # calculate threshold difference for each ROI
-                threshs = np.percentile(diffs, threshold, axis=1)
-                # for first quartile, identify ROIs with diff > threshold
+                if tails == 'lo':
+                    threshs = np.percentile(diffs, p_val, axis=1)
+                    rois = np.where(gab_diff_area[i][j] < threshs)[0]
+                elif tails == 'up':
+                    threshs = np.percentile(diffs, 100-p_val, axis=1)
+                    rois = np.where(gab_diff_area[i][j] > threshs)[0]
+                elif tails == 2:
+                    lo_threshs = np.percentile(diffs, p_val/2.0, axis=1)
+                    lo_rois = np.where(gab_diff_area[i][j] < lo_threshs)[0]
+                    up_threshs = np.percentile(diffs, 100-p_val/2.0, axis=1)
+                    up_rois = np.where(gab_diff_area[i][j] > up_threshs)[0]
+                # for first quartile, identify ROIs that cross threshold(s)
                 if t == 0:
-                    rois_sign_first.append(np.where(gab_diff_area[i][j] > 
-                                                    threshs)[0])
-                    print('first quintile: ROIs:{} \n\t\tdiffs: [{}]'.format(
-                        rois_sign_first[i], (' '.join('{:.2f}'.format(x) 
-                        for x in gab_diff_area[i][j, rois_sign_first[i]]))))
-
+                    if tails == 'up' or tails == 'lo':
+                        rois_sign_first.append(rois)
+                        print('first quintile: ROIs:{} \n\t\tdiffs: [{}]'.format(
+                            rois_sign_first[i], (' '.join('{:.2f}'.format(x) 
+                            for x in gab_diff_area[i][j, rois_sign_first[i]]))))
+                    elif tails == 2:
+                        rois_sign_first_up.append(up_rois)
+                        rois_sign_first_lo.append(lo_rois)
+                        print('first quintile, up: ROIs:{} \n\t\tdiffs: [{}]'.format(
+                            rois_sign_first_up[i], (' '.join('{:.2f}'.format(x) 
+                            for x in gab_diff_area[i][j, rois_sign_first_up[i]]))))
+                        print('first quintile, lo: ROIs:{} \n\t\tdiffs: [{}]'.format(
+                            rois_sign_first_lo[i], (' '.join('{:.2f}'.format(x) 
+                            for x in gab_diff_area[i][j, rois_sign_first_lo[i]]))))
+                # for last quartile, identify ROIs that cross threshold(s)
                 elif t == 1:
-                    rois_sign_last.append(np.where(gab_diff_area[i][j] > 
-                                                  threshs)[0])
-                    print('last quintile: ROIs:{} \n\t\tdiffs: [{}]'.format(
-                        rois_sign_last[i], (' '.join('{:.2f}'.format(x) 
-                        for x in gab_diff_area[i][j, rois_sign_last[i]]))))
+                    if tails == 'up' or tails == 'lo':
+                        rois_sign_last.append(rois)
+                        print('last quintile: ROIs:{} \n\t\tdiffs: [{}]'.format(
+                            rois_sign_last[i], (' '.join('{:.2f}'.format(x) 
+                            for x in gab_diff_area[i][j, rois_sign_last[i]]))))
+                    elif tails == 2:
+                        rois_sign_last_up.append(up_rois)
+                        rois_sign_last_lo.append(lo_rois)
+                        print('last quintile, up: ROIs:{} \n\t\tdiffs: [{}]'.format(
+                            rois_sign_last_up[i], (' '.join('{:.2f}'.format(x) 
+                            for x in gab_diff_area[i][j, rois_sign_last_up[i]]))))
+                        print('last quintile, lo: ROIs:{} \n\t\tdiffs: [{}]'.format(
+                            rois_sign_last_lo[i], (' '.join('{:.2f}'.format(x) 
+                            for x in gab_diff_area[i][j, rois_sign_last_lo[i]]))))
 
         # get ROI numbers for each group
-        surp_surp = []
-        surp_nosurp = []
-        nosurp_surp = []
-        nosurp_nosurp = []
-        for i in range(len(mice_n)):
-            n_rois = gab_diff_area[i].shape[1]
-            all_rois = range(n_rois)
-            surp_surp.append(list(set(rois_sign_first[i]) & set(rois_sign_last[i])))
-            surp_nosurp.append(list(set(rois_sign_first[i]) - set(rois_sign_last[i])))
-            nosurp_surp.append(list(set(rois_sign_last[i]) - set(rois_sign_first[i])))
-            nosurp_nosurp.append(list(set(all_rois) - set(surp_surp[i]) - 
-                                    set(surp_nosurp[i]) - set(nosurp_surp[i])))
+        if tails == 'up' or tails == 'lo':
+            surp_surp = []
+            surp_nosurp = []
+            nosurp_surp = []
+            nosurp_nosurp = []
+            for i in range(len(mice_n)):
+                all_rois = range(gab_diff_area[i].shape[1])
+                surp_surp.append(list(set(rois_sign_first[i]) & set(rois_sign_last[i])))
+                surp_nosurp.append(list(set(rois_sign_first[i]) - set(rois_sign_last[i])))
+                nosurp_surp.append(list(set(rois_sign_last[i]) - set(rois_sign_first[i])))
+                nosurp_nosurp.append(list(set(all_rois) - set(surp_surp[i]) - 
+                                          set(surp_nosurp[i]) - set(nosurp_surp[i])))
+            # to store stats
+            rois = [surp_surp, surp_nosurp, nosurp_surp, nosurp_nosurp]
+            # for plotting
+            leg = ['surp_surp', 'surp_nosurp', 'nosurp_surp', 'nosurp_nosurp']
 
-        # get stats for each group
-        rois = [surp_surp, surp_nosurp, nosurp_surp, nosurp_nosurp]
-        leg = ['surp_surp', 'surp_nosurp', 'nosurp_surp', 'nosurp_nosurp']
+        elif tails == 2:
+            surp_up_surp_up = []
+            surp_up_surp_lo = []
+            surp_lo_surp_up = []
+            surp_lo_surp_lo = []
+            surp_up_nosurp  = []
+            surp_lo_nosurp  = []
+            nosurp_surp_up  = []
+            nosurp_surp_lo  = []
+            nosurp_nosurp   = []
+            for i in range(len(mice_n)):  
+                    all_rois = range(n_rois[i])         
+                    surp_up_surp_up.append(list(set(rois_sign_first_up[i]) & 
+                                                set(rois_sign_last_up[i])))
+                    surp_up_surp_lo.append(list(set(rois_sign_first_up[i]) & 
+                                                set(rois_sign_last_lo[i])))
+                    surp_lo_surp_up.append(list(set(rois_sign_first_lo[i]) & 
+                                                set(rois_sign_last_up[i])))
+                    surp_lo_surp_lo.append(list(set(rois_sign_first_lo[i]) & 
+                                                set(rois_sign_last_lo[i])))
+
+                    surp_up_nosurp.append(list((set(rois_sign_first_up[i]) -
+                                                set(rois_sign_first_lo[i]) -
+                                                set(rois_sign_last_up[i]) - 
+                                                set(rois_sign_last_lo[i]))))
+                    surp_lo_nosurp.append(list((set(rois_sign_first_lo[i]) - 
+                                                set(rois_sign_first_up[i]) -
+                                                set(rois_sign_last_up[i]) -
+                                                set(rois_sign_last_lo[i]))))
+                    
+                    nosurp_surp_up.append(list((set(rois_sign_last_up[i]) - 
+                                                set(rois_sign_last_lo[i]) -
+                                                set(rois_sign_first_up[i]) - 
+                                                set(rois_sign_first_lo[i]))))
+                    nosurp_surp_lo.append(list((set(rois_sign_last_lo[i]) - 
+                                                set(rois_sign_last_up[i]) -
+                                                set(rois_sign_first_up[i]) -
+                                                set(rois_sign_first_lo[i]))))
+                    
+                    nosurp_nosurp.append(list((set(all_rois) - 
+                                               set(rois_sign_first_up[i]) -
+                                               set(rois_sign_last_up[i]) -
+                                               set(rois_sign_first_lo[i]) -
+                                               set(rois_sign_last_lo[i]))))
+            # to store stats
+            rois = [surp_up_surp_up, surp_up_surp_lo, surp_lo_surp_up, 
+                    surp_lo_surp_lo, surp_up_nosurp, surp_lo_nosurp, 
+                    nosurp_surp_up, nosurp_surp_lo, nosurp_nosurp]
+            # for plotting
+            leg = ['surpup_surpup', 'surpup_surplo', 'surplo_surpup', 
+                   'surplo_surplo', 'surpup_nosurp', 'surplo_nosurp', 
+                   'nosurp_surpup', 'nosurp_surplo', 'nosurp_nosurp']
+            
         roi_stats = []
         # roi_stats will have same structure as rois: 
-        # groupe (e.g., surp_surp) x mouse/session x [mean/median, std/mad] x quartile
+        # group (e.g., surp_surp) x mouse/session x [mean/median, sem/qu] x quartile
         for i in range(len(rois)):
             roi_stats.append([])
         for i in range(len(mice_n)):
@@ -534,7 +637,7 @@ if __name__ == "__main__":
                         me.append(np.median(gab_diff_area[i][q, roi[i]]))
                         if len (roi[i]) != 0:
                             dev.append([np.percentile(gab_diff_area[i][q, roi[i]], 25),
-                                    np.percentile(gab_diff_area[i][q, roi[i]], 75)])
+                                        np.percentile(gab_diff_area[i][q, roi[i]], 75)])
                         else:
                             dev.append([np.nan, np.nan])
                     else:
@@ -561,18 +664,86 @@ if __name__ == "__main__":
                     yerr2 = errs[:,1] - medians
                     ax.errorbar(x_ran, medians, yerr=[yerr1, yerr2],
                                 fmt='-o', capsize=4, capthick=2)
-                n_rois = len(rois[j][i])
-                act_leg.append('{} ({})'.format(leg[j], n_rois))
+                n = len(rois[j][i])
+                act_leg.append('{} ({})'.format(leg[j], n))
 
             ax.set_title(('Mouse {} - {} difference in dF/F \n for surprise vs '
-                        'non surprise gab{} sequences \n (session {}, {})')
-                        .format(mice_n[i], plot_stat, gab_k_str, sess_order,
-                        cell_area))
+                        'non surprise gab{} sequences \n (session {}, {}, {} tail, (n={}))')
+                        .format(mice_n[i], plot_stat, gab_k_str, act_sess_n[i],
+                        cell_area, tails, n_rois[i]))
             ax.set_xticks(x_ran)
             ax.set_ylabel('dF/F')
             ax.set_xlabel('Quintiles')
             ax.legend(act_leg)
         
-        fig_gab_surp_nosurp_qu.savefig('{}/roi_session_{}_gab{}_{}_diff_surp_nosurp_{}quint.png'
+        fig_gab_surp_nosurp_qu.savefig('{}/roi_session_{}_gab{}_{}_diff_surp_nosurp_{}quint_{}tail.png'
                                     .format(figdir_roi, sess_order, gab_k_str,
-                                    cell_area, quintiles), bbox_inches='tight')
+                                    cell_area, quintiles, tails), bbox_inches='tight')
+        
+        # plot mean difference in surprise response for groups that show change across quartiles 
+        # (1 plot per mouse)    
+        max_cols = 3
+        x_ran = gab_surp_chunks_all[0][0][0][0]
+
+        # draw lines
+        # light at each segment (+1 for gray and +1 for end)
+        seg_bars = [0.3, 0.6, 0.9, 1.2]
+        xpos = [0.15, 0.45, 0.75, 1.05, 1.35]
+        labels = ['E-D', 'gray', 'A', 'B', 'C']
+        col = [['blue', 'lightskyblue'], ['orange', 'navajowhite']]
+
+        if tails == 'up' or tails == 'lo':
+            change_ind = [1, 2] # indexes of groups that show change
+        elif tails == 2:
+            change_ind = [1, 2, 4, 5, 6, 7] # indexed of groups that show change
+        for i in range(len(mice_n)):
+            ncols = min(len(change_ind), max_cols)
+            nrows = int(np.ceil(len(change_ind)/float(ncols)))
+            fig_gab_qu_trace_diff, ax_gab_qu_trace_diff = plt.subplots(ncols=ncols, nrows=nrows, 
+                                                                       figsize=(7.5*ncols, 7.5*nrows))
+            fig_gab_qu_trace_diff.suptitle(('Mouse {} - difference in dF/F for \n '
+                                            'surprise vs non surprise gab{} sequences \n'
+                                            'for quintile 1 vs {}, session {}, {}, {} tail (n={})'
+                                            .format(mice_n[i], gab_k_str, quintiles, 
+                                                    act_sess_n[i], cell_area, tails, n_rois[i])))
+            # ROI mean/medians for surp (sess x quintile x ROI x frame)
+            for k, r in enumerate(change_ind):
+                if tails == 'up' or tails == 'lo':
+                    ax = ax_gab_qu_trace_diff[k]            
+                elif tails == 2:
+                    ax = ax_gab_qu_trace_diff[k/ncols][k%ncols]
+                n = len(rois[r][i])
+                if n == 0:
+                    ax.set_title(leg[r])
+                    continue
+                for t, j in enumerate([0, quintiles-1]):
+                    if plot_stat == 'mean':
+                        diff_traces = (gab_surp_chunks_me[i][j, rois[r][i]] - 
+                                       gab_no_surp_chunks_me[i][j, rois[r][i]])
+                        me = np.mean(diff_traces, axis=0)
+                        de = scipy.stats.sem(diff_traces, axis=0)
+
+                    elif plot_stat == 'median':
+                        diff_traces = (gab_surp_chunks_me[i][j, rois[r][i]] - 
+                                       gab_no_surp_chunks_me[i][j, rois[r][i]])
+                        me = np.median(diff_traces, axis=0)
+                        de = [np.percentile(diff_traces, 25, axis=0), 
+                              np.percentile(diff_traces, 75, axis=0)]
+
+                    chunk_val = [x_ran, me, de]
+                    # to plot the bars only once
+                    if t == 0:
+                        plot_chunks(ax, chunk_val, plot_stat, col=col[t])
+                    elif t == 1:
+                        plot_chunks(ax, chunk_val, plot_stat, hbars=seg_bars, title=leg[r], col=col[t])
+
+                ax.legend(['first quint (n={}'.format(n), 'last quint (n={})'.format(n)])
+                ymin, ymax = ax.get_ylim()
+                ypos = (ymax-ymin)*0.9+ymin
+                for l, x in zip(labels, xpos):
+                    ax.text(x, ypos, l, horizontalalignment='center', fontsize=15)
+                    
+
+            fig_gab_qu_trace_diff.savefig('{}/roi_mouse_{}_session_{}_gab{}_{}_diff_{}quint_{}tail.png'
+                                    .format(figdir_roi, mice_n[i], sess_order, gab_k_str,
+                                    cell_area, quintiles, tails), bbox_inches='tight')

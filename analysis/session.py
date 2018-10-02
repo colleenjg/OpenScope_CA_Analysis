@@ -1171,11 +1171,11 @@ class Stim(object):
         elif stats == 'median':
             data_chunks_me = np.median(data_chunks, axis=0)
             data_chunks_de = [np.percentile(data_chunks, 25, axis=0),
-                            np.percentile(data_chunks, 75, axis=0)]
+                              np.percentile(data_chunks, 75, axis=0)]
             if rand:
                 data_chunks_rand_me = np.median(data_chunks_rand, axis=0)
                 data_chunks_rand_de = [np.percentile(data_chunks_rand, 25, axis=0),
-                                      np.percentile(data_chunks_rand, 75, axis=0)]
+                                       np.percentile(data_chunks_rand, 75, axis=0)]
         
         if rand and chunks:
             return (x_ran, data_chunks_me, data_chunks_de, data_chunks_rand_me, 
