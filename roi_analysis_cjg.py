@@ -175,7 +175,7 @@ if __name__ == "__main__":
     quintiles = 4 # number of quintiles to divide stimulus into
     n_perms = 1000 # n of permutations for permutation analysis
     p_val = 5 # p-value for permutation analysis
-    tails = 'lo' #  'up' (1 tail, upper), 'lo' (1 tail, lower) or 2 (2 tailed test)
+    tails = 2 #  'up' (1 tail, upper), 'lo' (1 tail, lower) or 2 (2 tailed test)
 
     # general parameters
     gab_fr    = 3 # gabor frame to retrieve
@@ -588,20 +588,16 @@ if __name__ == "__main__":
                                                 set(rois_sign_last_lo[i])))
 
                     surp_up_nosurp.append(list((set(rois_sign_first_up[i]) -
-                                                set(rois_sign_first_lo[i]) -
                                                 set(rois_sign_last_up[i]) - 
                                                 set(rois_sign_last_lo[i]))))
                     surp_lo_nosurp.append(list((set(rois_sign_first_lo[i]) - 
-                                                set(rois_sign_first_up[i]) -
                                                 set(rois_sign_last_up[i]) -
                                                 set(rois_sign_last_lo[i]))))
                     
                     nosurp_surp_up.append(list((set(rois_sign_last_up[i]) - 
-                                                set(rois_sign_last_lo[i]) -
                                                 set(rois_sign_first_up[i]) - 
                                                 set(rois_sign_first_lo[i]))))
                     nosurp_surp_lo.append(list((set(rois_sign_last_lo[i]) - 
-                                                set(rois_sign_last_up[i]) -
                                                 set(rois_sign_first_up[i]) -
                                                 set(rois_sign_first_lo[i]))))
                     
