@@ -173,12 +173,14 @@ if __name__ == "__main__":
     sess_order = 1 # 1 for first, etc. or 'last'
     min_rois_d = 15 # min number of ROIs for inclusion (dendrites)
     min_rois_s = 30 # min number of ROIs for inclusion (somata)
-    depth = 'hi' # 'hi' for dendrites or 'lo' for somata
+    depth = 'lo' # 'hi' for dendrites or 'lo' for somata
     gab_k = [16] # kappa value(s) to use (either [4], [16] or [4, 16])
     quintiles = 4 # number of quintiles to divide stimulus into
     n_perms = 10000 # n of permutations for permutation analysis
     p_val = 5 # p-value for permutation analysis
-    tails = 'up' #  'up' (1 tail, upper), 'lo' (1 tail, lower) or 2 (2 tailed test)
+    tails = 2 #  'up' (1 tail, upper), 'lo' (1 tail, lower) or 2 (2 tailed test)
+
+    last_plot = 'surp' # plot difference between surprise and non surprise ('diff') or surprise ('surp')
 
     # general parameters
     gab_fr    = 3 # gabor frame to retrieve
@@ -679,7 +681,8 @@ if __name__ == "__main__":
                                     .format(figdir_roi, sess_order, gab_k_str,
                                     cell_area, quintiles, tails, fig_ext), bbox_inches='tight')
         
-        # plot mean difference in surprise response for groups that show change across quartiles 
+        # plot mean difference in surprise vs non surprise response OR surprise 
+        # response for groups that show change across quartiles 
         # (1 plot per mouse)    
         max_cols = 3
         x_ran = gab_surp_chunks_all[0][0][0][0]
@@ -690,6 +693,10 @@ if __name__ == "__main__":
         xpos = [0.15, 0.45, 0.75, 1.05, 1.35]
         labels = ['E-D', 'gray', 'A', 'B', 'C']
         col = [['blue', 'lightskyblue'], ['orange', 'navajowhite']]
+        if last_plot == 'diff':
+            title_part = 'difference in dF/F for \n surprise vs non surprise'
+        elif last_plot == 'surp':
+            title_part = 'surprise dF/F for'
 
         if tails == 'up' or tails == 'lo':
             change_ind = [1, 2] # indexes of groups that show change
@@ -700,10 +707,9 @@ if __name__ == "__main__":
             nrows = int(np.ceil(len(change_ind)/float(ncols)))
             fig_gab_qu_trace_diff, ax_gab_qu_trace_diff = plt.subplots(ncols=ncols, nrows=nrows, 
                                                                        figsize=(7.5*ncols, 7.5*nrows))
-            fig_gab_qu_trace_diff.suptitle(('Mouse {} - difference in dF/F for \n '
-                                            'surprise vs non surprise gab{} sequences \n'
+            fig_gab_qu_trace_diff.suptitle(('Mouse {} - {} gab{} sequences \n'
                                             'for quintile 1 vs {}, session {}, {}, {} tail (n={})'
-                                            .format(mice_n[i], gab_k_str, quintiles, 
+                                            .format(mice_n[i], title_part, gab_k_str, quintiles, 
                                                     act_sess_n[i], cell_area, tails, n_rois[i])))
             # ROI mean/medians for surp (sess x quintile x ROI x frame)
             for k, r in enumerate(change_ind):
@@ -718,17 +724,23 @@ if __name__ == "__main__":
                     continue
                 for t, j in enumerate([0, quintiles-1]):
                     if plot_stat == 'mean':
-                        diff_traces = (gab_surp_chunks_me[i][j, rois[r][i]] - 
-                                       gab_no_surp_chunks_me[i][j, rois[r][i]])
-                        me = np.mean(diff_traces, axis=0)
-                        de = scipy.stats.sem(diff_traces, axis=0)
+                        if last_plot == 'diff':
+                            traces = (gab_surp_chunks_me[i][j, rois[r][i]] - 
+                                      gab_no_surp_chunks_me[i][j, rois[r][i]])
+                        elif last_plot == 'surp':
+                            traces = gab_surp_chunks_me[i][j, rois[r][i]]        
+                        me = np.mean(traces, axis=0)
+                        de = scipy.stats.sem(traces, axis=0)
 
                     elif plot_stat == 'median':
-                        diff_traces = (gab_surp_chunks_me[i][j, rois[r][i]] - 
-                                       gab_no_surp_chunks_me[i][j, rois[r][i]])
-                        me = np.median(diff_traces, axis=0)
-                        de = [np.percentile(diff_traces, 25, axis=0), 
-                              np.percentile(diff_traces, 75, axis=0)]
+                        if last_plot == 'diff':
+                            traces = (gab_surp_chunks_me[i][j, rois[r][i]] - 
+                                      gab_no_surp_chunks_me[i][j, rois[r][i]])
+                        elif last_plot == 'surp':
+                            traces = gab_surp_chunks_me[i][j, rois[r][i]]
+                        me = np.median(traces, axis=0)
+                        de = [np.percentile(traces, 25, axis=0), 
+                              np.percentile(traces, 75, axis=0)]
 
                     chunk_val = [x_ran, me, de]
                     # to plot the bars only once
@@ -744,6 +756,6 @@ if __name__ == "__main__":
                     ax.text(x, ypos, l, horizontalalignment='center', fontsize=15)
                     
 
-            fig_gab_qu_trace_diff.savefig('{}/roi_mouse_{}_session_{}_gab{}_{}_diff_{}quint_{}tail{}'
+            fig_gab_qu_trace_diff.savefig('{}/roi_mouse_{}_session_{}_gab{}_{}_{}_{}quint_{}tail{}'
                                     .format(figdir_roi, mice_n[i], sess_order, gab_k_str,
-                                    cell_area, quintiles, tails, fig_ext), bbox_inches='tight')
+                                    cell_area, last_plot, quintiles, tails, fig_ext), bbox_inches='tight')
