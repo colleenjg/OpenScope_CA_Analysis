@@ -166,6 +166,9 @@ if __name__ == "__main__":
     mouse_df_dir = 'mouse_df.pkl'
     figdir_roi = 'figures/prelim_roi'
 
+    # output type for figures
+    fig_ext = '.svg' # '.svg' or '.png'
+
     # specific parameters
     sess_order = 1 # 1 for first, etc. or 'last'
     min_rois_d = 15 # min number of ROIs for inclusion (dendrites)
@@ -173,9 +176,9 @@ if __name__ == "__main__":
     depth = 'hi' # 'hi' for dendrites or 'lo' for somata
     gab_k = [16] # kappa value(s) to use (either [4], [16] or [4, 16])
     quintiles = 4 # number of quintiles to divide stimulus into
-    n_perms = 1000 # n of permutations for permutation analysis
+    n_perms = 10000 # n of permutations for permutation analysis
     p_val = 5 # p-value for permutation analysis
-    tails = 2 #  'up' (1 tail, upper), 'lo' (1 tail, lower) or 2 (2 tailed test)
+    tails = 'up' #  'up' (1 tail, upper), 'lo' (1 tail, lower) or 2 (2 tailed test)
 
     # general parameters
     gab_fr    = 3 # gabor frame to retrieve
@@ -672,9 +675,9 @@ if __name__ == "__main__":
             ax.set_xlabel('Quintiles')
             ax.legend(act_leg)
         
-        fig_gab_surp_nosurp_qu.savefig('{}/roi_session_{}_gab{}_{}_diff_surp_nosurp_{}quint_{}tail.png'
+        fig_gab_surp_nosurp_qu.savefig('{}/roi_session_{}_gab{}_{}_diff_surp_nosurp_{}quint_{}tail{}'
                                     .format(figdir_roi, sess_order, gab_k_str,
-                                    cell_area, quintiles, tails), bbox_inches='tight')
+                                    cell_area, quintiles, tails, fig_ext), bbox_inches='tight')
         
         # plot mean difference in surprise response for groups that show change across quartiles 
         # (1 plot per mouse)    
@@ -709,8 +712,9 @@ if __name__ == "__main__":
                 elif tails == 2:
                     ax = ax_gab_qu_trace_diff[k/ncols][k%ncols]
                 n = len(rois[r][i])
+                title = '{} (n={})'.format(leg[r], n)
                 if n == 0:
-                    ax.set_title(leg[r])
+                    ax.set_title(title)
                     continue
                 for t, j in enumerate([0, quintiles-1]):
                     if plot_stat == 'mean':
@@ -731,15 +735,15 @@ if __name__ == "__main__":
                     if t == 0:
                         plot_chunks(ax, chunk_val, plot_stat, col=col[t])
                     elif t == 1:
-                        plot_chunks(ax, chunk_val, plot_stat, hbars=seg_bars, title=leg[r], col=col[t])
+                        plot_chunks(ax, chunk_val, plot_stat, hbars=seg_bars, title=title, col=col[t])
 
-                ax.legend(['first quint (n={}'.format(n), 'last quint (n={})'.format(n)])
+                ax.legend(['first quint', 'last quint'])
                 ymin, ymax = ax.get_ylim()
                 ypos = (ymax-ymin)*0.9+ymin
                 for l, x in zip(labels, xpos):
                     ax.text(x, ypos, l, horizontalalignment='center', fontsize=15)
                     
 
-            fig_gab_qu_trace_diff.savefig('{}/roi_mouse_{}_session_{}_gab{}_{}_diff_{}quint_{}tail.png'
+            fig_gab_qu_trace_diff.savefig('{}/roi_mouse_{}_session_{}_gab{}_{}_diff_{}quint_{}tail{}'
                                     .format(figdir_roi, mice_n[i], sess_order, gab_k_str,
-                                    cell_area, quintiles, tails), bbox_inches='tight')
+                                    cell_area, quintiles, tails, fig_ext), bbox_inches='tight')
