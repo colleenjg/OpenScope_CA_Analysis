@@ -180,7 +180,10 @@ if __name__ == "__main__":
     p_val = 5 # p-value for permutation analysis
     tails = 2 #  'up' (1 tail, upper), 'lo' (1 tail, lower) or 2 (2 tailed test)
 
-    last_plot = 'surp' # plot difference between surprise and non surprise ('diff') or surprise ('surp')
+    # plot difference between surprise and non surprise ('diff') or 
+    # surprise ('surp') or non surprise ('nosurp')
+    last_plot = 'surp' 
+    add_nosurp = True # add nosurp_nosurp to the last plots?
 
     # general parameters
     gab_fr    = 3 # gabor frame to retrieve
@@ -285,7 +288,7 @@ if __name__ == "__main__":
             # store number of no surp segs for each quintile
             gab_no_surp_count.extend([len(quint_no_surp)])
             # get the stats for ROI traces for these segs 
-            # returns [x_ran, mean/median, std/quartiles] for each ROI or across ROIs
+            # returns [x_ran, mean/median, std/quintiles] for each ROI or across ROIs
             chunk_stats = sess.gabors.get_roi_chunk_stats(sess.gabors
                             .get_2pframes_by_seg(quint_no_surp, first=True), 
                             pre, post, byroi=byroi, dfoverf=dfoverf, 
@@ -319,7 +322,7 @@ if __name__ == "__main__":
             # store number of surp segs for each quintile
             gab_surp_count.extend([len(quint_surp)])
             # get the stats for ROI traces for these segs 
-            # returns [x_ran, mean/median, std/quartiles] for each ROI or across ROIs
+            # returns [x_ran, mean/median, std/quintiles] for each ROI or across ROIs
             chunk_stats = sess.gabors.get_roi_chunk_stats(sess.gabors
                         .get_2pframes_by_seg(quint_surp, first=True), 
                         pre, post, byroi=byroi, dfoverf=dfoverf, 
@@ -432,8 +435,10 @@ if __name__ == "__main__":
                 n_rois.extend([len(gab_surp_chunks_me[i][0])]) # store
 
         # Integrate for each chunk per quintile per surp/non-surp (sum*fps)
-        gab_diff_area = [] # difference in integrated dF/F (sess x quartile x ROI)
-
+        gab_surp_area = [] # integrated dF/F (sess x quintile x ROI) for surprise segments
+        gab_no_surp_area = [] # integrated dF/F (sess x quintile x ROI) for non surprise segments
+        gab_diff_area = [] # difference in integrated dF/F (sess x quintile x ROI)
+        
         for i in range(len(mice_n)):
             # get area under the curve
             temp_surp = np.sum(gab_surp_chunks_me[i], 2)*1./twop_fps[i]
@@ -443,6 +448,8 @@ if __name__ == "__main__":
             # print('\nMouse {}, ROI diff 1st quint: {} \n({})'.format(i+1, 
             #       np.mean(diff_surp[0]), ', '.join('{:.3f}'.format(x) 
             #                                        for x in diff_surp[0])))
+            gab_surp_area.append(temp_surp)
+            gab_no_surp_area.append(temp_no_surp)
             gab_diff_area.append(diff_surp)
 
         # Run permutation test for first and last quintiles
@@ -520,7 +527,7 @@ if __name__ == "__main__":
                     lo_rois = np.where(gab_diff_area[i][j] < lo_threshs)[0]
                     up_threshs = np.percentile(diffs, 100-p_val/2.0, axis=1)
                     up_rois = np.where(gab_diff_area[i][j] > up_threshs)[0]
-                # for first quartile, identify ROIs that cross threshold(s)
+                # for first quintile, identify ROIs that cross threshold(s)
                 if t == 0:
                     if tails == 'up' or tails == 'lo':
                         rois_sign_first.append(rois)
@@ -536,7 +543,7 @@ if __name__ == "__main__":
                         print('first quintile, lo: ROIs:{} \n\t\tdiffs: [{}]'.format(
                             rois_sign_first_lo[i], (' '.join('{:.2f}'.format(x) 
                             for x in gab_diff_area[i][j, rois_sign_first_lo[i]]))))
-                # for last quartile, identify ROIs that cross threshold(s)
+                # for last quintile, identify ROIs that cross threshold(s)
                 elif t == 1:
                     if tails == 'up' or tails == 'lo':
                         rois_sign_last.append(rois)
@@ -622,7 +629,7 @@ if __name__ == "__main__":
             
         roi_stats = []
         # roi_stats will have same structure as rois: 
-        # group (e.g., surp_surp) x mouse/session x [mean/median, sem/qu] x quartile
+        # group (e.g., surp_surp) x mouse/session x [mean/median, sem/qu] x quintile
         for i in range(len(rois)):
             roi_stats.append([])
         for i in range(len(mice_n)):
@@ -682,7 +689,7 @@ if __name__ == "__main__":
                                     cell_area, quintiles, tails, fig_ext), bbox_inches='tight')
         
         # plot mean difference in surprise vs non surprise response OR surprise 
-        # response for groups that show change across quartiles 
+        # response for groups that show change across quintiles 
         # (1 plot per mouse)    
         max_cols = 3
         x_ran = gab_surp_chunks_all[0][0][0][0]
@@ -697,11 +704,21 @@ if __name__ == "__main__":
             title_part = 'difference in dF/F for \n surprise vs non surprise'
         elif last_plot == 'surp':
             title_part = 'surprise dF/F for'
+        elif last_plot == 'nosurp':
+            title_part = 'non surprise dF/F for'
+        else:
+            raise ValueError(('\'last_plot\' can only take following values: ' 
+                             '\'diff\', \'surp\' or \'nosurp\', not \'{}\'.'
+                             .format(last_plot)))
 
         if tails == 'up' or tails == 'lo':
-            change_ind = [1, 2] # indexes of groups that show change
+            change_ind = [1, 2] # indexes of groups that show change 
+            if add_nosurp:
+                change_ind.extend([3]) # add nosurp_nosurp
         elif tails == 2:
             change_ind = [1, 2, 4, 5, 6, 7] # indexed of groups that show change
+            if add_nosurp:
+                change_ind.extend([8]) # add nosurp_nosurp
         for i in range(len(mice_n)):
             ncols = min(len(change_ind), max_cols)
             nrows = int(np.ceil(len(change_ind)/float(ncols)))
@@ -728,7 +745,9 @@ if __name__ == "__main__":
                             traces = (gab_surp_chunks_me[i][j, rois[r][i]] - 
                                       gab_no_surp_chunks_me[i][j, rois[r][i]])
                         elif last_plot == 'surp':
-                            traces = gab_surp_chunks_me[i][j, rois[r][i]]        
+                            traces = gab_surp_chunks_me[i][j, rois[r][i]]  
+                        elif last_plot == 'nosurp':
+                            traces = gab_no_surp_chunks_me[i][j, rois[r][i]]
                         me = np.mean(traces, axis=0)
                         de = scipy.stats.sem(traces, axis=0)
 
@@ -738,6 +757,8 @@ if __name__ == "__main__":
                                       gab_no_surp_chunks_me[i][j, rois[r][i]])
                         elif last_plot == 'surp':
                             traces = gab_surp_chunks_me[i][j, rois[r][i]]
+                        elif last_plot == 'nosurp':
+                            traces = gab_no_surp_chunks_me[i][j, rois[r][i]]
                         me = np.median(traces, axis=0)
                         de = [np.percentile(traces, 25, axis=0), 
                               np.percentile(traces, 75, axis=0)]
@@ -759,3 +780,18 @@ if __name__ == "__main__":
             fig_gab_qu_trace_diff.savefig('{}/roi_mouse_{}_session_{}_gab{}_{}_{}_{}quint_{}tail{}'
                                     .format(figdir_roi, mice_n[i], sess_order, gab_k_str,
                                     cell_area, last_plot, quintiles, tails, fig_ext), bbox_inches='tight')
+
+        # get magnitude differences (magnitude of change for surprise vs non 
+        # surprise segments)
+        mag_qu_diff_surp = np.empty(len(mice_n))
+        mag_qu_diff_no_surp = np.empty(len(mice_n))
+        for i in range(len(mice_n)):
+            # difference in average integrated areas across ROIs between last 
+            # and first quintiles
+            mag_qu_diff_no_surp[i] = np.linalg.norm(gab_no_surp_area[i][quintiles-1]-gab_no_surp_area[i][0])
+            mag_qu_diff_surp[i] = np.linalg.norm(gab_surp_area[i][quintiles-1]-gab_surp_area[i][0])
+        
+        print('Magnitude in quintile difference per ROI for non surprise segments, per mouse: {}'
+              .format(mag_qu_diff_no_surp))
+        print('Magnitude in quintile difference per ROI for surprise segments, per mouse: {}'
+              .format(mag_qu_diff_surp))
