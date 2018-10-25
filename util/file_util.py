@@ -15,6 +15,25 @@ Note: this code uses python 2.7.
 import os.path
 import exceptions
 
+import pandas as pd
+import pickle
+
+###############################################################################
+def open_file(filename, type='pickle'):
+    if os.path.exists(filename):
+        if type == 'pickle':
+            with open(filename, 'r') as f:
+                datafile = pickle.load(f)
+        elif type == 'pandas':
+            datafile = pd.read_pickle(filename)
+        else:
+            raise ValueError(('\'type\' only takes \'pickle\' or \'pandas\' as' 
+                            'values.'))
+    else:
+        raise IOError('{} does not exist.'.format(filename))
+
+    return datafile
+
 ###############################################################################
 def check_datadir(datadir):
     '''
@@ -104,6 +123,7 @@ def get_file_names(masterdir, session, experiment, date, mouse):
             raise exceptions.OSError('{} does not exist'.format(stim_sync_file))
         #if not os.path.isfile(corrected_data): ADD THIS BACK LATER...
         #    raise exceptions.OSError('{} does not exist'.format(corrected_data))
+        if not os.path.isfile(roi_trace_data):
             raise exceptions.OSError('{} does not exist'.format(roi_trace_data))
         #if not os.path.isfile(zstack): ADD THIS BACK LATER...
         #    raise exceptions.OSError('{} does not exist'.format(zstack))

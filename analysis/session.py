@@ -43,7 +43,7 @@ class Session(object):
     
     def __init__(self, datadir, sessionid, droptol=0.0003):
         """
-        __init__(datadir, sessionid)
+        self.__init__(datadir, sessionid)
 
         Create the new Session object using the specified data directory and ID.
 
@@ -67,7 +67,7 @@ class Session(object):
     #############################################
     def _init_directory(self):
         """
-        _init_directory()
+        self._init_directory()
 
         Initialize the directory information for the session. This involves 
         checking that the given directory obeys the appropriate organization 
@@ -116,7 +116,7 @@ class Session(object):
     #############################################
     def _load_stim_dict(self):
         """
-        _load_stim_dict()
+        self._load_stim_dict()
 
         Loads the stimulus dictionary from the stimulus pickle file and store a 
         few variables for easy access.
@@ -151,7 +151,7 @@ class Session(object):
     #############################################
     def _load_align_df(self):
         """
-        _load_align_df()
+        self._load_align_df()
 
         Loads the alignment dataframe object and stores it in the Session. 
         Note: this will also create a pickle file with the alignment data 
@@ -176,13 +176,14 @@ class Session(object):
         self.align_df      = align['stim_df']
         self.stim_align    = align['stim_align']
         self.twop_fps        = sync_util.get_frame_rate(self.stim_sync)[0] # mean
-        self.tot_2p_frames = len(align['stim_align'])
+        # 2p_frames (while stim collected) - should be smaller or equal to self.nframes
+        self.tot_2p_frames = int(max(align['stim_align'])) 
     
     #############################################
     # load running speed array as an attribute
     def _load_run(self):
         """
-        _load_run()
+        self._load_run()
 
         Loads the running wheel data into the session object.
         """
@@ -193,7 +194,7 @@ class Session(object):
     #############################################
     def _load_roi_traces(self):
         """
-        _load_roi_traces()
+        self._load_roi_traces()
 
         Loads some basic information about ROI dF/F traces. This includes
         the number of ROIs, their names, and the number of data points in the 
@@ -212,6 +213,7 @@ class Session(object):
 
                 # get the number of data points in the traces
                 self.nframes = f['data'].shape[1]
+    
         except:
             raise exceptions.IOError('Could not open {} for reading'
                                      .format(self.roi_traces))
@@ -219,7 +221,7 @@ class Session(object):
     #############################################
     def extract_info(self, load_run=True):
         """
-        extract_info(load_run=True)
+        self.extract_info(load_run=True)
 
         Runs _load_align_df(), _load_stim_dict(), _load_run(), and
         _load_roi_traces(), if these have not been done yet. Then, 
@@ -272,7 +274,7 @@ class Session(object):
     #############################################
     def get_run_speed(self, frames):
         """
-        get_run_speed(frames)
+        self.get_run_speed(frames)
 
         Returns the running speed for the given two-photon imaging
         frames using linear interpolation.
@@ -294,25 +296,39 @@ class Session(object):
         return speed
 
     ############################################
-    def create_dff(self, basewin=1000):
+    def create_dff(self, replace=False, basewin=1000):
+        """
+        self.create_dff()
 
-        # read the data points into the return array
-        with h5py.File(self.roi_traces,'r') as f:
-            try:
-                traces = f['data'].value
-            except:
-                pdb.set_trace()
-                raise exceptions.IOError('Could not read {}'.format(self.roi_traces))
+        Returns the running speed for the given two-photon imaging
+        frames using linear interpolation.
+
+        Required arguments:
+            - frames (int array): set of 2p imaging frames to give speed for
         
-        traces = compute_dff(traces, mode_kernelsize=2*basewin, mean_kernelsize=basewin)
+        Returns:
+            - speed (float array): running speed (in cm/s) - CHECK THIS
+        """
+        
+        if not os.path.exists(self.roi_traces_dff) or replace:
+            print('Creating dF/F files using {} basewin'.format(basewin))
+            # read the data points into the return array
+            with h5py.File(self.roi_traces,'r') as f:
+                try:
+                    traces = f['data'].value
+                except:
+                    pdb.set_trace()
+                    raise exceptions.IOError('Could not read {}'.format(self.roi_traces))
             
-        with h5py.File(self.roi_traces_dff, 'w') as hf:
-            hf.create_dataset('data',  data=traces)
+            traces = compute_dff(traces, mode_kernelsize=2*basewin, mean_kernelsize=basewin)
+                
+            with h5py.File(self.roi_traces_dff, 'w') as hf:
+                hf.create_dataset('data',  data=traces)
             
     #############################################
     def get_roi_traces(self, frames=None, dfoverf=False, basewin=1000):
         """
-            get_roi_traces(frames=None, dfoverf=False, basewin=1000)
+        self.get_roi_traces(frames=None, dfoverf=False, basewin=1000)
 
         Returns the processed ROI traces for the given two-photon imaging
         frames and specified ROIs.
@@ -341,13 +357,11 @@ class Session(object):
             raise UserWarning("Some of the specified frames are out of range")
 
         # initialize the return array
-        traces = np.empty((self.nroi,len(frames))) + np.nan
+        traces = np.empty((self.nroi, len(frames))) + np.nan
 
         # read the data points into the return array
         if dfoverf:
-            if not os.path.exists(self.roi_traces_dff):
-                print('Creating dF/F files using {} basewin'.format(basewin))
-                self.create_dff(basewin=basewin)
+            self.create_dff(basewin=basewin)
             roi_traces = self.roi_traces_dff
         else:
             roi_traces = self.roi_traces
@@ -369,7 +383,7 @@ class Session(object):
     #############################################
     def get_roi_segments(self, segframes, padding=(0,0), dfoverf=False, basewin=1000):
         """
-        get_roi_segments(segframes, padding=(0,0), dfoverf=False, basewin=1000)
+        self.get_roi_segments(segframes, padding=(0,0), dfoverf=False, basewin=1000)
 
         Returns the processed ROI traces for the given stimulus segments.
         Frames around the start and end of the segments can be requested by setting
@@ -519,7 +533,7 @@ class Stim(object):
 
     def __init__(self, sess, stim_n, stim_type):
         """
-
+        self.__init__(sess, stim_n, stim_type)
         """
         self.stim_type = stim_type
         self.sess = sess
@@ -573,6 +587,9 @@ class Stim(object):
     #############################################
     # calculates block lengths
     def _get_blocks(self):
+        """
+        self._get_blocks
+        """
 
         self.disp_seq    = self.sess.stim_dict['stimuli'][self.stim_n]['display_sequence']
         self.n_segs_nobl = np.empty([len(self.disp_seq)])
@@ -651,6 +668,9 @@ class Stim(object):
     #############################################
     # calculates behavioural (not 2P) frame range for each block
     def _get_frames(self):
+        """
+        self._get_frames()
+        """
         # fill out the stimulus frame_list to be the same length as running array
 
         self.frame_list = int(self.sess.pre_blank*self.stim_fps)*[-1] + \
@@ -681,7 +701,7 @@ class Stim(object):
     #############################################
     def get_n_2pframes_per_seg(self, segs):
         """
-        get_n_2pframes_per_seg()
+        self.get_n_2pframes_per_seg(segs)
 
         Returns a list with the number of twop frames for each seg passed.    
 
@@ -713,7 +733,7 @@ class Stim(object):
                                start_frame='any', end_frame='any',
                                num_frames='any', remconsec=False, by='block'):
         """
-        get_segs_by_criteria()
+        self.get_segs_by_criteria()
 
         Returns a list of stimulus segs that have the specified values in 
         specified columns in the alignment dataframe.    
@@ -842,7 +862,7 @@ class Stim(object):
                                stimSeg='any', gaborframe='any', start_frame='any', end_frame='any',
                                num_frames='any', first_fr=True, remconsec=False, by='block'):
         """
-        get_frames_by_criteria()
+        self.get_frames_by_criteria()
 
         Returns a list of stimulus frames that have the specified values in 
         specified columns in the alignment dataframe.    
@@ -982,7 +1002,7 @@ class Stim(object):
     #############################################
     def get_first_surp_segs(self, by='block'):
         """
-        get_first_surp_segs()
+        self.get_first_surp_segs()
 
         Returns two lists of stimulus segments, the first is a list of all the 
         first surprise segments for the stimulus type at transitions from 
@@ -1012,7 +1032,7 @@ class Stim(object):
     #############################################
     def get_all_surp_segs(self, by='block'):
         """
-        get_all_surp_segs()
+        self.get_all_surp_segs()
 
         Returns two lists of stimulus segments, the first is a list of all the 
         surprise segments for the stimulus type. The second is a list of all the 
@@ -1038,7 +1058,7 @@ class Stim(object):
     #############################################
     def get_first_surp_frame_1s(self, by='block'):
         """
-        get_first_surp_frame_1s()
+        self.get_first_surp_frame_1s()
 
         Returns two lists of stimulus frames, the first is a list of all the 
         first surprise frames for the stimulus type at transitions from regular 
@@ -1070,7 +1090,7 @@ class Stim(object):
     #############################################
     def get_all_surp_frames(self, by='block'):
         """
-        get_all_surp_frames()
+        self.get_all_surp_frames()
 
         Returns two lists of stimulus frames, the first is a list of all 
         surprise frames for the stimulus type. The second is a list of all 
@@ -1099,9 +1119,9 @@ class Stim(object):
 
     #############################################
     def get_chunk_stats(self, x_ran, data, rand=False, chunks=False, 
-                        stats='mean'):
+                        stats='mean', error='std'):
         """
-        get_chunk_stats()
+        self.get_chunk_stats(x_ran, data)
 
         Returns stats (mean and std or median and quartiles) for chunks of 
         running or roi traces centered around specific frames.
@@ -1116,29 +1136,30 @@ class Stim(object):
                              default = False
             - chunks (bool): also return frame chunks, not just statistics 
                              default = False 
-            - stats (str)  : return mean and std ('mean') or median and
-                             25th and 75th quartiles ('median')
+            - stats (str)  : return mean ('mean') or median ('median')
                              default = 'mean'
+            - error (str)  : return std dev/quartiles ('std') or SEM/MAD ('sem')
+                             default = 'sem'
          
-        Outputs:
-            - x_ran (1D array)     : array of time values for the frame 
-                                     chunks
-            - data_chunks_me (1D array) : array of means or medians 
-                                          across frame chunks
-            - data_chunks_de (1D array) : array of std or list of 
-                                          quartile arrays across frame chunks
-        
-        Optional outputs (if rand/if chunks):
-            - data_chunks_me_rand (1D array) : array of means or medians of 
-                                               randomized across frame 
-                                               chunks
-            - data_chunks_de_rand (1D array) : array of std or list of quartile
-                                               arrays of randomized 
+        Returns:
+            - data_chunks_me (1D array)      : array of means or medians 
                                                across frame chunks
-            - data_chunks (2D array)         : array of across frame 
-                                               chunks by chunk
-            - data_chunks_rand (2D array)    : array of randomized 
-                                               across frame chunks by chunk
+            - data_chunks_de (1 or 2D array) : array of roi trace std (1D) or 
+                                               quartiles (2D) across frame 
+                                               chunks
+        
+        Optional returns (if rand/if chunks):
+            - data_chunks_me_rand (1D array)     : array of means or medians of 
+                                                   randomized across frame 
+                                                   chunks
+            - data_chunks_de_rand (1 or 2D array): array of roi trace std 
+                                                   (1D) or quartiles (2D) of 
+                                                   randomized running across 
+                                                   frame chunks
+            - data_chunks (2D array)             : array of across frame 
+                                                   chunks by chunk
+            - data_chunks_rand (2D array)        : array of randomized 
+                                                   across frame chunks by chunk
         """
 
         if rand:
@@ -1164,42 +1185,62 @@ class Stim(object):
         # gather stats
         if stats == 'mean':
             data_chunks_me = np.mean(data_chunks, axis=0)
-            data_chunks_de = np.std(data_chunks, axis=0)
+            if error == 'std':
+                data_chunks_de = np.std(data_chunks, axis=0)
+            elif error == 'sem':
+                data_chunks_de = st.sem(data_chunks, axis=0)
             if rand:
                 data_chunks_rand_me = np.mean(data_chunks_rand, axis=0)
-                data_chunks_rand_de = np.std(data_chunks_rand, axis=0)
+                if error == 'std':
+                    data_chunks_rand_de = np.std(data_chunks, axis=0)
+                elif error == 'sem':
+                    data_chunks_rand_de = st.sem(data_chunks_rand, axis=0)
         elif stats == 'median':
             data_chunks_me = np.median(data_chunks, axis=0)
-            data_chunks_de = [np.percentile(data_chunks, 25, axis=0),
-                              np.percentile(data_chunks, 75, axis=0)]
+            if error == 'std':
+                data_chunks_de = np.asarray([np.percentile(data_chunks, 25, axis=0),
+                                  np.percentile(data_chunks, 75, axis=0)])
+            elif error == 'sem':
+                # MAD: median(abs(x - median(x)))
+                data_chunks_de = np.median(np.absolute(data_chunks - 
+                                                       np.median(data_chunks, 
+                                                                 axis=0)), 
+                                           axis=None)
             if rand:
                 data_chunks_rand_me = np.median(data_chunks_rand, axis=0)
-                data_chunks_rand_de = [np.percentile(data_chunks_rand, 25, axis=0),
-                                       np.percentile(data_chunks_rand, 75, axis=0)]
+                if error == 'std':
+                    data_chunks_rand_de = np.asarray([np.percentile(data_chunks_rand, 25, axis=0),
+                                           np.percentile(data_chunks_rand, 75, axis=0)])
+                elif error == 'sem':
+                    data_chunks_rand_de = np.median(np.absolute(data_chunks_rand - 
+                                                       np.median(data_chunks_rand, 
+                                                                 axis=0)), 
+                                           axis=None)
         
         if rand and chunks:
-            return (x_ran, data_chunks_me, data_chunks_de, data_chunks_rand_me, 
+            return (data_chunks_me, data_chunks_de, data_chunks_rand_me, 
                     data_chunks_rand_de, data_chunks, data_chunks_rand)
         elif rand:
-            return (x_ran, data_chunks_me, data_chunks_de, data_chunks_rand_me, 
+            return (data_chunks_me, data_chunks_de, data_chunks_rand_me, 
                    data_chunks_rand_de)
         elif chunks:
-            return x_ran, data_chunks_me, data_chunks_de, data_chunks
+            return data_chunks_me, data_chunks_de, data_chunks
         else:
-            return x_ran, data_chunks_me, data_chunks_de
+            return data_chunks_me, data_chunks_de
 
 
     #############################################
     def get_run_chunk_stats(self, frame_ref, pre, post, rand=False, 
-                            chunks=False, stats='mean'):
+                            chunks=False, stats='mean', error='std'):
         """
-        get_run_chunk_stats()
+        self.get_run_chunk_stats(frame_ref, pre, post)
 
         Returns stats (mean and std or median and quartiles) for chunks of 
         running traces centered around specific frames.
 
         Required arguments:
-            - frame_ref (list): 1D list of frames (e.g., all 1st Gabor A frames)
+            - frame_ref (list): 1D list of running frames (e.g., all 1st Gabor A 
+                                frames)
             - pre (float)     : range of frames to include before each frame 
                                 reference (in s)
             - post (float)    : range of frames to include after each frame 
@@ -1215,26 +1256,29 @@ class Stim(object):
                              25th and 75th quartiles ('median')
                              default = 'mean'
          
-        Outputs:
+        Returns:
+            - x_ran (1D array)      : array of time values for the frame 
+                                      chunks
             - run_chunk_stats (list): list containing:
-                - x_ran (1D array)     : array of time values for the frame 
-                                         chunks
-                - chunks_me (1D array) : array of running means or medians 
-                                         across frame chunks
-                - chunks_de (1D array) : array of running std or list of 
-                                         quartile arrays across frame chunks
+                
+                - chunks_me (1D array)      : array of running means or medians 
+                                              across frame chunks
+                - chunks_de (1 or 2D array) : array of roi trace std (1D) or 
+                                              quartiles (2D) across frame chunks
         
-                Optional outputs (if rand/if chunks):
-                    - chunks_me_rand (1D array) : array of means or medians of 
-                                                  randomized running across 
-                                                  frame chunks
-                    - chunks_de_rand (1D array) : array of std or list of quartile
-                                                  arrays of randomized running 
-                                                  across frame chunks
-                    - chunks (2D array)         : array of running across frame 
-                                                  chunks by chunk
-                    - chunks_rand (2D array)    : array of randomized running 
-                                                  across frame chunks by chunk
+                Optional returns (if rand/if chunks):
+                    - chunks_me_rand (1D array)     : array of means or medians 
+                                                      of randomized running 
+                                                      across frame chunks
+                    - chunks_de_rand (1 or 2D array): array of roi trace std 
+                                                      (1D) or quartiles (2D) of 
+                                                      randomized running across 
+                                                      frame chunks
+                    - chunks (2D array)             : array of running across  
+                                                      frame chunks by chunk
+                    - chunks_rand (2D array)        : array of randomized 
+                                                      running across frame 
+                                                      chunks by chunk
         """
         ran_s  = [-pre, post]
         ran_fr = [np.around(x*self.stim_fps) for x in ran_s]
@@ -1259,66 +1303,33 @@ class Stim(object):
 
         run_data = [self.sess.run[x[0]:x[1]] for x in fr_ind]
 
-        run_chunk_stats = self.get_chunk_stats(x_ran, run_data, rand, chunks, stats)
+        run_chunk_stats = self.get_chunk_stats(x_ran, run_data, rand, chunks, 
+                                               stats, error)
 
-        return run_chunk_stats
+        return x_ran, run_chunk_stats
 
     #############################################
-    def get_roi_chunk_stats(self, frame_ref, pre, post, byroi=True, dfoverf=True,
-                            remnans=True, rand=False, chunks=False, stats='mean'):
+    def get_roi_trace_chunks(self, frame_ref, pre, post, dfoverf=True):
         """
-        get_run_chunk_stats()
+        self.get_roi_trace_chunks(frame_ref, pre, post)
 
-        Returns stats (mean and std or median and quartiles) for chunks of 
-        roi traces centered around specific frames.
+        Returns chunks of 2p frames around specific stimulus frames. 
 
         Required arguments:
-            - frame_ref (list): 1D list of frames (e.g., all 1st Gabor A frames)
+            - frame_ref (list): 1D list of 2p frames (e.g., all 1st Gabor A frames)
             - pre (float)     : range of frames to include before each frame 
                                 reference (in s)
             - post (float)    : range of frames to include after each frame 
                                 reference (in s)
 
         Optional argument:
-            - byroi (bool)  : if True, returns statistics for each ROI. If False,
-                              takes statistics across ROIs
-                              default = True 
             - dfoverf (bool): if True, dF/F is used instead of raw ROI traces
                               default = True
-            - remnans (bool): if True, ROIs with NaN values are removed if 
-                              from calculation if byroi is False
-                              default = True
-            - rand (bool)   : also return statistics for a random permutation of 
-                              the running values
-                              default = False
-            - chunks (bool) : also return frame chunks, not just statistics
-                              default = False 
-            - stats (str)   : return mean and std ('mean') or median and
-                              25th and 75th quartiles ('median')
-                              default = 'mean'
          
-        Outputs:
-            - roi_chunk_stats (list): list containing for each roi or across rois:
-                - x_ran (1D array)     : array of time values for the frame 
-                                         chunks
-                - chunks_me (1D array) : array of roi trace means or medians 
-                                         across frame chunks
-                - chunks_de (1D array) : array of roi trace std or list of 
-                                         quartile arrays across frame chunks
-        
-                Optional outputs (if rand/if chunks):
-                    - chunks_me_rand (1D array) : array of means or medians of 
-                                                  randomized roi traces across 
-                                                  frame chunks
-                    - chunks_de_rand (1D array) : array of std or list of quartile
-                                                  arrays of randomized running 
-                                                  across frame chunks
-                    - chunks (2D array)         : array of roi traces across frame 
-                                                  chunks by chunk
-                    - chunks_rand (2D array)    : array of randomized roi traces 
-                                                  across frame chunks by chunk
+        Returns:
+            - x_ran (1D array)   : array of time values for the frame chunks
+            - roi_data (3D array): roi traces (ROI x frames x chunks)
         """
-        
         ran_s = [-pre, post]
         ran_fr = [np.around(x*self.sess.twop_fps) for x in ran_s]
         x_ran = np.linspace(ran_s[0], ran_s[1], np.diff(ran_fr)[0])
@@ -1341,41 +1352,127 @@ class Stim(object):
             fr_ind.pop(ind-k-i) # compensates for previously popped indices
 
         # get dF/F for each segment and each ROI
-        roi_data = self.sess.get_roi_segments(fr_ind, dfoverf=dfoverf).tolist()
+        roi_data = self.sess.get_roi_segments(fr_ind, dfoverf=dfoverf)
 
-        # get roi stats by 
-        if byroi:
-            roi_chunk_stats = [self.get_chunk_stats(x_ran, np.transpose(x), rand, chunks, stats)
-                               for x in roi_data]
-        else:
-            # remove any ROIs containing NaNs or infs
-            if remnans and (sum(sum(sum(np.isnan(roi_data)))) > 0 or 
-                            sum(sum(sum(np.isinf(roi_data)))) > 0):
-                n_rois = len(roi_data)
-                rem_rois = []
-                for i in range(len(roi_data)):
+        return x_ran, roi_data
+    
+    
+    #############################################
+    def get_roi_chunk_stats(self, frame_ref, pre, post, byroi=True, 
+                            dfoverf=True, nans='rem', rand=False, stats='mean', 
+                            error='std'):
+        """
+        self.get_roi_chunk_stats(frame_ref, pre, post)
+
+        Returns stats (mean and std or median and quartiles) for chunks of 
+        roi traces centered around specific frames.
+
+        Required arguments:
+            - frame_ref (list): 1D list of 2p frames (e.g., all 1st Gabor A frames)
+            - pre (float)     : range of frames to include before each frame 
+                                reference (in s)
+            - post (float)    : range of frames to include after each frame 
+                                reference (in s)
+
+        Optional argument:
+            - byroi (bool)  : if True, returns statistics for each ROI. If False,
+                              returns statistics across ROIs
+                              default = True 
+            - dfoverf (bool): if True, dF/F is used instead of raw ROI traces
+                              default = True
+            - rem (str)     : if 'rem', removes ROIs with NaN/Inf values, if 
+                              'list', only returns list of ROIs with NaN/Inf 
+                              values 
+                              default = 'rem'
+            - rand (bool)   : if True, also return statistics for a random  
+                              permutation of the running values
+                              default = False
+            - chunks (bool) : also return frame chunks, not just statistics
+                              default = False 
+            - stats (str)   : return mean and std ('mean') or median and
+                              25th and 75th quartiles ('median')
+                              default = 'mean'
+         
+        Returns:
+            - x_ran (1D array)      : array of time values for the frame 
+                                      chunks
+            - roi_chunk_stats (list): list containing for each roi or across rois:
+                
+                - chunks_me (1D array or list)   : array of roi trace means or 
+                                                   medians across frame chunks,
+                                                   listed by ROI if byroi
+                - chunks_de (1, 2D array or list): array of roi trace std (1D)  
+                                                   or quartiles (2D) across 
+                                                   frame chunks, listed by ROI 
+                                                   if byroi
+        
+                Optional returns (if rand/if chunks):
+                    - chunks_me_rand (1D array or list)    : array of means or 
+                                                             medians of 
+                                                             randomized roi 
+                                                             traces across 
+                                                             frame chunks
+                    - chunks_de_rand (1, 2D array or list) : array of std (1D)  
+                                                             or quartiles (2D) 
+                                                             of randomized roi 
+                                                             traces across frame 
+                                                             chunks, listed by
+                                                             ROI if byroi
+                
+        Optional returns (if nans=='rem' or nans=='list'):
+            - nan_rois (list): list of ROIs with NaNs or Infs
+            - ok_rois (list) : list of ROIs without NaNs or Infs
+        """
+        
+        x_ran, roi_data = self.get_roi_trace_chunks(frame_ref, pre, post, 
+                                                    dfoverf=dfoverf)
+        roi_data = roi_data.tolist()
+
+        # identify any ROIs containing NaNs or infs
+        if nans == 'rem' or nans == 'list':
+            nan_rois = []
+            n_rois = len(roi_data)
+            ok_rois = range(n_rois)
+            if (sum(sum(sum(np.isnan(roi_data)))) > 0 or 
+                sum(sum(sum(np.isinf(roi_data)))) > 0):
+                for i in range(n_rois):
                     if (sum(sum(np.isnan(roi_data[i]))) > 0 or 
                         sum(sum(np.isinf(roi_data[i])))):
-                        rem_rois.extend([i])
+                        nan_rois.extend([i])
+                        ok_rois.remove(i)
+                # remove ROIs from roi_data
                 count = 0
-                for j in rem_rois:
-                    roi_data.pop(j-count)
-                    count += 1
-                print('Removing {}/{} ROIs: {}'
-                      .format(len(rem_rois), n_rois, ', '.join(map(str, rem_rois))))
-
-            all_chunk_stats = [self.get_chunk_stats(x_ran, np.transpose(x), rand=False, chunks=False, stats=stats)
-                               for x in roi_data]
-
-            roi_chunk_stats = self.get_chunk_stats(x_ran, zip(*all_chunk_stats)[1], rand, chunks, stats)
+                if nans == 'rem':
+                    for j in nan_rois:
+                        roi_data.pop(j-count)
+                        count += 1
+                    print('Removing {}/{} ROIs: {}'
+                        .format(len(nan_rois), n_rois, ', '.join(map(str, nan_rois))))
         
-        return roi_chunk_stats
-
+        # get ROI stats
+        if byroi:
+            roi_chunk_stats = [self.get_chunk_stats(x_ran, np.transpose(x), 
+                                                    rand, False, stats, error)
+                               for x in roi_data]
+        else:
+            all_chunk_stats = [self.get_chunk_stats(x_ran, np.transpose(x), 
+                                                    rand=False, chunks=False, 
+                                                    stats=stats)
+                               for x in roi_data]
+            
+            roi_chunk_stats = self.get_chunk_stats(x_ran, 
+                                                   zip(*all_chunk_stats)[0], 
+                                                   rand, False, stats, error)
+        
+        if nans == 'rem' or nans == 'list':
+            return x_ran, roi_chunk_stats, [nan_rois, ok_rois]
+        else:
+            return x_ran, roi_chunk_stats
 
     #############################################
     def get_run(self, by='block'):
         """
-        get_run()
+        self.get_run()
 
         Returns run values for stimulus blocks.
 
@@ -1413,7 +1510,7 @@ class Stim(object):
     #############################################
     def get_2pframes_by_seg(self, seglist, first=False):
         """
-        get_2pframes_by_seg(seglist)
+        self.get_2pframes_by_seg(seglist)
 
         Returns a list of arrays containing the 2-photon frames that correspond 
         to a given set of stimulus segments provided in a list for a specific
@@ -1463,7 +1560,7 @@ class Gabors(Stim):
 
     def __init__(self, sess, stim_n):
         """
-        __init__(sess, stim_n)
+        self.__init__(sess, stim_n)
 
         Create the new Gabors object using the Session it belongs to and 
         stimulus number the object corresponds to.
@@ -1500,6 +1597,9 @@ class Gabors(Stim):
 
     #############################################
     def _get_block_params(self):
+        """
+        self._get_block_params()
+        """
         self.block_params = []
         for i, disp in enumerate(self.block_ran_seg):
             block_par = []
@@ -1520,7 +1620,7 @@ class Gabors(Stim):
     #############################################
     def get_A_segs(self, by='block'):
         """
-        get_A_segs()
+        self.get_A_segs()
 
         Returns lists of A gabor segments.
 
@@ -1540,7 +1640,7 @@ class Gabors(Stim):
     #############################################
     def get_A_frame_1s(self, by='block'):
         """
-        get_A_frame_1s()
+        self.get_A_frame_1s()
 
         Returns list of first frame for each A gabor segment.
 
@@ -1567,7 +1667,7 @@ class Bricks(Stim):
 
     def __init__(self, sess, stim_n):
         """
-        __init__(sess, stim_n)
+        self.__init__(sess, stim_n)
 
         Create the new Bricks object using the Session it belongs to and 
         stimulus number the object corresponds to.
@@ -1595,6 +1695,9 @@ class Bricks(Stim):
 
     #############################################
     def _get_block_params(self):
+        """
+        self._get_block_params()
+        """
         self.block_params = []
         for i, disp in enumerate(self.block_ran_seg):
             block_par = []
@@ -1622,7 +1725,7 @@ class Bricks(Stim):
     #############################################
     def get_dir_segs_no_surp(self, by='block'):
         """
-        get_dir_segs_no_surp()
+        self.get_dir_segs_no_surp()
 
         Returns two lists of stimulus segments, the first is a list of the right 
         moving segments. The second is a list of left moving segments. Both 
@@ -1649,7 +1752,7 @@ class Bricks(Stim):
     #############################################
     def get_dir_frames_no_surp(self, by='block'):
         """
-        get_dir_frames_no_surp()
+        self.get_dir_frames_no_surp()
 
         Returns two lists of stimulus frames, the first is a list of the first 
         frame for each right moving segment. The second is a list of the first 
@@ -1693,13 +1796,13 @@ class Grayscr():
     #############################################        
     def get_all_nongab_frames(self):
         """
-        get_all_nongab_frames()
+        self.get_all_nongab_frames()
 
         Returns a lists of grayscreen frames, excluding grayscreen frames 
         occurring during gabor stimulus blocks. Note that any grayscreen 
         frames flanking gabor stimulus blocks are included in the returned list.
         
-        Outputs:
+        Returns:
             grays (list) : list of grayscreen frames.
         """
 
@@ -1733,7 +1836,7 @@ class Grayscr():
     #############################################
     def get_first_nongab_frames(self):
         """
-        get_first_nongab_frames()
+        self.get_first_nongab_frames()
 
         Returns two lists of equal length:
         - First grayscreen frames for every grayscreen sequence, excluding those 
@@ -1772,7 +1875,7 @@ class Grayscr():
     #############################################
     def get_all_gab_frames(self, by='block'):
         """
-        get_all_gab_frames()
+        self.get_all_gab_frames()
 
         Returns a list of grayscreen frames for every grayscreen sequence 
         during a gabor block, excluding flanking grayscreen sequences.
@@ -1816,8 +1919,10 @@ class Grayscr():
 
 
     #############################################    
-    def get_first_gab_frames(self, by='block'):
+    def get_gab_gray_frames(self, by='block'):
         """
+        self.get_gab_gray_frames()
+
         Returns two lists of equal length:
         - First grayscreen frames for every grayscreen sequence during a gabor 
           block, excluding flanking grayscreen sequences.
