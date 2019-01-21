@@ -1,10 +1,7 @@
-/figures/
-.vscode/
-/sandbox/
-/.ipynb_checkpoints/
+# ignore all subdirectories, except analysis and util
+/*/
+!/analysis/
+!/util/
 
-*.pkl
 *.pyc
-*.txt
-*.ipynb
-*test-cjg.py
+*.ods
