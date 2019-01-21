@@ -1,7 +1,8 @@
-/data/
-/.ipynb_checkpoints/
+# ignore all subdirectories, except analysis and util
+/*/
+!/analysis/
+!/util/
 
-*.h5
-*.pkl
 *.pyc
-*.txt
+*.ods
+*.ipynb
