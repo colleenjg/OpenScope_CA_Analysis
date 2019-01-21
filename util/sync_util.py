@@ -48,7 +48,8 @@ def calculate_stimulus_alignment(stim_time, valid_twop_vsync_fall):
     for index in range(len(stim_time)):
         crossings = np.nonzero(np.ediff1d(np.sign(valid_twop_vsync_fall - stim_time[index])) > ZERO)
         try:
-            stimulus_alignment[index] = int(crossings[FIRST_ELEMENT_INDEX][FIRST_ELEMENT_INDEX])
+            stimulus_alignment[index] = int(crossings[FIRST_ELEMENT_INDEX]
+                                                     [FIRST_ELEMENT_INDEX])
         except:
             stimulus_alignment[index] = np.NaN
 
@@ -62,7 +63,8 @@ def calculate_valid_twop_vsync_fall(sync_data, sample_frequency):
     twop_vsync_fall = sync_data.get_falling_edges('2p_vsync') / sample_frequency
 
     if len(twop_vsync_fall) == 0:
-        raise ValueError('Error: twop_vsync_fall length is 0, possible invalid, missing, and/or bad data')
+        raise ValueError(('Error: twop_vsync_fall length is 0, possible '
+                          'invalid, missing, and/or bad data'))
 
     ophys_start = twop_vsync_fall[0]
 
@@ -150,8 +152,7 @@ def calculate_delay(sync_data, stim_vsync_fall, sample_frequency):
             delay_rise = np.empty(number_of_photodiode_rises)
             for photodiode_rise_index in range(number_of_photodiode_rises):
                 delay_rise[photodiode_rise_index] = photodiode_rise[photodiode_rise_index + first_pulse] - \
-                                                    stim_vsync_fall[(
-                                                                    photodiode_rise_index * vsync_fall_events_per_photodiode_rise) + \
+                                                    stim_vsync_fall[(photodiode_rise_index * vsync_fall_events_per_photodiode_rise) + \
                                                                     half_vsync_fall_events_per_photodiode_rise]
 
             # get a single delay value by finding the mean of all of the delays - skip the last
@@ -208,10 +209,10 @@ def get_frame_rate(syn_file_name):
     return twop_rate_mean, twop_rate_med, twop_rate_std
 
 ###############################################################################
-def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
+def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
 
     '''
-    get_stim_frames(stim_pickle_file, stim_sync_file, output_pickle_file)
+    get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name)
 
     Pulls out the stimulus frame information from the stimulus pickle file, as
     well as synchronization information from the stimulus sync file, and stores
@@ -219,9 +220,13 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
 	the stimulus alignment array.
 
     Required arguments:
-        - stim_pickle_file (string)  : full path name of the experiment stim pickle file
-        - stim_sync_file (string)    : full path name of the experiment sync hdf5 file
-        - output_pickle_file (string): full path name of the output pickle file to create
+        - pkl_file_name (str): full path name of the experiment stim pickle file
+        - syn_file_name (str): full path name of the experiment sync hdf5 file
+        - df_pkl_name (str)  : full path name of the output pickle file to create
+    
+    Optional argument:
+        - runtype (string): the type of run, either 'pilot' or 'prod'
+                            default = 'prod'
     '''
 
     # check that the input files exist
@@ -236,7 +241,10 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
     with open(pkl_file_name, 'rb') as f:
         pkl = pickle.load(f)
 
-    num_stimtypes = 2 # bricks and Gabors
+    if runtype == 'pilot':
+        num_stimtypes = 2 # bricks and Gabors
+    elif runtype == 'prod':
+        num_stimtypes = 3 # 2 bricks and 1 set of Gabors
     if len(pkl['stimuli']) != num_stimtypes:
         raise ValueError('{} stimuli types expected, but {} found'
                          .format(num_stimtypes, len(pkl['stimuli'])))
@@ -281,16 +289,21 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
         # calculates the expected number of segs based on fps, display duration (s) and seg length
         fps = pkl['stimuli'][i]['fps']
         
-        if pkl['stimuli'][i]['stimParams']['elemParams']['name'] == 'bricks':
+        if runtype == 'pilot':
+            name = pkl['stimuli'][i]['stimParams']['elemParams']['name']
+        elif runtype == 'prod':
+            name = pkl['stimuli'][i]['stim_params']['elemParams']['name']
+
+        if name == 'bricks':
             stim_types.extend(['b'])
             frames_per_seg.extend([fps])
             segs_exp.extend([int(60.*np.sum(np.diff(pkl['stimuli'][i]['display_sequence']))/frames_per_seg[i])])
-        elif pkl['stimuli'][i]['stimParams']['elemParams']['name'] == 'gabors':
+        elif name == 'gabors':
             stim_types.extend(['g'])
             frames_per_seg.extend([fps/1000.*300])
             segs_exp.extend([int(60.*np.sum(np.diff(pkl['stimuli'][i]['display_sequence']))/frames_per_seg[i]*4./5)]) # to exclude grey seg
         else:
-            raise ValueError('{} stimulus type not recognized.'.format(pkl['stimuli'][i]['stimParams']['elemParams']['name']))
+            raise ValueError('{} stimulus type not recognized.'.format(name))
         
         
         # check whether the actual number of frames is within a small range of expected
@@ -322,7 +335,6 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
         print('stimtype:', stim_types[stype_n])
         movie_segs = pkl['stimuli'][stype_n]['frame_list']
 
-        tf = 0
         for segment in range(segs[stype_n]):
             seg_inds = np.where(movie_segs == segment)[0]
             tup = (segment, int(stimulus_alignment[seg_inds[0] + offset]), \
@@ -334,21 +346,9 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
             stim_df.ix[zz, 'end_frame'] = tup[2]
             stim_df.ix[zz, 'num_frames'] = tup[2] - tup[1]
 
-            if stim_types[stype_n] == 'b':
-
-                stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['flipdirecarray'][segment][1] #big or small
-                stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['flipdirecarray'][segment][3] #L or R
-                stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['flipdirecarray'][segment][0] #SURP
-                stim_df.ix[zz, 'GABORFRAME'] = -1
-            
-            if stim_types[stype_n] == 'g':
-                stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['oriparsurps'][int(np.floor(segment/4))][0] #angle
-                stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['oriparsurps'][int(np.floor(segment/4))][1] #angular var
-                stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['oriparsurps'][int(np.floor(segment/4))][2] #SURP
-                stim_df.ix[zz, 'GABORFRAME'] = np.mod(tf,4)
+            get_seg_params(stim_types, stype_n, stim_df, zz, pkl, segment, runtype)
 
             zz += 1
-            tf += 1
             
     # check whether any 2P frames are in associated to 2 stimuli
     overlap = np.any((np.sort(stim_df['start_frame'])[1:] - 
@@ -367,6 +367,49 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name):
     except:
         raise exceptions.IOError("Could not save stimulus pickle file {}".format(df_pkl_name))  
     #stim_df.to_pickle(df_pkl_name)
+
+###############################################################################
+def get_seg_params(stim_types, stype_n, stim_df, zz, pkl, segment, runtype='prod'):
+    '''
+    get_seg_params(stim_types, stype_n, stim_df, pkl, segment)
+
+    Populates the parameter columns for a segment in stim_df depending on 
+    whether the segment is from a bricks or gabors stimulus block and whether 
+    it is a pilot or production session.
+
+    Required arguments:
+        - stim_types (list): list of stimulus types for each stimulus, e.g., ['b', 'g']
+        - stype_n (int)    : stimulus number
+        - stim_df (pd df)  : dataframe 
+        - zz (int)         : dataframe index
+        - pkl (dict)       : experiment stim dictionary
+        - segment (int)    : segment number
+    
+    Optional argument:
+        - runtype (str): run type, i.e., 'pilot' or 'prod'
+                         default: 'prod'
+    '''
+
+    if stim_types[stype_n] == 'b':
+        if runtype == 'pilot':
+            stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['flipdirecarray'][segment][1] #big or small
+            stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['flipdirecarray'][segment][3] #left or right
+            stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['flipdirecarray'][segment][0] #SURP
+        elif runtype == 'prod':
+            stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n]['stim_params']['elemParams']['sizes'] # small
+            stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][stype_n]['stim_params']['direc'] #L or R
+            stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n]['sweep_params']['Flip'][0][segment] #SURP
+        stim_df.ix[zz, 'GABORFRAME'] = -1
+    elif stim_types[stype_n] == 'g':
+        if runtype == 'pilot':
+            stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['oriparsurps'][int(np.floor(segment/4))][0] #angle
+            stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['oriparsurps'][int(np.floor(segment/4))][1] #angular disp (kappa)
+            stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['oriparsurps'][int(np.floor(segment/4))][2] #SURP
+        elif runtype == 'prod':
+            stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n]['sweep_params']['OriSurp'][0][int(np.floor(segment/4))][0] #angle
+            stim_df.ix[zz, 'stimPar2'] = (1./(pkl['stimuli'][stype_n]['stim_params']['gabor_params']['ori_std']))**2 #angular disp (kappa)
+            stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n]['sweep_params']['OriSurp'][0][int(np.floor(segment/4))][1] #SURP
+        stim_df.ix[zz, 'GABORFRAME'] = np.mod(segment,4)
 
 ###############################################################################
 def get_run_speed(pkl_file_name):
