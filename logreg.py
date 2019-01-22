@@ -153,36 +153,59 @@ def info_dict(args, epoch=None):
                 'uniqueid': args.uniqueid,
                 'run': args.run,
                 'runtype': args.runtype,
+                'n_roi': args.n_roi,
                 }
         
         if epoch is not None:
             info['epoch'] = epoch
 
+    # if no args are passed, just returns keys
     else:
         info = ['mouse_n', 'sess_n', 'layer', 'line', 'fluor', 'norm', 
-                'shuffled', 'comp', 'uniqueid', 'run', 'runtype', 'epoch']
+                'shuffled', 'comp', 'uniqueid', 'run', 'runtype', 'n_roi', 
+                'epoch']
 
     return info
 
 
 #############################################
-def df_cols(args):
+def df_cols():
 
     data_labs = ['train', 'val', 'test']
     sc_names = ['loss', 'acc', 'acc_class0', 'acc_class1']
-    sc_labels = ['{}_{}'.format(data, sc) for data in data_labs for sc in sc_names]
+    sc_labs = ['{}_{}'.format(data, sc) for data in data_labs for sc in sc_names]
 
-    # create a dummy info dictionary to get labels
-    attrs = ['layer', 'line', 'run', 'shuffle']
-    for att in attrs:
-        if not hasattr(args, att):
-            setattr(args, att, None)
-    df_labels = info_dict(None) # get keys
+    df_labs = info_dict(None) # get keys
 
-    all_labels = df_labels + ['epoch'] + sc_labels + ['saved']
+    all_labs = df_labs + sc_labs + ['saved']
 
-    return all_labels
+    return all_labs
 
+
+#############################################
+def summ_cols(CI=95):
+
+    qs = [(100.-CI)*0.5, CI*0.5+50.] # high and lo quartiles
+    q_names = []
+    for q in qs:
+        q_res = q%1
+        if q_res == 0:
+            q_names.append('q{}'.format(int(q)))
+        else:
+            q_names.append('q{}p{}'.format(int(q), str(q_res)[2]))
+    
+    data_labs = ['train', 'val', 'test']
+    sc_names = ['loss', 'acc', 'acc_class0', 'acc_class1']
+    data_labs = ['epochs'] + ['{}_{}'.format(data, sc) for data in data_labs for sc in sc_names]
+    
+    stat_names = ['mean', 'std', 'sem', 'med', 'q25', 'q75', 'mad'] + q_names
+    stat_labs = ['{}_{}'.format(data, stat) for data in data_labs for stat in stat_names]
+
+    df_labs = gen_util.remove_if(info_dict(None), ['run', 'epoch', 'unique_id'])
+
+    all_labs = df_labs + ['runs_total', 'runs_nan'] + stat_labs
+
+    return all_labs, df_labs, data_labs
 
 #############################################
 def get_roi_traces(sess_dict, data_dir, raw=False):
@@ -404,12 +427,13 @@ def plot_scores(args, scores, classes):
 def save_scores(args, scores, classes, saved_eps):
 
     # df_info_labels, epoch, scores, saved
-    all_labels = df_cols(args)
+    all_labels = gen_util.remove_if(df_cols(), 'epoch')
 
     scores = np.reshape(scores, [scores.shape[0], -1]) 
     df_info = info_dict(args, None)
+    
     df_vals = np.asarray([np.asarray([df_info[key]]*args.epochs) 
-                         for key in df_info.keys()]).T
+                        for key in all_labels if key in df_info.keys()]).T
     
     summ_data = np.concatenate([df_vals, 
                                 np.asarray(range(args.epochs))[:, np.newaxis], 
@@ -485,7 +509,11 @@ def run_eps(args, mod, opt, wei, dls, test=True):
     shuff_str = str_util.shuff_par_str(args.shuffle, 'labels')
 
     for ep in range(args.epochs):
-        scores[ep, 0, :] = train(mod, opt, dls[0], wei, args.device)
+        if ep == 0:
+            # No training for first epoch
+            scores[ep, 0, :] = val(mod, dls[0], wei, args.device)    
+        else:
+            scores[ep, 0, :] = train(mod, opt, dls[0], wei, args.device)
         scores[ep, 1, :] = val(mod, dls[1], wei, args.device)
         if test:
             scores[ep, 2, :] = val(mod, dls[2], wei, args.device)
@@ -518,13 +546,14 @@ def single_run(roi_tr_segs, seg_classes, classes, args, run):
     if args.uniqueid is None:
         subdir = 'run_{}'.format(run)
     else:
-        subdir = '{}_{}'.format(arargs.outputgs.uniqueid, run)
+        subdir = '{}_{}'.format(args.uniqueid, run)
 
     args.dirname = file_util.create_dir([args.output, args.runname, 
                                         subdir], print_dir=False)
     print('Run {} directory: {}\n'.format(run, args.dirname))
 
     args_dict = args.__dict__
+
     file_util.save_info(args_dict, 'hyperparameters', args.dirname, 'json')
 
     mod, opt, wei, dls = init_model_comp(roi_tr_segs, seg_classes, args, 
@@ -773,22 +802,104 @@ def plot_my_data(ax, arr, celltype, datatype, mice, sesses, n_rois, analysis, n_
     ax.legend()
 
 
+#############################################
+def collate_scores(all_labels, direc, args):
+    print(direc)
+    
+    warn_str = '===> Warning:'
+    scores = pd.DataFrame(columns=all_labels)
+    models = glob.glob(os.path.join(args.output, direc, 'ep*.pth'))
+
+    # get max epoch number, based on saved models
+    if len(models) > 0:
+        max_ep = max([int(re.findall(r'\d+', os.path.split(mod)[-1])[0]) 
+                        for mod in models])
+    else:
+        max_ep = None
+        print('{} No models were recorded.'.format(warn_str))
+
+    # get hyperparams
+    hyperpars = file_util.load_file('hyperparameters.json', 
+                                        os.path.join(args.output, direc),
+                                        file_type='json')
+
+    df_path = os.path.join(args.output, direc, 'scores_df.csv')
+
+    # get scores df
+    if os.path.exists(df_path):
+        scores_df = file_util.load_file(df_path, file_type='csv')
+    else:
+        print('{} No scores were recorded.'.format(warn_str))
+        scores_df = None
+        if max_ep is not None:
+            print(('{} Highest recorded model is for epoch {}, but no '
+                    'score is recorded.').format(warn_str, max_ep))
+    
+    ep_info = None
+    if scores_df is not None:
+        # check that all epochs were recorded and correct epoch
+        # was recorded as having lowest validation loss
+        ep_rec = scores_df.count(axis=0)
+        if min(ep_rec) < hyperpars['epochs']:
+            print(('{} Only {} epochs were fully '
+                    'recorded.').format(warn_str, min(ep_rec)))
+        if max(ep_rec) > hyperpars['epochs']:
+            print(('{} {} epochs were '
+                    'recorded.').format(warn_str, max(ep_rec)))
+        if len(scores_df.loc[(scores_df['saved'] == 1)]['epoch'].tolist()) == 0:
+            print(('{} No models were recorded in '
+                    'dataframe.').format(warn_str))
+        else:
+            max_ep_df = max(scores_df.loc[(scores_df['saved'] == 1)]['epoch'].tolist())
+            if max_ep_df != max_ep:
+                print(('{} Highest recorded model is actually epoch '
+                       '{}, but expected {} based on dataframe. Using '
+                       'dataframe one.').format(warn_str, max_ep, max_ep_df))
+            ep_info = scores_df.loc[(scores_df['epoch'] == max_ep_df)]
+            if len(ep_info) != 1:
+                print(('{} {} lines found in dataframe for epoch '
+                        '{}.').format(warn_str, len(ep_info), max_ep_df))
+
+    if ep_info is None:
+        scores.loc[0] = np.empty(scores.shape[1])*np.nan
+        runname_dict = get_rundirec_dict(direc)
+        runname_dict['runtype'] = hyperpars['runtype']
+        runname_dict['line'] = hyperpars['line']
+        runname_dict['n_roi'] = hyperpars['n_roi']
+        for col in runname_dict.keys():
+            scores.loc[0, col] = runname_dict[col]
+    else:
+        for col in all_labels:
+            scores.loc[0, col] = ep_info[col].item()
+
+    return scores
+    
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--datadir', default=None, 
-                        help=('data directory (if None, uses a directory '
-                              'defined below'))
     parser.add_argument('--output', default='logreg_models', help='where to store output')
+    parser.add_argument('--task', default='run_regr', help='run_regr or collate')
+    parser.add_argument('--comp', default='surp', help='surp, AvB, AvC or BvC')
+    parser.add_argument('--fig_ext', default='.svg')
     parser.add_argument('--plt_bkend', default=None, 
                         help='switch matplotlib backend when running on server')
-    parser.add_argument('--task', default='run_regr', help='run_regr or collate')
+
+        # run_regr general
     parser.add_argument('--runtype', default='prod', help='prod or pilot')
     parser.add_argument('--mouse_n', default=1, type=int)
     parser.add_argument('--sess_n', default='all')
-    parser.add_argument('--comp', default='surp', help='surp, AvB, AvC or BvC')
-        # hyperparameters
+ 
+    parser.add_argument('--parallel', action='store_true', 
+                        help='do runs in parallel.')
+    parser.add_argument('--datadir', default=None, 
+                        help=('data directory (if None, uses a directory '
+                              'defined below'))
+    parser.add_argument('--keep_prev', action='store_true', 
+                        help=('keep previous models when a better performing '
+                              'model is recorded.'))
+        
+        # run_regr hyperparameters
     parser.add_argument('--n_reg', default=50, type=int, help='n regular runs')
     parser.add_argument('--n_shuff', default=50, type=int, help='n shuffled runs')
     parser.add_argument('--epochs', default=1000, type=int)
@@ -800,7 +911,6 @@ if __name__ == "__main__":
     parser.add_argument('--error', default='sem', help='std or sem')
     parser.add_argument('--gab_fr', default=0, type=int, 
                         help='starting gab frame in comp is surp')
-
     parser.add_argument('--norm', action='store_true', 
                         help='normalize each ROI trace')
     parser.add_argument('--raw', action='store_true', 
@@ -812,18 +922,15 @@ if __name__ == "__main__":
     parser.add_argument('--uniqueid', default='datetime', 
                         help=('passed string, \'datetime\' for date and time '
                               'or None for no uniqueid'))
-    parser.add_argument('--keep_prev', action='store_true', 
-                        help=('keep previous models when a better performing '
-                              'model is recorded.'))
-    parser.add_argument('--parallel', action='store_true', 
-                        help='do runs in parallel.')
-    parser.add_argument('--fig_ext', default='.svg')
 
+        # analysis parameters
+    parser.add_argument('--CI', default=95, type=int, help='shuffled CI')
 
     args = parser.parse_args()
 
     # HARD-CODED FOR NOW
     args.device = 'cpu'
+
 
     if args.plt_bkend is not None:
         plt.switch_backend(args.plt_bkend) 
@@ -862,6 +969,7 @@ if __name__ == "__main__":
                                                        gab_fr=args.gab_fr, 
                                                        runtype=args.runtype, 
                                                        raw=args.raw)
+            args.n_roi = roi_tr_segs.shape[2]
 
             for runs, shuffle in zip([args.n_reg, args.n_shuff], [False, True]):
 
@@ -879,218 +987,179 @@ if __name__ == "__main__":
                     for run in range(runs):
                         single_run(roi_tr_segs, seg_classes, classes, args, run)
 
-
     elif args.task == 'collate':
-        norm_str = str_util.norm_par_str(args.norm, type_str='file')
 
         subdirs = [os.path.join(subdir, name)
                    for subdir in os.listdir(args.output)
                    if os.path.isdir(os.path.join(args.output, subdir)) 
-                      and args.comp and norm_str in subdir
+                      and args.comp in subdir
                    for name in os.listdir(os.path.join(args.output, subdir))]
-        
-        warn_str = '===> Warning:'
 
-        all_labels = df_cols(args)
-        all_scores = pd.DataFrame(columns=all_labels)
-        for i, direc in enumerate(subdirs):
-            if not args.comp in direc:
-                continue
-            print(direc)
-            models = glob.glob(os.path.join(args.output, direc, 'ep*.pth'))
+        all_labels = df_cols()
 
-            # get max epoch number, based on saved models
-            if len(models) > 0:
-                max_ep = max([int(re.findall(r'\d+', os.path.split(mod)[-1])[0]) 
-                             for mod in models])
-            else:
-                max_ep = None
-                print('{} No models were recorded.'.format(warn_str))
+        if args.parallel:
+            num_cores = multiprocessing.cpu_count()
+            scores_list = Parallel(n_jobs=num_cores)(delayed(collate_scores)
+                          (all_labels, direc, args) for direc in subdirs)
+            all_scores = pd.concat(scores_list)
+        else:
+            all_scores = pd.DataFrame(columns=all_labels)
+            for direc in subdirs:
+                scores = collate_scores(all_labels, direc, args)
+                all_scores = all_scores.append(scores)
 
-            df_path = os.path.join(args.output, direc, 'scores_df.csv')
-            if os.path.exists(df_path):
-                scores_df = file_util.load_file(df_path, file_type='csv')
-            else:
-                print('{} No scores were recorded.'.format(warn_str))
-                scores_df = None
-                if max_ep is not None:
-                    print(('{} Highest recorded model is for epoch {}, but no '
-                           'score is recorded.').format(warn_str, max_ep))
-            
-            ep_info = None
-            if scores_df is not None:
-                # check that all 1000 epochs were recorded and correct epoch
-                # was recorded as having lowest validation loss
-                ep_rec = scores_df.count(axis=0)
-                if min(ep_rec) < args.epochs:
-                    print(('{} Only {} epochs were fully '
-                           'recorded.').format(warn_str, min(ep_rec)))
-                if max(ep_rec) > args.epochs:
-                    print(('{} {} epochs were '
-                           'recorded.').format(warn_str, max(ep_rec)))
-                if len(scores_df.loc[(scores_df['saved'] == 1)]['epoch'].tolist()) == 0:
-                    print(('{} No models were recorded in '
-                           'dataframe.').format(warn_str))
-                else:
-                    max_ep_df = max(scores_df.loc[(scores_df['saved'] == 1)]['epoch'].tolist())
-                    if max_ep_df != max_ep:
-                        print(('{} Highest recorded model is actually epoch '
-                            '{}, but expected {} based on dataframe. Using '
-                            'dataframe one.').format(warn_str, max_ep, max_ep_df))
-                    ep_info = scores_df.loc[(scores_df['epoch'] == max_ep_df)]
-                    if len(ep_info) != 1:
-                        print(('{} {} lines found in dataframe for epoch '
-                               '{}.').format(warn_str, len(ep_info), max_ep_df))
+        # reorganize by mouse, session, norm, shuffle, uniqueid, run
+        sorter = ['mouse_n', 'sess_n', 'fluor', 'norm', 'shuffled', 'uniqueid', 'run']
+        all_scores = all_scores.sort_values(by=sorter).reset_index(drop=True)
 
-            # add all info to a single line
-            curr_lin = len(all_scores)
-            if ep_info is None:
-                all_scores.loc[curr_lin] = np.empty(all_scores.shape[1])*np.nan
-                runname_dict = get_rundirec_dict(direc)
-                hyperpars = file_util.load_file('hyperparameters.json', 
-                                                os.path.join(args.output, direc),
-                                                file_type='json')
-                runname_dict['runtype'] = hyperpars['runtype']
-                runname_dict['line'] = hyperpars['line']
-                for col in runname_dict.keys():
-                    all_scores.loc[curr_lin, col] = runname_dict[col]
-            else:
-                for col in all_labels:
-                    all_scores.loc[curr_lin, col] = ep_info[col].item()
+        file_util.save_info(all_scores, '{}_all_scores_df'.format(args.comp), 
+                            args.output, 'csv')
 
-            # overwrite dataframe at each loop
-            file_util.save_info(all_scores, 
-                                '{}{}_all_scores_df'.format(args.comp, norm_str), 
-                                args.output, 'csv')
-
-
+    # analyses accuracy
     elif args.task == 'analyse':
-
-#        mouse_df = file_util.load_file('mouse_df_prod.csv', file_type='csv')
         
-        all_scores_df = file_util.load_file('{}_all_scores_df.csv'.format(args.comp), 
-                                            file_type='csv')
-        all_cols = list(all_scores_df)
-        basic_keys = gen_util.remove_if(info_dict(None), ['epoch', 'uniqueid']) + ['runs']
+        all_scores_df = file_util.load_file('{}_all_scores_df.csv'.format(args.comp),
+                                            args.output, 'csv')
+        summ_cols, comm_labs, data_labs = summ_cols(args.CI)
 
+        scores_summ = pd.DataFrame(columns=summ_cols)
 
-        scores_summ = pd.DataFrame(columns=all_cols)
-
-        ############## FROM HERE!!! #############
-        
-        
-        # copied from above, with modifs for classes
-        labs = ['{}_{}'.format(fluor, lab) for lab in ['train', 'val', 'test']]
-        labels = ['wBCEloss', 'acc', '{}_acc'.format('common'), '{}_acc'.format('rare')] # HARD CODED
-        stat_labs = ['mean', 'sem_qu3', 'qu98']
-        sc_labels = ['{}_{}_{}'.format(grp, sc, stat) for grp in labs for sc in labels for stat in stat_labs]
-        all_labels = ['epoch_mean', 'epoch_sem_qu3', 'epoch_qu98'] + sc_labels
-        all_cols = add_cols + all_labels
-        # initialize dataframe
-        scores_summ = pd.DataFrame(columns=all_cols)
-
-        all_scores_df = file_util.load_file('all_scores_df.csv', args.output, 'csv')
+        # get all mice n
         list_mice = sorted(all_scores_df.mouse_n.unique().tolist())
         for mouse in list_mice:
-            line = mouse_df.loc[(mouse_df['mouseid'] == int(mouse))].line.unique().tolist()[0]
-            list_sess = sorted(all_scores_df.loc[(all_scores_df['mouse_n'] == mouse)].sess_n.unique().tolist())
+            # get all sess n
+            mouse_lines = all_scores_df.loc[(all_scores_df['mouse_n'] == mouse)]
+            list_sess = sorted(mouse_lines.sess_n.unique().tolist())
             for sess in list_sess:
-                # get layer
-                n_rois = mouse_df.loc[(mouse_df['mouseid'] == int(mouse)) & 
-                                      (mouse_df['overall_sess_n'] == int(sess))]['n_rois'].tolist()[0]
-                layer = sorted(all_scores_df.loc[(all_scores_df['mouse_n'] == mouse) &
-                                                 (all_scores_df['sess_n'] == sess)].layer.unique().tolist())[0]
-                analyses = sorted(all_scores_df.loc[(all_scores_df['mouse_n'] == mouse) &
-                                                    (all_scores_df['sess_n'] == sess)].analysis.unique().tolist())
-                for analys in analyses:
-                    shuffles = sorted(all_scores_df.loc[(all_scores_df['mouse_n'] == mouse) &
-                                                        (all_scores_df['sess_n'] == sess) &
-                                                        (all_scores_df['analysis'] == analys)].shuffle.unique().tolist())
-                    for shuff in shuffles:
-                        def sem_nan(data):
-                            if isinstance(data, list):
-                                return data
-                            else:
-                                return [data, np.nan]
+                sess_lines = mouse_lines.loc[(mouse_lines['sess_n'] == sess)]
+                list_fluor = sorted(sess_lines.fluor.unique().tolist())
+                for fluor in list_fluor:
+                    fluor_lines = sess_lines.loc[(sess_lines['fluor'] == fluor)]
+                    list_norm = sorted(fluor_lines.norm.unique().tolist())
+                    for norm in list_norm:
+                        norm_lines = fluor_lines.loc[(fluor_lines['norm'] == norm)]
+                        list_shuff = sorted(norm_lines.shuffled.unique().tolist())
+                        for shuff in list_shuff:
+                            shuff_lines = norm_lines.loc[(norm_lines['shuffled'] == shuff)]
+                            curr_lin = len(scores_summ)
+                            for lab in comm_labs:
+                                # check that all the same
+                                lab_vals = shuff_lines[lab].unique().tolist()
+                                if len(lab_vals) > 1:
+                                    raise ValueError(('Several values found for '
+                                                      'mouse {}, sess {}, fluor {},'
+                                                      'norm {}, shuff {}')
+                                                      .format(mouse, sess, fluor,
+                                                              norm, shuff))
+                                else:
+                                    scores_summ.loc[curr_lin, lab] = lab_vals[0]
+                            # calculate runs
+                            scores_summ.loc[curr_lin, 'runs_total'] = len(shuff_lines)
+                            nan_runs = sum(np.isnan(shuff_lines['epoch'].tolist()))
+                            scores_summ.loc[curr_lin, 'runs_nan'] = nan_runs
+                            # calculate stats
+                            for data_lab in data_labs:
+                                
+
+
+        print('doodle')
+
+
+                # n_rois = mouse_df.loc[(mouse_df['mouseid'] == int(mouse)) & 
+                #                       (mouse_df['overall_sess_n'] == int(sess))]['n_rois'].tolist()[0]
+                # layer = sorted(all_scores_df.loc[(all_scores_df['mouse_n'] == mouse) &
+                #                                  (all_scores_df['sess_n'] == sess)].layer.unique().tolist())[0]
+                # analyses = sorted(all_scores_df.loc[(all_scores_df['mouse_n'] == mouse) &
+                #                                     (all_scores_df['sess_n'] == sess)].analysis.unique().tolist())
+                # for analys in analyses:
+                #     shuffles = sorted(all_scores_df.loc[(all_scores_df['mouse_n'] == mouse) &
+                #                                         (all_scores_df['sess_n'] == sess) &
+                #                                         (all_scores_df['analysis'] == analys)].shuffle.unique().tolist())
+                #     for shuff in shuffles:
+                #         def sem_nan(data):
+                #             if isinstance(data, list):
+                #                 return data
+                #             else:
+                #                 return [data, np.nan]
                         
-                        if shuff:
-                            stats = 'median'
-                            error = 'std'
-                            qu = [2.5, 97.5]
-                        else:
-                            stats = 'mean'
-                            error = 'sem'
-                            qu = None
-                        list_lines = all_scores_df.loc[(all_scores_df['mouse_n'] == mouse) &
-                                                       (all_scores_df['sess_n'] == sess) &
-                                                       (all_scores_df['analysis'] == analys) &
-                                                       (all_scores_df['shuffle'] == shuff)]
+                #         if shuff:
+                #             stats = 'median'
+                #             error = 'std'
+                #             qu = [2.5, 97.5]
+                #         else:
+                #             stats = 'mean'
+                #             error = 'sem'
+                #             qu = None
+                #         list_lines = all_scores_df.loc[(all_scores_df['mouse_n'] == mouse) &
+                #                                        (all_scores_df['sess_n'] == sess) &
+                #                                        (all_scores_df['analysis'] == analys) &
+                #                                        (all_scores_df['shuffle'] == shuff)]
 
-                        n_runs = len(list_lines) - sum(list_lines['epoch'].isna())
-                        # take epoch sem and mean
-                        epoch_mean = math_util.mean_med(list_lines['epoch'], stats=stats, nanpol='omit')
-                        epoch_sem_qu3, epoch_qu98 = sem_nan(math_util.error_stat(list_lines['epoch'], stats=stats, error=error, nanpol='omit', qu=qu))
-                        # take dff_train_wBCEloss mean and sem
-                        dff_train_wBCEloss_mean = math_util.mean_med(list_lines['dff_train_wBCEloss'], stats=stats, nanpol='omit')
-                        dff_train_wBCEloss_sem_qu3, dff_train_wBCEloss_qu98 = sem_nan(math_util.error_stat(list_lines['dff_train_wBCEloss'], stats=stats, error=error, nanpol='omit', qu=qu))
-                        # take dff_train_acc mean and sem
-                        dff_train_acc_mean = math_util.mean_med(list_lines['dff_train_acc'], stats=stats, nanpol='omit')
-                        dff_train_acc_sem_qu3, dff_train_acc_qu98 = sem_nan(math_util.error_stat(list_lines['dff_train_acc'], stats=stats, error=error, nanpol='omit', qu=qu))
-                        # take dff_train_common_acc mean and sem
-                        dff_train_common_acc_mean = math_util.mean_med(list_lines['dff_train_common_acc'], stats=stats, nanpol='omit')
-                        dff_train_common_acc_sem_qu3, dff_train_common_acc_qu98 = sem_nan(math_util.error_stat(list_lines['dff_train_common_acc'], stats=stats, error=error, nanpol='omit', qu=qu))
-                        # take dff_train_rare_acc mean and sem
-                        dff_train_rare_acc_mean = math_util.mean_med(list_lines['dff_train_rare_acc'], stats=stats, nanpol='omit')
-                        dff_train_rare_acc_sem_qu3, dff_train_rare_acc_qu98 = sem_nan(math_util.error_stat(list_lines['dff_train_rare_acc'], stats=stats, error=error, nanpol='omit', qu=qu))
+                #         n_runs = len(list_lines) - sum(list_lines['epoch'].isna())
+                #         # take epoch sem and mean
+                #         epoch_mean = math_util.mean_med(list_lines['epoch'], stats=stats, nanpol='omit')
+                #         epoch_sem_qu3, epoch_qu98 = sem_nan(math_util.error_stat(list_lines['epoch'], stats=stats, error=error, nanpol='omit', qu=qu))
+                #         # take dff_train_wBCEloss mean and sem
+                #         dff_train_wBCEloss_mean = math_util.mean_med(list_lines['dff_train_wBCEloss'], stats=stats, nanpol='omit')
+                #         dff_train_wBCEloss_sem_qu3, dff_train_wBCEloss_qu98 = sem_nan(math_util.error_stat(list_lines['dff_train_wBCEloss'], stats=stats, error=error, nanpol='omit', qu=qu))
+                #         # take dff_train_acc mean and sem
+                #         dff_train_acc_mean = math_util.mean_med(list_lines['dff_train_acc'], stats=stats, nanpol='omit')
+                #         dff_train_acc_sem_qu3, dff_train_acc_qu98 = sem_nan(math_util.error_stat(list_lines['dff_train_acc'], stats=stats, error=error, nanpol='omit', qu=qu))
+                #         # take dff_train_common_acc mean and sem
+                #         dff_train_common_acc_mean = math_util.mean_med(list_lines['dff_train_common_acc'], stats=stats, nanpol='omit')
+                #         dff_train_common_acc_sem_qu3, dff_train_common_acc_qu98 = sem_nan(math_util.error_stat(list_lines['dff_train_common_acc'], stats=stats, error=error, nanpol='omit', qu=qu))
+                #         # take dff_train_rare_acc mean and sem
+                #         dff_train_rare_acc_mean = math_util.mean_med(list_lines['dff_train_rare_acc'], stats=stats, nanpol='omit')
+                #         dff_train_rare_acc_sem_qu3, dff_train_rare_acc_qu98 = sem_nan(math_util.error_stat(list_lines['dff_train_rare_acc'], stats=stats, error=error, nanpol='omit', qu=qu))
 
-                        # take dff_val_wBCEloss mean and sem
-                        dff_val_wBCEloss_mean = math_util.mean_med(list_lines['dff_val_wBCEloss'], stats=stats, nanpol='omit')
-                        dff_val_wBCEloss_sem_qu3, dff_val_wBCEloss_qu98 = sem_nan(math_util.error_stat(list_lines['dff_val_wBCEloss'], stats=stats, error=error, nanpol='omit', qu=qu))
-                        # take dff_val_acc mean and sem
-                        dff_val_acc_mean = math_util.mean_med(list_lines['dff_val_acc'], stats=stats, nanpol='omit')
-                        dff_val_acc_sem_qu3, dff_val_acc_qu98 = sem_nan(math_util.error_stat(list_lines['dff_val_acc'], stats=stats, error=error, nanpol='omit', qu=qu))
-                        # take dff_val_common_acc mean and sem
-                        dff_val_common_acc_mean = math_util.mean_med(list_lines['dff_val_common_acc'], stats=stats, nanpol='omit')
-                        dff_val_common_acc_sem_qu3, dff_val_common_acc_qu98 = sem_nan(math_util.error_stat(list_lines['dff_val_common_acc'], stats=stats, error=error, nanpol='omit', qu=qu))
-                        # take dff_val_rare_acc mean and sem
-                        dff_val_rare_acc_mean = math_util.mean_med(list_lines['dff_val_rare_acc'], stats=stats, nanpol='omit')
-                        dff_val_rare_acc_sem_qu3, dff_val_rare_acc_qu98 = sem_nan(math_util.error_stat(list_lines['dff_val_rare_acc'], stats=stats, error=error, nanpol='omit', qu=qu))
+                #         # take dff_val_wBCEloss mean and sem
+                #         dff_val_wBCEloss_mean = math_util.mean_med(list_lines['dff_val_wBCEloss'], stats=stats, nanpol='omit')
+                #         dff_val_wBCEloss_sem_qu3, dff_val_wBCEloss_qu98 = sem_nan(math_util.error_stat(list_lines['dff_val_wBCEloss'], stats=stats, error=error, nanpol='omit', qu=qu))
+                #         # take dff_val_acc mean and sem
+                #         dff_val_acc_mean = math_util.mean_med(list_lines['dff_val_acc'], stats=stats, nanpol='omit')
+                #         dff_val_acc_sem_qu3, dff_val_acc_qu98 = sem_nan(math_util.error_stat(list_lines['dff_val_acc'], stats=stats, error=error, nanpol='omit', qu=qu))
+                #         # take dff_val_common_acc mean and sem
+                #         dff_val_common_acc_mean = math_util.mean_med(list_lines['dff_val_common_acc'], stats=stats, nanpol='omit')
+                #         dff_val_common_acc_sem_qu3, dff_val_common_acc_qu98 = sem_nan(math_util.error_stat(list_lines['dff_val_common_acc'], stats=stats, error=error, nanpol='omit', qu=qu))
+                #         # take dff_val_rare_acc mean and sem
+                #         dff_val_rare_acc_mean = math_util.mean_med(list_lines['dff_val_rare_acc'], stats=stats, nanpol='omit')
+                #         dff_val_rare_acc_sem_qu3, dff_val_rare_acc_qu98 = sem_nan(math_util.error_stat(list_lines['dff_val_rare_acc'], stats=stats, error=error, nanpol='omit', qu=qu))
 
-                        # take dff_test_wBCEloss mean and sem
-                        dff_test_wBCEloss_mean = math_util.mean_med(list_lines['dff_test_wBCEloss'], stats=stats, nanpol='omit')
-                        dff_test_wBCEloss_sem_qu3, dff_test_wBCEloss_qu98 = sem_nan(math_util.error_stat(list_lines['dff_test_wBCEloss'], stats=stats, error=error, nanpol='omit', qu=qu))
-                        # take dff_test_acc mean and sem
-                        dff_test_acc_mean = math_util.mean_med(list_lines['dff_test_acc'], stats=stats, nanpol='omit')
-                        dff_test_acc_sem_qu3, dff_test_acc_qu98 = sem_nan(math_util.error_stat(list_lines['dff_test_acc'], stats=stats, error=error, nanpol='omit', qu=qu))
-                        # take dff_test_common_acc mean and sem
-                        dff_test_common_acc_mean = math_util.mean_med(list_lines['dff_test_common_acc'], stats=stats, nanpol='omit')
-                        dff_test_common_acc_sem_qu3, dff_test_common_acc_qu98 = sem_nan(math_util.error_stat(list_lines['dff_test_common_acc'], stats=stats, error=error, nanpol='omit', qu=qu))
-                        # take dff_test_rare_acc mean and sem
-                        dff_test_rare_acc_mean = math_util.mean_med(list_lines['dff_test_rare_acc'], stats=stats, nanpol='omit')
-                        dff_test_rare_acc_sem_qu3, dff_test_rare_acc_qu98 = sem_nan(math_util.error_stat(list_lines['dff_test_rare_acc'], stats=stats, error=error, nanpol='omit', qu=qu))
+                #         # take dff_test_wBCEloss mean and sem
+                #         dff_test_wBCEloss_mean = math_util.mean_med(list_lines['dff_test_wBCEloss'], stats=stats, nanpol='omit')
+                #         dff_test_wBCEloss_sem_qu3, dff_test_wBCEloss_qu98 = sem_nan(math_util.error_stat(list_lines['dff_test_wBCEloss'], stats=stats, error=error, nanpol='omit', qu=qu))
+                #         # take dff_test_acc mean and sem
+                #         dff_test_acc_mean = math_util.mean_med(list_lines['dff_test_acc'], stats=stats, nanpol='omit')
+                #         dff_test_acc_sem_qu3, dff_test_acc_qu98 = sem_nan(math_util.error_stat(list_lines['dff_test_acc'], stats=stats, error=error, nanpol='omit', qu=qu))
+                #         # take dff_test_common_acc mean and sem
+                #         dff_test_common_acc_mean = math_util.mean_med(list_lines['dff_test_common_acc'], stats=stats, nanpol='omit')
+                #         dff_test_common_acc_sem_qu3, dff_test_common_acc_qu98 = sem_nan(math_util.error_stat(list_lines['dff_test_common_acc'], stats=stats, error=error, nanpol='omit', qu=qu))
+                #         # take dff_test_rare_acc mean and sem
+                #         dff_test_rare_acc_mean = math_util.mean_med(list_lines['dff_test_rare_acc'], stats=stats, nanpol='omit')
+                #         dff_test_rare_acc_sem_qu3, dff_test_rare_acc_qu98 = sem_nan(math_util.error_stat(list_lines['dff_test_rare_acc'], stats=stats, error=error, nanpol='omit', qu=qu))
                         
 
-                        all_data = [mouse, sess, layer, line, n_rois, analys, shuff,
-                                    n_runs, epoch_mean, epoch_sem_qu3, epoch_qu98,
-                                    dff_train_wBCEloss_mean, dff_train_wBCEloss_sem_qu3, dff_train_wBCEloss_qu98,
-                                    dff_train_acc_mean, dff_train_acc_sem_qu3, dff_train_acc_qu98, 
-                                    dff_train_common_acc_mean, dff_train_common_acc_sem_qu3, dff_train_common_acc_qu98,
-                                    dff_train_rare_acc_mean, dff_train_rare_acc_sem_qu3, dff_train_rare_acc_qu98,
-                                    dff_val_wBCEloss_mean, dff_val_wBCEloss_sem_qu3, dff_val_wBCEloss_qu98,
-                                    dff_val_acc_mean, dff_val_acc_sem_qu3, dff_val_acc_qu98,
-                                    dff_val_common_acc_mean, dff_val_common_acc_sem_qu3, dff_val_common_acc_qu98,
-                                    dff_val_rare_acc_mean, dff_val_rare_acc_sem_qu3, dff_val_rare_acc_qu98,
-                                    dff_test_wBCEloss_mean, dff_test_wBCEloss_sem_qu3, dff_test_wBCEloss_qu98,
-                                    dff_test_acc_mean, dff_test_acc_sem_qu3, dff_test_acc_qu98,
-                                    dff_test_common_acc_mean, dff_test_common_acc_sem_qu3, dff_test_common_acc_qu98,
-                                    dff_test_rare_acc_mean, dff_test_rare_acc_sem_qu3, dff_test_rare_acc_qu98]
+                #         all_data = [mouse, sess, layer, line, n_rois, analys, shuff,
+                #                     n_runs, epoch_mean, epoch_sem_qu3, epoch_qu98,
+                #                     dff_train_wBCEloss_mean, dff_train_wBCEloss_sem_qu3, dff_train_wBCEloss_qu98,
+                #                     dff_train_acc_mean, dff_train_acc_sem_qu3, dff_train_acc_qu98, 
+                #                     dff_train_common_acc_mean, dff_train_common_acc_sem_qu3, dff_train_common_acc_qu98,
+                #                     dff_train_rare_acc_mean, dff_train_rare_acc_sem_qu3, dff_train_rare_acc_qu98,
+                #                     dff_val_wBCEloss_mean, dff_val_wBCEloss_sem_qu3, dff_val_wBCEloss_qu98,
+                #                     dff_val_acc_mean, dff_val_acc_sem_qu3, dff_val_acc_qu98,
+                #                     dff_val_common_acc_mean, dff_val_common_acc_sem_qu3, dff_val_common_acc_qu98,
+                #                     dff_val_rare_acc_mean, dff_val_rare_acc_sem_qu3, dff_val_rare_acc_qu98,
+                #                     dff_test_wBCEloss_mean, dff_test_wBCEloss_sem_qu3, dff_test_wBCEloss_qu98,
+                #                     dff_test_acc_mean, dff_test_acc_sem_qu3, dff_test_acc_qu98,
+                #                     dff_test_common_acc_mean, dff_test_common_acc_sem_qu3, dff_test_common_acc_qu98,
+                #                     dff_test_rare_acc_mean, dff_test_rare_acc_sem_qu3, dff_test_rare_acc_qu98]
                                                
-                        # add info to full dataframe NOT SAFE... could have wrong columns - improve later
-                        scores_summ.loc[len(scores_summ)] = all_data
+                #         # add info to full dataframe NOT SAFE... could have wrong columns - improve later
+                #         scores_summ.loc[len(scores_summ)] = all_data
 
-                        # overwrite dataframe at each loop
-                        file_util.save_info(scores_summ, 'summ_scores_df', 
-                                            scores_dir, 'csv')
+                #         # overwrite dataframe at each loop
+                #         file_util.save_info(scores_summ, 'summ_scores_df', 
+                #                             scores_dir, 'csv')
 
     elif args.task == 'plot':
         scores_dir = os.path.join(args.output, 'regr_models')
