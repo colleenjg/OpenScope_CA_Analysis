@@ -63,7 +63,8 @@ def load_file(file_name, full_dir='.', file_type='pickle'):
 
 
 #############################################
-def save_info(save_obj, save_name='info', full_dir='.', save_as='pickle'):
+def save_info(save_obj, save_name='info', full_dir='.', save_as='pickle', 
+              sort=True):
     '''
     save_info(dict, full_dir)
 
@@ -80,6 +81,9 @@ def save_info(save_obj, save_name='info', full_dir='.', save_as='pickle'):
                            default: 'info'
         - save_as (str)  : type of file to save as (pickle, json, csv)
                            default: 'pickle'
+        - sort (bool)    : whether to sort keys alphabetically, if saving a 
+                           dictionary
+                           default: True
     '''
 
     full_name = os.path.join(full_dir, save_name)
@@ -103,7 +107,7 @@ def save_info(save_obj, save_name='info', full_dir='.', save_as='pickle'):
         if not ext:
             full_name = '{}.json'.format(full_name)
         with open(full_name, 'w') as f:
-            json.dump(save_obj, f)
+            json.dump(save_obj, f, sort_keys=sort)
     elif save_as == 'csv':
         if not ext:
             full_name = '{}.csv'.format(full_name)

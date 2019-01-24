@@ -287,7 +287,7 @@ def add_bars(ax, hbars=None, bars=None, col='k'):
 #############################################
 def plot_traces(ax, chunk_val, stats='mean', error='std', title='', lw=1.5, 
                 col=None, alpha=0.5, plot_err=True, xticks=None, yticks=None,
-                label=None, raw=False):
+                label=None, fluor='dff', dff=None):
     """
     plot_traces(ax, chunk_val)
 
@@ -309,9 +309,14 @@ def plot_traces(ax, chunk_val, stats='mean', error='std', title='', lw=1.5,
         - alpha (float)        : pyplot alpha variable controlling shading 
                                  transparency (from 0 to 1)
         - label (str)          : label for legend
-        - raw (bool)           : if True, plot is labeled as raw fluorescence. 
-                                 Else, dF/F.
-                                 default: False
+        - fluor (str)          : if 'raw', plot is labeled as raw fluorescence. 
+                                 Else, if 'dff', dF/F.
+                                 default: 'dff'
+        - dff (bool)           : can be used instead of fluor, and if so
+                                 (not None), will supercede fluor. 
+                                 if True, fluor is set to 'dff', if False, 
+                                 fluor is set to 'raw'. If None, no effect.
+                                 default: None  
     """
     
     ax.plot(chunk_val[0], chunk_val[1], lw=lw, color=col, label=label)
@@ -336,7 +341,13 @@ def plot_traces(ax, chunk_val, stats='mean', error='std', title='', lw=1.5,
         elif max_val == 0.45:
             ax.set_xticks(np.linspace(min_val, max_val, 4))
 
-    fluor_str = str_util.fluor_par_str(raw, type_str='print')
+    if dff is not None:
+        if dff:
+            fluor = 'dff'
+        else:
+            fluor = 'raw'
+
+    fluor_str = str_util.fluor_par_str(fluor, type_str='print')
     ax.set_ylabel(fluor_str)
     ax.set_xlabel('Time (s)')
     if xticks is not None:
