@@ -79,7 +79,7 @@ def norm_par_str(norm=True, type_str='print'):
     
 
 #############################################
-def fluor_par_str(raw=True, type_str='print'):
+def fluor_par_str(fluor='dff', type_str='print', dff=None):
     """
     fluor_par_str()
 
@@ -87,30 +87,44 @@ def fluor_par_str(raw=True, type_str='print'):
     filename.
 
     Optional arguments:
-        - raw (bool): whether raw or processed fluorescence traces are used  
-                      default: True
-        - type (str): 'print' for a printable string and 'file' for a
-                      string usable in a filename.
-                      default: 'print'
+        - fluor (str): whether 'raw' or processed fluorescence traces 'dff' are 
+                       used  
+                       default: 'dff'
+        - type (str) : 'print' for a printable string and 'file' for a
+                       string usable in a filename.
+                       default: 'print'
+        - dff (bool) : can be used instead of fluor, and if so
+                       (not None), will supercede fluor. 
+                       if True, fluor is set to 'dff', if False, 
+                       fluor is set to 'raw'. If None, no effect.
+                       default: None  
     
     Returns:
         - fluor_str (str): fluorescence parameter string
     """
 
-    if raw:
+    if dff is not None:
+        if dff:
+            fluor = 'dff'
+        else:
+            fluor = 'raw'
+
+    if fluor == 'raw':
         if type_str == 'print':
             fluor_str = 'raw fluorescence intensity'
         elif type_str == 'file':
             fluor_str = 'raw'
         else:
             gen_util.accepted_values_error('type_str', type_str, ['print', 'file'])
-    else:
+    elif fluor == 'dff':
         if type_str == 'print':
             fluor_str = 'dF/F'
         elif type_str == 'file':
             fluor_str = 'dff'
         else:
             gen_util.accepted_values_error('type_str', type_str, ['print', 'file'])
+    else:
+        gen_util.accepted_values_error('fluor', fluor, ['raw', 'dff'])
 
     return fluor_str
     

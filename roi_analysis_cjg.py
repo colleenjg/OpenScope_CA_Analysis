@@ -866,7 +866,7 @@ def plot_traces_by_qu_surp_sess(sessions, analys_par, basic_par, fig_par,
                                       error=basic_par['error'], col=col[q], 
                                       alpha=0.4/analys_par['n_quints'],
                                       title=title, label=leg,
-                                      raw=not(basic_par['dfoverf']))
+                                      dff=basic_par['dfoverf'])
         for s, [lab, col, t_hei] in enumerate(zip([labels_nosurp, labels_surp], 
                                                   [col_nosurp, col_surp], 
                                                   t_heis)):
@@ -1777,7 +1777,7 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
                             error=basic_par['error'], title=title,
                             col=quint_plot['cols'][j], 
                             alpha=0.8/len(quint_plot['qu']), 
-                            raw=not(basic_par['dfoverf']))
+                            dff=basic_par['dfoverf'])
             if fig_par['preset_ylims']:
                 sub_ax.set_ylim(ylims[i])
             plot_util.add_bars(sub_ax, hbars=h_bars, bars=seg_bars)
@@ -2661,7 +2661,7 @@ def plot_gab_autocorr(sessions, analys_par, basic_par, fig_par, sess_par):
         for roi_stats in autocorr_stats:
             plot_util.plot_traces(sub_ax, roi_stats, basic_par['stats'], 
                         basic_par['error'], alpha=0.5/len(sessions), 
-                        xticks=xticks, yticks=yticks, raw=not(basic_par['dfoverf']))
+                        xticks=xticks, yticks=yticks, dff=basic_par['dfoverf'])
         plot_util.add_bars(sub_ax, bars=seg_bars)
         sub_ax.set_title(('Mouse {} - {} gab{} {}\n(sess {}, {} {}, '
                           '(n={}))').format(analys_par['mouse_ns'][i], statstr,
