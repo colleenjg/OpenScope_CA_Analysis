@@ -17,22 +17,144 @@ import exceptions
 
 import pandas as pd
 import pickle
+import json
+
+import gen_util
 
 ###############################################################################
-def open_file(filename, type='pickle'):
-    if os.path.exists(filename):
-        if type == 'pickle':
-            with open(filename, 'r') as f:
+def load_file(file_name, full_dir='.', file_type='pickle'):
+    '''
+    load_file(filename)
+
+    Safely opens and loads a pickle or pandas dataframe.
+ 
+    Required arguments:
+        - file_name (str): name of file, can include the whole directory name
+                           and must include extension
+    
+    Optional arguments:
+        - full_dir (str) : directory in which file is saed
+                           default: '.'
+        - file_type (str): type of file (pickle, json, csv)
+                           default: 'pickle'
+
+    Outputs:
+        - datafile (dict or pd df): loaded file
+    '''
+
+    full_name = os.path.join(full_dir, file_name)
+    
+    if os.path.exists(full_name):
+        if file_type in ['pickle', 'pkl']:
+            with open(full_name, 'rb') as f:
                 datafile = pickle.load(f)
-        elif type == 'pandas':
-            datafile = pd.read_pickle(filename)
+        elif file_type == 'json':
+            with open(full_name, 'rb') as f:
+                datafile = json.load(f)
+        elif file_type == 'csv':
+            datafile = pd.read_csv(full_name)
         else:
-            raise ValueError(('\'type\' only takes \'pickle\' or \'pandas\' as' 
-                            'values.'))
+            gen_util.accepted_values_error('file_type', file_type, 
+                                           ['pickle', 'json', 'csv'])
     else:
-        raise IOError('{} does not exist.'.format(filename))
+        raise IOError('{} does not exist.'.format(full_name))
 
     return datafile
+
+
+#############################################
+def save_info(save_obj, save_name='info', full_dir='.', save_as='pickle', 
+              sort=True):
+    '''
+    save_info(dict, full_dir)
+
+    Pickles and saves dictionary under a specific directory and optional name.
+
+    Required arguments:
+        - save_obj (dict): object to save
+    
+    Optional arguments:
+        - full_dir (str) : directory in which to save pickle
+                           default: '.'
+        - save_name (str): name under which to save info, can include the 
+                           whole directory name
+                           default: 'info'
+        - save_as (str)  : type of file to save as (pickle, json, csv)
+                           default: 'pickle'
+        - sort (bool)    : whether to sort keys alphabetically, if saving a 
+                           dictionary
+                           default: True
+    '''
+
+    full_name = os.path.join(full_dir, save_name)
+    
+    # check whether extension is included
+    if len(save_name.split('.')) == 2:
+        ext = True
+    else:
+        ext = False
+
+    # create directory if it doesn't exist
+    if not os.path.exists(full_dir):
+        os.makedirs(full_dir)
+    
+    if save_as in ['pickle', 'pkl']:
+        if not ext:
+            full_name = '{}.pkl'.format(full_name)
+        with open(full_name, 'wb') as f:
+            pickle.dump(save_obj, f)
+    elif save_as == 'json':
+        if not ext:
+            full_name = '{}.json'.format(full_name)
+        with open(full_name, 'w') as f:
+            json.dump(save_obj, f, sort_keys=sort)
+    elif save_as == 'csv':
+        if not ext:
+            full_name = '{}.csv'.format(full_name)
+        save_obj.to_csv(full_name)
+    else:
+        gen_util.accepted_values_error('save_as', save_as, 
+                                       ['pickle', 'json', 'csv'])
+
+
+#############################################
+def create_dir(dirname, unique=True, print_dir=True):
+    '''
+    create_dir(filename)
+
+    Creates a specified directory if it does not exist.
+ 
+    Required arguments:
+        - dirname (string or list): path or hierarchical list of directories, 
+                                    e.g. ['dir', 'subdir', 'subsubdir']
+
+    Optional arguments:
+        - unique (bool)   : if True, ensures that a new directory is created by  
+                            adding a suffix, e.g. '_1' if necessary
+                            default: True
+        - print_dir (bool): if True, the name of the created directory is 
+                            printed
+
+    Outputs:
+        - dirname (string): name of new directory
+    '''
+    # convert directory list to full path
+    dirname = os.path.join(*gen_util.list_if_not(dirname))
+
+    if unique and os.path.exists(dirname):
+        i=1
+        while os.path.exists('{}_{}'.format(dirname, i)):
+            i += 1
+        dirname = '{}_{}'.format(dirname, i)
+        os.makedirs(dirname)
+    else:
+        os.makedirs(dirname)
+
+    if print_dir:
+        print('Directory: {}'.format(dirname))
+
+    return dirname
+
 
 ###############################################################################
 def check_datadir(datadir):
@@ -53,22 +175,24 @@ def check_datadir(datadir):
 
     # check that the directory exists
     if not os.path.isdir(datadir):
-        raise exceptions.OSError('{} either does not exist or is not a directory'.format(datadir))
+        raise exceptions.OSError(('{} either does not exist or is not a '
+                                  'directory').format(datadir))
     else:
         dirokay = True
 
-    # TO-DO: ACTUALLY CHECK THE DIRECTORY STRUCTURE, MAKES SURE IT CONFORMS TO EXPECTED
+    # TO-DO: ACTUALLY CHECK THE DIRECTORY STRUCTURE, MAKES SURE IT CONFORMS TO 
+    # EXPECTED
 
     return dirokay
 
 ###############################################################################
-def get_file_names(masterdir, session, experiment, date, mouse):
+def get_file_names(masterdir, session, experiment, date, mouse, runtype='prod'):
     '''
     get_file_names(main_directory, session, experiment, date, mouse)
 
-    Gets the full path names of all of the expected data files in the main_directory
-    for the specified session and experiment on the given date that can be used for 
-    the Credit Assignment analysis.
+    Gets the full path names of all of the expected data files in the 
+    main_directory for the specified session and experiment on the given date 
+    that can be used for the Credit Assignment analysis.
  
     Required arguments:
         - main_directory (string)    : name of the master data directory
@@ -100,7 +224,11 @@ def get_file_names(masterdir, session, experiment, date, mouse):
     '''
     
     # get the name of the session and experiment data directories
-    sessiondir    = os.path.join(masterdir, 'ophys_session_{}'.format(session))
+    if runtype == 'pilot':
+        sessiondir    = os.path.join(masterdir, 'ophys_session_{}'.format(session))
+    elif runtype == 'prod':
+        sessiondir    = os.path.join(masterdir, 'mouse_{}'.format(mouse), 
+                                     'ophys_session_{}'.format(session))
     experimentdir = os.path.join(sessiondir, 'ophys_experiment_{}'.format(experiment))
     processeddir = os.path.join(experimentdir, 'processed')
 
@@ -131,8 +259,50 @@ def get_file_names(masterdir, session, experiment, date, mouse):
         # TO-DO: ADD OTHER KEY FILES
 
     else:
-        raise exceptions.UserWarning('{} does not conform to expected AIBS structure'.format(sessiondir))
+        raise exceptions.UserWarning(('{} does not conform to expected AIBS '
+                                      'structure').format(sessiondir))
 
     return (experimentdir, processeddir, stim_pkl_file, stim_sync_file, 
             align_pkl_file, corrected_data, roi_trace_data, roi_trace_dff, 
             zstack)
+
+
+###############################################################################
+def get_files(direc='.', file_type='all', criteria=None):
+    '''
+    get_files()
+
+    Gets all files in given directory.
+
+    Optional arguments:
+        - diriec (str    : directory
+        - file_type (str): type of file to return: 'all', 'subdirs' or 'files'
+                           default: 'all'
+        - criteria (str) : criteria for including files, i.e., contains 
+                           specified string
+                           default: None
+
+    Outputs:
+        - files (list): list of files in directory
+    '''
+
+    all_files = os.listdir(direc)
+
+    if criteria is not None:
+        all_files = [x for x in all_files if criteria in x]
+    
+    all_files = [os.path.join(direc, x) for x in all_files]
+
+    if file_type == 'subdirs':
+        all_files = [x for x in all_files if os.path.isdir(x)]
+
+    elif file_type == 'files':
+        all_files = [x for x in all_files if not os.path.isdir(x)]
+
+    elif file_type != 'all':
+        gen_util.accepted_values_error('file_type', file_type, ['all', 
+                                       'subdirs', 'files'])
+    
+    return all_files
+
+    
