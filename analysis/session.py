@@ -209,6 +209,7 @@ class Session(object):
         # running speed per stimulus frame in cm/s
         self.run = sync_util.get_run_speed(self.stim_pkl)
 
+
     #############################################
     def _load_roi_traces(self):
         """
@@ -231,11 +232,25 @@ class Session(object):
 
                 # get the number of data points in the traces
                 self.nframes = f['data'].shape[1]
+
+                # generate attribute listing ROIs with NaNs or Infs (for raw traces)
+                self.get_nanrois(f['data'].value)
     
         except:
             raise exceptions.IOError('Could not open {} for reading'
                                      .format(self.roi_traces))
-    
+
+    #############################################
+    def get_nanrois(self, traces, dfoverf=False):
+        nan_arr = np.isnan(traces).any(axis=1) + np.isinf(traces).any(axis=1)
+        nan_rois = np.where(nan_arr)[0].tolist()
+
+        if dfoverf:
+            self.nanrois_dff = nan_rois
+        else:
+            self.nanrois = nan_rois
+
+
     #############################################
     def extract_info(self, load_run=True):
         """
@@ -297,6 +312,7 @@ class Session(object):
         # initialize a Grayscr object
         self.grayscr = Grayscr(self)
 
+
     #############################################
     def get_run_speed(self, frames):
         """
@@ -321,19 +337,20 @@ class Session(object):
 
         return speed
 
+
     ############################################
     def create_dff(self, replace=False, basewin=1000):
         """
         self.create_dff()
 
-        Returns the running speed for the given two-photon imaging
-        frames using linear interpolation.
+        Creates ans saves the dff traces.
 
         Required arguments:
-            - frames (int array): set of 2p imaging frames to give speed for
+            - replace (bool): if True, any pre-existing dff traces are replaced
+                              default: False
+            - basewin (int) : basewin factor for compute_dff function
+                              default: 1000
         
-        Returns:
-            - speed (float array): running speed (in cm/s) - CHECK THIS
         """
         
         if not os.path.exists(self.roi_traces_dff) or replace:
@@ -350,7 +367,14 @@ class Session(object):
                 
             with h5py.File(self.roi_traces_dff, 'w') as hf:
                 hf.create_dataset('data',  data=traces)
-            
+        
+        # generate attribute listing ROIs with NaNs or Infs (for dff traces)
+        with h5py.File(self.roi_traces_dff, 'r') as f:
+            traces = f['data'].value
+        
+        self.get_nanrois(traces, dfoverf=True)
+
+
     #############################################
     def get_roi_traces(self, frames=None, dfoverf=False, basewin=1000):
         """
@@ -373,7 +397,8 @@ class Session(object):
                                   (default=1000)
 
         Returns:
-            - traces (float array): array of dF/F for the specified frames/ROIs
+            - traces (float array): array of dF/F for the specified frames,
+                                    (ROI x frames)
         """
         
         # check if we're getting all frames, if not, make sure the frames are all legit
@@ -392,13 +417,13 @@ class Session(object):
         else:
             roi_traces = self.roi_traces
         
-        with h5py.File(roi_traces,'r') as f:
+        with h5py.File(roi_traces, 'r') as f:
             try:
                 traces = f['data'].value[:,frames]
             except:
                 pdb.set_trace()
                 raise exceptions.IOError('Could not read {}'.format(self.roi_traces))
-
+        
         # REPLACED ABOVE WHERE DFF applied to entire traces
         # # convert to df over f if requested
         # if dfoverf:
@@ -1470,26 +1495,17 @@ class Stim(object):
                                                     dfoverf=dfoverf)
         roi_data = roi_data.tolist()
 
-        # identify any ROIs containing NaNs or infs
         if nans == 'rem' or nans == 'list':
-            nan_rois = []
+            if dfoverf:
+                nan_rois = self.sess.nanrois_dff
+            else:
+                nan_rois = self.sess.nanrois
             n_rois = len(roi_data)
-            ok_rois = range(n_rois)
-            if (sum(sum(sum(np.isnan(roi_data)))) > 0 or 
-                sum(sum(sum(np.isinf(roi_data)))) > 0):
-                for i in range(n_rois):
-                    if (sum(sum(np.isnan(roi_data[i]))) > 0 or 
-                        sum(sum(np.isinf(roi_data[i])))):
-                        nan_rois.extend([i])
-                        ok_rois.remove(i)
-                # remove ROIs from roi_data
-                count = 0
-                if nans == 'rem':
-                    for j in nan_rois:
-                        roi_data.pop(j-count)
-                        count += 1
-                    print('Removing {}/{} ROIs: {}'
-                        .format(len(nan_rois), n_rois, ', '.join(map(str, nan_rois))))
+            ok_rois = sorted(set(range(n_rois)) - set(nan_rois))
+            if nans == 'rem':
+                roi_data = roi_data[ok_rois]
+                print('Removing {}/{} ROIs: {}'.format(len(nan_rois), n_rois, 
+                                        ', '.join([str(x) for x in nan_rois])))
         
         # get ROI stats
         if byroi:

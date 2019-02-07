@@ -3,7 +3,6 @@ import os
 import argparse
 import random
 import glob
-import re
 import multiprocessing
 
 from matplotlib import pyplot as plt
@@ -14,51 +13,104 @@ import h5py
 import pickle
 import pandas as pd
 from joblib import Parallel, delayed
+import re
 
 np = torch._np
 
-from util import file_util, gen_util, str_util, math_util, plot_util
-
-#############################################
-def seed_all(seed, device='cpu', print_seed=True):
-
-    if seed is None:
-        seed = random.randint(1, 10000)
-        if print_seed:
-            print('Random seed: {}'.format(args.seed))
-    else:
-        if print_seed:
-            print('Preset seed: {}'.format(args.seed))
-    
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if device == 'cuda':
-        torch.cuda.manual_seed_all(seed)
-    
-    return seed
+from util import data_util, file_util, gen_util, logreg_util, math_util, plot_util, str_util
 
 
 #############################################
-def get_runname(mouse_n, sess_n, layer, fluor='dff', norm=False, comp='surp', 
+def get_compdir(mouse_n, sess_n, layer, fluor='dff', norm='roi', comp='surp', 
                 shuffle=False):
+    """
+    get_compdir(mouse_n, sess_n, layer)
+
+    Generates the name of the general directory in which an analysis type is
+    saved, based on analysis parameters.
+    
+    Required arguments:
+        - mouse_n (int): mouse number
+        - sess_n (int) : session number
+        - layer (str)  : layer name
+    
+    Optional arguments:
+        - fluor (str)   : fluorescence trace type
+                          default: 'dff'
+        - norm (str)    : type of normalization 
+                          default: 'roi'
+        - comp (str)    : type of comparison
+                          default: 'surp'
+        - shuffle (bool): whether analysis is on shuffled data
+                          default: False
+
+    Returns:
+        - compdir (str): name of directory to save analysis in
+    """
 
     fluor_str = fluor
-    norm_str = str_util.norm_par_str(norm, type_str='file')
+    if norm == 'none':
+        norm_bool = False
+    elif norm in ['roi', 'all']:
+        norm_bool = True
+
+    norm_str = str_util.norm_par_str(norm_bool, type_str='file')
     shuff_str = str_util.shuff_par_str(shuffle, type_str='file')
 
-    runname = 'm{}_s{}_{}_{}{}_{}{}'.format(mouse_n, sess_n, layer, fluor_str, norm_str, comp, shuff_str)
+    compdir = 'm{}_s{}_{}_{}{}_{}{}'.format(mouse_n, sess_n, layer, fluor_str, 
+                                            norm_str, comp, shuff_str)
 
-    return runname
+    return compdir
 
 
 #############################################
-def get_rundirec_dict(rundirec):
+def get_rundir(run, uniqueid=None):
+    """
+    get_rundir(run)
 
-    # format: mouse_sess_layer_fluor_norm_comp_shuffled/uniqueid_run
-    parts = os.path.split(rundirec)
-    first = parts[0].split('_')
-    second = parts[1].split('_')
+    Generates the name of the specific subdirectory in which an analysis is
+    saved, based on a run number and unique ID.
+    
+    Required arguments:
+        - run (int): run number
+    
+    Optional arguments:
+        - uniqueid (str or int): unique ID for analysis
+                                 default: None
+
+    Returns:
+        - rundir (str): name of subdirectory to save analysis in
+    """
+
+    if uniqueid is None:
+        rundir = 'run_{}'.format(run)
+    else:
+        rundir = '{}_{}'.format(uniqueid, run)
+
+    return rundir
+
+
+#############################################
+def get_compdir_dict(rundir):
+    """
+    get_compdir_dict(rundir)
+
+    Generates a dictionary with analysis parameters based on the full analysis 
+    path.
+    
+    Required arguments:
+        - rundir (str): path of subdirectory in which analysis is saved,
+                        structured as 
+                        '.../mouse_sess_layer_fluor_norm_comp_shuffled/uniqueid_run'
+    
+    Returns:
+        - compdir_dict (dict): analysis parameters dictionary
+    """
+
+    parts = rundir.split(os.sep)
+    first = parts[-2].split('_')
+    second = parts[-1].split('_')
+
     if len(second) == 3:
         # rejoin if uniqueid is datetime
         second = ['{}_{}'.format(second[0], second[1]), int(second[2])]
@@ -66,10 +118,8 @@ def get_rundirec_dict(rundirec):
         second = [int(x) for x in second] 
 
     if first[4] == 'norm':
-        norm = True
         comp = first[5]
     else:
-        norm = False
         comp = first[4]
     
     if first[-1] == 'shuffled':
@@ -77,84 +127,91 @@ def get_rundirec_dict(rundirec):
     else:
         shuffle = False
 
-    rundirec_dict = {'mouse_n': int(first[0][1]),
-                     'sess_n':int(first[1][1]),
-                     'layer': first[2],
-                     'fluor': first[3],
-                     'norm': norm,
-                     'comp': comp,
-                     'shuffled': shuffle,
-                     'uniqueid': second[0],
-                     'run': int(second[1])
-                     }
+    compdir_dict = {'mouse_n': int(first[0][1]),
+                    'sess_n':int(first[1][1]),
+                    'layer': first[2],
+                    'fluor': first[3],
+                    'comp': comp,
+                    'shuffled': shuffle,
+                    'uniqueid': second[0],
+                    'run': int(second[1])
+                    }
     
-    return rundirec_dict
+    return compdir_dict
 
 
 #############################################
-def create_datasets(roi_tr_segs, seg_classes, args, test=True):
+def load_sess_dict(mouse_n, sess_n, layer, runtype='prod'):
+    """
+    load_sess_dict(mouse_n, sess_n, layer)
+
+    Loads a session dictionary for the mouse, session number and layer, as
+    well as the runtype.
     
-    # ordered as trials x frames x ROIs
-
-    # number of segs in each set
-    if test:
-        valtest_n = int(len(roi_tr_segs)*(1.0-args.train_p)/2)
-        valtest = np.random.choice(range(len(roi_tr_segs)), (2, valtest_n), replace=False)
-        val_idx = sorted(valtest[0])
-        test_idx = sorted(valtest[1])
-
-    else:
-        val_n = int(len(roi_tr_segs)*(1.0-args.train_p))
-        val_idx = sorted(np.random.choice(range(len(roi_tr_segs)), val_n, replace=False))
-        test_idx = list() # empty
+    Required arguments:
+        - mouse_n (int): mouse number
+        - sess_n (int) : session number
+        - layer (str)  : layer name
     
-    train_idx = sorted(set(range(len(roi_tr_segs))) - set(val_idx) - set(test_idx))
-
-    if args.shuffle:
-        np.random.shuffle(seg_classes)
-
-    train_data  = torch.Tensor(roi_tr_segs[train_idx])
-    train_class = torch.Tensor(seg_classes[train_idx])
-    val_data    = torch.Tensor(roi_tr_segs[val_idx])
-    val_class   = torch.Tensor(seg_classes[val_idx])
-
-    if args.norm:
-        all_tr_flatter = train_data.view((-1,) + train_data.size()[2:])
-        train_means = torch.mean(all_tr_flatter, dim=0)
-        train_stds = torch.std(all_tr_flatter, dim=0)
-        train_data = (train_data - train_means)/train_stds
-        val_data = (val_data - train_means)/train_stds
-        args.train_means = train_means.tolist()
-        args.train_stds = train_stds.tolist()
-
-    if test:
-        test_data   = torch.Tensor(roi_tr_segs[test_idx])
-        test_class  = torch.Tensor(seg_classes[test_idx])
-        if args.norm:
-            test_data = (test_data - train_means)/train_stds
-        return train_data, train_class, val_data, val_class, test_data, test_class
+    Optional arguments:
+        - runtype (str): type of run ('prod' or 'pilot')
+                         default: 'prod'
     
-    else:
-        return train_data, train_class, val_data, val_class
+    Returns:
+        - sess_dict (dict): session dictionary
+    """
+
+    sess_dict_name = 'sess_dict_mouse{}_sess{}_{}.json'.format(mouse_n, 
+                    sess_n, layer)
+    sess_dict_dir = os.path.join('session_dicts', runtype)
+
+    sess_dict = file_util.load_file(sess_dict_name, sess_dict_dir, 'json')
+
+    return sess_dict
 
 
 #############################################
 def info_dict(args, epoch=None):
+    """
+    info_dict(args)
+
+    Creates an info dictionary for an analysis from the args. Includes epoch
+    number is it is passed. If args is None, the list of dictionary keys
+    is returned instead. 
+    
+    Required arguments:
+        - args (Argument parser): parser containing analysis parameters:
+                comp (str)           : type of comparison
+                fluor (str)          : fluorescence trace type
+                layer (str)          : layer name
+                line (str)           : transgenic line name
+                mouse_n (int)        : mouse number
+                n_roi (int)          : nuber of ROIs in analysis 
+                norm (str)           : type of normalization
+                run (int)            : run number
+                runtype (str)        : type of run ('prod' or 'pilot')
+                sess_n (int)         : session number
+                shuffle (bool)       : whether analysis is on shuffled data
+                uniqueid (str or int): unique ID for analysis
+    
+    Optional arguments:
+        - epoch (int): epoch number
+                       default: None
+    
+    Returns:
+        args is an Argument parser:
+            - info (dict): analysis dictionary
+        args is None:
+            - info (list): list of dictionary keys
+    """
 
     if args is not None:
-        info = {'mouse_n': args.mouse_n,
-                'sess_n': args.sess_n,
-                'layer': args.layer,
-                'line': args.line,
-                'fluor': args.fluor,
-                'norm': args.norm,
-                'shuffled': args.shuffle,
-                'comp': args.comp,
-                'uniqueid': args.uniqueid,
-                'run': args.run,
-                'runtype': args.runtype,
-                'n_roi': args.n_roi,
-                }
+        info = {'mouse_n': args.mouse_n,   'sess_n': args.sess_n,
+                'layer': args.layer,       'line': args.line,
+                'fluor': args.fluor,       'norm': args.norm,
+                'shuffled': args.shuffle,  'comp': args.comp,
+                'uniqueid': args.uniqueid, 'run': args.run,
+                'runtype': args.runtype,   'n_roi': args.n_roi}
         
         if epoch is not None:
             info['epoch'] = epoch
@@ -169,633 +226,1102 @@ def info_dict(args, epoch=None):
 
 
 #############################################
-def df_cols():
-
-    data_labs = ['train', 'val', 'test']
-    sc_names = ['loss', 'acc', 'acc_class0', 'acc_class1']
-    sc_labs = ['{}_{}'.format(data, sc) for data in data_labs for sc in sc_names]
-
-    df_labs = info_dict(None) # get keys
-
-    all_labs = df_labs + sc_labs + ['saved']
-
-    return all_labs, sc_labs
-
-
-#############################################
-def get_percentiles(CI=95):
-    ps = [(100.-CI)*0.5, CI*0.5+50.] # high and lo quartiles
-    p_names = []
-    for p in ps:
-        p_res = p%1
-        if p_res == 0:
-            p_names.append('p{}'.format(int(p)))
-        else:
-            p_names.append('p{}p{}'.format(int(p), str(p_res)[2]))
-
-    return ps, p_names
-
-
-#############################################
-def get_roi_traces(sess_dict, data_dir, fluor='dff'):
+def save_hyperpar(args, task='run_regr'): 
     """
-    Load basic information about ROI dF/F traces: number of ROIs, their names, 
-    and number of data points in the traces.
+    save_hyperpar(args)
+
+    Saves the hyperparameters for an analysis.
+    
+    Required arguments:
+        - args (Argument parser): parser containing analysis parameters:
+                dirname (str): name of directory in which to save scores
+    
+    Optional arguments:
+        - task (str): task name
+                      default: 'run_regr'
     """
 
-    traces_dir = os.path.join(data_dir, sess_dict['traces_dir'])
-    with h5py.File(traces_dir, 'r') as f:
-        # get names of rois
-        roi_names = f['roi_names'].value.tolist()
-        # get number of rois
-        nroi = len(roi_names)
-        # get number of data points in traces
-        nframes = f['data'].shape[1]
+    args_dict = args.__dict__.copy()
 
-    if fluor == 'raw':
-        roi_tr_file = traces_dir
-    elif fluor == 'dff':
-        roi_tr_file = os.path.join(data_dir, sess_dict['dff_traces_dir'])
-    else:
-        gen_util.accepted_values_error('fluor', fluor, ['raw', 'dff'])
-    with h5py.File(roi_tr_file,'r') as f:
-        # get traces
-        roi_traces = np.asarray(f['data'].value)
-    
-    return roi_names, nroi, nframes, roi_traces
-
-
-#############################################
-def get_sess_data(data_dir, mouse_n, sess_n, layer, gab_fr=0, comp='surp', 
-                  runtype='prod', fluor='dff'):
-    
-    sess_dict_name = 'sess_dict_mouse{}_sess{}_{}.json'.format(mouse_n, 
-                    sess_n, layer)
-    sess_dict_dir = os.path.join('session_dicts', runtype)
-
-    if os.path.exists(sess_dict_dir):
-        sess_dict = file_util.load_file(sess_dict_name, sess_dict_dir, 'json')
-
-    else:
-        print('{} dictionary does not exist.'.format(sess_dict_dir))
-        exit()
-    
-    _, nroi, _, roi_traces = get_roi_traces(sess_dict, data_dir, fluor)
-    fps = sess_dict['twop_fps']
-    frames = sess_dict['frames']
-    frame_names = ['A', 'B', 'C', 'D/E']
-
-    if comp == 'surp':
-        classes = ['nosurp', 'surp']
-        pre = (sess_dict['gab_fr'][0] - gab_fr) *0.3 # in sec
-        post = 1.5 - pre # in sec
-        all_fr_segs = np.asarray([range(x-int(pre*fps), 
-                                  x+int(post*fps)) for x in frames])
-        seg_classes = np.zeros([len(frames), 1])
-        seg_classes[sess_dict['surp_idx']] = 1
-        roi_tr_segs = roi_traces[:, all_fr_segs].transpose(1, 2, 0) # ordered as trials x frames x ROIs
-        gabs = frame_names[gab_fr]
-
-    elif comp in['AvB', 'AvC', 'BvC']:
-        if comp == 'AvB':
-            gab_fr = [0, 1]
-            classes = ['gabA', 'gabB'] # was ['Gabor A', 'Gabor B'] before
-        elif comp == 'AvC':
-            gab_fr = [0, 2]
-            classes = ['gabA', 'gabC']
-        elif comp == 'BvC':
-            gab_fr = [1, 2]
-            classes = ['gabB', 'gabC']
-        pre = [(sess_dict['gab_fr'][0] - gf)*0.3 for gf in gab_fr] # in sec
-        post = [0.45 - p for p in pre] # in sec
-        all_fr_segs = [np.asarray([range(x-int(pr*fps), x+int(po*fps)) for x in frames]) for [pr, po] in zip(pre, post)]
-        # select segs (92.5% of class 1 segs, 7.5% of class 2 segs) and trim to same length
-        class0_segs = np.random.choice(range(len(frames)), int(len(frames)*0.925), replace=False)
-        class1_segs = np.random.choice(range(len(frames)), int(len(frames)*0.075), replace=False)
-        seg_len = min(all_fr_segs[0].shape[1], all_fr_segs[1].shape[1])
-        all_fr_segs = np.concatenate([all_fr_segs[0][class0_segs, :seg_len], 
-                                      all_fr_segs[1][class1_segs, :seg_len]], axis=0)
-        seg_classes = np.concatenate([np.zeros(len(class0_segs)), np.ones(len(class1_segs))], axis=0)[:, np.newaxis]
-        gabs = [frame_names[gf] for gf in gab_fr]
-    else:
-        gen_util.accepted_values_error('comp', comp, ['surp', 'AvB', 'AvC', 'BvC'])
-
-    roi_tr_segs = roi_traces[:, all_fr_segs].transpose(1, 2, 0) # ordered as trials x frames x ROIs
-
-    if sum(sum(sum(np.isnan(roi_tr_segs)))):
-        roi_ok = np.where(sum(sum(np.isnan(roi_tr_segs)))==0)[0]
-        nroi = len(roi_ok)
-        roi_tr_segs = roi_tr_segs[:, :, roi_ok]
-    log_var = np.log(np.var(roi_tr_segs))
-    print('Runtype: {}\nMouse: {}\nSess: {}\nLayer: {}\nLine: {}\Fluor: {}\n'
-          'ROIs: {}\nGab fr: {}\nGab K: {}\nFrames per seg: {}'
-          '\nLogvar: {:.2f}'.format(runtype, mouse_n, sess_n, layer, 
-                sess_dict['line'], fluor, nroi, gabs, sess_dict['gab_k'], 
-                roi_tr_segs.shape[1], log_var))
-    
-    return roi_tr_segs, fps, classes, seg_classes
-
-
-#############################################
-def assemble_chunks(xran, data, stats, error):
-    # select class segs and take the mean/median across trials
-    data = math_util.mean_med(data, axis=0, stats=stats)
-    me = math_util.mean_med(data, stats=stats, axis=1) # mean/med across cells
-    err = math_util.error_stat(data, stats=stats, error=error, axis=1)
-    if not(stats=='median' and error=='std'):
-        chunk_stats = np.stack([xran, me, err])
-    else:
-        chunk_stats = np.concatenate([xran[np.newaxis, :], me[np.newaxis, :], 
-                                      np.asarray(err)], axis=0)
-    return chunk_stats
-
-
-#############################################
-def plot_tr_traces(args, data, seg_class):
-
-    cols = ['steelblue', 'coral']
-    mod_params = load_params(args.dirname)
-    
-    if mod_params is None:
-        fig_tr, ax_tr = plt.subplots()
-    else:
-        fig_tr, ax = plt.subplots(2, figsize=(8, 8), sharex=True, 
-                                  gridspec_kw = {'height_ratios':[3, 1]})
-        ax_tr = ax[0]
-
-    # data: trials x steps x cells
-    data = np.asarray(data)
-    seg_class  = np.asarray(seg_class).squeeze()
-
-    fluor_str = str_util.fluor_par_str(args.fluor, 'print')
-    norm_str = str_util.norm_par_str(args.norm, 'print')
-    shuff_str = str_util.shuff_par_str(args.shuffle, 'labels')
-
-    if args.comp == 'surp':
-        classes = ['nosurp', 'surp']
-        xran = np.linspace(0, 1.5, data.shape[1])
-        gab_par = {'gab_fr': args.gab_fr, 'pre': 0, 'post': 1.5}
-        [xpos, labels_nosurp, h_bars, 
-        seg_bars] = plot_util.plot_seg_comp(gab_par, 'nosurp')
-        _, labels_surp, _, _ = plot_util.plot_seg_comp(gab_par, 'surp')
-        t_heis = [0.85, 0.95]
-        labels = [labels_nosurp, labels_surp]
-
-    elif args.comp in ['AvB', 'AvC', 'BvC']:
-        xran = np.linspace(0, 0.45, data.shape[1])
-        classes = ['Gabor {}'.format(args.comp[i]) for i in [0, 2]]
-    else:
-        gen_util.accepted_values_error('comp', args.comp, ['surp', 'AvB', 'AvC', 'BvC'])
-    
-    for i, class_name in enumerate(classes):
-        segs = (seg_class == i)
-        # select class segs and take the mean/median across trials
-        chunk_stats = assemble_chunks(xran, data[segs], args.stats, args.error)
-        leg = '{} (n={})'.format(class_name, sum(segs))
-        plot_util.plot_traces(ax_tr, chunk_stats, stats=args.stats, 
-                              error=args.error, col=cols[i], 
-                              alpha=0.8/len(classes), label=leg, fluor=args.fluor)
-        ax_tr.legend()
-        ax_tr.set_ylabel('{}{}'.format(fluor_str, norm_str))
-        if args.comp == 'surp':
-            plot_util.add_labels(ax_tr, labels[i], xpos, t_heis[i], col=cols[i])
-    
-    if mod_params is not None:
-        weights = np.reshape(np.asarray(mod_params[1]), (1, data.shape[1], data.shape[2]))
-        chunk_stats = assemble_chunks(xran, weights, args.stats, args.error)
-        plot_util.plot_traces(ax[1], chunk_stats, stats=args.stats, 
-                              error=args.error, col='dimgrey', alpha=0.4)
-        ax[1].axhline(y=0, ls='dashed', c='k', lw=1, alpha=0.5)
-        ax[1].set_title('Model weights (ep {})'.format(mod_params[0]))
-        ax[1].set_ylabel('')
-        ax_tr.set_xlabel('')
-    
-    if args.comp == 'surp':
-        plot_util.add_bars(ax_tr, hbars=h_bars, bars=seg_bars)
-    stat_str = str_util.stat_par_str(args.stats, args.error)
-
-    ax_tr.set_title(('Mouse {}, sess {}, {} {}, '
-                     '\n{} across ROIs{}').format(args.mouse_n, args.sess_n, 
-                                                  args.line, args.layer, 
-                                                  stat_str, shuff_str))
-
-    save_name = os.path.join(args.dirname, 'training_traces{}'.format(args.fig_ext))
-    fig_tr.savefig(save_name, bbox_inches='tight')
-
-
-#############################################
-def plot_scores(args, scores, classes):
-
-    data_labs = ['train', 'val', 'test']   
-    file_names = ['wBCEloss', 'acc', 'acc_{}'.format(classes[0]), 
-                  'acc_{}'.format(classes[1])]
-
-    titles = ['Weighted BCE Loss', 'Accuracy (%)', 
-              'Accuracy on {} trials (%)'.format(classes[0]), 
-              'Accuracy on {} trials (%)'.format(classes[1])]
-
-    cols = ['lightsteelblue', 'cornflowerblue', 'royalblue']  
-
-    fluor_str = str_util.fluor_par_str(args.fluor, 'print')
-    norm_str = str_util.norm_par_str(args.norm, 'print')
-    shuff_str = str_util.shuff_par_str(args.shuffle, 'labels')
-
-    for i, [title, file_name] in enumerate(zip(titles, file_names)):
-        fig, ax = plt.subplots(figsize=[20, 5])
-        for j, [lab, col] in enumerate(zip(data_labs, cols)):
-            ax.plot(range(args.epochs), scores[:, j, i], label=lab, color=col)
-            ax.set_title(('Mouse {}, sess {}, {} {}\n'
-                          '{}{} ({}{})').format(args.mouse_n, args.sess_n, 
-                                                args.line, args.layer, title, 
-                                                shuff_str, fluor_str, norm_str))
-            ax.set_xlabel('Epochs')
-        ax.legend()
-        fig.savefig(os.path.join(args.dirname, '{}{}'.format(file_name, 
-                    args.fig_ext)), bbox_inches='tight')
-
-
-#############################################
-def save_scores(args, scores, classes, saved_eps):
-
-    # df_info_labels, epoch, scores, saved
-    all_labels = gen_util.remove_if(df_cols()[0], 'epoch')
-
-    scores = np.reshape(scores, [scores.shape[0], -1]) 
-    df_info = info_dict(args, None)
-    
-    df_vals = np.asarray([np.asarray([df_info[key]]*args.epochs) 
-                        for key in all_labels if key in df_info.keys()]).T
-    
-    summ_data = np.concatenate([df_vals, 
-                                np.asarray(range(args.epochs))[:, np.newaxis], 
-                                scores, saved_eps], axis=1)
-    summ_df = pd.DataFrame(data=summ_data, columns=all_labels)
-
-    file_util.save_info(summ_df, 'scores_df', args.dirname, 'csv')
-
-
-#############################################
-def max_epoch(dirname):
-    models = glob.glob(os.path.join(dirname, 'ep*.pth'))
-
-    if len(models) > 0:
-        max_ep = max([int(re.findall(r'\d+', os.path.split(mod)[-1])[0]) for mod in models])
-    else:
-        max_ep = None
-        print('    Warning: No models were recorded.')
-    
-    return max_ep
-
-
-#############################################
-def load_params(dirname):
-
-    max_ep = max_epoch(dirname)
-    
-    if max_ep is None:
-        return None
-    else:
-        models = os.path.join(dirname, 'ep{}.pth'.format(max_ep))
-        checkpoint = torch.load(models)
-        weights = checkpoint['net']['lin.weight']
-        biases = checkpoint['net']['lin.bias']
-        return max_ep, weights, biases
-
-
-#############################################
-def init_model_comp(roi_tr_segs, seg_classes, args, test=True):
-
-    all_data = create_datasets(roi_tr_segs, seg_classes, args, test=test)
-
-    train_data, train_class, val_data, val_class = all_data[0:4]
-    if test:
-        test_data, test_class = all_data[4:6]
-    
-    weights = compute_weights(train_class)
-
-    model = log_regression(train_data.shape[2], train_data.shape[1]).to(args.device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    train_dl = torch.utils.data.DataLoader(roi_ds(train_data, train_class), 
-                                            batch_size=args.batch_size, shuffle=True)
-    val_dl = torch.utils.data.DataLoader(roi_ds(val_data, val_class), 
-                                            batch_size=args.batch_size)
-    if test:
-        test_dl = torch.utils.data.DataLoader(roi_ds(test_data, test_class), 
-                                                batch_size=args.batch_size)
-        return model, optimizer, weights, [train_dl, val_dl, test_dl]
-    else:
-        return model, optimizer, weights, [train_dl, val_dl]
-
-
-#############################################
-def run_eps(args, mod, opt, wei, dls, test=True):
-
-    # ep x grp (train, val, test) x sc (loss, acc, acc0, acc1)
-    scores = np.empty([args.epochs, 3, 4])*np.nan
-
-    min_val = 100 # dummy value to beat to start recording models
-    saved_eps = np.zeros([args.epochs, 1])
-
-    norm_str = str_util.norm_par_str(args.norm, 'print')
-    shuff_str = str_util.shuff_par_str(args.shuffle, 'labels')
-
-    for ep in range(args.epochs):
-        if ep == 0:
-            # No training for first epoch
-            scores[ep, 0, :] = val(mod, dls[0], wei, args.device)    
-        else:
-            scores[ep, 0, :] = train(mod, opt, dls[0], wei, args.device)
-        scores[ep, 1, :] = val(mod, dls[1], wei, args.device)
-        if test:
-            scores[ep, 2, :] = val(mod, dls[2], wei, args.device)
-
-        # record model if validation is lower than training, and reaches a new low
-        if scores[ep, 1, 0] >= 0.99*scores[ep, 0, 0] and scores[ep, 1, 0] < min_val:
-            save_model(ep, args, mod, opt, scores[ep, :, :], test)
-            if not args.keep_prev:
-                # reset to 0s
-                saved_eps = np.zeros([args.epochs, 1])
-            min_val = scores[ep, 1, 0]
-            saved_eps[ep] = 1
-
-        if ep==0 or (ep)%args.ep_freq == 0:
-            print('Run {}{}{}, epoch {}'.format(args.run, norm_str, shuff_str, ep))
-            print_loss('train', scores[ep, 0, 0])
-            print_loss('val', scores[ep, 1, 0])
-
-    return scores, saved_eps
-
-
-#############################################
-def single_run(roi_tr_segs, seg_classes, classes, args, run):
-
-    args.run = run
-
-    if args.parallel and args.plt_bkend is not None:
-        plt.switch_backend(args.plt_bkend) # needs to be repeated within joblib
-
-    if args.uniqueid is None:
-        subdir = 'run_{}'.format(run)
-    else:
-        subdir = '{}_{}'.format(args.uniqueid, run)
-
-    args.dirname = file_util.create_dir([args.output, args.runname, 
-                                        subdir], print_dir=False)
-    print('Run {} directory: {}\n'.format(run, args.dirname))
-
-    args_dict = args.__dict__
-
-    # save only task-related parameters, so removing CI and fig params
-    for key in ['CI', 'ncols', 'no_sharey', 'subplot_wid', 'subplot_hei']:
-        args_dict.pop(key)
+    if task == 'run_regr':
+        # removing non task (CI and fig params) and redundant params 
+        # (output and compdir included in dirname and cuda overriden by device)
+        for key in ['output', 'compdir', 'cuda', 'CI', 'ncols', 'no_sharey', 
+                    'subplot_wid', 'subplot_hei']:
+            args_dict.pop(key)
 
     file_util.save_info(args_dict, 'hyperparameters', args.dirname, 'json')
 
-    mod, opt, wei, dls = init_model_comp(roi_tr_segs, seg_classes, args, 
-                                         test=True)
 
-    # scores: ep x grp (train, val, test) x sc (loss, acc, acc0, acc1)
-    scores, saved_eps = run_eps(args, mod, opt, wei, dls, test=True)
+#############################################
+def get_roi_traces(data_dir, roi_tr_file):
+    """
+    get_roi_traces(data_dir, roi_tr_file)
+
+    Returns ROI traces, along with number of ROIs and frames.
+    
+    Required arguments:
+        - data_dir (str)   : path to the data directory
+        - roi_tr_file (str): relative path to the ROI traces
+    
+    Returns:
+        - roi_traces (2D array): array of ROI traces, nroi x nframes
+        - nroi (int)           : nbr of ROIs
+        - nframes (int)        : nbr of frames
+    """
+
+    roi_tr_file = os.path.join(data_dir, roi_tr_file)
+
+    with h5py.File(roi_tr_file,'r') as f:
+        # get traces
+        roi_traces = np.asarray(f['data'].value)
+        nroi = roi_traces.shape[0]
+        nframes = roi_traces.shape[1]
+    
+    return roi_traces, nroi, nframes
+
+
+#############################################
+def gab_classes(comp='surp', gab_fr=0):
+    """
+    gab_classes()
+
+    Returns information on the Gabor segments being compared: 
+    segment length, class names, Gabor frame names, Gabor frame numbers
+    
+    Optional arguments:
+        - comp (str)  : type of comparison
+                        default: 'surp'
+        - gab_fr (int): number of the Gabor frame with which segment should
+                        start (for full segment comparisons)
+                        default: 0
+    
+    Returns:
+        - len_s (float)       : length of segments being compared
+        - classes (list)      : list of class names
+        - gab_fr (int or list): Gabor frame nbr or list of Gabor frame nbrs 
+        - gabs (str or list)  : Gabor frame name or list of Gabor frame names
+    """
+
+    frame_names = ['A', 'B', 'C', 'D/E']
+    if comp == 'surp':
+        len_s = 1.5
+        classes = ['Regular', 'Surprise']
+        gabs = frame_names[gab_fr]
+
+    elif comp == 'DvE':
+        len_s = 0.45
+        classes = ['Gabor D', 'Gabor E']
+        gab_fr = frame_names.index('D/E')
+        gabs = frame_names[gab_fr]
+
+    elif comp in ['AvB', 'AvC', 'BvC']:
+        len_s = 0.45
+        classes = ['Gabor {}'.format(fr) for fr in [comp[0], comp[2]]]
+        gab_fr = [frame_names.index(fr) for fr in [comp[0], comp[2]]]
+        gabs = [frame_names[gf] for gf in gab_fr]
+    
+    else:
+        gen_util.accepted_values_error('comp', comp, ['surp', 'AvB', 'AvC', 
+                                       'BvC', 'DvE'])
+
+    return len_s, classes, gab_fr, gabs
+
+
+
+#############################################
+def comp_segs(sess_dict, gab_fr=0, comp='surp', fluor='dff'):
+    """
+    comp_segs(sess_dict)
+
+    Returns information on the Gabor segments being compared: 
+    segment length, class names, Gabor frame names, Gabor frame numbers
+    
+    Required arguments:
+        - sess_dict (dict): session dictionary
+                ['frames'] (list)     : session number
+                ['gab_fr'] (list)     : list where the first element is the
+                                        number of the Gabor frame for which 
+                                        frame numbers were recorded
+                ['nanrois_dff'] (list): list of ROIs with NaNs in dff traces
+                ['nanrois'] (list)    : list of ROIs with NaNs in traces
+                ['surp_idx'] (list)   : list of frames in surprise segment
+                ['twop_fps'] (float)  : recording frames per second
+
+    Optional arguments:
+        - comp (str)  : type of comparison
+                        default: 'surp'
+        - gab_fr (int): number of the Gabor frame with which segment should
+                        start (for full segment comparisons)
+                        default: 0
+        - fluor (str) : fluorescence trace type
+                        default: 'dff'
+    
+    Returns:
+        - gabs (str or list)    : Gabor frame name or list of Gabor frame names
+        - classes (list)        : list of class names
+        - seg_fr (2D array)     : array of frame numbers, structured as 
+                                  segments x frames 
+        - seg_classes (2D array): array of segment classes, structures as 
+                                  classes x 1
+        - n_surp (int)          : number of surprise segments
+        - nan_rois (list)       : list of ROIs with NaNs in traces
+    """
+
+
+    fps = sess_dict['twop_fps']
+    frames = sess_dict['frames']
+    n_surp = len(sess_dict['surp_idx'])
+
+    if fluor == 'dff':
+        nan_rois = sess_dict['nanrois_dff']
+    else:
+        nan_rois = sess_dict['nanrois']
+
+    len_s, classes, gab_fr, gabs = gab_classes(comp, gab_fr)
+
+    if comp in ['surp', 'DvE']:
+        pre_s = (sess_dict['gab_fr'][0] - gab_fr) * 0.3 # in sec
+        seg_fr = gen_util.idx_segs(frames, pre=pre_s*fps, leng=len_s*fps)
+
+        seg_classes = np.zeros([len(frames), 1])
+        seg_classes[sess_dict['surp_idx']] = 1
+
+    elif comp in['AvB', 'AvC', 'BvC']:
+        pre_s = [(sess_dict['gab_fr'][0] - gf)*0.3 for gf in gab_fr] # in sec
+        seg_fr = [gen_util.idx_segs(frames, pre=pr*fps, leng=0.45*fps) 
+                  for pr in pre_s]
+
+        # trim segments if longer from one class than the other
+        seg_len = min(seg_fr[0].shape[1], seg_fr[1].shape[1])
+
+        seg_classes = np.concatenate((np.zeros([len(seg_fr[0]), 1]), 
+                                      np.ones([len(seg_fr[1]), 1])), axis=0)
+        seg_fr = np.concatenate([seg_fr[0][:, :seg_len], 
+                                 seg_fr[1][:, :seg_len]], axis=0)
+
+    return gabs, classes, seg_fr, seg_classes, n_surp, nan_rois
+
+
+#############################################
+def get_sess_data(data_dir, mouse_n, sess_n, layer, comp='surp', gab_fr=0, 
+                  fluor='dff', runtype='prod'):
+    """
+    get_sess_data(data_dir, mouse_n, sess_n, layer)
+
+    Print session information and returns ROI trace segments, target classes 
+    and class information and number of surprise segments in the dataset.
+    
+    Required arguments:
+        - data_dir (str): path to the data directory
+        - mouse_n (int) : mouse number
+        - sess_n (int)  : session number
+        - layer (str)   : layer name
+
+    Optional arguments:
+        - comp (str)   : type of comparison
+                         default: 'surp'
+        - gab_fr (int) : number of the Gabor frame with which segment should
+                         start (for full segment comparisons)
+                         default: 0
+        - fluor (str)  : fluorescence trace type
+                         default: 'dff'
+        - runtype (str): type of run ('prod' or 'pilot')
+                         default: 'prod'
+    
+    Returns:
+        - roi_tr_segs (3D array): array of all ROI trace segments, structured as 
+                                  segments x frames x ROIs
+        - classes (list)        : list of class names
+        - seg_classes (2D array): array of all segment classes, structured as 
+                                  classes x 1
+        - n_surp (int)          : number of surprise segments
+    """
+
+    sess_dict = load_sess_dict(mouse_n, sess_n, layer)
+
+    if fluor == 'raw':
+        roi_tr_file = sess_dict['traces_dir']
+    elif fluor == 'dff':
+        roi_tr_file = sess_dict['dff_traces_dir']
+    else:
+        gen_util.accepted_values_error('fluor', fluor, ['raw', 'dff'])
+
+    roi_traces, nroi, _ = get_roi_traces(data_dir, roi_tr_file)
+ 
+    [gabs, classes, seg_fr, seg_classes, 
+           n_surp, nan_rois] = comp_segs(sess_dict, gab_fr, comp, fluor)
+
+    roi_tr_segs = roi_traces[:, seg_fr].transpose(1, 2, 0)
+
+    roi_tr_segs = gen_util.remove_idx(roi_tr_segs, nan_rois, axis=2)
+
+    log_var = np.log(np.var(roi_tr_segs))
+
+    print('Runtype: {}\nMouse: {}\nSess: {}\nLayer: {}\nLine: {}\nFluor: {}\n'
+          'ROIs: {}\nGab fr: {}\nGab K: {}\nFrames per seg: {}'
+          '\nLogvar: {:.2f}'.format(runtype, mouse_n, sess_n, layer, 
+                sess_dict['line'], fluor, nroi-len(nan_rois), gabs, 
+                sess_dict['gab_k'], roi_tr_segs.shape[1], log_var))
+    
+    return roi_tr_segs, classes, seg_classes, n_surp
+
+
+#############################################
+def sample_segs(roi_tr_segs, seg_classes, n_surp):
+    """
+    sample_segs(roi_tr_segs, seg_classes, n_surp)
+
+    Samples segments to correspond to the ratio of surprise to regular segments.
+    
+    Required arguments:
+        - roi_tr_segs (3D array): array of all ROI trace segments, structured as 
+                                  segments x frames x ROIs
+        - seg_classes (2D array): array of all segment classes, structured as 
+                                  classes x 1
+        - n_surp (int)          : number of surprise segments
+
+    Returns:
+        - roi_tr_segs (3D array): array of selected ROI trace segments, 
+                                  structured as segments x frames x ROIs
+        - seg_classes (2D array): array of segment classes, structured as 
+                                  classes x 1
+    """
+
+    class0_all = np.where(seg_classes == 0)[0]
+    class1_all = np.where(seg_classes == 1)[0]
+    n_reg = (len(class0_all) + len(class1_all))/2 - n_surp
+
+    class0_idx = np.random.choice(class0_all, n_reg, replace=False)
+    class1_idx = np.random.choice(class1_all, n_surp, replace=False)
+    
+    roi_tr_segs = np.concatenate([roi_tr_segs[class0_idx], 
+                                  roi_tr_segs[class1_idx]], axis=0)
+
+    seg_classes = np.concatenate([seg_classes[class0_idx], 
+                                  seg_classes[class1_idx]], axis=0)
+    return roi_tr_segs, seg_classes
+
+
+#############################################
+def init_comp_model(roi_tr_segs, seg_classes, args, test=True):
+    """
+    init_comp_model(roi_tr_segs, seg_classes, args)
+
+    Initializes and returns the comparison model and dataloaders.
+    
+    Required arguments:
+        - roi_tr_segs (3D array): array of selected ROI trace segments, 
+                                  structured as segments x frames x ROIs
+        - seg_classes (2D array): array of segment classes, structured as 
+                                  classes x 1
+        - args (Argument parser): parser containing analysis parameters:
+                batch_size (int): nbr of samples dataloader will load per 
+                                  batch
+                device (str)    : device name (i.e., 'cuda' or 'cpu')
+                lr (float)      : model learning rate
+                norm (str)      : normalization type
+                shuffle (bool)  : whether analysis is on shuffled data
+                train_p (list)  : proportion of dataset to allocate to 
+                                  training
+
+    Optional arguments:
+        - test (bool): whether a test set should be included
+
+    Returns:
+        - model (torch.nn.Module)        : Neural network module with optimizer 
+                                           and loss function as attributes
+        - dls (list of torch DataLoaders): list of torch DataLoaders for 
+                                           each set. If a set is empty, the 
+                                           corresponding dls value is None.
+    """
+
+    dim = args.norm
+    if args.norm == 'roi':
+        dim = 'last' # by last dimension
+
+    if not test:
+        test_p = 0
+    else:
+        test_p = None
+
+    dl_info = data_util.create_dls(roi_tr_segs, seg_classes, 
+                                   train_p=args.train_p, test_p=test_p,
+                                   norm_dim=dim, shuffle=args.shuffle, 
+                                   batch_size=args.batch_size)
+    
+    dls = dl_info[0]
+
+    if args.norm != 'none':
+       args.train_means = dl_info[1][0]
+       args.train_stds = dl_info[1][1]
+
+    if args.shuffle:
+        args.shuff_reidx = dl_info[-1]
+ 
+    args.cl_wei = logreg_util.class_weights(dls[0].dataset.target) # from train targets
+
+    model          = logreg_util.LogReg(roi_tr_segs.shape[2], roi_tr_segs.shape[1]).to(args.device)
+    model.opt      = torch.optim.Adam(model.parameters(), lr=args.lr)
+    model.loss_fct = logreg_util.weighted_BCE(args.cl_wei)
+    
+    return model, dls
+
+
+#############################################
+def save_scores(args, scores, saved_eps):
+    """
+    save_scores(args, scores, saved_eps)
+
+    Saves run information and scores per epoch as a dataframe.
+    
+    Required arguments:
+        - args (Argument parser): parser with analysis parameters as attributes:
+                comp (str)           : type of comparison
+                dirname (str)        : name of directory in which to save scores
+                epochs (int)         : number of epochs
+                fluor (str)          : fluorescence trace type
+                layer (str)          : layer name
+                line (str)           : transgenic line name
+                mouse_n (int)        : mouse number
+                n_roi (int)          : nuber of ROIs in analysis 
+                norm (str)           : type of normalization
+                run (int)            : run number
+                runtype (str)        : type of run ('prod' or 'pilot')
+                sess_n (int)         : session number
+                shuffle (bool)       : whether analysis is on shuffled data
+                uniqueid (str or int): unique ID for analysis
+
+        - scores (3D array)   : array in which scores are recorded, structured
+                                as epochs x nbr sets x nbr score types
+        - saved_eps (2D array): array recording which epochs models are 
+                                saved for, structured as epochs x 1
+    """
+
+    df_labs = gen_util.remove_if(info_dict(None), 'epoch') # to get order
+    df_info = info_dict(args, None)
+    
+    logreg_util.save_scores(df_labs, df_info, args.epochs, saved_eps, scores, 
+                            test=True, dirname=args.dirname)
+
+
+#############################################
+def plot_title(mouse_n, sess_n, line, layer, comp):
+    """
+    plot_title(mouse_n, sess_n, line, layer)
+
+    Creates plot title from session information.
+    
+    Required arguments:
+        - mouse_n (int): mouse number
+        - sess_n (int) : session number
+        - line (str)   : transgenic line name
+        - layer (str)  : layer name
+        - comp (str)   : comparison name
+    
+    Returns:
+        - (str): plot title 
+    """
+    if comp == 'surp':
+        comp_str = 'Surp v Reg'
+    else:
+        comp_str = comp
+
+    return 'Mouse {}, sess {}, {} {}\n{}'.format(mouse_n, sess_n, line, layer, 
+                                                comp_str)
+
+
+#############################################
+def plot_tr_traces(args, tr_traces, seg_classes, plot_wei=True):
+    """
+    plot_tr_traces(args, tr_traces, seg_classes)
+
+    Plots training traces by class, and optionally weights, and saves figures. 
+
+    Required arguments:
+        - args (Argument parser): parser with analysis parameters as attributes:
+                comp (str)           : type of comparison 
+                dirname (str)        : name of directory in which to save 
+                                       scores
+                error (str)          : error to take, i.e., 'std' (for std 
+                                       or quintiles) or 'sem' (for SEM or MAD)
+                fig_ext (str)        : extension for saving figure
+                fluor (str)          : fluorescence trace type
+                gab_fr (int)         : number of the Gabor frame with which 
+                                       segment should start (for full segment 
+                                       comparisons)
+                layer (str)          : layer name
+                line (str)           : transgenic line name
+                mouse_n (int)        : mouse number
+                norm (str)           : type of normalization
+                sess_n (int)         : session number
+                shuffle (bool)       : whether analysis is on shuffled data 
+                stats (str)          : stats to take, i.e., 'mean' or 'median'
+
+        - roi_tr_segs (3D array): array of training ROI trace segments, 
+                                  structured as segments x frames x ROIs
+        - seg_classes (2D array): array of segment classes, structured as 
+                                  classes x 1
+
+    Optional arguments:
+        - plot_wei (bool): if True, weights are plotted in a subplot
+    """
+
+    # train traces: segments x steps x cells
+    tr_traces   = np.asarray(tr_traces)
+    seg_classes = np.asarray(seg_classes).squeeze()
+
+    len_s, classes, _, _ = gab_classes(args.comp, args.gab_fr)
+
+    fig, ax_tr, cols = logreg_util.plot_tr_data(tr_traces, seg_classes, classes, 
+                                                len_s, plot_wei, args.dirname, 
+                                                args.stats, args.error)
+
+    # add plot details
+    if args.comp == 'surp':
+        gab_par = {'gab_fr': args.gab_fr, 'pre': 0, 'post': len_s}
+        [xpos, labels_reg, h_bars, 
+        seg_bars] = plot_util.plot_seg_comp(gab_par, 'reg')
+        _, labels_surp, _, _ = plot_util.plot_seg_comp(gab_par, 'surp')
+        t_heis = [0.85, 0.95]
+        labels = [labels_reg, labels_surp]
+        plot_util.add_bars(ax_tr, hbars=h_bars, bars=seg_bars)
+
+        for (lab, t_hei, col) in zip(labels, t_heis, cols):
+            plot_util.add_labels(ax_tr, lab, xpos, t_hei, col=col)
+        
+    fluor_str = str_util.fluor_par_str(args.fluor)
+    norm_str = str_util.norm_par_str(args.norm)
+    shuff_str = str_util.shuff_par_str(args.shuffle, 'labels')
+    stat_str = str_util.stat_par_str(args.stats, args.error)
+    
+    ax_tr.set_ylabel('{}{}'.format(fluor_str, norm_str))
+
+    fig_title = plot_title(args.mouse_n, args.sess_n, args.line, args.layer, 
+                           args.comp)
+    ax_tr.set_title(u'{}, {} across ROIs{}'.format(fig_title, stat_str, 
+                                                   shuff_str))
+    ax_tr.legend()
+
+    save_name = os.path.join(args.dirname, 'train_traces{}'.format(args.fig_ext))
+    fig.savefig(save_name, bbox_inches='tight')
+
+
+#############################################
+def plot_scores(args, scores, classes, loss_name='loss'):
+    """
+    plot_scores(args, scores, classes)
+
+    Plots each score type in a figure and saves each figure.
+    
+    Required arguments:
+        - args (Argument parser): parser with analysis parameters as attributes:
+                comp (str)           : type of comparison 
+                dirname (str)        : name of directory in which to save 
+                                       scores
+                epochs (int)         : number of epochs
+                fluor (str)          : fluorescence trace type
+                layer (str)          : layer name
+                line (str)           : transgenic line name
+                mouse_n (int)        : mouse number
+                norm (str)           : type of normalization
+                sess_n (int)         : session number
+                shuffle (bool)       : whether analysis is on shuffled data
+
+        - scores (3D array): array in which scores are recorded, structured
+                             as epochs x nbr sets x nbr score types
+        - classes (list)   : list of class names
+    
+    Optional arguments:
+        - loss_name (str): name of type of loss
+                           default: 'loss'
+    """
+
+    fluor_str = str_util.fluor_par_str(args.fluor, 'print')
+    norm_str = str_util.norm_par_str(args.norm, 'print')
+    shuff_str = str_util.shuff_par_str(args.shuffle, 'labels')
+    fig_title = plot_title(args.mouse_n, args.sess_n, args.line, args.layer,
+                           args.comp)
+
+
+    gen_title = '{}, {}{}{}'.format(fig_title, fluor_str, norm_str, shuff_str)
+    logreg_util.plot_scores(args.epochs, scores, classes, args.dirname, 
+                            loss_name=loss_name, test=True, gen_title=gen_title)
+
+
+#############################################
+def single_run(roi_tr_segs, seg_classes, classes, n_surp, args, run):
+    """
+    single_run(roi_tr_segs, seg_classes, classes, n_surp, args, run)
+
+    Does a single run of a logistic regression on the specified comparison
+    and session data.
+    
+    Required arguments:
+        - roi_tr_segs (3D array): array of all ROI trace segments, structured as 
+                                  segments x frames x ROIs
+        - seg_classes (2D array): array of all segment classes, structured as 
+                                  classes x 1
+        - classes (list)        : list of class names
+        - n_surp (int)          : number of surprise segments
+        - args (Argument parser): parser with analysis parameters as attributes:
+                batch_size (int)     : nbr of samples dataloader will load per 
+                                       batch
+                classes (lists)      : list of class names
+                comp (str)           : type of comparison
+                compdir (str)        : name of directory to save analysis in
+                device (str)         : device name (i.e., 'cuda' or 'cpu')
+                ep_freq (int)        : frequency at which to print loss to 
+                                       console
+                epochs (int)         : number of epochs
+                error (str)          : error to take, i.e., 'std' (for std 
+                                       or quintiles) or 'sem' (for SEM or MAD)
+                fig_ext (str)        : extension for saving figure
+                fluor (str)          : fluorescence trace type
+                gab_fr (int)         : number of the Gabor frame with which 
+                                       segment should start (for full segment 
+                                       comparisons)
+                keep (str)           : models to save ('best' or 'all')
+                layer (str)          : layer name
+                line (str)           : transgenic line name
+                lr (float)           : model learning rate
+                mouse_n (int)        : mouse number
+                n_roi (int)          : nuber of ROIs in analysis 
+                norm (str)           : type of normalization
+                parallel (bool)      : if True, runs are done in parallel
+                plt_bkend (str)      : pyplot backend to use
+                output (str)         : general directory in which to save output
+                reseed (bool)        : whether to reseed each run
+                runtype (str)        : type of run ('prod' or 'pilot')
+                seed (int)           : seed to seed random processes with
+                sess_n (int)         : session number
+                shuffle (bool)       : whether analysis is on shuffled data
+                stats (str)          : stats to take, i.e., 'mean' or 'median'
+                train_p (list)       : proportion of dataset to allocate to 
+                                       training
+                uniqueid (str or int): unique ID for analysis 
+        
+        - run (int)             : run number
+    """
+    
+    if args.parallel and args.plt_bkend is not None:
+        plt.switch_backend(args.plt_bkend) # needs to be repeated within joblib
+
+    rundir = get_rundir(run, args.uniqueid)
+
+    if args.reseed:
+        # reseed every run 
+        args.seed = gen_util.seed_all(None, args.device)
+    else:
+        # all run with same seed
+        args.seed = gen_util.seed_all(args.seed, args.device)
+    
+    args.run = run
+    args.dirname = file_util.create_dir([args.output, args.compdir, rundir])
+    save_hyperpar(args)
+
+    # select a random subsample
+    if args.comp in ['AvB', 'AvC', 'BvC']:
+        roi_tr_segs, seg_classes = sample_segs(roi_tr_segs, seg_classes, n_surp)
+
+    mod, dls = init_comp_model(roi_tr_segs, seg_classes, args, test=True)
+
+    norm_str = str_util.norm_par_str(args.norm, 'print')
+    shuff_str = str_util.shuff_par_str(args.shuffle, 'labels')
+    print('\nRun: {}{}{}'.format(args.run, norm_str, shuff_str))
+
+    # scores: ep x set (train, val, test) x sc (loss, acc, acc0, acc1)
+    info = info_dict(args)
+    scores, saved_eps = logreg_util.fit_model(info, args.epochs, mod, dls, 
+                                              args.device, args.dirname, 
+                                              ep_freq=args.ep_freq, 
+                                              keep=args.keep)
 
     print('Run {}: training done.\n'.format(run))
 
-    tr_data = dls[0].dataset.data.numpy()
-    tr_class = dls[0].dataset.target.numpy()
-
-    plot_tr_traces(args, tr_data, tr_class)
-    
-    # save figures of loss, accuracy, etc
-    plot_scores(args, scores, classes)
+    # plot traces and scores
+    plot_tr_traces(args, dls[0].dataset.data.numpy(), dls[0].dataset.target.numpy())
+    plot_scores(args, scores, classes, mod.loss_fct.name)
     
     # save scores in dataframe
-    save_scores(args, scores, classes, saved_eps)
+    save_scores(args, scores, saved_eps)
 
     plt.close('all')
 
 
 #############################################
-class log_regression(torch.nn.Module):
-        def __init__(self, num_units, num_steps):
-            super(log_regression, self).__init__()
-            self.num_units = num_units
-            self.num_steps = num_steps
-            self.lin = torch.nn.Linear(self.num_units*self.num_steps, 1)
-            self.sig = torch.nn.Sigmoid()
+def run_regr(args):
+    """
+    run_regr(args)
+
+    Does runs of a logistic regressions on the specified comparison and range
+    of sessions.
+    
+    Required arguments:
+        - args (Argument parser): parser with analysis parameters as attributes:
+                batch_size (int)     : nbr of samples dataloader will load per 
+                                       batch
+                comp (str)           : type of comparison
+                datadir (str)        : data directory
+                device (str)         : device name (i.e., 'cuda' or 'cpu')
+                ep_freq (int)        : frequency at which to print loss to 
+                                       console
+                epochs (int)         : number of epochs
+                error (str)          : error to take, i.e., 'std' (for std 
+                                       or quintiles) or 'sem' (for SEM or MAD)
+                fig_ext (str)        : extension for saving figure
+                fluor (str)          : fluorescence trace type
+                gab_fr (int)         : number of the Gabor frame with which 
+                                       segment should start (for full segment 
+                                       comparisons)
+                keep (str)           : models to save ('best' or 'all')
+                layer (str)          : layer name
+                line (str)           : transgenic line name
+                lr (float)           : model learning rate
+                mouse_n (int)        : mouse number
+                norm (str)           : type of normalization
+                parallel (bool)      : if True, runs are done in parallel
+                plt_bkend (str)      : pyplot backend to use
+                output (str)         : general directory in which to save output
+                reseed (bool)        : whether to reseed each run
+                runtype (str)        : type of run ('prod' or 'pilot')
+                seed (int)           : seed to seed random processes with
+                sess_n (int)         : session number
+                stats (str)          : stats to take, i.e., 'mean' or 'median'
+                train_p (list)       : proportion of dataset to allocate to 
+                                       training
+                uniqueid (str or int): unique ID for analysis
+    """
+
+    if args.datadir is None:
+        # previously: '/media/colleen/LaCie/CredAssign/pilot_data'
+        args.datadir = '../data/AIBS/{}'.format(args.runtype) 
+
+    if args.uniqueid == 'datetime':
+        args.uniqueid = str_util.create_time_str()
+
+    if args.seed in [None, 'None']:
+        args.reseed = True
+    else:
+        args.reseed = False
+
+    mouse_df = file_util.load_file('mouse_df_{}.csv'.format(args.runtype), 
+                                    file_type='csv')
+    
+    atts       = ['mouseid', 'pass_fail', 'all_files']
+    cri        = [args.mouse_n, 'P', 1]
+    curr_lines = gen_util.get_df_vals(mouse_df, atts, cri)
+    sesses     = gen_util.get_df_vals(curr_lines, label='overall_sess_n')
+    
+    if args.sess_n != 'all':
+        sesses = sorted(set(sesses) + set(gen_util.list_if_not(args.sess_n)))
+
+    for sess_n in sesses:
+        args.sess_n = sess_n
+        curr_line   = gen_util.get_df_vals(curr_lines, 'overall_sess_n', args.sess_n)
+        args.layer  = curr_line['layer'].item()
+        args.line   = curr_line['line'].item()
+
+        [roi_tr_segs, classes, 
+            seg_classes, n_surp] = get_sess_data(args.datadir, args.mouse_n,  
+                                                    args.sess_n, args.layer, 
+                                                    comp=args.comp, 
+                                                    gab_fr=args.gab_fr, 
+                                                    fluor=args.fluor,
+                                                    runtype=args.runtype)
+        args.n_roi = roi_tr_segs.shape[2]
+        args.classes = classes
+
+        for runs, shuffle in zip([args.n_reg, args.n_shuff], [False, True]):
+
+            args.shuffle = shuffle
+            args.compdir = get_compdir(args.mouse_n, args.sess_n, args.layer, 
+                                        args.fluor, args.norm, args.comp, 
+                                        args.shuffle)
+
+            if args.parallel:
+                num_cores = multiprocessing.cpu_count()
+                Parallel(n_jobs=num_cores)(delayed(single_run)
+                        (roi_tr_segs, seg_classes, classes, n_surp, args, run) 
+                         for run in range(runs))
+            else:
+                for run in range(runs):
+                    single_run(roi_tr_segs, seg_classes, classes, n_surp, args, run)
+
+
+#############################################
+def collate_scores(direc, all_labels):
+    """
+    collate_scores(direc, all_labels)
+
+    Collects the analysis information and scores from the last epoch recorded 
+    for a run and returns in dataframe.
+    
+    Required arguments:
+        - direc (str)      : path to the specific comparison run folder
+        - all_labels (list): ordered list of columns to save to dataframe
+    
+    Return:
+        - scores (pd DataFrame): Dataframe containing run analysis information
+                                 and scores from the last epoch recorded.
+    """
+
+    print(direc)
+ 
+    scores = pd.DataFrame()
+
+    ep_info, hyperpars = logreg_util.get_scores(direc)
+
+    if ep_info is None:
+        comp_dict = get_compdir_dict(direc)
+        comp_dict['norm'] = hyperpars['norm']
+        comp_dict['runtype'] = hyperpars['runtype']
+        comp_dict['line'] = hyperpars['line']
+        comp_dict['n_roi'] = hyperpars['n_roi']
+        for col in all_labels: # ensures correct order
+            if col in comp_dict.keys():
+                scores.loc[0, col] = comp_dict[col]
+    else:
+        for col in all_labels:
+            scores.loc[0, col] = ep_info[col].item()
+
+    return scores
+
+
+#############################################
+def run_collate(args):
+    """
+    run_collate(args)
+
+    Collects the analysis information and scores from the last epochs recorded 
+    for all runs for a comparison type, and saves to a dataframe.
+    
+    Required arguments:
+        - args (Argument parser): parser with analysis parameters as attributes:
+                comp (str)           : type of comparison
+                parallel (bool)      : if True, run information is collected 
+                                       in parallel
+                output (str)         : general directory in which run information
+                                       is located output
+    """
+
+    comp_dirs = file_util.get_files(args.output, 'subdirs', args.comp)
+    run_dirs = [run_dir for comp_dir in comp_dirs 
+                for run_dir in file_util.get_files(comp_dir, 'subdirs')]
+    all_labels = info_dict(None) + ['saved'] + logreg_util.get_sc_labs(test=True)
+
+    if args.parallel:
+        num_cores = multiprocessing.cpu_count()
+        scores_list = Parallel(n_jobs=num_cores)(delayed(collate_scores)
+                        (run_dir, all_labels) for run_dir in run_dirs)
+        all_scores = pd.concat(scores_list)
+        all_scores = all_scores[all_labels] # reorder
+    else:
+        all_scores = pd.DataFrame(columns=all_labels)
+        for run_dir in run_dirs:
+            scores = collate_scores(run_dir, all_labels)
+            all_scores = all_scores.append(scores)
+
+    # sort df by mouse, session, norm, shuffle, uniqueid, run
+    sorter = info_dict(None)[0:9]
+    all_scores = all_scores.sort_values(by=sorter).reset_index(drop=True)
+
+    file_util.save_info(all_scores, '{}_all_scores_df'.format(args.comp), 
+                        args.output, 'csv')
+
+
+#############################################
+def calc_stats(scores_summ, curr_lines, curr_idx, CI=95):
+    """
+    calc_stats(scores_summ, curr_lines, curr_idx)
+
+    Calculates statistics on scores from runs with specific analysis criteria
+    and records them in the summary scores dataframe.  
+    
+    Required arguments:
+        - scores_summ (pd DataFrame): DataFrame containing scores summary
+        - curr_lines (pd DataFrame) : DataFrame lines corresponding to specific
+                                      analysis criteria
+        - curr_idx (int)            : Current row in the scores summary 
+                                      DataFrame 
+    
+    Optional arguments:
+        - CI (float): Confidence interval around which to collect percentile 
+                      values
+                      default: 95
+
+    Returns:
+        - scores_summ (pd DataFrame): Updated DataFrame containing scores 
+                                      summary
+    """
+
+    # score labels to perform statistics on
+    sc_labs = ['epoch'] + logreg_util.get_sc_labs(test=True)
+
+    # percentiles to record
+    ps, p_names = math_util.get_percentiles(CI)
+
+    for sc_lab in sc_labs:
+        if sc_lab in curr_lines.keys():
+            cols = []
+            vals = []
+            for stat in ['mean', 'median']:
+                cols.extend([stat])
+                vals.extend([math_util.mean_med(curr_lines[sc_lab], stats=stat, 
+                                                nanpol='omit')])
+            for error in ['std', 'sem']:
+                cols.extend([error])
+                vals.extend([math_util.error_stat(curr_lines[sc_lab], stats='mean', 
+                                                  error=error, nanpol='omit')])
+            # get 25th and 75th quartiles
+            cols.extend(['q25', 'q75'])
+            vals.extend(math_util.error_stat(curr_lines[sc_lab], stats='median', 
+                                                error='std', nanpol='omit'))                                            
+            # get other percentiles (for CI)
+            cols.extend(p_names)
+            vals.extend(math_util.error_stat(curr_lines[sc_lab], stats='median', 
+                                             error='std', nanpol='omit', qu=ps))
             
-        def forward(self, x):
-            return self.sig(self.lin(x.view(-1, self.num_units*self.num_steps))).view(-1, 1)
+            # get MAD
+            cols.extend(['mad'])
+            vals.extend([math_util.error_stat(curr_lines[sc_lab], stats='median', 
+                                              error='sem', nanpol='omit')])
 
-
-#############################################        
-def loss_function(pred_class, act_class, weights=None):
-    '''
-    weights = [class0, class1]
-    '''
-    if weights is not None:
-        weights = act_class*(weights[1]-weights[0]) + (weights[0])
-
-    BCE = torch.nn.functional.binary_cross_entropy(pred_class, act_class, weight=weights)
-    return BCE
+            # plug in values
+            cols = ['{}_{}'.format(sc_lab, name) for name in cols]
+            gen_util.set_df_vals(scores_summ, curr_idx, cols, vals)
+    
+    return scores_summ
 
 
 #############################################
-def accuracy(pred_class, act_class):
-    act_class  = np.asarray(act_class)
-    pred_class = np.round(np.asarray(pred_class))
-    n_class1 = sum(act_class)
-    n_class0 = len(act_class) - n_class1
-    if n_class1 != 0:
-        acc_class1  = list(act_class + pred_class).count(2)
-    else:
-        acc_class1 = 0
-    if n_class0 != 0:
-        acc_class0  = list(act_class + pred_class).count(0)
-    else:
-        acc_class0 = 0
-    return [n_class0, n_class1], [acc_class0, acc_class1]
+def run_analysis(args):  
+    """
+    run_analysis(args)
+
+    Calculates statistics on scores from runs for each specific analysis 
+    criteria and saves them in the summary scores dataframe.  
+    
+    Required arguments:
+        - args (Argument parser): parser with analysis parameters as attributes:
+                CI (float)  : confidence interval around which to collect 
+                              percentile values
+                comp (str)  : type of comparison
+                output (str): general directory in which run information
+                              is located output
+    """
+
+    all_scores_df = file_util.load_file('{}_all_scores_df.csv'.format(args.comp),
+                                        args.output, 'csv')
+    scores_summ = pd.DataFrame()
+
+    # common labels
+    comm_labs = gen_util.remove_if(info_dict(None), ['uniqueid', 'run', 'epoch'])
+
+    # get all unique comb of labels
+    df_unique = all_scores_df[comm_labs].drop_duplicates()
+    for _, df_row in df_unique.iterrows():
+        vals = [df_row[x] for x in comm_labs]
+        curr_lines = gen_util.get_df_vals(all_scores_df, comm_labs, vals)
+        # assign values to current line in summary df
+        curr_idx = len(scores_summ)
+        gen_util.set_df_vals(scores_summ, curr_idx, comm_labs, vals)
+        # calculate n_runs (without nans and with)
+        scores_summ.loc[curr_idx, 'runs_total'] = len(curr_lines)
+        scores_summ.loc[curr_idx, 'runs_nan'] = curr_lines['epoch'].isna().sum()
+        # calculate stats
+        scores_summ = calc_stats(scores_summ, curr_lines, curr_idx, args.CI)
+
+    file_util.save_info(scores_summ, '{}_score_stats_df'.format(args.comp), 
+                        args.output, 'csv')
+
+
+#############################################    
+def init_res_fig(args, n_subplots):
+    """
+    init_res_fig(args, n_subplots)
+
+    Initializes a figure in which to plot summary results.
+
+    Required arguments:
+        - args (Argument parser): parser with analysis parameters as attributes:
+                ncols (int)        : number of columns in the figure
+                sharey (bool)      : if True, y axis lims are shared across 
+                                     subplots
+                subplot_hei (float): height of each subplot (inches)
+                subplot_wid (float): width of each subplot (inches)
+
+        - n_subplots (int)      : number of subplots
+    
+    Returns:
+        - fig (plt Fig): figure
+        - ax (plt Axis): axis
+    """
+
+    fig_par = {'ncols'      : args.ncols,
+               'sharey'     : not(args.no_sharey),
+               'subplot_wid': args.subplot_wid,
+               'subplot_hei': args.subplot_hei
+                }
+    
+    fig, ax = plot_util.init_fig(n_subplots, fig_par)
+
+    return fig, ax
 
 
 #############################################
-class roi_ds(torch.utils.data.TensorDataset):
-    def __init__(self, data, target):
-        self.data = data
-        self.target = target
-        self.n_samples = self.data.shape[0]
+def rois_x_label(sess_ns, arr):
+    """
+    rois_x_label(sess_ns, arr)
+
+    Creates x axis labels with the number of ROIs per mouse for each session.
     
-    def __len__(self):
-        return self.n_samples
+    For each session, formatted as: Session # (n/n rois)
     
-    def __getitem__(self, index):
-        return torch.Tensor(self.data[index]), torch.Tensor(self.target[index])
+    Required arguments:
+        - sess_ns (list): list of session numbers
+        - arr (3D array): array of number of ROIs, structured as 
+                          mouse x session x shuffle
 
+    Returns:
+        - x_label (list): list of x_labels for each session.
+    """
 
-#############################################
-def compute_weights(train_seg_cl):
-    # train_len/(n_classes, n_class_values)
-    train_seg_cl = np.asarray(train_seg_cl).squeeze()
-    classes = list(np.unique(train_seg_cl))
-    weights = []
-    for cl in classes:
-        weights.append((len(train_seg_cl)/(float(len(classes)) *
-                        list(train_seg_cl).count(cl))))
+    arr = np.nan_to_num(arr) # convert NaNs to 0s
     
-    return weights
+    # check that shuff and non shuff are the same
+    if not (arr[:, :, 0] == arr[:, :, 1]).all():
+        raise ValueError('Shuffle and non shuffle n_rois are not the same.')
 
-
-#############################################
-def train(mod, optimizer, dl, weights, device):
-    mod.train()
-    ep_sc = [0, 0, 0, 0] # accuracy, class0 accuracy and class1 accuracy
-    ds_len = dl.dataset.n_samples
-    divs = [ds_len, ds_len, 0, 0] # count number of examples to divide by
-    mult = [1., 100., 100., 100.] # to get % values for accuracies
-    for _, (data, targ) in enumerate(dl, 0):
-        optimizer.zero_grad()
-        pred_class = mod(data.to(device))
-        loss = loss_function(pred_class, targ.to(device), weights=weights)
-        loss.backward()
-        optimizer.step()
-        ep_sc[0] += loss.item()*len(data) # retrieve sum across batch
-        ns, accs = accuracy(pred_class.cpu().detach(), targ.cpu().detach())
-        ep_sc[1] += accs[0] + accs[1]
-        for i, (n, acc) in enumerate(zip(ns, accs)):
-            if acc is not None:
-                ep_sc[i+2] += acc
-                divs[i+2] += float(n)
-        
-    for i in range(len(ep_sc)):
-        ep_sc[i] = ep_sc[i]*mult[i]/float(divs[i])
-    return ep_sc
-
-
-#############################################
-def val(mod, dl, weights, device):
-    mod.eval()   
-    ep_sc = [0, 0, 0, 0] # accuracy, class0 accuracy and class1 accuracy
-    ds_len = dl.dataset.n_samples
-    divs = [ds_len, ds_len, 0, 0] # count number of examples to divide by
-    mult = [1., 100., 100., 100.] # to get % values for accuracies
-    with torch.no_grad():
-        for _, (data, targ) in enumerate(dl, 0):
-            pred_class = mod(data.to(device))
-            loss = loss_function(pred_class, targ.to(device), weights=weights)
-            ep_sc[0] += loss.item()*len(data) # retrieve sum across batch
-            ns, accs = accuracy(pred_class.cpu().detach(), targ.cpu().detach())
-            ep_sc[1] += accs[0] + accs[1]
-            for i, (n, acc) in enumerate(zip(ns, accs)):
-                if acc is not None:
-                    ep_sc[i+2] += acc
-                    divs[i+2] += float(n)
-
-    for i in range(len(ep_sc)):
-        ep_sc[i] = ep_sc[i]*mult[i]/float(divs[i])
-    
-    return ep_sc
-
-
-#############################################
-def print_loss(test_type, loss):
-    print('    {} loss: {}'.format(test_type, loss))
-
-
-#############################################
-def save_model(ep, args, mod, opt, scores, test=True): 
-
-    # scores: grp (train, val, test) x sc (loss, acc, acc0, acc1)
-    if not args.keep_prev:
-        # delete previous model
-        prev_model = glob.glob(os.path.join(args.dirname, 'ep*.pth'))
-        prev_json = glob.glob(os.path.join(args.dirname, 'ep*.json'))
-        
-        if len(prev_model) == 1 and len(prev_json) == 1:
-            os.remove(prev_model[0])
-            os.remove(prev_json[0])
-
-    savename = 'ep{}'.format(ep)
-    savefile = os.path.join('{}'.format(args.dirname), savename)
-    
-    torch.save({'net': mod.state_dict(), 'opt': opt.state_dict()},
-               '{}.pth'.format(savefile))
-    
-    info = info_dict(args, ep)
-    datatypes = ['train', 'val']
-    if test:
-        datatypes.extend(['test'])
-
-    for datatype, score in zip(datatypes, scores):
-        info['{}_loss'.format(datatype)] = score[0]
-        info['{}_acc'.format(datatype)] = score[1]
-        info['{}_acc_class0'.format(datatype)] = score[2]
-        info['{}_acc_class1'.format(datatype)] = score[3]
-    
-    file_util.save_info(info, savename, args.dirname, 'json')
-
-
-#############################################
-def load_checkpoint(filename):
-    # Note: Input model & optimizer should be pre-defined.  This routine only updates their states.
-    checkpt_name = os.path.split(filename)[-1]
-    if os.path.isfile(filename):
-        print(('\nLoading checkpoint found at \'{}\''.format(checkpt_name)))
-        checkpoint = torch.load(filename)
-        mod = checkpoint['net']
-        opt = checkpoint['opt']
-    else:
-        raise IOError('No checkpoint found at \'{}\''.format(checkpt_name))
-
-    return mod, opt
-
-
-#############################################
-def plot_my_data(ax, arr, datatype, mouse_ns, sess_ns, line, layer, fluor, norm,
-                 comp, runtype):
-    
-    col=['steelblue', 'coral']
-    
-    # arr: mouse x sess x shuffle x vals (mean/med, sem/2.5p, sem/97.5p, n_rois, n_runs)
-    # replace NaNs with 0s for n_rois and n_runs
-    arr[:, :, :, 3:] = np.nan_to_num(arr[:, :, :, 3:])
-
-    # create x axis labels: Session # (n/n rois)
     x_label = []
     for s, sess_n in enumerate(sess_ns):
-        for m, mouse_n in enumerate(mouse_ns):
+        for m in range(arr.shape[0]):
             if m == 0:
-                n_rois_str = '{}'.format(int(arr[m, s, 0, 3]))
+                n_rois_str = '{}'.format(int(arr[m, s, 0]))
             if m > 0:
-                n_rois_str = '{}/{}'.format(n_rois_str, int(arr[m, s, 0, 3]))
+                n_rois_str = '{}/{}'.format(n_rois_str, int(arr[m, s, 0]))
         x_label.append('Session {}\n({} rois)'.format(int(sess_n), n_rois_str))
 
-    # create legend: Mouse # (n/n runs) and plot non shuffle data
-    for m, mouse_n in enumerate(mouse_ns):
-        for s, sess_n in enumerate(sess_ns):
-            if s == 0:
-                n_runs_str = '{}'.format(int(arr[m, s, 0, 4]))
-                n_runs_sh_str = '{}'.format(int(np.sum(arr[:, s, 1, 4])))
-            if s > 0:
-                n_runs_str = '{}/{}'.format(n_runs_str, int(arr[m, s, 0, 4]))
-                n_runs_sh_str = '{}/{}'.format(n_runs_sh_str, int(np.sum(arr[:, s, 1, 4])))
+    return x_label
+
+
+#############################################
+def mouse_runs_leg(arr, mouse_n=None, shuffle=False):
+    """
+    mouse_runs_leg(arr)
+
+    Creates legend labels for a mouse or shuffle set.  
+    
+    For each mouse or shuffle set, formatted as: 
+    Mouse # (n/n runs) or Shuff (n/n runs)
+
+    Required arguments:
+        - arr (3D array): array of number of ROIs, structured as 
+                          mouse (or mice to sum) x session x shuffle
+
+    Required arguments:
+        - mouse_n (int) : mouse number (only needed if shuffle is False)
+                          default: None
+        - shuffle (bool): if True, shuffle legend is created. Otherwise, 
+                          mouse legend is created.
+                          default: False
+
+    Returns:
+        - leg (str): legend for the mouse or shuffle set
+    """
+
+    # create legend: Mouse # (n/n runs) or Shuff (n/n runs)
+    if len(arr.shape) == 1:
+        arr = arr[np.newaxis, :]
+    arr = np.nan_to_num(arr) # convert NaNs to 0s
+
+    for s in range(arr.shape[1]):
+        if s == 0:
+            n_runs_str = '{}'.format(int(np.sum(arr[:, s])))
+        if s > 0:
+            n_runs_str = '{}/{}'.format(n_runs_str, int(np.sum(arr[:, s])))
+    
+    if shuffle:
+        leg = 'shuffled\n({} runs)'.format(n_runs_str)
+    else:
+        if mouse_n is None:
+            raise IOError('If \'shuffle\' is False, Must specify \'mouse_n\'.')
         leg = 'mouse {}\n({} runs)'.format(int(mouse_n), n_runs_str)
-        shuff_leg = 'shuffled\n({} runs)'.format(n_runs_sh_str)
-            
-        ax.errorbar(x_label, arr[m, :, 0, 0], yerr=arr[m, :, 0, 1], 
-                    fmt='-o', capsize=6, capthick=2, color=col[m], label=leg)     
-            
+    
+    return leg
+
+
+#############################################
+def plot_CI(ax, x_label, arr, sess_ns):
+    """
+    plot_CI(ax, x_label, arr, sess_ns)
+
+    Plots confidence intervals for each session.
+
+    Required arguments:
+        - ax (plt Axis subplot): subplot
+        - x_label (list)       : list of x_labels for each session
+        - arr (3D array)       : array of number of ROIs, structured as 
+                                 mouse (or mice to sum) x session x shuffle
+        - sess_ns (list)       : list of session numbers
+    """
+
     # shuffle (combine across mice)
-    shuff_med = np.nanmedian(arr[:, :, 1, 0], axis=0)
-    shuff_err_lo = np.nanmedian(arr[:, :, 1, 1], axis=0)
-    shuff_err_hi = np.nanmedian(arr[:, :, 1, 2], axis=0)
+    med = np.nanmedian(arr[:, :, 0], axis=0)
+    p_lo = np.nanmedian(arr[:, :, 1], axis=0)
+    p_hi = np.nanmedian(arr[:, :, 2], axis=0)
+
+    leg = mouse_runs_leg(arr[:,:,4], shuffle=True)
 
     # plot CI
-    ax.bar(x_label, height=shuff_err_hi-shuff_err_lo, bottom=shuff_err_lo, 
-           color='lightgray', width=0.2, label=shuff_leg)
+    ax.bar(x_label, height=p_hi-p_lo, bottom=p_lo, color='lightgray', width=0.2, 
+           label=leg)
     
     # plot median (with some thickness based on ylim)
     y_lim = ax.get_ylim()
     med_th = 0.005*(y_lim[1]-y_lim[0])
-    ax.bar(x_label, height=med_th, bottom=shuff_med-med_th/2.0, color='grey', 
+    ax.bar(x_label, height=med_th, bottom=med-med_th/2.0, color='grey', 
            width=0.2)
- 
+
+#############################################
+def summ_subplot(ax, arr, data_title, mouse_ns, sess_ns, line, layer, fluor, norm,
+                 comp, runtype):
+    """
+    summ_subplot(ax, arr, datatype, mouse_ns, sess_ns, line, layer, fluor, norm,
+                 comp, runtype)
+
+    Plots summary data in the specific subplot for a line and layer.
+
+    Required arguments:
+        - ax (plt Axis subplot): subplot
+        - arr (3D array)       : array of session information, structured as 
+                                 mice x sessions x shuffle x vals, where vals
+                                 are: mean/med, sem/low_perc, sem/hi_perc, 
+                                      n_rois, n_runs
+        - data_title (str)     : name of type of data plotted, 
+                                 i.e. for epochs or test accuracy
+        - mouse_ns (int)       : mouse numbers
+        - sess_ns (int)        : session numbers
+        - line (str)           : transgenic line name
+        - layer (str)          : layer name
+        - fluor (str)          : fluorescence trace type
+        - norm (str)           : type of normalization
+        - comp (str)           : type of comparison
+        - runtype (str)        : type of run ('prod' or 'pilot')
+    """
+
+    col=['steelblue', 'coral']
+    
+    x_label = rois_x_label(sess_ns, arr[:,:,:,3])
+
+    # plot non shuffle data
+    for m, mouse_n in enumerate(mouse_ns):
+        leg = mouse_runs_leg(arr[m,:,0,4], mouse_n, False)
+        ax.errorbar(x_label, arr[m,:,0,0], yerr=arr[m, :, 0, 1], fmt='-o', 
+                    capsize=6, capthick=2, color=col[m], label=leg)     
+
+    plot_CI(ax, x_label, arr[:,:,1], sess_ns,)
+
     if line == 'L23':
         line = 'L2/3'
     if comp == 'surp':
@@ -803,98 +1329,141 @@ def plot_my_data(ax, arr, datatype, mouse_ns, sess_ns, line, layer, fluor, norm,
     norm_str = str_util.norm_par_str(norm, type_str='file')[1:]
 
     title = ('{} - {} for log regr on'
-             '\n{} {} {} {} data ({})').format(comp, datatype, norm_str, fluor, 
+             '\n{} {} {} {} data ({})').format(comp, data_title, norm_str, fluor, 
                                                line, layer, runtype)
     
     ax.set_title(title)
     ax.legend()
 
-    if 'acc' in datatype:
+    if 'acc' in data_title:
         ax.set_ylabel('Accuracy (%)')
-    elif 'epoch' in datatype:
+    elif 'epoch' in data_title:
         ax.set_ylabel('Nbr epochs')
 
 
-#############################################
-def collate_scores(direc, args):
-    print(direc)
+#############################################    
+def plot_data_summ(args, summ_scores, data, title, stats, shuff_stats):
+    """
+    plot_data_summ(args, summ_scores, data, title, stats, shuff_stats)
+
+    Plots summary data for a specific comparison, for each line and layer and 
+    saves figure.
+
+    Required arguments:
+         - args (Argument parser): parser with analysis parameters as attributes:
+                comp (str)         : type of comparison
+                fig_ext (str)      : extension for saving figure
+                fluor (str)        : fluorescence trace type
+                ncols (int)        : number of columns in the figure
+                norm (str)         : type of normalization
+                output (str)       : general directory in which summary 
+                                     dataframe is saved
+                runtype (str)      : type of run ('prod' or 'pilot')
+                sharey (bool)      : if True, y axis lims are shared across 
+                                     subplots
+                subplot_hei (float): height of each subplot (inches)
+                subplot_wid (float): width of each subplot (inches)
+
+        - summ_scores (pd DataFrame): DataFrame containing scores summary
+                                      for specific comparison
+        - data (str)                : label of type of data to plot,
+                                      e.g., 'epochs' or 'test_acc' 
+        - title (str)               : name of type of data plotted, 
+                                      e.g. for epochs or test accuracy
+        - stats (list)              : list of stats to use for non shuffled 
+                                      data, e.g., ['mean', 'sem', 'sem']
+        - shuff_stats (list)        : list of stats to use for shuffled 
+                                      data, e.g., ['median', 'p2p5', 'p97p5']
+    """
     
-    all_labels = df_cols()[0]
+    celltypes = [[x, y] for x in ['L23', 'L5'] for y in ['soma', 'dend']]
 
-    warn_str = '===> Warning:'
-    scores = pd.DataFrame()
-    models = glob.glob(os.path.join(args.output, direc, 'ep*.pth'))
+    fig, ax = init_res_fig(args, len(celltypes))
 
-    # get max epoch number, based on saved models
-    if len(models) > 0:
-        max_ep = max([int(re.findall(r'\d+', os.path.split(mod)[-1])[0]) 
-                        for mod in models])
-    else:
-        max_ep = None
-        print('{} No models were recorded.'.format(warn_str))
+    for i, [line, layer] in enumerate(celltypes):
+        sub_ax = plot_util.get_subax(ax, i)
+        # get the right rows in dataframe
+        cols       = ['layer', 'fluor', 'norm', 'runtype']
+        cri        = [layer, args.fluor, args.norm, args.runtype]
+        curr_lines = gen_util.get_df_vals(summ_scores.loc[summ_scores['line'].str.contains(line)], cols, cri)
+        if len(curr_lines) == 0:
+            cri_str = ['{}: {}'.format(col, crit) for col, crit in zip(cols, cri)]
+            print('No data found for line: {}, {}'.format(line, ', '.join(cri_str)))
+            continue
+        sess_ns    = gen_util.get_df_vals(curr_lines, label='sess_n', dtype=int)
+        mouse_ns   = gen_util.get_df_vals(curr_lines, label='mouse_n', dtype=int)
+        # mouse x sess x shuffle x vals (mean/med, sem/2.5p, sem/97.5p, n_rois, n_runs)
+        data_arr = np.empty((len(mouse_ns), len(sess_ns), 2, 5)) * np.nan
+        
+        for s, sess_n in enumerate(sess_ns):
+            sess_mice = gen_util.get_df_vals(curr_lines, 'sess_n', sess_n, 'mouse_n', dtype=int)
+            for m, mouse_n in enumerate(mouse_ns):
+                if mouse_n in sess_mice:
+                    for sh, stat_types in enumerate([stats, shuff_stats]):
+                        curr_line = gen_util.get_df_vals(curr_lines, ['sess_n', 'mouse_n', 'shuffled'], [sess_n, mouse_n, sh])
+                        for st, stat in enumerate(stat_types):
+                            data_arr[m, s, sh, st] = curr_line['{}_{}'.format(data, stat)]
+                        data_arr[m, s, sh, 3] = curr_line['n_roi']
+                        data_arr[m, s, sh, 4] = curr_line['runs_total'] - curr_line['runs_nan']
+        
+        summ_subplot(sub_ax, data_arr, title, mouse_ns, sess_ns, line, layer, 
+                     args.fluor, args.norm, args.comp, args.runtype)
 
-    # get hyperparams
-    hyperpars = file_util.load_file('hyperparameters.json', 
-                                        os.path.join(args.output, direc),
-                                        file_type='json')
-
-    df_path = os.path.join(args.output, direc, 'scores_df.csv')
-
-    # get scores df
-    if os.path.exists(df_path):
-        scores_df = file_util.load_file(df_path, file_type='csv')
-    else:
-        print('{} No scores were recorded.'.format(warn_str))
-        scores_df = None
-        if max_ep is not None:
-            print(('{} Highest recorded model is for epoch {}, but no '
-                    'score is recorded.').format(warn_str, max_ep))
+    norm_str = str_util.norm_par_str(args.norm, type_str='file')
+    save_dir = os.path.join(args.output, 'figures_{}'.format(args.fluor))
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
     
-    ep_info = None
-    if scores_df is not None:
-        # check that all epochs were recorded and correct epoch
-        # was recorded as having lowest validation loss
-        ep_rec = scores_df.count(axis=0)
-        if min(ep_rec) < hyperpars['epochs']:
-            print(('{} Only {} epochs were fully '
-                    'recorded.').format(warn_str, min(ep_rec)))
-        if max(ep_rec) > hyperpars['epochs']:
-            print(('{} {} epochs were '
-                    'recorded.').format(warn_str, max(ep_rec)))
-        if len(scores_df.loc[(scores_df['saved'] == 1)]['epoch'].tolist()) == 0:
-            print(('{} No models were recorded in '
-                    'dataframe.').format(warn_str))
-        else:
-            max_ep_df = max(scores_df.loc[(scores_df['saved'] == 1)]['epoch'].tolist())
-            if max_ep_df != max_ep:
-                print(('{} Highest recorded model is actually epoch '
-                       '{}, but expected {} based on dataframe. Using '
-                       'dataframe one.').format(warn_str, max_ep, max_ep_df))
-            ep_info = scores_df.loc[(scores_df['epoch'] == max_ep_df)]
-            if len(ep_info) != 1:
-                print(('{} {} lines found in dataframe for epoch '
-                        '{}.').format(warn_str, len(ep_info), max_ep_df))
+    save_name = os.path.join(save_dir, '{}_{}{}{}'.format(data, args.comp, 
+                             norm_str, args.fig_ext))
+    fig.savefig(save_name, bbox_inches='tight')
 
-    if ep_info is None:
-        runname_dict = get_rundirec_dict(direc)
-        runname_dict['runtype'] = hyperpars['runtype']
-        runname_dict['line'] = hyperpars['line']
-        runname_dict['n_roi'] = hyperpars['n_roi']
-        for col in runname_dict.keys():
-            scores.loc[0, col] = runname_dict[col]
-    else:
-        for col in all_labels:
-            scores.loc[0, col] = ep_info[col].item()
 
-    return scores
-    
+#############################################    
+def run_plot(args):
+    """
+    run_plot(args)
+
+    Plots summary data for a specific comparison, for each datatype in a 
+    separate figure and saves figures. 
+
+    Required arguments:
+         - args (Argument parser): parser with analysis parameters as attributes:
+                comp (str)         : type of comparison
+                fig_ext (str)      : extension for saving figure
+                fluor (str)        : fluorescence trace type
+                ncols (int)        : number of columns in the figure
+                norm (str)         : type of normalization
+                output (str)       : general directory in which summary 
+                                     dataframe is saved
+                runtype (str)      : type of run ('prod' or 'pilot')
+                sharey (bool)      : if True, y axis lims are shared across 
+                                     subplots
+                subplot_hei (float): height of each subplot (inches)
+                subplot_wid (float): width of each subplot (inches)
+    """
+
+    summ_scores = file_util.load_file('{}_score_stats_df.csv'.format(args.comp), 
+                                      args.output, 'csv')
+
+    data_types  = ['epoch', 'test_acc']
+    data_titles = ['epoch nbr', 'test accuracy']
+
+    stats = ['mean', 'sem', 'sem']
+    shuff_stats = ['median', 'p2p5', 'p97p5']
+
+    for data, title in zip(data_types, data_titles):
+        plot_data_summ(args, summ_scores, data, title, stats, shuff_stats)
+
+    plt.close('all')
+
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', default='logreg_models', help='where to store output')
     parser.add_argument('--task', default='run_regr', help='run_regr or collate')
-    parser.add_argument('--comp', default='surp', help='surp, AvB, AvC or BvC')
+    parser.add_argument('--comp', default='surp', help='surp, AvB, AvC, BvC, DvE, all')
     parser.add_argument('--fig_ext', default='.svg')
     parser.add_argument('--plt_bkend', default=None, 
                         help='switch matplotlib backend when running on server')
@@ -906,12 +1475,13 @@ if __name__ == "__main__":
  
     parser.add_argument('--parallel', action='store_true', 
                         help='do runs in parallel.')
+    parser.add_argument('--cuda', action='store_true', 
+                        help='run on cuda.')
     parser.add_argument('--datadir', default=None, 
                         help=('data directory (if None, uses a directory '
                               'defined below'))
-    parser.add_argument('--keep_prev', action='store_true', 
-                        help=('keep previous models when a better performing '
-                              'model is recorded.'))
+    parser.add_argument('--keep', default='best', 
+                        help=('record only best or all models.'))
         
         # run_regr hyperparameters
     parser.add_argument('--n_reg', default=50, type=int, help='n regular runs')
@@ -925,8 +1495,8 @@ if __name__ == "__main__":
     parser.add_argument('--error', default='sem', help='std or sem')
     parser.add_argument('--gab_fr', default=0, type=int, 
                         help='starting gab frame in comp is surp')
-    parser.add_argument('--norm', action='store_true', 
-                        help='normalize each ROI trace')
+    parser.add_argument('--norm', default='none', 
+                        help='normalize data: none, all or roi (by roi)')
     parser.add_argument('--fluor', default='dff', 
                         help='raw or dff')
     parser.add_argument('--ep_freq', default=50, type=int,  
@@ -945,222 +1515,36 @@ if __name__ == "__main__":
     parser.add_argument('--no_sharey', action='store_true', help='subplots do not share y axis')
     parser.add_argument('--subplot_wid', default=7.5, type=float, help='figure width')
     parser.add_argument('--subplot_hei', default=7.5, type=float, help='figure height')
-        # norm, fluor, runtype also used for plots
+        
+        # NOTE: norm, fluor, runtype also used for plots
 
     args = parser.parse_args()
 
-    # HARD-CODED FOR NOW
-    args.device = 'cpu'
+    args.device = gen_util.get_device(args.cuda)
 
-
-    if args.plt_bkend is not None:
+    if args.plt_bkend not in [None, 'None']:
         plt.switch_backend(args.plt_bkend) 
-    
-    if args.task == 'run_regr':
-        if args.datadir is None:
-            # previously: '/media/colleen/LaCie/CredAssign/pilot_data'
-            args.datadir = '../data/AIBS/{}'.format(args.runtype) 
 
-        if args.uniqueid == 'datetime':
-            args.uniqueid = str_util.create_time_str()
+    if args.comp == 'all':
+        comps = ['surp', 'AvB', 'AvC', 'BvC', 'DvE']
+    else:
+        comps = gen_util.list_if_not(args.comp)
 
-        mouse_df = file_util.load_file('mouse_df_{}.csv'.format(args.runtype), 
-                                       file_type='csv')
-        
-        if args.sess_n == 'all':
-            sesses = mouse_df.loc[(mouse_df['mouseid'] == args.mouse_n) &
-                                  (mouse_df['pass_fail'] == 'P') &
-                                  (mouse_df['all_files'] == 1)]['overall_sess_n'].tolist()
-        else:
-            sesses = [int(args.sess_n)]
+    for comp in comps:
+        args.comp = comp
+        print('Task: {}'.format(args.task))
+        print('Comparison: {}\n'.format(args.comp))
 
-        for sess_n in sesses:
-            args.sess_n = sess_n
-            mouse_line = mouse_df.loc[(mouse_df['mouseid'] == args.mouse_n) &
-                                      (mouse_df['overall_sess_n'] == args.sess_n)]
-            args.layer = mouse_line['layer'].item()
-            args.line = mouse_line['line'].item()
+        if args.task == 'run_regr':
+            run_regr(args)
 
-            args.seed = seed_all(args.seed, args.device)
+        elif args.task == 'collate':
+            run_collate(args)
 
-            [roi_tr_segs, _, classes, 
-                          seg_classes] = get_sess_data(args.datadir, args.mouse_n,  
-                                                       args.sess_n, args.layer, 
-                                                       comp=args.comp, 
-                                                       gab_fr=args.gab_fr, 
-                                                       runtype=args.runtype, 
-                                                       fluor=args.fluor)
-            args.n_roi = roi_tr_segs.shape[2]
+        # analyses accuracy
+        elif args.task == 'analyse':
+            run_analysis(args)
 
-            for runs, shuffle in zip([args.n_reg, args.n_shuff], [False, True]):
-
-                args.shuffle = shuffle
-                args.runname = get_runname(args.mouse_n, args.sess_n, args.layer, 
-                                           args.fluor, args.norm, args.comp, 
-                                           args.shuffle)
-
-                if args.parallel:
-                    num_cores = multiprocessing.cpu_count()
-                    Parallel(n_jobs=num_cores)(delayed(single_run)
-                            (roi_tr_segs, seg_classes, classes, args, run) 
-                            for run in range(runs))
-                else:
-                    for run in range(runs):
-                        single_run(roi_tr_segs, seg_classes, classes, args, run)
-
-    elif args.task == 'collate':
-
-        subdirs = [os.path.join(subdir, name)
-                   for subdir in os.listdir(args.output)
-                   if os.path.isdir(os.path.join(args.output, subdir)) 
-                      and args.comp in subdir
-                   for name in os.listdir(os.path.join(args.output, subdir))]
-
-        if args.parallel:
-            num_cores = multiprocessing.cpu_count()
-            scores_list = Parallel(n_jobs=num_cores)(delayed(collate_scores)
-                          (direc, args) for direc in subdirs)
-            all_scores = pd.concat(scores_list)
-        else:
-            all_scores = pd.DataFrame()
-            for direc in subdirs:
-                scores = collate_scores(direc, args)
-                all_scores = all_scores.append(scores)
-
-        # reorganize by mouse, session, norm, shuffle, uniqueid, run
-        sorter = ['mouse_n', 'sess_n', 'fluor', 'norm', 'shuffled', 'uniqueid', 'run']
-        all_scores = all_scores.sort_values(by=sorter).reset_index(drop=True)
-
-        file_util.save_info(all_scores, '{}_all_scores_df'.format(args.comp), 
-                            args.output, 'csv')
-
-    # analyses accuracy
-    elif args.task == 'analyse':
-        
-        all_scores_df = file_util.load_file('{}_all_scores_df.csv'.format(args.comp),
-                                            args.output, 'csv')
-
-        # score labels to perform statistics on
-        sc_labs = ['epoch'] + df_cols()[1]
-        
-        # common labels
-        comm_labs = gen_util.remove_if(info_dict(None), ['uniqueid', 'run', 'epoch'])
-
-        ps, p_names = get_percentiles(args.CI)
-
-        scores_summ = pd.DataFrame()
-
-        # get all mice n
-        list_mice = sorted(all_scores_df.mouse_n.unique().tolist())
-        for mouse in list_mice:
-            # get all sess n
-            mouse_lines = all_scores_df.loc[(all_scores_df['mouse_n'] == mouse)]
-            list_sess = sorted(mouse_lines.sess_n.unique().tolist())
-            for sess in list_sess:
-                sess_lines = mouse_lines.loc[(mouse_lines['sess_n'] == sess)]
-                list_fluor = sorted(sess_lines.fluor.unique().tolist())
-                for fluor in list_fluor:
-                    fluor_lines = sess_lines.loc[(sess_lines['fluor'] == fluor)]
-                    list_norm = sorted(fluor_lines.norm.unique().tolist())
-                    for norm in list_norm:
-                        norm_lines = fluor_lines.loc[(fluor_lines['norm'] == norm)]
-                        list_shuff = sorted(norm_lines.shuffled.unique().tolist())
-                        for shuff in list_shuff:
-                            shuff_lines = norm_lines.loc[(norm_lines['shuffled'] == shuff)]
-                            curr_lin = len(scores_summ)
-                            for lab in comm_labs:
-                                # check that all the same
-                                lab_vals = shuff_lines[lab].unique().tolist()
-                                scores_summ.loc[curr_lin, lab] = lab_vals[0]
-                            # calculate runs
-                            scores_summ.loc[curr_lin, 'runs_total'] = len(shuff_lines)
-                            nan_runs = sum(np.isnan(shuff_lines['epoch'].tolist()))
-                            scores_summ.loc[curr_lin, 'runs_nan'] = nan_runs
-                            # calculate stats
-                            for sc_lab in sc_labs:
-                                if sc_lab in all_scores_df.keys():
-                                    for stat in ['mean', 'median']:
-                                        scores_summ.loc[curr_lin, '{}_{}'.format(sc_lab, stat)] = \
-                                            math_util.mean_med(shuff_lines[sc_lab], stats=stat, nanpol='omit')
-                                    for error in ['std', 'sem']:
-                                        scores_summ.loc[curr_lin, '{}_{}'.format(sc_lab, error)] = \
-                                            math_util.error_stat(shuff_lines[sc_lab], stats='mean', error=error, nanpol='omit')
-                                    # get 25th and 75th quartiles
-                                    qs_vals = math_util.error_stat(shuff_lines[sc_lab], stats='median', error='std', nanpol='omit')
-                                    # get other percentiles (for CI)
-                                    ps_vals = math_util.error_stat(shuff_lines[sc_lab], stats='median', error='std', nanpol='omit', qu=ps)
-                                    # plug in values
-                                    for name, val in zip(['q25', 'q75'] + p_names, qs_vals + ps_vals):
-                                        scores_summ.loc[curr_lin, '{}_{}'.format(sc_lab, name)] = val
-                                        scores_summ.loc[curr_lin, '{}_{}'.format(sc_lab, name)] = val
-
-                                    scores_summ.loc[curr_lin, '{}_mad'.format(sc_lab)] = \
-                                            math_util.error_stat(shuff_lines[sc_lab], stats='median', error='sem', nanpol='omit')
-
-        file_util.save_info(scores_summ, '{}_score_stats_df'.format(args.comp), 
-                            args.output, 'csv')
-
-
-    elif args.task == 'plot':
-
-        summ_scores = file_util.load_file('{}_score_stats_df.csv'.format(args.comp), 
-                                          args.output, 'csv')
-
-        celltypes = [[x, y] for x in ['L23', 'L5'] for y in ['soma', 'dend']]
-    
-        fig_par = {'ncols'      : args.ncols,
-                   'sharey'     : not(args.no_sharey),
-                   'subplot_wid': args.subplot_wid,
-                   'subplot_hei': args.subplot_hei
-                  }
-
-        non_shuff_stat = ['mean', 'sem', 'sem']
-        shuff_stat = ['median', 'p2p5', 'p97p5']
-
-        for data, name in zip(['epoch', 'test_acc'], ['nbr epochs', 'test accuracy']):
-            fig, ax, ncols, nrows = plot_util.init_fig(len(celltypes), fig_par)
-            for i, [line, layer] in enumerate(celltypes):
-                if nrows == 1:
-                    sub_ax = ax[i%ncols]
-                else:
-                    sub_ax = ax[i/ncols][i%ncols]
-                # get the right rows in dataframe
-                curr_lines = summ_scores.loc[(summ_scores['line'].str.contains(line)) &
-                                             (summ_scores['layer'] == layer) &
-                                             (summ_scores['norm'] == args.norm) &
-                                              (summ_scores['runtype'] == args.runtype)]
-                sess_ns  = sorted(curr_lines.sess_n.unique().tolist())
-                mouse_ns = sorted(curr_lines.mouse_n.unique().tolist())
-
-                # create array: mouse x sess x shuffle x vals (mean/med, sem/2.5p, sem/97.5p, n_rois, n_runs)
-                data_arr = np.empty((len(mouse_ns), len(sess_ns), 2, 5)) * np.nan
-                for s, sess_n in enumerate(sess_ns):
-                    sess_n = int(sess_n)
-                    sess_mice = curr_lines.loc[(curr_lines['sess_n'] == sess_n)].mouse_n.unique().tolist()
-                    for m, mouse_n in enumerate(mouse_ns):
-                        mouse_n = int(mouse_n)
-                        if mouse_n in sess_mice:
-                            for sh, [shuff, stats] in enumerate(zip([False, True], [non_shuff_stat, shuff_stat])):
-                                curr_lin = curr_lines.loc[(curr_lines['sess_n'] == sess_n) &
-                                                          (curr_lines['mouse_n'] == mouse_n) &
-                                                          (curr_lines['shuffled'] == shuff)]
-                                for st, stat in enumerate(stats):
-                                    data_arr[m, s, sh, st] = curr_lin['{}_{}'.format(data, stat)]
-                                data_arr[m, s, sh, 3] = curr_lin['n_roi']
-                                data_arr[m, s, sh, 4] = curr_lin['runs_total'] - curr_lin['runs_nan']
-                
-
-                plot_my_data(sub_ax, data_arr, name, mouse_ns, sess_ns, line, 
-                             layer, args.fluor, args.norm, args.comp, args.runtype)
-
-            norm_str = str_util.norm_par_str(args.norm, type_str='file')
-            save_dir = os.path.join(args.output, 'figures')
-            if not os.path.exists(save_dir):
-                os.mkdir(save_dir)
-            
-            save_name = os.path.join(save_dir, '{}_{}{}{}'.format(data, args.comp, norm_str, args.fig_ext))
-            fig.savefig(save_name, bbox_inches='tight')
-
-        plt.close('all')
-
+        elif args.task == 'plot':
+            run_plot(args)
 

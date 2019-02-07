@@ -33,7 +33,7 @@ def load_file(file_name, full_dir='.', file_type='pickle'):
                            and must include extension
     
     Optional arguments:
-        - full_dir (str) : directory in which to save pickle
+        - full_dir (str) : directory in which file is saed
                            default: '.'
         - file_type (str): type of file (pickle, json, csv)
                            default: 'pickle'
@@ -266,3 +266,43 @@ def get_file_names(masterdir, session, experiment, date, mouse, runtype='prod'):
             align_pkl_file, corrected_data, roi_trace_data, roi_trace_dff, 
             zstack)
 
+
+###############################################################################
+def get_files(direc='.', file_type='all', criteria=None):
+    '''
+    get_files()
+
+    Gets all files in given directory.
+
+    Optional arguments:
+        - diriec (str    : directory
+        - file_type (str): type of file to return: 'all', 'subdirs' or 'files'
+                           default: 'all'
+        - criteria (str) : criteria for including files, i.e., contains 
+                           specified string
+                           default: None
+
+    Outputs:
+        - files (list): list of files in directory
+    '''
+
+    all_files = os.listdir(direc)
+
+    if criteria is not None:
+        all_files = [x for x in all_files if criteria in x]
+    
+    all_files = [os.path.join(direc, x) for x in all_files]
+
+    if file_type == 'subdirs':
+        all_files = [x for x in all_files if os.path.isdir(x)]
+
+    elif file_type == 'files':
+        all_files = [x for x in all_files if not os.path.isdir(x)]
+
+    elif file_type != 'all':
+        gen_util.accepted_values_error('file_type', file_type, ['all', 
+                                       'subdirs', 'files'])
+    
+    return all_files
+
+    

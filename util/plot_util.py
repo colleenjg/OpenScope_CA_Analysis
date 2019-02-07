@@ -18,6 +18,7 @@ from matplotlib import pyplot as plt
 
 import gen_util, str_util
 
+
 #############################################
 def plot_seg_comp(analys_par, plot_vals='diff', op='diff'):
     """
@@ -80,9 +81,9 @@ def plot_val_lab(plot_vals='diff', op='diff', start_fr=-1):
     and operation on surprise v no surprise, starting with gray.
 
     Optional arguments:
-        - plot_vals (str): 'surp', 'nosurp' or 'diff'
+        - plot_vals (str): 'surp', 'nosurp', 'reg' or 'diff'
                            default: 'diff'
-        - op (str)       : 'surp', 'nosurp' or 'diff'
+        - op (str)       : 'surp', 'nosurp', 'reg' or 'diff'
                            default: 'diff'
         - start_fr (int) : starting gabor frame 
                            (-1: gray, 0: A, 1: B, 2:C, 3:D/E)
@@ -95,7 +96,7 @@ def plot_val_lab(plot_vals='diff', op='diff', start_fr=-1):
 
     if plot_vals == 'surp':
         labels.extend(['E'])
-    elif plot_vals == 'nosurp':
+    elif plot_vals in ['nosurp', 'reg']:
         labels.extend(['D'])
     elif plot_vals == 'diff':
         if op == 'diff':
@@ -106,12 +107,37 @@ def plot_val_lab(plot_vals='diff', op='diff', start_fr=-1):
             gen_util.accepted_values_error('op', op, ['diff', 'ratio'])
     else:
         gen_util.accepted_values_error('plot_vals', plot_vals, 
-                                       ['diff', 'surp', 'nosurp'])
+                                       ['diff', 'reg', 'surp', 'nosurp'])
 
     if start_fr != -1:
         labels = list(np.roll(labels, -(start_fr+1)))
 
     return labels
+
+
+#############################################
+def get_subax(ax, i):
+    """
+    get_subax(ax, i)
+
+    Returns the correct sub_ax based on a 1D index. Indexing is by column, then 
+    row.
+
+    Required arguments:
+        - ax (plt Axis): axis
+        - i (int)      : 1D subaxis index
+
+    Return:
+        - sub_ax (plt Axis subplot): subplot
+    """
+    if len(ax.shape) == 1:
+        n = ax.shape[0]
+        sub_ax = ax[i%n]
+    else:
+        ncols = ax.shape[1]
+        sub_ax = ax[i/ncols][i%ncols]
+
+    return sub_ax
 
 
 #############################################
@@ -132,10 +158,8 @@ def init_fig(n_subplots, fig_par):
                 ['subplot_hei'] (float): height of each subplot (inches)
 
     Return:
-        - fig (plt fig): pyplot figure
-        - ax (plt ax)  : pyplot axes
-        - ncols (int)  : number of columns in the figure
-        - nrows (int)  : number of rows in the figure
+        - fig (plt Fig): fig
+        - ax (plt Axis): axis
     """
 
     if n_subplots == 1:
@@ -149,7 +173,7 @@ def init_fig(n_subplots, fig_par):
                            figsize=(ncols*fig_par['subplot_wid'], 
                                     nrows*fig_par['subplot_hei']), 
                            sharey=fig_par['sharey'])
-    return fig, ax, ncols, nrows
+    return fig, ax
 
 
 #############################################
@@ -161,7 +185,7 @@ def save_fig(fig, save_dir, save_name, fig_par):
     parameters and returns final directory name.
 
     Required arguments:
-        - fig (plt fig)  : pyplot figure
+        - fig (plt Fig)  : figure
         - save_dir (str) : directory in which to save figure
         - save_name (str): name under which to save figure (WITHOUT extension)
         - fig_par (dict) : dictionary containing figure parameters:
@@ -226,7 +250,7 @@ def add_labels(ax, labels, xpos, t_hei=0.9, col='k'):
     Adds labels to a subplot.
 
     Required arguments:
-        - ax (pyplot Axis object): pyplot Axis (subplot) object
+        - ax (plt Axis subplot): subplot
         - labels (list or str) : list of labels to add to to axis
         - xpos (list or float) : list of x coordinates at which to add labels
                                  (same length as labels)
@@ -259,7 +283,7 @@ def add_bars(ax, hbars=None, bars=None, col='k'):
     Adds dashed vertical bars to a subplot.
 
     Required arguments:
-        - ax (pyplot Axis object): pyplot Axis (subplot) object
+        - ax (plt Axis subplot): subplot
 
     Optional arguments:
         - hbars (list or float): list of x coordinates at which to add 
@@ -294,23 +318,24 @@ def plot_traces(ax, chunk_val, stats='mean', error='std', title='', lw=1.5,
     Plot traces (mean/median with shaded error bars) on axis (ax).
 
     Required arguments:
-        - ax (pyplot axis object): pyplot axis
-        - chunk_val (2D array)   : array of chunk statistics, where the first
-                                   dimension corresponds to the statistics 
-                                   (x_ran [0], mean/median [1], deviation [2] or
-                                   [2:3] if quartiles)
+        - ax (plt Axis subplot): subplot
+        - chunk_val (2D array) : array of chunk statistics, where the first
+                                 dimension corresponds to the statistics 
+                                 (x_ran [0], mean/median [1], deviation [2] 
+                                 or [2:3] if quartiles)
     Optional arguments:
         - stats (str)          : statistic parameter, i.e. 'mean' or 'median'
                                  default: 'mean'
         - error (str)          : error statistic parameter, i.e. 'std' or 'sem'
                                  default: 'std'
         - title (str)          : axis title
-        - lw (float)           : pyplot line weight variable
-        - alpha (float)        : pyplot alpha variable controlling shading 
+        - lw (float)           : plt line weight variable
+        - alpha (float)        : plt alpha variable controlling shading 
                                  transparency (from 0 to 1)
         - label (str)          : label for legend
         - fluor (str)          : if 'raw', plot is labeled as raw fluorescence. 
-                                 Else, if 'dff', dF/F.
+                                 if 'dff, plot is labels with 'dF/F'.
+                                 if None, no y label is added.
                                  default: 'dff'
         - dff (bool)           : can be used instead of fluor, and if so
                                  (not None), will supercede fluor. 
@@ -346,9 +371,11 @@ def plot_traces(ax, chunk_val, stats='mean', error='std', title='', lw=1.5,
             fluor = 'dff'
         else:
             fluor = 'raw'
-
-    fluor_str = str_util.fluor_par_str(fluor, type_str='print')
-    ax.set_ylabel(fluor_str)
+    
+    if fluor is not None:
+        fluor_str = str_util.fluor_par_str(fluor, type_str='print')
+        ax.set_ylabel(fluor_str)
+    
     ax.set_xlabel('Time (s)')
     if xticks is not None:
         ax.set_xticks(xticks)

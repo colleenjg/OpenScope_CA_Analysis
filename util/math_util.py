@@ -12,6 +12,7 @@ Note: this code uses python 2.7.
 '''
 import numpy as np
 import scipy.stats as st
+import torch
 
 import gen_util
 
@@ -101,10 +102,17 @@ def error_stat(data, stats='mean', error='std', axis=None, nanpol=None, qu=[25, 
                     np.nanpercentile(data, qu[1], axis=axis)]
     elif stats == 'median' and error == 'sem':
         # MAD: median(abs(x - median(x)))
+        if axis is not None:
+            me_shape = list(data.shape)
+            me_shape[axis] = 1
+        else:
+            me_shape = -1
         if nanpol is None:
-            return np.median(np.absolute(data - np.median(data, axis=None)), axis=None)
+            me = np.median(data, axis=axis).reshape(me_shape)
+            return np.median(np.absolute(data - me), axis=axis)
         elif nanpol == 'omit':
-            return np.nanmedian(np.absolute(data - np.nanmedian(data, axis=None)), axis=None)
+            me = np.nanmedian(data, axis=axis).reshape(me_shape)
+            return np.nanmedian(np.absolute(data - me), axis=axis)
     elif stats != 'median' and stats != 'mean':
         gen_util.accepted_values_error('stats', stats, ['mean', 'median'])
     else:
@@ -184,6 +192,42 @@ def calc_norm(data, dimpos=None, out_range='pos'):
 
 
 #############################################
+def norm_facts(data, dim='all'):
+    """
+    norm_facts(data)
+
+    Calculates normalizing factors (mean and std) for a torch Tensor.
+
+    Required arguments:
+        - data (nd torch Tensor): data on which to calculate norm factors
+
+    Optional arguments:
+        - dim (str): if 'all', factors are calculated across entire Tensor.
+                     if 'last', factors are calculated along the last dimension.
+                     default: 'all'
+    
+    Returns:
+        - means (1 or 2D torch Tensor): Tensor containing the mean or means.
+        - stds (1 or 2D torch Tensor) : Tensor containing the std or stds.
+    """   
+    if dim == 'all':
+        all_tr_flat = data.view(-1, 1)
+        means = torch.mean(all_tr_flat)
+        stds = torch.std(all_tr_flat)
+    
+    elif dim == 'last':
+        # flatten along all but last dimension
+        all_data_flatter = data.view((-1,) + data.size()[-1:])
+        means = torch.mean(all_data_flatter, dim=0)
+        stds = torch.std(all_data_flatter, dim=0)
+
+    else:
+        gen_util.accepted_values_error('dim', dim, ['all', 'last'])
+
+    return means, stds
+
+
+#############################################
 def calc_op(data, vals='diff', op='diff', surp_dim=0):
     """
     calc_op(data)
@@ -204,8 +248,8 @@ def calc_op(data, vals='diff', op='diff', surp_dim=0):
     Returns:
         - data (nd array): data on which operation has been applied
     """
-    nosurp_ind = [slice(None)] * surp_dim + [0]
-    surp_ind = [slice(None)] * surp_dim + [1]
+    nosurp_ind = tuple([slice(None)] * surp_dim + [0])
+    surp_ind = tuple([slice(None)] * surp_dim + [1])
 
     if vals == 'diff':
         if op == 'diff':
@@ -367,3 +411,32 @@ def print_elem_list(elems, tail='up', act_vals=None):
             print('\tvals: {}'.format(', '.join(['{:.2f}'.format(x) 
                                         for x in act_vals])))    
 
+
+#############################################
+def get_percentiles(CI=95):
+    """
+    get_percentiles()
+
+    Returns percentile and names corresponding to the confidence interval
+    (centered on the median).
+
+    Optional arguments:
+        - CI (float): confidence interval
+                      default: 95
+
+    Returns:
+        - ps (list)     : list of percentile values, e.g., [2.5, 97.5]
+        - p_names (list): list of percentile names, e.g., ['p2p5', 'p97p5'] 
+
+    """
+
+    ps = [(100.-CI)*0.5, CI*0.5+50.] # high and lo quartiles
+    p_names = []
+    for p in ps:
+        p_res = p%1
+        if p_res == 0:
+            p_names.append('p{}'.format(int(p)))
+        else:
+            p_names.append('p{}p{}'.format(int(p), str(p_res)[2]))
+
+    return ps, p_names
