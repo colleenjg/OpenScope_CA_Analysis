@@ -1,10 +1,12 @@
 import os
 import datetime
 import argparse
+import glob
 
 import numpy as np
 import scipy.stats as st
 from matplotlib import pyplot as plt
+import pandas as pd
 import pdb
 
 from analysis import session
@@ -351,7 +353,7 @@ def quint_segs(gabors, analys_par, qu_info, surp='any'):
                                  to extracting segment numbers and dividing
                                  them into quintiles
                 ['gab_fr'] (int or list): gabor frame values to include
-                                         (e.g., 0, 1, 2, 3)
+                                          (e.g., 0, 1, 2, 3)
                 ['gab_k'] (int or list) : gabor kappa values to include 
                                           (e.g., 4, 16 or [4, 16])
                 ['n_quints'] (int)      : number of quintiles
@@ -556,7 +558,7 @@ def chunk_stats_by_qu_sess(sessions, analys_par, basic_par, byroi=True,
                 ['gab_k'] (int or list) : gabor kappa values to include 
                                           (e.g., 4, 16 or [4, 16])
                 ['gab_fr'] (int or list): gabor frame values to include
-                                         (e.g., 0, 1, 2, 3)
+                                          (e.g., 0, 1, 2, 3)
                 ['n_quints'] (int)      : number of quintiles
                 ['pre'] (float)         : range of frames to include before each 
                                           frame reference (in s)
@@ -568,19 +570,16 @@ def chunk_stats_by_qu_sess(sessions, analys_par, basic_par, byroi=True,
                                     traces.
                 ['error'] (str)   : error statistic parameter, i.e. 'std' or 
                                     'sem'
-                                    default: 'std'
                 ['rand'] (bool)   : if True, also includes statistics for a 
                                     random permutation of the traces (not 
                                     implemented).
-                                    default: False
                 ['remnans'] (str) : if 'per', removes ROIs with NaN/Inf values, 
                                     for each subdivision (quintile/surprise). If 
                                     'across', removes ROIs with NaN/Inf values 
                                     across subdivisions. If 'no', ROIs with 
                                     NaN/Inf values are not removed.
-                                    default: 'per'
                 ['stats'] (str)   : statistic parameter, i.e. 'mean' or 'median'
-                                    default: 'mean'
+
     Optional arguments:
         - byroi (bool)   : if True, returns statistics for each ROI. If False,
                            returns statistics across ROIs.
@@ -768,19 +767,16 @@ def plot_traces_by_qu_surp_sess(sessions, analys_par, basic_par, fig_par,
                                     traces.
                 ['error'] (str)   : error statistic parameter, i.e. 'std' or 
                                     'sem'
-                                    default: 'std'
                 ['rand'] (bool)   : if True, also includes statistics for a 
                                     random permutation of the traces (not 
                                     implemented).
-                                    default: False
                 ['remnans'] (str) : if 'per', removes ROIs with NaN/Inf values, 
                                     for each subdivision (quintile/surprise). If 
                                     'across', removes ROIs with NaN/Inf values 
                                     across subdivisions. If 'no', ROIs with 
                                     NaN/Inf values are not removed.
-                                    default: 'per'
                 ['stats'] (str)   : statistic parameter, i.e. 'mean' or 'median'
-                                    default: 'mean'
+
         - fig_par (dict)   : dictionary containing figure parameters:
                 ['bbox'] (str)           : bbox_inches parameter for 
                                            plt.savefig(), e.g., 'tight'
@@ -797,10 +793,11 @@ def plot_traces_by_qu_surp_sess(sessions, analys_par, basic_par, fig_par,
                                            suffix numbers.
                 ['sharey'] (bool)        : if True, y axis lims are shared 
                                            across subplots
-                ['subplot_wid'] (float)  : width of each subplot (inches)
                 ['subplot_hei'] (float)  : height of each subplot (inches)
+                ['subplot_wid'] (float)  : width of each subplot (inches)
                 ['surp_quint'] (str)     : specific subfolder in which to save 
                                            folder
+
         - sess_par (dict)  : dictionary containing session parameters:
                 ['layer'] (str)         : layer ('soma', 'dend', 'L23_soma',  
                                                'L5_soma', 'L23_dend', 'L5_dend', 
@@ -809,9 +806,8 @@ def plot_traces_by_qu_surp_sess(sessions, analys_par, basic_par, fig_par,
     """
     gabkstr = str_util.gab_k_par_str(analys_par['gab_k'])
     statstr = str_util.stat_par_str(basic_par['stats'], basic_par['error'])
-    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'])
-    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
-                                       str_type='print')
+    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 'file')
+    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'])
 
     print(('\nAnalysing and plotting surprise vs non surprise ROI traces '
            'by quintile ({}) \n({}).').format(analys_par['n_quints'], 
@@ -838,13 +834,10 @@ def plot_traces_by_qu_surp_sess(sessions, analys_par, basic_par, fig_par,
                                         byroi=False, data='all', bysurp=True)
     x_ran = chunk_info[0]
     all_stats = chunk_info[1]
-    fig, ax, ncols, nrows = plot_util.init_fig(len(sessions), fig_par)
+    fig, ax = plot_util.init_fig(len(sessions), fig_par)
 
     for i, sess in enumerate(sessions):
-        if nrows == 1:
-            sub_ax = ax[i%ncols]
-        else:
-            sub_ax = ax[i/ncols][i%ncols]
+        sub_ax = plot_util.get_subax(ax, i)
         for s, [col, leg_ext] in enumerate(zip([col_nosurp, col_surp],
                                                ['nosurp', 'surp'])):
             for q in range(analys_par['n_quints']):
@@ -852,7 +845,7 @@ def plot_traces_by_qu_surp_sess(sessions, analys_par, basic_par, fig_par,
                     n_rois = len(analys_par['ok_rois'][i][s][q])
                 else:
                     n_rois = sess.nroi
-                title=('Mouse {} - gab{} {} dF/F across gabor seqs\n(sess {}, '
+                title=(u'Mouse {} - gab{} {} dF/F across gabor seqs\n(sess {}, '
                        '{} {}, n={})').format(analys_par['mouse_ns'][i], gabkstr, 
                                            statstr, analys_par['act_sess_ns'][i], 
                                            analys_par['lines'][i], 
@@ -1033,7 +1026,7 @@ def grp_stats(integ_data, grps, plot_vals='diff', op='diff', stats='mean',
                              the group: session x roi_grp
     Optional arguments:
         - plt_vals (str): 'surp', 'nosurp' or 'diff'
-                           default: 'diff'
+                          default: 'diff'
         - op (str)      : operation to use to compare groups, 
                           i.e. 'diff': grp1-grp2, or 'ratio': grp1/grp2
                           default: 'diff'
@@ -1153,29 +1146,27 @@ def integ_per_grp_qu_sess(sessions, analys_par, basic_par, roi_grp_par):
                                           frame reference (in s)
                 ['post'] (float)        : range of frames to include after each 
                                           frame reference (in s)
+
         - basic_par (dict) : dictionary containing basic analysis parameters:
                 ['dfoverf'] (bool): if True, dF/F is used instead of raw ROI 
                                     traces.
                 ['error'] (str)   : error statistic parameter, i.e. 'std' or 
                                     'sem'
-                                    default: 'std'
                 ['rand'] (bool)   : if True, also includes statistics for a 
                                     random permutation of the traces (not 
                                     implemented).
-                                    default: False
                 ['remnans'] (str) : if 'per', removes ROIs with NaN/Inf values, 
                                     for each subdivision (quintile/surprise). If 
                                     'across', removes ROIs with NaN/Inf values 
                                     across subdivisions. If 'no', ROIs with 
                                     NaN/Inf values are not removed.
-                                    default: 'per'
                 ['stats'] (str)   : statistic parameter, i.e. 'mean' or 'median'
-                                    default: 'mean'
+
         - roi_grp_par (dict) : dictionary containing ROI grouping parameters:
                 ['op'] (str)         : operation to use to compare groups, 
                                        i.e. 'diff': grp1-grp2, or 'ratio': 
                                        grp1/grp2
-                                       default: 'diff'
+
     Returns:
         - integ_dffs (list)    : list of 3D arrays of mean/medians integrated 
                                  across chunks, for each session:
@@ -1241,6 +1232,7 @@ def signif_rois_by_grp_sess(sessions, integ_dffs_rel, analys_par, basic_par,
                                           frame reference (in s)
                 ['post'] (float)        : range of frames to include after each 
                                           frame reference (in s)
+
         - basic_par (dict)     : dictionary containing basic analysis 
                                  parameters:
                 ['dfoverf'] (bool): if True, dF/F is used instead of raw ROI 
@@ -1250,33 +1242,29 @@ def signif_rois_by_grp_sess(sessions, integ_dffs_rel, analys_par, basic_par,
                                     'across', removes ROIs with NaN/Inf values 
                                     across subdivisions. If 'no', ROIs with 
                                     NaN/Inf values are not removed.
-                                    default: 'per'
                 ['stats'] (str)   : statistic parameter, i.e. 'mean' or 'median'
-                                    default: 'mean'
+
         - perm_par (dict)    : dictionary containing permutation analysis 
                                parameters:
                 ['n_perms'] (int)     : nbr of permutations to run
-                                        default: 10000
                 ['p_val'] (float)     : p-value to use for significance  
                                         thresholding (0 to 1)
                 ['tails'] (str or int): which tail(s) to test: 'up', 'lo', '2'
-                                        default: '2'
+
         - roi_grp_par (dict) : dictionary containing ROI grouping parameters:
                 ['op'] (str)          : operation to use to compare groups, 
                                         i.e. 'diff': grp1-grp2, or 'ratio': 
                                         grp1/grp2
-                                        default: 'diff'
                 ['grps'] (str or list): set or sets of groups to return, 
                                         e.g., 'all', 'change', 'no_change', 
                                         'reduc', 'incr'.
                                         If several sets are passed, each set 
                                         will be collapsed as one group and
                                         'add_nosurp' will be set to False.
-                                        default: 'all'
                 ['add_nosurp'] (bool) : if True, group of ROIs showing no 
                                         significance in either is included in  
                                         the groups returned
-                                        default: False   
+
     Returns:
         - roi_grps (dict): dictionary containing:
                 ['all_roi_grps'] (list): list of sublists per session,  
@@ -1385,19 +1373,16 @@ def plot_rois_by_grp_qu_sess(sessions, analys_par, basic_par, fig_par, perm_par,
                                     traces.
                 ['error'] (str)   : error statistic parameter, i.e. 'std' or 
                                     'sem'
-                                    default: 'std'
                 ['rand'] (bool)   : if True, also includes statistics for a 
                                     random permutation of the traces (not 
                                     implemented).
-                                    default: False
                 ['remnans'] (str) : if 'per', removes ROIs with NaN/Inf values, 
                                     for each subdivision (quintile/surprise). If 
                                     'across', removes ROIs with NaN/Inf values 
                                     across subdivisions. If 'no', ROIs with 
                                     NaN/Inf values are not removed.
-                                    default: 'per'
                 ['stats'] (str)   : statistic parameter, i.e. 'mean' or 'median'
-                                    default: 'mean'
+
         - fig_par (dict)   : dictionary containing figure parameters:
                 ['bbox'] (str)           : bbox_inches parameter for 
                                            plt.savefig(), e.g., 'tight'
@@ -1414,23 +1399,22 @@ def plot_rois_by_grp_qu_sess(sessions, analys_par, basic_par, fig_par, perm_par,
                                            suffix numbers.
                 ['sharey'] (bool)        : if True, y axis lims are shared 
                                            across subplots
-                ['subplot_wid'] (float)  : width of each subplot (inches)
                 ['subplot_hei'] (float)  : height of each subplot (inches)
+                ['subplot_wid'] (float)  : width of each subplot (inches)
                 ['surp_quint'] (str)     : specific subfolder in which to save 
                                            folder
+
         - perm_par (dict)    : dictionary containing permutation analysis 
                                parameters:
                 ['n_perms'] (int)     : nbr of permutations to run
-                                        default: 10000
                 ['p_val'] (float)     : p-value to use for significance  
                                         thresholding (0 to 1)
                 ['tails'] (str or int): which tail(s) to test: 'up', 'lo', '2'
-                                        default: '2'
+
         - roi_grp_par (dict) : dictionary containing ROI grouping parameters:
                 ['op'] (str)         : operation to use to compare groups, 
                                        i.e. 'diff': grp1-grp2, or 'ratio': 
                                        grp1/grp2
-                                       default: 'diff'
                 ['plot_vals'] (str)  : values to plot 'diff' (surp-nosurp), 
                                        'surp' or 'nosurp'
                 ['grps'] (str)       : set of groups to return, e.g., 'all', 
@@ -1438,11 +1422,10 @@ def plot_rois_by_grp_qu_sess(sessions, analys_par, basic_par, fig_par, perm_par,
                                        If several sets are passed, each set 
                                         will be collapsed as one group and
                                         'add_nosurp' will be set to False.
-                                       default: 'all'
                 ['add_nosurp'] (bool): if True, group of ROIs showing no 
                                        significance in either is included in the 
                                        groups returned
-                                       default: False         
+ 
         - sess_par (dict)  : dictionary containing session parameters:
                 ['layer'] (str)         : layer ('soma', 'dend', 'L23_soma',  
                                                'L5_soma', 'L23_dend', 'L5_dend', 
@@ -1451,12 +1434,12 @@ def plot_rois_by_grp_qu_sess(sessions, analys_par, basic_par, fig_par, perm_par,
     """
 
     plotvalstr_pr = str_util.op_par_str(roi_grp_par['plot_vals'], 
-                                        roi_grp_par['op'], True, 'print')
-    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'],
-                                       str_type='print')
+                                        roi_grp_par['op'], True)
+    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'])
     opstr_pr = str_util.op_par_str(roi_grp_par['plot_vals'], roi_grp_par['op'], 
-                                   True, 'print')
-    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'])
+                                   True)
+    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
+                                    str_type='file')
     statstr = str_util.stat_par_str(basic_par['stats'], basic_par['error'])
     gabkstr = str_util.gab_k_par_str(analys_par['gab_k'])
 
@@ -1479,13 +1462,10 @@ def plot_rois_by_grp_qu_sess(sessions, analys_par, basic_par, fig_par, perm_par,
                            basic_par['stats'], basic_par['error'])
 
     x_ran = [x+1 for x in range(analys_par['n_quints'])]
-    fig, ax, ncols, nrows = plot_util.init_fig(len(sessions), fig_par)
+    fig, ax = plot_util.init_fig(len(sessions), fig_par)
     
     for i, sess_st in enumerate(grp_st):
-        if nrows == 1:
-            sub_ax = ax[i%ncols]
-        else:
-            sub_ax = ax[i/ncols][i%ncols]
+        sub_ax = plot_util.get_subax(ax, i)
         for g, g_n in enumerate(ns[i]):
             me = sess_st[:, g, 0]
             if basic_par['stats'] == 'median' and basic_par['error'] == 'std':
@@ -1498,7 +1478,7 @@ def plot_rois_by_grp_qu_sess(sessions, analys_par, basic_par, fig_par, perm_par,
             sub_ax.errorbar(x_ran, me, yerr, fmt='-o', capsize=4, capthick=2, 
                             label=leg)
 
-        title=('Mouse {} - {} gab{} \n{} seqs \n(sess {}, {} {}, {} tail '
+        title=(u'Mouse {} - {} gab{} \n{} seqs \n(sess {}, {} {}, {} tail '
                '(n={}))').format(analys_par['mouse_ns'][i], statstr, gabkstr, 
                                  opstr_pr, analys_par['act_sess_ns'][i],
                                  analys_par['lines'][i], sess_par['layer'], 
@@ -1548,32 +1528,30 @@ def grp_traces_by_qu_surp_sess(sessions, all_roi_grps, analys_par, basic_par,
                                           frame reference (in s)
                 ['post'] (float)        : range of frames to include after each 
                                           frame reference (in s)
+
         - basic_par (dict)    : dictionary containing additional parameters 
                                 relevant to analysis
                 ['dfoverf'] (bool): if True, dF/F is used instead of raw ROI 
                                     traces.
                 ['error'] (str)   : error statistic parameter, i.e. 'std' or 
                                     'sem'
-                                    default: 'std'
                 ['rand'] (bool)   : if True, also includes statistics for a 
                                     random permutation of the traces (not 
                                     implemented).
-                                    default: False
                 ['remnans'] (str) : if 'per', removes ROIs with NaN/Inf values, 
                                     for each subdivision (quintile/surprise). If 
                                     'across', removes ROIs with NaN/Inf values 
                                     across subdivisions. If 'no', ROIs with 
                                     NaN/Inf values are not removed.
-                                    default: 'per'
                 ['stats'] (str)   : statistic parameter, i.e. 'mean' or 'median'
-                                    default: 'mean'
+
         - roi_grp_par (dict)   : dictionary containing ROI grouping parameters:
                 ['op'] (str)         : operation to use to compare groups, 
                                        i.e. 'diff': grp1-grp2, or 'ratio': 
                                        grp1/grp2
-                                       default: 'diff'
                 ['plot_vals'] (str)  : values to plot 'diff' (surp-nosurp), 
                                        'surp' or 'nosurp' 
+
         - quint_ns (list or int): indices of the quintiles to include
     Returns:
         - x_ran (1D array)    : array of time values for the frame chunks
@@ -1618,8 +1596,8 @@ def grp_traces_by_qu_surp_sess(sessions, all_roi_grps, analys_par, basic_par,
 
 #############################################
 def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois, 
-                           analys_par, basic_par, fig_par, roi_grp_par, 
-                           sess_par, save_dict=True):
+                           analys_par, basic_par, fig_par, perm_par, 
+                           roi_grp_par, sess_par, save_dict=True):
     """
     plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois, 
                            analys_par, basic_par, fig_par, roi_grp_par, sess_par)
@@ -1637,6 +1615,7 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
                 ['qu'] (list)    : list of quintile indices to plot,
                 ['qu_lab'] (list): list of quintile labels,
                 ['cols'] (list)  : list of quintile colors
+
         - roi_grps (dict)  : dictionary containing ROI groups:
                 ['all_roi_grps'] (list): list of sublists per session,  
                                          containing ROI numbers included in each  
@@ -1647,6 +1626,7 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
                                                 session x roi_grp
                 ['grp_names'] (list)   : list of names of the ROI groups in roi 
                                          grp lists (order preserved)
+
         - n_rois (1D array): number of ROIs retained in each session
         - analys_par (dict): dictionary containing specific analysis parameters:
                 ['act_sess_ns'] (list)  : actual overall session number for
@@ -1668,9 +1648,8 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
         - basic_par (dict) : dictionary containing basic analysis parameters:
                 ['error'] (str)   : error statistic parameter, i.e. 'std' or 
                                     'sem'
-                                    default: 'std'
                 ['stats'] (str)   : statistic parameter, i.e. 'mean' or 'median'
-                                    default: 'mean'
+
         - fig_par (dict)   : dictionary containing figure parameters:
                 ['bbox'] (str)           : bbox_inches parameter for 
                                            plt.savefig(), e.g., 'tight'
@@ -1686,20 +1665,25 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
                                            figures is prevented by adding 
                                            suffix numbers.
                 ['prev_dt'] (str)        : datetime folder to use 
-                                           default: None
+                ['preset_ylims']         : if True, preset y lims are used
                 ['sharey'] (bool)        : if True, y axis lims are shared 
                                            across subplots
-                ['subplot_wid'] (float)  : width of each subplot (inches)
                 ['subplot_hei'] (float)  : height of each subplot (inches)
+                ['subplot_wid'] (float)  : width of each subplot (inches)
                 ['surp_quint'] (str)     : specific subfolder in which to save 
                                            folder
+
+        - perm_par (dict)    : dictionary containing permutation analysis 
+                               parameters:
+                ['tails'] (str or int): which tail(s) to test: 'up', 'lo', '2'
+  
         - roi_grp_par (dict): dictionary containing ROI grouping parameters:
                 ['op'] (str)         : operation to use to compare groups, 
                                        i.e. 'diff': grp1-grp2, or 'ratio': 
                                        grp1/grp2
-                                       default: 'diff'
                 ['plot_vals'] (str)  : values to plot 'diff' (surp-nosurp), 
                                        'surp' or 'nosurp'     
+  
         - sess_par (dict)   : dictionary containing session parameters:
                 ['layer'] (str)         : layer ('soma', 'dend', 'L23_soma',  
                                           'L5_soma', 'L23_dend', 'L5_dend', 
@@ -1715,14 +1699,14 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
         - full_dir (str): final name of the directory in which the figures are 
                           saved 
     """
-    opstr_pr = str_util.op_par_str(roi_grp_par['plot_vals'], roi_grp_par['op'], 
-                                   'print')
-    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'],
-                                       str_type='print')
+    opstr_pr = str_util.op_par_str(roi_grp_par['plot_vals'], roi_grp_par['op'])
+    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'])
     statstr = str_util.stat_par_str(basic_par['stats'], basic_par['error'])
     gabkstr = str_util.gab_k_par_str(analys_par['gab_k'])
-    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'])
-    opstr = str_util.op_par_str(roi_grp_par['plot_vals'], roi_grp_par['op'])
+    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
+                                    str_type='file')
+    opstr = str_util.op_par_str(roi_grp_par['plot_vals'], roi_grp_par['op'],
+                                str_type='file')
 
     print(('\nAnalysing and plotting {} ROI surp vs nosurp responses by '
            'quintile ({}). \n{}.').format(opstr_pr, analys_par['n_quints'], 
@@ -1759,14 +1743,12 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
         reset_mult = True
 
     for i in range(len(sessions)):
-        fig, ax, ncols, nrows = plot_util.init_fig(len(roi_grps['all_roi_grps'][i]), fig_par)
+        fig, ax = plot_util.init_fig(len(roi_grps['all_roi_grps'][i]), fig_par)
         for g, [grp_nam, grp_rois] in enumerate(zip(roi_grps['grp_names'], 
                                                     roi_grps['all_roi_grps'][i])):
             title = '{} group (n={})'.format(grp_nam, len(grp_rois))
-            if nrows == 1:
-                sub_ax = ax[g%ncols]
-            else:
-                sub_ax = ax[g/ncols][g%ncols]
+            sub_ax = plot_util.get_subax(ax, g)
+
             if len(grp_rois) == 0:
                 sub_ax.set_title(title)
                 continue
@@ -1786,7 +1768,7 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
             sub_ax.set_xlabel('Time (s)')
             sub_ax.legend(quint_plot['qu_lab'])
         
-        fig.suptitle(('Mouse {} - {} gab{} \n{} seqs for diff quint\n'
+        fig.suptitle((u'Mouse {} - {} gab{} \n{} seqs for diff quint\n'
                     '(sess {}, {} {}, {} tail (n={}))')
                         .format(analys_par['mouse_ns'][i], statstr, gabkstr, 
                                 opstr_pr, analys_par['act_sess_ns'][i], 
@@ -1824,8 +1806,8 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
 
 #############################################
 def plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, n_rois,
-                          analys_par, basic_par, fig_par, roi_grp_par, sess_par,
-                          save_dict=False):
+                          analys_par, basic_par, fig_par, perm_par, roi_grp_par, 
+                          sess_par, save_dict=False):
     """
     plot_roi_traces_by_grp(sessions, integ_dffs, quint_plot, roi_grps, 
                            analys_par, basic_par, fig_par, roi_grp_par, sess_par)
@@ -1849,6 +1831,7 @@ def plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, n_rois,
                 ['qu'] (list)    : list of quintile indices to plot,
                 ['qu_lab'] (list): list of quintile labels,
                 ['cols'] (list)  : list of quintile colors
+
         - roi_grps (dict)  : dictionary containing ROI groups:
                 ['all_roi_grps'] (list): list of sublists per session,  
                                          containing ROI numbers included in each  
@@ -1859,6 +1842,7 @@ def plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, n_rois,
                                                 session x roi_grp
                 ['grp_names'] (list)   : list of names of the ROI groups in roi 
                                          grp lists (order preserved)
+
         - n_rois (1D array): number of ROIs retained in each session
         - analys_par (dict): dictionary containing specific analysis parameters:
                 ['act_sess_ns'] (list)  : actual overall session number for
@@ -1876,41 +1860,48 @@ def plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, n_rois,
                 ['post'] (float)        : range of frames to include after each 
                                           frame reference (in s)
                 ['sess_ns'] (list)      : list of session IDs
+
         - basic_par (dict) : dictionary containing basic analysis parameters:
                 ['error'] (str)   : error statistic parameter, i.e. 'std' or 
                                     'sem'
-                                    default: 'std'
                 ['stats'] (str)   : statistic parameter, i.e. 'mean' or 'median'
-                                    default: 'mean'
+                                    
         - fig_par (dict)   : dictionary containing figure parameters:
                 ['bbox'] (str)           : bbox_inches parameter for 
-                                            plt.savefig(), e.g., 'tight'
+                                           plt.savefig(), e.g., 'tight'
                 ['datetime'] (bool)      : if True, figures are saved in a 
-                                            subfolder named based on the date 
-                                            and time.
+                                           subfolder named based on the date 
+                                           and time.
                 ['fig_ext'] (str)        : extension (without '.') with 
-                                            which to save figure
+                                           which to save figure
                 ['figdir_roi'] (str)     : main folder in which to save figure
                 ['mult'] (bool)          : if True, prev_dt is created or used.
                 ['ncols'] (int)          : number of columns in the figure
                 ['overwrite'] (bool)     : if False, overwriting existing 
-                                            figures is prevented by adding 
-                                            suffix numbers.
+                                           figures is prevented by adding 
+                                           suffix numbers.
                 ['prev_dt'] (str)        : datetime folder to use 
-                                            default: None
                 ['sharey'] (bool)        : if True, y axis lims are shared 
-                                            across subplots
-                ['subplot_wid'] (float)  : width of each subplot (inches)
+                                           across subplots
                 ['subplot_hei'] (float)  : height of each subplot (inches)
+                ['subplot_wid'] (float)  : width of each subplot (inches)
                 ['surp_quint'] (str)     : specific subfolder in which to save 
-                                            folder
+                                           folder
+
+        - perm_par (dict)    : dictionary containing permutation analysis 
+                               parameters:
+                ['n_perms'] (int)     : nbr of permutations to run
+                ['p_val'] (float)     : p-value to use for significance  
+                                        thresholding (0 to 1)
+                ['tails'] (str or int): which tail(s) to test: 'up', 'lo', '2'
+                                        
         - roi_grp_par (dict): dictionary containing ROI grouping parameters:
                 ['op'] (str)         : operation to use to compare groups, 
                                        i.e. 'diff': grp1-grp2, or 'ratio': 
                                        grp1/grp2
-                                       default: 'diff'
                 ['plot_vals'] (str)  : values to plot 'diff' (surp-nosurp), 
                                       'surp' or 'nosurp' 
+
         - sess_par (dict)  : dictionary containing session parameters:
                 ['layer'] (str)         : layer ('soma', 'dend', 'L23_soma',  
                                           'L5_soma', 'L23_dend', 'L5_dend', 
@@ -1928,14 +1919,14 @@ def plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, n_rois,
                           saved 
     """
     opstr_pr = str_util.op_par_str(roi_grp_par['plot_vals'], roi_grp_par['op'], 
-                                   True, 'print')
-    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
-                                       str_type='print')
+                                   True)
+    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'])
     statstr = str_util.stat_par_str(basic_par['stats'], basic_par['error'])
     gabkstr = str_util.gab_k_par_str(analys_par['gab_k'])
     opstr = str_util.op_par_str(roi_grp_par['plot_vals'], roi_grp_par['op'], 
-                                True)
-    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'])
+                                True, str_type='file')
+    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
+                                    str_type='file')
 
     print(('\nAnalysing and plotting {} ROI surp vs nosurp responses by '
         'quintile ({}). \n{}.').format(opstr_pr, analys_par['n_quints'],
@@ -1962,16 +1953,14 @@ def plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, n_rois,
     xpos = range(len(quint_plot['qu']))
     
     for i in range(len(sessions)):
-        fig, ax, _, _ = plot_util.init_fig(len(roi_grps['all_roi_grps'][i]), fig_par)
-        fignorm, axnorm, ncols, nrows = plot_util.init_fig(len(roi_grps['all_roi_grps'][i]), fig_par)
+        fig, ax = plot_util.init_fig(len(roi_grps['all_roi_grps'][i]), fig_par)
+        fignorm, axnorm = plot_util.init_fig(len(roi_grps['all_roi_grps'][i]), fig_par)
         for axis, norm in zip([ax, axnorm], [False, True]):
             for g, [grp_nam, grp_rois] in enumerate(zip(roi_grps['grp_names'], 
                                                         roi_grps['all_roi_grps'][i])):
                 title = '{} group (n={})'.format(grp_nam, len(grp_rois))
-                if nrows == 1:
-                    sub_ax = axis[g%ncols]
-                else:
-                    sub_ax = axis[g/ncols][g%ncols]
+                sub_ax = plot_util.get_subax(axis, g)
+
                 if len(grp_rois) == 0:
                     if not norm:
                         sub_ax.set_title(title)
@@ -1995,7 +1984,7 @@ def plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, n_rois,
                 sub_ax.set_xticks([0, 1])
                 sub_ax.set_title(title)
 
-        suptitle = ('Mouse {} - {} gab{} \n{} seqs for diff quint\n(sess {}, '
+        suptitle = (u'Mouse {} - {} gab{} \n{} seqs for diff quint\n(sess {}, '
                     '{} {}, {} tail (n={}))').format(analys_par['mouse_ns'][i], 
                                                   statstr, gabkstr, opstr_pr,
                                                   analys_par['act_sess_ns'][i], 
@@ -2077,41 +2066,48 @@ def plot_rois_by_grp(sessions, analys_par, basic_par, fig_par, perm_par,
                 ['post'] (float)        : range of frames to include after each 
                                           frame reference (in s)
                 ['sess_ns'] (list)      : list of session IDs
+
         - basic_par (dict) : dictionary containing basic analysis parameters:
                 ['error'] (str)   : error statistic parameter, i.e. 'std' or 
                                     'sem'
-                                    default: 'std'
                 ['stats'] (str)   : statistic parameter, i.e. 'mean' or 'median'
-                                    default: 'mean'
+
         - fig_par (dict)   : dictionary containing figure parameters:
                 ['bbox'] (str)           : bbox_inches parameter for 
-                                            plt.savefig(), e.g., 'tight'
+                                           plt.savefig(), e.g., 'tight'
                 ['datetime'] (bool)      : if True, figures are saved in a 
-                                            subfolder named based on the date 
-                                            and time.
+                                           subfolder named based on the date 
+                                           and time.
                 ['fig_ext'] (str)        : extension (without '.') with 
-                                            which to save figure
+                                           which to save figure
                 ['figdir_roi'] (str)     : main folder in which to save figure
                 ['mult'] (bool)          : if True, prev_dt is created or used.
                 ['ncols'] (int)          : number of columns in the figure
                 ['overwrite'] (bool)     : if False, overwriting existing 
-                                            figures is prevented by adding 
-                                            suffix numbers.
+                                           figures is prevented by adding 
+                                           suffix numbers.
                 ['prev_dt'] (str)        : datetime folder to use 
-                                            default: None
                 ['sharey'] (bool)        : if True, y axis lims are shared 
-                                            across subplots
-                ['subplot_wid'] (float)  : width of each subplot (inches)
+                                           across subplots
                 ['subplot_hei'] (float)  : height of each subplot (inches)
+                ['subplot_wid'] (float)  : width of each subplot (inches)
                 ['surp_quint'] (str)     : specific subfolder in which to save 
-                                            folder
+                                           folder
+
+        - perm_par (dict)    : dictionary containing permutation analysis 
+                               parameters:
+                ['n_perms'] (int)     : nbr of permutations to run
+                ['p_val'] (float)     : p-value to use for significance  
+                                        thresholding (0 to 1)
+                ['tails'] (str or int): which tail(s) to test: 'up', 'lo', '2'
+
         - roi_grp_par (dict): dictionary containing ROI grouping parameters:
                 ['op'] (str)         : operation to use to compare groups, 
                                        i.e. 'diff': grp1-grp2, or 'ratio': 
                                        grp1/grp2
-                                       default: 'diff'
                 ['plot_vals'] (str)  : values to plot 'diff' (surp-nosurp), 
                                       'surp' or 'nosurp' 
+
         - sess_par (dict)  : dictionary containing session parameters:
                 ['layer'] (str)         : layer ('soma', 'dend', 'L23_soma',  
                                           'L5_soma', 'L23_dend', 'L5_dend', 
@@ -2143,12 +2139,13 @@ def plot_rois_by_grp(sessions, analys_par, basic_par, fig_par, perm_par,
         reset_mult = True
 
     _ = plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, 
-                               n_rois, analys_par, basic_par, fig_par, 
+                               n_rois, analys_par, basic_par, fig_par, perm_par,
                                roi_grp_par, sess_par, save_dict=False)
 
     full_dir = plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, 
                                      n_rois, analys_par, basic_par, fig_par, 
-                                     roi_grp_par, sess_par, save_dict=False)
+                                     perm_par, roi_grp_par, sess_par, 
+                                     save_dict=False)
 
     # resetting the fig_par
     if reset_mult:
@@ -2204,19 +2201,16 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
                                     traces.
                 ['error'] (str)   : error statistic parameter, i.e. 'std' or 
                                     'sem'
-                                    default: 'std'
                 ['rand'] (bool)   : if True, also includes statistics for a 
                                     random permutation of the traces (not 
                                     implemented).
-                                    default: False
                 ['remnans'] (str) : if 'per', removes ROIs with NaN/Inf values, 
                                     for each subdivision (quintile/surprise). If 
                                     'across', removes ROIs with NaN/Inf values 
                                     across subdivisions. If 'no', ROIs with 
                                     NaN/Inf values are not removed.
-                                    default: 'per'
                 ['stats'] (str)   : statistic parameter, i.e. 'mean' or 'median'
-                                    default: 'mean'
+
         - fig_par (dict)   : dictionary containing figure parameters:
                 ['bbox'] (str)           : bbox_inches parameter for 
                                             plt.savefig(), e.g., 'tight'
@@ -2232,13 +2226,13 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
                                             suffix numbers.
                 ['mult'] (bool)          : if True, prev_dt is created or used.
                 ['prev_dt'] (str)        : datetime folder to use 
-                                            default: None
                 ['sharey'] (bool)        : if True, y axis lims are shared 
                                             across subplots
-                ['subplot_wid'] (float)  : width of each subplot (inches)
                 ['subplot_hei'] (float)  : height of each subplot (inches)
+                ['subplot_wid'] (float)  : width of each subplot (inches)
                 ['surp_quint'] (str)     : specific subfolder in which to save 
-                                            folder      
+                                            folder 
+
         - sess_par (dict)  : dictionary containing session parameters:
                 ['layer'] (str)         : layer ('soma', 'dend', 'L23_soma',  
                                             'L5_soma', 'L23_dend', 'L5_dend', 
@@ -2246,8 +2240,8 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
                 ['overall_sess_n'] (int): overall session number aimed for
     """
     statstr = str_util.stat_par_str(basic_par['stats'], basic_par['error'])
-    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'])
-    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 'print')
+    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 'file')
+    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'])
 
     # get sess x surp x quint x ROIs x frames
     chunk_info = chunk_stats_by_qu_sess(sessions, analys_par, basic_par, 
@@ -2331,10 +2325,10 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
         axis.set_xticklabels(labels)
         axis.legend(leg)
 
-    title = (('Magnitude ({}) in quintile difference across ROIs '
+    title = ((u'Magnitude ({}) in quintile difference across ROIs '
               'per mouse \n(sess {})').format(statstr, sessstr_pr))
     ax.set_title(title)
-    axnorm.set_title('{} (norm)'.format(title))
+    axnorm.set_title(u'{} (norm)'.format(title))
 
     save_dir = os.path.join(fig_par['figdir_roi'], fig_par['surp_quint'])
     save_name = ('roi_mag_diff_{}').format(sessstr)
@@ -2426,6 +2420,8 @@ def lfads_dict(sessions, mouse_df, runtype, gabfr, gabk=16, output=''):
                      'frames'        : frames.tolist(),
                      'surp_idx'      : surp_idx,    
                      'twop_fps'      : sess.twop_fps,
+                     'nanrois'       : sess.nanrois,
+                     'nanrois_dff'   : sess.nanrois_dff,
                     }
     
         name = 'sess_dict_mouse{}_sess{}_{}'.format(mouse, act_n, layer)
@@ -2468,6 +2464,7 @@ def autocorr_rois(data, lag, fps=None, stats='mean', error='std'):
                                         must match.
         - lag (float)                 : lag in frames or in seconds if fps is 
                                         provided.
+
     Optional arguments:
         - axis (int) : axis along which to calculate autocorrelation
                        default: None
@@ -2477,6 +2474,7 @@ def autocorr_rois(data, lag, fps=None, stats='mean', error='std'):
                        default: 'mean'
         - error (str): error statistic parameter, i.e. 'std' or 'sem'
                        default: 'std
+
     Returns:
         - autocorr_stats (2 or 3D array): autocorr statistics, structured as 
                                           follows:
@@ -2558,52 +2556,50 @@ def plot_gab_autocorr(sessions, analys_par, basic_par, fig_par, sess_par):
                                     traces.
                 ['error'] (str)   : error statistic parameter, i.e. 'std' or 
                                     'sem'
-                                    default: 'std'
                 ['remnans'] (str) : if 'per', removes ROIs with NaN/Inf values, 
                                     for each subdivision (quintile/surprise). If 
                                     'across', removes ROIs with NaN/Inf values 
                                     across subdivisions. If 'no', ROIs with 
                                     NaN/Inf values are not removed.
-                                    default: 'per'
                 ['stats'] (str)   : statistic parameter, i.e. 'mean' or 'median'
-                                    default: 'mean'
+
         - fig_par (dict)   : dictionary containing figure parameters:
                 ['autocorr'] (str)       : specific subfolder in which to save 
-                                            folder  
+                                           folder  
                 ['bbox'] (str)           : bbox_inches parameter for 
-                                            plt.savefig(), e.g., 'tight'
+                                           plt.savefig(), e.g., 'tight'
                 ['datetime'] (bool)      : if True, figures are saved in a 
-                                            subfolder named based on the date 
-                                            and time.
+                                           subfolder named based on the date 
+                                           and time.
                 ['fig_ext'] (str)        : extension (without '.') with 
-                                            which to save figure
+                                           which to save figure
                 ['figdir_roi'] (str)     : main folder in which to save figure
                 ['mult'] (bool)          : if True, prev_dt is created or used.
                 ['ncols'] (int)          : number of columns in the figure
                 ['overwrite'] (bool)     : if False, overwriting existing 
-                                            figures is prevented by adding 
-                                            suffix numbers.
+                                           figures is prevented by adding 
+                                           suffix numbers.
                 ['prev_dt'] (str)        : datetime folder to use 
-                                            default: None
                 ['sharey'] (bool)        : if True, y axis lims are shared 
-                                            across subplots
+                                           across subplots
+                ['subplot_hei'] (float)  : height of each subplot (inches)
                 ['subplot_wid'] (float)  : width of each subplot (inches)
-                ['subplot_hei'] (float)  : height of each subplot (inches)    
+
         - sess_par (dict)  : dictionary containing session parameters:
                 ['layer'] (str)         : layer ('soma', 'dend', 'L23_soma',  
                                             'L5_soma', 'L23_dend', 'L5_dend', 
                                             'L23_all', 'L5_all')
                 ['overall_sess_n'] (int): overall session number aimed for
     """
-    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'])
-    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 'print')
+    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 'file')
+    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'])
     statstr = str_util.stat_par_str(basic_par['stats'], basic_par['error'])
     gabkstr = str_util.gab_k_par_str(analys_par['gab_k'])
 
     print(('\nAnalysing and plotting ROI autocorrelations ' 
           '({}).').format(sessstr_pr))
 
-    fig, ax, ncols, nrows = plot_util.init_fig(len(sessions), fig_par)
+    fig, ax = plot_util.init_fig(len(sessions), fig_par)
     lag_s = analys_par['lag_s']
     xticks = np.linspace(-lag_s, lag_s, lag_s*4+1)
     yticks = np.linspace(0, 1, 6)
@@ -2618,10 +2614,7 @@ def plot_gab_autocorr(sessions, analys_par, basic_par, fig_par, sess_par):
     nan_rois = []
     ok_rois = []
     for i, sess in enumerate(sessions):
-        if nrows == 1:
-            sub_ax = ax[i%ncols]
-        else:
-            sub_ax = ax[i/ncols][i%ncols]
+        sub_ax = plot_util.get_subax(ax, i)
         all_segs = sess.gabors.get_segs_by_criteria(stimPar2=analys_par['gab_k'], 
                                                     by='block')
         sess_nans = []
@@ -2663,7 +2656,7 @@ def plot_gab_autocorr(sessions, analys_par, basic_par, fig_par, sess_par):
                         basic_par['error'], alpha=0.5/len(sessions), 
                         xticks=xticks, yticks=yticks, dff=basic_par['dfoverf'])
         plot_util.add_bars(sub_ax, bars=seg_bars)
-        sub_ax.set_title(('Mouse {} - {} gab{} {}\n(sess {}, {} {}, '
+        sub_ax.set_title((u'Mouse {} - {} gab{} {}\n(sess {}, {} {}, '
                           '(n={}))').format(analys_par['mouse_ns'][i], statstr,
                                             gabkstr, title_str, 
                                             analys_par['act_sess_ns'][i],
@@ -2689,6 +2682,157 @@ def plot_gab_autocorr(sessions, analys_par, basic_par, fig_par, sess_par):
 
     file_util.save_info(info, save_name, full_dir, 'json')
 
+
+#############################################
+def manage_args(args):
+    """
+    manage_args(args)
+
+    Split args into different dictionaries
+
+    Required arguments:
+        - args (Argument parser): parser with arguments as attributes listed
+                                  in the _keys lists, as well as 
+                no_add_nosurp (bool): if True, group of ROIs showing no 
+                                      significance in either is not added to   
+                                      the groups returned
+                no_datetime (bool)  : if True, figures are not saved in a 
+                                      subfolder named based on the date and 
+                                      time.
+                no_sharey (bool)    : if True, y axis lims are not shared 
+                                      across subplots
+                output (str)        : general path to save output
+                raw (bool)          : if True, raw ROI traces is used.
+                
+    Returns:
+        - analys_par (dict): dictionary containing specific analysis parameters:
+                ['gab_fr'] (int or list): gabor frame values to include
+                                          (e.g., 0, 1, 2, 3)
+                ['gab_k'] (int or list) : gabor kappa values to include 
+                                          (e.g., 4, 16 or [4, 16])
+                ['lines'] (list)        : transgenic line for each session
+                ['n_quints'] (int)      : number of quintiles
+                ['pre'] (float)         : range of frames to include before each 
+                                          frame reference (in s)
+                ['post'] (float)        : range of frames to include after each 
+                                          frame reference (in s)
+
+        - basic_par (dict) : dictionary containing basic analysis parameters:
+                ['dfoverf'] (bool): if True, dF/F is used instead of raw ROI 
+                                    traces.
+                ['error'] (str)   : error statistic parameter, i.e. 'std' or 
+                                    'sem'
+                ['rand'] (bool)   : if True, also includes statistics for a 
+                                    random permutation of the traces (not 
+                                    implemented).
+                ['remnans'] (str) : if 'per', removes ROIs with NaN/Inf values, 
+                                    for each subdivision (quintile/surprise). If 
+                                    'across', removes ROIs with NaN/Inf values 
+                                    across subdivisions. If 'no', ROIs with 
+                                    NaN/Inf values are not removed.
+                ['stats'] (str)   : statistic parameter, i.e. 'mean' or 'median'
+
+        - fig_par (dict)   : dictionary containing figure parameters:
+                ['autocorr'] (str)       : specific subfolder in which to save 
+                                           autocorrelation results  
+                ['bbox'] (str)           : bbox_inches parameter for 
+                                           plt.savefig(), e.g., 'tight'
+                ['datetime'] (bool)      : if True, figures are saved in a 
+                                           subfolder named based on the date 
+                                           and time.
+                ['fig_ext'] (str)        : extension (without '.') with 
+                                           which to save figure
+                ['figdir_roi'] (str)     : main folder in which to save figure
+                ['mult'] (bool)          : if True, prev_dt is created or used.
+                ['ncols'] (int)          : number of columns in the figure
+                ['overwrite'] (bool)     : if False, overwriting existing 
+                                           figures is prevented by adding 
+                                           suffix numbers.
+                ['preset_ylims']         : if True, preset y lims are used
+                ['prev_dt'] (str)        : datetime folder to use 
+                ['sharey'] (bool)        : if True, y axis lims are shared 
+                                           across subplots
+                ['subplot_hei'] (float)  : height of each subplot (inches)
+                ['subplot_wid'] (float)  : width of each subplot (inches)
+                ['surp_quint'] (str)     : specific folder in which to save 
+                                           surprise quintile results
+
+        - perm_par (dict)    : dictionary containing permutation analysis 
+                               parameters:
+                ['n_perms'] (int)     : nbr of permutations to run
+                ['p_val'] (float)     : p-value to use for significance  
+                                        thresholding (0 to 1)
+                ['tails'] (str or int): which tail(s) to test: 'up', 'lo', '2'
+
+        - roi_grp_par (dict) : dictionary containing ROI grouping parameters:
+                ['add_nosurp'] (bool) : if True, group of ROIs showing no 
+                                        significance in either is included in  
+                                        the groups returned
+                ['grps'] (str or list): set or sets of groups to return, 
+                                        e.g., 'all', 'change', 'no_change', 
+                                        'reduc', 'incr'.
+                                        If several sets are passed, each set 
+                                        will be collapsed as one group and
+                                        'add_nosurp' will be set to False.
+                ['op'] (str)          : operation to use to compare groups, 
+                                        i.e. 'diff': grp1-grp2, or 'ratio': 
+                                        grp1/grp2
+
+        - sess_par (dict)  : dictionary containing session parameters:
+                ['layer'] (str)            : layer ('soma', 'dend', 'L23_soma',  
+                                             'L5_soma', 'L23_dend', 'L5_dend', 
+                                             'L23_all', 'L5_all')
+                ['min_rois'] (int)         : min number of ROIs
+                ['omit_mice'] (list)       : mice to omit
+                ['omit_sess'] (list)       : sessions to omit
+                ['overall_sess_n'] (int)   : overall session number aimed for
+                ['pass_fail'] (str or list): pass/fail values of interest 
+                                             ('P', 'F')
+    """
+
+    analys_keys  = [ 'gab_fr', 'gab_k', 'lag_s', 'n_quints', 'post', 'pre']
+    basic_keys   = ['error', 'rand', 'remnans', 'stats']
+    fig_keys     = ['bbox', 'fig_ext', 'ncols', 'overwrite', 'preset_ylims', 
+                    'subplot_hei', 'subplot_wid']
+    perm_keys    = ['n_perms', 'p_val', 'tails']
+    roi_grp_keys = ['grps', 'op', 'plot_vals']
+    sess_keys    = ['layer', 'min_rois', 'omit_mice', 'omit_sess', 
+                    'overall_sess_n', 'pass_fail']
+
+    analys_par  = {key: args_dict[key] for key in analys_keys if key in args_dict.keys()}
+    basic_par   = {key: args_dict[key] for key in basic_keys if key in args_dict.keys()}
+    fig_par     = {key: args_dict[key] for key in fig_keys if key in args_dict.keys()}
+    perm_par    = {key: args_dict[key] for key in perm_keys if key in args_dict.keys()}
+    roi_grp_par = {key: args_dict[key] for key in roi_grp_keys if key in args_dict.keys()}
+    sess_par    = {key: args_dict[key] for key in sess_keys if key in args_dict.keys()}
+    
+    # add keys that are inverse of args
+    basic_par['dfoverf']      = not(args.raw)
+    fig_par['datetime']       = not(args.no_datetime)
+    fig_par['sharey']         = not(args.no_sharey)
+    roi_grp_par['add_nosurp'] = not(args.no_add_nosurp)
+    
+    # subfolders
+    fig_par['figdir_roi'] = os.path.join(args.output, 'figures', 
+                                         '{}_roi'.format(args.runtype))
+    fig_par['surp_quint'] = 'surp_nosurp_quint' 
+    fig_par['autocorr']   = 'autocorr'
+    
+    # allow reusing datetime folder (if mult figs created by one function)
+    fig_par['prev_dt'] = None
+    fig_par['mult']    = False
+
+    # make sure this key contains a list of ints
+    analys_par['gab_k'] = [int(val) for val in gen_util.list_if_not(analys_par['gab_k'])]
+    
+    if args.runtype == 'pilot':
+        sess_par['omit_sess'].extend([721038464]) # alignment didn't work
+        sess_par['omit_mice'].extend(gab_mice_omit(analys_par['gab_k']))
+    elif args.runtype == 'prod' and 16 not in analys_par['gab_k']:
+            raise ValueError(('The production data only includes gabor '
+                              'stimuli with kappa=16'))
+    
+    return analys_par, basic_par, fig_par, perm_par, roi_grp_par, sess_par
 
 
 if __name__ == "__main__":
@@ -2744,8 +2888,8 @@ if __name__ == "__main__":
     parser.add_argument('--grps', default=['no_change', 'incr', 'reduc'], 
                         help=('plot all ROI grps or grps with change or '
                               'no_change'))
-    parser.add_argument('--add_nosurp', action='store_false',
-                        help='add nosurp_nosurp to ROI grp plots') # default True
+    parser.add_argument('--no_add_nosurp', action='store_true',
+                        help='do not add nosurp_nosurp to ROI grp plots')
     
         # permutation analysis parameters
     parser.add_argument('--n_perms', default=10000, type=int, 
@@ -2757,32 +2901,32 @@ if __name__ == "__main__":
     
         # figure parameters
     parser.add_argument('--fig_ext', default='svg', help='svg or png')
-    parser.add_argument('--datetime', action='store_false',
-                        help='create a datetime folder') # default True
+    parser.add_argument('--no_datetime', action='store_true',
+                        help='create a datetime folder')
     parser.add_argument('--overwrite', action='store_true', 
-                        help='allow overwriting') # default False
+                        help='allow overwriting')
     parser.add_argument('--ncols', default=3, type=int, 
                         help='nbr of cols per fig')
-    parser.add_argument('--subplot_wid', default=7.5, type=float, 
-                        help='subplot width')
     parser.add_argument('--subplot_hei', default=7.5, type=float, 
                         help='subplot height')
+    parser.add_argument('--subplot_wid', default=7.5, type=float, 
+                        help='subplot width')
     parser.add_argument('--bbox', default='tight', help='wrapping around figs')
     parser.add_argument('--preset_ylims', action='store_true',
-                        help='use preset y lims') # default False
-    parser.add_argument('--sharey', action='store_false',
-                        help='share y axis lims within figs') # default True
+                        help='use preset y lims')
+    parser.add_argument('--no_sharey', action='store_true',
+                        help='do not share y axis lims within figs')
 
         # basic parameters
     parser.add_argument('--rand', action='store_true',
                         help=('produce plots from randomized data (in many '
-                              'cases, not implemented yet')) # default False
+                              'cases, not implemented yet'))
     parser.add_argument('--remnans', default='across', 
                         help=('remove ROIs containing NaNs or Infs across '
                               'quintiles (across), per quintile (per) or not '
                               '(no)'))
-    parser.add_argument('--dfoverf', action='store_false',
-                        help='use dfoverf instead of raw ROI traces') # default True
+    parser.add_argument('--raw', action='store_true',
+                        help='use raw instead of dfoverf ROI traces')
     parser.add_argument('--stats', default='mean', help='plot mean or median')
     parser.add_argument('--error', default='sem', 
                         help='sem for SEM/MAD, std for std/qu')
@@ -2798,45 +2942,10 @@ if __name__ == "__main__":
         args.datadir = '../data/AIBS/{}'.format(args.runtype)
     
     mouse_df_dir = 'mouse_df_{}.csv'.format(args.runtype)
+    mouse_df = file_util.load_file(mouse_df_dir, file_type='csv')
 
-    # split args dictionary keys into different dictionaries
-    sess_keys    = ['layer', 'overall_sess_n', 'min_rois', 'pass_fail', 
-                    'omit_sess', 'omit_mice']
-    analys_keys  = ['n_quints', 'lag_s', 'gab_k', 'gab_fr', 'pre', 'post']
-    roi_grp_keys = ['op', 'plot_vals', 'grps', 'add_nosurp']
-    perm_keys    = ['n_perms', 'p_val', 'tails']
-    fig_keys     = ['fig_ext', 'datetime', 'overwrite', 'ncols', 'subplot_wid', 
-                    'subplot_hei', 'bbox', 'preset_ylims', 'sharey']
-    basic_keys   = ['rand', 'remnans', 'dfoverf', 'stats', 'error']
-
-    sess_par    = {key: args_dict[key] for key in sess_keys if key in args_dict.keys()}
-    analys_par  = {key: args_dict[key] for key in analys_keys if key in args_dict.keys()}
-    roi_grp_par = {key: args_dict[key] for key in roi_grp_keys if key in args_dict.keys()}
-    perm_par    = {key: args_dict[key] for key in perm_keys if key in args_dict.keys()}
-    fig_par     = {key: args_dict[key] for key in fig_keys if key in args_dict.keys()}
-    basic_par   = {key: args_dict[key] for key in basic_keys if key in args_dict.keys()}
-
-    fig_par['figdir_roi'] = os.path.join(args.output, 'figures', 
-                                         '{}_roi'.format(args.runtype))
-    # subfolders
-    fig_par['surp_quint'] = 'surp_nosurp_quint' 
-    fig_par['autocorr']   = 'autocorr'
-    # allow reusing datetime folder (if mult figs created by one function)
-    fig_par['prev_dt'] = None
-    fig_par['mult']    = False
-
-    # make sure this key contains a list of ints
-    analys_par['gab_k'] = [int(val) for val in gen_util.list_if_not(analys_par['gab_k'])]
-    
-    if args.runtype == 'pilot':
-        sess_par['omit_sess'].extend([721038464]) # alignment didn't work
-        sess_par['omit_mice'].extend(gab_mice_omit(analys_par['gab_k']))
-    elif args.runtype == 'prod' and 16 not in analys_par['gab_k']:
-            raise ValueError(('The production data only includes gabor '
-                              'stimuli with kappa=16'))
-
-    ### CODE STARTS HERE ###
-    mouse_df = file_util.load_file(mouse_df_dir, 'csv')
+    [analys_par, basic_par, fig_par, perm_par, 
+                        roi_grp_par, sess_par] = manage_args(args)
 
     # get session numbers
     [analys_par['sess_ns'], analys_par['mouse_ns'],
@@ -2848,6 +2957,7 @@ if __name__ == "__main__":
 
     if args.analyses == 'all':
         args.analyses = 'ltqcma'
+
 
     # 0. Create dictionary including frame numbers for LFADS analysis
     if 'l' in args.analyses: # lfads
@@ -2879,5 +2989,4 @@ if __name__ == "__main__":
     # 5. Run autocorrelation analysis
     if 'a' in args.analyses: # autocorr
         plot_gab_autocorr(sessions, analys_par, basic_par, fig_par, sess_par)
-
 

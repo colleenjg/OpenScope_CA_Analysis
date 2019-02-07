@@ -26,8 +26,8 @@ def shuff_par_str(shuffle=True, type_str='print'):
     Optional arguments:
         - shuffle (bool): default: True
         - type (str)    : 'print' for a printable string and 'file' for a
-                          string usable in a filename.
-                          default: 'print'
+                           string usable in a filename.
+                           default: 'print'
     
     Returns:
         - shuff_str (str): shuffle parameter string
@@ -56,16 +56,16 @@ def norm_par_str(norm=True, type_str='print'):
     Creates a string from norm parameter to print or for a filename.
 
     Optional arguments:
-        - norm (bool): default: True
-        - type (str) : 'print' for a printable string and 'file' for a
-                       string usable in a filename.
-                       default: 'print'
+        - norm (bool or str): default: True
+        - type (str)        : 'print' for a printable string and 'file' for a
+                              string usable in a filename.
+                              default: 'print'
     
     Returns:
         - norm_str (str): norm parameter string
     """
-
-    if norm:
+    
+    if norm != 'none' and norm:
         if type_str == 'print':
             norm_str = ', norm'
         elif type_str == 'file':
@@ -130,7 +130,7 @@ def fluor_par_str(fluor='dff', type_str='print', dff=None):
     
 
 #############################################
-def stat_par_str(stats='mean', error='std'):
+def stat_par_str(stats='mean', error='std', str_type='print'):
     """
     stat_par_str()
 
@@ -138,22 +138,31 @@ def stat_par_str(stats='mean', error='std'):
     title.
 
     Optional arguments:
-        - stats (str): 'mean' or 'median'
-                       default: 'mean'
-        - error (str): 'std' (for std or quartiles) or 'sem' (for SEM or MAD)
-                       default: 'std'
+        - stats (str)   : 'mean' or 'median'
+                          default: 'mean'
+        - error (str)   : 'std' (for std or quartiles) or 'sem' (for SEM or MAD)
+                          default: 'std'
+        - str_type (str): use of output str, i.e., for a filename ('file') or
+                          to print the info to console or for title ('print')
+                          default = 'print'
     
     Returns:
         - stat_str (str): statistics combo string
     """
+    if str_type == 'print':
+        sep = u'\u00B1' # +- symbol
+    elif str_type == 'file':
+        sep = '_'
+    else:
+        gen_util.accepted_values_error('str_type', str_type, ['print', 'file'])
 
     if stats == 'mean':
-        stat_str = '{}/{}'.format(stats, error)
+        stat_str = u'{}{}{}'.format(stats, sep, error)
     elif stats == 'median':
         if error == 'std':
-            stat_str = '{}/qu'.format(stats)
+            stat_str = u'{}{}qu'.format(stats, sep)
         elif error == 'sem':
-            stat_str = '{}/mad'.format(stats)
+            stat_str = u'{}{}mad'.format(stats, sep)
         else:
             gen_util.accepted_values_error('error', error, ['std', 'sem'])
     else:
@@ -225,7 +234,7 @@ def create_time_str():
 
 
 #############################################
-def sess_par_str(sess_par, gab_k, str_type='file'):
+def sess_par_str(sess_par, gab_k, str_type='print'):
     """
     sess_par_str(sess_par, gab_k)
 
@@ -244,7 +253,7 @@ def sess_par_str(sess_par, gab_k, str_type='file'):
     Optional arguments:
         - str_type (str): use of output str, i.e., for a filename ('file') or to
                           print the info to console ('print')
-                          default = 'file'
+                          default = 'print'
     Return:
         - sess_str (list): string containing info on session and gabor kappa 
                            parameters
