@@ -26,6 +26,7 @@ import scipy.stats as st
 
 from allensdk.brain_observatory.dff import compute_dff
 
+import util.gen_util as gen_util
 import util.file_util as file_util
 import util.sync_util as sync_util
 
@@ -41,7 +42,7 @@ class Session(object):
     2P data.
     """
     
-    def __init__(self, datadir, sessionid, droptol=0.0003):
+    def __init__(self, datadir, sessionid, runtype='prod', droptol=0.0003):
         """
         self.__init__(datadir, sessionid)
 
@@ -53,14 +54,19 @@ class Session(object):
             - sessionid (string): the ID for this session.
 
         Optional arguments:
-            - droptol (float): the tolerance for percentage stimulus frames 
-                               dropped, create a Warning if this condition 
-                               isn't met.
-                               default = 0.0003 
+            - runtype (string): the type of run, either 'pilot' or 'prod'
+                                default = 'prod'
+            - droptol (float) : the tolerance for percentage stimulus frames 
+                                dropped, create a Warning if this condition 
+                                isn't met.
+                                default = 0.0003 
         """
 
         self.home    = datadir
         self.session = sessionid
+        if runtype not in ['pilot', 'prod']:
+            gen_util.accepted_values_error('runtype', runtype, ['pilot', 'prod'])
+        self.runtype = runtype
         self.droptol = droptol
         self._init_directory()
         
@@ -83,8 +89,19 @@ class Session(object):
                                      'directory').format(self.home))
 
         # set the session directory (full path)
-        self.dir = os.path.join(self.home, 'ophys_session_{}'
-                                .format(self.session))
+        if self.runtype == 'pilot':
+            self.dir = os.path.join(self.home, 'ophys_session_{}'
+                                    .format(self.session))
+        elif self.runtype == 'prod':
+            # files are stored in a mouseid subfolder
+            wild_dir = os.path.join(self.home, '*', 'ophys_session_{}'
+                                    .format(self.session))
+            name_dir = glob.glob(wild_dir)
+            if len(name_dir) == 0:
+                raise exceptions.OSError(('Could not find directory for session'
+                                           ' {} in {} subfolders')
+                                           .format(self.session, self.home))
+            self.dir = name_dir[0]
 
         # extract the mouse ID, and date from the stim pickle file
         pklglob    = glob.glob(os.path.join(self.dir, '{}*stim.pkl'
@@ -111,7 +128,7 @@ class Session(object):
         self.align_pkl, self.corrected, self.roi_traces, self.roi_traces_dff, 
             self.zstack) = \
             file_util.get_file_names(self.home, self.session, self.experiment, 
-            self.date, self.mouse)       
+            self.date, self.mouse, self.runtype)       
     
     #############################################
     def _load_stim_dict(self):
@@ -162,7 +179,8 @@ class Session(object):
         # create align_df if doesn't exist
         if not os.path.exists(self.align_pkl):
             sync_util.get_stim_frames(self.stim_pkl, self.stim_sync, 
-                                      self.align_pkl)
+                                      self.align_pkl, self.runtype)
+            
         else:
             print('NOTE: Stimulus alignment pickle already exists in {}'
                   .format(self.dir))
@@ -191,6 +209,7 @@ class Session(object):
         # running speed per stimulus frame in cm/s
         self.run = sync_util.get_run_speed(self.stim_pkl)
 
+
     #############################################
     def _load_roi_traces(self):
         """
@@ -213,11 +232,25 @@ class Session(object):
 
                 # get the number of data points in the traces
                 self.nframes = f['data'].shape[1]
+
+                # generate attribute listing ROIs with NaNs or Infs (for raw traces)
+                self.get_nanrois(f['data'].value)
     
         except:
             raise exceptions.IOError('Could not open {} for reading'
                                      .format(self.roi_traces))
-    
+
+    #############################################
+    def get_nanrois(self, traces, dfoverf=False):
+        nan_arr = np.isnan(traces).any(axis=1) + np.isinf(traces).any(axis=1)
+        nan_rois = np.where(nan_arr)[0].tolist()
+
+        if dfoverf:
+            self.nanrois_dff = nan_rois
+        else:
+            self.nanrois = nan_rois
+
+
     #############################################
     def extract_info(self, load_run=True):
         """
@@ -255,21 +288,30 @@ class Session(object):
         self.stim_types = []
         self.n_stims    = len(self.stim_dict['stimuli'])
         self.stims      = []
+        if self.runtype == 'prod':
+            self.bricks = []
         for i in range(self.n_stims):
             stim      = self.stim_dict['stimuli'][i]
-            stim_type = stim['stimParams']['elemParams']['name']
+            if self.runtype == 'pilot':
+                stim_type = stim['stimParams']['elemParams']['name']
+            elif self.runtype == 'prod':
+                stim_type = stim['stim_params']['elemParams']['name']
             self.stim_types.extend([stim_type])
             # initialize a Gabors object
             if stim_type == 'gabors':
                 self.gabors = Gabors(self, i)
             # initialize a Bricks object
             elif stim_type == 'bricks':
-                self.bricks = Bricks(self, i)
+                if self.runtype == 'prod':
+                    self.bricks.append(Bricks(self, i))
+                elif self.runtype == 'pilot':
+                    self.bricks = Bricks(self, i)
             else:
                 print(('{} stimulus type not recognized. No Stim object ' 
                       'created for this stimulus. \n').format(stim_type))
         # initialize a Grayscr object
         self.grayscr = Grayscr(self)
+
 
     #############################################
     def get_run_speed(self, frames):
@@ -295,19 +337,20 @@ class Session(object):
 
         return speed
 
+
     ############################################
     def create_dff(self, replace=False, basewin=1000):
         """
         self.create_dff()
 
-        Returns the running speed for the given two-photon imaging
-        frames using linear interpolation.
+        Creates ans saves the dff traces.
 
         Required arguments:
-            - frames (int array): set of 2p imaging frames to give speed for
+            - replace (bool): if True, any pre-existing dff traces are replaced
+                              default: False
+            - basewin (int) : basewin factor for compute_dff function
+                              default: 1000
         
-        Returns:
-            - speed (float array): running speed (in cm/s) - CHECK THIS
         """
         
         if not os.path.exists(self.roi_traces_dff) or replace:
@@ -324,7 +367,14 @@ class Session(object):
                 
             with h5py.File(self.roi_traces_dff, 'w') as hf:
                 hf.create_dataset('data',  data=traces)
-            
+        
+        # generate attribute listing ROIs with NaNs or Infs (for dff traces)
+        with h5py.File(self.roi_traces_dff, 'r') as f:
+            traces = f['data'].value
+        
+        self.get_nanrois(traces, dfoverf=True)
+
+
     #############################################
     def get_roi_traces(self, frames=None, dfoverf=False, basewin=1000):
         """
@@ -347,7 +397,8 @@ class Session(object):
                                   (default=1000)
 
         Returns:
-            - traces (float array): array of dF/F for the specified frames/ROIs
+            - traces (float array): array of dF/F for the specified frames,
+                                    (ROI x frames)
         """
         
         # check if we're getting all frames, if not, make sure the frames are all legit
@@ -366,13 +417,13 @@ class Session(object):
         else:
             roi_traces = self.roi_traces
         
-        with h5py.File(roi_traces,'r') as f:
+        with h5py.File(roi_traces, 'r') as f:
             try:
                 traces = f['data'].value[:,frames]
             except:
                 pdb.set_trace()
                 raise exceptions.IOError('Could not read {}'.format(self.roi_traces))
-
+        
         # REPLACED ABOVE WHERE DFF applied to entire traces
         # # convert to df over f if requested
         # if dfoverf:
@@ -543,43 +594,59 @@ class Stim(object):
 
         # get segment parameters
         # seg is equivalent to a sweep, as defined in camstim 
+        if self.sess.runtype == 'pilot':
+            stim_par = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']
+        if self.sess.runtype == 'prod':
+            stim_par = self.sess.stim_dict['stimuli'][self.stim_n]['stim_params']
+
         if self.stim_type == 'gabors':
             params = 'gabor_params'
+            dur_key = 'gab_dur'
             # segment length (sec) (0.3 sec)
-            self.seg_len_s     = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams'][params]['im_len'] 
+            self.seg_len_s     = stim_par[params]['im_len'] 
             # num seg per set (4: A, B, C D/E)
-            self.n_seg_per_set = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams'][params]['n_im'] 
-            self.exp_n_blocks  = 2 # HARD-CODED, 2 blocks (1 per kappa) should be shown.
+            self.n_seg_per_set = stim_par[params]['n_im'] 
+            if self.sess.runtype == 'pilot':
+                self.exp_n_blocks  = 2 # HARD-CODED, 2 blocks (1 per kappa) should be shown.
         elif self.stim_type == 'bricks':
             params = 'square_params'
+            dur_key = 'sq_dur'
             # segment length (sec) (1 sec)
-            self.seg_len_s     = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams'][params]['seg_len']
-            # HARD-CODED, 4 blocks (1 per direction/size) should be shown.
-            self.exp_n_blocks  = 4
+            self.seg_len_s     = stim_par[params]['seg_len']
+            if self.sess.runtype == 'pilot':
+                self.exp_n_blocks  = 4 # HARD-CODED, 4 blocks (1 per direction/size) should be shown.
         else:
             raise ValueError(('{} stim type not recognized. Stim object cannot '
                              'be initialized.').format(self.stim_type))
         
+        if self.sess.runtype == 'prod':
+            self.exp_n_blocks = 1
         # blank period (i.e., 1 blank every _ segs)
         self.blank_per     = self.sess.stim_dict['stimuli'][self.stim_n]['blank_sweeps'] 
         # num seg per sec (blank segs count) 
         self.seg_ps_wibl   = 1/self.seg_len_s 
         # num seg per sec (blank segs do not count)
-        self.seg_ps_nobl   = self.seg_ps_wibl*self.blank_per/(1.+self.blank_per) 
+        if self.blank_per != 0:
+            self.seg_ps_nobl = self.seg_ps_wibl*self.blank_per/(1.+self.blank_per) 
+        else:
+            self.seg_ps_nobl = self.seg_ps_wibl
         
         # sequence parameters
         # min duration of each surprise sequence (sec)
-        self.surp_min_s  = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams'][params]['surp_len'][0]
+        self.surp_min_s  = stim_par[params]['surp_len'][0]
         # max duration of each surprise sequence (sec)
-        self.surp_max_s  = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams'][params]['surp_len'][1]
+        self.surp_max_s  = stim_par[params]['surp_len'][1]
         # min duration of each regular sequence (sec)
-        self.reg_min_s   = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams'][params]['reg_len'][0]
+        self.reg_min_s   = stim_par[params]['reg_len'][0]
         # max duration of each regular sequence (sec)
-        self.reg_max_s   = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams'][params]['reg_len'][1]
+        self.reg_max_s   = stim_par[params]['reg_len'][1]
         # expected length of a block (sec) where an overarching parameter is 
         # held constant
-        self.exp_block_len_s = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams'][params]['block_len'] 
-                                                                                                    
+        if self.sess.runtype == 'pilot':
+            self.exp_block_len_s = stim_par[params]['block_len'] 
+        elif self.sess.runtype == 'prod':
+            self.exp_block_len_s = stim_par['session_params'][dur_key]
+                                                                                                
         self._get_blocks()
         self._get_frames()
 
@@ -1428,26 +1495,17 @@ class Stim(object):
                                                     dfoverf=dfoverf)
         roi_data = roi_data.tolist()
 
-        # identify any ROIs containing NaNs or infs
         if nans == 'rem' or nans == 'list':
-            nan_rois = []
+            if dfoverf:
+                nan_rois = self.sess.nanrois_dff
+            else:
+                nan_rois = self.sess.nanrois
             n_rois = len(roi_data)
-            ok_rois = range(n_rois)
-            if (sum(sum(sum(np.isnan(roi_data)))) > 0 or 
-                sum(sum(sum(np.isinf(roi_data)))) > 0):
-                for i in range(n_rois):
-                    if (sum(sum(np.isnan(roi_data[i]))) > 0 or 
-                        sum(sum(np.isinf(roi_data[i])))):
-                        nan_rois.extend([i])
-                        ok_rois.remove(i)
-                # remove ROIs from roi_data
-                count = 0
-                if nans == 'rem':
-                    for j in nan_rois:
-                        roi_data.pop(j-count)
-                        count += 1
-                    print('Removing {}/{} ROIs: {}'
-                        .format(len(nan_rois), n_rois, ', '.join(map(str, nan_rois))))
+            ok_rois = sorted(set(range(n_rois)) - set(nan_rois))
+            if nans == 'rem':
+                roi_data = roi_data[ok_rois]
+                print('Removing {}/{} ROIs: {}'.format(len(nan_rois), n_rois, 
+                                        ', '.join([str(x) for x in nan_rois])))
         
         # get ROI stats
         if byroi:
@@ -1575,14 +1633,21 @@ class Gabors(Stim):
         Stim.__init__(self, sess, stim_n, stim_type='gabors')
 
         # gabor specific parameters
-        self.units     = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['gabor_params']['units']
-        self.phase     = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['gabor_params']['phase']
-        self.sf        = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['gabor_params']['sf']
-        self.n_patches = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['gabor_params']['n_gabors']
-        self.oris      = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['gabor_params']['oris']
-        self.ori_std   = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['gabor_params']['ori_std']
+        if self.sess.runtype == 'pilot':
+            gabor_par = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['gabor_params']
+        elif self.sess.runtype == 'prod':
+            gabor_par = self.sess.stim_dict['stimuli'][self.stim_n]['stim_params']['gabor_params']
+        self.units     = gabor_par['units']
+        self.phase     = gabor_par['phase']
+        self.sf        = gabor_par['sf']
+        self.n_patches = gabor_par['n_gabors']
+        self.oris      = gabor_par['oris']
+        self.ori_std   = gabor_par['ori_std']
         # kappas calculated as 1/std**2
-        self.ori_kaps = [1/x**2 for x in self.ori_std] 
+        if self.sess.runtype == 'pilot':
+            self.ori_kaps = [1/x**2 for x in self.ori_std] 
+        elif self.sess.runtype == 'prod':
+            self.ori_kaps = 1/self.ori_std**2
 
         # seg sets (hard-coded, based on the repeating structure  we are 
         # interested in, namely: blank, A, B, C, D/E)
@@ -1681,14 +1746,20 @@ class Bricks(Stim):
         Stim.__init__(self, sess, stim_n, stim_type='bricks')
 
         # initialize brick specific parameters
-        self.units    = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['square_params']['units']
-        self.flipfrac = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['square_params']['flipfrac']
-        self.speed = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['square_params']['speed']
-        self.sizes = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['square_params']['sizes']
-        
+        if self.sess.runtype == 'pilot':
+            sqr_par = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['square_params']
+            self.sizes = sqr_par['sizes']
+            self.direcs = sqr_par['direcs']
+        elif self.sess.runtype == 'prod':
+            sqr_par = self.sess.stim_dict['stimuli'][self.stim_n]['stim_params']['square_params']
+            self.sizes = self.sess.stim_dict['stimuli'][self.stim_n]['stim_params']['elemParams']['sizes']
+            self.direcs = self.sess.stim_dict['stimuli'][self.stim_n]['stim_params']['direc']
+        self.units    = ['units']
+        self.flipfrac = sqr_par['flipfrac']
+        self.speed = sqr_par['speed']
+
         # number of bricks not recorded in stim parameters, so extracting from dataframe 
         self.n_bricks = pandas.unique(sess.align_df.loc[(self.sess.align_df['stimType'] == 0)]['stimPar1']).tolist() # preserves order
-        self.direcs = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['square_params']['direcs']
 
         # get parameters for each block
         self._get_block_params()
@@ -1702,9 +1773,22 @@ class Bricks(Stim):
         for i, disp in enumerate(self.block_ran_seg):
             block_par = []
             for j, block in enumerate(disp):
-                segs = self.sess.align_df.loc[(self.sess.align_df['stimType']==self.stim_type[0]) & 
-                                                    (self.sess.align_df['stimSeg'] >= block[0]) & 
-                                                    (self.sess.align_df['stimSeg'] < block[1])]
+                if self.sess.runtype == 'pilot':
+                    segs = self.sess.align_df.loc[(self.sess.align_df['stimType']==self.stim_type[0]) & 
+                                                        (self.sess.align_df['stimSeg'] >= block[0]) & 
+                                                        (self.sess.align_df['stimSeg'] < block[1])]
+                elif self.sess.runtype == 'prod':
+                    if self.stim_type[0] == 'g':
+                        segs = self.sess.align_df.loc[(self.sess.align_df['stimType']==self.stim_type[0]) & 
+                                                      (self.sess.align_df['stimPar2']==self.ori_kaps) &
+                                                      (self.sess.align_df['stimSeg'] >= block[0]) & 
+                                                      (self.sess.align_df['stimSeg'] < block[1])]
+                    elif self.stim_type[0] == 'b':
+                        segs = self.sess.align_df.loc[(self.sess.align_df['stimType']==self.stim_type[0]) & 
+                                                      (self.sess.align_df['stimPar1']==self.sizes) &
+                                                      (self.sess.align_df['stimPar2']==self.direcs) &
+                                                      (self.sess.align_df['stimSeg'] >= block[0]) & 
+                                                      (self.sess.align_df['stimSeg'] < block[1])]
                 stimPar1 = segs['stimPar1'].unique().tolist()
                 if len(stimPar1) > 1:
                     raise ValueError('Block {} of {} comprises segments with different stimPar1 values: {}'
@@ -1980,3 +2064,4 @@ class Grayscr():
                              '\'block\' or \'frame\'.'))
 
         return first_gab_grays, n_gab_grays
+
