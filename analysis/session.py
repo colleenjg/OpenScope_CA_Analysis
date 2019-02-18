@@ -26,9 +26,7 @@ import scipy.stats as st
 
 from allensdk.brain_observatory.dff import compute_dff
 
-import util.gen_util as gen_util
-import util.file_util as file_util
-import util.sync_util as sync_util
+from util import file_util, gen_util, sync_util
 
 
 class Session(object):
@@ -111,7 +109,7 @@ class Session(object):
                                      .format(self.dir))
         else:
             pklinfo    = os.path.basename(pklglob[0]).split('_')
-        self.mouse = pklinfo[1]
+        self.mouse = pklinfo[1] # mouse 6 digit nbr
         self.date  = pklinfo[2]
 
         # extract the experiment ID from the experiment directory name
@@ -131,21 +129,64 @@ class Session(object):
             self.date, self.mouse, self.runtype)       
     
     #############################################
-    def _load_stim_dict(self):
+    def _create_small_stim_pkl(self, small_stim_pkl):
+        """
+        self._create_small_stim_pkl(small_stim_pkl)
+
+        Creates and saves a smaller stimulus dictionary from the stimulus pickle 
+        file in which 'posbyframe' for Bricks is not included. Greatly reduces
+        the pickle size.
+
+        Required arguments:
+            - small_stim_pkl (str): full path name for the small stimulus
+                                    pickle file
+        """
+    
+        print('Creating smaller stimulus pickle.')
+
+        self.stim_dict = file_util.load_file(self.stim_pkl)
+
+        if self.runtype == 'pilot':
+            stim_par = 'stimParams'
+        elif self.runtype == 'prod':
+            stim_par = 'stim_params'
+
+        for i in range(len(self.stim_dict['stimuli'])):
+            stim_keys = self.stim_dict['stimuli'][i][stim_par].keys()
+            if self.runtype == 'pilot' and 'posByFrame' in stim_keys:
+                _ = self.stim_dict['stimuli'][i][stim_par].pop('posByFrame')
+            elif self.runtype == 'prod' and 'square_params' in stim_keys:
+                _ = self.stim_dict['stimuli'][i][stim_par]['session_params'].pop('posbyframe')
+                
+        file_util.save_info(self.stim_dict, small_stim_pkl)
+
+    
+    #############################################
+    def _load_stim_dict(self, full_dict=True):
         """
         self._load_stim_dict()
 
         Loads the stimulus dictionary from the stimulus pickle file and store a 
         few variables for easy access.
+
+        Optional arguments:
+            - full_dict (True)  : if True, the full stim_dict is loaded,
+                                  else the small stim_dict is loaded
+                                  (does not contain 'posbyframe' for Bricks)
+                                  default=True
         """
-        
-        # open the file
-        try:
-            with open(self.stim_pkl, 'rb') as f:
-                    self.stim_dict = pickle.load(f)
-        except:
-            raise exceptions.IOError('Could not open {} for reading'
-                                     .format(self.stim_pkl))
+
+        if full_dict:
+            self.stim_dict = file_util.load_file(self.stim_pkl)
+
+        else:
+            # load the smaller dict
+            small_stim_pkl = '{}_small.pkl'.format(self.stim_pkl[0:-4])
+            if not os.path.exists(small_stim_pkl):
+                self._create_small_stim_pkl(small_stim_pkl[0:-4])
+            else:
+                self.stim_dict = file_util.load_file(small_stim_pkl)
+            print('Using smaller stimulus pickle.')
 
         # store some variables for easy access
         self.stim_fps      = self.stim_dict['fps']
@@ -193,7 +234,7 @@ class Session(object):
                                      'pickle file {}').format(self.align_pkl))
         self.align_df      = align['stim_df']
         self.stim_align    = align['stim_align']
-        self.twop_fps        = sync_util.get_frame_rate(self.stim_sync)[0] # mean
+        self.twop_fps      = sync_util.get_frame_rate(self.stim_sync)[0] # mean
         # 2p_frames (while stim collected) - should be smaller or equal to self.nframes
         self.tot_2p_frames = int(max(align['stim_align'])) 
     
@@ -252,7 +293,34 @@ class Session(object):
 
 
     #############################################
-    def extract_info(self, load_run=True):
+    def extract_sess_attribs(self, mouse_df):
+        """
+        self.extract_sess_attribs(mouse_df)
+
+        Adds as attributes any additional information on the session from the 
+        mouse dataframe that have not yet been added.
+
+        Required arguments:
+        - mouse_df (pandas df): dataframe containing parameters for each 
+                                session.
+        """
+
+        df_line = gen_util.get_df_vals(mouse_df, 'sessionid', self.session)
+        self.mouse_n      = df_line['mouseid'].tolist()[0]
+        self.depth        = df_line['depth'].tolist()[0]
+        self.layer        = df_line['layer'].tolist()[0]
+        self.line         = df_line['line'].tolist()[0]
+        self.sess_n       = df_line['sess_n'].tolist()[0]
+        self.sess_overall = df_line['overall_sess_n'].tolist()[0]
+        self.sess_within  = df_line['within_sess_n'].tolist()[0]
+        self.pass_fail    = df_line['pass_fail'].tolist()[0]
+        self.all_files    = df_line['all_files'].tolist()[0]
+        self.any_files    = df_line['any_files'].tolist()[0]
+        self.notes        = df_line['notes'].tolist()[0]
+
+
+    #############################################
+    def extract_info(self, full_dict=True, load_run=True):
         """
         self.extract_info(load_run=True)
 
@@ -263,6 +331,10 @@ class Session(object):
         after creating a Session object.
 
         Optional arguments:
+            - full_dict (True)  : if True, the full stim_dict is loaded,
+                                  else the small stim_dict is loaded
+                                  (does not contain 'posbyframe' for Bricks)
+                                  default=True
             - load_run (Boolean): whether or not to load running data
                                   default=True 
         """
@@ -270,7 +342,7 @@ class Session(object):
         # load the stimulus, running, alignment and trace information 
         if not hasattr(self, 'stim_dict'):
             print("Loading stimulus dictionary...")
-            self._load_stim_dict()
+            self._load_stim_dict(full_dict=full_dict)
         if not hasattr(self, 'align_df'):
             print("Loading alignment dataframe...")
             self._load_align_df()
@@ -354,7 +426,8 @@ class Session(object):
         """
         
         if not os.path.exists(self.roi_traces_dff) or replace:
-            print('Creating dF/F files using {} basewin'.format(basewin))
+            print(('Creating dF/F files using {} basewin '
+                   'for session {})').format(basewin, self.session))
             # read the data points into the return array
             with h5py.File(self.roi_traces,'r') as f:
                 try:
@@ -1503,7 +1576,7 @@ class Stim(object):
             n_rois = len(roi_data)
             ok_rois = sorted(set(range(n_rois)) - set(nan_rois))
             if nans == 'rem':
-                roi_data = roi_data[ok_rois]
+                roi_data = np.asarray(roi_data)[ok_rois]
                 print('Removing {}/{} ROIs: {}'.format(len(nan_rois), n_rois, 
                                         ', '.join([str(x) for x in nan_rois])))
         
@@ -1748,13 +1821,13 @@ class Bricks(Stim):
         # initialize brick specific parameters
         if self.sess.runtype == 'pilot':
             sqr_par = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['square_params']
-            self.sizes = sqr_par['sizes']
-            self.direcs = sqr_par['direcs']
+            self.size = sqr_par['sizes']
+            self.direc = sqr_par['direcs']
         elif self.sess.runtype == 'prod':
             sqr_par = self.sess.stim_dict['stimuli'][self.stim_n]['stim_params']['square_params']
-            self.sizes = self.sess.stim_dict['stimuli'][self.stim_n]['stim_params']['elemParams']['sizes']
-            self.direcs = self.sess.stim_dict['stimuli'][self.stim_n]['stim_params']['direc']
-        self.units    = ['units']
+            self.size = self.sess.stim_dict['stimuli'][self.stim_n]['stim_params']['elemParams']['sizes']
+            self.direc = self.sess.stim_dict['stimuli'][self.stim_n]['stim_params']['direc']
+        self.units    = sqr_par['units']
         self.flipfrac = sqr_par['flipfrac']
         self.speed = sqr_par['speed']
 
@@ -1763,6 +1836,7 @@ class Bricks(Stim):
 
         # get parameters for each block
         self._get_block_params()
+
 
     #############################################
     def _get_block_params(self):
@@ -1785,8 +1859,8 @@ class Bricks(Stim):
                                                       (self.sess.align_df['stimSeg'] < block[1])]
                     elif self.stim_type[0] == 'b':
                         segs = self.sess.align_df.loc[(self.sess.align_df['stimType']==self.stim_type[0]) & 
-                                                      (self.sess.align_df['stimPar1']==self.sizes) &
-                                                      (self.sess.align_df['stimPar2']==self.direcs) &
+                                                      (self.sess.align_df['stimPar1']==self.size) &
+                                                      (self.sess.align_df['stimPar2']==self.direc) &
                                                       (self.sess.align_df['stimSeg'] >= block[0]) & 
                                                       (self.sess.align_df['stimSeg'] < block[1])]
                 stimPar1 = segs['stimPar1'].unique().tolist()

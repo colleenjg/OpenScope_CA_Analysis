@@ -159,7 +159,7 @@ def init_fig(n_subplots, fig_par):
 
     Return:
         - fig (plt Fig): fig
-        - ax (plt Axis): axis
+        - ax (plt Axis): axis (even if just one subplot)
     """
 
     if n_subplots == 1:
@@ -172,7 +172,7 @@ def init_fig(n_subplots, fig_par):
     fig, ax = plt.subplots(ncols=ncols, nrows=nrows, 
                            figsize=(ncols*fig_par['subplot_wid'], 
                                     nrows*fig_par['subplot_hei']), 
-                           sharey=fig_par['sharey'])
+                           sharey=fig_par['sharey'], squeeze=False)
     return fig, ax
 
 

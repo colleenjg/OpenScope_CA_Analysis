@@ -2,12 +2,14 @@ import os
 import datetime
 import argparse
 import glob
+import multiprocessing
 
 import numpy as np
 import scipy.stats as st
 from matplotlib import pyplot as plt
 import pandas as pd
 import pdb
+from joblib import Parallel, delayed
 
 from analysis import session
 from util import file_util, gen_util, math_util, plot_util, str_util
@@ -23,7 +25,8 @@ def label_values(mouse_df, label, values='any'):
     that label and returns them in a list.
 
     Required arguments:
-        - mouse_df (pandas df): dataframe
+        - mouse_df (pandas df): dataframe containing parameters for each 
+                                session.
         - label (str)         : label of the dataframe column of interest
 
     Optional arguments:
@@ -82,7 +85,7 @@ def depth_values(layer):
 
 
 #############################################
-def sess_values(mouse_df, returnlab, mouseid, sessid, depth, pass_fail, 
+def sess_values(mouse_df, returnlab, mouseid, sessid, runtype, depth, pass_fail, 
                   all_files, any_files, overall_sess_n, min_rois, sort=False):
     """
     sess_values(mouse_df, returnlab, mouseid, sessid, depth, pass_fail, 
@@ -95,7 +98,8 @@ def sess_values(mouse_df, returnlab, mouseid, sessid, depth, pass_fail,
         - mouse_df (pandas df)       : dataframe containing parameters for each 
                                        session.
         - returnlab ('str')          : label from which to return values
-        - mouseid (int or list)      : mouse id value(s) of interest         
+        - mouseid (int or list)      : mouse id value(s) of interest  
+        - runtype (str or list)      : runtype value(s) of interest       
         - sessid (int or list)       : session id value(s) of interest
         - depth (str or list)        : depth value(s) of interest (20, 50, 75,  
                                        175, 375)
@@ -114,24 +118,96 @@ def sess_values(mouse_df, returnlab, mouseid, sessid, depth, pass_fail,
                             the criteria
     """
 
-    sess_vals = mouse_df.loc[(mouse_df['mouseid'] == mouseid) & 
-                            (mouse_df['sessionid'].isin(sessid)) &
-                            (mouse_df['depth'].isin(depth)) &
-                            (mouse_df['pass_fail'].isin(pass_fail)) &
-                            (mouse_df['all_files'].isin(all_files)) &
-                            (mouse_df['any_files'].isin(any_files)) &
-                            (mouse_df['overall_sess_n'].isin(overall_sess_n)) &
-                            (mouse_df['n_rois'] >= min_rois)][returnlab].tolist()
+    sess_vals = mouse_df.loc[(mouse_df['mouseid'].isin(mouseid)) & 
+                             (mouse_df['sessionid'].isin(sessid)) &
+                             (mouse_df['runtype'].isin(runtype)) &
+                             (mouse_df['depth'].isin(depth)) &
+                             (mouse_df['pass_fail'].isin(pass_fail)) &
+                             (mouse_df['all_files'].isin(all_files)) &
+                             (mouse_df['any_files'].isin(any_files)) &
+                             (mouse_df['overall_sess_n'].isin(overall_sess_n)) &
+                             (mouse_df['n_rois'] >= min_rois)][returnlab].tolist()
     if sort:
         sess_vals = sorted(sess_vals)
     return sess_vals
 
 
 #############################################
-def sess_per_mouse(mouse_df, sessid='any', layer='any', pass_fail='any', 
-                   all_files=[1], any_files=[1], overall_sess_n=1, 
-                   omit_sess=[], omit_mice=[], min_rois=1):
+def all_sess_ns(mouse_df, runtype='any', layer='any', pass_fail='any', 
+                all_files=[1], any_files=[1], omit_sess=[], omit_mice=[], 
+                min_rois=1):
     """
+    all_sess_ns(mouse_df)
+
+    Returns list of overall session numbers that correspond to specific
+    criteria.
+
+    Required arguments:
+        - mouse_df (pandas df): dataframe containing parameters for each session.
+        
+    Optional arguments:
+        - runtype (str or list)      : runtype value(s) of interest
+                                       ('pilot', 'prod')
+                                       (default: 'any')
+        - layer (str or list)        : layer value(s) of interest
+                                       ('soma', 'dend', 'L5', 'L23', etc.)
+                                       (default: 'any')
+        - pass_fail (str or list)    : pass/fail values to pick from 
+                                       ('P', 'F')
+                                       (default: 'any')
+        - all_files (int or list)    : all_files values to pick from (0, 1)
+                                       (default: [1])
+        - any_files (int or list)    : any_files values to pick from (0, 1)
+                                       (default: [1])
+        - omit_sess (list)           : sessions to omit
+                                       (default: [])
+        - omit_mice (list)           : mice to omit
+                                       (default: [])
+        - min_rois (int)             : min number of ROIs
+                                       (default: 1)
+     
+    Returns:
+        - all_sess (list): overall session numbers that correspond to criteria
+    """
+
+     # get depth values corresponding to the layer
+    depth = depth_values(layer)
+
+    mouseid, sessid, sess_n = ['any', 'any', 'any']
+    params      = [mouseid, sessid, runtype, depth, pass_fail, all_files,  
+                   any_files, sess_n]
+    param_names = ['mouseid', 'sessionid', 'runtype', 'depth', 'pass_fail', 
+                   'all_files', 'any_files', 'overall_sess_n']
+    
+    # for each label, collect values of that fit criteria in a list
+    for i in range(len(params)):
+        params[i] = label_values(mouse_df, param_names[i], params[i])
+    [mouseid, sessid, runtype, depth, pass_fail, 
+                    all_files, any_files, sess_n] = params
+
+    # remove omitted sessions from the session id list
+    sessid = gen_util.remove_if(sessid, omit_sess)
+    
+    # collect all mouse IDs and remove omitted mice
+    mouseid = gen_util.remove_if(mouseid, omit_mice)
+
+    all_sess = sess_values(mouse_df, 'overall_sess_n', mouseid, sessid, runtype,
+                           depth, pass_fail, all_files, any_files, sess_n, 
+                           min_rois, sort=True)
+
+    all_sess = list(set(all_sess)) # get unique
+
+    return all_sess
+
+
+#############################################
+def sess_per_mouse(mouse_df, sessid='any', runtype='any', layer='any', 
+                   pass_fail='any', all_files=[1], any_files=[1], 
+                   overall_sess_n=1, closest=False, omit_sess=[], omit_mice=[], 
+                   min_rois=1):
+    """
+    sess_per_mouse(mouse_df)
+    
     Returns list of session IDs (up to 1 per mouse) that fit the specified
     criteria, IDs of mice for which a session was found and actual overall 
     session numbers.
@@ -141,6 +217,9 @@ def sess_per_mouse(mouse_df, sessid='any', layer='any', pass_fail='any',
         
     Optional arguments:
         - sessid (int or list)       : session id value(s) of interest
+                                       (default: 'any')
+        - runtype (str or list)      : runtype value(s) of interest
+                                       ('pilot', 'prod')
                                        (default: 'any')
         - layer (str or list)        : layer value(s) of interest
                                        ('soma', 'dend', 'L5', 'L23', etc.)
@@ -155,30 +234,36 @@ def sess_per_mouse(mouse_df, sessid='any', layer='any', pass_fail='any',
         - overall_sess_n (int or str): overall_sess_n value to aim for
                                        (1, 2, 3, ... or 'last')
                                        (default: 1)
-        - sess_omit (list)           : sessions to omit
+        - closest (bool)             : if False, only exact session number is 
+                                       retained, otherwise the closest
+                                       (default: False)
+        - omit_sess (list)           : sessions to omit
                                        (default: [])
-        - mice_omit (list)           : mice to omit
+        - omit_mice (list)           : mice to omit
                                        (default: [])
         - min_rois (int)             : min number of ROIs
                                        (default: 1)
      
     Returns:
         - sess_ns (list)    : sessions to analyse (1 per mouse)
-        - mouse_ns (list)   : mouse numbers corresponding to sessions
-        - act_sess_ns (list): actual overall session number for each mouse
     """
 
     # get depth values corresponding to the layer
-    depth = depth_values(sess_par['layer'])
+    depth = depth_values(layer)
 
-    params = [sessid, depth, pass_fail, all_files, any_files]
-    param_names = ['sessionid', 'depth', 'pass_fail', 'all_files', 'any_files']
+    params = [sessid, runtype, depth, pass_fail, all_files, any_files]
+    param_names = ['sessionid', 'runtype', 'depth', 'pass_fail', 'all_files', 
+                   'any_files']
     
     # for each label, collect values of that fit criteria in a list
     for i in range(len(params)):
         params[i] = label_values(mouse_df, param_names[i], params[i])
-    [sessid, depth, pass_fail, all_files, any_files] = params
-    overall_sess_any = label_values(mouse_df, 'overall_sess_n', 'any')
+    [sessid, runtype, depth, pass_fail, all_files, any_files] = params
+
+    if closest or overall_sess_n == 'last':
+        overall_sess_any = label_values(mouse_df, 'overall_sess_n', 'any')
+    else:
+        overall_sess_any = gen_util.list_if_not(overall_sess_n)
     
     # remove omitted sessions from the session id list
     sessid = gen_util.remove_if(sessid, omit_sess)
@@ -190,54 +275,49 @@ def sess_per_mouse(mouse_df, sessid='any', layer='any', pass_fail='any',
     # get session ID, mouse ID and actual session numbers for each mouse based 
     # on criteria 
     sess_ns = []
-    mouse_ns = []
-    act_sess_ns = []
-    lines = []
     for i in mouseids:
-        sessions = sess_values(mouse_df, 'overall_sess_n', i, sessid, depth, 
-                               pass_fail, all_files, any_files, 
+        sessions = sess_values(mouse_df, 'overall_sess_n', [i], sessid, 
+                               runtype, depth, pass_fail, all_files, any_files, 
                                overall_sess_any, min_rois, sort=True)
         # skip mouse if no sessions meet criteria
         if len(sessions) == 0:
             continue
-        elif overall_sess_n == 'last':
+        elif overall_sess_n == 'last' or not closest:
             sess_n = sessions[-1]
         # find closest sess number among possible sessions
         else:
             sess_n = sessions[np.argmin(np.absolute([x-overall_sess_n
                                                      for x in sessions]))]
-        sess = sess_values(mouse_df, 'sessionid', i, sessid, depth, pass_fail, 
-                           all_files, any_files, [sess_n], min_rois)[0]
-        act_n = mouse_df.loc[(mouse_df['sessionid'] == 
-                              sess)]['overall_sess_n'].tolist()[0]
-        line = mouse_df.loc[(mouse_df['sessionid'] == 
-                              sess)]['line'].tolist()[0]
-
+        sess = sess_values(mouse_df, 'sessionid', [i], sessid, runtype, 
+                           depth, pass_fail, all_files, any_files, [sess_n], 
+                           min_rois)[0]
         sess_ns.append(sess)
-        mouse_ns.append(i)
-        act_sess_ns.append(act_n)
-        lines.append(line)
     
     if len(sess_ns) == 0:
         raise ValueError('No sessions meet the criteria.')
 
-    return sess_ns, mouse_ns, act_sess_ns, lines
+    return sess_ns
 
 
 #############################################
-def init_sessions(sess_ns, datadir, runtype='prod'):
+def init_sessions(sess_ns, datadir, mouse_df, runtype='prod', full_dict=True, 
+                  load_run=True):
     """
-    init_sess_dict(sess_ns)
+    init_sessions(sess_ns, datadir)
 
-    Creates list of Session objects for each session ID passed 
+    Creates list of Session objects for each session ID passed.
 
     Required arguments:
         - sess_ns (int or list): ID or list of IDs of sessions
         - datadir (str)        : directory where sessions are stored
+        - mouse_df (pandas df) : dataframe containing information for 
+                                 each session
 
     Optional arguments:
         - runtype (string): the type of run, either 'pilot' or 'prod'
-                            default = 'prod'              
+                            default = 'prod' 
+        - load_run (bool) : if True, session run info is loaded
+                            default = True           
     Returns:
         - sessions (list): list of Session objects
     """
@@ -249,7 +329,8 @@ def init_sessions(sess_ns, datadir, runtype='prod'):
         # creates a session object to work with
         sess = session.Session(datadir, sess_n, runtype=runtype) 
         # extracts necessary info for analysis
-        sess.extract_info()
+        sess.extract_sess_attribs(mouse_df)
+        sess.extract_info(full_dict=full_dict, load_run=load_run)
         print('Finished session {}.'.format(sess_n))
         sessions.append(sess)
 
@@ -746,21 +827,15 @@ def plot_traces_by_qu_surp_sess(sessions, analys_par, basic_par, fig_par,
     Required arguments:
         - sessions (list)  : list of Session objects
         - analys_par (dict): dictionary containing specific analysis parameters:
-                ['act_sess_ns'] (list)  : actual overall session number for
-                                          each session
                 ['gab_fr'] (int or list): gabor frame values to include
                                          (e.g., 0, 1, 2, 3)
                 ['gab_k'] (int or list) : gabor kappa values to include 
                                           (e.g., 4, 16 or [4, 16])
-                ['lines'] (list)        : transgenic line for each session
-                ['mouse_ns'] (list)     : mouse numbers corresponding to 
-                                          sessions
                 ['n_quints'] (int)      : number of quintiles
                 ['pre'] (float)         : range of frames to include before each 
                                           frame reference (in s)
                 ['post'] (float)        : range of frames to include after each 
                                           frame reference (in s)
-                ['sess_ns'] (list)      : list of session IDs
 
         - basic_par (dict) : dictionary containing basic analysis parameters:
                 ['dfoverf'] (bool): if True, dF/F is used instead of raw ROI 
@@ -846,10 +921,9 @@ def plot_traces_by_qu_surp_sess(sessions, analys_par, basic_par, fig_par,
                 else:
                     n_rois = sess.nroi
                 title=(u'Mouse {} - gab{} {} dF/F across gabor seqs\n(sess {}, '
-                       '{} {}, n={})').format(analys_par['mouse_ns'][i], gabkstr, 
-                                           statstr, analys_par['act_sess_ns'][i], 
-                                           analys_par['lines'][i], 
-                                           sess_par['layer'], n_rois)
+                       '{} {}, n={})').format(sess.mouse_n, gabkstr, 
+                                           statstr, sess.sess_overall, 
+                                           sess.line, sess.layer, n_rois)
                 chunk_stats = np.concatenate([x_ran[np.newaxis, :], 
                                               all_stats[i][s][q]], axis=0)
                 leg = '{}-{} ({})'.format(q+1, leg_ext, 
@@ -865,6 +939,7 @@ def plot_traces_by_qu_surp_sess(sessions, analys_par, basic_par, fig_par,
                                                   t_heis)):
             plot_util.add_labels(sub_ax, lab, xpos, t_hei, col=col[0])
         plot_util.add_bars(sub_ax, hbars=h_bars, bars=seg_bars)
+        sub_ax.legend()
     
     save_dir = os.path.join(fig_par['figdir_roi'], fig_par['surp_quint'])
     save_name = 'roi_av_{}_{}quint'.format(sessstr, analys_par['n_quints'])
@@ -1352,15 +1427,10 @@ def plot_rois_by_grp_qu_sess(sessions, analys_par, basic_par, fig_par, perm_par,
     Required arguments:
         - sessions (list)  : list of Session objects
         - analys_par (dict): dictionary containing specific analysis parameters:
-                ['act_sess_ns'] (list)  : actual overall session number for
-                                          each session
                 ['gab_fr'] (int or list): gabor frame values to include
                                          (e.g., 0, 1, 2, 3)
                 ['gab_k'] (int or list) : gabor kappa values to include 
                                           (e.g., 4, 16 or [4, 16])
-                ['lines'] (list)        : transgenic line for each session
-                ['mouse_ns'] (list)     : mouse numbers corresponding to 
-                                          sessions
                 ['n_quints'] (int)      : number of quintiles
                 ['pre'] (float)         : range of frames to include before each 
                                           frame reference (in s)
@@ -1479,14 +1549,15 @@ def plot_rois_by_grp_qu_sess(sessions, analys_par, basic_par, fig_par, perm_par,
                             label=leg)
 
         title=(u'Mouse {} - {} gab{} \n{} seqs \n(sess {}, {} {}, {} tail '
-               '(n={}))').format(analys_par['mouse_ns'][i], statstr, gabkstr, 
-                                 opstr_pr, analys_par['act_sess_ns'][i],
-                                 analys_par['lines'][i], sess_par['layer'], 
+               '(n={}))').format(sessions[i].mouse_n, statstr, gabkstr, 
+                                 opstr_pr, sessions[i].sess_overall, 
+                                 sessions[i].line, sessions[i].layer, 
                                  perm_par['tails'], n_rois[i])
         sub_ax.set_title(title)
         sub_ax.set_xticks(x_ran)
         sub_ax.set_ylabel('dF/F')
         sub_ax.set_xlabel('Quintiles')
+        sub_ax.legend()
 
     save_dir = os.path.join(fig_par['figdir_roi'], fig_par['surp_quint'])
     save_name = 'roi_{}_grps_{}_{}quint_{}tail'.format(sessstr, 
@@ -1629,15 +1700,10 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
 
         - n_rois (1D array): number of ROIs retained in each session
         - analys_par (dict): dictionary containing specific analysis parameters:
-                ['act_sess_ns'] (list)  : actual overall session number for
-                                          each session
                 ['gab_fr'] (int or list): gabor frame values to include
                                           (e.g., 0, 1, 2, 3)
                 ['gab_k'] (int or list) : gabor kappa values to include 
                                           (e.g., 4, 16 or [4, 16])
-                ['lines'] (list)        : transgenic line for each session
-                ['mouse_ns'] (list)     : mouse numbers corresponding to 
-                                          sessions
                 ['n_quints'] (int)      : number of quintiles
                 ['pre'] (float)         : range of frames to include before each 
                                           frame reference (in s)
@@ -1742,7 +1808,7 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
         fig_par['mult'] = True
         reset_mult = True
 
-    for i in range(len(sessions)):
+    for i, sess in enumerate(sessions):
         fig, ax = plot_util.init_fig(len(roi_grps['all_roi_grps'][i]), fig_par)
         for g, [grp_nam, grp_rois] in enumerate(zip(roi_grps['grp_names'], 
                                                     roi_grps['all_roi_grps'][i])):
@@ -1770,14 +1836,13 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
         
         fig.suptitle((u'Mouse {} - {} gab{} \n{} seqs for diff quint\n'
                     '(sess {}, {} {}, {} tail (n={}))')
-                        .format(analys_par['mouse_ns'][i], statstr, gabkstr, 
-                                opstr_pr, analys_par['act_sess_ns'][i], 
-                                analys_par['lines'][i], sess_par['layer'], 
-                                perm_par['tails'], n_rois[i]))
+                        .format(sess.mouse_n, statstr, gabkstr, 
+                                opstr_pr, sess.sess_overall, sess.line,
+                                sess.layer, perm_par['tails'], n_rois[i]))
 
         save_name = ('roi_tr_m{}_{}_grps_{}_{}quint_'
-                        '{}tail').format(analys_par['mouse_ns'][i], sessstr, 
-                                         opstr, analys_par['n_quints'], 
+                        '{}tail').format(sess.mouse_n, sessstr, opstr, 
+                                         analys_par['n_quints'], 
                                          perm_par['tails'])
         full_dir = plot_util.save_fig(fig, save_dir, save_name, fig_par)
 
@@ -1845,15 +1910,10 @@ def plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, n_rois,
 
         - n_rois (1D array): number of ROIs retained in each session
         - analys_par (dict): dictionary containing specific analysis parameters:
-                ['act_sess_ns'] (list)  : actual overall session number for
-                                          each session
                 ['gab_fr'] (int or list): gabor frame values to include
                                           (e.g., 0, 1, 2, 3)
                 ['gab_k'] (int or list) : gabor kappa values to include 
                                           (e.g., 4, 16 or [4, 16])
-                ['lines'] (list)        : transgenic line for each session
-                ['mouse_ns'] (list)     : mouse numbers corresponding to 
-                                          sessions
                 ['n_quints'] (int)      : number of quintiles
                 ['pre'] (float)         : range of frames to include before each 
                                           frame reference (in s)
@@ -1952,7 +2012,7 @@ def plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, n_rois,
     
     xpos = range(len(quint_plot['qu']))
     
-    for i in range(len(sessions)):
+    for i, sess in enumerate(sessions):
         fig, ax = plot_util.init_fig(len(roi_grps['all_roi_grps'][i]), fig_par)
         fignorm, axnorm = plot_util.init_fig(len(roi_grps['all_roi_grps'][i]), fig_par)
         for axis, norm in zip([ax, axnorm], [False, True]):
@@ -1977,27 +2037,27 @@ def plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, n_rois,
                             color=quint_plot['cols'][j], 
                             yerr=grp_st[i, q, g, 1:], capsize=3)                    
                 sub_ax.legend(quint_plot['qu_lab'])
+                sub_ax.tick_params(axis='x', which='both', bottom=False, 
+                                   labelbottom=False) 
                 if not norm:
                     sub_ax.set_ylabel('dF/F area')
                 else:
                     sub_ax.set_ylabel('dF/F area (norm)')
-                sub_ax.set_xticks([0, 1])
                 sub_ax.set_title(title)
 
         suptitle = (u'Mouse {} - {} gab{} \n{} seqs for diff quint\n(sess {}, '
-                    '{} {}, {} tail (n={}))').format(analys_par['mouse_ns'][i], 
-                                                  statstr, gabkstr, opstr_pr,
-                                                  analys_par['act_sess_ns'][i], 
-                                                  analys_par['lines'][i], 
-                                                  sess_par['layer'], 
-                                                  perm_par['tails'], n_rois[i])
+                    '{} {}, {} tail (n={}))').format(sess.mouse_n, statstr, 
+                                                     gabkstr, opstr_pr,
+                                                     sess.sess_overall, 
+                                                     sess.line, sess.layer,
+                                                     perm_par['tails'], n_rois[i])
 
         fig.suptitle(suptitle)
-        fignorm.suptitle('{} (norm)'.format(suptitle))
+        fignorm.suptitle(u'{} (norm)'.format(suptitle))
 
         save_name = ('roi_area_m{}_{}_grps_{}_{}quint_'
-                        '{}tail').format(analys_par['mouse_ns'][i], sessstr, 
-                                         opstr, analys_par['n_quints'], 
+                        '{}tail').format(sess.mouse_n, sessstr, opstr, 
+                                         analys_par['n_quints'], 
                                          perm_par['tails'])
         save_name_norm = '{}_norm'.format(save_name)
 
@@ -2051,15 +2111,10 @@ def plot_rois_by_grp(sessions, analys_par, basic_par, fig_par, perm_par,
     Required arguments:
         - sessions (list)  : list of Session objects
         - analys_par (dict): dictionary containing specific analysis parameters:
-                ['act_sess_ns'] (list)  : actual overall session number for
-                                          each session
                 ['gab_fr'] (int or list): gabor frame values to include
                                           (e.g., 0, 1, 2, 3)
                 ['gab_k'] (int or list) : gabor kappa values to include 
                                           (e.g., 4, 16 or [4, 16])
-                ['lines'] (list)        : transgenic line for each session
-                ['mouse_ns'] (list)     : mouse numbers corresponding to 
-                                          sessions
                 ['n_quints'] (int)      : number of quintiles
                 ['pre'] (float)         : range of frames to include before each 
                                           frame reference (in s)
@@ -2180,15 +2235,10 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
     Required arguments:
         - sessions (list)  : list of Session objects
         - analys_par (dict): dictionary containing specific analysis parameters:
-                ['act_sess_ns'] (list)  : actual overall session number for
-                                        each session
                 ['gab_fr'] (int or list): gabor frame values to include
                                         (e.g., 0, 1, 2, 3)
                 ['gab_k'] (int or list) : gabor kappa values to include 
                                         (e.g., 4, 16 or [4, 16])
-                ['lines'] (list)        : transgenic line for each session
-                ['mouse_ns'] (list)     : mouse numbers corresponding to 
-                                        sessions
                 ['n_quints'] (int)      : number of quintiles
                 ['pre'] (float)         : range of frames to include before each 
                                         frame reference (in s)
@@ -2259,8 +2309,8 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
     mags = {'all_l2s': np.empty([len(sessions), 2]),
             'mag_me' : np.empty([len(sessions), 2]),
             'mag_me_norm' : np.empty([len(sessions), 2]),
-            'mag_de' : np.empty([len(sessions), 2, stat_len]).squeeze(),
-            'mag_de_norm' : np.empty([len(sessions), 2, stat_len]).squeeze(),
+            'mag_de' : np.empty([len(sessions), 2, stat_len]).squeeze(axis=-1),
+            'mag_de_norm' : np.empty([len(sessions), 2, stat_len]).squeeze(axis=-1),
             'p_vals': np.empty([len(sessions)])
             }  
 
@@ -2270,7 +2320,11 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
         fig_par['mult'] = True
         reset_mult = True
 
-    for i in range(len(sessions)):
+    mouse_ns = []
+    lines = []
+    for i, sess in enumerate(sessions):
+        mouse_ns.append(sess.mouse_n)
+        lines.append(sess.line)
         abs_diffs = np.absolute(integ_data[i][:, -1] - integ_data[i][:, 0])
         abs_diffs_norm = math_util.calc_norm(abs_diffs, dimpos=[0, 0], out_range='onepos')
         for s in [0, 1]:
@@ -2280,7 +2334,7 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
             
             mags['mag_me'][i, s] = math_util.mean_med(abs_diffs[s], basic_par['stats'])
             mags['mag_de'][i, s] = math_util.error_stat(abs_diffs[s], basic_par['stats'], 
-                                                    basic_par['error'])
+                                                        basic_par['error'])
             mags['mag_me_norm'][i, s] = math_util.mean_med(abs_diffs_norm[s], 
                                                  basic_par['stats'])
             mags['mag_de_norm'][i, s] = math_util.error_stat(abs_diffs_norm[s], 
@@ -2288,6 +2342,7 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
                                                        basic_par['error'])
         # p_val test on surp vs nosurp for each session
         _, mags['p_vals'][i] = st.ttest_rel(abs_diffs[0], abs_diffs[1])
+
         print('Session {}: p-value={}'.format(sessions[i].session, 
                                               mags['p_vals'][i]))
     
@@ -2295,8 +2350,7 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
             'mouse ({}).').format(sess_par['layer']))
     for s, surp in enumerate(['non surprise', 'surprise']):
         l2_str = ('\n'.join(['\tMouse {}, {}: {:.2f}'.format(i, l, l2) 
-                                    for i, l, l2 in zip(analys_par['mouse_ns'],
-                                                     analys_par['lines'],  
+                                    for i, l, l2 in zip(mouse_ns, lines,  
                                                     mags['all_l2s'][:, s])]))
         print('\n{} segs: \n{}'.format(surp, l2_str))
 
@@ -2310,15 +2364,16 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
     pos = np.arange(len(sessions))
 
     for s in range(len(leg)):
-        xpos = pos + s*barw
+        xpos = pos + barw*(2.0*s-len(leg)+1)
         ax.bar(xpos, mags['mag_me'][:, s], width=barw, color=col[s], 
                 yerr=mags['mag_de'][:, s], capsize=3)
+        ax.tick_params(axis='x', which='both', bottom=False) 
         axnorm.bar(xpos, mags['mag_me_norm'][:, s], width=barw, color=col[s], 
                    yerr=mags['mag_de_norm'][:, s], capsize=3)
+        axnorm.tick_params(axis='x', which='both', bottom=False)
     
-    labels = ['Mouse {},{}\n(n={})'.format(analys_par['mouse_ns'][i], 
-                                           analys_par['lines'][i], n_rois[i]) 
-                        for i in range(len(sessions))]
+    labels = ['Mouse {}, {}\n(n={})'.format(sess.mouse_n, sess.line, n_rois[i]) 
+               for i, sess in enumerate(sessions)]
     
     for axis in [ax, axnorm]:
         axis.set_xticks(pos)
@@ -2365,7 +2420,8 @@ def lfads_dict(sessions, mouse_df, runtype, gabfr, gabk=16, output=''):
 
     Arguments:
         - sessions (list)     : list of Session objects
-        - mouse_df (pandas df): pandas dataframe with mouse sessions info
+        - mouse_df (pandas df): dataframe containing parameters for each 
+                                session.
         - gabfr (int)         : gabor frame to include (e.g., A:0)
 
     Optional arguments:
@@ -2391,15 +2447,6 @@ def lfads_dict(sessions, mouse_df, runtype, gabfr, gabk=16, output=''):
                         gaborframe=gabfr, surp=1, by='seg')
         surp_idx = [int((seg - min(segs))/4) for seg in surp_segs]
 
-        df_line = mouse_df.loc[(mouse_df['sessionid'] == sess.session)]
-        act_n = df_line['overall_sess_n'].tolist()[0]
-        depth = df_line['depth'].tolist()[0]
-        mouse = df_line['mouseid'].tolist()[0]
-        line = df_line['line'].tolist()[0]
-        if depth in [20, 50, 75]:
-            layer = 'dend'
-        elif depth in [175, 375]:
-            layer = 'soma'
         if runtype == 'pilot':
             roi_tr_dir = sess.roi_traces[sess.roi_traces.find('ophys'):]
             roi_dff_dir = sess.roi_traces_dff[sess.roi_traces_dff.find('ophys'):]
@@ -2408,11 +2455,11 @@ def lfads_dict(sessions, mouse_df, runtype, gabfr, gabk=16, output=''):
             roi_dff_dir = sess.roi_traces_dff[sess.roi_traces_dff.find('mouse'):]
         
         sess_dict = {'sessionid'     : sess.session,
-                     'mouse'         : mouse,
-                     'act_sess_n'    : act_n,
-                     'depth'         : depth,
-                     'layer'         : layer,
-                     'line'          : line,
+                     'mouse'         : sess.mouse_n,
+                     'act_sess_n'    : sess.sess_overall,
+                     'depth'         : sess.depth,
+                     'layer'         : sess.layer,
+                     'line'          : sess.line,
                      'traces_dir'    : roi_tr_dir,
                      'dff_traces_dir': roi_dff_dir,
                      'gab_k'         : gabk,
@@ -2424,7 +2471,8 @@ def lfads_dict(sessions, mouse_df, runtype, gabfr, gabk=16, output=''):
                      'nanrois_dff'   : sess.nanrois_dff,
                     }
     
-        name = 'sess_dict_mouse{}_sess{}_{}'.format(mouse, act_n, layer)
+        name = 'sess_dict_mouse{}_sess{}_{}'.format(sess.mouse_n, 
+                                                    sess.sess_overall, sess.layer)
         file_util.save_info(sess_dict, name, os.path.join(output, 'session_dicts', 
                                                           runtype), 'json')
         print('Creating stimulus dictionary: {}'.format(name))
@@ -2540,15 +2588,10 @@ def plot_gab_autocorr(sessions, analys_par, basic_par, fig_par, sess_par):
     Required arguments:
         - sessions (list)  : list of Session objects
         - analys_par (dict): dictionary containing specific analysis parameters:
-                ['act_sess_ns'] (list)  : actual overall session number for
-                                        each session
                 ['gab_k'] (int or list) : gabor kappa values to include 
                                         (e.g., 4, 16 or [4, 16])
                 ['lag_s'] (float)       : lag in seconds with which to calculate
                                           autocorrelation
-                ['lines'] (list)        : transgenic line for each session
-                ['mouse_ns'] (list)     : mouse numbers corresponding to 
-                                        sessions
                 ['sess_ns'] (list)      : list of session IDs
 
         - basic_par (dict) : dictionary containing basic analysis parameters:
@@ -2648,8 +2691,9 @@ def plot_gab_autocorr(sessions, analys_par, basic_par, fig_par, sess_par):
             sess_traces = [traces[sess_oks] for traces in sess_traces]
             nan_rois.append(sess_nans)
             ok_rois.append(sess_oks)
-        autocorr_stats = autocorr_rois(sess_traces, analys_par['lag_s'], sess.twop_fps, 
-                                      basic_par['stats'], basic_par['error'])
+        autocorr_stats = autocorr_rois(sess_traces, analys_par['lag_s'], 
+                                       sess.twop_fps, basic_par['stats'], 
+                                       basic_par['error'])
         # add each ROI
         for roi_stats in autocorr_stats:
             plot_util.plot_traces(sub_ax, roi_stats, basic_par['stats'], 
@@ -2657,11 +2701,9 @@ def plot_gab_autocorr(sessions, analys_par, basic_par, fig_par, sess_par):
                         xticks=xticks, yticks=yticks, dff=basic_par['dfoverf'])
         plot_util.add_bars(sub_ax, bars=seg_bars)
         sub_ax.set_title((u'Mouse {} - {} gab{} {}\n(sess {}, {} {}, '
-                          '(n={}))').format(analys_par['mouse_ns'][i], statstr,
-                                            gabkstr, title_str, 
-                                            analys_par['act_sess_ns'][i],
-                                            analys_par['lines'][i], 
-                                            sess_par['layer'], nrois))
+                          '(n={}))').format(sess.mouse_n, statstr, gabkstr, 
+                                            title_str, sess.sess_overall, 
+                                            sess.line, sess.layer, nrois))
         sub_ax.set_ylim([0, 1])
     
     if basic_par['remnans'] == 'across':
@@ -2710,7 +2752,6 @@ def manage_args(args):
                                           (e.g., 0, 1, 2, 3)
                 ['gab_k'] (int or list) : gabor kappa values to include 
                                           (e.g., 4, 16 or [4, 16])
-                ['lines'] (list)        : transgenic line for each session
                 ['n_quints'] (int)      : number of quintiles
                 ['pre'] (float)         : range of frames to include before each 
                                           frame reference (in s)
@@ -2779,6 +2820,9 @@ def manage_args(args):
                                         grp1/grp2
 
         - sess_par (dict)  : dictionary containing session parameters:
+                ['closest'] (bool)         : if False, only exact session
+                                             number is retained, otherwise the 
+                                             closest.
                 ['layer'] (str)            : layer ('soma', 'dend', 'L23_soma',  
                                              'L5_soma', 'L23_dend', 'L5_dend', 
                                              'L23_all', 'L5_all')
@@ -2788,6 +2832,8 @@ def manage_args(args):
                 ['overall_sess_n'] (int)   : overall session number aimed for
                 ['pass_fail'] (str or list): pass/fail values of interest 
                                              ('P', 'F')
+                ['runtype'] (str or list)  : runtype value(s) of interest
+                                             ('pilot', 'prod')
     """
 
     analys_keys  = [ 'gab_fr', 'gab_k', 'lag_s', 'n_quints', 'post', 'pre']
@@ -2796,8 +2842,8 @@ def manage_args(args):
                     'subplot_hei', 'subplot_wid']
     perm_keys    = ['n_perms', 'p_val', 'tails']
     roi_grp_keys = ['grps', 'op', 'plot_vals']
-    sess_keys    = ['layer', 'min_rois', 'omit_mice', 'omit_sess', 
-                    'overall_sess_n', 'pass_fail']
+    sess_keys    = ['closest', 'layer', 'min_rois', 'omit_mice', 'omit_sess', 
+                    'overall_sess_n', 'pass_fail', 'runtype']
 
     analys_par  = {key: args_dict[key] for key in analys_keys if key in args_dict.keys()}
     basic_par   = {key: args_dict[key] for key in basic_keys if key in args_dict.keys()}
@@ -2813,7 +2859,7 @@ def manage_args(args):
     roi_grp_par['add_nosurp'] = not(args.no_add_nosurp)
     
     # subfolders
-    fig_par['figdir_roi'] = os.path.join(args.output, 'figures', 
+    fig_par['figdir_roi'] = os.path.join(args.output, 'results', 'figures', 
                                          '{}_roi'.format(args.runtype))
     fig_par['surp_quint'] = 'surp_nosurp_quint' 
     fig_par['autocorr']   = 'autocorr'
@@ -2821,45 +2867,106 @@ def manage_args(args):
     # allow reusing datetime folder (if mult figs created by one function)
     fig_par['prev_dt'] = None
     fig_par['mult']    = False
-
-    # make sure this key contains a list of ints
-    analys_par['gab_k'] = [int(val) for val in gen_util.list_if_not(analys_par['gab_k'])]
-    
-    if args.runtype == 'pilot':
-        sess_par['omit_sess'].extend([721038464]) # alignment didn't work
-        sess_par['omit_mice'].extend(gab_mice_omit(analys_par['gab_k']))
-    elif args.runtype == 'prod' and 16 not in analys_par['gab_k']:
-            raise ValueError(('The production data only includes gabor '
-                              'stimuli with kappa=16'))
     
     return analys_par, basic_par, fig_par, perm_par, roi_grp_par, sess_par
+
+
+#############################################
+def run_analyses(sess, args, mouse_df):
+    """
+    run_analyses(sess, args, mouse_df)
+
+    Runs analyses on the sessions corresponding to the overall session numbers
+    passed.
+
+    Required arguments:
+        - sess (int)            : overall session number to run analyses on
+        - args (Argument parser): parser containing all parameters
+        - mouse_df (pandas df)  : dataframe containing parameters for each 
+                                  session.
+    """
+
+    if args.parallel and args.plt_bkend is not None:
+        plt.switch_backend(args.plt_bkend) # needs to be repeated within joblib
+
+    [analys_par, basic_par, fig_par, perm_par, 
+                        roi_grp_par, sess_par] = manage_args(args)
+    
+    print('\nOverall_sess_n: {}'.format(sess))
+    sess_par['overall_sess_n'] = int(sess)
+
+    analys_par['sess_ns'] = sess_per_mouse(mouse_df, **sess_par)
+
+    # create a dictionary with Session objects prepared for analysis
+    sessions = init_sessions(analys_par['sess_ns'], args.datadir, mouse_df,
+                             args.runtype, full_dict=False, load_run=False)
+
+    if args.analyses == 'all':
+        args.analyses = 'ltqcma'
+
+    # 0. Create dictionary including frame numbers for LFADS analysis
+    if 'l' in args.analyses: # lfads
+        lfads_dict(sessions, mouse_df, args.runtype, analys_par['gab_fr'], 
+                analys_par['gab_k'], args.output)
+
+    # 1. Plot average traces by quintile x surprise for each session 
+    if 't' in args.analyses: # traces
+        plot_traces_by_qu_surp_sess(sessions, analys_par, basic_par, fig_par, 
+                                    sess_par)
+
+    # 2. Plot average dF/F area for each ROI group across quintiles for each 
+    # session 
+    if 'q' in args.analyses: # roi_grps_qu
+        plot_rois_by_grp_qu_sess(sessions, analys_par, basic_par, fig_par, 
+                                perm_par, roi_grp_par, sess_par)
+
+    # 3. Plot average traces and trace areas by suprise for first vs last 
+    # quintile, for each ROI group, for each session
+    if 'c' in args.analyses: # roi_grps_ch
+        plot_rois_by_grp(sessions, analys_par, basic_par, fig_par, perm_par, 
+                        roi_grp_par, sess_par)
+
+    # 4. Plot magnitude of change in dF/F area from first to last quintile of 
+    # surprise vs no surprise segments, for each session
+    if 'm' in args.analyses: # mag
+        plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par)
+
+    # 5. Run autocorrelation analysis
+    if 'a' in args.analyses: # autocorr
+        plot_gab_autocorr(sessions, analys_par, basic_par, fig_par, sess_par)
 
 
 if __name__ == "__main__":
 
     # typically change runtype, analyses, layer, overall_sess_n, plot_vals
 
-    # commonly changed
-        # general
     parser = argparse.ArgumentParser()
+
+        # general parameters
     parser.add_argument('--datadir', default=None, 
                         help=('data directory (if None, uses a directory '
                               'defined below'))
     parser.add_argument('--output', default='', help='where to store output')
     parser.add_argument('--plt_bkend', default=None, 
                         help='switch matplotlib backend when running on server')
-    parser.add_argument('--runtype', default='prod', help='prod or pilot')
-    parser.add_argument('--analyses', default='t', 
+    parser.add_argument('--analyses', default='all', 
                         help=('analyses to run: lfads (l), traces (t), '
                               'roi_grps_qu (q), roi_grps_ch (c), mag (m), '
-                              'autocorr (a)'))
+                              'autocorr (a) or \'all\''))
+    parser.add_argument('--parallel', action='store_true', 
+                        help='do overall_sess_n\'s in parallel.')
+
         # session parameters
-    parser.add_argument('--layer', default='dend',
+    parser.add_argument('--runtype', default='prod', help='prod or pilot')
+    parser.add_argument('--layer', default='soma',
                         help=('soma, dend, L23_soma, L5_soma, L23_dend, '
                               'L5_dend, L23_all, L5_all'))
-    parser.add_argument('--overall_sess_n', default=1, type=int,
-                        help='session to aim for, e.g. 1, 2, \'last\'')
-    parser.add_argument('--min_rois', default=10, type=int, 
+    parser.add_argument('--overall_sess_n', default='all',
+                        help='session to aim for, e.g. 1, 2, last, all')
+    parser.add_argument('--closest', action='store_true', 
+                        help=('if True, the closest session number is used.'
+                              ' Otherwise, only exact.'))
+    parser.add_argument('--min_rois', default=5, type=int, 
                         help='min rois criterion')
         # roi group parameters
     parser.add_argument('--plot_vals', default='surp', 
@@ -2876,8 +2983,8 @@ if __name__ == "__main__":
     parser.add_argument('--n_quints', default=4, type=int, help='nbr of quintiles')
     parser.add_argument('--lag_s', default=4, type=float,
                         help='lag for autocorrelation (in sec)')
-    parser.add_argument('--gab_k', default=[16],
-                        help='kappa value ([4], [16], or [4, 16])')    
+    parser.add_argument('--gab_k', default=16,
+                        help='kappa value (4, 16, or both)')    
     parser.add_argument('--gab_fr', default=3, type=int, help='gabor frame of reference')
     parser.add_argument('--pre', default=0, type=float, help='sec before frame')
     parser.add_argument('--post', default=1.5, type=float, help='sec after frame')
@@ -2941,52 +3048,38 @@ if __name__ == "__main__":
         # previously: '/media/colleen/LaCie/CredAssign/pilot_data'
         args.datadir = '../data/AIBS/{}'.format(args.runtype)
     
-    mouse_df_dir = 'mouse_df_{}.csv'.format(args.runtype)
-    mouse_df = file_util.load_file(mouse_df_dir, file_type='csv')
+    mouse_df_dir = 'mouse_df.csv'
+    mouse_df = file_util.load_file(mouse_df_dir)
 
-    [analys_par, basic_par, fig_par, perm_par, 
-                        roi_grp_par, sess_par] = manage_args(args)
+    # make sure this key contains a list of ints
+    if args.gab_k == 'both':
+        args.gab_k = [4, 16]
+    else:
+        args.gab_k = int(args.gab_k)
+
+    if args.runtype == 'pilot':
+        args.omit_sess.extend([721038464]) # alignment didn't work
+        args.omit_mice.extend(gab_mice_omit(args.gab_k))
+    elif args.runtype == 'prod' and 16 not in gen_util.list_if_not(args.gab_k):
+            raise ValueError(('The production data only includes gabor '
+                              'stimuli with kappa=16'))
 
     # get session numbers
-    [analys_par['sess_ns'], analys_par['mouse_ns'],
-            analys_par['act_sess_ns'], 
-            analys_par['lines']] = sess_per_mouse(mouse_df, **sess_par)
+    if args.overall_sess_n == 'all':
+        args.closest = False
+        all_sesses = all_sess_ns(mouse_df, args.runtype, args.layer, 
+                                 args.pass_fail, omit_sess=args.omit_sess, 
+                                 omit_mice=args.omit_mice, 
+                                 min_rois=args.min_rois)
+    else:
+        all_sesses = gen_util.list_if_not(args.overall_sess_n)
 
-    # create a dictionary with Session objects prepared for analysis
-    sessions = init_sessions(analys_par['sess_ns'], args.datadir, args.runtype)
-
-    if args.analyses == 'all':
-        args.analyses = 'ltqcma'
-
-
-    # 0. Create dictionary including frame numbers for LFADS analysis
-    if 'l' in args.analyses: # lfads
-        lfads_dict(sessions, mouse_df, args.runtype, analys_par['gab_fr'], 
-                analys_par['gab_k'], args.output)
-
-    # 1. Plot average traces by quintile x surprise for each session 
-    if 't' in args.analyses: # traces
-        plot_traces_by_qu_surp_sess(sessions, analys_par, basic_par, fig_par, 
-                                    sess_par)
-
-    # 2. Plot average dF/F area for each ROI group across quintiles for each 
-    # session 
-    if 'q' in args.analyses: # roi_grps_qu
-        plot_rois_by_grp_qu_sess(sessions, analys_par, basic_par, fig_par, 
-                                 perm_par, roi_grp_par, sess_par)
-
-    # 3. Plot average traces and trace areas by suprise for first vs last 
-    # quintile, for each ROI group, for each session
-    if 'c' in args.analyses: # roi_grps_ch
-        plot_rois_by_grp(sessions, analys_par, basic_par, fig_par, perm_par, 
-                        roi_grp_par, sess_par)
-
-    # 4. Plot magnitude of change in dF/F area from first to last quintile of 
-    # surprise vs no surprise segments, for each session
-    if 'm' in args.analyses: # mag
-        plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par)
-
-    # 5. Run autocorrelation analysis
-    if 'a' in args.analyses: # autocorr
-        plot_gab_autocorr(sessions, analys_par, basic_par, fig_par, sess_par)
+    # run through all sessions
+    if args.parallel:
+        num_cores = multiprocessing.cpu_count()
+        Parallel(n_jobs=num_cores)(delayed(run_analyses)
+                (sess, args, mouse_df) for sess in all_sesses)
+    else:
+        for sess in all_sesses:
+            run_analyses(sess, args, mouse_df)
 
