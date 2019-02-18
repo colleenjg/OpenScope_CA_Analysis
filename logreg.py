@@ -165,7 +165,14 @@ def load_sess_dict(mouse_n, sess_n, layer, runtype='prod'):
                     sess_n, layer)
     sess_dict_dir = os.path.join('session_dicts', runtype)
 
-    sess_dict = file_util.load_file(sess_dict_name, sess_dict_dir, 'json')
+    sess_dict_file = os.path.join(sess_dict_dir, sess_dict_name)
+    if os.path.exists(sess_dict_file):
+        sess_dict = file_util.load_file(sess_dict_file, file_type='json')
+    else:
+        print(('No session dictionary found for\n\tMouse: {}\n\tSess: {}\n\t'
+               'Layer: {}\n\tRuntype: {}\n'.format(mouse_n, sess_n, layer, 
+               runtype)))
+        sess_dict = None
 
     return sess_dict
 
@@ -428,7 +435,7 @@ def get_sess_data(data_dir, mouse_n, sess_n, layer, comp='surp', gab_fr=0,
                          default: 'dff'
         - runtype (str): type of run ('prod' or 'pilot')
                          default: 'prod'
-    
+ 
     Returns:
         - roi_tr_segs (3D array): array of all ROI trace segments, structured as 
                                   segments x frames x ROIs
@@ -438,33 +445,37 @@ def get_sess_data(data_dir, mouse_n, sess_n, layer, comp='surp', gab_fr=0,
         - n_surp (int)          : number of surprise segments
     """
 
-    sess_dict = load_sess_dict(mouse_n, sess_n, layer)
+    sess_dict = load_sess_dict(mouse_n, sess_n, layer, runtype)
 
-    if fluor == 'raw':
-        roi_tr_file = sess_dict['traces_dir']
-    elif fluor == 'dff':
-        roi_tr_file = sess_dict['dff_traces_dir']
-    else:
-        gen_util.accepted_values_error('fluor', fluor, ['raw', 'dff'])
+    if sess_dict is not None:
+        if fluor == 'raw':
+            roi_tr_file = sess_dict['traces_dir']
+        elif fluor == 'dff':
+            roi_tr_file = sess_dict['dff_traces_dir']
+        else:
+            gen_util.accepted_values_error('fluor', fluor, ['raw', 'dff'])
 
-    roi_traces, nroi, _ = get_roi_traces(data_dir, roi_tr_file)
- 
-    [gabs, classes, seg_fr, seg_classes, 
-           n_surp, nan_rois] = comp_segs(sess_dict, gab_fr, comp, fluor)
-
-    roi_tr_segs = roi_traces[:, seg_fr].transpose(1, 2, 0)
-
-    roi_tr_segs = gen_util.remove_idx(roi_tr_segs, nan_rois, axis=2)
-
-    log_var = np.log(np.var(roi_tr_segs))
-
-    print('Runtype: {}\nMouse: {}\nSess: {}\nLayer: {}\nLine: {}\nFluor: {}\n'
-          'ROIs: {}\nGab fr: {}\nGab K: {}\nFrames per seg: {}'
-          '\nLogvar: {:.2f}'.format(runtype, mouse_n, sess_n, layer, 
-                sess_dict['line'], fluor, nroi-len(nan_rois), gabs, 
-                sess_dict['gab_k'], roi_tr_segs.shape[1], log_var))
+        roi_traces, nroi, _ = get_roi_traces(data_dir, roi_tr_file)
     
-    return roi_tr_segs, classes, seg_classes, n_surp
+        [gabs, classes, seg_fr, seg_classes, 
+            n_surp, nan_rois] = comp_segs(sess_dict, gab_fr, comp, fluor)
+
+        roi_tr_segs = roi_traces[:, seg_fr].transpose(1, 2, 0)
+
+        roi_tr_segs = gen_util.remove_idx(roi_tr_segs, nan_rois, axis=2)
+
+        log_var = np.log(np.var(roi_tr_segs))
+
+        print('Runtype: {}\nMouse: {}\nSess: {}\nLayer: {}\nLine: {}\nFluor: {}\n'
+            'ROIs: {}\nGab fr: {}\nGab K: {}\nFrames per seg: {}'
+            '\nLogvar: {:.2f}'.format(runtype, mouse_n, sess_n, layer, 
+                    sess_dict['line'], fluor, nroi-len(nan_rois), gabs, 
+                    sess_dict['gab_k'], roi_tr_segs.shape[1], log_var))
+    
+        return roi_tr_segs, classes, seg_classes, n_surp
+    
+    else:
+        return None
 
 
 #############################################
@@ -922,13 +933,16 @@ def run_regr(args):
         args.layer  = curr_line['layer'].item()
         args.line   = curr_line['line'].item()
 
-        [roi_tr_segs, classes, 
-            seg_classes, n_surp] = get_sess_data(args.datadir, args.mouse_n,  
-                                                    args.sess_n, args.layer, 
-                                                    comp=args.comp, 
-                                                    gab_fr=args.gab_fr, 
-                                                    fluor=args.fluor,
-                                                    runtype=args.runtype)
+        sess_data = get_sess_data(args.datadir, args.mouse_n, args.sess_n, 
+                                  args.layer, comp=args.comp, 
+                                  gab_fr=args.gab_fr, fluor=args.fluor,
+                                  runtype=args.runtype)
+        
+        if sess_data is None:
+            continue
+        else:
+            [roi_tr_segs, classes, seg_classes, n_surp] = sess_data
+
         args.n_roi = roi_tr_segs.shape[2]
         args.classes = classes
 
@@ -1022,8 +1036,9 @@ def run_collate(args):
             scores = collate_scores(run_dir, all_labels)
             all_scores = all_scores.append(scores)
 
-    # sort df by mouse, session, norm, shuffle, uniqueid, run
-    sorter = info_dict(None)[0:9]
+    # sort df by mouse, session, layer, line, fluor, norm, shuffled, comp, 
+    # uniqueid, run, runtype
+    sorter = info_dict(None)[0:11]
     all_scores = all_scores.sort_values(by=sorter).reset_index(drop=True)
 
     file_util.save_info(all_scores, '{}_all_scores_df'.format(args.comp), 
@@ -1031,7 +1046,7 @@ def run_collate(args):
 
 
 #############################################
-def calc_stats(scores_summ, curr_lines, curr_idx, CI=95):
+def calc_stats(scores_summ, curr_lines, curr_idx, CI=0.95):
     """
     calc_stats(scores_summ, curr_lines, curr_idx)
 
@@ -1048,7 +1063,7 @@ def calc_stats(scores_summ, curr_lines, curr_idx, CI=95):
     Optional arguments:
         - CI (float): Confidence interval around which to collect percentile 
                       values
-                      default: 95
+                      default: 0.95
 
     Returns:
         - scores_summ (pd DataFrame): Updated DataFrame containing scores 
@@ -1201,12 +1216,11 @@ def rois_x_label(sess_ns, arr):
             if m > 0:
                 n_rois_str = '{}/{}'.format(n_rois_str, int(arr[m, s, 0]))
         x_label.append('Session {}\n({} rois)'.format(int(sess_n), n_rois_str))
-
     return x_label
 
 
 #############################################
-def mouse_runs_leg(arr, mouse_n=None, shuffle=False):
+def mouse_runs_leg(arr, mouse_n=None, shuffle=False, CI=0.95):
     """
     mouse_runs_leg(arr)
 
@@ -1219,13 +1233,14 @@ def mouse_runs_leg(arr, mouse_n=None, shuffle=False):
         - arr (3D array): array of number of ROIs, structured as 
                           mouse (or mice to sum) x session x shuffle
 
-    Required arguments:
+    Optional arguments:
         - mouse_n (int) : mouse number (only needed if shuffle is False)
                           default: None
         - shuffle (bool): if True, shuffle legend is created. Otherwise, 
                           mouse legend is created.
                           default: False
-
+        - CI (float)    : CI for shuffled data
+                          default: 0.95 
     Returns:
         - leg (str): legend for the mouse or shuffle set
     """
@@ -1242,17 +1257,25 @@ def mouse_runs_leg(arr, mouse_n=None, shuffle=False):
             n_runs_str = '{}/{}'.format(n_runs_str, int(np.sum(arr[:, s])))
     
     if shuffle:
-        leg = 'shuffled\n({} runs)'.format(n_runs_str)
+        if CI is not None:
+            CI_pr = CI*100
+            if CI_pr%1 == 0:
+                CI_pr = int(CI_pr)
+            leg = 'shuffled ({}% CI)\n({} runs)'.format(CI_pr, n_runs_str)
+        else:
+            leg = 'shuffled\n({} runs)'.format(n_runs_str)
+
     else:
         if mouse_n is None:
             raise IOError('If \'shuffle\' is False, Must specify \'mouse_n\'.')
+        
         leg = 'mouse {}\n({} runs)'.format(int(mouse_n), n_runs_str)
     
     return leg
 
 
 #############################################
-def plot_CI(ax, x_label, arr, sess_ns):
+def plot_CI(ax, x_label, arr, sess_ns, CI=0.95):
     """
     plot_CI(ax, x_label, arr, sess_ns)
 
@@ -1264,6 +1287,10 @@ def plot_CI(ax, x_label, arr, sess_ns):
         - arr (3D array)       : array of number of ROIs, structured as 
                                  mouse (or mice to sum) x session x shuffle
         - sess_ns (list)       : list of session numbers
+    
+        Optional arguments:
+        - CI (float)           : CI for shuffled data
+                                 default: 0.95 
     """
 
     # shuffle (combine across mice)
@@ -1271,7 +1298,7 @@ def plot_CI(ax, x_label, arr, sess_ns):
     p_lo = np.nanmedian(arr[:, :, 1], axis=0)
     p_hi = np.nanmedian(arr[:, :, 2], axis=0)
 
-    leg = mouse_runs_leg(arr[:,:,4], shuffle=True)
+    leg = mouse_runs_leg(arr[:,:,4], shuffle=True, CI=CI)
 
     # plot CI
     ax.bar(x_label, height=p_hi-p_lo, bottom=p_lo, color='lightgray', width=0.2, 
@@ -1284,8 +1311,8 @@ def plot_CI(ax, x_label, arr, sess_ns):
            width=0.2)
 
 #############################################
-def summ_subplot(ax, arr, data_title, mouse_ns, sess_ns, line, layer, fluor, norm,
-                 comp, runtype):
+def summ_subplot(ax, arr, data_title, mouse_ns, sess_ns, line, layer, fluor, 
+                 norm, comp='surp', runtype='prod', stat='mean', CI=0.95):
     """
     summ_subplot(ax, arr, datatype, mouse_ns, sess_ns, line, layer, fluor, norm,
                  comp, runtype)
@@ -1306,21 +1333,41 @@ def summ_subplot(ax, arr, data_title, mouse_ns, sess_ns, line, layer, fluor, nor
         - layer (str)          : layer name
         - fluor (str)          : fluorescence trace type
         - norm (str)           : type of normalization
+    
+    Optional arguments:
         - comp (str)           : type of comparison
+                                 default: 'surp'
         - runtype (str)        : type of run ('prod' or 'pilot')
+                                 default: 'prod'
+        - stat (str)           : stats to take for non shuffled data, 
+                                 i.e., 'mean' or 'median' 
+                                 default: 'mean'
+        - CI (float)           : CI for shuffled data
+                                 default: 0.95 
     """
 
-    col=['steelblue', 'coral']
+    col=['steelblue', 'coral', 'forestgreen']
     
     x_label = rois_x_label(sess_ns, arr[:,:,:,3])
+
+    plot_CI(ax, x_label, arr[:,:,1], sess_ns, CI)
 
     # plot non shuffle data
     for m, mouse_n in enumerate(mouse_ns):
         leg = mouse_runs_leg(arr[m,:,0,4], mouse_n, False)
-        ax.errorbar(x_label, arr[m,:,0,0], yerr=arr[m, :, 0, 1], fmt='-o', 
-                    capsize=6, capthick=2, color=col[m], label=leg)     
+        ax.errorbar(x_label, arr[m,:,0,0], yerr=arr[m,:,0,1], fmt='-o', 
+                    capsize=6, capthick=2, color=col[m], label=leg, alpha=0.5)     
 
-    plot_CI(ax, x_label, arr[:,:,1], sess_ns,)
+    # add a mean line
+    for i in range(len(x_label)):
+        if not np.isnan(arr[:,i,0,0]).all():
+            med = math_util.mean_med(arr[:,i,0,0], axis=0, stats=stat, 
+                                     nanpol='omit')
+            y_lim = ax.get_ylim()
+            med_th = 0.005*(y_lim[1]-y_lim[0])
+
+            ax.bar(x_label[i], height=med_th, bottom=med-med_th/2.0, color='black', 
+                width=0.3)
 
     if line == 'L23':
         line = 'L2/3'
@@ -1407,7 +1454,8 @@ def plot_data_summ(args, summ_scores, data, title, stats, shuff_stats):
                         data_arr[m, s, sh, 4] = curr_line['runs_total'] - curr_line['runs_nan']
         
         summ_subplot(sub_ax, data_arr, title, mouse_ns, sess_ns, line, layer, 
-                     args.fluor, args.norm, args.comp, args.runtype)
+                     args.fluor, args.norm, args.comp, args.runtype, stats[0],
+                     shuff_stats)
 
     norm_str = str_util.norm_par_str(args.norm, type_str='file')
     save_dir = os.path.join(args.output, 'figures_{}'.format(args.fluor))
@@ -1429,6 +1477,7 @@ def run_plot(args):
 
     Required arguments:
          - args (Argument parser): parser with analysis parameters as attributes:
+                CI (float)         : CI for shuffled data
                 comp (str)         : type of comparison
                 fig_ext (str)      : extension for saving figure
                 fluor (str)        : fluorescence trace type
@@ -1443,14 +1492,19 @@ def run_plot(args):
                 subplot_wid (float): width of each subplot (inches)
     """
 
-    summ_scores = file_util.load_file('{}_score_stats_df.csv'.format(args.comp), 
-                                      args.output, 'csv')
+    summ_scores_file = os.path.join(args.output, '{}_score_stats_df.csv'.format(args.comp))
+    
+    if os.path.exists(summ_scores_file):
+        summ_scores = file_util.load_file(summ_scores_file, file_type='csv')
+    else:
+        print('{} not found.'.format(summ_scores_file))
+        return
 
     data_types  = ['epoch', 'test_acc']
     data_titles = ['epoch nbr', 'test accuracy']
 
     stats = ['mean', 'sem', 'sem']
-    shuff_stats = ['median', 'p2p5', 'p97p5']
+    shuff_stats = ['median'] + math_util.get_percentiles(args.CI)[1]
 
     for data, title in zip(data_types, data_titles):
         plot_data_summ(args, summ_scores, data, title, stats, shuff_stats)
@@ -1508,7 +1562,7 @@ if __name__ == "__main__":
                               'or None for no uniqueid'))
 
         # analysis parameters
-    parser.add_argument('--CI', default=95, type=int, help='shuffled CI')
+    parser.add_argument('--CI', default=0.95, type=float, help='shuffled CI')
 
         # plot parameters
     parser.add_argument('--ncols', default=2, type=int, help='nbr of cols per figure')
@@ -1516,7 +1570,7 @@ if __name__ == "__main__":
     parser.add_argument('--subplot_wid', default=7.5, type=float, help='figure width')
     parser.add_argument('--subplot_hei', default=7.5, type=float, help='figure height')
         
-        # NOTE: norm, fluor, runtype also used for plots
+        # NOTE: CI, norm, fluor, runtype also used for plots
 
     args = parser.parse_args()
 
@@ -1547,4 +1601,57 @@ if __name__ == "__main__":
 
         elif args.task == 'plot':
             run_plot(args)
+
+
+
+
+    ############## QUICK ADD ##################
+    if args.task == 'mags':
+        sess_labels = ['Session 1', 'Session 2']
+        mag_labels = ['Regular', 'Surprise']
+        x_labels = ['{}\n{}'.format(m, s) for s in sess_labels for m in mag_labels]
+
+        direc = os.path.join(args.output, 'figures', 'summ_mags')
+        summ_mag_dict = file_util.load_file('summ_mag_dict.pkl', direc, 'pickle')
+
+        celltypes = [[x, y] for x in ['L23-Cux2', 'L5-Rbp4'] for y in ['soma', 'dend']]
+
+        fig, ax = init_res_fig(args, len(celltypes))
+        fig_norm, ax_norm = init_res_fig(args, len(celltypes))
+
+        for i, [line, layer] in enumerate(celltypes):
+            for name, axis in zip(['reg', 'norm'], [ax, ax_norm]):
+                sub_ax = plot_util.get_subax(axis, i)
+
+                subdict = '{}_{}'.format(line, layer)
+                sub_ax.set_title(subdict)
+                mouse_leg = summ_mag_dict[subdict]['mouse_leg']
+                data = summ_mag_dict[subdict]['{}_data'.format(name)]
+
+                data = data.reshape([data.shape[0], -1]).T
+
+                sub_ax.plot(x_labels, data, marker='o', alpha=0.5)
+                sub_ax.legend(mouse_leg)
+
+        for i, [line, layer] in enumerate(celltypes):
+            for name, axis in zip(['reg', 'norm'], [ax, ax_norm]):
+                sub_ax = plot_util.get_subax(axis, i)
+                subdict = '{}_{}'.format(line, layer)
+                data = summ_mag_dict[subdict]['{}_data'.format(name)]
+                data = data.reshape([data.shape[0], -1]).T
+
+                if not np.isnan(data).all():
+                    med = math_util.mean_med(data, axis=1, stats=args.stats, 
+                                             nanpol='omit')
+
+                    y_lim = sub_ax.get_ylim()
+                    med_th = 0.005*(y_lim[1]-y_lim[0])
+
+                    sub_ax.bar(x_labels, height=med_th, bottom=med-med_th/2.0, 
+                            color='black', width=0.3)
+            
+        fig.savefig(os.path.join(direc, 'reg_mags{}'.format(args.fig_ext)), 
+                    bbox_inches='tight')
+        fig_norm.savefig(os.path.join(direc, 'norm_mags{}'.format(args.fig_ext)), 
+                         bbox_inches='tight')
 

@@ -911,7 +911,7 @@ def get_scores(direc):
 
     # get scores df
     if os.path.exists(df_path):
-        scores_df = file_util.load_file(df_path, file_type='csv')
+        scores_df = file_util.load_file(df_path)
     else:
         print('{} No scores were recorded.'.format(warn_str))
         scores_df = None
@@ -919,8 +919,7 @@ def get_scores(direc):
             print(('{} Highest recorded model is for epoch {}, but no '
                     'score is recorded.').format(warn_str, max_ep))
     
-    hyperpars = file_util.load_file('hyperparameters.json', direc, 
-                                    file_type='json')
+    hyperpars = file_util.load_file('hyperparameters.json', direc)
 
     # check max epoch recorded matches scores df
     ep_info = check_scores(scores_df, max_ep, hyperpars)

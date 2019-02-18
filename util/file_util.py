@@ -21,41 +21,75 @@ import json
 
 import gen_util
 
+
+###############################################################################
+def add_ext(file_name, file_type='pickle'):
+    '''
+    add_ext(file_name)
+
+    Adds an extension to a file_name if it is not included. Only adds pickle,
+    json or csv extensions.
+ 
+    Required arguments:
+        - file_name (str): name of file, can include the whole directory name
+                           and extension
+    
+    Optional arguments:
+        - file_type (str): type of file (pickle, pkl, json, csv)
+                           default: 'pickle'
+
+    Outputs:
+        - file_name (str): file name, including extension
+        - ext (str)      : extension, including '.'
+    '''
+
+    _, ext = os.path.splitext(file_name)
+
+    if ext == '':
+        file_types = ['pkl', 'pickle', 'json', 'csv']
+        file_exts  = ['.pkl', '.pkl', '.json', '.csv']
+        if file_type not in file_types:
+            gen_util.accepted_values_error('file_type', file_type, file_types)
+        ext = file_exts[file_types.index(file_type)]
+        file_name = '{}{}'.format(file_name, ext)
+    
+    return file_name, ext
+
+
 ###############################################################################
 def load_file(file_name, full_dir='.', file_type='pickle'):
     '''
     load_file(filename)
 
-    Safely opens and loads a pickle or pandas dataframe.
+    Safely opens and loads a pickle or pandas dataframe. If the file name 
+    includes the extension, it will override the file_type argument. 
  
     Required arguments:
         - file_name (str): name of file, can include the whole directory name
-                           and must include extension
+                           and extension
     
     Optional arguments:
         - full_dir (str) : directory in which file is saed
                            default: '.'
-        - file_type (str): type of file (pickle, json, csv)
+        - file_type (str): type of file (pickle, pkl, json, csv)
                            default: 'pickle'
 
     Outputs:
         - datafile (dict or pd df): loaded file
     '''
 
+    file_name, ext = add_ext(file_name, file_type)
     full_name = os.path.join(full_dir, file_name)
     
     if os.path.exists(full_name):
-        if file_type in ['pickle', 'pkl']:
+        if ext == '.pkl':
             with open(full_name, 'rb') as f:
                 datafile = pickle.load(f)
-        elif file_type == 'json':
+        elif ext == '.json':
             with open(full_name, 'rb') as f:
                 datafile = json.load(f)
-        elif file_type == 'csv':
+        elif ext == '.csv':
             datafile = pd.read_csv(full_name)
-        else:
-            gen_util.accepted_values_error('file_type', file_type, 
-                                           ['pickle', 'json', 'csv'])
     else:
         raise IOError('{} does not exist.'.format(full_name))
 
@@ -69,6 +103,7 @@ def save_info(save_obj, save_name='info', full_dir='.', save_as='pickle',
     save_info(dict, full_dir)
 
     Pickles and saves dictionary under a specific directory and optional name.
+    If save_name includes the extension, it will override the save_as argument.
 
     Required arguments:
         - save_obj (dict): object to save
@@ -77,44 +112,30 @@ def save_info(save_obj, save_name='info', full_dir='.', save_as='pickle',
         - full_dir (str) : directory in which to save pickle
                            default: '.'
         - save_name (str): name under which to save info, can include the 
-                           whole directory name
+                           whole directory name and extension
                            default: 'info'
-        - save_as (str)  : type of file to save as (pickle, json, csv)
+        - save_as (str)  : type of file to save as (pickle, pkl, json, csv)
                            default: 'pickle'
         - sort (bool)    : whether to sort keys alphabetically, if saving a 
-                           dictionary
+                           dictionary as .json
                            default: True
     '''
 
+    save_name, ext = add_ext(save_name, save_as)
     full_name = os.path.join(full_dir, save_name)
-    
-    # check whether extension is included
-    if len(save_name.split('.')) == 2:
-        ext = True
-    else:
-        ext = False
 
     # create directory if it doesn't exist
     if not os.path.exists(full_dir):
         os.makedirs(full_dir)
     
-    if save_as in ['pickle', 'pkl']:
-        if not ext:
-            full_name = '{}.pkl'.format(full_name)
+    if ext == '.pkl':
         with open(full_name, 'wb') as f:
             pickle.dump(save_obj, f)
-    elif save_as == 'json':
-        if not ext:
-            full_name = '{}.json'.format(full_name)
+    elif ext == '.json':
         with open(full_name, 'w') as f:
             json.dump(save_obj, f, sort_keys=sort)
-    elif save_as == 'csv':
-        if not ext:
-            full_name = '{}.csv'.format(full_name)
+    elif ext == '.csv':
         save_obj.to_csv(full_name)
-    else:
-        gen_util.accepted_values_error('save_as', save_as, 
-                                       ['pickle', 'json', 'csv'])
 
 
 #############################################
