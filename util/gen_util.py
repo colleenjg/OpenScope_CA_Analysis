@@ -249,7 +249,7 @@ def set_df_vals(df, idx, cols=[], vals=[]):
 
     Required arguments:
         - df (pd Dataframe): dataframe
-        - idx (int)        : dataframe line index (using .loc)
+        - idx (int)        : dataframe line index (for use with .loc)
 
     Optional arguments:
         - cols (list): ordered list of columns for which vals are provided
