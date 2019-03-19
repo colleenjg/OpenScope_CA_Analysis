@@ -26,31 +26,31 @@ class Custom_ds(torch.utils.data.TensorDataset):
     corresponding targets and initializes a custom TensorDataset.
     """
 
-    def __init__(self, data, target=None):
+    def __init__(self, data, targets=None):
         """
         self.__init__(data)
 
         Creates the new Custom_ds object using the specified data array, and
         optionally corresponding targets.
 
-        Initializes data, target and n_samples attributes.
+        Initializes data, targets and n_samples attributes.
 
         Required arguments:
             - data (nd array): array of dataset datapoints, where the first
                                dimension is the samples.
 
         Optional arguments:
-            - target (nd array): array of targets, where the first dimension
+            - targets (nd array): array of targets, where the first dimension
                                  is the samples. Must be of the same length 
                                  as data.
                                  default: None
         """
         self.data = data
-        self.target = target
+        self.targets = targets
         self.n_samples = self.data.shape[0]
 
-        if self.target is not None and (len(self.data) != len(self.target)):
-            raise IOError('Data and Target must be of the same length.')
+        if self.targets is not None and (len(self.data) != len(self.targets)):
+            raise IOError('data and targets must be of the same length.')
     
     def __len__(self):
         """
@@ -67,7 +67,7 @@ class Custom_ds(torch.utils.data.TensorDataset):
         """
         self.__getitem__()
 
-        Returns data point and target, if not None, corresponding to index
+        Returns data point and targets, if not None, corresponding to index
         provided.
 
         Required arguments:
@@ -76,13 +76,58 @@ class Custom_ds(torch.utils.data.TensorDataset):
         Returns:
             - (torch Tensor): data at specified index
             
-            if self.target is not None:
-            - (torch Tensor): target at specified index
+            if self.targets is not None:
+            - (torch Tensor): targets at specified index
         """
-        if self.target is not None:
-            return torch.Tensor(self.data[index]), torch.Tensor(self.target[index])
+        if self.targets is not None:
+            return torch.Tensor(self.data[index]), torch.Tensor(self.targets[index])
         else:
             return torch.Tensor(self.data[index])
+
+
+#############################################
+def bal_classes(data, targets):
+    """
+    bal_classes(data, targets)
+
+    Resamples data array to balance classes.
+
+    Required arguments:
+        - data (nd array)  : array of dataset datapoints, where the first
+                             dimension is the samples.
+        - targets (nd array): array of targets, where the first dimension
+                             is the samples. Must be of the same length as data.
+
+    Returns:
+        - data (nd array)  : array of sampled dataset datapoints, where the first
+                             dimension is the samples.
+        - targets (nd array): array of sampled targets, where the first dimension
+                             is the samples.
+    """
+    
+
+    if len(data) != len(targets):
+        raise IOError('data and targets must be of the same length.')
+
+    cl_n   = np.unique(targets).tolist()
+    counts = np.unique(targets, return_counts=True)[1]
+    n_cl   = len(counts.tolist()) 
+    
+    count_min = np.min(counts)
+    
+    sample_idx = []
+    for cl in cl_n:
+        idx = np.random.choice(np.where(targets==cl)[0], count_min, 
+                               replace=False)
+        sample_idx.extend(idx.tolist())
+    
+    sample_idx = sorted(sample_idx)
+
+    data = data[sorted(sample_idx)]
+    targets = targets[sample_idx]
+
+    return data, targets
+
 
 #############################################
 def data_indices(n, train_n, val_n, test_n=None, targets=None, thresh_cl=2):
@@ -105,7 +150,7 @@ def data_indices(n, train_n, val_n, test_n=None, targets=None, thresh_cl=2):
         - test_n (int)     : nbr of indices to assign to test set. If test_n is
                              None, test_n is inferred from n, train_n and val_n
                              so that all indices are assigned.
-        - target (nd array): array of targets, where the first dimension
+        - targets (nd array): array of targets, where the first dimension
                              is the samples. Must be of the same length 
                              as data.
                              default: None
@@ -221,7 +266,7 @@ def split_idx(n, train_p=0.75, val_p=None, test_p=None, thresh_set=10,
         - thresh_set (int) : size threshold for sets beneath which an error is
                              thrown if the set's proportion is not 0.
                              default: 10
-        - target (nd array): array of targets, where the first dimension
+        - targets (nd array): array of targets, where the first dimension
                              is the samples. Must be of the same length 
                              as data.
                              default: None
@@ -306,7 +351,7 @@ def init_dl(data, targ=None, batch_size=200, shuffle=False):
                            dimension is the samples.
 
     Optional arguments:
-        - target (nd array): array of targets, where the first dimension
+        - targets (nd array): array of targets, where the first dimension
                              is the samples. Must be of the same length 
                              as data.
                              default: None
@@ -330,7 +375,7 @@ def init_dl(data, targ=None, batch_size=200, shuffle=False):
 
 #############################################
 def create_dls(data, targets=None, train_p=0.75, val_p=None, test_p=None, 
-               norm_dim=None, shuffle=False, batch_size=200, thresh_set=10,
+               norm_dim=None, shuffle=False, batch_size=200, thresh_set=5,
                thresh_cl=2, train_shuff=True):
     """
     create_dls(data)
@@ -349,7 +394,7 @@ def create_dls(data, targets=None, train_p=0.75, val_p=None, test_p=None,
                            dimension is the samples.
 
     Optional arguments:
-        - target (nd array) : array of targets, where the first dimension
+        - targets (nd array) : array of targets, where the first dimension
                               is the samples. Must be of the same length 
                               as data.
                               default: None
@@ -373,7 +418,7 @@ def create_dls(data, targets=None, train_p=0.75, val_p=None, test_p=None,
                               default: 200
         - thresh_set (int)  : size threshold for sets beneath which an error is
                               thrown if the set's proportion is not 0.
-                              default: 10
+                              default: 5
         - thresh_cl (int)   : size threshold for classes in each non empty set 
                               beneath which the indices are reselected (only if
                               targets are passed).

@@ -253,15 +253,19 @@ def get_sc_names(loss_name, classes):
 
 
 #############################################
-def get_set_labs(test=True):
+def get_set_labs(test=True, ext_test=False, ext_test_name=None):
     """
     get_set_labs()
 
     Returns labels for each set (train, val, test).
     
     Optional arguments:
-        - test (bool): if True, a test set is included
-                       default: True
+        - test (bool )       : if True, a test set is included
+                               default: True
+        - ext_test (bool)    : if True, an extra test set is included
+                               default: False
+        - ext_test_name (str): name of extra test set, if included
+                               default: None
 
     Returns:
         - sets (list): list of set labels
@@ -270,30 +274,39 @@ def get_set_labs(test=True):
     sets = ['train', 'val']
     if test:
         sets.extend(['test'])
+    if ext_test:
+        if ext_test_name is None:
+            sets.extend(['ext_test'])
+        else:
+            sets.extend([ext_test_name])
     
     return sets
 
 
 #############################################
-def get_sc_labs(test=True, by='flat'):
+def get_sc_labs(test=True, by='flat', ext_test=False, ext_test_name=None):
     """
     get_sc_labs()
 
     Returns labels for each set (train, val, test).
     
     Optional arguments:
-        - test (bool): if True, a test set is included
-                       default: True
-        - by (str)   : if 'flat', labels are returned flat. If 'set', labels
-                       are returned by set.
-                       default: 'flat'
+        - test (bool)        : if True, a test set is included
+                               default: True
+        - by (str)           : if 'flat', labels are returned flat. If 'set', 
+                               labels are returned by set.
+                               default: 'flat'
+        - ext_test (bool)    : if True, an extra test set is included
+                               default: False
+        - ext_test_name (str): name of extra test set, if included
+                               default: None
 
     Returns:
         - sc_labs (list): list of set and score labels, 
                           nested by set if by is 'set'.
     """
 
-    sets = get_set_labs(test)
+    sets = get_set_labs(test, ext_test=ext_test, ext_test_name=ext_test_name)
     scores = get_sc_types()
     if by == 'flat':
         sc_labs = ['{}_{}'.format(s, sc) for s in sets for sc in scores]
@@ -412,7 +425,8 @@ def print_loss(s, loss):
 
 
 #############################################
-def save_model(info, ep, mod, scores, dirname='.', rem_prev=True): 
+def save_model(info, ep, mod, scores, dirname='.', rem_prev=True, 
+               test=True, ext_test=False, ext_test_name=None): 
     """
     save_model(info, ep, mod, scores)
 
@@ -427,11 +441,17 @@ def save_model(info, ep, mod, scores, dirname='.', rem_prev=True):
         - scores (nested list) : list of scores structured as set x score
 
     Optional arguments:
-        - dirname (str)  : directory in which to save
-                           default: '.'
-        - rem_prev (bool): if True, only the current epoch model and 
-                           dictionary are kept, and previous ones are deleted.
-                           default: True
+        - dirname (str)      : directory in which to save
+                               default: '.'
+        - rem_prev (bool)    : if True, only the current epoch model and 
+                               dictionary are kept, and previous ones are deleted.
+                               default: True
+        - test (bool)        : if True, a test set is included
+                               default: True
+        - ext_test (bool)    : if True, an extra test set is included
+                               default: False
+        - ext_test_name (str): name of extra test set, if included
+                               default: None
     """
 
     if rem_prev:
@@ -451,8 +471,8 @@ def save_model(info, ep, mod, scores, dirname='.', rem_prev=True):
     
     info['epoch'] = ep
 
-    test = len(scores) - 2
-    sc_labs = get_sc_labs(test=test, by='set')
+    sc_labs = get_sc_labs(test=test, by='set', ext_test=ext_test, 
+                          ext_test_name=ext_test_name)
 
     for set_labs, set_scores in zip(sc_labs, scores):
         for sc_lab, score in zip(set_labs, set_scores):
@@ -463,7 +483,7 @@ def save_model(info, ep, mod, scores, dirname='.', rem_prev=True):
 
 #############################################
 def fit_model(info, epochs, mod, dls, device, dirname='.', ep_freq=50, 
-              keep='best'):
+              keep='best', test_dl2=None, test_dl2_name=None):
     """
     fit_model(info, epochs, mod, dls, device)
 
@@ -479,12 +499,17 @@ def fit_model(info, epochs, mod, dls, device, dirname='.', ep_freq=50,
         - device (str)         : device to use ('cuda' or 'cpu') 
 
     Optional arguments:
-        - dirname (str): directory in which to save models and dictionaries
-                         default: '.'
-        - ep_freq (int): frequency at which to print loss to console
-                         default: 50
-        - keep (str)   : if 'best', only the best model is saved. Otherwise,
-                         each best to date model is kept.
+        - dirname (str)      : directory in which to save models and dictionaries
+                               default: '.'
+        - ep_freq (int)      : frequency at which to print loss to console
+                               default: 50
+        - keep (str)         : if 'best', only the best model is saved. 
+                               Otherwise, each best to date model is kept.
+                               default: 'best'
+        - test_dl2 (dl)      : extra DataLoader to test on
+                               default: None
+        - test_dl2_name (str): name of extra DataLoader, if included
+                               default: None
 
     Returns:
         - scores (3D array)   : array in which scores are recorded, structured
@@ -494,7 +519,14 @@ def fit_model(info, epochs, mod, dls, device, dirname='.', ep_freq=50,
     """
 
     test   = len(dls) - 2
-    sets   = get_set_labs(test=test)
+    if test_dl2 is not None:
+        ext_test = True
+        dls.append(test_dl2)
+    else:
+        ext_test = False
+
+    sets   = get_set_labs(test=test, ext_test=ext_test, 
+                          ext_test_name=test_dl2_name)
     tr_idx, val_idx = [sets.index(x) for x in ['train', 'val']]
 
     scs = get_sc_types('label')
@@ -524,7 +556,8 @@ def fit_model(info, epochs, mod, dls, device, dirname='.', ep_freq=50,
                 rem_prev = True
             else:
                 rem_prev = False
-            save_model(info, ep, mod, scores[ep], dirname, rem_prev)
+            save_model(info, ep, mod, scores[ep], dirname, rem_prev, test, 
+                       ext_test, test_dl2_name)
             min_val = scores[ep, val_idx, loss_idx]
             saved_eps[ep] = 1
 
@@ -690,8 +723,9 @@ def plot_weights(ax, mod_params, xran, stats='mean', error='sem'):
 
 
 #############################################
-def plot_tr_data(tr_data, tr_classes, classes, len_s, plot_wei=True, 
-                 dirname='.', stats='mean', error='sem'):
+def plot_tr_data(tr_data, tr_classes, classes, len_s, fig=None, ax_data=None, 
+                 plot_wei=True, dirname='.', stats='mean', error='sem', 
+                 cols=None, data_type=None):
     """
     plot_tr_data(tr_data, tr_classes, classes, len_s)
 
@@ -703,36 +737,58 @@ def plot_tr_data(tr_data, tr_classes, classes, len_s, plot_wei=True,
         - tr_classes (1D array): training data targets
         - classes (list)       : list of class names
         - len_s (float)        : length of full step range in seconds
-        - plot_wei (bool)      : if True, weights are also plotted, if a model
-                                 was recorded
     
     Optional arguments:
-        - dirname (str)        : name of the directory in which to save figure
+        - fig (plt fig)        : pyplot figure to plot on. If fig or ax_data is
+                                 None, new ones are created.
+                                 default: None
+        - ax_data (plt Axis)   : pyplot axis subplot to plot data on. If fig or 
+                                 ax_data is None, new ones are created.
+                                 default: None
+        - plot_wei (bool)      : if True, weights are also plotted, if a model
+                                 was recorded and no fig or ax_data is passed.
+                                 default: True
+        - dirname (str)        : name of the directory from which to load
+                                 model parameters
                                  default: '.'
         - stats (str)          : stats to take, i.e., 'mean' or 'median'
                                  default: 'mean'
         - error (str)          : error to take, i.e., 'std' (for std or 
                                  quintiles) or 'sem' (for SEM or MAD)
                                  default: 'std'
+        - cols (list)          : colors to use
+                                 default: None 
+        - data_type (str)      : data type if not training (e.g., test)
+                                 default: None
     
     Returns:
         - fig (plt fig)                : pyplot figure
         - ax_data (pyplot Axis subplot): subplot
-        - cols (list)                  : list of colors for plotting
+        - cols (list)                  : list of trace colors
     """
 
-    # training data: trials x steps x units
-    cols = ['steelblue', 'coral']
-    mod_params = load_params(dirname)
-
-    if plot_wei and mod_params is not None:
-        fig, ax = plt.subplots(2, figsize=(8, 8), sharex=True, 
-                                  gridspec_kw = {'height_ratios':[3, 1]})
-        ax_data = ax[0]
+    if fig is None or ax_data is None:
+        # training data: trials x steps x units
+        mod_params = load_params(dirname)
+        if plot_wei and mod_params is not None:
+            fig, ax = plt.subplots(2, figsize=(8, 8), sharex=True, 
+                                    gridspec_kw = {'height_ratios':[3, 1]})
+            ax_data = ax[0]
+        else:
+            fig, ax_data = plt.subplots()
     else:
-        fig, ax_data = plt.subplots()
+        plot_wei = False
+        mod_params = None
 
     xran = np.linspace(0, len_s, tr_data.shape[1])
+
+    if cols is None:
+        cols = [None] * len(classes)
+
+    if data_type is not None:
+        data_str = ' ({})'.format(data_type)
+    else:
+        data_str = ''
 
     for i, class_name in enumerate(classes):
         # select class trials and take the stats across trials (axis=0), 
@@ -740,10 +796,11 @@ def plot_tr_data(tr_data, tr_classes, classes, len_s, plot_wei=True,
         idx = (tr_classes == i) # bool array
         n = sum(idx)
         class_stats = get_stats(xran, tr_data[idx], stats, error)
-        leg = '{} (n={})'.format(class_name, n)
+        leg = '{}{} (n={})'.format(class_name, data_str, n)
         plot_util.plot_traces(ax_data, class_stats, stats=stats, 
-                              error=error, col=cols[i], alpha=0.8/len(classes), 
-                              label=leg, fluor=None)
+                              error=error, alpha=0.8/len(classes), 
+                              label=leg, fluor=None, col=cols[i])
+        cols[i] = ax_data.lines[-1].get_color()
 
     # plot weights as well
     if plot_wei and mod_params is not None:
@@ -755,7 +812,8 @@ def plot_tr_data(tr_data, tr_classes, classes, len_s, plot_wei=True,
 
 #############################################
 def plot_scores(epochs, scores, classes, dirname='.', loss_name='loss', 
-                test=True, gen_title='', fig_ext='.svg'):
+                test=True, ext_test=False, ext_test_name=None, gen_title='', 
+                fig_ext='.svg'):
 
     """
     plot_scores(epochs, scores, classes)
@@ -769,38 +827,42 @@ def plot_scores(epochs, scores, classes, dirname='.', loss_name='loss',
         - classes (list)   : list of class names
     
     Optional arguments:
-        - dirname (str)  : name of the directory in which to save figure
-                           default: '.'
-        - loss_name (str): name of type of loss
-                           default: 'loss'
-        - test (bool)    : if True, test set scores are also provided
-                           default: True
-        - gen_title (str): general plot titles
-                           default: ''
-        - fig_ext (str)  : extension for saving figure
-                           default: '.svg'
+        - dirname (str)      : name of the directory in which to save figure
+                               default: '.'
+        - loss_name (str)    : name of type of loss
+                               default: 'loss'
+        - test (bool)        : if True, test set scores are also provided
+                               default: True
+        - ext_test (bool)    : if True, an extra test set is included
+                               default: False
+        - ext_test_name (str): name of extra test set, if included
+                               default: None
+        - gen_title (str)    : general plot titles
+                               default: ''
+        - fig_ext (str)      : extension for saving figure
+                               default: '.svg'
     """
 
     sc_titles = get_sc_names(loss_name, classes) # for title
-    set_labs = ['{} set'.format(x) for x in get_set_labs(test=test)] # for legend
-    sc_labs = get_sc_labs(test=test) # for file name
-
-    cols = ['lightsteelblue', 'cornflowerblue', 'royalblue']  
+    set_labs = ['{} set'.format(x) 
+                for x in get_set_labs(test=test, ext_test=ext_test, 
+                                      ext_test_name=ext_test_name)] # for legend
+    sc_labs = get_sc_labs(test=test, ext_test=ext_test, 
+                          ext_test_name=ext_test_name) # for file names
 
     for i, [sc_title, sc_lab] in enumerate(zip(sc_titles, sc_labs)):
         fig, ax = plt.subplots(figsize=[20, 5])
-        for j, [set_lab, col] in enumerate(zip(set_labs, cols)):
-            ax.plot(range(epochs), scores[:, j, i], label=set_lab, color=col)
-            ax.set_title('{}\n{}'.format(gen_title, sc_title))
+        for j, set_lab in enumerate(set_labs):
+            ax.plot(range(epochs), scores[:, j, i], label=set_lab ,lw=2.5)
+            ax.set_title(u'{}\n{}'.format(gen_title, sc_title))
             ax.set_xlabel('Epochs')
         ax.legend()
-        fig.savefig(os.path.join(dirname, '{}{}'.format(sc_lab, fig_ext)), 
-                    bbox_inches='tight')
+        fig.savefig(os.path.join(dirname, '{}{}'.format(sc_lab, fig_ext)))
 
 
 #############################################
 def save_scores(df_labs, df_info, epochs, saved_eps, scores, test=True, 
-                dirname='.'):
+                ext_test=False, ext_test_name=False, dirname='.'):
     """
     save_scores(df_labs, df_info, epochs, saved_eps, scores)
 
@@ -817,13 +879,18 @@ def save_scores(df_labs, df_info, epochs, saved_eps, scores, test=True,
                                 as epochs x nbr sets x nbr score types
 
     Optional arguments:
-        - test (bool)    : if True, test set scores are also provided
-                           default: True
-        - dirname (str)  : name of the directory in which to save figure
-                           default: '.'
+        - test (bool)        : if True, test set scores are also provided
+                               default: True
+        - ext_test (bool)    : if True, an extra test set is included
+                               default: False
+        - ext_test_name (str): name of extra test set, if included
+                               default: None
+        - dirname (str)      : name of the directory in which to save figure
+                               default: '.'
     """
     
-    sc_labs = get_sc_labs(test=test)
+    sc_labs = get_sc_labs(test=test, ext_test=ext_test, 
+                          ext_test_name=ext_test_name)
     all_labels = df_labs + ['epoch', 'saved'] + sc_labs
     df_vals = np.asarray([np.asarray([df_info[key]]*epochs) 
                           for key in all_labels if key in df_info.keys()]).T
