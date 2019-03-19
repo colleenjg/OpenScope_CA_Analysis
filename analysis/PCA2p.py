@@ -62,7 +62,7 @@ def run_pca(datafile, outfile, ncomps = 20, nframes=500, range=(1000,-1000), cro
         raise exceptions.IOError('Could not open %s for reading' %datafile)
 
     # determine the total number of frames in the recording
-    totframes = len(fdata['data']);
+    totframes = len(fdata['data'])
 
     # get a list of all the frames we'll use here
     if range[1] <= 0:

@@ -26,31 +26,31 @@ class Custom_ds(torch.utils.data.TensorDataset):
     corresponding targets and initializes a custom TensorDataset.
     """
 
-    def __init__(self, data, target=None):
+    def __init__(self, data, targets=None):
         """
         self.__init__(data)
 
         Creates the new Custom_ds object using the specified data array, and
         optionally corresponding targets.
 
-        Initializes data, target and n_samples attributes.
+        Initializes data, targets and n_samples attributes.
 
         Required arguments:
             - data (nd array): array of dataset datapoints, where the first
                                dimension is the samples.
 
         Optional arguments:
-            - target (nd array): array of targets, where the first dimension
+            - targets (nd array): array of targets, where the first dimension
                                  is the samples. Must be of the same length 
                                  as data.
                                  default: None
         """
         self.data = data
-        self.target = target
+        self.targets = targets
         self.n_samples = self.data.shape[0]
 
-        if self.target is not None and (len(self.data) != len(self.target)):
-            raise IOError('Data and Target must be of the same length.')
+        if self.targets is not None and (len(self.data) != len(self.targets)):
+            raise IOError('data and targets must be of the same length.')
     
     def __len__(self):
         """
@@ -67,7 +67,7 @@ class Custom_ds(torch.utils.data.TensorDataset):
         """
         self.__getitem__()
 
-        Returns data point and target, if not None, corresponding to index
+        Returns data point and targets, if not None, corresponding to index
         provided.
 
         Required arguments:
@@ -76,16 +76,61 @@ class Custom_ds(torch.utils.data.TensorDataset):
         Returns:
             - (torch Tensor): data at specified index
             
-            if self.target is not None:
-            - (torch Tensor): target at specified index
+            if self.targets is not None:
+            - (torch Tensor): targets at specified index
         """
-        if self.target is not None:
-            return torch.Tensor(self.data[index]), torch.Tensor(self.target[index])
+        if self.targets is not None:
+            return torch.Tensor(self.data[index]), torch.Tensor(self.targets[index])
         else:
             return torch.Tensor(self.data[index])
 
+
 #############################################
-def data_indices(n, train_n, val_n, test_n=None):
+def bal_classes(data, targets):
+    """
+    bal_classes(data, targets)
+
+    Resamples data array to balance classes.
+
+    Required arguments:
+        - data (nd array)  : array of dataset datapoints, where the first
+                             dimension is the samples.
+        - targets (nd array): array of targets, where the first dimension
+                             is the samples. Must be of the same length as data.
+
+    Returns:
+        - data (nd array)  : array of sampled dataset datapoints, where the first
+                             dimension is the samples.
+        - targets (nd array): array of sampled targets, where the first dimension
+                             is the samples.
+    """
+    
+
+    if len(data) != len(targets):
+        raise IOError('data and targets must be of the same length.')
+
+    cl_n   = np.unique(targets).tolist()
+    counts = np.unique(targets, return_counts=True)[1]
+    n_cl   = len(counts.tolist()) 
+    
+    count_min = np.min(counts)
+    
+    sample_idx = []
+    for cl in cl_n:
+        idx = np.random.choice(np.where(targets==cl)[0], count_min, 
+                               replace=False)
+        sample_idx.extend(idx.tolist())
+    
+    sample_idx = sorted(sample_idx)
+
+    data = data[sorted(sample_idx)]
+    targets = targets[sample_idx]
+
+    return data, targets
+
+
+#############################################
+def data_indices(n, train_n, val_n, test_n=None, targets=None, thresh_cl=2):
     """
     data_indices(n, train_n, val_n)
 
@@ -93,15 +138,26 @@ def data_indices(n, train_n, val_n, test_n=None):
     Allows for a set to be empty, and also allows for only a subset of all 
     indices to be assigned if test_n is provided.
 
+    Will keep shuffling until each non empty set contains the minimum number of 
+    occurrences per class.
+
     Required arguments:
         - n (int)      : length of dataset
         - train_n (int): nbr of indices to assign to training set
         - val_n (int)  : nbr of indices to assign to validation set
 
     Optional arguments:
-        - test_n (int): nbr of indices to assign to test set. If test_n is
-                        None, test_n is inferred from n, train_n and val_n
-                        so that all indices are assigned.
+        - test_n (int)     : nbr of indices to assign to test set. If test_n is
+                             None, test_n is inferred from n, train_n and val_n
+                             so that all indices are assigned.
+        - targets (nd array): array of targets, where the first dimension
+                             is the samples. Must be of the same length 
+                             as data.
+                             default: None
+        - thresh_cl (int)  : size threshold for classes in each non empty set 
+                             beneath which the indices are reselected (only if
+                             targets are passed).
+                             default: 2
 
     Returns:
         - train_idx (list): unsorted list of indices assigned to training set.
@@ -113,11 +169,30 @@ def data_indices(n, train_n, val_n, test_n=None):
         test_n = n - train_n - val_n
    
     mixed_idx = range(n)
-    np.random.shuffle(mixed_idx)
+    cont_shuff = True
+    
+    while cont_shuff:
+        np.random.shuffle(mixed_idx)
 
-    train_idx = mixed_idx[0:train_n]
-    val_idx = mixed_idx[train_n:train_n+val_n]
-    test_idx = mixed_idx[train_n+val_n:train_n+val_n+test_n]
+        train_idx = mixed_idx[0:train_n]
+        val_idx = mixed_idx[train_n:train_n+val_n]
+        test_idx = mixed_idx[train_n+val_n:train_n+val_n+test_n]
+
+        cont_shuff = False
+
+        # count occurrences of each class in each non empty set and ensure 
+        # above threshold, otherwise reshuff
+        if targets is not None:
+            # count number of classes
+            n_cl = len(np.unique(targets, return_counts=True)[1].tolist())
+            for s in [train_idx, val_idx, test_idx]:
+                if len(s) != 0: 
+                    counts = np.unique(targets[s], return_counts=True)[1]
+                    count_min = np.min(counts)
+                    set_n_cl = len(counts)
+                    # check all classes are in the set and above threshold
+                    if count_min < thresh_cl or set_n_cl < n_cl:
+                        cont_shuff = True
 
     return train_idx, val_idx, test_idx
 
@@ -164,30 +239,40 @@ def check_prop(train_p, val_p=0, test_p=0):
 
 
 #############################################
-def split_idx(n, train_p=0.75, val_p=None, test_p=None, thresh=10):
+def split_idx(n, train_p=0.75, val_p=None, test_p=None, thresh_set=10, 
+              targets=None, thresh_cl=2):
     """
     split_idx(n)
 
     Splits dataset indices into training, validation and test sets. If val_p 
-    and test_p are None, the non training proportion is split between them.
+    and test_p are None, the non training proportion is split between them. If
+    targets are passed, the number of targets from each class in the sets are 
+    checked.
 
     Required arguments:
         - n (int)      : length of dataset
 
     Optional arguments:
-        - train_p (float): proportion of dataset assigned to training set
-                           default: 0.75
-        - val_p (float)  : proportion of dataset assigned to validation set. If 
-                           None, proportion is calculated based on train_p and
-                           test_p.
-                           default: None
-        - test_p (float) : proportion of dataset assigned to test set. If 
-                           None, proportion is calculated based on train_p and
-                           val_p.
-                           default: None
-        - thresh (int)   : size threshold for sets beneath which an error is
-                           thrown if the set's proportion is not 0.
-                           default: 10
+        - train_p (float)  : proportion of dataset assigned to training set
+                             default: 0.75
+        - val_p (float)    : proportion of dataset assigned to validation set. If 
+                             None, proportion is calculated based on train_p and
+                             test_p.
+                             default: None
+        - test_p (float)   : proportion of dataset assigned to test set. If 
+                             None, proportion is calculated based on train_p and
+                             val_p.
+                             default: None
+        - thresh_set (int) : size threshold for sets beneath which an error is
+                             thrown if the set's proportion is not 0.
+                             default: 10
+        - targets (nd array): array of targets, where the first dimension
+                             is the samples. Must be of the same length 
+                             as data.
+                             default: None
+        - thresh_cl (int)  : size threshold for classes in each non empty set 
+                             beneath which the indices are reselected (only if
+                             targets are passed).
 
     Returns:
         - train_idx (list): unsorted list of indices assigned to training set.
@@ -212,12 +297,13 @@ def split_idx(n, train_p=0.75, val_p=None, test_p=None, thresh=10):
 
     # raise error if val or test n is below threshold (unless prop is 0)
     for set_n, set_p, name in zip([val_n, test_n], [val_p, test_p], ['val n', 'test n']):
-        if set_n < thresh:
+        if set_n < thresh_set:
             if set_p != 0:
                 raise ValueError(('{} is {} (below threshold '
-                                  'of {})').format(set_n, name, thresh))
+                                  'of {})').format(set_n, name, thresh_set))
 
-    train_idx, val_idx, test_idx = data_indices(n, train_n, val_n, test_n)
+    train_idx, val_idx, test_idx = data_indices(n, train_n, val_n, test_n, 
+                                                targets, thresh_cl)
 
     return train_idx, val_idx, test_idx
 
@@ -265,7 +351,7 @@ def init_dl(data, targ=None, batch_size=200, shuffle=False):
                            dimension is the samples.
 
     Optional arguments:
-        - target (nd array): array of targets, where the first dimension
+        - targets (nd array): array of targets, where the first dimension
                              is the samples. Must be of the same length 
                              as data.
                              default: None
@@ -289,8 +375,8 @@ def init_dl(data, targ=None, batch_size=200, shuffle=False):
 
 #############################################
 def create_dls(data, targets=None, train_p=0.75, val_p=None, test_p=None, 
-               norm_dim=None, shuffle=False, batch_size=200, thresh=10,
-               train_shuff=True):
+               norm_dim=None, shuffle=False, batch_size=200, thresh_set=5,
+               thresh_cl=2, train_shuff=True):
     """
     create_dls(data)
 
@@ -308,7 +394,7 @@ def create_dls(data, targets=None, train_p=0.75, val_p=None, test_p=None,
                            dimension is the samples.
 
     Optional arguments:
-        - target (nd array) : array of targets, where the first dimension
+        - targets (nd array) : array of targets, where the first dimension
                               is the samples. Must be of the same length 
                               as data.
                               default: None
@@ -330,9 +416,12 @@ def create_dls(data, targets=None, train_p=0.75, val_p=None, test_p=None,
                               default: False
         - batch_size (int)  : nbr of samples dataloader will load per batch
                               default: 200
-        - thresh (int)      : size threshold for sets beneath which an error is
+        - thresh_set (int)  : size threshold for sets beneath which an error is
                               thrown if the set's proportion is not 0.
-                              default: 10
+                              default: 5
+        - thresh_cl (int)   : size threshold for classes in each non empty set 
+                              beneath which the indices are reselected (only if
+                              targets are passed).
         - train_shuff (bool): if True, training data is set to be reshuffled at 
                               each epoch
                               default: True
@@ -353,31 +442,33 @@ def create_dls(data, targets=None, train_p=0.75, val_p=None, test_p=None,
                 
     """
 
-
-    # data: samples x []
-    set_idxs = split_idx(n=len(data), train_p=train_p, val_p=val_p, 
-                         test_p=test_p, thresh=thresh)
-
-    set_data = split_data(data, set_idxs)
-    
     returns = []
-    if norm_dim not in [None, 'None', 'none']:
-        train_means, train_stds = math_util.norm_facts(set_data[0], dim=norm_dim)
-        for i in range(len(set_data)):
-            set_data[i] = (set_data[i] - train_means)/train_stds
-        norm_facts = [train_means.tolist(), train_stds.tolist()]
-        returns.append(norm_facts)
-    
+
+    # shuffle targets first
     if targets is not None:
         if shuffle:
             shuff_reidx = range(len(targets))
             np.random.shuffle(shuff_reidx)
             returns.append(shuff_reidx)
             targets = targets[shuff_reidx]
-    
-        set_targets = split_data(targets, set_idxs)
     else:
         set_targets = [None] * 3
+
+    # data: samples x []
+    set_idxs = split_idx(n=len(data), train_p=train_p, val_p=val_p, 
+                         test_p=test_p, thresh_set=thresh_set, 
+                         targets=targets, thresh_cl=thresh_cl)
+
+    set_data = split_data(data, set_idxs)
+    if targets is not None:
+        set_targets = split_data(targets, set_idxs)
+
+    if norm_dim not in [None, 'None', 'none']:
+        train_means, train_stds = math_util.norm_facts(set_data[0], dim=norm_dim)
+        for i in range(len(set_data)):
+            set_data[i] = (set_data[i] - train_means)/train_stds
+        norm_facts = [train_means.tolist(), train_stds.tolist()]
+        returns.append(norm_facts)
     
     dls = []
     for i, (data, targ) in enumerate(zip(set_data, set_targets)):

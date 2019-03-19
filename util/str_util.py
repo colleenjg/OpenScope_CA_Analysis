@@ -118,7 +118,8 @@ def fluor_par_str(fluor='dff', type_str='print', dff=None):
             gen_util.accepted_values_error('type_str', type_str, ['print', 'file'])
     elif fluor == 'dff':
         if type_str == 'print':
-            fluor_str = 'dF/F'
+            delta = u'\u0394'
+            fluor_str = u'{}F/F'.format(delta)
         elif type_str == 'file':
             fluor_str = 'dff'
         else:
@@ -234,53 +235,11 @@ def create_time_str():
 
 
 #############################################
-def sess_par_str(sess_par, gab_k, str_type='print'):
-    """
-    sess_par_str(sess_par, gab_k)
-
-    Creates a string from session and gabor kappa parameters for a filename, 
-    or to print or use in a title.
-
-    Required arguments:
-        - sess_par (dict)     : dictionary containing session parameters: 
-                                e.g. 'layer', 'overall_sess_n'
-                ['layer'] (str)         : layer ('soma', 'dend', 'L23_soma',  
-                                                'L5_soma', 'L23_dend', 'L5_dend', 
-                                                'L23_all', 'L5_all')
-                ['overall_sess_n'] (int): overall session number aimed for
-        - gab_k (int or list) : gabor kappa parameter
-
-    Optional arguments:
-        - str_type (str): use of output str, i.e., for a filename ('file') or to
-                          print the info to console ('print')
-                          default = 'print'
-    Return:
-        - sess_str (list): string containing info on session and gabor kappa 
-                           parameters
-    """
-
-    gab_k_str = gab_k_par_str(gab_k)
-    if str_type == 'file':
-        sess_str = 'sess{}_gab{}_{}'.format(sess_par['overall_sess_n'], gab_k_str,
-                                             sess_par['layer'])
-    elif str_type == 'print':
-        if len(gab_k_str) == 0:
-            sess_str = ('gabors, ')
-        else:
-            sess_str = 'gabors: {}, '.format(gab_k_str)
-        sess_str += 'session: {}, layer: {}'.format(sess_par['overall_sess_n'], 
-                                                     sess_par['layer'])
-    else:
-        gen_util.accepted_values_error('str_type', str_type, ['file', 'print'])
-    return sess_str
-    
-
-#############################################
 def gab_k_par_str(gab_k):
     """
     gab_k_par_str(gab_k)
 
-    Creates a string from gabor kappa parameter (e.g., '4' or '16'). Returns
+    Creates a string from gabor kappa parameter (e.g., 4 or 16). Returns
     an empty string if both gabor kappa parameters are passed.
 
     Required arguments:
@@ -296,3 +255,169 @@ def gab_k_par_str(gab_k):
         return ''
     else:
         return str(gab_k[0])
+
+
+#############################################
+def size_par_str(size):
+    """
+    size_par_str(size)
+
+    Creates a string from brick size parameter (e.g., 128 or 256). 
+    Returns an empty string if both brick size parameters are passed.
+
+    Required arguments:
+        - size (int or list): brick size parameter
+
+    Return:
+        (list): string containing brick size parameter value or empty string
+                if both parameters are passed.
+    """
+
+    size = gen_util.list_if_not(size)
+    if len(size) > 1:
+        return ''
+    else:
+        return str(size[0])
+
+
+#############################################
+def dir_par_str(dir):
+    """
+    dir_par_str(dir)
+
+    Creates a string from brick direction parameter (e.g., 'right' or 'left'). 
+    Returns an empty string if both brick direction parameters are passed.
+
+    Required arguments:
+        - dir (str or list): brick direction parameter
+
+    Return:
+        (list): string containing brick direction parameter value or empty string
+                if both parameters are passed.
+    """
+
+    dir = gen_util.list_if_not(dir)
+    if len(dir) > 1:
+        return ''
+    else:
+        return str(dir[0])
+
+
+#############################################
+def stim_par_str(gab_k=None, bri_dir=None, bri_size=None, stim_type='gabors', 
+                 str_type='print'):
+    """
+    stim_par_str(par)
+
+    Creates a string from gabor kappa or brick size and direction parameters. 
+    Returns an empty string if both possible parameters values are passed.
+
+    Optional arguments:
+        - gab_k (int or list)   : gabor kappa parameter
+                                  default = None
+        - bri_dir (str or list) : brick direction parameter
+                                  default = None
+        - bri_size (int or list): brick size parameter
+                                  default = None
+        - stim_type (str)       : type of stimulus
+                                  default = 'gabors'
+        - str_type (str)        : use of output str, i.e., for a filename 
+                                  ('file') or to print the info to console 
+                                  ('print')
+                                  default = 'print'
+
+    Return:
+        - pars (str): string containing parameter value or empty string
+                      if both parameters are passed.
+    """
+    if gab_k is None and (bri_size is None or bri_dir is None):
+        raise IOError('Must pass value for gabor k parameter or brick size and direction.')
+
+    if stim_type == 'gabors':
+        pars = gab_k_par_str(gab_k)
+    elif stim_type == 'bricks':
+        size_par = size_par_str(bri_size)
+        dir_par = dir_par_str(bri_dir)
+        if str_type == 'print':
+            if len(dir_par) != 0:
+                if len(size_par) != 0:
+                    sep = ', '
+                elif len(size_par) == 0:
+                    sep = ' '
+            else:
+                sep = ''
+        elif str_type == 'file':
+            if len(dir_par) != 0:
+                sep = '_'
+            else:
+                sep = ''
+        else:
+            gen_util.accepted_values_error('str_type', str_type, ['print', 'file'])
+        
+        pars = '{}{}{}'.format(size_par, sep, dir_par)    
+    else:
+        gen_util.accepted_values_error('stim_type', stim_type, ['gabors', 'bricks'])
+
+    return pars
+
+
+#############################################
+def sess_par_str(sess_par, gab_k=None, bri_dir=None, bri_size=None, 
+                 stim_type='gabors', str_type='print'):
+    """
+    sess_par_str(sess_par, stim_par)
+
+    Creates a string from session and stimulus parameters for a filename, 
+    or to print or use in a title.
+
+    Required arguments:
+        - sess_par (dict)       : dictionary containing session parameters: 
+                                e.g. 'layer', 'overall_sess_n'
+                ['layer'] (str)         : layer ('soma', 'dend', 'L23_soma',  
+                                                'L5_soma', 'L23_dend', 'L5_dend', 
+                                                'L23_all', 'L5_all')
+                ['overall_sess_n'] (int): overall session number aimed for
+
+    Optional arguments:
+        - gab_k (int or list)   : gabor kappa parameter
+                                  default = None
+        - bri_dir (str or list) : brick direction parameter
+                                  default = None
+        - bri_size (int or list): brick size parameter
+                                  default = None
+        - stim_type (str)       : type of stimulus
+                                  default = 'gabors'
+        - str_type (str)        : use of output str, i.e., for a filename 
+                                  ('file') or to print the info to console 
+                                  ('print')
+                                  default = 'print'
+    Return:
+        - sess_str (list): string containing info on session and gabor kappa 
+                           parameters
+    """
+    if gab_k is None and (bri_size is None or bri_dir is None):
+        raise IOError('Must pass value for gabor k parameter or brick size and direction.')
+    elif gab_k is None:
+        stim_type = 'bricks'
+    elif bri_size is None:
+        stim_type = 'gabors'
+    
+    stim_str = stim_par_str(gab_k, bri_dir, bri_size, stim_type, str_type)
+
+    if str_type == 'file':
+        sess_str = 'sess{}_{}{}_{}'.format(sess_par['overall_sess_n'], stim_type[0:3],
+                                           stim_str, sess_par['layer'])
+    elif str_type == 'print':
+        if len(stim_str) == 0:
+            sess_str = '{}, '.format(stim_type)
+        else:
+            if stim_str[0] == ' ':
+                stim_str = stim_str[1:]
+            sess_str = '{}: {}, '.format(stim_type, stim_str)
+        sess_str += 'session: {}, layer: {}'.format(sess_par['overall_sess_n'], 
+                                                     sess_par['layer'])
+    else:
+        gen_util.accepted_values_error('str_type', str_type, ['file', 'print'])
+    
+    return sess_str
+    

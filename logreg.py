@@ -21,8 +21,49 @@ from util import data_util, file_util, gen_util, logreg_util, math_util, plot_ut
 
 
 #############################################
-def get_compdir(mouse_n, sess_n, layer, fluor='dff', norm='roi', comp='surp', 
-                shuffle=False):
+def get_stim_str(stim, bri_dir='right', str_type='print'):
+    """
+    stim_par_str(stim)
+
+    Generates a stimulus string from stimulus type, and brick direction, if
+    applicable.
+    
+    Required arguments:
+        - stim (str): stimulus type
+    
+    Optional arguments:
+        - bri_dir (str) : Brick direction
+                          default: 'right'
+        - str_type (str): use of output str, i.e., for a filename ('file') or 
+                          to print the info to console ('print')
+                          default: 'print'
+
+    Returns:       
+        - pars (str): string containing stimulus info.
+    """
+
+    if stim == 'gabors':
+        if str_type == 'print':
+            stimstr = 'Gabors'
+        elif str_type == 'file':
+            stimstr = 'gab'
+        else:
+            gen_util.accepted_values_error('str_type', str_type, ['print', 'file'])
+    elif stim == 'bricks':
+        if str_type == 'print':
+            stimstr = 'Bricks {}'.format(bri_dir)
+        elif str_type == 'file':
+            stimstr = 'bri{}'.format(bri_dir[0])    
+        else:
+            gen_util.accepted_values_error('str_type', str_type, ['print', 'file'])
+    else:
+        gen_util.accepted_values_error('stim', stim, ['gabors', 'bricks'])
+
+    return stimstr
+
+#############################################
+def get_compdir(mouse_n, sess_n, layer, fluor='dff', norm='roi', stim='gabors', 
+                bri_dir='right', comp='surp', shuffle=False):
     """
     get_compdir(mouse_n, sess_n, layer)
 
@@ -33,12 +74,16 @@ def get_compdir(mouse_n, sess_n, layer, fluor='dff', norm='roi', comp='surp',
         - mouse_n (int): mouse number
         - sess_n (int) : session number
         - layer (str)  : layer name
-    
+
     Optional arguments:
         - fluor (str)   : fluorescence trace type
                           default: 'dff'
         - norm (str)    : type of normalization 
                           default: 'roi'
+        - stim (str)    : stimulus type
+                          default: 'gabors'
+        - bri_dir (str) : brick direction
+                          default: 'right'
         - comp (str)    : type of comparison
                           default: 'surp'
         - shuffle (bool): whether analysis is on shuffled data
@@ -47,6 +92,8 @@ def get_compdir(mouse_n, sess_n, layer, fluor='dff', norm='roi', comp='surp',
     Returns:
         - compdir (str): name of directory to save analysis in
     """
+
+    stim_str = get_stim_str(stim, bri_dir, 'file')
 
     fluor_str = fluor
     if norm == 'none':
@@ -57,8 +104,9 @@ def get_compdir(mouse_n, sess_n, layer, fluor='dff', norm='roi', comp='surp',
     norm_str = str_util.norm_par_str(norm_bool, type_str='file')
     shuff_str = str_util.shuff_par_str(shuffle, type_str='file')
 
-    compdir = 'm{}_s{}_{}_{}{}_{}{}'.format(mouse_n, sess_n, layer, fluor_str, 
-                                            norm_str, comp, shuff_str)
+    compdir = 'm{}_s{}_{}_{}_{}{}_{}{}'.format(mouse_n, sess_n, layer, stim_str, 
+                                               fluor_str, norm_str, comp, 
+                                               shuff_str)
 
     return compdir
 
@@ -117,24 +165,36 @@ def get_compdir_dict(rundir):
     else:
         second = [int(x) for x in second] 
 
+    if first[3] == 'gab':
+        stim = 'gabors'
+        bri_dir = 'none'
+    elif first[3] == 'brir':
+        stim = 'bricks'
+        bri_dir = 'right'
+    elif first[3] == 'bril':
+        stim = 'bricks'
+        bri_dir = 'left'
+
     if first[4] == 'norm':
-        comp = first[5]
+        comp = first[6]
     else:
-        comp = first[4]
+        comp = first[5]
     
     if first[-1] == 'shuffled':
         shuffle = True
     else:
         shuffle = False
 
-    compdir_dict = {'mouse_n': int(first[0][1]),
-                    'sess_n':int(first[1][1]),
-                    'layer': first[2],
-                    'fluor': first[3],
-                    'comp': comp,
+    compdir_dict = {'mouse_n' : int(first[0][1]),
+                    'sess_n'  : int(first[1][1]),
+                    'layer'   : first[2],
+                    'stim'    : stim,
+                    'bri_dir' : bri_dir,
+                    'fluor'   : first[4],
+                    'comp'    : comp,
                     'shuffled': shuffle,
                     'uniqueid': second[0],
-                    'run': int(second[1])
+                    'run'     : int(second[1])
                     }
     
     return compdir_dict
@@ -165,7 +225,14 @@ def load_sess_dict(mouse_n, sess_n, layer, runtype='prod'):
                     sess_n, layer)
     sess_dict_dir = os.path.join('session_dicts', runtype)
 
-    sess_dict = file_util.load_file(sess_dict_name, sess_dict_dir, 'json')
+    sess_dict_file = os.path.join(sess_dict_dir, sess_dict_name)
+    if os.path.exists(sess_dict_file):
+        sess_dict = file_util.load_file(sess_dict_file, file_type='json')
+    else:
+        print(('No session dictionary found for\n\tMouse: {}\n\tSess: {}\n\t'
+               'Layer: {}\n\tRuntype: {}\n'.format(mouse_n, sess_n, layer, 
+               runtype)))
+        sess_dict = None
 
     return sess_dict
 
@@ -176,11 +243,13 @@ def info_dict(args, epoch=None):
     info_dict(args)
 
     Creates an info dictionary for an analysis from the args. Includes epoch
-    number is it is passed. If args is None, the list of dictionary keys
+    number if it is passed. If args is None, the list of dictionary keys
     is returned instead. 
     
     Required arguments:
         - args (Argument parser): parser containing analysis parameters:
+                stim (str)           : stim type
+                bri_dir (str)        : brick direction
                 comp (str)           : type of comparison
                 fluor (str)          : fluorescence trace type
                 layer (str)          : layer name
@@ -209,18 +278,19 @@ def info_dict(args, epoch=None):
         info = {'mouse_n': args.mouse_n,   'sess_n': args.sess_n,
                 'layer': args.layer,       'line': args.line,
                 'fluor': args.fluor,       'norm': args.norm,
-                'shuffled': args.shuffle,  'comp': args.comp,
+                'shuffled': args.shuffle,  'stim': args.stim,
+                'bri_dir': args.bri_dir,   'comp': args.comp,
                 'uniqueid': args.uniqueid, 'run': args.run,
                 'runtype': args.runtype,   'n_roi': args.n_roi}
-        
+
         if epoch is not None:
             info['epoch'] = epoch
 
     # if no args are passed, just returns keys
     else:
         info = ['mouse_n', 'sess_n', 'layer', 'line', 'fluor', 'norm', 
-                'shuffled', 'comp', 'uniqueid', 'run', 'runtype', 'n_roi', 
-                'epoch']
+                'shuffled', 'stim', 'bri_dir', 'comp', 'uniqueid', 'run', 
+                'runtype', 'n_roi', 'epoch']
 
     return info
 
@@ -328,34 +398,102 @@ def gab_classes(comp='surp', gab_fr=0):
     return len_s, classes, gab_fr, gabs
 
 
+#############################################
+def bri_classes(comp='surp'):
+    """
+    bri_classes()
+
+    Returns information on the Brick segments being compared: 
+    segment length, class names.
+    
+    Optional arguments:
+        - comp (str)  : type of comparison
+                        default: 'surp'
+    
+    Returns:
+        - len_s (float)       : length of segments being compared
+        - classes (list)      : list of class names
+    """
+
+    if comp != 'surp':
+        raise ValueError(('Only surp comparison accepted for Bricks stimulus '
+                          'type.'))
+    len_s = 1.0
+    classes = ['Regular', 'Surprise']
+    
+    return len_s, classes
+
 
 #############################################
-def comp_segs(sess_dict, gab_fr=0, comp='surp', fluor='dff'):
+def get_qu_len(n_seg, n_qu=4):
+    """
+    get_qu_len(n_seg)
+
+    Returns length of each quintile in segments.
+    
+    Required arguments:
+        - n_seg (int): total number of segments 
+
+    Optional arguments:
+        - n_qu (int): number of quintiles
+                      default: 4
+    
+    Returns:
+        - qu_len (int): length of each quintile in segments
+    """
+    
+    qu_len = int(np.around(n_seg/float(n_qu)))
+    
+    return qu_len
+
+
+#############################################
+def comp_segs(sess_dict, stim='gabors', comp='surp', gab_fr=0, bri_dir='right', 
+              fluor='dff', qu1v4=False):
+
     """
     comp_segs(sess_dict)
 
-    Returns information on the Gabor segments being compared: 
+    Returns information on the Gabor or Brick segments being compared: 
     segment length, class names, Gabor frame names, Gabor frame numbers
     
     Required arguments:
         - sess_dict (dict): session dictionary
-                ['frames'] (list)     : session number
-                ['gab_fr'] (list)     : list where the first element is the
-                                        number of the Gabor frame for which 
-                                        frame numbers were recorded
-                ['nanrois_dff'] (list): list of ROIs with NaNs in dff traces
-                ['nanrois'] (list)    : list of ROIs with NaNs in traces
-                ['surp_idx'] (list)   : list of frames in surprise segment
-                ['twop_fps'] (float)  : recording frames per second
+                ['bri_frames'] (list)      : list of first frames for each Bricks
+                                             segment
+                ['bri_left_fr_ran'] (list) : list of first and last first frames
+                                             for left Bricks
+                ['bri_right_fr_ran'] (list): list of first and last first frames
+                                             for right Bricks
+                ['bri_surp_idx'] (list)    : list of indices of surprise 
+                                             segments for Bricks
+                ['gab_fr'] (list)          : list where the first element is the
+                                             number of the Gabor frame for which 
+                                             frame numbers were recorded
+                ['gab_frames'] (list)      : list of first frames for each Gabor
+                                             segment 
+                ['gab_surp_idx'] (list)    : list of indices of surprise 
+                                             segments for Gabors
+                ['nanrois_dff'] (list)     : list of ROIs with NaNs in dff 
+                                             traces
+                ['nanrois'] (list)         : list of ROIs with NaNs in traces
+                ['twop_fps'] (float)       : recording frames per second
 
     Optional arguments:
-        - comp (str)  : type of comparison
-                        default: 'surp'
-        - gab_fr (int): number of the Gabor frame with which segment should
-                        start (for full segment comparisons)
-                        default: 0
-        - fluor (str) : fluorescence trace type
-                        default: 'dff'
+        - stim (str)   : type of stimulus
+                         default: 'gabors'
+        - comp (str)   : type of comparison
+                         default: 'surp'
+        - gab_fr (int) : number of the Gabor frame with which segment should
+                         start (for full segment comparisons)
+                         default: 0
+        - bri_dir (str): direction of bricks to analyse
+                         default: 'right'
+        - fluor (str)  : fluorescence trace type
+                         default: 'dff'
+        - qu1v4 (bool) : if True, analysis is separated across first and last
+                         quintiles
+                         default: False
     
     Returns:
         - gabs (str or list)    : Gabor frame name or list of Gabor frame names
@@ -364,29 +502,52 @@ def comp_segs(sess_dict, gab_fr=0, comp='surp', fluor='dff'):
                                   segments x frames 
         - seg_classes (2D array): array of segment classes, structures as 
                                   classes x 1
-        - n_surp (int)          : number of surprise segments
+        - n_surp (int or list)  : number of surprise segments. If qu1v4, list of
+                                  numbers for first and last quintiles.
         - nan_rois (list)       : list of ROIs with NaNs in traces
     """
 
 
     fps = sess_dict['twop_fps']
-    frames = sess_dict['frames']
-    n_surp = len(sess_dict['surp_idx'])
+
+    if stim == 'gabors':
+        frames   = sess_dict['gab_frames']
+        surp_idx = sess_dict['gab_surp_idx']
+        len_s, classes, gab_fr, gabs = gab_classes(comp, gab_fr)
+    elif stim == 'bricks':
+        frames   = sess_dict['bri_{}_frames'.format(bri_dir)]
+        surp_idx = sess_dict['bri_{}_surp_idx'.format(bri_dir)]
+        len_s, classes = bri_classes(comp)
+        gabs = None
+    else:
+        gen_util.accepted_values_error('stim', stim, ['gabors', 'bricks'])
+
+    # n_surp for first and last quintile
+    if qu1v4:
+        n_segs = len(frames)
+        qu_len = get_qu_len(n_segs, 4)
+        n_surp_st  = len(np.where(np.asarray(surp_idx) < qu_len)[0])
+        n_surp_end = len(np.where(np.asarray(surp_idx) >= n_segs-qu_len)[0])
+        n_surp = [n_surp_st, n_surp_end]
+    else:
+        n_surp = len(surp_idx)
 
     if fluor == 'dff':
         nan_rois = sess_dict['nanrois_dff']
     else:
         nan_rois = sess_dict['nanrois']
 
-    len_s, classes, gab_fr, gabs = gab_classes(comp, gab_fr)
-
     if comp in ['surp', 'DvE']:
-        pre_s = (sess_dict['gab_fr'][0] - gab_fr) * 0.3 # in sec
+        if stim == 'gabors':
+            pre_s = (sess_dict['gab_fr'][0] - gab_fr) * 0.3 # in sec
+        else:
+            pre_s = 0
         seg_fr = gen_util.idx_segs(frames, pre=pre_s*fps, leng=len_s*fps)
 
         seg_classes = np.zeros([len(frames), 1])
-        seg_classes[sess_dict['surp_idx']] = 1
+        seg_classes[surp_idx] = 1
 
+    # only for gabors
     elif comp in['AvB', 'AvC', 'BvC']:
         pre_s = [(sess_dict['gab_fr'][0] - gf)*0.3 for gf in gab_fr] # in sec
         seg_fr = [gen_util.idx_segs(frames, pre=pr*fps, leng=0.45*fps) 
@@ -404,8 +565,9 @@ def comp_segs(sess_dict, gab_fr=0, comp='surp', fluor='dff'):
 
 
 #############################################
-def get_sess_data(data_dir, mouse_n, sess_n, layer, comp='surp', gab_fr=0, 
-                  fluor='dff', runtype='prod'):
+def get_sess_data(data_dir, mouse_n, sess_n, layer, stim='gabors', comp='surp', 
+                  gab_fr=0, bri_dir='right', fluor='dff', runtype='prod',
+                  qu1v4=False):
     """
     get_sess_data(data_dir, mouse_n, sess_n, layer)
 
@@ -419,26 +581,43 @@ def get_sess_data(data_dir, mouse_n, sess_n, layer, comp='surp', gab_fr=0,
         - layer (str)   : layer name
 
     Optional arguments:
+        - stim (str)   : stim type ('gabors' or 'bricks')
         - comp (str)   : type of comparison
                          default: 'surp'
         - gab_fr (int) : number of the Gabor frame with which segment should
                          start (for full segment comparisons)
                          default: 0
+        - bri_dir (str): bricks direction to analyse
+                         default: 'right'
         - fluor (str)  : fluorescence trace type
                          default: 'dff'
         - runtype (str): type of run ('prod' or 'pilot')
                          default: 'prod'
-    
+        - qu1v4 (bool) : if True, analysis is separated across first and last
+                         quintiles
+                         default: False
+ 
     Returns:
         - roi_tr_segs (3D array): array of all ROI trace segments, structured as 
                                   segments x frames x ROIs
         - classes (list)        : list of class names
         - seg_classes (2D array): array of all segment classes, structured as 
                                   classes x 1
-        - n_surp (int)          : number of surprise segments
+        - n_surp (int or list)  : number of surprise segments. If qu1v4, list of
+                                  numbers for first and last quintiles.
     """
 
-    sess_dict = load_sess_dict(mouse_n, sess_n, layer)
+    sess_dict = load_sess_dict(mouse_n, sess_n, layer, runtype)
+
+    if sess_dict is None:
+        return None
+
+    if stim == 'bricks':
+        key = 'bri_{}'.format(bri_dir)
+    else:
+        key = 'gab'
+    if '{}_frames'.format(key) not in sess_dict.keys():
+        return None
 
     if fluor == 'raw':
         roi_tr_file = sess_dict['traces_dir']
@@ -448,9 +627,10 @@ def get_sess_data(data_dir, mouse_n, sess_n, layer, comp='surp', gab_fr=0,
         gen_util.accepted_values_error('fluor', fluor, ['raw', 'dff'])
 
     roi_traces, nroi, _ = get_roi_traces(data_dir, roi_tr_file)
- 
+
     [gabs, classes, seg_fr, seg_classes, 
-           n_surp, nan_rois] = comp_segs(sess_dict, gab_fr, comp, fluor)
+        n_surp, nan_rois] = comp_segs(sess_dict, stim, comp, gab_fr, 
+                                        bri_dir, fluor, qu1v4)
 
     roi_tr_segs = roi_traces[:, seg_fr].transpose(1, 2, 0)
 
@@ -458,12 +638,18 @@ def get_sess_data(data_dir, mouse_n, sess_n, layer, comp='surp', gab_fr=0,
 
     log_var = np.log(np.var(roi_tr_segs))
 
+    if stim == 'gabors':
+        stim_info = '\nGab fr: {}\nGab K: {}'.format(gabs, 
+                                                        sess_dict['gab_k'])
+    elif stim == 'bricks':
+        stim_info = '\nBrick dir: {}'.format(bri_dir)
+
     print('Runtype: {}\nMouse: {}\nSess: {}\nLayer: {}\nLine: {}\nFluor: {}\n'
-          'ROIs: {}\nGab fr: {}\nGab K: {}\nFrames per seg: {}'
-          '\nLogvar: {:.2f}'.format(runtype, mouse_n, sess_n, layer, 
-                sess_dict['line'], fluor, nroi-len(nan_rois), gabs, 
-                sess_dict['gab_k'], roi_tr_segs.shape[1], log_var))
-    
+        'ROIs: {}{}\nFrames per seg: {}'
+        '\nLogvar: {:.2f}'.format(runtype, mouse_n, sess_n, layer, 
+                sess_dict['line'], fluor, nroi-len(nan_rois), stim_info, 
+                roi_tr_segs.shape[1], log_var))
+
     return roi_tr_segs, classes, seg_classes, n_surp
 
 
@@ -487,7 +673,6 @@ def sample_segs(roi_tr_segs, seg_classes, n_surp):
         - seg_classes (2D array): array of segment classes, structured as 
                                   classes x 1
     """
-
     class0_all = np.where(seg_classes == 0)[0]
     class1_all = np.where(seg_classes == 1)[0]
     n_reg = (len(class0_all) + len(class1_all))/2 - n_surp
@@ -559,7 +744,7 @@ def init_comp_model(roi_tr_segs, seg_classes, args, test=True):
     if args.shuffle:
         args.shuff_reidx = dl_info[-1]
  
-    args.cl_wei = logreg_util.class_weights(dls[0].dataset.target) # from train targets
+    args.cl_wei = logreg_util.class_weights(dls[0].dataset.targets) # from train targets
 
     model          = logreg_util.LogReg(roi_tr_segs.shape[2], roi_tr_segs.shape[1]).to(args.device)
     model.opt      = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -586,6 +771,8 @@ def save_scores(args, scores, saved_eps):
                 mouse_n (int)        : mouse number
                 n_roi (int)          : nuber of ROIs in analysis 
                 norm (str)           : type of normalization
+                qu1v4 (bool)         : if True, analysis is separated across 
+                                       first and last quintiles
                 run (int)            : run number
                 runtype (str)        : type of run ('prod' or 'pilot')
                 sess_n (int)         : session number
@@ -600,13 +787,22 @@ def save_scores(args, scores, saved_eps):
 
     df_labs = gen_util.remove_if(info_dict(None), 'epoch') # to get order
     df_info = info_dict(args, None)
+
+    if args.qu1v4:
+        ext_test = True
+        ext_test_name = 'test_Q4'
+    else:
+        ext_test = False
+        ext_test_name = None
     
     logreg_util.save_scores(df_labs, df_info, args.epochs, saved_eps, scores, 
-                            test=True, dirname=args.dirname)
+                            test=True, ext_test=ext_test, 
+                            ext_test_name=ext_test_name, dirname=args.dirname)
 
 
 #############################################
-def plot_title(mouse_n, sess_n, line, layer, comp):
+def plot_title(mouse_n, sess_n, line, layer, comp, stim, bri_dir='right',
+               qu1v4=False):
     """
     plot_title(mouse_n, sess_n, line, layer)
 
@@ -618,6 +814,14 @@ def plot_title(mouse_n, sess_n, line, layer, comp):
         - line (str)   : transgenic line name
         - layer (str)  : layer name
         - comp (str)   : comparison name
+        - stim (str)   : stimulus type
+    
+    Optional arguments:
+        - bri_dir (str): brick direction
+                         default: 'right'
+        - qu1v4 (bool) : if True, analysis is separated across first and last 
+                         quintiles
+                         default: False
     
     Returns:
         - (str): plot title 
@@ -626,9 +830,11 @@ def plot_title(mouse_n, sess_n, line, layer, comp):
         comp_str = 'Surp v Reg'
     else:
         comp_str = comp
+    
+    stim_str = get_stim_str(stim, bri_dir, 'print')
 
-    return 'Mouse {}, sess {}, {} {}\n{}'.format(mouse_n, sess_n, line, layer, 
-                                                comp_str)
+    return 'Mouse {}, sess {}, {} {}\n{}, {}'.format(mouse_n, sess_n, line, 
+                                                     layer, stim_str, comp_str)
 
 
 #############################################
@@ -640,6 +846,7 @@ def plot_tr_traces(args, tr_traces, seg_classes, plot_wei=True):
 
     Required arguments:
         - args (Argument parser): parser with analysis parameters as attributes:
+                bri_dir (str)        : brick direction to analyse
                 comp (str)           : type of comparison 
                 dirname (str)        : name of directory in which to save 
                                        scores
@@ -654,31 +861,53 @@ def plot_tr_traces(args, tr_traces, seg_classes, plot_wei=True):
                 line (str)           : transgenic line name
                 mouse_n (int)        : mouse number
                 norm (str)           : type of normalization
+                qu1v4 (bool)         : if True, analysis is separated across 
+                                       first and last quintiles
                 sess_n (int)         : session number
                 shuffle (bool)       : whether analysis is on shuffled data 
                 stats (str)          : stats to take, i.e., 'mean' or 'median'
+                stim (str)           : stim to analyse ('gabors' or 'bricks')
 
-        - roi_tr_segs (3D array): array of training ROI trace segments, 
-                                  structured as segments x frames x ROIs
-        - seg_classes (2D array): array of segment classes, structured as 
-                                  classes x 1
+        - tr_traces (3D array or list)  : array of training ROI trace segments, 
+                                          structured as segments x frames x ROIs
+                                          (or list if args.qu1v4)
+        - seg_classes (2D array or list): array of segment classes, structured as 
+                                          classes x 1
+                                          (or list if args.qu1v4)
 
     Optional arguments:
         - plot_wei (bool): if True, weights are plotted in a subplot
     """
 
+    if args.qu1v4:
+        traces_end      = np.asarray(tr_traces[1])
+        seg_classes_end = np.asarray(seg_classes[1]).squeeze()
+        tr_traces       = tr_traces[0]
+        seg_classes     = seg_classes[0]
+
     # train traces: segments x steps x cells
     tr_traces   = np.asarray(tr_traces)
     seg_classes = np.asarray(seg_classes).squeeze()
 
-    len_s, classes, _, _ = gab_classes(args.comp, args.gab_fr)
+    if args.stim == 'gabors':
+        len_s, classes, _, _ = gab_classes(args.comp, args.gab_fr)
+    elif args.stim == 'bricks':
+        len_s, classes = bri_classes(args.comp)
 
     fig, ax_tr, cols = logreg_util.plot_tr_data(tr_traces, seg_classes, classes, 
-                                                len_s, plot_wei, args.dirname, 
-                                                args.stats, args.error)
+                                                len_s, plot_wei=plot_wei, 
+                                                dirname=args.dirname, 
+                                                stats=args.stats, 
+                                                error=args.error)
+    if args.qu1v4:
+        cols_Q4 = ['cornflowerblue', 'salmon']
+        _ = logreg_util.plot_tr_data(traces_end, seg_classes_end, classes, 
+                                     len_s, fig, ax_tr, False, stats=args.stats, 
+                                     error=args.error, cols=cols_Q4, 
+                                     data_type='Q4 test')
 
     # add plot details
-    if args.comp == 'surp':
+    if args.stim == 'gabors' and args.comp == 'surp':
         gab_par = {'gab_fr': args.gab_fr, 'pre': 0, 'post': len_s}
         [xpos, labels_reg, h_bars, 
         seg_bars] = plot_util.plot_seg_comp(gab_par, 'reg')
@@ -695,16 +924,22 @@ def plot_tr_traces(args, tr_traces, seg_classes, plot_wei=True):
     shuff_str = str_util.shuff_par_str(args.shuffle, 'labels')
     stat_str = str_util.stat_par_str(args.stats, args.error)
     
-    ax_tr.set_ylabel('{}{}'.format(fluor_str, norm_str))
+    ax_tr.set_ylabel(u'{}{}'.format(fluor_str, norm_str))
 
     fig_title = plot_title(args.mouse_n, args.sess_n, args.line, args.layer, 
-                           args.comp)
-    ax_tr.set_title(u'{}, {} across ROIs{}'.format(fig_title, stat_str, 
-                                                   shuff_str))
+                           args.comp, args.stim, args.bri_dir)
+
+    if args.qu1v4:
+        qu_str = ' (Q1 only)'
+    else:
+        qu_str = ''
+
+    ax_tr.set_title(u'{}{}, {} across ROIs{}'.format(fig_title, qu_str, 
+                                                     stat_str, shuff_str))
     ax_tr.legend()
 
     save_name = os.path.join(args.dirname, 'train_traces{}'.format(args.fig_ext))
-    fig.savefig(save_name, bbox_inches='tight')
+    fig.savefig(save_name)
 
 
 #############################################
@@ -716,6 +951,7 @@ def plot_scores(args, scores, classes, loss_name='loss'):
     
     Required arguments:
         - args (Argument parser): parser with analysis parameters as attributes:
+                bri_dir (str)        : brick direction
                 comp (str)           : type of comparison 
                 dirname (str)        : name of directory in which to save 
                                        scores
@@ -725,8 +961,11 @@ def plot_scores(args, scores, classes, loss_name='loss'):
                 line (str)           : transgenic line name
                 mouse_n (int)        : mouse number
                 norm (str)           : type of normalization
+                qu1v4 (bool)         : if True, analysis is separated across 
+                                       first and last quintiles
                 sess_n (int)         : session number
                 shuffle (bool)       : whether analysis is on shuffled data
+                stim (str)           : stimulus type
 
         - scores (3D array): array in which scores are recorded, structured
                              as epochs x nbr sets x nbr score types
@@ -741,12 +980,65 @@ def plot_scores(args, scores, classes, loss_name='loss'):
     norm_str = str_util.norm_par_str(args.norm, 'print')
     shuff_str = str_util.shuff_par_str(args.shuffle, 'labels')
     fig_title = plot_title(args.mouse_n, args.sess_n, args.line, args.layer,
-                           args.comp)
+                           args.comp, args.stim, args.bri_dir, args.qu1v4)
 
+    if args.qu1v4:
+        qu_str = ' (trained on Q1 and tested on Q4)'
+        ext_test = True
+        ext_test_name = 'test_Q4'
+    else:
+        qu_str = ''
+        ext_test = False
+        ext_test_name = None
 
-    gen_title = '{}, {}{}{}'.format(fig_title, fluor_str, norm_str, shuff_str)
+    gen_title = u'{}{}, {}{}{}'.format(fig_title, qu_str, fluor_str, norm_str, 
+                                       shuff_str)
+
     logreg_util.plot_scores(args.epochs, scores, classes, args.dirname, 
-                            loss_name=loss_name, test=True, gen_title=gen_title)
+                            loss_name=loss_name, test=True, ext_test=ext_test, 
+                            ext_test_name=ext_test_name, gen_title=gen_title)
+
+
+def replot_scores(args, rundir):
+
+    if args.parallel and args.plt_bkend is not None:
+        plt.switch_backend(args.plt_bkend) # needs to be repeated within joblib
+
+    # set pyplot params
+    plot_util.linclab_plt_defaults(font=['Arial', 'Liberation Sans'], 
+                                   font_dir='../tools/fonts')
+                                   
+    scores_df_path = os.path.join(run_dir, 'scores_df.csv')
+    hyper_par_path = os.path.join(run_dir, 'hyperparameters.json')
+    if os.path.exists(scores_df_path) and os.path.exists(hyper_par_path):
+        scores = file_util.load_file(scores_df_path)
+        hyperpar = file_util.load_file(hyper_par_path)
+        
+        for key in hyperpar.keys():
+            setattr(args, key, hyperpar[key])
+        
+        args.dirname = run_dir
+
+        if args.qu1v4:
+            ext_test = True
+            ext_test_name = 'test_Q4'
+        else:
+            ext_test = False
+            ext_test_name = None   
+
+        sc_labs = logreg_util.get_sc_labs(True, 'set', ext_test, ext_test_name)
+
+        n_sets = len(sc_labs)
+        n_sc = len(sc_labs[0])
+
+        new_scores = np.empty([args.epochs, n_sets, n_sc]) * np.nan
+        for s, set_lab in enumerate(sc_labs):
+            for sc, sc_name in enumerate(set_lab):
+                new_scores[:, s, sc] = scores[sc_name]
+        
+        plot_scores(args, new_scores, hyperpar['classes'], 'Weighted BCE loss')
+    else:
+        print('NOT DONE: {}'.format(scores_df_path))
 
 
 #############################################
@@ -758,12 +1050,17 @@ def single_run(roi_tr_segs, seg_classes, classes, n_surp, args, run):
     and session data.
     
     Required arguments:
-        - roi_tr_segs (3D array): array of all ROI trace segments, structured as 
-                                  segments x frames x ROIs
-        - seg_classes (2D array): array of all segment classes, structured as 
-                                  classes x 1
-        - classes (list)        : list of class names
-        - n_surp (int)          : number of surprise segments
+        - roi_tr_segs (3D array or list): array of all ROI trace segments, 
+                                          structured as segments x frames x ROIs
+                                          (or list of arrays if args.qu1v4)
+        - seg_classes (2D array or list): array of all segment classes, 
+                                          structured as classes x 1 (or list of 
+                                          arrays if args.qu1v4)
+        - classes (list)                : list of class names
+        - n_surp (int or list)          : number of surprise segments. If 
+                                          args.qu1v4, list of numbers for first 
+                                          and last quintiles.
+
         - args (Argument parser): parser with analysis parameters as attributes:
                 batch_size (int)     : nbr of samples dataloader will load per 
                                        batch
@@ -790,6 +1087,8 @@ def single_run(roi_tr_segs, seg_classes, classes, n_surp, args, run):
                 norm (str)           : type of normalization
                 parallel (bool)      : if True, runs are done in parallel
                 plt_bkend (str)      : pyplot backend to use
+                qu1v4 (bool)         : if True, analysis is separated across 
+                                       first and last quintiles
                 output (str)         : general directory in which to save output
                 reseed (bool)        : whether to reseed each run
                 runtype (str)        : type of run ('prod' or 'pilot')
@@ -807,6 +1106,10 @@ def single_run(roi_tr_segs, seg_classes, classes, n_surp, args, run):
     if args.parallel and args.plt_bkend is not None:
         plt.switch_backend(args.plt_bkend) # needs to be repeated within joblib
 
+    # set pyplot params
+    plot_util.linclab_plt_defaults(font=['Arial', 'Liberation Sans'], 
+                                   font_dir='../tools/fonts')
+
     rundir = get_rundir(run, args.uniqueid)
 
     if args.reseed:
@@ -820,11 +1123,44 @@ def single_run(roi_tr_segs, seg_classes, classes, n_surp, args, run):
     args.dirname = file_util.create_dir([args.output, args.compdir, rundir])
     save_hyperpar(args)
 
+    if args.qu1v4:
+        roi_tr_segs_end = roi_tr_segs[1]
+        seg_classes_end = seg_classes[1]
+        n_surp_end      = n_surp[1]
+        roi_tr_segs = roi_tr_segs[0]
+        seg_classes = seg_classes[0]
+        n_surp      = n_surp[0]
+
     # select a random subsample
     if args.comp in ['AvB', 'AvC', 'BvC']:
+        if args.qu1v4:
+            roi_tr_segs_end, seg_classes_end = sample_segs(roi_tr_segs_end, 
+                                                           seg_classes_end, 
+                                                           n_surp_end)
+
         roi_tr_segs, seg_classes = sample_segs(roi_tr_segs, seg_classes, n_surp)
 
+    # select a random subsample to balance the classes
+    if args.bal:
+        roi_tr_segs, seg_classes = data_util.bal_classes(roi_tr_segs, seg_classes)
+        if args.qu1v4:
+            roi_tr_segs_end, seg_classes_end = data_util.bal_classes(roi_tr_segs, seg_classes)
+
     mod, dls = init_comp_model(roi_tr_segs, seg_classes, args, test=True)
+    
+    if args.qu1v4:
+        if args.shuffle:
+            np.random.shuffle(seg_classes_end)
+        dl_end = data_util.init_dl(roi_tr_segs_end, seg_classes_end, 
+                                   args.batch_size)
+        dl_end_name = 'test_Q4'
+        plot_data = [dls[0].dataset.data, dl_end.dataset.data]
+        plot_targ = [dls[0].dataset.targets, dl_end.dataset.targets]
+    else:
+        dl_end = None
+        dl_end_name = None
+        plot_data = dls[0].dataset.data
+        plot_targ = dls[0].dataset.targets
 
     norm_str = str_util.norm_par_str(args.norm, 'print')
     shuff_str = str_util.shuff_par_str(args.shuffle, 'labels')
@@ -835,12 +1171,13 @@ def single_run(roi_tr_segs, seg_classes, classes, n_surp, args, run):
     scores, saved_eps = logreg_util.fit_model(info, args.epochs, mod, dls, 
                                               args.device, args.dirname, 
                                               ep_freq=args.ep_freq, 
-                                              keep=args.keep)
+                                              keep=args.keep, test_dl2=dl_end,
+                                              test_dl2_name=dl_end_name)
 
     print('Run {}: training done.\n'.format(run))
 
     # plot traces and scores
-    plot_tr_traces(args, dls[0].dataset.data.numpy(), dls[0].dataset.target.numpy())
+    plot_tr_traces(args, plot_data, plot_targ)
     plot_scores(args, scores, classes, mod.loss_fct.name)
     
     # save scores in dataframe
@@ -859,8 +1196,10 @@ def run_regr(args):
     
     Required arguments:
         - args (Argument parser): parser with analysis parameters as attributes:
+                bal (bool)           : if True, classes are balanced
                 batch_size (int)     : nbr of samples dataloader will load per 
                                        batch
+                bri_dir (str)        : brick direction to analyse
                 comp (str)           : type of comparison
                 datadir (str)        : data directory
                 device (str)         : device name (i.e., 'cuda' or 'cpu')
@@ -880,6 +1219,8 @@ def run_regr(args):
                 lr (float)           : model learning rate
                 mouse_n (int)        : mouse number
                 norm (str)           : type of normalization
+                qu1v4 (bool)         : if True, analysis is separated across 
+                                       first and last quintiles
                 parallel (bool)      : if True, runs are done in parallel
                 plt_bkend (str)      : pyplot backend to use
                 output (str)         : general directory in which to save output
@@ -888,6 +1229,7 @@ def run_regr(args):
                 seed (int)           : seed to seed random processes with
                 sess_n (int)         : session number
                 stats (str)          : stats to take, i.e., 'mean' or 'median'
+                stim (str)           : stim to analyse ('gabors' or 'bricks')
                 train_p (list)       : proportion of dataset to allocate to 
                                        training
                 uniqueid (str or int): unique ID for analysis
@@ -905,11 +1247,10 @@ def run_regr(args):
     else:
         args.reseed = False
 
-    mouse_df = file_util.load_file('mouse_df_{}.csv'.format(args.runtype), 
-                                    file_type='csv')
+    mouse_df = file_util.load_file('mouse_df.csv')
     
-    atts       = ['mouseid', 'pass_fail', 'all_files']
-    cri        = [args.mouse_n, 'P', 1]
+    atts       = ['mouseid', 'runtype', 'pass_fail', 'all_files']
+    cri        = [args.mouse_n, args.runtype, 'P', 1]
     curr_lines = gen_util.get_df_vals(mouse_df, atts, cri)
     sesses     = gen_util.get_df_vals(curr_lines, label='overall_sess_n')
     
@@ -922,22 +1263,32 @@ def run_regr(args):
         args.layer  = curr_line['layer'].item()
         args.line   = curr_line['line'].item()
 
-        [roi_tr_segs, classes, 
-            seg_classes, n_surp] = get_sess_data(args.datadir, args.mouse_n,  
-                                                    args.sess_n, args.layer, 
-                                                    comp=args.comp, 
-                                                    gab_fr=args.gab_fr, 
-                                                    fluor=args.fluor,
-                                                    runtype=args.runtype)
+        sess_data = get_sess_data(args.datadir, args.mouse_n, args.sess_n, 
+                                  args.layer, args.stim, comp=args.comp, 
+                                  bri_dir=args.bri_dir,
+                                  gab_fr=args.gab_fr, fluor=args.fluor,
+                                  runtype=args.runtype, qu1v4=args.qu1v4)
+        
+        if sess_data is None:
+            continue
+        else:
+            [roi_tr_segs, classes, seg_classes, n_surp] = sess_data
+
         args.n_roi = roi_tr_segs.shape[2]
         args.classes = classes
+
+        # separate first and last quintile
+        if args.qu1v4:
+            qu_len = get_qu_len(roi_tr_segs.shape[0], 4)
+            roi_tr_segs = [roi_tr_segs[:qu_len], roi_tr_segs[-qu_len:]]
+            seg_classes = [seg_classes[:qu_len], seg_classes[-qu_len:]]
 
         for runs, shuffle in zip([args.n_reg, args.n_shuff], [False, True]):
 
             args.shuffle = shuffle
             args.compdir = get_compdir(args.mouse_n, args.sess_n, args.layer, 
-                                        args.fluor, args.norm, args.comp, 
-                                        args.shuffle)
+                                        args.fluor, args.norm, args.stim, 
+                                        args.bri_dir, args.comp, args.shuffle)
 
             if args.parallel:
                 num_cores = multiprocessing.cpu_count()
@@ -998,16 +1349,23 @@ def run_collate(args):
     
     Required arguments:
         - args (Argument parser): parser with analysis parameters as attributes:
+                bri_dir (str)        : brick direction
                 comp (str)           : type of comparison
                 parallel (bool)      : if True, run information is collected 
                                        in parallel
                 output (str)         : general directory in which run information
                                        is located output
+                stim (str)           : type of stimulus
     """
 
-    comp_dirs = file_util.get_files(args.output, 'subdirs', args.comp)
-    run_dirs = [run_dir for comp_dir in comp_dirs 
-                for run_dir in file_util.get_files(comp_dir, 'subdirs')]
+    gen_dirs = file_util.get_files(args.output, 'subdirs', [args.stim[0:3], 
+                                                            args.comp])
+    if len(gen_dirs) == 0:
+        print('No runs found.')
+        return
+
+    run_dirs = [run_dir for gen_dir in gen_dirs
+                for run_dir in file_util.get_files(gen_dir, 'subdirs')]
     all_labels = info_dict(None) + ['saved'] + logreg_util.get_sc_labs(test=True)
 
     if args.parallel:
@@ -1022,16 +1380,18 @@ def run_collate(args):
             scores = collate_scores(run_dir, all_labels)
             all_scores = all_scores.append(scores)
 
-    # sort df by mouse, session, norm, shuffle, uniqueid, run
-    sorter = info_dict(None)[0:9]
+    # sort df by mouse, session, layer, line, fluor, norm, shuffled, stim,
+    # bri_dir, comp, uniqueid, run, runtype, bri_dir
+    sorter = info_dict(None)[0:13]
     all_scores = all_scores.sort_values(by=sorter).reset_index(drop=True)
 
-    file_util.save_info(all_scores, '{}_all_scores_df'.format(args.comp), 
+    file_util.save_info(all_scores, 
+                        '{}_{}_all_scores_df'.format(args.stim[0:3], args.comp), 
                         args.output, 'csv')
 
 
 #############################################
-def calc_stats(scores_summ, curr_lines, curr_idx, CI=95):
+def calc_stats(scores_summ, curr_lines, curr_idx, CI=0.95):
     """
     calc_stats(scores_summ, curr_lines, curr_idx)
 
@@ -1048,7 +1408,7 @@ def calc_stats(scores_summ, curr_lines, curr_idx, CI=95):
     Optional arguments:
         - CI (float): Confidence interval around which to collect percentile 
                       values
-                      default: 95
+                      default: 0.95
 
     Returns:
         - scores_summ (pd DataFrame): Updated DataFrame containing scores 
@@ -1104,15 +1464,23 @@ def run_analysis(args):
     
     Required arguments:
         - args (Argument parser): parser with analysis parameters as attributes:
-                CI (float)  : confidence interval around which to collect 
-                              percentile values
-                comp (str)  : type of comparison
-                output (str): general directory in which run information
-                              is located output
+                bri_dir (str): brick direction
+                CI (float)   : confidence interval around which to collect 
+                               percentile values
+                comp (str)   : type of comparison
+                output (str) : general directory in which run information
+                               is located output
+                stim (str)   : type of stimulus
     """
 
-    all_scores_df = file_util.load_file('{}_all_scores_df.csv'.format(args.comp),
-                                        args.output, 'csv')
+    all_scores_file = os.path.join(args.output, 
+                                   '{}_{}_all_scores_df.csv'.format(args.stim[0:3], 
+                                                                    args.comp))
+    if not os.path.exists(all_scores_file):
+        print('No results spreadsheet found.')
+        return 
+
+    all_scores_df = file_util.load_file(all_scores_file)
     scores_summ = pd.DataFrame()
 
     # common labels
@@ -1132,12 +1500,12 @@ def run_analysis(args):
         # calculate stats
         scores_summ = calc_stats(scores_summ, curr_lines, curr_idx, args.CI)
 
-    file_util.save_info(scores_summ, '{}_score_stats_df'.format(args.comp), 
+    file_util.save_info(scores_summ, '{}_{}_score_stats_df'.format(args.stim[0:3], args.comp), 
                         args.output, 'csv')
 
 
 #############################################    
-def init_res_fig(args, n_subplots):
+def init_res_fig(args, n_subplots, max_sess=None):
     """
     init_res_fig(args, n_subplots)
 
@@ -1153,14 +1521,23 @@ def init_res_fig(args, n_subplots):
 
         - n_subplots (int)      : number of subplots
     
+    Optional arguments:
+        - max_sess (int): maximum number of sessions plotted
+                          default: None
+    
     Returns:
         - fig (plt Fig): figure
         - ax (plt Axis): axis
     """
 
+    if max_sess is not None:
+        mult = max_sess/3.0
+    else:
+        mult = 1.0
+
     fig_par = {'ncols'      : args.ncols,
                'sharey'     : not(args.no_sharey),
-               'subplot_wid': args.subplot_wid,
+               'subplot_wid': args.subplot_wid*mult,
                'subplot_hei': args.subplot_hei
                 }
     
@@ -1193,20 +1570,20 @@ def rois_x_label(sess_ns, arr):
     if not (arr[:, :, 0] == arr[:, :, 1]).all():
         raise ValueError('Shuffle and non shuffle n_rois are not the same.')
 
-    x_label = []
-    for s, sess_n in enumerate(sess_ns):
+    x_label = ['Session {}'.format(x+1) for x in range(arr.shape[1])]
+    
+    for sess_n in sess_ns:
         for m in range(arr.shape[0]):
             if m == 0:
-                n_rois_str = '{}'.format(int(arr[m, s, 0]))
+                n_rois_str = '{}'.format(int(arr[m, int(sess_n-1), 0]))
             if m > 0:
-                n_rois_str = '{}/{}'.format(n_rois_str, int(arr[m, s, 0]))
-        x_label.append('Session {}\n({} rois)'.format(int(sess_n), n_rois_str))
-
+                n_rois_str = '{}/{}'.format(n_rois_str, int(arr[m, int(sess_n-1), 0]))
+        x_label[sess_n-1] = 'Session {}\n({} rois)'.format(int(sess_n), n_rois_str)
     return x_label
 
 
 #############################################
-def mouse_runs_leg(arr, mouse_n=None, shuffle=False):
+def mouse_runs_leg(arr, mouse_n=None, shuffle=False, CI=0.95):
     """
     mouse_runs_leg(arr)
 
@@ -1219,13 +1596,14 @@ def mouse_runs_leg(arr, mouse_n=None, shuffle=False):
         - arr (3D array): array of number of ROIs, structured as 
                           mouse (or mice to sum) x session x shuffle
 
-    Required arguments:
+    Optional arguments:
         - mouse_n (int) : mouse number (only needed if shuffle is False)
                           default: None
         - shuffle (bool): if True, shuffle legend is created. Otherwise, 
                           mouse legend is created.
                           default: False
-
+        - CI (float)    : CI for shuffled data
+                          default: 0.95 
     Returns:
         - leg (str): legend for the mouse or shuffle set
     """
@@ -1242,17 +1620,25 @@ def mouse_runs_leg(arr, mouse_n=None, shuffle=False):
             n_runs_str = '{}/{}'.format(n_runs_str, int(np.sum(arr[:, s])))
     
     if shuffle:
-        leg = 'shuffled\n({} runs)'.format(n_runs_str)
+        if CI is not None:
+            CI_pr = CI*100
+            if CI_pr%1 == 0:
+                CI_pr = int(CI_pr)
+            leg = 'shuffled ({}% CI)\n({} runs)'.format(CI_pr, n_runs_str)
+        else:
+            leg = 'shuffled\n({} runs)'.format(n_runs_str)
+
     else:
         if mouse_n is None:
             raise IOError('If \'shuffle\' is False, Must specify \'mouse_n\'.')
+        
         leg = 'mouse {}\n({} runs)'.format(int(mouse_n), n_runs_str)
     
     return leg
 
 
 #############################################
-def plot_CI(ax, x_label, arr, sess_ns):
+def plot_CI(ax, x_label, arr, sess_ns, CI=0.95):
     """
     plot_CI(ax, x_label, arr, sess_ns)
 
@@ -1264,6 +1650,10 @@ def plot_CI(ax, x_label, arr, sess_ns):
         - arr (3D array)       : array of number of ROIs, structured as 
                                  mouse (or mice to sum) x session x shuffle
         - sess_ns (list)       : list of session numbers
+    
+        Optional arguments:
+        - CI (float)           : CI for shuffled data
+                                 default: 0.95 
     """
 
     # shuffle (combine across mice)
@@ -1271,24 +1661,24 @@ def plot_CI(ax, x_label, arr, sess_ns):
     p_lo = np.nanmedian(arr[:, :, 1], axis=0)
     p_hi = np.nanmedian(arr[:, :, 2], axis=0)
 
-    leg = mouse_runs_leg(arr[:,:,4], shuffle=True)
+    leg = mouse_runs_leg(arr[:,:,4], shuffle=True, CI=CI)
 
     # plot CI
-    ax.bar(x_label, height=p_hi-p_lo, bottom=p_lo, color='lightgray', width=0.2, 
-           label=leg)
+    ax.bar(x_label, height=p_hi-p_lo, bottom=p_lo, color='lightgray', 
+           width=0.4, label=leg)
     
     # plot median (with some thickness based on ylim)
     y_lim = ax.get_ylim()
-    med_th = 0.005*(y_lim[1]-y_lim[0])
+    med_th = 0.015*(y_lim[1]-y_lim[0])
     ax.bar(x_label, height=med_th, bottom=med-med_th/2.0, color='grey', 
-           width=0.2)
+           width=0.4)
 
 #############################################
-def summ_subplot(ax, arr, data_title, mouse_ns, sess_ns, line, layer, fluor, norm,
-                 comp, runtype):
+def summ_subplot(ax, arr, data_title, mouse_ns, sess_ns, line, layer, fluor, 
+                 norm, stim='gabors', bri_dir='right', comp='surp', 
+                 runtype='prod', stat='mean', CI=0.95):
     """
-    summ_subplot(ax, arr, datatype, mouse_ns, sess_ns, line, layer, fluor, norm,
-                 comp, runtype)
+    summ_subplot(ax, arr, datatype, mouse_ns, sess_ns, line, layer, fluor, norm)
 
     Plots summary data in the specific subplot for a line and layer.
 
@@ -1306,39 +1696,66 @@ def summ_subplot(ax, arr, data_title, mouse_ns, sess_ns, line, layer, fluor, nor
         - layer (str)          : layer name
         - fluor (str)          : fluorescence trace type
         - norm (str)           : type of normalization
+    
+    Optional arguments:
+        - stim (str)           : type of stimulus
+                                 default: 'gabors'
+        - bri_dir (str)        : brick direction
+                                 default: 'right'
         - comp (str)           : type of comparison
+                                 default: 'surp'
         - runtype (str)        : type of run ('prod' or 'pilot')
+                                 default: 'prod'
+        - stat (str)           : stats to take for non shuffled data, 
+                                 i.e., 'mean' or 'median' 
+                                 default: 'mean'
+        - CI (float)           : CI for shuffled data
+                                 default: 0.95 
     """
 
-    col=['steelblue', 'coral']
-    
     x_label = rois_x_label(sess_ns, arr[:,:,:,3])
+
+    if 'acc' in data_title:
+        ax.set_ylabel('Accuracy (%)')
+        ax.set_ylim(0, 100)
+    elif 'epoch' in data_title:
+        ax.set_ylabel('Nbr epochs')
+        ax.set_ylim(0, 1000)
+
+    plot_CI(ax, x_label, arr[:,:,1], sess_ns, CI)
 
     # plot non shuffle data
     for m, mouse_n in enumerate(mouse_ns):
         leg = mouse_runs_leg(arr[m,:,0,4], mouse_n, False)
-        ax.errorbar(x_label, arr[m,:,0,0], yerr=arr[m, :, 0, 1], fmt='-o', 
-                    capsize=6, capthick=2, color=col[m], label=leg)     
+        ax.errorbar(x_label, arr[m,:,0,0], yerr=arr[m,:,0,1], fmt='-o', 
+                    markersize=12, capthick=4, label=leg, alpha=0.5, lw=3)
 
-    plot_CI(ax, x_label, arr[:,:,1], sess_ns,)
+    # add a mean line
+    for i in range(len(x_label)):
+        if not np.isnan(arr[:,i,0,0]).all():
+            med = math_util.mean_med(arr[:,i,0,0], axis=0, stats=stat, 
+                                     nanpol='omit')
+            y_lim = ax.get_ylim()
+            med_th = 0.0075*(y_lim[1]-y_lim[0])
+
+            ax.bar(x_label[i], height=med_th, bottom=med-med_th/2.0, color='black', 
+                   width=0.5)
 
     if line == 'L23':
         line = 'L2/3'
     if comp == 'surp':
         comp = 'Surp'
+    
+    stim_str = get_stim_str(args.stim, args.bri_dir, 'print')
     norm_str = str_util.norm_par_str(norm, type_str='file')[1:]
 
-    title = ('{} - {} for log regr on'
-             '\n{} {} {} {} data ({})').format(comp, data_title, norm_str, fluor, 
-                                               line, layer, runtype)
-    
+    title = ('{} {} - {} for log regr on'
+             '\n{} {} {} {} data ({})').format(stim_str, comp, data_title, 
+                                               norm_str, fluor, line, layer, 
+                                               runtype)
+
     ax.set_title(title)
     ax.legend()
-
-    if 'acc' in data_title:
-        ax.set_ylabel('Accuracy (%)')
-    elif 'epoch' in data_title:
-        ax.set_ylabel('Nbr epochs')
 
 
 #############################################    
@@ -1351,6 +1768,8 @@ def plot_data_summ(args, summ_scores, data, title, stats, shuff_stats):
 
     Required arguments:
          - args (Argument parser): parser with analysis parameters as attributes:
+                bri_dir (str)      : brick direction
+                CI (float)         : CI for shuffled data (e.g., 0.95)
                 comp (str)         : type of comparison
                 fig_ext (str)      : extension for saving figure
                 fluor (str)        : fluorescence trace type
@@ -1361,6 +1780,7 @@ def plot_data_summ(args, summ_scores, data, title, stats, shuff_stats):
                 runtype (str)      : type of run ('prod' or 'pilot')
                 sharey (bool)      : if True, y axis lims are shared across 
                                      subplots
+                stim (str)         : stimulus type
                 subplot_hei (float): height of each subplot (inches)
                 subplot_wid (float): width of each subplot (inches)
 
@@ -1378,14 +1798,21 @@ def plot_data_summ(args, summ_scores, data, title, stats, shuff_stats):
     
     celltypes = [[x, y] for x in ['L23', 'L5'] for y in ['soma', 'dend']]
 
-    fig, ax = init_res_fig(args, len(celltypes))
+    # update width based on number of sessions
+    cols = ['norm', 'bri_dir', 'runtype']
+    cri  = [args.norm, args.bri_dir, args.runtype]
+    plot_lines = gen_util.get_df_vals(summ_scores, cols, cri)
+    max_sess = max(plot_lines['sess_n'].tolist())
+
+    fig, ax = init_res_fig(args, len(celltypes), max_sess)
 
     for i, [line, layer] in enumerate(celltypes):
         sub_ax = plot_util.get_subax(ax, i)
+        sub_ax.set_xlim(-0.5, max_sess-0.5)
         # get the right rows in dataframe
-        cols       = ['layer', 'fluor', 'norm', 'runtype']
-        cri        = [layer, args.fluor, args.norm, args.runtype]
-        curr_lines = gen_util.get_df_vals(summ_scores.loc[summ_scores['line'].str.contains(line)], cols, cri)
+        cols       = ['layer', 'fluor']
+        cri        = [layer, args.fluor]
+        curr_lines = gen_util.get_df_vals(plot_lines.loc[summ_scores['line'].str.contains(line)], cols, cri)
         if len(curr_lines) == 0:
             cri_str = ['{}: {}'.format(col, crit) for col, crit in zip(cols, cri)]
             print('No data found for line: {}, {}'.format(line, ', '.join(cri_str)))
@@ -1393,30 +1820,32 @@ def plot_data_summ(args, summ_scores, data, title, stats, shuff_stats):
         sess_ns    = gen_util.get_df_vals(curr_lines, label='sess_n', dtype=int)
         mouse_ns   = gen_util.get_df_vals(curr_lines, label='mouse_n', dtype=int)
         # mouse x sess x shuffle x vals (mean/med, sem/2.5p, sem/97.5p, n_rois, n_runs)
-        data_arr = np.empty((len(mouse_ns), len(sess_ns), 2, 5)) * np.nan
+        data_arr = np.empty((len(mouse_ns), int(max_sess), 2, 5)) * np.nan
         
-        for s, sess_n in enumerate(sess_ns):
+        for sess_n in sess_ns:
             sess_mice = gen_util.get_df_vals(curr_lines, 'sess_n', sess_n, 'mouse_n', dtype=int)
             for m, mouse_n in enumerate(mouse_ns):
                 if mouse_n in sess_mice:
                     for sh, stat_types in enumerate([stats, shuff_stats]):
                         curr_line = gen_util.get_df_vals(curr_lines, ['sess_n', 'mouse_n', 'shuffled'], [sess_n, mouse_n, sh])
                         for st, stat in enumerate(stat_types):
-                            data_arr[m, s, sh, st] = curr_line['{}_{}'.format(data, stat)]
-                        data_arr[m, s, sh, 3] = curr_line['n_roi']
-                        data_arr[m, s, sh, 4] = curr_line['runs_total'] - curr_line['runs_nan']
+                            data_arr[m, int(sess_n-1), sh, st] = curr_line['{}_{}'.format(data, stat)]
+                        data_arr[m, int(sess_n-1), sh, 3] = curr_line['n_roi']
+                        data_arr[m, int(sess_n-1), sh, 4] = curr_line['runs_total'] - curr_line['runs_nan']
         
         summ_subplot(sub_ax, data_arr, title, mouse_ns, sess_ns, line, layer, 
-                     args.fluor, args.norm, args.comp, args.runtype)
+                     args.fluor, args.norm, args.stim, args.bri_dir, args.comp, 
+                     args.runtype, stats[0], args.CI)
 
+    stim_str = get_stim_str(args.stim, args.bri_dir, 'file')
     norm_str = str_util.norm_par_str(args.norm, type_str='file')
     save_dir = os.path.join(args.output, 'figures_{}'.format(args.fluor))
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
     
-    save_name = os.path.join(save_dir, '{}_{}{}{}'.format(data, args.comp, 
-                             norm_str, args.fig_ext))
-    fig.savefig(save_name, bbox_inches='tight')
+    save_name = os.path.join(save_dir, '{}_{}_{}{}{}'.format(data, stim_str, 
+                             args.comp, norm_str, args.fig_ext))
+    fig.savefig(save_name)
 
 
 #############################################    
@@ -1429,6 +1858,8 @@ def run_plot(args):
 
     Required arguments:
          - args (Argument parser): parser with analysis parameters as attributes:
+                bri_dir (str)      : brick direction
+                CI (float)         : CI for shuffled data
                 comp (str)         : type of comparison
                 fig_ext (str)      : extension for saving figure
                 fluor (str)        : fluorescence trace type
@@ -1439,18 +1870,26 @@ def run_plot(args):
                 runtype (str)      : type of run ('prod' or 'pilot')
                 sharey (bool)      : if True, y axis lims are shared across 
                                      subplots
+                stim (str)         : stimulus type
                 subplot_hei (float): height of each subplot (inches)
                 subplot_wid (float): width of each subplot (inches)
     """
 
-    summ_scores = file_util.load_file('{}_score_stats_df.csv'.format(args.comp), 
-                                      args.output, 'csv')
+    summ_scores_file = os.path.join(args.output, 
+                                    '{}_{}_score_stats_df.csv'.format(args.stim[0:3], 
+                                                                      args.comp))
+    
+    if os.path.exists(summ_scores_file):
+        summ_scores = file_util.load_file(summ_scores_file, file_type='csv')
+    else:
+        print('{} not found.'.format(summ_scores_file))
+        return
 
     data_types  = ['epoch', 'test_acc']
     data_titles = ['epoch nbr', 'test accuracy']
 
     stats = ['mean', 'sem', 'sem']
-    shuff_stats = ['median', 'p2p5', 'p97p5']
+    shuff_stats = ['median'] + math_util.get_percentiles(args.CI)[1]
 
     for data, title in zip(data_types, data_titles):
         plot_data_summ(args, summ_scores, data, title, stats, shuff_stats)
@@ -1461,7 +1900,7 @@ def run_plot(args):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--output', default='logreg_models', help='where to store output')
+    parser.add_argument('--output', default='results/logreg_models', help='where to store output')
     parser.add_argument('--task', default='run_regr', help='run_regr or collate')
     parser.add_argument('--comp', default='surp', help='surp, AvB, AvC, BvC, DvE, all')
     parser.add_argument('--fig_ext', default='.svg')
@@ -1469,7 +1908,10 @@ if __name__ == "__main__":
                         help='switch matplotlib backend when running on server')
 
         # run_regr general
+    parser.add_argument('--qu1v4', action='store_true', help='run on 1st quintile and test on last')
+    parser.add_argument('--bal', action='store_true', help='balance classes')
     parser.add_argument('--runtype', default='prod', help='prod or pilot')
+    parser.add_argument('--stim', default='gabors', help='gabors or bricks')
     parser.add_argument('--mouse_n', default=1, type=int)
     parser.add_argument('--sess_n', default='all')
  
@@ -1495,6 +1937,8 @@ if __name__ == "__main__":
     parser.add_argument('--error', default='sem', help='std or sem')
     parser.add_argument('--gab_fr', default=0, type=int, 
                         help='starting gab frame in comp is surp')
+    parser.add_argument('--bri_dir', default='none', 
+                        help='brick direction')
     parser.add_argument('--norm', default='none', 
                         help='normalize data: none, all or roi (by roi)')
     parser.add_argument('--fluor', default='dff', 
@@ -1508,7 +1952,7 @@ if __name__ == "__main__":
                               'or None for no uniqueid'))
 
         # analysis parameters
-    parser.add_argument('--CI', default=95, type=int, help='shuffled CI')
+    parser.add_argument('--CI', default=0.95, type=float, help='shuffled CI')
 
         # plot parameters
     parser.add_argument('--ncols', default=2, type=int, help='nbr of cols per figure')
@@ -1516,7 +1960,7 @@ if __name__ == "__main__":
     parser.add_argument('--subplot_wid', default=7.5, type=float, help='figure width')
     parser.add_argument('--subplot_hei', default=7.5, type=float, help='figure height')
         
-        # NOTE: norm, fluor, runtype also used for plots
+        # NOTE: CI, norm, fluor, runtype also used for plots
 
     args = parser.parse_args()
 
@@ -1524,7 +1968,23 @@ if __name__ == "__main__":
 
     if args.plt_bkend not in [None, 'None']:
         plt.switch_backend(args.plt_bkend) 
+    
+    # set pyplot params
+    plot_util.linclab_plt_defaults(font=['Arial', 'Liberation Sans'], 
+                                   font_dir='../tools/fonts')
 
+    if args.qu1v4:
+        args.output = '{}_qu1v4'.format(args.output)
+    if args.bal:
+        args.output = '{}_bal'.format(args.output)
+
+    if args.stim == 'bricks':
+        if args.comp != 'surp':
+            raise ValueError('Only surprise comparison supported for Bricks.')
+        args.gab_fr = 'none'
+    if args.stim == 'gabors':
+        args.bri_dir = 'none'
+    
     if args.comp == 'all':
         comps = ['surp', 'AvB', 'AvC', 'BvC', 'DvE']
     else:
@@ -1532,7 +1992,9 @@ if __name__ == "__main__":
 
     for comp in comps:
         args.comp = comp
-        print('Task: {}'.format(args.task))
+        stim_str = get_stim_str(args.stim, args.bri_dir, 'print')
+        print('\nTask: {}'.format(args.task))
+        print('Stim: {}'.format(stim_str))
         print('Comparison: {}\n'.format(args.comp))
 
         if args.task == 'run_regr':
@@ -1547,4 +2009,68 @@ if __name__ == "__main__":
 
         elif args.task == 'plot':
             run_plot(args)
+
+
+    ############## QUICK ADD ################## ##ONLY FOR GABORS###
+    if args.task == 'mags':
+        sess_labels = ['Session 1', 'Session 2']
+        mag_labels = ['Regular', 'Surprise']
+        x_labels = ['{}\n{}'.format(m, s) for s in sess_labels for m in mag_labels]
+
+        direc = os.path.join(args.output, 'figures', 'summ_mags')
+        summ_mag_dict = file_util.load_file('summ_mag_dict.pkl', direc, 'pickle')
+
+        celltypes = [[x, y] for x in ['L23-Cux2', 'L5-Rbp4'] for y in ['soma', 'dend']]
+
+        fig, ax = init_res_fig(args, len(celltypes))
+        fig_norm, ax_norm = init_res_fig(args, len(celltypes))
+
+        for i, [line, layer] in enumerate(celltypes):
+            for name, axis in zip(['reg', 'norm'], [ax, ax_norm]):
+                sub_ax = plot_util.get_subax(axis, i)
+
+                subdict = '{}_{}'.format(line, layer)
+                sub_ax.set_title(subdict)
+                mouse_leg = summ_mag_dict[subdict]['mouse_leg']
+                data = summ_mag_dict[subdict]['{}_data'.format(name)]
+
+                data = data.reshape([data.shape[0], -1]).T
+
+                sub_ax.plot(x_labels, data, marker='o', alpha=0.5)
+                sub_ax.legend(mouse_leg)
+
+        for i, [line, layer] in enumerate(celltypes):
+            for name, axis in zip(['reg', 'norm'], [ax, ax_norm]):
+                sub_ax = plot_util.get_subax(axis, i)
+                subdict = '{}_{}'.format(line, layer)
+                data = summ_mag_dict[subdict]['{}_data'.format(name)]
+                data = data.reshape([data.shape[0], -1]).T
+
+                if not np.isnan(data).all():
+                    med = math_util.mean_med(data, axis=1, stats=args.stats, 
+                                             nanpol='omit')
+
+                    y_lim = sub_ax.get_ylim()
+                    med_th = 0.005*(y_lim[1]-y_lim[0])
+
+                    sub_ax.bar(x_labels, height=med_th, bottom=med-med_th/2.0, 
+                            color='black', width=0.3)
+            
+        fig.savefig(os.path.join(direc, 'reg_mags{}'.format(args.fig_ext)))
+        fig_norm.savefig(os.path.join(direc, 'norm_mags{}'.format(args.fig_ext)))
+
+
+    if args.task == 'fix':
+        gen_dirs = file_util.get_files(args.output, 'subdirs')
+        run_dirs = [run_dir for gen_dir in gen_dirs
+                   for run_dir in file_util.get_files(gen_dir, 'subdirs')]
+        
+        if args.parallel:
+                num_cores = multiprocessing.cpu_count()
+                Parallel(n_jobs=num_cores)(delayed(replot_scores)
+                        (args, run_dir) for run_dir in run_dirs)
+
+        for run_dir in run_dirs:
+            replot_scores(args, run_dir)
+
 
