@@ -413,7 +413,7 @@ def print_elem_list(elems, tail='up', act_vals=None):
 
 
 #############################################
-def get_percentiles(CI=95):
+def get_percentiles(CI=0.95):
     """
     get_percentiles()
 
@@ -422,7 +422,7 @@ def get_percentiles(CI=95):
 
     Optional arguments:
         - CI (float): confidence interval
-                      default: 95
+                      default: 0.95
 
     Returns:
         - ps (list)     : list of percentile values, e.g., [2.5, 97.5]
@@ -430,7 +430,7 @@ def get_percentiles(CI=95):
 
     """
 
-    ps = [(100.-CI)*0.5, CI*0.5+50.] # high and lo quartiles
+    ps = [(100.-CI*100.)*0.5, CI*50.+50.] # high and lo quartiles
     p_names = []
     for p in ps:
         p_res = p%1
