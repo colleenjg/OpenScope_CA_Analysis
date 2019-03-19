@@ -296,12 +296,13 @@ def get_files(direc='.', file_type='all', criteria=None):
     Gets all files in given directory.
 
     Optional arguments:
-        - diriec (str    : directory
-        - file_type (str): type of file to return: 'all', 'subdirs' or 'files'
-                           default: 'all'
-        - criteria (str) : criteria for including files, i.e., contains 
-                           specified string
-                           default: None
+        - direc (str             : directory
+        - file_type (str)        : type of file to return: 'all', 'subdirs' or 
+                                   'files'
+                                   default: 'all'
+        - criteria (list or str) : criteria for including files, i.e., contains 
+                                   specified strings
+                                   default: None
 
     Outputs:
         - files (list): list of files in directory
@@ -310,7 +311,9 @@ def get_files(direc='.', file_type='all', criteria=None):
     all_files = os.listdir(direc)
 
     if criteria is not None:
-        all_files = [x for x in all_files if criteria in x]
+        criteria = gen_util.list_if_not(criteria)
+        for cri in criteria:
+            all_files = [x for x in all_files if cri in x]
     
     all_files = [os.path.join(direc, x) for x in all_files]
 

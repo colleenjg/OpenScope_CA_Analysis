@@ -16,6 +16,86 @@ from util import file_util, gen_util, math_util, plot_util, str_util
 
 
 #############################################
+def comb_block_ran_seg(stims):
+    """
+    comb_block_ran_seg(stims)
+
+    Returns the block range segments combines for all stim objects if a list
+    is passed.
+
+    Required arguments:
+        - stims (list or Stim): Stim object or list of Stim objects
+
+    Return:
+        - block_ran_seg (list): segment tuples (start, end) for each block 
+                                (end is EXCLUDED) each sublist contains tuples 
+                                for a display sequence e.g., for 2 sequences 
+                                with 2 blocks each:
+                                [[[start, end], [start, end]], 
+                                [[start, end], [start, end]]] 
+    """
+
+    
+    if isinstance(stims, list):
+        block_ran_seg = []
+        for stim in stims:
+            block_ran_seg.extend(stim.block_ran_seg)
+    else:
+        block_ran_seg = stims.block_ran_seg
+
+    return block_ran_seg
+
+
+#############################################
+def get_stim(sess, stim_type='gabors', bri_idx=0):
+    """
+    get_stim(sess)
+
+    Returns the Stim object and combined block range segments.
+
+    Required arguments:
+        - sess (Session): Session object
+
+    Optional arguments:
+        - stim_type (str): stimulus type to return
+                           default: 'gabors'
+        - bri_idx (int)  : index of brick object to return, if bricks is a list.
+                           If None, the brick object is returned, even if it 
+                           is a list.
+                           default: 0
+
+    Return:
+        - stim (Stim)         : Stim object
+        - block_ran_seg (list): segment tuples (start, end) for each block 
+                                (end is EXCLUDED) each sublist contains tuples 
+                                for a display sequence e.g., for 2 sequences 
+                                with 2 blocks each:
+                                [[[start, end], [start, end]], 
+                                [[start, end], [start, end]]] 
+    """
+
+    if stim_type == 'gabors':
+        stim = sess.gabors
+    elif stim_type == 'bricks':
+        stim = sess.bricks
+    else:
+        gen_util.accepted_values_error('stim_type', stim_type, ['gabors', 'bricks'])
+
+    block_ran_seg = comb_block_ran_seg(stim)
+
+    if stim_type == 'bricks' and isinstance(stim, list) and bri_idx is not None:
+        if bri_idx < 0:
+            raise IOError('\'bri_idx\' must be > 0.')
+        elif bri_idx >= len(sess.bricks):
+            raise IOError(('\'bri_idx\' value {} is out of range for list '
+                            'of length {}.').format(bri_idx, len(sess.bricks)))
+        else:
+            stim = sess.bricks[0]
+
+    return stim, block_ran_seg
+
+
+#############################################
 def label_values(mouse_df, label, values='any'):
     """
     label_values(mouse_df, label)
@@ -342,7 +422,7 @@ def gab_mice_omit(gab_k):
     """
     gab_mice_omit(gab_k)
 
-    Returns IDs of mice to omit based on gabor kappa values to include.
+    Returns IDs of pilot mice to omit based on gabor kappa values to include.
 
     Required arguments:
         - gab_k (int or list): gabor kappa values
@@ -361,18 +441,51 @@ def gab_mice_omit(gab_k):
 
 
 #############################################
-def quint_par(gabors, analys_par):
+def bri_mice_omit(bri_dir, bri_size):
     """
-    quint_par(gabors, analys_par)
+    bri_mice_omit(bri_dir, bri_size)
+
+    Returns IDs of pilot mice to omit based on brick direction and size values 
+    to include.
+
+    Required arguments:
+        - bri_dir (str or list): brick direction values
+        - bri_size (int or list): brick size values
+                                    
+    Return:
+        - omit_mice (list): list IDs of mice to omit
+    """
+
+    bri_dir = gen_util.list_if_not(bri_dir)
+    bri_size = gen_util.list_if_not(bri_size)
+    omit_mice = []
+
+    if 'right' not in bri_dir:
+        omit_mice.extend([3]) # mouse 3 only got bri_dir='right'
+        if 128 not in bri_size:
+            omit_mice.extend([1]) # mouse 1 only got bri_dir='left' with bri_size=128
+    elif 'left' not in bri_dir and 256 not in bri_size:
+        omit_mice.extend([1]) # mouse 1 only got bri_dir='right' with bri_size=256
+    return omit_mice
+
+
+#############################################
+def quint_par(stim, analys_par, block_ran_seg=None):
+    """
+    quint_par(stim, analys_par)
 
     Returns dictionary containing parameters for breaking segments into 
     quintiles.
     
     Required arguments:
-        - gabors (Gabor object): gabors object
-        - analys_par (dict)    : dictionary containing relevant parameters
-                                 to extracting segment numbers and dividing
-                                 them into quintiles
+        - stim (Stim object): stim object
+        - analys_par (dict) : dictionary containing relevant parameters
+                              to extracting segment numbers and dividing
+                              them into quintiles
+                ['bri_dir'] (str or list) : brick direction values to include
+                                            (e.g., 'right', 'left')
+                ['bri_size'] (int or list): brick size values to include
+                                          (e.g., 128, 256 or [128, 256])
                 ['gab_k'] (int or list) : gabor kappa values to include 
                                           (e.g., 4, 16 or [4, 16])
                 ['gab_fr'] (int or list): gabor frame values to include
@@ -389,9 +502,11 @@ def quint_par(gabors, analys_par):
     """
 
     # get all seg values
-    all_segs = gabors.get_segs_by_criteria(stimPar2=analys_par['gab_k'], 
-                                           gaborframe=analys_par['gab_fr'], 
-                                           by='seg')
+    all_segs = stim.get_segs_by_criteria(gab_k=analys_par['gab_k'], 
+                                         bri_dir=analys_par['bri_dir'],
+                                         bri_size=analys_par['bri_size'],
+                                         by='seg', block_ran_seg=block_ran_seg)
+
     # get the min and max seg numbers for stimulus
     qu_info = {'seg_min': min(all_segs),
                'seg_max': max(all_segs)+1
@@ -421,18 +536,22 @@ def quint_par(gabors, analys_par):
 
 
 #############################################
-def quint_segs(gabors, analys_par, qu_info, surp='any'):
+def quint_segs(stim, analys_par, qu_info, surp='any', block_ran_seg=None,):
     """
-    quint_segs(gabors, analys_par)
+    quint_segs(stim, analys_par)
 
     Returns dictionary containing parameters for breaking segments into 
     quintiles.
     
     Required arguments:
-        - gabors (Gabor object): gabors object
+        - stim (Stim object): stim object
         - analys_par (dict)    : dictionary containing relevant parameters
                                  to extracting segment numbers and dividing
                                  them into quintiles
+                ['bri_dir'] (str or list) : brick direction values to include
+                                            (e.g., 'right', 'left')
+                ['bri_size'] (int or list): brick size values to include
+                                          (e.g., 128, 256 or [128, 256])
                 ['gab_fr'] (int or list): gabor frame values to include
                                           (e.g., 0, 1, 2, 3)
                 ['gab_k'] (int or list) : gabor kappa values to include 
@@ -445,8 +564,15 @@ def quint_segs(gabors, analys_par, qu_info, surp='any'):
                 ['len'] (float)  : length of each quintile in seg numbers
                                    (can be a decimal)
     Optional arguments:
-        - surp (int or list)     : surprise values to include (e.g., 0 or 1)
-                                   default: 'any'
+        - surp (int or list)  : surprise values to include (e.g., 0 or 1)
+                                default: 'any'
+        - block_ran_seg (list): segment tuples (start, end) for each block 
+                                (end is EXCLUDED) each sublist contains tuples 
+                                for a display sequence e.g., for 2 sequences 
+                                with 2 blocks each:
+                                [[[start, end], [start, end]], 
+                                [[start, end], [start, end]]] 
+                                default: None
     Returns:
         - qu_segs (list) : list of sublists for each quintile, each containing 
                            segment numbers for that quintile
@@ -454,8 +580,12 @@ def quint_segs(gabors, analys_par, qu_info, surp='any'):
     """
 
     # get all seg values
-    all_segs = gabors.get_segs_by_criteria(stimPar2=analys_par['gab_k'], surp=surp, 
-                                           gaborframe=analys_par['gab_fr'], by='seg')
+    all_segs = stim.get_segs_by_criteria(gaborframe=analys_par['gab_fr'],
+                                         gab_k=analys_par['gab_k'], 
+                                         bri_dir=analys_par['bri_dir'],
+                                         bri_size=analys_par['bri_size'],
+                                         surp=surp, by='seg', 
+                                         block_ran_seg=block_ran_seg)
     # get seg ranges for each quintile [[start, end], [start, end], etc.] 
     qu_segs = []
     qu_count = []
@@ -468,22 +598,22 @@ def quint_segs(gabors, analys_par, qu_info, surp='any'):
 
 
 #############################################
-def chunk_stats_by_qu(gabors, qu_seg, pre, post, byroi=True, dfoverf=True, 
+def chunk_stats_by_qu(stim, qu_seg, pre, post, byroi=True, dfoverf=True, 
                       remnans='per', rand=False, stats='mean', error='std',
                       data='all'):
     """
-    chunk_stats_by_qu(gabors, qu_seg, pre, post)
+    chunk_stats_by_qu(stim, qu_seg, pre, post)
 
     Returns chunk statistics for the quintiles of interest. 
 
     Required arguments:
-        - gabors (Gabor object): gabors object
-        - qu_seg (dict)        : list of sublists for each quintile, each 
-                                 containing segment numbers for that quintile
-        - pre (float)          : range of frames to include before each frame 
-                                 reference (in s)
-        - post (float)         : range of frames to include after each frame 
-                                 reference (in s)
+        - stim (Stim object): stim object
+        - qu_seg (dict)     : list of sublists for each quintile, each 
+                              containing segment numbers for that quintile
+        - pre (float)       : range of frames to include before each frame 
+                              reference (in s)
+        - post (float)      : range of frames to include after each frame 
+                              reference (in s)
     
     Optional arguments:
         - byroi (bool)  : if True, returns statistics for each ROI. If False,
@@ -541,16 +671,10 @@ def chunk_stats_by_qu(gabors, qu_seg, pre, post, byroi=True, dfoverf=True,
     if remnans in ['per', 'across']:
         nan_rois = []
         ok_rois = []
-        if remnans == 'across' and byroi:
-            nans = 'list' 
-        else:
+        if remnans == 'per':
             nans = 'rem'
-            if not byroi:
-                print(('WARNING: Removing ROIs with NaNs and Infs across '
-                        'quintiles and other subdivisions when averaging across '
-                        'ROIs not implemented yet. Removing per subdivision '
-                        'instead.'))
-                remnans = 'per'
+        elif remnans == 'across':
+            nans = 'rem_all'
     elif remnans == 'no':
         nans = 'no'
     else:
@@ -562,8 +686,8 @@ def chunk_stats_by_qu(gabors, qu_seg, pre, post, byroi=True, dfoverf=True,
         print('\tQuintile {}'.format(qu+1))
         # get the stats for ROI traces for these segs 
         # returns x_ran, [mean/median, std/quartiles] for each ROI or across ROIs
-        chunk_info = gabors.get_roi_chunk_stats(gabors.get_2pframes_by_seg(segs, 
-                                                 first=True), 
+        chunk_info = stim.get_roi_chunk_stats(stim.get_2pframes_by_seg(segs, 
+                                              first=True), 
                             pre, post, byroi=byroi, dfoverf=dfoverf, nans=nans, 
                             rand=False, stats=stats, error=error)
         x_ran = chunk_info[0]
@@ -572,8 +696,8 @@ def chunk_stats_by_qu(gabors, qu_seg, pre, post, byroi=True, dfoverf=True,
             nan_rois.append(chunk_info[2][0])
             ok_rois.append(chunk_info[2][1])
         elif remnans == 'across':
-            nan_rois.extend(chunk_info[2][0])
-            ok_rois.extend(chunk_info[2][1])
+            nan_rois = chunk_info[2][0]
+            ok_rois = chunk_info[2][1]
         # convert to nd array and store: (ROI if byroi) x stat x frame
         if data == 'all':
             if 'stats' == 'median' and 'error' == 'std':
@@ -598,9 +722,6 @@ def chunk_stats_by_qu(gabors, qu_seg, pre, post, byroi=True, dfoverf=True,
             gen_util.accepted_values_error('data', data, ['me', 'all'])
         qu_stats.append(chunk_stats)
     qu_stats = np.asarray(qu_stats)
-    if remnans == 'across':
-        nan_rois = sorted(list(set(nan_rois)))
-        ok_rois  = sorted(list(set(ok_rois) - set(nan_rois)))
     
     returns = [x_ran, qu_stats]
     if remnans in ['per', 'across']:
@@ -636,6 +757,10 @@ def chunk_stats_by_qu_sess(sessions, analys_par, basic_par, byroi=True,
         - sessions (list): list of Session objects
         - analys_par (dict): dictionary containing relevant parameters
                              to extracting chunk statistics by quintile
+                ['bri_dir'] (str or list) : brick direction values to include
+                                            (e.g., 'right', 'left')
+                ['bri_size'] (int or list): brick size values to include
+                                          (e.g., 128, 256 or [128, 256])
                 ['gab_k'] (int or list) : gabor kappa values to include 
                                           (e.g., 4, 16 or [4, 16])
                 ['gab_fr'] (int or list): gabor frame values to include
@@ -645,6 +770,7 @@ def chunk_stats_by_qu_sess(sessions, analys_par, basic_par, byroi=True,
                                           frame reference (in s)
                 ['post'] (float)        : range of frames to include after each 
                                           frame reference (in s)
+                ['stim'] (str)          : stimulus to analyse (bricks or gabors)
         - basic_par (dict): dictionary containing additional parameters 
                             relevant to analysis
                 ['dfoverf'] (bool): if True, dF/F is used instead of raw ROI 
@@ -697,7 +823,7 @@ def chunk_stats_by_qu_sess(sessions, analys_par, basic_par, byroi=True,
     else:
         surp_vals = ['any']
 
-    print('Getting ROI trace stats for each session.')
+    print('\nGetting ROI trace stats for each session.')
     all_counts = []
     all_stats = []
     all_twop_fps = [] # 2p fps by session
@@ -706,8 +832,9 @@ def chunk_stats_by_qu_sess(sessions, analys_par, basic_par, byroi=True,
         all_ok_rois = []
     for sess in sessions:
         print('Session {}'.format(sess.session))
+        stim, block_ran_seg = get_stim(sess, analys_par['stim'])
         # get length of each quintile, seg_min and seg_max in dictionary
-        quint_info = quint_par(sess.gabors, analys_par)
+        quint_info = quint_par(stim, analys_par, block_ran_seg=block_ran_seg)
         # retrieve list of segs per quintile
         sess_counts = []
         sess_stats = []
@@ -718,35 +845,26 @@ def chunk_stats_by_qu_sess(sessions, analys_par, basic_par, byroi=True,
                 print('    Non surprise')
             elif surp == 1:
                 print('    Surprise')
-            qu_seg, qu_count = quint_segs(sess.gabors, analys_par, quint_info, 
-                                          surp)
+            qu_seg, qu_count = quint_segs(stim, analys_par, quint_info, surp, 
+                                          block_ran_seg)
             sess_counts.append(qu_count)
-            chunk_info = chunk_stats_by_qu(sess.gabors, qu_seg, 
-                                           analys_par['pre'],
-                                           analys_par['post'],
-                                           byroi=byroi, data=data, **basic_par)
+            chunk_info = chunk_stats_by_qu(stim, qu_seg, analys_par['pre'],
+                                           analys_par['post'], byroi=byroi, 
+                                           data=data, **basic_par)
             x_ran = chunk_info[0]
             sess_stats.append(chunk_info[1])
-            # if ROIs removed per subdivision
-            if (basic_par['remnans'] == 'per' or 
-                (basic_par['remnans'] == 'across' and not byroi)):
-                sess_nan_rois.append(chunk_info[2][0])
-                sess_ok_rois.append(chunk_info[2][1])
-            # if ROIs to be removed across subdivisions
-            elif basic_par['remnans'] == 'across' and byroi:
-                sess_nan_rois.extend(chunk_info[2][0])
-                sess_ok_rois.extend(chunk_info[2][1])
+            # if ROIs were removed per subdivision
+            if basic_par['remnans'] == 'per':
+                sess_nan_rois = sess_nan_rois.append(chunk_info[2][0])
+                sess_ok_rois = sess_nan_rois.append(chunk_info[2][1])
+            # if ROIs were removed across subdivisions
+            elif basic_par['remnans'] == 'across':
+                sess_nan_rois = chunk_info[2][0]
+                sess_ok_rois = chunk_info[2][1]
             if twop_fps:
                 all_twop_fps.append(sess.twop_fps)
         # store by session
         sess_stats = np.asarray(sess_stats)
-        # remove ROIs across subdivisions for session
-        if byroi and basic_par['remnans'] == 'across':
-            # ROI dimension in array ((surp x) qu x ROI ...)
-            roi_dim = 1+bysurp 
-            [sess_stats, sess_nan_rois, 
-             sess_ok_rois] = remove_nan_rois(sess_stats, sess_nan_rois, 
-                                             sess_ok_rois, roi_dim)
         if basic_par['remnans'] in ['per', 'across']:
             all_nan_rois.append(sess_nan_rois)
             all_ok_rois.append(sess_ok_rois)
@@ -827,6 +945,10 @@ def plot_traces_by_qu_surp_sess(sessions, analys_par, basic_par, fig_par,
     Required arguments:
         - sessions (list)  : list of Session objects
         - analys_par (dict): dictionary containing specific analysis parameters:
+                ['bri_dir'] (str or list) : brick direction values to include
+                                            (e.g., 'right', 'left')
+                ['bri_size'] (int or list): brick size values to include
+                                          (e.g., 128, 256 or [128, 256])
                 ['gab_fr'] (int or list): gabor frame values to include
                                          (e.g., 0, 1, 2, 3)
                 ['gab_k'] (int or list) : gabor kappa values to include 
@@ -836,6 +958,7 @@ def plot_traces_by_qu_surp_sess(sessions, analys_par, basic_par, fig_par,
                                           frame reference (in s)
                 ['post'] (float)        : range of frames to include after each 
                                           frame reference (in s)
+                ['stim'] (str)          : stimulus to analyse (bricks or gabors)
 
         - basic_par (dict) : dictionary containing basic analysis parameters:
                 ['dfoverf'] (bool): if True, dF/F is used instead of raw ROI 
@@ -853,8 +976,8 @@ def plot_traces_by_qu_surp_sess(sessions, analys_par, basic_par, fig_par,
                 ['stats'] (str)   : statistic parameter, i.e. 'mean' or 'median'
 
         - fig_par (dict)   : dictionary containing figure parameters:
-                ['bbox'] (str)           : bbox_inches parameter for 
-                                           plt.savefig(), e.g., 'tight'
+                ['bbox'] (str)           : bbox parameter for plt.savefig(), 
+                                           e.g., 'tight'
                 ['datetime'] (bool)      : if True, figures are saved in a 
                                            subfolder named based on the date 
                                            and time.
@@ -879,27 +1002,34 @@ def plot_traces_by_qu_surp_sess(sessions, analys_par, basic_par, fig_par,
                                                'L23_all', 'L5_all')
                 ['overall_sess_n'] (int): overall session number aimed for
     """
-    gabkstr = str_util.gab_k_par_str(analys_par['gab_k'])
+    
+    stimstr = str_util.stim_par_str(analys_par['gab_k'], analys_par['bri_dir'], 
+                                    analys_par['bri_size'], analys_par['stim'],
+                                    'print')
     statstr = str_util.stat_par_str(basic_par['stats'], basic_par['error'])
-    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 'file')
-    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'])
+    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
+                                    analys_par['bri_dir'], analys_par['bri_size'], 
+                                    analys_par['stim'], 'file')
+    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
+                                    analys_par['bri_dir'], analys_par['bri_size'], 
+                                    analys_par['stim'], 'print')
+    fluorstr_pr = str_util.fluor_par_str(type_str='print', dff=basic_par['dfoverf'])
 
     print(('\nAnalysing and plotting surprise vs non surprise ROI traces '
            'by quintile ({}) \n({}).').format(analys_par['n_quints'], 
                                               sessstr_pr))
     
-    [xpos, labels_nosurp, h_bars, 
-        seg_bars] = plot_util.plot_seg_comp(analys_par, 'nosurp')
-    _, labels_surp, _, _ = plot_util.plot_seg_comp(analys_par, 'surp')
+    if analys_par['stim'] == 'gabors':
+        [xpos, labels_nosurp, h_bars, 
+            seg_bars] = plot_util.plot_seg_comp(analys_par, 'nosurp')
+        _, labels_surp, _, _ = plot_util.plot_seg_comp(analys_par, 'surp')
+        t_heis = [0.85, 0.75]
 
-    t_heis = [0.85, 0.95]
     if analys_par['n_quints'] <= 7:
-        col_nosurp = ['steelblue', 'dodgerblue', 'blue', 'darkblue',  
-                      'mediumblue', 'royalblue', 
-                      'cornflowerblue'][0:analys_par['n_quints']]
-        col_surp   = ['coral', 'darkorange', 'sandybrown', 'chocolate', 
-                      'orange', 'peru', 
-                      'sienna'][0:analys_par['n_quints']]
+        col_nosurp = ['#50a2d5', 'cornflowerblue', 'steelblue', 'dodgerblue', 
+                      'mediumblue', 'darkblue', 'royalblue'][0:analys_par['n_quints']]
+        col_surp   = ['#eb3920', 'tomato', 'salmon', 'coral', 'orangered', 
+                     'indianred', 'firebrick', ][0:analys_par['n_quints']]
     else:
         raise NotImplementedError(('Not enough colors preselected for more '
                                     'than 4 quintiles.'))
@@ -916,14 +1046,18 @@ def plot_traces_by_qu_surp_sess(sessions, analys_par, basic_par, fig_par,
         for s, [col, leg_ext] in enumerate(zip([col_nosurp, col_surp],
                                                ['nosurp', 'surp'])):
             for q in range(analys_par['n_quints']):
-                if basic_par['remnans'] in ['per', 'across']:
+                if basic_par['remnans'] == 'per':
                     n_rois = len(analys_par['ok_rois'][i][s][q])
+                elif basic_par['remnans'] == 'across':
+                    n_rois = len(analys_par['ok_rois'][i])
                 else:
                     n_rois = sess.nroi
-                title=(u'Mouse {} - gab{} {} dF/F across gabor seqs\n(sess {}, '
-                       '{} {}, n={})').format(sess.mouse_n, gabkstr, 
-                                           statstr, sess.sess_overall, 
-                                           sess.line, sess.layer, n_rois)
+                title=(u'Mouse {} - {}{} {} {} across seqs\n(sess {}, '
+                       '{} {}, n={})').format(sess.mouse_n, 
+                                              analys_par['stim'][0:3], stimstr, 
+                                              statstr, fluorstr_pr, 
+                                              sess.sess_overall, sess.line, 
+                                              sess.layer, n_rois)
                 chunk_stats = np.concatenate([x_ran[np.newaxis, :], 
                                               all_stats[i][s][q]], axis=0)
                 leg = '{}-{} ({})'.format(q+1, leg_ext, 
@@ -934,13 +1068,18 @@ def plot_traces_by_qu_surp_sess(sessions, analys_par, basic_par, fig_par,
                                       alpha=0.4/analys_par['n_quints'],
                                       title=title, label=leg,
                                       dff=basic_par['dfoverf'])
-        for s, [lab, col, t_hei] in enumerate(zip([labels_nosurp, labels_surp], 
-                                                  [col_nosurp, col_surp], 
-                                                  t_heis)):
-            plot_util.add_labels(sub_ax, lab, xpos, t_hei, col=col[0])
-        plot_util.add_bars(sub_ax, hbars=h_bars, bars=seg_bars)
-        sub_ax.legend()
-    
+        if analys_par['stim'] == 'gabors':
+            plot_util.add_bars(sub_ax, hbars=h_bars, bars=seg_bars)
+
+    if analys_par['stim'] == 'gabors': 
+        plot_util.incr_ymax(ax, incr=1.05/min(t_heis), sharey=fig_par['sharey'])
+        for i, sess in enumerate(sessions):
+            sub_ax = plot_util.get_subax(ax, i)
+            for s, (lab, col, t_hei) in enumerate(zip([labels_nosurp, labels_surp], 
+                                                    [col_nosurp, col_surp], 
+                                                    t_heis)):
+                plot_util.add_labels(sub_ax, lab, xpos, t_hei, col[0])
+
     save_dir = os.path.join(fig_par['figdir_roi'], fig_par['surp_quint'])
     save_name = 'roi_av_{}_{}quint'.format(sessstr, analys_par['n_quints'])
     full_dir = plot_util.save_fig(fig, save_dir, save_name, fig_par)
@@ -1212,6 +1351,10 @@ def integ_per_grp_qu_sess(sessions, analys_par, basic_par, roi_grp_par):
     Required arguments:
         - sessions (list)  : list of Session objects
         - analys_par (dict): dictionary containing specific analysis parameters:
+                ['bri_dir'] (str or list) : brick direction values to include
+                                            (e.g., 'right', 'left')
+                ['bri_size'] (int or list): brick size values to include
+                                          (e.g., 128, 256 or [128, 256])
                 ['gab_k'] (int or list) : gabor kappa values to include 
                                           (e.g., 4, 16 or [4, 16])
                 ['gab_fr'] (int or list): gabor frame values to include
@@ -1298,6 +1441,10 @@ def signif_rois_by_grp_sess(sessions, integ_dffs_rel, analys_par, basic_par,
                                     ROIs
         - analys_par (dict)    : dictionary containing specific analysis 
                                  parameters:
+                ['bri_dir'] (str or list) : brick direction values to include
+                                            (e.g., 'right', 'left')
+                ['bri_size'] (int or list): brick size values to include
+                                          (e.g., 128, 256 or [128, 256])
                 ['gab_fr'] (int or list): gabor frame values to include
                                          (e.g., 0, 1, 2, 3)
                 ['gab_k'] (int or list) : gabor kappa values to include 
@@ -1357,15 +1504,17 @@ def signif_rois_by_grp_sess(sessions, integ_dffs_rel, analys_par, basic_par,
     for s, sess in enumerate(sessions):
         print('\nSession {}'.format(sess.session))
         fps = sess.twop_fps
-        quint_info = quint_par(sess.gabors, analys_par)
-        qu_seg, _ = quint_segs(sess.gabors, analys_par, quint_info, surp='any')
+        stim, block_ran_seg = get_stim(sess, analys_par['stim'])
+        quint_info = quint_par(stim, analys_par, block_ran_seg=block_ran_seg)
+        qu_seg, _ = quint_segs(stim, analys_par, quint_info, surp='any', 
+                               block_ran_seg=block_ran_seg)
         all_rois = []
         # Run permutation test for first and last quintiles
         for q, pos in zip([0, analys_par['n_quints']-1], ['First', 'Last']):
             print('\n{} quintile'.format(pos))
             # get dF/F for each segment and each ROI
-            qu_twop_fr = sess.gabors.get_2pframes_by_seg(qu_seg[q], first=True)
-            _, roi_traces = sess.gabors.get_roi_trace_chunks(qu_twop_fr, 
+            qu_twop_fr = stim.get_2pframes_by_seg(qu_seg[q], first=True)
+            _, roi_traces = stim.get_roi_trace_chunks(qu_twop_fr, 
                                 analys_par['pre'], analys_par['post'], 
                                 dfoverf=basic_par['dfoverf'])
             # remove previously removed ROIs if applicable 
@@ -1427,6 +1576,10 @@ def plot_rois_by_grp_qu_sess(sessions, analys_par, basic_par, fig_par, perm_par,
     Required arguments:
         - sessions (list)  : list of Session objects
         - analys_par (dict): dictionary containing specific analysis parameters:
+                ['bri_dir'] (str or list) : brick direction values to include
+                                            (e.g., 'right', 'left')
+                ['bri_size'] (int or list): brick size values to include
+                                          (e.g., 128, 256 or [128, 256])
                 ['gab_fr'] (int or list): gabor frame values to include
                                          (e.g., 0, 1, 2, 3)
                 ['gab_k'] (int or list) : gabor kappa values to include 
@@ -1437,6 +1590,7 @@ def plot_rois_by_grp_qu_sess(sessions, analys_par, basic_par, fig_par, perm_par,
                 ['post'] (float)        : range of frames to include after each 
                                           frame reference (in s)
                 ['sess_ns'] (list)      : list of session IDs
+                ['stim'] (str)          : stimulus to analyse (bricks or gabors)
 
         - basic_par (dict) : dictionary containing basic analysis parameters:
                 ['dfoverf'] (bool): if True, dF/F is used instead of raw ROI 
@@ -1454,8 +1608,8 @@ def plot_rois_by_grp_qu_sess(sessions, analys_par, basic_par, fig_par, perm_par,
                 ['stats'] (str)   : statistic parameter, i.e. 'mean' or 'median'
 
         - fig_par (dict)   : dictionary containing figure parameters:
-                ['bbox'] (str)           : bbox_inches parameter for 
-                                           plt.savefig(), e.g., 'tight'
+                ['bbox'] (str)           : bbox parameter for plt.savefig(), 
+                                           e.g., 'tight'
                 ['datetime'] (bool)      : if True, figures are saved in a 
                                            subfolder named based on the date 
                                            and time.
@@ -1505,13 +1659,20 @@ def plot_rois_by_grp_qu_sess(sessions, analys_par, basic_par, fig_par, perm_par,
 
     plotvalstr_pr = str_util.op_par_str(roi_grp_par['plot_vals'], 
                                         roi_grp_par['op'], True)
-    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'])
+    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
+                                    analys_par['bri_dir'], analys_par['bri_size'], 
+                                    analys_par['stim'], 'print')
     opstr_pr = str_util.op_par_str(roi_grp_par['plot_vals'], roi_grp_par['op'], 
                                    True)
     sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
-                                    str_type='file')
+                                    analys_par['bri_dir'], analys_par['bri_size'], 
+                                    analys_par['stim'], 'file')
     statstr = str_util.stat_par_str(basic_par['stats'], basic_par['error'])
-    gabkstr = str_util.gab_k_par_str(analys_par['gab_k'])
+    stimstr = str_util.stim_par_str(analys_par['gab_k'], analys_par['bri_dir'], 
+                                    analys_par['bri_size'], analys_par['stim'],
+                                    'print')
+    fluorstr_pr = str_util.fluor_par_str(type_str='print', dff=basic_par['dfoverf'])
+
 
     print(('\nAnalysing and plotting {} ROI surp vs nosurp responses by '
            'quintile ({}). \n{}.').format(plotvalstr_pr, analys_par['n_quints'],
@@ -1548,14 +1709,15 @@ def plot_rois_by_grp_qu_sess(sessions, analys_par, basic_par, fig_par, perm_par,
             sub_ax.errorbar(x_ran, me, yerr, fmt='-o', capsize=4, capthick=2, 
                             label=leg)
 
-        title=(u'Mouse {} - {} gab{} \n{} seqs \n(sess {}, {} {}, {} tail '
-               '(n={}))').format(sessions[i].mouse_n, statstr, gabkstr, 
+        title=(u'Mouse {} - {} {}{} across {} seqs \n(sess {}, {} {}, {} tail '
+               '(n={}))').format(sessions[i].mouse_n, statstr, 
+                                 analys_par['stim'][0:3], stimstr, 
                                  opstr_pr, sessions[i].sess_overall, 
                                  sessions[i].line, sessions[i].layer, 
                                  perm_par['tails'], n_rois[i])
         sub_ax.set_title(title)
         sub_ax.set_xticks(x_ran)
-        sub_ax.set_ylabel('dF/F')
+        sub_ax.set_ylabel(fluorstr_pr)
         sub_ax.set_xlabel('Quintiles')
         sub_ax.legend()
 
@@ -1590,6 +1752,10 @@ def grp_traces_by_qu_surp_sess(sessions, all_roi_grps, analys_par, basic_par,
                                the group: session x roi_grp
         - analys_par (dict)   : dictionary containing relevant parameters
                                 to extracting chunk statistics by quintile
+                ['bri_dir'] (str or list) : brick direction values to include
+                                            (e.g., 'right', 'left')
+                ['bri_size'] (int or list): brick size values to include
+                                          (e.g., 128, 256 or [128, 256])
                 ['gab_k'] (int or list) : gabor kappa values to include 
                                           (e.g., 4, 16 or [4, 16])
                 ['gab_fr'] (int or list): gabor frame values to include
@@ -1640,7 +1806,7 @@ def grp_traces_by_qu_surp_sess(sessions, all_roi_grps, analys_par, basic_par,
 
     # apply operation on surp vs nosurp data
     data_me = [math_util.calc_op(x, roi_grp_par['plot_vals'], roi_grp_par['op'], 
-                       surp_dim=0) for x in chunk_me]
+                                 surp_dim=0) for x in chunk_me]
 
     if basic_par['stats'] and basic_par['error']:
         n_stats = 3
@@ -1685,7 +1851,6 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
                              plot:
                 ['qu'] (list)    : list of quintile indices to plot,
                 ['qu_lab'] (list): list of quintile labels,
-                ['cols'] (list)  : list of quintile colors
 
         - roi_grps (dict)  : dictionary containing ROI groups:
                 ['all_roi_grps'] (list): list of sublists per session,  
@@ -1700,6 +1865,10 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
 
         - n_rois (1D array): number of ROIs retained in each session
         - analys_par (dict): dictionary containing specific analysis parameters:
+                ['bri_dir'] (str or list) : brick direction values to include
+                                            (e.g., 'right', 'left')
+                ['bri_size'] (int or list): brick size values to include
+                                          (e.g., 128, 256 or [128, 256])
                 ['gab_fr'] (int or list): gabor frame values to include
                                           (e.g., 0, 1, 2, 3)
                 ['gab_k'] (int or list) : gabor kappa values to include 
@@ -1710,6 +1879,7 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
                 ['post'] (float)        : range of frames to include after each 
                                           frame reference (in s)
                 ['sess_ns'] (list)      : list of session IDs
+                ['stim'] (str)          : stimulus to analyse (bricks or gabors)
 
         - basic_par (dict) : dictionary containing basic analysis parameters:
                 ['error'] (str)   : error statistic parameter, i.e. 'std' or 
@@ -1717,8 +1887,8 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
                 ['stats'] (str)   : statistic parameter, i.e. 'mean' or 'median'
 
         - fig_par (dict)   : dictionary containing figure parameters:
-                ['bbox'] (str)           : bbox_inches parameter for 
-                                           plt.savefig(), e.g., 'tight'
+                ['bbox'] (str)           : bbox parameter for plt.savefig(), 
+                                           e.g., 'tight'
                 ['datetime'] (bool)      : if True, figures are saved in a 
                                            subfolder named based on the date 
                                            and time.
@@ -1765,14 +1935,21 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
         - full_dir (str): final name of the directory in which the figures are 
                           saved 
     """
+
     opstr_pr = str_util.op_par_str(roi_grp_par['plot_vals'], roi_grp_par['op'])
-    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'])
+    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
+                                    analys_par['bri_dir'], analys_par['bri_size'], 
+                                    analys_par['stim'], 'print')
     statstr = str_util.stat_par_str(basic_par['stats'], basic_par['error'])
-    gabkstr = str_util.gab_k_par_str(analys_par['gab_k'])
-    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
-                                    str_type='file')
-    opstr = str_util.op_par_str(roi_grp_par['plot_vals'], roi_grp_par['op'],
+    stimstr = str_util.stim_par_str(analys_par['gab_k'], analys_par['bri_dir'], 
+                                    analys_par['bri_size'], analys_par['stim'],
+                                    'print')
+    opstr = str_util.op_par_str(roi_grp_par['plot_vals'], roi_grp_par['op'], 
                                 str_type='file')
+    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
+                                    analys_par['bri_dir'], analys_par['bri_size'], 
+                                    analys_par['stim'], 'file')
+    fluorstr_pr = str_util.fluor_par_str(type_str='print', dff=basic_par['dfoverf'])
 
     print(('\nAnalysing and plotting {} ROI surp vs nosurp responses by '
            'quintile ({}). \n{}.').format(opstr_pr, analys_par['n_quints'], 
@@ -1785,9 +1962,10 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
                                                    analys_par, basic_par, 
                                                    roi_grp_par, quint_plot['qu'])
 
-    xpos, labels, h_bars, seg_bars = plot_util.plot_seg_comp(analys_par, 
-                                                   roi_grp_par['plot_vals'], 
-                                                   roi_grp_par['op'])
+    if analys_par['stim'] == 'gabors':
+        xpos, labels, h_bars, seg_bars = plot_util.plot_seg_comp(analys_par, 
+                                                    roi_grp_par['plot_vals'], 
+                                                    roi_grp_par['op'])
 
     # Manual y_lims
     # y lims based on previous graphs
@@ -1800,7 +1978,7 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
             print('No ylims preset for {}.'.format(sess_par['layer']))
 
     # figure directories
-    save_dir = os.path.join(fig_par['figdir_roi'], fig_par['surp_quint'])
+    save_dir = os.path.join(fig_par['figdir_roi'], fig_par['surp_quint'], 'grped')
 
     if fig_par['mult']:
         reset_mult = False
@@ -1818,26 +1996,34 @@ def plot_roi_traces_by_grp(sessions, quint_plot, roi_grps, n_rois,
             if len(grp_rois) == 0:
                 sub_ax.set_title(title)
                 continue
-            for j, q in enumerate(quint_plot['qu']):
+            for q in quint_plot['qu']:
                 trace_data = np.concatenate([x_ran[np.newaxis, :], 
                                             grp_traces[i, q, g]], axis=0)
                 plot_util.plot_traces(sub_ax, trace_data, stats=basic_par['stats'], 
                             error=basic_par['error'], title=title,
-                            col=quint_plot['cols'][j], 
                             alpha=0.8/len(quint_plot['qu']), 
                             dff=basic_par['dfoverf'])
             if fig_par['preset_ylims']:
                 sub_ax.set_ylim(ylims[i])
-            plot_util.add_bars(sub_ax, hbars=h_bars, bars=seg_bars)
-            plot_util.add_labels(sub_ax, labels, xpos, t_hei=0.9, col='k')
-            sub_ax.set_ylabel('dF/F')
+            if analys_par['stim'] == 'gabors':
+                plot_util.add_bars(sub_ax, hbars=h_bars, bars=seg_bars)
+            sub_ax.set_ylabel(fluorstr_pr)
             sub_ax.set_xlabel('Time (s)')
             sub_ax.legend(quint_plot['qu_lab'])
-        
-        fig.suptitle((u'Mouse {} - {} gab{} \n{} seqs for diff quint\n'
+    
+        if analys_par['stim'] == 'gabors':
+            t_hei = 0.85
+            plot_util.incr_ymax(ax, incr=1.05/t_hei, sharey=fig_par['sharey'])
+            for g, grp_rois in enumerate(roi_grps['all_roi_grps'][i]):
+                if len(grp_rois) == 0:
+                    continue
+                sub_ax = plot_util.get_subax(ax, g)
+                plot_util.add_labels(sub_ax, labels, xpos, t_hei, 'k')
+            
+        fig.suptitle((u'Mouse {} - {} {}{} - {} seqs for diff quint\n'
                     '(sess {}, {} {}, {} tail (n={}))')
-                        .format(sess.mouse_n, statstr, gabkstr, 
-                                opstr_pr, sess.sess_overall, sess.line,
+                        .format(sess.mouse_n, statstr, analys_par['stim'][0:3], 
+                                stimstr, opstr_pr, sess.sess_overall, sess.line,
                                 sess.layer, perm_par['tails'], n_rois[i]))
 
         save_name = ('roi_tr_m{}_{}_grps_{}_{}quint_'
@@ -1895,7 +2081,6 @@ def plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, n_rois,
                              plot:
                 ['qu'] (list)    : list of quintile indices to plot,
                 ['qu_lab'] (list): list of quintile labels,
-                ['cols'] (list)  : list of quintile colors
 
         - roi_grps (dict)  : dictionary containing ROI groups:
                 ['all_roi_grps'] (list): list of sublists per session,  
@@ -1910,6 +2095,10 @@ def plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, n_rois,
 
         - n_rois (1D array): number of ROIs retained in each session
         - analys_par (dict): dictionary containing specific analysis parameters:
+                ['bri_dir'] (str or list) : brick direction values to include
+                                            (e.g., 'right', 'left')
+                ['bri_size'] (int or list): brick size values to include
+                                          (e.g., 128, 256 or [128, 256])
                 ['gab_fr'] (int or list): gabor frame values to include
                                           (e.g., 0, 1, 2, 3)
                 ['gab_k'] (int or list) : gabor kappa values to include 
@@ -1920,6 +2109,7 @@ def plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, n_rois,
                 ['post'] (float)        : range of frames to include after each 
                                           frame reference (in s)
                 ['sess_ns'] (list)      : list of session IDs
+                ['stim'] (str)          : stimulus to analyse (bricks or gabors)
 
         - basic_par (dict) : dictionary containing basic analysis parameters:
                 ['error'] (str)   : error statistic parameter, i.e. 'std' or 
@@ -1927,8 +2117,8 @@ def plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, n_rois,
                 ['stats'] (str)   : statistic parameter, i.e. 'mean' or 'median'
                                     
         - fig_par (dict)   : dictionary containing figure parameters:
-                ['bbox'] (str)           : bbox_inches parameter for 
-                                           plt.savefig(), e.g., 'tight'
+                ['bbox'] (str)           : bbox parameter for plt.savefig(), 
+                                           e.g., 'tight'
                 ['datetime'] (bool)      : if True, figures are saved in a 
                                            subfolder named based on the date 
                                            and time.
@@ -1980,13 +2170,19 @@ def plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, n_rois,
     """
     opstr_pr = str_util.op_par_str(roi_grp_par['plot_vals'], roi_grp_par['op'], 
                                    True)
-    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'])
+    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
+                                    analys_par['bri_dir'], analys_par['bri_size'], 
+                                    analys_par['stim'], 'print')
     statstr = str_util.stat_par_str(basic_par['stats'], basic_par['error'])
-    gabkstr = str_util.gab_k_par_str(analys_par['gab_k'])
+    stimstr = str_util.stim_par_str(analys_par['gab_k'], analys_par['bri_dir'], 
+                                    analys_par['bri_size'], analys_par['stim'],
+                                    'print')
     opstr = str_util.op_par_str(roi_grp_par['plot_vals'], roi_grp_par['op'], 
                                 True, str_type='file')
     sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
-                                    str_type='file')
+                                    analys_par['bri_dir'], analys_par['bri_size'], 
+                                    analys_par['stim'], 'file')
+    fluorstr_pr = str_util.fluor_par_str(type_str='print', dff=basic_par['dfoverf'])
 
     print(('\nAnalysing and plotting {} ROI surp vs nosurp responses by '
         'quintile ({}). \n{}.').format(opstr_pr, analys_par['n_quints'],
@@ -2002,7 +2198,7 @@ def plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, n_rois,
                                basic_par['stats'], basic_par['error'], True)
 
     # figure directories
-    save_dir = os.path.join(fig_par['figdir_roi'], fig_par['surp_quint'])
+    save_dir = os.path.join(fig_par['figdir_roi'], fig_par['surp_quint'], 'grped')
     
     if fig_par['mult']:
         reset_mult = False
@@ -2010,11 +2206,14 @@ def plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, n_rois,
         fig_par['mult'] = True
         reset_mult = True
     
-    xpos = range(len(quint_plot['qu']))
-    
+    xpos = [2*x+1 for x in range(len(quint_plot['qu']))]
+    xlims = [0, len(xpos)*2]
+
     for i, sess in enumerate(sessions):
-        fig, ax = plot_util.init_fig(len(roi_grps['all_roi_grps'][i]), fig_par)
-        fignorm, axnorm = plot_util.init_fig(len(roi_grps['all_roi_grps'][i]), fig_par)
+        fig, ax = plot_util.init_fig(len(roi_grps['all_roi_grps'][i]), fig_par, 
+                                     div=2.0)
+        fignorm, axnorm = plot_util.init_fig(len(roi_grps['all_roi_grps'][i]), 
+                                             fig_par, div=2.0)
         for axis, norm in zip([ax, axnorm], [False, True]):
             for g, [grp_nam, grp_rois] in enumerate(zip(roi_grps['grp_names'], 
                                                         roi_grps['all_roi_grps'][i])):
@@ -2029,28 +2228,29 @@ def plot_roi_areas_by_grp(sessions, integ_dffs, quint_plot, roi_grps, n_rois,
                     continue
                 for j, q in enumerate(quint_plot['qu']):
                     if not norm:
-                        sub_ax.bar(xpos[j], grp_st[i, q, g, 0], width=0.15, 
-                            color=quint_plot['cols'][j], 
-                            yerr=grp_st[i, q, g, 1:], capsize=3)
+                        vals = grp_st
                     else:
-                        sub_ax.bar(xpos[j], grp_st_norm[i, q, g, 0], width=0.15, 
-                            color=quint_plot['cols'][j], 
-                            yerr=grp_st[i, q, g, 1:], capsize=3)                    
-                sub_ax.legend(quint_plot['qu_lab'])
-                sub_ax.tick_params(axis='x', which='both', bottom=False, 
-                                   labelbottom=False) 
-                if not norm:
-                    sub_ax.set_ylabel('dF/F area')
-                else:
-                    sub_ax.set_ylabel('dF/F area (norm)')
-                sub_ax.set_title(title)
+                        vals = grp_st_norm
 
-        suptitle = (u'Mouse {} - {} gab{} \n{} seqs for diff quint\n(sess {}, '
+                    plot_util.plot_bars(sub_ax, xpos[j], vals[i, q, g, 0], 
+                                        vals[i, q, g, 1:], title, alpha=0.5, 
+                                        xticks='None', xlims=xlims, 
+                                        label=quint_plot['qu_lab'][j], 
+                                        hline=0, dff=basic_par['dfoverf'])
+                if not norm:
+                    sub_ax.set_ylabel(u'{} area'.format(fluorstr_pr))
+                else:
+                    sub_ax.set_ylabel(u'{} area (norm)'.format(fluorstr_pr))
+                sub_ax.tick_params(labelbottom=False)
+
+        suptitle = (u'Mouse {} - {} {}{} - {} seqs for diff quint\n(sess {}, '
                     '{} {}, {} tail (n={}))').format(sess.mouse_n, statstr, 
-                                                     gabkstr, opstr_pr,
+                                                     analys_par['stim'][0:3],
+                                                     stimstr, opstr_pr,
                                                      sess.sess_overall, 
                                                      sess.line, sess.layer,
-                                                     perm_par['tails'], n_rois[i])
+                                                     perm_par['tails'], 
+                                                     n_rois[i])
 
         fig.suptitle(suptitle)
         fignorm.suptitle(u'{} (norm)'.format(suptitle))
@@ -2111,6 +2311,10 @@ def plot_rois_by_grp(sessions, analys_par, basic_par, fig_par, perm_par,
     Required arguments:
         - sessions (list)  : list of Session objects
         - analys_par (dict): dictionary containing specific analysis parameters:
+                ['bri_dir'] (str or list) : brick direction values to include
+                                            (e.g., 'right', 'left')
+                ['bri_size'] (int or list): brick size values to include
+                                          (e.g., 128, 256 or [128, 256])
                 ['gab_fr'] (int or list): gabor frame values to include
                                           (e.g., 0, 1, 2, 3)
                 ['gab_k'] (int or list) : gabor kappa values to include 
@@ -2121,6 +2325,7 @@ def plot_rois_by_grp(sessions, analys_par, basic_par, fig_par, perm_par,
                 ['post'] (float)        : range of frames to include after each 
                                           frame reference (in s)
                 ['sess_ns'] (list)      : list of session IDs
+                ['stim'] (str)          : stimulus to analyse (bricks or gabors)
 
         - basic_par (dict) : dictionary containing basic analysis parameters:
                 ['error'] (str)   : error statistic parameter, i.e. 'std' or 
@@ -2128,8 +2333,8 @@ def plot_rois_by_grp(sessions, analys_par, basic_par, fig_par, perm_par,
                 ['stats'] (str)   : statistic parameter, i.e. 'mean' or 'median'
 
         - fig_par (dict)   : dictionary containing figure parameters:
-                ['bbox'] (str)           : bbox_inches parameter for 
-                                           plt.savefig(), e.g., 'tight'
+                ['bbox'] (str)           : bbox parameter for plt.savefig(), 
+                                           e.g., 'tight'
                 ['datetime'] (bool)      : if True, figures are saved in a 
                                            subfolder named based on the date 
                                            and time.
@@ -2169,14 +2374,17 @@ def plot_rois_by_grp(sessions, analys_par, basic_par, fig_par, perm_par,
                                           'L23_all', 'L5_all')
                 ['overall_sess_n'] (int): overall session number aimed for
     """
-    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 'file')
+
+    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
+                                    analys_par['bri_dir'], analys_par['bri_size'], 
+                                    analys_par['stim'], 'file')
+
     opstr = str_util.op_par_str(roi_grp_par['plot_vals'], roi_grp_par['op'], 
                                 str_type='file')
 
     # quintiles to plot
     quint_plot = {'qu': [0, -1], # must correspond to indices
                   'qu_lab': ['first quint', 'last quint'],
-                  'cols': ['steelblue', 'coral']
                  }
     
     [integ_dffs, integ_dffs_rel, n_rois] = integ_per_grp_qu_sess(sessions, analys_par, 
@@ -2235,6 +2443,10 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
     Required arguments:
         - sessions (list)  : list of Session objects
         - analys_par (dict): dictionary containing specific analysis parameters:
+                ['bri_dir'] (str or list) : brick direction values to include
+                                            (e.g., 'right', 'left')
+                ['bri_size'] (int or list): brick size values to include
+                                          (e.g., 128, 256 or [128, 256])
                 ['gab_fr'] (int or list): gabor frame values to include
                                         (e.g., 0, 1, 2, 3)
                 ['gab_k'] (int or list) : gabor kappa values to include 
@@ -2245,6 +2457,7 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
                 ['post'] (float)        : range of frames to include after each 
                                         frame reference (in s)
                 ['sess_ns'] (list)      : list of session IDs
+                ['stim'] (str)          : stimulus to analyse (bricks or gabors)
 
         - basic_par (dict) : dictionary containing basic analysis parameters:
                 ['dfoverf'] (bool): if True, dF/F is used instead of raw ROI 
@@ -2262,22 +2475,19 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
                 ['stats'] (str)   : statistic parameter, i.e. 'mean' or 'median'
 
         - fig_par (dict)   : dictionary containing figure parameters:
-                ['bbox'] (str)           : bbox_inches parameter for 
-                                            plt.savefig(), e.g., 'tight'
+                ['bbox'] (str)           : bbox parameter for plt.savefig(), 
+                                           e.g., 'tight'
                 ['datetime'] (bool)      : if True, figures are saved in a 
                                             subfolder named based on the date 
                                             and time.
                 ['fig_ext'] (str)        : extension (without '.') with 
                                             which to save figure
                 ['figdir_roi'] (str)     : main folder in which to save figure
-                ['ncols'] (int)          : number of columns in the figure
                 ['overwrite'] (bool)     : if False, overwriting existing 
                                             figures is prevented by adding 
                                             suffix numbers.
                 ['mult'] (bool)          : if True, prev_dt is created or used.
                 ['prev_dt'] (str)        : datetime folder to use 
-                ['sharey'] (bool)        : if True, y axis lims are shared 
-                                            across subplots
                 ['subplot_hei'] (float)  : height of each subplot (inches)
                 ['subplot_wid'] (float)  : width of each subplot (inches)
                 ['surp_quint'] (str)     : specific subfolder in which to save 
@@ -2289,9 +2499,15 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
                                             'L23_all', 'L5_all')
                 ['overall_sess_n'] (int): overall session number aimed for
     """
+
     statstr = str_util.stat_par_str(basic_par['stats'], basic_par['error'])
-    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 'file')
-    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'])
+
+    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
+                                    analys_par['bri_dir'], analys_par['bri_size'], 
+                                    analys_par['stim'], 'file')
+    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
+                                    analys_par['bri_dir'], analys_par['bri_size'], 
+                                    analys_par['stim'], 'print')
 
     # get sess x surp x quint x ROIs x frames
     chunk_info = chunk_stats_by_qu_sess(sessions, analys_par, basic_par, 
@@ -2322,6 +2538,7 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
 
     mouse_ns = []
     lines = []
+
     for i, sess in enumerate(sessions):
         mouse_ns.append(sess.mouse_n)
         lines.append(sess.line)
@@ -2346,7 +2563,7 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
         print('Session {}: p-value={}'.format(sessions[i].session, 
                                               mags['p_vals'][i]))
     
-    print(('\nMagnitude in quintile difference per ROI per '
+    print(('\nMagnitude of quintile difference across ROIs per '
             'mouse ({}).').format(sess_par['layer']))
     for s, surp in enumerate(['non surprise', 'surprise']):
         l2_str = ('\n'.join(['\tMouse {}, {}: {:.2f}'.format(i, l, l2) 
@@ -2355,37 +2572,41 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
         print('\n{} segs: \n{}'.format(surp, l2_str))
 
     # create figure
-    barw = 0.15
+    barw = 0.75
     leg = ['nosurp', 'surp']
-    col = ['steelblue', 'coral']
-    fig, ax = plt.subplots()
-    fignorm, axnorm = plt.subplots()
+    div = 2.0/len(sessions)
+    fig, ax = plt.subplots(figsize=(fig_par['subplot_wid']/div, 
+                                    fig_par['subplot_hei']))
+    fignorm, axnorm = plt.subplots(figsize=(fig_par['subplot_wid']/div, 
+                                   fig_par['subplot_hei']))
 
-    pos = np.arange(len(sessions))
+    pos = [3*len(leg)*x+1 + len(leg)/2.0 for x in range(len(sessions))]
+    xlims = [0, 3*len(leg)*len(pos)-1.5]
 
-    for s in range(len(leg)):
-        xpos = pos + barw*(2.0*s-len(leg)+1)
-        ax.bar(xpos, mags['mag_me'][:, s], width=barw, color=col[s], 
-                yerr=mags['mag_de'][:, s], capsize=3)
-        ax.tick_params(axis='x', which='both', bottom=False) 
-        axnorm.bar(xpos, mags['mag_me_norm'][:, s], width=barw, color=col[s], 
-                   yerr=mags['mag_de_norm'][:, s], capsize=3)
-        axnorm.tick_params(axis='x', which='both', bottom=False)
-    
+    for s, lab in enumerate(leg):
+        xpos = [x - len(leg)/2.0 + 2*s for x in pos]
+        
+        plot_util.plot_bars(ax, xpos, mags['mag_me'][:, s], 
+                            err=mags['mag_de'][:, s], width=barw, xlims=xlims,
+                            xticks='None', label=lab, capsize=4)
+
+        plot_util.plot_bars(axnorm, xpos, mags['mag_me_norm'][:, s], 
+                            err=mags['mag_de_norm'][:, s], width=barw, 
+                            xlims=xlims, xticks='None', label=lab, capsize=4)
+
     labels = ['Mouse {}, {}\n(n={})'.format(sess.mouse_n, sess.line, n_rois[i]) 
                for i, sess in enumerate(sessions)]
     
     for axis in [ax, axnorm]:
         axis.set_xticks(pos)
         axis.set_xticklabels(labels)
-        axis.legend(leg)
 
     title = ((u'Magnitude ({}) in quintile difference across ROIs '
-              'per mouse \n(sess {})').format(statstr, sessstr_pr))
+              'per mouse \n({})').format(statstr, sessstr_pr))
     ax.set_title(title)
     axnorm.set_title(u'{} (norm)'.format(title))
 
-    save_dir = os.path.join(fig_par['figdir_roi'], fig_par['surp_quint'])
+    save_dir = os.path.join(fig_par['figdir_roi'], fig_par['surp_quint'], 'mags')
     save_name = ('roi_mag_diff_{}').format(sessstr)
     save_name_norm = '{}_norm'.format(save_name)
 
@@ -2412,41 +2633,49 @@ def plot_mag_change(sessions, analys_par, basic_par, fig_par, sess_par):
 
 
 #############################################
-def lfads_dict(sessions, mouse_df, runtype, gabfr, gabk=16, output=''):
+def lfads_dict(sessions, mouse_df, runtype, output=''):
     """
     lfads_dict(sessions, mouse_df, gabfr)
 
     Creates and saves dictionary containing information relevant to sessions.
+    Currently set to use only specific gabfr, gabk and bri_size values.
 
     Arguments:
         - sessions (list)     : list of Session objects
         - mouse_df (pandas df): dataframe containing parameters for each 
                                 session.
-        - gabfr (int)         : gabor frame to include (e.g., A:0)
 
     Optional arguments:
-        - gabk (int or list)  : gabor kappa values to include
+        - output (str)          : output directory
+                                  default: ''
+
     """
     
+    gabfr = 0
+    gabk = 16
+    bri_size = 128
+
+    stim_types = ['gabors', 'bricks']
+    stim_dirs  = [[''], ['right', 'left']]
+    stim_diffs = [4, 1]
+    stim_keys  = ['gab', 'bri_']
+    stim_seps  = ['', ' ']
+    stim_omit  = [[gab_mice_omit(gabk)], [bri_mice_omit(stim_dirs[1][0], bri_size), 
+                                          bri_mice_omit(stim_dirs[1][1], bri_size)]]
+
     all_gabfr = ['A', 'B', 'C', 'D/E']
+
     if isinstance(gabfr, list):
         gabfr_let = [all_gabfr[x] for x in gabfr]
     else:
         gabfr_let = all_gabfr[gabfr]
     sessions = gen_util.list_if_not(sessions)
     for sess in sessions:
-        sess.create_dff()
-        segs = sess.gabors.get_segs_by_criteria(stimPar2=gabk, 
-                        gaborframe=gabfr, by='seg')
-        if min(np.diff(segs)) != max(np.diff(segs)) and np.diff(segs)[0] != 4:
-            raise ValueError(('Retrieving surprise values not implemented for ' 
-                              'non consecutive segments.'))
-        
-        frames = sess.gabors.get_2pframes_by_seg(segs, first=True)
-        surp_segs = sess.gabors.get_segs_by_criteria(stimPar2=gabk, 
-                        gaborframe=gabfr, surp=1, by='seg')
-        surp_idx = [int((seg - min(segs))/4) for seg in surp_segs]
+        name = 'sess_dict_mouse{}_sess{}_{}'.format(sess.mouse_n, 
+                                                    sess.sess_overall, sess.layer)
+        print('\nCreating stimulus dictionary: {}'.format(name))
 
+        sess.create_dff()
         if runtype == 'pilot':
             roi_tr_dir = sess.roi_traces[sess.roi_traces.find('ophys'):]
             roi_dff_dir = sess.roi_traces_dff[sess.roi_traces_dff.find('ophys'):]
@@ -2454,6 +2683,9 @@ def lfads_dict(sessions, mouse_df, runtype, gabfr, gabk=16, output=''):
             roi_tr_dir = sess.roi_traces[sess.roi_traces.find('mouse'):]
             roi_dff_dir = sess.roi_traces_dff[sess.roi_traces_dff.find('mouse'):]
         
+        # get first and last left and first right seg for bricks
+
+
         sess_dict = {'sessionid'     : sess.session,
                      'mouse'         : sess.mouse_n,
                      'act_sess_n'    : sess.sess_overall,
@@ -2462,20 +2694,50 @@ def lfads_dict(sessions, mouse_df, runtype, gabfr, gabk=16, output=''):
                      'line'          : sess.line,
                      'traces_dir'    : roi_tr_dir,
                      'dff_traces_dir': roi_dff_dir,
-                     'gab_k'         : gabk,
-                     'gab_fr'        : [gabfr, gabfr_let], # e.g., [0, A]
-                     'frames'        : frames.tolist(),
-                     'surp_idx'      : surp_idx,    
                      'twop_fps'      : sess.twop_fps,
                      'nanrois'       : sess.nanrois,
                      'nanrois_dff'   : sess.nanrois_dff,
+                     'gab_k'         : gabk,
+                     'gab_fr'        : [gabfr, gabfr_let], # e.g., [0, A]
+                     'bri_size'      : bri_size
                     }
-    
-        name = 'sess_dict_mouse{}_sess{}_{}'.format(sess.mouse_n, 
-                                                    sess.sess_overall, sess.layer)
+
+        for stim_type, dirs, diff, key, sep, omits in zip(stim_types, stim_dirs, 
+                                                          stim_diffs, stim_keys, 
+                                                          stim_seps, stim_omit):
+            for direc, omit in zip(dirs, omits):
+                stim, block_ran_seg = get_stim(sess, stim_type)
+                if stim.sess.mouse_n in omit:
+                    print(('    {}{}{} surprise indices and frames '
+                           'omitted.').format(stim_type, sep, direc))
+                    continue
+                segs = stim.get_segs_by_criteria(gab_k=gabk, gaborframe=gabfr, 
+                                                 bri_dir=direc, 
+                                                 bri_size=bri_size, by='seg', 
+                                                 block_ran_seg=block_ran_seg)
+                frames = stim.get_2pframes_by_seg(segs, first=True)
+
+                if (min(np.diff(segs)) != max(np.diff(segs)) or 
+                    np.diff(segs)[0] != diff):
+                    raise ValueError(('Retrieving surprise values not ' 
+                                      'implemented for non consecutive '
+                                      'segments.'))
+                                
+                surp_segs = stim.get_segs_by_criteria(gab_k=gabk, gaborframe=gabfr, 
+                                                      bri_dir=direc, 
+                                                      bri_size=bri_size, surp=1, 
+                                                      by='seg', 
+                                                      block_ran_seg=block_ran_seg)
+                surp_idx = [int((seg - min(segs))/diff) for seg in surp_segs]
+
+                frames_key   = '{}{}_frames'.format(key, direc)
+                surp_idx_key = '{}{}_surp_idx'.format(key, direc)
+                sess_dict[frames_key]   = frames.tolist()
+                sess_dict[surp_idx_key] = surp_idx
+
         file_util.save_info(sess_dict, name, os.path.join(output, 'session_dicts', 
                                                           runtype), 'json')
-        print('Creating stimulus dictionary: {}'.format(name))
+
 
 #############################################
 def autocorr(data, lag_fr):
@@ -2579,20 +2841,25 @@ def autocorr_rois(data, lag, fps=None, stats='mean', error='std'):
 
 
 #############################################
-def plot_gab_autocorr(sessions, analys_par, basic_par, fig_par, sess_par):
+def plot_autocorr(sessions, analys_par, basic_par, fig_par, sess_par):
     """
-    plot_gab_autocorr(sessions, analys_par, basic_par, fig_par)
+    plot_autocorr(sessions, analys_par, basic_par, fig_par)
 
-    Plots autocorrelation during gabor blocks.
+    Plots autocorrelation during stimulus blocks.
 
     Required arguments:
         - sessions (list)  : list of Session objects
         - analys_par (dict): dictionary containing specific analysis parameters:
+                ['bri_dir'] (str or list) : brick direction values to include
+                                            (e.g., 'right', 'left')
+                ['bri_size'] (int or list): brick size values to include
+                                          (e.g., 128, 256 or [128, 256])
                 ['gab_k'] (int or list) : gabor kappa values to include 
                                         (e.g., 4, 16 or [4, 16])
                 ['lag_s'] (float)       : lag in seconds with which to calculate
                                           autocorrelation
                 ['sess_ns'] (list)      : list of session IDs
+                ['stim'] (str)          : stimulus to analyse (bricks or gabors)
 
         - basic_par (dict) : dictionary containing basic analysis parameters:
                 ['dfoverf'] (bool): if True, dF/F is used instead of raw ROI 
@@ -2609,8 +2876,8 @@ def plot_gab_autocorr(sessions, analys_par, basic_par, fig_par, sess_par):
         - fig_par (dict)   : dictionary containing figure parameters:
                 ['autocorr'] (str)       : specific subfolder in which to save 
                                            folder  
-                ['bbox'] (str)           : bbox_inches parameter for 
-                                           plt.savefig(), e.g., 'tight'
+                ['bbox'] (str)           : bbox parameter for plt.savefig(), 
+                                           e.g., 'tight'
                 ['datetime'] (bool)      : if True, figures are saved in a 
                                            subfolder named based on the date 
                                            and time.
@@ -2634,32 +2901,47 @@ def plot_gab_autocorr(sessions, analys_par, basic_par, fig_par, sess_par):
                                             'L23_all', 'L5_all')
                 ['overall_sess_n'] (int): overall session number aimed for
     """
-    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 'file')
-    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'])
+    if analys_par['stim'] == 'gabors':
+        seg_bars = [-1.5, 1.5] # light lines
+    else:
+        seg_bars = [-1.0, 1.0] # light lines
+
+    stimstr = str_util.stim_par_str(analys_par['gab_k'], analys_par['bri_dir'], 
+                                    analys_par['bri_size'], analys_par['stim'],
+                                    'print')
+    sessstr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
+                                    analys_par['bri_dir'], analys_par['bri_size'], 
+                                    analys_par['stim'], 'file')
+    sessstr_pr = str_util.sess_par_str(sess_par, analys_par['gab_k'], 
+                                    analys_par['bri_dir'], analys_par['bri_size'], 
+                                    analys_par['stim'], 'print')
     statstr = str_util.stat_par_str(basic_par['stats'], basic_par['error'])
-    gabkstr = str_util.gab_k_par_str(analys_par['gab_k'])
+    fluorstr_pr = str_util.fluor_par_str(type_str='print', dff=basic_par['dfoverf'])
 
     print(('\nAnalysing and plotting ROI autocorrelations ' 
           '({}).').format(sessstr_pr))
 
     fig, ax = plot_util.init_fig(len(sessions), fig_par)
     lag_s = analys_par['lag_s']
-    xticks = np.linspace(-lag_s, lag_s, lag_s*4+1)
+    xticks = np.linspace(-lag_s, lag_s, lag_s*2+1)
     yticks = np.linspace(0, 1, 6)
-    seg_bars = [-1.5, 1.5] # light lines
-    if basic_par['dfoverf']:
-        title_str = 'dF/F autocorr'
-    else:
-        title_str = autocorr
+    
+    title_str = u'{} autocorr'.format(fluorstr_pr)
+
     if basic_par['remnans'] == 'per':
         print('NaNs must be removed for across series, not per.')
         basic_par['remnans'] == 'across'
     nan_rois = []
     ok_rois = []
+
     for i, sess in enumerate(sessions):
         sub_ax = plot_util.get_subax(ax, i)
-        all_segs = sess.gabors.get_segs_by_criteria(stimPar2=analys_par['gab_k'], 
-                                                    by='block')
+
+        stim, block_ran_seg = get_stim(sess, analys_par['stim'])
+        all_segs = stim.get_segs_by_criteria(gab_k=analys_par['gab_k'], 
+                                             bri_dir=analys_par['bri_dir'],
+                                             bri_size=analys_par['bri_size'],
+                                             by='block', block_ran_seg=block_ran_seg)
         sess_nans = []
         sess_ok = []
         sess_traces = []
@@ -2671,7 +2953,7 @@ def plot_gab_autocorr(sessions, analys_par, basic_par, fig_par, sess_par):
             if max(np.diff(segs)) > 1:
                 raise ValueError('Segments used for autocorrelation are not '
                                  'contiguous.')
-            frame_edges = sess.gabors.get_2pframes_by_seg([min(segs), max(segs)])
+            frame_edges = stim.get_2pframes_by_seg([min(segs), max(segs)])
             frames = range(min(frame_edges[0]), max(frame_edges[1])+1)
             traces = sess.get_roi_traces(frames, dfoverf=basic_par['dfoverf'])
             if basic_par['remnans'] == ['across']:
@@ -2699,9 +2981,11 @@ def plot_gab_autocorr(sessions, analys_par, basic_par, fig_par, sess_par):
             plot_util.plot_traces(sub_ax, roi_stats, basic_par['stats'], 
                         basic_par['error'], alpha=0.5/len(sessions), 
                         xticks=xticks, yticks=yticks, dff=basic_par['dfoverf'])
-        plot_util.add_bars(sub_ax, bars=seg_bars)
-        sub_ax.set_title((u'Mouse {} - {} gab{} {}\n(sess {}, {} {}, '
-                          '(n={}))').format(sess.mouse_n, statstr, gabkstr, 
+        plot_util.add_bars(sub_ax, hbars=seg_bars)
+
+        sub_ax.set_title((u'Mouse {} - {} {}{} {}\n(sess {}, {} {}, '
+                          '(n={}))').format(sess.mouse_n, statstr, 
+                                            stim.stim_type[0:3], stimstr, 
                                             title_str, sess.sess_overall, 
                                             sess.line, sess.layer, nrois))
         sub_ax.set_ylim([0, 1])
@@ -2748,6 +3032,10 @@ def manage_args(args):
                 
     Returns:
         - analys_par (dict): dictionary containing specific analysis parameters:
+                ['bri_dir'] (str or list): brick direction values to include
+                                          (e.g., 'right', 'left' or ['right', 'left'])
+                ['bri_size'] (int or list): brick size values to include
+                                          (e.g., 128, 256 or [128, 256])
                 ['gab_fr'] (int or list): gabor frame values to include
                                           (e.g., 0, 1, 2, 3)
                 ['gab_k'] (int or list) : gabor kappa values to include 
@@ -2757,6 +3045,7 @@ def manage_args(args):
                                           frame reference (in s)
                 ['post'] (float)        : range of frames to include after each 
                                           frame reference (in s)
+                ['stim'] (str)          : stimulus to analyse (bricks or gabors)
 
         - basic_par (dict) : dictionary containing basic analysis parameters:
                 ['dfoverf'] (bool): if True, dF/F is used instead of raw ROI 
@@ -2776,8 +3065,8 @@ def manage_args(args):
         - fig_par (dict)   : dictionary containing figure parameters:
                 ['autocorr'] (str)       : specific subfolder in which to save 
                                            autocorrelation results  
-                ['bbox'] (str)           : bbox_inches parameter for 
-                                           plt.savefig(), e.g., 'tight'
+                ['bbox'] (str)           : bbox parameter for plt.savefig(), 
+                                           e.g., 'tight'
                 ['datetime'] (bool)      : if True, figures are saved in a 
                                            subfolder named based on the date 
                                            and time.
@@ -2836,7 +3125,8 @@ def manage_args(args):
                                              ('pilot', 'prod')
     """
 
-    analys_keys  = [ 'gab_fr', 'gab_k', 'lag_s', 'n_quints', 'post', 'pre']
+    analys_keys  = ['bri_dir', 'bri_size', 'gab_fr', 'gab_k', 'lag_s',  
+                    'n_quints', 'post', 'pre', 'stim']
     basic_keys   = ['error', 'rand', 'remnans', 'stats']
     fig_keys     = ['bbox', 'fig_ext', 'ncols', 'overwrite', 'preset_ylims', 
                     'subplot_hei', 'subplot_wid']
@@ -2886,12 +3176,20 @@ def run_analyses(sess, args, mouse_df):
                                   session.
     """
 
+    # set pyplot params
+    plot_util.linclab_plt_defaults(font=['Arial', 'Liberation Sans'], 
+                                   font_dir='../tools/fonts', example=True)
+
     if args.parallel and args.plt_bkend is not None:
         plt.switch_backend(args.plt_bkend) # needs to be repeated within joblib
 
     [analys_par, basic_par, fig_par, perm_par, 
                         roi_grp_par, sess_par] = manage_args(args)
-    
+
+    print(('\nAnalysis of {} responses to {} stimuli '
+           '({} data)').format(sess_par['layer'], analys_par['stim'], 
+                               sess_par['runtype']))
+
     print('\nOverall_sess_n: {}'.format(sess))
     sess_par['overall_sess_n'] = int(sess)
 
@@ -2906,8 +3204,7 @@ def run_analyses(sess, args, mouse_df):
 
     # 0. Create dictionary including frame numbers for LFADS analysis
     if 'l' in args.analyses: # lfads
-        lfads_dict(sessions, mouse_df, args.runtype, analys_par['gab_fr'], 
-                analys_par['gab_k'], args.output)
+        lfads_dict(sessions, mouse_df, args.runtype, args.output)
 
     # 1. Plot average traces by quintile x surprise for each session 
     if 't' in args.analyses: # traces
@@ -2933,7 +3230,7 @@ def run_analyses(sess, args, mouse_df):
 
     # 5. Run autocorrelation analysis
     if 'a' in args.analyses: # autocorr
-        plot_gab_autocorr(sessions, analys_par, basic_par, fig_par, sess_par)
+        plot_autocorr(sessions, analys_par, basic_par, fig_par, sess_par)
 
 
 if __name__ == "__main__":
@@ -2968,6 +3265,10 @@ if __name__ == "__main__":
                               ' Otherwise, only exact.'))
     parser.add_argument('--min_rois', default=5, type=int, 
                         help='min rois criterion')
+        # analysis parameters
+    parser.add_argument('--bri_dir', default='both', help='brick dir (right, left, or both)')   
+    parser.add_argument('--post', default=1.5, type=float, help='sec after frame')
+    parser.add_argument('--stim', default='gabors', help='stimulus to analyse')   
         # roi group parameters
     parser.add_argument('--plot_vals', default='surp', 
                         help='plot diff (surp-nosurp), surp or nosurp')
@@ -2980,6 +3281,7 @@ if __name__ == "__main__":
     parser.add_argument('--omit_mice', default=[], help='mice to omit') 
 
         # analysis parameters
+    parser.add_argument('--bri_size', default=128, help='brick size (128, 256, or both)')
     parser.add_argument('--n_quints', default=4, type=int, help='nbr of quintiles')
     parser.add_argument('--lag_s', default=4, type=float,
                         help='lag for autocorrelation (in sec)')
@@ -2987,19 +3289,18 @@ if __name__ == "__main__":
                         help='kappa value (4, 16, or both)')    
     parser.add_argument('--gab_fr', default=3, type=int, help='gabor frame of reference')
     parser.add_argument('--pre', default=0, type=float, help='sec before frame')
-    parser.add_argument('--post', default=1.5, type=float, help='sec after frame')
     
         # roi group parameters
     parser.add_argument('--op', default='diff', 
                         help='calculate diff or ratio of surp to nonsurp')
-    parser.add_argument('--grps', default=['no_change', 'incr', 'reduc'], 
+    parser.add_argument('--grps', default=['reduc', 'incr', 'no_change'], 
                         help=('plot all ROI grps or grps with change or '
                               'no_change'))
     parser.add_argument('--no_add_nosurp', action='store_true',
                         help='do not add nosurp_nosurp to ROI grp plots')
     
         # permutation analysis parameters
-    parser.add_argument('--n_perms', default=10000, type=int, 
+    parser.add_argument('--n_perms', default=5000, type=int, 
                         help='nbr of permutations')
     parser.add_argument('--p_val', default=0.05, type=float,
                         help='p-val for perm analysis')
@@ -3051,18 +3352,43 @@ if __name__ == "__main__":
     mouse_df_dir = 'mouse_df.csv'
     mouse_df = file_util.load_file(mouse_df_dir)
 
-    # make sure this key contains a list of ints
-    if args.gab_k == 'both':
-        args.gab_k = [4, 16]
+    # make sure these keys contains a list of ints/strs
+    if args.stim == 'gabors':
+        args.bri_size = 'none'
+        args.bri_dir = 'none'
+        if args.gab_k == 'both':
+            args.gab_k = [4, 16]
+        else:
+            args.gab_k = int(args.gab_k)
+
+    elif args.stim == 'bricks':
+        args.gab_fr = 'none'
+        args.gab_k = 'none'
+        if args.bri_size == 'both':
+            args.bri_size = [128, 256]
+        else:
+            args.bri_size = int(args.bri_size)
+        if args.bri_dir == 'both':
+            args.bri_dir = ['right', 'left']
     else:
-        args.gab_k = int(args.gab_k)
+        gen_util.accepted_values_error('stim argument', args.stim, ['gabors', 'bricks'])
 
     if args.runtype == 'pilot':
         args.omit_sess.extend([721038464]) # alignment didn't work
-        args.omit_mice.extend(gab_mice_omit(args.gab_k))
-    elif args.runtype == 'prod' and 16 not in gen_util.list_if_not(args.gab_k):
-            raise ValueError(('The production data only includes gabor '
-                              'stimuli with kappa=16'))
+        if args.stim == 'gabors':
+            args.omit_mice.extend(gab_mice_omit(args.gab_k))
+        elif args.stim == 'bricks':
+            args.omit_mice.extend(bri_mice_omit(args.bri_dir, args.bri_size))
+        
+    elif args.runtype == 'prod':
+        if args.stim == 'gabors': 
+            if 16 not in gen_util.list_if_not(args.gab_k):
+                raise ValueError(('The production data only includes gabor '
+                                  'stimuli with kappa=16'))
+        elif args.stim == 'bricks':
+            if 128 not in gen_util.list_if_not(args.bri_size):
+                raise ValueError(('The production data only includes bricks '
+                                  'stimuli with size=128'))
 
     # get session numbers
     if args.overall_sess_n == 'all':

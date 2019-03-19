@@ -281,6 +281,36 @@ class Session(object):
             raise exceptions.IOError('Could not open {} for reading'
                                      .format(self.roi_traces))
 
+
+    #############################################
+    def _modif_bri_segs(self):
+        if self.runtype == 'prod':
+            bri_st_fr = gen_util.get_df_vals(self.align_df, 'stimType', 'b', 
+                                             'start_frame', unique=False)
+            bri_num_fr = np.diff(bri_st_fr)
+            num_fr = gen_util.get_df_vals(self.align_df, 'stimType', 'b', 
+                                          'num_frames', unique=False)[:-1]
+            break_ind = np.where(num_fr != bri_num_fr)[0]
+            if len(break_ind) != 1:
+                raise ValueError(('Expected only one break in the bricks '
+                                  'stimulus, but found {}.'.format(len(break_ind))))
+            
+            # last start frame and seg for the first brick stim
+            last_fr1 = bri_st_fr[break_ind[0]] 
+            last_seg1 = gen_util.get_df_vals(self.align_df, ['stimType', 'start_frame'], 
+                                             ['b', last_fr1], 'stimSeg')[0]
+            
+            seg_inds = (self.align_df['stimType'] == 'b') & (self.align_df['start_frame'] > last_fr1)
+
+            new_inds = self.align_df.loc[seg_inds]['stimSeg'] + last_seg1 + 1
+            self.align_df = gen_util.set_df_vals(self.align_df, seg_inds, 'stimSeg', new_inds)
+
+            for i, disp in enumerate(self.bricks[1].block_ran_seg):
+                for j, bl in enumerate(disp):
+                    for k, seg in enumerate(bl):
+                        self.bricks[1].block_ran_seg[i][j][k] = seg + last_seg1 + 1
+                
+
     #############################################
     def get_nanrois(self, traces, dfoverf=False):
         nan_arr = np.isnan(traces).any(axis=1) + np.isinf(traces).any(axis=1)
@@ -368,19 +398,29 @@ class Session(object):
                 stim_type = stim['stimParams']['elemParams']['name']
             elif self.runtype == 'prod':
                 stim_type = stim['stim_params']['elemParams']['name']
-            self.stim_types.extend([stim_type])
+            self.stim_types.append(stim_type)
             # initialize a Gabors object
             if stim_type == 'gabors':
                 self.gabors = Gabors(self, i)
+                self.stims.append(self.gabors)
             # initialize a Bricks object
             elif stim_type == 'bricks':
                 if self.runtype == 'prod':
                     self.bricks.append(Bricks(self, i))
+                    self.stims.append(self.bricks[-1])
                 elif self.runtype == 'pilot':
                     self.bricks = Bricks(self, i)
+                    self.stims.append(self.bricks)
+                
             else:
                 print(('{} stimulus type not recognized. No Stim object ' 
                       'created for this stimulus. \n').format(stim_type))
+        
+        # modify segment numbers for second brick stimulus as they
+        # are the same for both in production 
+        if self.runtype == 'prod':
+            self._modif_bri_segs()
+
         # initialize a Grayscr object
         self.grayscr = Grayscr(self)
 
@@ -869,39 +909,53 @@ class Stim(object):
 
     #############################################
     def get_segs_by_criteria(self, stimPar1='any', stimPar2='any', surp='any', 
-                               stimSeg='any', gaborframe='any', 
-                               start_frame='any', end_frame='any',
-                               num_frames='any', remconsec=False, by='block'):
+                             stimSeg='any', gaborframe='any', start_frame='any', 
+                             end_frame='any', num_frames='any', gab_k=None, 
+                             gab_ori=None, bri_size=None, bri_dir=None, 
+                             remconsec=False, by='block', block_ran_seg=None):
         """
         self.get_segs_by_criteria()
 
         Returns a list of stimulus segs that have the specified values in 
         specified columns in the alignment dataframe.    
 
+        Will return segs only for the current stim object.
+
         Optional arguments:
             - stimPar1 (int or list)      : stimPar1 value(s) of interest 
-                                            (256, 128, 45, 90)
+                                            (sizes: 128, 256, oris: 0, 45, 90, 135)
             - stimPar2 (str, int or list) : stimPar2 value(s) of interest 
                                             ('right', 'left', 4, 16)
             - surp (int or list)          : surp value(s) of interest (0, 1)
             - stimSeg (int or list)       : stimSeg value(s) of interest
             - gaborframe (int or list)    : gaborframe value(s) of interest 
                                             (0, 1, 2, 3)
-            - start_frame_min (int)       : minimum of start_frame range of 
+            - start_frame_min (int)       : minimum of 2P start_frame range of 
                                             interest 
-            - start_frame_max (int)       : maximum of start_frame range of 
+            - start_frame_max (int)       : maximum of 2P start_frame range of 
                                             interest (excl)
-            - end_frame_min (int)         : minimum of end_frame range of 
+            - end_frame_min (int)         : minimum of 2P end_frame range of 
                                             interest
-            - end_frame_max (int)         : maximum of end_frame range of 
+            - end_frame_max (int)         : maximum of 2P end_frame range of 
                                             interest (excl)
             - num_frames_min (int)        : minimum of num_frames range of 
                                             interest
             - num_frames_max (int)        : maximum of num_frames range of 
                                             interest (excl)
-                
                                             default = 'any' (for all args above)
-
+            
+            - gab_k (int or list)         : if not None, will overwrite stimPar2
+                                            (4, 16, or 'any')
+                                            default = None
+            - gab_ori (int or list)       : if not None, will overwrite stimPar1
+                                            (0, 45, 90, 135, or 'any')
+                                            default = None
+            - bri_size (int or list)      : if not None, will overwrite stimPar1
+                                            (128, 256, or 'any')
+                                            default = None
+            - bri_dir (str or list)       : if not None, will overwrite stimPar2
+                                            ('right', 'left' or 'any')
+                                            default = None
             - remconsec (bool)            : if True, consecutive segments are 
                                             removed within a block
                                             default = False
@@ -911,45 +965,88 @@ class Stim(object):
                                             further grouped by display sequence 
                                             ('disp')
                                             (default = 'block')
+            - block_ran_seg (list)        : segment tuples (start, end) for 
+                                            each block (end is EXCLUDED) each 
+                                            sublist contains tuples for a 
+                                            display sequence e.g., for 2 
+                                            sequences with 2 blocks each:
+                                            [[[start, end], [start, end]], 
+                                            [[start, end], [start, end]]] 
+                                            (default = None)
         Returns:
             - segs (list): list of segs that obey the criteria
         """
 
-        if stimPar1 == 'any':
+        if block_ran_seg is None:
+            block_ran_seg = self.block_ran_seg
+
+        # remove brick criteria for gabors and vv
+        if self.stim_type == 'gabors':
+            bri_size = None
+            bri_dir = None
+        elif self.stim_type == 'bricks':
+            gaborframe = None
+            gab_k = None
+            gab_ori = None
+
+        # if passed, replace StimPar1 and StimPar2 with the gabor and brick
+        # arguments
+        pars = [gab_k, gab_ori, bri_size, bri_dir]
+        stimpar_names = ['stimPar2', 'stimPar1', 'stimPar1', 'stimPar2']
+        sp1 = []
+        sp2 = []
+
+        for i in range(len(pars)):
+            if pars[i] == 'any':
+                pars[i] = gen_util.get_df_vals(self.sess.align_df, 'stimType', 
+                                               self.stim_type, stimpar_names[i])
+            if pars[i] is not None:
+                pars[i] = gen_util.list_if_not(pars[i])
+                if stimpar_names[i] == 'stimPar1':
+                    sp1.extend(pars[i])
+                elif stimpar_names[i] == 'stimPar2':
+                    sp2.extend(pars[i])
+        
+        if len(sp1) != 0:
+            stimPar1 = sp1
+        if len(sp2) != 0:
+            stimPar2 = sp2 
+
+        if stimPar1 in ['any', None]:
             stimPar1 = self.sess.align_df['stimPar1'].unique().tolist()
         elif not isinstance(stimPar1, list):
             stimPar1 = [stimPar1]
-        if stimPar2 == 'any':
+        if stimPar2 in ['any', None]:
             stimPar2 = self.sess.align_df['stimPar2'].unique().tolist()
         elif not isinstance(stimPar2, list):
             stimPar2 = [stimPar2]
-        if surp == 'any':
+        if surp in ['any', None]:
             surp = self.sess.align_df['surp'].unique().tolist()
         elif not isinstance(surp, list):
             surp = [surp]
-        if stimSeg == 'any':
+        if stimSeg in ['any', None]:
             stimSeg = self.sess.align_df['stimSeg'].unique().tolist()
             # here, ensure that non seg is removed
             if -1 in stimSeg:
                 stimSeg.remove(-1)
         elif not isinstance(stimSeg, list):
             stimSeg = [stimSeg]
-        if gaborframe == 'any':
+        if gaborframe in ['any', None]:
             gaborframe = self.sess.align_df['GABORFRAME'].unique().tolist()
         elif not isinstance(gaborframe, list):
             gaborframe = [gaborframe]
-        if start_frame == 'any':
+        if start_frame in ['any', None]:
             start_frame_min = int(self.sess.align_df['start_frame'].min())
             start_frame_max = int(self.sess.align_df['start_frame'].max()+1)
-        if end_frame == 'any':
+        if end_frame in ['any', None]:
             end_frame_min = int(self.sess.align_df['end_frame'].min())
             end_frame_max = int(self.sess.align_df['end_frame'].max()+1)
-        if num_frames == 'any':
+        if num_frames in ['any', None]:
             num_frames_min = int(self.sess.align_df['num_frames'].min())
             num_frames_max = int(self.sess.align_df['num_frames'].max()+1)
         
         segs = []
-        for i in self.block_ran_seg:
+        for i in block_ran_seg:
             temp = []
             for j in i:
                 inds = self.sess.align_df.loc[(self.sess.align_df['stimType']==self.stim_type[0])    & 
@@ -999,13 +1096,20 @@ class Stim(object):
 
     #############################################
     def get_frames_by_criteria(self, stimPar1='any', stimPar2='any', surp='any', 
-                               stimSeg='any', gaborframe='any', start_frame='any', end_frame='any',
-                               num_frames='any', first_fr=True, remconsec=False, by='block'):
+                               stimSeg='any', gaborframe='any', start_frame='any', 
+                               end_frame='any', num_frames='any', gab_k=None, 
+                               gab_ori=None, bri_size=None, bri_dir=None, 
+                               first_fr=True, remconsec=False, by='block',
+                               block_ran_seg=None):
         """
         self.get_frames_by_criteria()
 
         Returns a list of stimulus frames that have the specified values in 
-        specified columns in the alignment dataframe.    
+        specified columns in the alignment dataframe. 
+        
+        Will return frames only for the current stim object unless a different
+        block_ran_seg is passed.
+
         Note: grayscreen frames are NOT returned
 
         Optional arguments:
@@ -1017,21 +1121,32 @@ class Stim(object):
             - stimSeg (int or list)       : stimSeg value(s) of interest
             - gaborframe (int or list)    : gaborframe value(s) of interest 
                                             (0, 1, 2, 3)
-            - start_frame_min (int)       : minimum of start_frame range of 
+            - start_frame_min (int)       : minimum of 2P start_frame range of 
                                             interest 
-            - start_frame_max (int)       : maximum of start_frame range of 
+            - start_frame_max (int)       : maximum of 2P start_frame range of 
                                             interest (excl)
-            - end_frame_min (int)         : minimum of end_frame range of 
+            - end_frame_min (int)         : minimum of 2P end_frame range of 
                                             interest
-            - end_frame_max (int)         : maximum of end_frame range of 
+            - end_frame_max (int)         : maximum of 2P end_frame range of 
                                             interest (excl)
             - num_frames_min (int)        : minimum of num_frames range of 
                                             interest
             - num_frames_max (int)        : maximum of num_frames range of 
                                             interest (excl)
-                
                                             default = 'any' (for all args above)
 
+            - gab_k (int or list)         : if not None, will overwrite stimPar2
+                                            (4, 16, or 'any')
+                                            default = None
+            - gab_ori (int or list)       : if not None, will overwrite stimPar1
+                                            (0, 45, 90, 135, or 'any')
+                                            default = None
+            - bri_size (int or list)      : if not None, will overwrite stimPar1
+                                            (128, 256, or 'any')
+                                            default = None
+            - bri_dir (str or list)       : if not None, will overwrite stimPar2
+                                            ('right', 'left' or 'any')
+                                            default = None
             - first_fr (bool)             : if True, only returns the first 
                                             frame of each segment
                                             (default = True)
@@ -1044,71 +1159,30 @@ class Stim(object):
                                             further grouped by display sequence 
                                             ('disp')
                                             (default = 'block')
+            - block_ran_seg (list)        : segment tuples (start, end) for 
+                                            each block (end is EXCLUDED) each 
+                                            sublist contains tuples for a 
+                                            display sequence e.g., for 2 
+                                            sequences with 2 blocks each:
+                                            [[[start, end], [start, end]], 
+                                            [[start, end], [start, end]]] 
+                                            (default = None)
         Returns:
             - frames (list): list of frames that obey the criteria
         """
 
 
-        if stimPar1 == 'any':
-            stimPar1 = self.sess.align_df['stimPar1'].unique().tolist()
-        elif not isinstance(stimPar1, list):
-            stimPar1 = [stimPar1]
-        if stimPar2 == 'any':
-            stimPar2 = self.sess.align_df['stimPar2'].unique().tolist()
-        elif not isinstance(stimPar2, list):
-            stimPar2 = [stimPar2]
-        if surp == 'any':
-            surp = self.sess.align_df['surp'].unique().tolist()
-        elif not isinstance(surp, list):
-            surp = [surp]
-        if stimSeg == 'any':
-            stimSeg = self.sess.align_df['stimSeg'].unique().tolist()
-            # here, ensure that non seg is removed
-            if -1 in stimSeg:
-                stimSeg.remove(-1)
-        elif not isinstance(stimSeg, list):
-            stimSeg = [stimSeg]
-        if gaborframe == 'any':
-            gaborframe = self.sess.align_df['GABORFRAME'].unique().tolist()
-        elif not isinstance(gaborframe, list):
-            gaborframe = [gaborframe]
-        if start_frame == 'any':
-            start_frame_min = int(self.sess.align_df['start_frame'].min())
-            start_frame_max = int(self.sess.align_df['start_frame'].max()+1)
-        if end_frame == 'any':
-            end_frame_min = int(self.sess.align_df['end_frame'].min())
-            end_frame_max = int(self.sess.align_df['end_frame'].max()+1)
-        if num_frames == 'any':
-            num_frames_min = int(self.sess.align_df['num_frames'].min())
-            num_frames_max = int(self.sess.align_df['num_frames'].max()+1)
-        
+        segs = self.get_segs_by_criteria(stimPar1, stimPar2, surp, stimSeg, 
+                                         gaborframe, start_frame, end_frame, 
+                                         num_frames, gab_k, gab_ori, bri_size, 
+                                         bri_dir, remconsec, by='disp', 
+                                         block_ran_seg=block_ran_seg)
+
         frames = []
-        for i in self.block_ran_seg:
+        for i in segs:
             temp = []
-            for j in i:
+            for inds in i:
                 temp2 = []
-                inds = self.sess.align_df.loc[(self.sess.align_df['stimType']==self.stim_type[0])    & 
-                                              (self.sess.align_df['stimPar1'].isin(stimPar1))        &
-                                              (self.sess.align_df['stimPar2'].isin(stimPar2))        &
-                                              (self.sess.align_df['surp'].isin(surp))                &
-                                              (self.sess.align_df['stimSeg'].isin(stimSeg))          &
-                                              (self.sess.align_df['GABORFRAME'].isin(gaborframe))    &
-                                              (self.sess.align_df['start_frame'] >= start_frame_min) &
-                                              (self.sess.align_df['start_frame'] < start_frame_max)  &
-                                              (self.sess.align_df['end_frame'] >= end_frame_min)     &
-                                              (self.sess.align_df['end_frame'] < end_frame_max)      &
-                                              (self.sess.align_df['num_frames'] >= num_frames_min)   &
-                                              (self.sess.align_df['num_frames'] < num_frames_max)    &
-                                              (self.sess.align_df['stimSeg'] >= j[0])                &
-                                              (self.sess.align_df['stimSeg'] < j[1])]['stimSeg'].tolist()
-                
-                # get the frames for each index
-                if remconsec: # if removing consecutive segments
-                    inds_new = []
-                    for k, val in enumerate(inds):
-                        if k == 0 or val != inds[k-1]+1:
-                            inds_new.extend([val])
-                    inds = inds_new
                 if first_fr: # if getting only first frame for each segment
                     for val in inds:
                         temp2.extend([self.frame_list.index(val)])
@@ -1140,7 +1214,7 @@ class Stim(object):
 
 
     #############################################
-    def get_first_surp_segs(self, by='block'):
+    def get_first_surp_segs(self, by='block', block_ran_seg=None):
         """
         self.get_first_surp_segs()
 
@@ -1151,11 +1225,19 @@ class Stim(object):
         regular sequences.
 
         Optional argument:
-            - by (str): determines whether segments are returned in a flat list 
-                        ('seg'), grouped by block ('block'), or further grouped 
-                        by display sequence ('disp')
-                        default = 'block'
-        
+            - by (str)            : determines whether segments are returned in 
+                                    a flat list ('seg'), grouped by block 
+                                    ('block'), or further grouped by display 
+                                    sequence ('disp')
+                                    (default = 'block')
+            - block_ran_seg (list): segment tuples (start, end) for each block 
+                                    (end is EXCLUDED) each sublist contains 
+                                    tuples for a display sequence e.g., for 2 
+                                    sequences with 2 blocks each:
+                                    [[[start, end], [start, end]], 
+                                    [[start, end], [start, end]]] 
+                                    (default = None)        
+
         Returns:
             - surp_segs (list)   : list of first surprise segments at regular 
                                    to surprise transitions for stimulus type
@@ -1163,14 +1245,16 @@ class Stim(object):
                                    to regular transitions for stimulus type
         """
 
-        surp_segs   = self.get_segs_by_criteria(surp=1, remconsec=True, by=by)
-        nosurp_segs = self.get_segs_by_criteria(surp=0, remconsec=True, by=by)
+        surp_segs   = self.get_segs_by_criteria(surp=1, remconsec=True, by=by, 
+                                                block_ran_seg=block_ran_seg)
+        nosurp_segs = self.get_segs_by_criteria(surp=0, remconsec=True, by=by,
+                                                block_ran_seg=block_ran_seg)
 
         return surp_segs, nosurp_segs
 
 
     #############################################
-    def get_all_surp_segs(self, by='block'):
+    def get_all_surp_segs(self, by='block', block_ran_seg=None):
         """
         self.get_all_surp_segs()
 
@@ -1179,24 +1263,34 @@ class Stim(object):
         regular segments for the stimulus type.
 
         Optional argument:
-            - by (str): determines whether segments are returned in a flat list 
-                        ('seg'), grouped by block ('block'), or further grouped 
-                        by display sequence ('disp')
-                        default = 'block'
+            - by (str)            : determines whether segments are returned in 
+                                    a flat list ('seg'), grouped by block 
+                                    ('block'), or further grouped by display 
+                                    sequence ('disp')
+                                    (default = 'block')
+            - block_ran_seg (list): segment tuples (start, end) for each block 
+                                    (end is EXCLUDED) each sublist contains 
+                                    tuples for a display sequence e.g., for 2 
+                                    sequences with 2 blocks each:
+                                    [[[start, end], [start, end]], 
+                                    [[start, end], [start, end]]] 
+                                    (default = None)  
         
         Returns:
             - surp_segs (list)   : list of surprise segments for stimulus type
             - no_surp_segs (list): list of regular segments for stimulus type
         """
 
-        surp_segs   = self.get_segs_by_criteria(surp=1, by=by)
-        nosurp_segs = self.get_segs_by_criteria(surp=0, by=by)
+        surp_segs   = self.get_segs_by_criteria(surp=1, by=by,
+                                                block_ran_seg=block_ran_seg)
+        nosurp_segs = self.get_segs_by_criteria(surp=0, by=by,
+                                                block_ran_seg=block_ran_seg)
 
         return surp_segs, nosurp_segs
     
 
     #############################################
-    def get_first_surp_frame_1s(self, by='block'):
+    def get_first_surp_frame_1s(self, by='block', block_ran_seg=None):
         """
         self.get_first_surp_frame_1s()
 
@@ -1207,10 +1301,18 @@ class Stim(object):
         sequences.
 
         Optional argument:
-            - by (str): determines whether frames are returned in a flat list 
-                        ('frame'), grouped by block ('block'), or further 
-                        grouped by display sequence ('disp')
-                        default = 'block'
+            - by (str)            : determines whether segments are returned in 
+                                    a flat list ('seg'), grouped by block 
+                                    ('block'), or further grouped by display 
+                                    sequence ('disp')
+                                    (default = 'block')
+            - block_ran_seg (list): segment tuples (start, end) for each block 
+                                    (end is EXCLUDED) each sublist contains 
+                                    tuples for a display sequence e.g., for 2 
+                                    sequences with 2 blocks each:
+                                    [[[start, end], [start, end]], 
+                                    [[start, end], [start, end]]] 
+                                    (default = None)  
         
         Returns:
             - surp_frames (list)   : list of first surprise frames at regular 
@@ -1220,15 +1322,15 @@ class Stim(object):
         """
     
         surp_frames   = self.get_frames_by_criteria(surp=1, remconsec=True, 
-                                                    by=by)
+                                                    by=by, block_ran_seg=block_ran_seg)
         nosurp_frames = self.get_frames_by_criteria(surp=0, remconsec=True, 
-                                                    by=by)
+                                                    by=by, block_ran_seg=block_ran_seg)
 
         return surp_frames, nosurp_frames
 
 
     #############################################
-    def get_all_surp_frames(self, by='block'):
+    def get_all_surp_frames(self, by='block', block_ran_seg=None):
         """
         self.get_all_surp_frames()
 
@@ -1237,10 +1339,18 @@ class Stim(object):
         regular frames for the stimulus type.
 
         Optional argument:
-            - by (str): determines whether frames are returned in a flat list 
-                        ('frame'), grouped by block ('block'), or further 
-                        grouped by display sequence ('disp')
-                        default = 'block'
+            - by (str)            : determines whether segments are returned in 
+                                    a flat list ('seg'), grouped by block 
+                                    ('block'), or further grouped by display 
+                                    sequence ('disp')
+                                    (default = 'block')
+            - block_ran_seg (list): segment tuples (start, end) for each block 
+                                    (end is EXCLUDED) each sublist contains 
+                                    tuples for a display sequence e.g., for 2 
+                                    sequences with 2 blocks each:
+                                    [[[start, end], [start, end]], 
+                                    [[start, end], [start, end]]] 
+                                    (default = None)  
 
         Returns:
             - surp_frames (list)   : list of all surprise frames for stimulus 
@@ -1250,9 +1360,9 @@ class Stim(object):
         """
 
         surp_frames   = self.get_frames_by_criteria(surp=1, first_fr=False, 
-                                                    by=by)
+                                                    by=by, block_ran_seg=block_ran_seg)
         nosurp_frames = self.get_frames_by_criteria(surp=0, first_fr=False, 
-                                                    by=by)
+                                                    by=by, block_ran_seg=block_ran_seg)
 
         return surp_frames, nosurp_frames
     
@@ -1499,8 +1609,8 @@ class Stim(object):
     
     #############################################
     def get_roi_chunk_stats(self, frame_ref, pre, post, byroi=True, 
-                            dfoverf=True, nans='rem', rand=False, stats='mean', 
-                            error='std'):
+                            dfoverf=True, nans='rem_all', rand=False, 
+                            stats='mean', error='std'):
         """
         self.get_roi_chunk_stats(frame_ref, pre, post)
 
@@ -1520,10 +1630,13 @@ class Stim(object):
                               default = True 
             - dfoverf (bool): if True, dF/F is used instead of raw ROI traces
                               default = True
-            - rem (str)     : if 'rem', removes ROIs with NaN/Inf values, if 
-                              'list', only returns list of ROIs with NaN/Inf 
-                              values 
-                              default = 'rem'
+            - rem (str)     : if 'rem', removes ROIs with NaN/Inf values in 
+                              chunks, if 'rem_all', removes ROIs with NaN/Inf 
+                              values anywhere in traces. If 'list', only returns 
+                              list of ROIs with NaN/Inf values in chunks. If
+                              'list_all', returns list of ROIs with NaN/Inf 
+                              values anywhere in traces.
+                              default = 'rem_all'
             - rand (bool)   : if True, also return statistics for a random  
                               permutation of the running values
                               default = False
@@ -1568,17 +1681,25 @@ class Stim(object):
                                                     dfoverf=dfoverf)
         roi_data = roi_data.tolist()
 
-        if nans == 'rem' or nans == 'list':
+        if nans in ['rem', 'list']:
+            nan_arr = np.isnan(roi_data).any(axis=1) + np.isinf(roi_data).any(axis=1)
+            nan_rois = np.where(nan_arr)[0].tolist()
+
+        if nans in ['rem_all', 'list_all']:
             if dfoverf:
                 nan_rois = self.sess.nanrois_dff
             else:
                 nan_rois = self.sess.nanrois
+
+
+        if nans in ['rem', 'rem_all', 'list', 'list_all']:
             n_rois = len(roi_data)
             ok_rois = sorted(set(range(n_rois)) - set(nan_rois))
-            if nans == 'rem':
+            if nans in ['rem', 'rem_all']:
                 roi_data = np.asarray(roi_data)[ok_rois]
-                print('Removing {}/{} ROIs: {}'.format(len(nan_rois), n_rois, 
-                                        ', '.join([str(x) for x in nan_rois])))
+                if len(nan_rois) != 0:
+                    print('Removing {}/{} ROIs: {}'.format(len(nan_rois), n_rois, 
+                                               ', '.join([str(x) for x in nan_rois])))
         
         # get ROI stats
         if byroi:
@@ -1595,7 +1716,7 @@ class Stim(object):
                                                    zip(*all_chunk_stats)[0], 
                                                    rand, False, stats, error)
         
-        if nans == 'rem' or nans == 'list':
+        if nans in ['rem', 'rem_all', 'list', 'list_all']:
             return x_ran, roi_chunk_stats, [nan_rois, ok_rois]
         else:
             return x_ran, roi_chunk_stats
@@ -1732,65 +1853,84 @@ class Gabors(Stim):
         self._get_block_params()
 
 
-
     #############################################
     def _get_block_params(self):
         """
         self._get_block_params()
         """
+
         self.block_params = []
         for i, disp in enumerate(self.block_ran_seg):
             block_par = []
             for j, block in enumerate(disp):
                 segs = self.sess.align_df.loc[(self.sess.align_df['stimType']==self.stim_type[0]) & 
-                                                    (self.sess.align_df['stimSeg'] >= block[0]) & 
-                                                    (self.sess.align_df['stimSeg'] < block[1])]
+                                              (self.sess.align_df['stimSeg'] >= block[0]) & 
+                                              (self.sess.align_df['stimSeg'] < block[1])]
                 # skipping stimPar1 which indicates gabor orientations which 
                 # change at each gabor sequence presentation
                 stimPar2 = segs['stimPar2'].unique().tolist()
+
                 if len(stimPar2) > 1:
                     raise ValueError('Block {} of {} comprises segments with different stimPar2 values: {}'
-                                    .format(i*len(self.block_ran_seg)+j+1, self.stim_type, stimPar2))
-                block_par.extend(stimPar2)
+                                     .format(i*len(self.block_ran_seg)+j+1, self.stim_type, stimPar2))
+                block_par.append(stimPar2[0])
             self.block_params.append(block_par)
 
 
     #############################################
-    def get_A_segs(self, by='block'):
+    def get_A_segs(self, by='block', block_ran_seg=None):
         """
         self.get_A_segs()
 
         Returns lists of A gabor segments.
 
         Optional argument:
-            - by (str): determines whether frames are returned in a flat list 
-                        ('frame'), grouped by block ('block'), or further 
-                        grouped by display sequence ('disp')
-                        default = 'block'
+            - by (str)            : determines whether segments are returned in 
+                                    a flat list ('seg'), grouped by block 
+                                    ('block'), or further grouped by display 
+                                    sequence ('disp')
+                                    (default = 'block')
+            - block_ran_seg (list): segment tuples (start, end) for each block 
+                                    (end is EXCLUDED) each sublist contains 
+                                    tuples for a display sequence e.g., for 2 
+                                    sequences with 2 blocks each:
+                                    [[[start, end], [start, end]], 
+                                    [[start, end], [start, end]]] 
+                                    (default = None)  
         Returns:
             - A_segs (list): list of A gabor segments.
         """
-        A_segs = self.get_segs_by_criteria(gaborframe=0, by=by)
+        A_segs = self.get_segs_by_criteria(gaborframe=0, by=by, 
+                                           block_ran_seg=block_ran_seg)
 
         return A_segs
 
 
     #############################################
-    def get_A_frame_1s(self, by='block'):
+    def get_A_frame_1s(self, by='block', block_ran_seg=None):
         """
         self.get_A_frame_1s()
 
         Returns list of first frame for each A gabor segment.
 
         Optional argument:
-            - by (str): determines whether frames are returned in a flat list 
-                        ('frame'), grouped by block ('block'), or further 
-                        grouped by display sequence ('disp')
-                        default = 'block'        
+            - by (str)            : determines whether segments are returned in 
+                                    a flat list ('seg'), grouped by block 
+                                    ('block'), or further grouped by display 
+                                    sequence ('disp')
+                                    (default = 'block')
+            - block_ran_seg (list): segment tuples (start, end) for each block 
+                                    (end is EXCLUDED) each sublist contains 
+                                    tuples for a display sequence e.g., for 2 
+                                    sequences with 2 blocks each:
+                                    [[[start, end], [start, end]], 
+                                    [[start, end], [start, end]]] 
+                                    (default = None)         
         Returns:
             - A_segs (list) : lists of first frame for each A gabor segment
         """
-        A_frames = self.get_frames_by_criteria(gaborframe=0, by=by)
+        A_frames = self.get_frames_by_criteria(gaborframe=0, by=by, 
+                                               block_ran_seg=block_ran_seg)
 
         return A_frames
     
@@ -1821,18 +1961,20 @@ class Bricks(Stim):
         # initialize brick specific parameters
         if self.sess.runtype == 'pilot':
             sqr_par = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['square_params']
-            self.size = sqr_par['sizes']
-            self.direc = sqr_par['direcs']
+            self.sizes = sqr_par['sizes']
+            # calculate n_bricks as wasn't recorded
+            max_n_brick = self.sess.stim_dict['stimuli'][self.stim_n]['stimParams']['elemParams']['nElements']
+            prod = max_n_brick * min(self.sizes)**2
+            self.n_bricks = [int(prod/size**2) for size in self.sizes]
+            self.direcs = sqr_par['direcs']
         elif self.sess.runtype == 'prod':
             sqr_par = self.sess.stim_dict['stimuli'][self.stim_n]['stim_params']['square_params']
-            self.size = self.sess.stim_dict['stimuli'][self.stim_n]['stim_params']['elemParams']['sizes']
-            self.direc = self.sess.stim_dict['stimuli'][self.stim_n]['stim_params']['direc']
+            self.sizes = self.sess.stim_dict['stimuli'][self.stim_n]['stim_params']['elemParams']['sizes']
+            self.n_bricks = self.sess.stim_dict['stimuli'][self.stim_n]['stim_params']['elemParams']['nElements']
+            self.direcs = self.sess.stim_dict['stimuli'][self.stim_n]['stim_params']['direc']
         self.units    = sqr_par['units']
         self.flipfrac = sqr_par['flipfrac']
         self.speed = sqr_par['speed']
-
-        # number of bricks not recorded in stim parameters, so extracting from dataframe 
-        self.n_bricks = pandas.unique(sess.align_df.loc[(self.sess.align_df['stimType'] == 0)]['stimPar1']).tolist() # preserves order
 
         # get parameters for each block
         self._get_block_params()
@@ -1843,45 +1985,38 @@ class Bricks(Stim):
         """
         self._get_block_params()
         """
+
         self.block_params = []
         for i, disp in enumerate(self.block_ran_seg):
             block_par = []
             for j, block in enumerate(disp):
-                if self.sess.runtype == 'pilot':
-                    segs = self.sess.align_df.loc[(self.sess.align_df['stimType']==self.stim_type[0]) & 
-                                                        (self.sess.align_df['stimSeg'] >= block[0]) & 
-                                                        (self.sess.align_df['stimSeg'] < block[1])]
-                elif self.sess.runtype == 'prod':
-                    if self.stim_type[0] == 'g':
-                        segs = self.sess.align_df.loc[(self.sess.align_df['stimType']==self.stim_type[0]) & 
-                                                      (self.sess.align_df['stimPar2']==self.ori_kaps) &
-                                                      (self.sess.align_df['stimSeg'] >= block[0]) & 
-                                                      (self.sess.align_df['stimSeg'] < block[1])]
-                    elif self.stim_type[0] == 'b':
-                        segs = self.sess.align_df.loc[(self.sess.align_df['stimType']==self.stim_type[0]) & 
-                                                      (self.sess.align_df['stimPar1']==self.size) &
-                                                      (self.sess.align_df['stimPar2']==self.direc) &
-                                                      (self.sess.align_df['stimSeg'] >= block[0]) & 
-                                                      (self.sess.align_df['stimSeg'] < block[1])]
-                stimPar1 = segs['stimPar1'].unique().tolist()
-                if len(stimPar1) > 1:
-                    raise ValueError('Block {} of {} comprises segments with different stimPar1 values: {}'
-                                    .format(i*len(self.block_ran_seg)+j+1, self.stim_type, stimPar1))
+                segs = self.sess.align_df.loc[(self.sess.align_df['stimType']==self.stim_type[0]) & 
+                                              (self.sess.align_df['stimSeg'] >= block[0]) & 
+                                              (self.sess.align_df['stimSeg'] < block[1])]
+                if self.sess.runtype == 'prod':
+                    segs = segs.loc[(self.sess.align_df['stimPar1']==self.sizes) &
+                                    (self.sess.align_df['stimPar2']==self.direcs)]
+                stimPars = []
+                for par_name in ['stimPar1', 'stimPar2']:
+                    stimPar = segs[par_name].unique().tolist()
+                    if len(stimPar) > 1:
+                        raise ValueError('Block {} of {} comprises segments with different {} values: {}'
+                                        .format(i*len(self.block_ran_seg)+j+1, self.stim_type, par_name, stimPar))
+                    stimPars.append(stimPar[0])
+                # add n_bricks info
+                if self.sess.runtype == 'prod':
+                    stimPars.append(self.n_bricks)
                 else:
-                    stimPar1 = stimPar1[0]
-                
-                stimPar2 = segs['stimPar2'].unique().tolist()
-                if len(stimPar2) > 1:
-                    raise ValueError('Block {} of {} comprises segments with different stimPar2 values: {}'
-                                    .format(i*len(self.block_ran_seg)+j+1, self.stim_type, stimPar2))
-                else:
-                    stimPar2 = stimPar2[0]
-                block_par.append([stimPar1, stimPar2])
+                    if stimPars[0] == min(self.sizes):
+                        stimPars.append(max(self.n_bricks))
+                    else:
+                        stimPars.append(min(self.n_bricks))
+                block_par.append(stimPars)
             self.block_params.append(block_par)
 
 
     #############################################
-    def get_dir_segs_no_surp(self, by='block'):
+    def get_dir_segs_no_surp(self, by='block', block_ran_seg=None):
         """
         self.get_dir_segs_no_surp()
 
@@ -1890,10 +2025,18 @@ class Bricks(Stim):
         lists exclude surprise segments.
 
         Optional argument:
-            - by (str): determines whether segs are returned in a flat list 
-                        ('seg'), grouped by block ('block'), or further 
-                        grouped by display sequence ('disp')
-                        default = 'block'        
+            - by (str)            : determines whether segments are returned in 
+                                    a flat list ('seg'), grouped by block 
+                                    ('block'), or further grouped by display 
+                                    sequence ('disp')
+                                    (default = 'block')
+            - block_ran_seg (list): segment tuples (start, end) for each block 
+                                    (end is EXCLUDED) each sublist contains 
+                                    tuples for a display sequence e.g., for 2 
+                                    sequences with 2 blocks each:
+                                    [[[start, end], [start, end]], 
+                                    [[start, end], [start, end]]] 
+                                    (default = None)       
         Returns:
             - right_segs (list): list of right moving segments, excluding 
                                  surprise segments.
@@ -1901,14 +2044,16 @@ class Bricks(Stim):
                                  surprise segments.
         """
 
-        right_segs = self.get_segs_by_criteria(stimPar2='right', surp=0, by=by)
-        left_segs  = self.get_segs_by_criteria(stimPar2='left', surp=0, by=by)
+        right_segs = self.get_segs_by_criteria(bri_dir='right', surp=0, by=by,
+                                               block_ran_seg=block_ran_seg)
+        left_segs  = self.get_segs_by_criteria(bri_dir='left', surp=0, by=by,
+                                               block_ran_seg=block_ran_seg)
 
         return right_segs, left_segs
 
 
     #############################################
-    def get_dir_frames_no_surp(self, by='block'):
+    def get_dir_frames_no_surp(self, by='block', block_ran_seg=None):
         """
         self.get_dir_frames_no_surp()
 
@@ -1918,10 +2063,18 @@ class Bricks(Stim):
         segments.
 
         Optional argument:
-            - by (str): determines whether frames are returned in a flat list 
-                        ('frame'), grouped by block ('block'), or further 
-                        grouped by display sequence ('disp')
-                        default = 'block'        
+            - by (str)            : determines whether segments are returned in 
+                                    a flat list ('seg'), grouped by block 
+                                    ('block'), or further grouped by display 
+                                    sequence ('disp')
+                                    (default = 'block')
+            - block_ran_seg (list): segment tuples (start, end) for each block 
+                                    (end is EXCLUDED) each sublist contains 
+                                    tuples for a display sequence e.g., for 2 
+                                    sequences with 2 blocks each:
+                                    [[[start, end], [start, end]], 
+                                    [[start, end], [start, end]]] 
+                                    (default = None)  
         Returns:
             - right_frames (list): list of first frames for each right moving 
                                    segment, excluding surprise segments.
@@ -1929,10 +2082,10 @@ class Bricks(Stim):
                                    segment, excluding surprise segments.
         """
 
-        right_frames = self.get_frames_by_criteria(stimPar2='right', surp=0, 
-                                                   by=by)
-        left_frames  = self.get_frames_by_criteria(stimPar2='left', surp=0, 
-                                                   by=by)
+        right_frames = self.get_frames_by_criteria(bri_dir='right', surp=0, 
+                                                   by=by, block_ran_seg=block_ran_seg)
+        left_frames  = self.get_frames_by_criteria(bri_dir='left', surp=0, 
+                                                   by=by, block_ran_seg=block_ran_seg)
 
         return right_frames, left_frames
         
