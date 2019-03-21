@@ -12,6 +12,7 @@ Note: this code uses python 2.7.
 '''
 
 import random
+import re
 
 import numpy as np
 import torch
@@ -119,6 +120,33 @@ def list_if_not(vals):
     if not isinstance(vals, list):
         vals = [vals]
     return vals
+
+
+#############################################
+def str_to_list(val_str, only_int=False):
+    """
+    str_to_list(val_str)
+
+    Converts string with values separated by spaces to a list of values.
+
+    Required arguments:
+        - val_str (str): values separated by spaces
+
+    Optional arguments:
+        - only_int (bool): if True, values are converted to ints
+                           default: False
+
+    Return:
+        str_list (list): list of values.
+    """
+    if len(val_str) == 0:
+        str_list = []
+    else:
+        str_list = val_str.split()
+        if only_int:
+            str_list = [int(re.findall('\d+', val)[0]) for val in str_list]
+        
+    return str_list
 
 
 #############################################

@@ -273,14 +273,13 @@ class Session(object):
 
                 # get the number of data points in the traces
                 self.nframes = f['data'].shape[1]
-
-                # generate attribute listing ROIs with NaNs or Infs (for raw traces)
-                self.get_nanrois(f['data'].value)
     
         except:
             raise exceptions.IOError('Could not open {} for reading'
                                      .format(self.roi_traces))
 
+        # generate attribute listing ROIs with NaNs or Infs (for raw traces)
+        self.get_nanrois()
 
     #############################################
     def _modif_bri_segs(self):
@@ -312,7 +311,21 @@ class Session(object):
                 
 
     #############################################
-    def get_nanrois(self, traces, dfoverf=False):
+    def get_nanrois(self, dfoverf=False):
+
+        # generate attribute listing ROIs with NaNs or Infs (for dff traces)
+        if dfoverf:
+            full_traces = self.roi_traces_dff
+        else:
+            full_traces = self.roi_traces
+        
+        if not os.path.exists(full_traces):
+            raise IOError(('Specified ROI traces file does not exist: '
+                           '{}').format(full_traces))
+        
+        with h5py.File(full_traces, 'r') as f:
+            traces = f['data'].value
+
         nan_arr = np.isnan(traces).any(axis=1) + np.isinf(traces).any(axis=1)
         nan_rois = np.where(nan_arr)[0].tolist()
 
@@ -481,11 +494,7 @@ class Session(object):
             with h5py.File(self.roi_traces_dff, 'w') as hf:
                 hf.create_dataset('data',  data=traces)
         
-        # generate attribute listing ROIs with NaNs or Infs (for dff traces)
-        with h5py.File(self.roi_traces_dff, 'r') as f:
-            traces = f['data'].value
-        
-        self.get_nanrois(traces, dfoverf=True)
+        self.get_nanrois(dfoverf=True)
 
 
     #############################################
@@ -1691,13 +1700,12 @@ class Stim(object):
             else:
                 nan_rois = self.sess.nanrois
 
-
         if nans in ['rem', 'rem_all', 'list', 'list_all']:
             n_rois = len(roi_data)
             ok_rois = sorted(set(range(n_rois)) - set(nan_rois))
             if nans in ['rem', 'rem_all']:
                 roi_data = np.asarray(roi_data)[ok_rois]
-                if len(nan_rois) != 0:
+                if len(nan_rois) != 0 and nans == 'rem':
                     print('Removing {}/{} ROIs: {}'.format(len(nan_rois), n_rois, 
                                                ', '.join([str(x) for x in nan_rois])))
         

@@ -52,28 +52,32 @@ def linclab_plt_defaults(font='Liberation Sans', font_dir=None, print_fonts=Fals
               '#e0b424', # yellow
               '#b04900', # brown
               ] 
+    col_cyc = plt.cycler(color=colors)
 
     # set pyplot params
-    params = {'axes.labelsize'      : 'x-large',  # large axis labels
-              'axes.linewidth'      : 1.5,        # thicker axis lines
-              'axes.prop_cycle'     : plt.cycler(color=colors), # line color cycle
-              'axes.spines.right'   : False,      # no axis spine on right
-              'axes.spines.top'     : False,      # no axis spine at top
-              'axes.titlesize'      : 'x-large',  # x-large axis title
-              'errorbar.capsize'    : 8,          # errorbar cap length
-              'figure.titlesize'    : 'x-large',  # x-large figure title
-              'legend.fontsize'     : 'large',    # large legend text
-              'lines.dashed_pattern': [8.0, 4.0], # longer dashes
-              'lines.linewidth'     : 2.5,        # thicker lines
-              'patch.linewidth'     : 2.5,        # thicker lines for patches
-              'savefig.format'      : 'svg',      # figure save format
-              'savefig.bbox'        : 'tight',    # tight cropping of figure
-              'xtick.labelsize'     : 'large',    # large x-tick labels
-              'xtick.major.size'    : 8.0,        # longer x-ticks
-              'xtick.major.width'   : 2.0,        # thicker x-ticks
-              'ytick.labelsize'     : 'large',    # large y-tick labels
-              'ytick.major.size'    : 8.0,        # longer y-ticks
-              'ytick.major.width'   : 2.0,        # thicker y-ticks
+    params = {'axes.labelsize'       : 'x-large',  # large axis labels
+              'axes.linewidth'       : 1.5,        # thicker axis lines
+              'axes.prop_cycle'      : col_cyc,    # line color cycle
+              'axes.spines.right'    : False,      # no axis spine on right
+              'axes.spines.top'      : False,      # no axis spine at top
+              'axes.titlesize'       : 'x-large',  # x-large axis title
+              'errorbar.capsize'     : 8,          # errorbar cap length
+              'figure.titlesize'     : 'x-large',  # x-large figure title
+              'legend.fontsize'      : 'large',    # large legend text
+              'lines.dashed_pattern' : [8.0, 4.0], # longer dashes
+              'lines.linewidth'      : 2.5,        # thicker lines
+              'lines.markeredgewidth': 2.5,        # thick marker edge widths 
+                                                   # (e.g., cap thickness) 
+              'lines.markersize'     : 10,         # bigger markers
+              'patch.linewidth'      : 2.5,        # thicker lines for patches
+              'savefig.format'       : 'svg',      # figure save format
+              'savefig.bbox'         : 'tight',    # tight cropping of figure
+              'xtick.labelsize'      : 'large',    # large x-tick labels
+              'xtick.major.size'     : 8.0,        # longer x-ticks
+              'xtick.major.width'    : 2.0,        # thicker x-ticks
+              'ytick.labelsize'      : 'large',    # large y-tick labels
+              'ytick.major.size'     : 8.0,        # longer y-ticks
+              'ytick.major.width'    : 2.0,        # thicker y-ticks
               }
 
     # add new fonts to list if a font directory is provided
@@ -185,6 +189,48 @@ def plot_seg_comp(analys_par, plot_vals='diff', op='diff'):
 
 
 #############################################
+def set_ticks(ax, axis='x', min_tick=0, max_tick=1.5, n=6, pad_p=0.05):
+    """
+    set_ticks(ax)
+
+    Creates a list of labels for gabor frames based on values that are plotted,
+    and operation on surprise v no surprise, starting with gray.
+
+    Required arguments:
+        - ax (plt Axis subplot): subplot
+
+    Optional arguments:
+        - axis (str)      : axis for which to set ticks, i.e., x, y or both
+                            default: 'x'
+        - min_tick (float): first tick value
+                            default: 0
+        - max_tick (float): last tick value
+                            default: 1.5
+        - n (int)         : number of ticks
+                            default: 6
+        - pad_p (float)   : percentage to pad axis length
+    """
+
+    pad = (max_tick - min_tick) * pad_p
+    min_end = min_tick - pad
+    max_end = max_tick + pad
+    
+    if axis == 'both':
+        axis = ['x', 'y']
+    elif axis in ['x', 'y']:
+        axis = gen_util.list_if_not(axis)
+    else:
+        gen_util.accepted_values_error('axis', axis, ['x', 'y', 'both'])
+
+    if 'x' in axis:
+        ax.set_xlim(min_end, max_end)
+        ax.set_xticks(np.linspace(min_tick, max_tick, n))
+    elif 'y' in axis:
+        ax.set_ylim(min_end, max_end)
+        ax.set_yticks(np.linspace(min_tick, max_tick, n))
+
+
+#############################################
 def plot_val_lab(plot_vals='diff', op='diff', start_fr=-1):
     """
     plot_val_lab()
@@ -291,7 +337,7 @@ def init_fig(n_subplots, fig_par, div=1.0):
 
 
 #############################################
-def save_fig(fig, save_dir, save_name, fig_par):
+def save_fig(fig, save_dir, save_name, fig_par, print_dir=True):
     """
     save_fig(fig, save_dir, save_name, fig_par)
 
@@ -313,6 +359,11 @@ def save_fig(fig, save_dir, save_name, fig_par):
                 ['overwrite'] (bool): if False, overwriting existing figures is 
                                       prevented by adding suffix numbers.
                 ['prev_dt'] (str)   : datetime folder to use
+    
+    Optional arguments:
+        - print_dir (bool): if True, the save directory is printed 
+                            default: True
+    
     Returns:
         - save_dir (str): final name of the directory in which the figure is 
                           saved 
@@ -321,13 +372,10 @@ def save_fig(fig, save_dir, save_name, fig_par):
                           been added depending on the parameters in fig_par.)
     """
 
-    print_dir = True
-
     # add subfolder with date and time
     if fig_par['datetime']:
         if fig_par['mult'] and fig_par['prev_dt'] is not None:
             save_dir = os.path.join(save_dir, fig_par['prev_dt'])
-            print_dir = False
         else:
             datetime = str_util.create_time_str()
             save_dir = os.path.join(save_dir, datetime)
@@ -337,20 +385,22 @@ def save_fig(fig, save_dir, save_name, fig_par):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     
-    full_save_name = '{}.{}'.format(save_name, fig_par['fig_ext'])
+    full_name = '{}.{}'.format(save_name, fig_par['fig_ext'])
 
     # check if file aready exists, and if so, add number at end
     if not fig_par['overwrite']:
-        if os.path.exists(os.path.join(save_dir, full_save_name)):     
+        if os.path.exists(os.path.join(save_dir, full_name)):     
             count = 1
-            while os.path.exists(os.path.join(save_dir, '{}_{}.{}'.format(save_name, count, fig_par['fig_ext']))):
+            full_name = '{}_{}.{}'.format(save_name, count, fig_par['fig_ext']) 
+            while os.path.exists(os.path.join(save_dir, full_name)):
                 count += 1 
-            full_save_name = '{}_{}.{}'.format(save_name, count, fig_par['fig_ext'])
+                full_name = '{}_{}.{}'.format(save_name, count, 
+                                              fig_par['fig_ext'])
 
     if print_dir:
-        print('Figures saved under {}.'.format(save_dir))
+        print('\nFigures saved under {}.'.format(save_dir))
 
-    fig.savefig(os.path.join(save_dir, full_save_name), bbox=fig_par['bbox'])
+    fig.savefig(os.path.join(save_dir, full_name), bbox=fig_par['bbox'])
     
     return save_dir
 
