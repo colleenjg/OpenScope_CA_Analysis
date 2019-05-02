@@ -1,4 +1,4 @@
-sessionid,mouseid,mouseid_full,date,depth,layer,line,runtype,n_rois,sess_n,within_sess_n,overall_sess_n,pass_fail,all_files,any_files,notes
+sessid,mouse_n,mouseid,date,depth,layer,line,runtype,nrois,sess_gen,sess_within,sess_n,pass_fail,all_files,any_files,notes
 723322122,1,392960,20180719,175,soma,L23-Cux2,pilot,29,1,1,1,P,1,1,
 721975393,1,392960,20180718,175,soma,L23-Cux2,pilot,35,2,1,2,P,1,1,
 721032982,1,392960,20180717,175,soma,L23-Cux2,pilot,37,3,1,3,P,1,1,
@@ -49,13 +49,13 @@ sessionid,mouseid,mouseid_full,date,depth,layer,line,runtype,n_rois,sess_n,withi
 761269197,4,411771,20181008,375,soma,L5-Rbp4,prod,99,3,1,3,P,1,1,
 763949859,5,412933,20181016,75,soma,L23-Cux2,prod,12,1,1,1,F,1,1,ROI not in retinotopic center
 764897534,5,412933,20181017,75,soma,L23-Cux2,prod,11,1,2,2,F,1,1,ROI not in retinotopic center
-765427689,5,412933,181018,75,soma,L23-Cux2,prod,12,1,3,3,F,1,1,ROI not in retinotopic center
+765427689,5,412933,20181018,75,soma,L23-Cux2,prod,12,1,3,3,F,1,1,ROI not in retinotopic center
 766755831,5,412933,unk,50,dend,L23-Cux2,prod,unk,1,4,4,P,0,0,
 767254594,5,412933,unk,50,dend,L23-Cux2,prod,unk,2,1,5,P,0,0,
 768807532,5,412933,unk,50,dend,L23-Cux2,prod,unk,3,1,6,P,0,0,
 764704289,6,413663,20181017,50,dend,L23-Cux2,prod,102,1,1,1,P,1,1,
 765193831,6,413663,20181018,50,dend,L23-Cux2,prod,193,2,1,2,P,1,1,
-766502238,6,413663,181022,50,dend,L23-Cux2,prod,unk,3,1,3,P,0,1,
+766502238,6,413663,20181022,50,dend,L23-Cux2,prod,unk,3,1,3,P,0,1,
 777914830,7,420011,unk,20,dend,L5-Rbp4,prod,unk,1,1,1,P,0,0,
 778864809,7,420011,unk,20,dend,L5-Rbp4,prod,unk,2,1,2,P,0,0,
 779650018,7,420011,unk,20,dend,L5-Rbp4,prod,unk,3,1,3,P,0,0,

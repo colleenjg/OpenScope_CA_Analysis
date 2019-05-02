@@ -17,6 +17,7 @@ dependencies:
     - jupyter
     - scikit-learn
     - scikit-image
+    - astropy
     - pytorch
     - torchvision
     - pip:

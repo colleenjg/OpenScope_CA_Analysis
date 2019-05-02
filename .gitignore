@@ -1,7 +1,9 @@
-# ignore all subdirectories, except analysis and util
-/*/
-!/analysis/
+# ignore all subdirectories, except analysis, util and sess_util
+/*/ 
 !/util/
+!/sess_util/
+!/analysis/
+!/plot_fcts/
 
 *.pyc
 *.ods

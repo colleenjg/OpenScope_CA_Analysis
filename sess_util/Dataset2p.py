@@ -7,6 +7,7 @@ Created on Mon Mar 21 14:05:33 2016
 A few tools for analyzing an ophys experiment.
 
 """
+
 import os
 import pickle
 import json

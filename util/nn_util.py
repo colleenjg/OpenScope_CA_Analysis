@@ -11,18 +11,15 @@ Date: September, 2018
 Note: this code uses python 2.7.
 
 """
+import argparse as ap
 import os
 import pdb
-import argparse as ap
 import random as rnd
 
+import numpy as np
 import tables as tb
 import torch
 import torchvision
-import numpy as np
-
-import session
-import gen_util, math_util
 
 
 #########################################################################
@@ -33,9 +30,9 @@ class SessionROIDataset(torch.utils.data.Dataset):
 	"""
 
 	#################################	
-	def __init__(self, session, frames, labels=None, normalize=True):
+	def __init__(self, session, frames, labels=None, scale=True):
         """
-        __init__(session, frames, labels=None, normalize=True)
+        __init__(session, frames, labels=None, scale=True)
 
         Create the new dataset object from the session and frames provided. If
         labels is provided, also returns labels with frames (for supervised
@@ -49,7 +46,7 @@ class SessionROIDataset(torch.utils.data.Dataset):
             - droptol (float): the tolerance for percentage stimulus frames 
                                dropped, create a Warning if this condition 
                                isn't met.
-                               default = 0.0003 
+                               default: 0.0003 
         """
 
 	#################################	
@@ -66,9 +63,9 @@ class SessionROIDataset(torch.utils.data.Dataset):
 #	"""
 #
 #	#################################	
-#	def __init__(self, session, frames, labels=None, normalize=True):
+#	def __init__(self, session, frames, labels=None, scale=True):
 #        """
-#        __init__(session, frames, labels=None, normalize=True)
+#        __init__(session, frames, labels=None, scale=True)
 #
 #        Create the new dataset object from the session and frames provided. If
 #        labels is provided, also returns labels with frames (for supervised
@@ -82,7 +79,7 @@ class SessionROIDataset(torch.utils.data.Dataset):
 #            - droptol (float): the tolerance for percentage stimulus frames 
 #                               dropped, create a Warning if this condition 
 #                               isn't met.
-#                               default = 0.0003 
+#                               default: 0.0003 
 #        """
 #
 #	#################################	
