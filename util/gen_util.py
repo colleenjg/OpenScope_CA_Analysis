@@ -1,7 +1,7 @@
-'''
+"""
 gen_util.py
 
-This module contains general functions.
+This module contains general purpose functions.
 
 Authors: Colleen Gillon
 
@@ -9,48 +9,72 @@ Date: October, 2018
 
 Note: this code uses python 2.7.
 
-'''
+"""
 
+import copy
+import datetime
 import random
 import re
 
 import numpy as np
-import torch
 import pandas as pd
+import torch
+
 
 #############################################
-def accepted_values_error(var_name, wrong_value, accept_values):
+def accepted_values_error(varname, wrong_val, accept_vals):
     """
-    accepted_values_error(var_name, wrong_value, accept_values)
+    accepted_values_error(varname, wrong_value, accept_values)
 
     Raises a value error with a message indicating the variable name,
     accepted values for that variable and wrong value stored in the variable.
 
-    Required arguments:
-        - var_name (str)      : name of the variable
-        - wrong_value (item)  : value stored in the variable
-        - accept_values (list): list of accepted values for the variable
+    Required args:
+        - varname (str)      : name of the variable
+        - wrong_val (item)  : value stored in the variable
+        - accept_vals (list): list of accepted values for the variable
     """
 
-    values_str = ', '.join(['\'{}\''.format(x) for x in accept_values])
+    val_str = ', '.join(['\'{}\''.format(x) for x in accept_vals])
     error_message = ('\'{}\' value \'{}\' unsupported. Must be in '
-                     '{}.').format(var_name, wrong_value, values_str)
+                     '{}.').format(varname, wrong_val, val_str)
     raise ValueError(error_message)
 
 
+#############################################
+def create_time_str():
+    """
+    create_time_str()
+
+    Returns a string in a format appropriate for a directory or filename
+    containing date and time information based on time at which the function is
+    called.
+
+    Return:
+        dirname (str): string containing date and time formatted as 
+                       YYMMDD_HHMMSS
+    """
+
+    now = datetime.datetime.now()
+    dirname = ('{:02d}{:02d}{:02d}_'
+               '{:02d}{:02d}{:02d}').format(now.year, now.month, now.day, 
+                                            now.hour, now.minute, now.second)
+    return dirname
+    
+    
 #############################################
 def remove_if(vals, rem):
     """
     remove_if(vals, rem)
 
-    Removes items from a list if they are in the list.
+    Returns input with items removed from it, if they were are the input.
 
-    Required arguments:
+    Required args:
         - vals (item or list): item or list from which to remove elements
         - rem (item or list) : item or list of items to remove from vals
 
-    Return:
-        vals (list): list with items removed.
+    Returns:
+        - vals (list): list with items removed.
     """
 
     if not isinstance(rem, list):
@@ -64,114 +88,171 @@ def remove_if(vals, rem):
 
 
 #############################################
-def remove_idx(vals, rem, axis=0):
+def list_if_not(items):
     """
-    remove_idx(vals, rem)
+    list_if_not(items)
 
-    Removes items with specific axis from a list or array.
+    Returns input in a list, if it is not a list.
 
-    Required arguments:
-        - vals (item or list): array or list from which to remove elements
-        - rem (item or list) : list of idx to remove from vals
+    Required args:
+        - items (obj or list): item or list
 
-    Optional arguments:
-        - axis (int): axis along which to remove indices if vals is an array
+    Returns:
+        - items (list): list version of input.
+    """
+    
+    if not isinstance(items, list):
+        items = [items]
+    return items
 
-    Return:
-        vals (list): list or array with idx removed.
+
+#############################################
+def remove_idx(items, rem, axis=0):
+    """
+    remove_idx(items, rem)
+
+    Returns input with items at specific indices in a specified axis removed.
+
+    Required args:
+        - items (item or array-like): array or list from which to remove 
+                                      elements
+        - rem (item or array-like)  : list of idx to remove from items
+
+    Optional args:
+        - axis (int): axis along which to remove indices if items is an array
+                      default: 0
+
+    Returns:
+        - items (array-like): list or array with specified items removed.
     """
 
-    if not isinstance(rem, list):
-        rem = [rem]
+    rem = list_if_not(rem)
 
-    if isinstance(vals, list):
+    if isinstance(items, list):
         make_list = True
-        vals = np.asarray(vals)
+        items     = np.asarray(items)
 
     else:
         make_list = False
 
-    all_idx = vals.shape[axis]
+    all_idx = items.shape[axis]
     keep = sorted(set(range(all_idx)) - set(rem))
     keep_slice = tuple([slice(None)] * axis + [keep])
 
-    vals = vals[keep_slice]
+    items = items[keep_slice]
 
     if make_list:
-        vals = vals.tolist()
+        items = items.tolist()
     
-    return vals
+    return items
 
 
 #############################################
-def list_if_not(vals):
+def pos_idx(idx, leng):
     """
-    list_if_not(vals)
+    pos_idx(idx, leng)
 
-    Converts input into a list if not a list.
+    Returns a list of indices with any negative indices replaced with
+    positive indices (e.g. -1 -> 4 for an axis of length 5).
 
-    Required arguments:
-        - vals (item or list): item or list
+    Required args:
+        - idx (int or list): index or list of indices
+        - leng (int)       : length of the axis
 
-    Return:
-        vals (list): list version of input.
+    Returns:
+        - idx (int or list): modified index or list of indices (all positive)
     """
+
+    if isinstance(idx, int):
+        if idx < 0:
+            idx = leng + idx
     
-    if not isinstance(vals, list):
-        vals = [vals]
-    return vals
+    else:
+        for i in range(len(idx)):
+            if idx[i] < 0:
+                idx[i] = leng + idx[i]
+        
+    return idx
 
 
 #############################################
-def str_to_list(val_str, only_int=False):
+def deepcopy_items(item_list):
     """
-    str_to_list(val_str)
+    deepcopy_items(item_list)
 
-    Converts string with values separated by spaces to a list of values.
+    Returns a deep copy of each item in the input.
 
-    Required arguments:
-        - val_str (str): values separated by spaces
+    Required args:
+        - item_list (list): list of items to deep copy
 
-    Optional arguments:
-        - only_int (bool): if True, values are converted to ints
+    Returns:
+        - new_item_list (list): list of deep copies of items
+    """
+    
+    item_list = list_if_not(item_list)
+
+    new_item_list = []
+    for item in item_list:
+        new_item_list.append(copy.deepcopy(item))
+
+    return new_item_list
+
+
+#############################################
+def str_to_list(item_str, only_int=False):
+    """
+    str_to_list(item_str)
+
+    Returns a list of items taken from the input string, in which different 
+    items are separated by spaces. 
+
+    Required args:
+        - item_str (str): items separated by spaces
+
+    Optional args:
+        - only_int (bool): if True, items are converted to ints
                            default: False
 
-    Return:
-        str_list (list): list of values.
+    Returns:
+        - item_list (list): list of values.
     """
-    if len(val_str) == 0:
-        str_list = []
+
+    if len(item_str) == 0:
+        item_list = []
     else:
-        str_list = val_str.split()
+        item_list = item_str.split()
         if only_int:
-            str_list = [int(re.findall('\d+', val)[0]) for val in str_list]
+            item_list = [int(re.findall('\d+', it)[0]) for it in item_list]
         
-    return str_list
+    return item_list
 
 
 #############################################
-def seed_all(seed, device='cpu', print_seed=True):
+def seed_all(seed=None, device='cpu', print_seed=True, seed_now=True):
     """
-    seed_all(seed)
+    seed_all()
 
-    Seeds different random number generators using the provided seed or a
+    Seeds different random number generators using the seed provided or a
     randomly generated seed if no seed is given.
 
-    Required arguments:
-        - seed (int or None): seed value to use
+    Required args:
+        
 
-    Optional arguments:
-        - device (str):      if 'cuda', torch.cuda, else if 'cpu', cuda is not
-                             seeded
-                             default: 'cpu'
-        - print_seed (bool): if True, seed value is printed to the console
-                             default: True
+    Optional args:
+        - seed (int or None): seed value to use. (-1 treated as None)
+                              default: None
+        - device (str)      : if 'cuda', torch.cuda, else if 'cpu', cuda is not
+                              seeded
+                              default: 'cpu'
+        - print_seed (bool) : if True, seed value is printed to the console
+                              default: True
+        - seed_now (bool)   : if True, random number generators are seeded now
 
-    Return:
-        seed (int): seed value
+    Returns:
+        - seed (int): seed value
     """
 
-    if seed in [None, 'None']:
+    if seed in [None, -1]:
         seed = random.randint(1, 10000)
         if print_seed:
             print('Random seed: {}'.format(seed))
@@ -179,44 +260,75 @@ def seed_all(seed, device='cpu', print_seed=True):
         if print_seed:
             print('Preset seed: {}'.format(seed))
     
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if device == 'cuda':
-        torch.cuda.manual_seed_all(seed)
+    if seed_now:
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        if device == 'cuda':
+            torch.cuda.manual_seed_all(seed)
     
     return seed
 
 
 #############################################
-def conv_type(vals, dtype=int):
+def conv_type(items, dtype=int):
     """
-    conv_type(vals)
+    conv_type(items)
 
-    Converts values in a list to a specific type (int, float or str) 
+    Returns input list with items converted to a specific type (int, float or 
+    str). 
 
-    Required arguments:
-        - vals (list): values to convert
+    Required args:
+        - items (list): values to convert
 
-    Optional arguments:
+    Optional args:
         - dtype (dtype): target datatype (int, float or str)
+                         default: int
 
-    Return:
-        vals (list): converted values
+    Returns:
+        - vals (list): converted values
     """
 
-    vals = list_if_not(vals)
+    items = list_if_not(items)
 
-    for i in range(len(vals)):
+    for i in range(len(items)):
         if dtype in [int, 'int']:
-            vals[i] = int(vals[i])
+            items[i] = int(items[i])
         elif dtype in [float, 'float']:
-            vals[i] = float(vals[i])
+            items[i] = float(items[i])
         elif dtype in [str, 'str']:
-            vals[i] = str(vals[i])
+            items[i] = str(items[i])
         else:
             accepted_values_error('dtype', dtype, ['int', 'float', 'str'])
 
+    return items
+
+
+#############################################
+def get_df_label_vals(df, label, vals=None):
+    """
+    get_df_label_vals(df, label)
+
+    Returns values for a specific label in a dataframe. If the vals is 'any', 
+    'all' or None, returns all different values for that label.
+    Otherwise, vals are returned as a list.
+
+    Required args:
+        - df (pandas df): dataframe
+        - label (str)   : label of the dataframe column of interest
+
+    Optional args:
+        - val (str or list): values to return. If val is None, 'any' or 'all', 
+                             all values are returned.
+                             default=None
+    Return:
+        - vals (list): values
+    """
+
+    if vals in [None, 'any', 'all']:
+        vals = df[label].unique().tolist()
+    else:
+        vals = list_if_not(vals)
     return vals
 
 
@@ -225,27 +337,35 @@ def get_df_vals(df, cols=[], criteria=[], label=None, unique=True, dtype=None):
     """
     get_df_vals(df, cols, criteria)
 
-    Selects lines or values in a dataframe that correspond to specific criteria. 
+    Returns dataframe lines or values that correspond to the specified 
+    criteria. 
 
-    Required arguments:
-        - df (pd Dataframe): dataframe
+    Required args:
+        - df (pandas df): dataframe
 
-    Optional arguments:
-        - cols (list)    : ordered list of columns for which criteria are provided
+    Optional args:
+        - cols (list)    : ordered list of columns for which criteria are 
+                           provided
+                           default: []
         - criteria (list): ordered list of criteria for each column
-
+                           default: []
         - label (str)    : column for which to return values
-                           if None, the dataframe lines are returned instead 
-        - unique (bool)  : if True, only unique values are returned for the column
-                           of interest
+                           if None, the dataframe lines are returned instead
+                           default: None
+        - unique (bool)  : if True, only unique values are returned for the 
+                           column of interest
+                           default: True
         - dtype (str)    : if not None, values are converted to the specified 
                            datatype (int, float or str)
+                           dtype: None
 
-    Return:
-        lines or vals (pd Dataframe or list): dataframe containing lines that 
-                                              corresponded to criteria or list 
-                                              of values from a specific column
-                                              from those lines. 
+    Returns:
+        if label is None:
+            - lines (pd Dataframe): dataframe containing lines corresponding to 
+                                    the specified criteria.
+        else:
+            - vals (list)         : list of values from a specific column 
+                                    corresponding to the specified criteria. 
     """
 
     cols = list_if_not(cols)
@@ -269,22 +389,22 @@ def get_df_vals(df, cols=[], criteria=[], label=None, unique=True, dtype=None):
 
 
 #############################################
-def set_df_vals(df, idx, cols=[], vals=[]):
+def set_df_vals(df, idx, cols, vals):
     """
     set_df_vals(df, attributes, criteria)
 
-    Sets columns in a dataframe line to specific values . 
+    Returns dataframe with certain values changed. These are specified by one
+    index and a list of columns and corresponding new values.
 
-    Required arguments:
-        - df (pd Dataframe): dataframe
-        - idx (int)        : dataframe line index (for use with .loc)
+    Required args:
+        - df (pandas df): dataframe
+        - idx (int)     : dataframe line index (for use with .loc)
+        - cols (list)   : ordered list of columns for which vals are 
+                          provided
+        - vals (list)   : ordered list of values for each column
 
-    Optional arguments:
-        - cols (list): ordered list of columns for which vals are provided
-        - vals (list): ordered list of values for each column
-
-    Return:
-        df (pd Dataframe): dataframe containing modified lines. 
+    Returns:
+        - df (pd Dataframe): dataframe containing modified lines. 
     """
 
     cols = list_if_not(cols)
@@ -300,51 +420,54 @@ def set_df_vals(df, idx, cols=[], vals=[]):
 
 
 #############################################
-def idx_segs(idx, pre=0, leng=10):
+def num_ranges(ns, pre=0, leng=10):
     """
-    idx_segs(idx)
+    num_ranges(ns)
 
-    Calculates indices for segments surrounding given reference indices. 
+    Returns all indices within the specified range of the provided reference 
+    indices. 
 
-    Required arguments:
-        - idx (list): list of reference indices
+    Required args:
+        - ns (list): list of reference numbers
 
-    Optional arguments:
-        - pre (float): indices to include before reference to include
-        - len (float): length of segment
-        
-    Return:
-        idx_segs (2D array): array of indices per segment (index x seg)
-
+    Optional args:
+        - pre (num) : indices to include before reference to include
+                      default: 0
+        - leng (num): length of range
+                      default: 10
+    Returns:
+        - num_ran (2D array): array of indices where each row is the range
+                              around one of the input numbers (ns x ranges)
     """
 
     post = float(leng) - pre
 
     pre, post = [int(np.around(p)) for p in [pre, post]]
 
-    idx_segs = np.asarray([range(x-pre, x+post) for x in idx])
+    num_ran = np.asarray([range(n-pre, n+post) for n in ns])
 
-    return idx_segs
+    return num_ran
 
 
 #############################################
 def get_device(cuda=False, device=None):
     """
-    get_device(idx)
+    get_device()
 
-    Returns device to use based cuda availability and whether cuda is requested, 
-    either via the 'cuda' or 'device' variable, with 'device' taking precedence.
+    Returns name of device to use based on cuda availability and whether cuda  
+    is requested, either via the 'cuda' or 'device' variable, with 'device' 
+    taking precedence.
 
-    Optional arguments:
-        - cuda (bool) : if True, cuda is used (if available)
+    Optional args:
+        - cuda (bool) : if True, cuda is used (if available), but will be 
+                        overridden by device.
                         default: False
         - device (str): indicates device to use, either 'cpu' or 'cuda', and 
                         will override cuda variable if not None
                         default: None 
         
-    Return:
-        device (str): device to use
-
+    Returns:
+        - device (str): device to use
     """
 
     if device is None:
@@ -356,4 +479,5 @@ def get_device(cuda=False, device=None):
         device = 'cpu'
 
     return device
+
 
