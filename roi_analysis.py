@@ -20,19 +20,17 @@ import multiprocessing
 import os
 import re
 
-import astropy.stats as astrost
 from joblib import Parallel, delayed
 from matplotlib import pyplot as plt
 import numpy as np
 import pdb
-import scipy.stats as st
-from sklearn import linear_model
 
 from util import file_util, gen_util, math_util, plot_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_plot_util, \
                       sess_str_util
-from analysis import quint_analys, session, signif_grps
+from analysis import ori_analys, quint_analys, session, signif_grps
 from plot_fcts import roi_analysis_plots as roi_plots
+
 
 #############################################
 def reformat_args(args):
@@ -97,7 +95,7 @@ def init_param_cont(args):
 
     Returns args:
         - in the following nametuples: analyspar, sesspar, stimpar, permpar, 
-                                       quintpar, roigrppar
+                                       quintpar, roigrppar, tcurvpar
         - in the following dictionary: figpar 
 
     Required args:
@@ -112,6 +110,8 @@ def init_param_cont(args):
             error (str)            : error statistic parameter ('std' or 'sem')
             fluor (str)            : if 'raw', raw ROI traces are used. If 
                                      'dff', dF/F ROI traces are used.
+            fontdir (str)          : path to directory containing additional 
+                                     fonts
             gabfr (int)            : gabor frame at which sequences start 
                                      (0, 1, 2, 3)
             gabk (int or list)     : gabor kappa values to include 
@@ -155,6 +155,19 @@ def init_param_cont(args):
             stats (str)            : statistic parameter ('mean' or 'median')
             stimtype (str)         : stimulus to analyse ('bricks' or 'gabors')
             tails (str or int)     : which tail(s) to test ('up', 'lo', 2)
+            tc_gabfr (int or str)  : gabor frame at which sequences start 
+                                     (0, 1, 2, 3) for tuning curve analysis
+                                     (x_x, interpreted as 2 gabfrs)
+            tc_grp2 (str)          : second group: either surp, reg or rand 
+                                     (random subsample of reg, the size of 
+                                     surp)
+            tc_post (float)        : range of frames to include after each 
+                                     reference frame (in s) for tuning curve 
+                                     analysis
+            tc_prev (bool)         : runs analysis using previous parameter 
+                                     estimation method
+            tc_test (bool)         : if True, tuning curve analysis is run on a 
+                                     small subset of ROIs and gabors
 
     Returns:
         - sesspar (SessPar)        : named tuple of session parameters
@@ -165,6 +178,7 @@ def init_param_cont(args):
         - permpar (PermPar)        : named tuple of permutation parameters
         - quintpar (QuintPar)      : named tuple of quintile parameters
         - roigrppar (RoiGrpPar)    : named tuple of roi grp parameters
+        - tcurvpar (TCurvPar)      : named tuple of tuning curve parameters
         - figpar (dict)            : dictionary containing following 
                                         subdictionaries:
             ['init']: dict with following inputs as attributes:
@@ -197,6 +211,12 @@ def init_param_cont(args):
                 ['surp_qu']  (str) : subdirectory name for surprise, quintile 
                                      analyses
                 ['tune_curv'] (str): subdirectory name for tuning curves
+            
+            ['mng']: dict with the following attributes:
+                ['plt_bkend'] (str): mpl backend to use
+                ['linclab'] (bool) : if True, Linclab mpl defaults are used
+                ['fontdir'] (str)  : path to directory containing additional 
+                                     fonts
     """
 
     # analysis parameters
@@ -229,14 +249,21 @@ def init_param_cont(args):
     roigrppar = sess_ntuple_util.init_roigrppar(args.grps, not(args.no_add_reg), 
                                                 args.op, args.plot_vals)
 
+    # tuning curve parameters
+    tcurvpar = sess_ntuple_util.init_tcurvpar(args.tc_gabfr, 0, args.tc_post, 
+                                              args.tc_grp2, args.tc_test, 
+                                              args.tc_prev)
+
     # figure parameters
     figpar = sess_plot_util.init_figpar(datetime=not(args.no_datetime), 
                                         overwrite=args.overwrite, 
                                         runtype=args.runtype, 
-                                        output=args.output)
+                                        output=args.output, 
+                                        plt_bkend=args.plt_bkend, 
+                                        fontdir=args.fontdir)
 
     return [analyspar, sesspar, stimpar, autocorrpar, permpar, quintpar, 
-            roigrppar, figpar]
+            roigrppar, tcurvpar, figpar]
 
 
 #############################################
@@ -920,7 +947,7 @@ def plot_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
 #############################################
 def plot_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts, 
                             analyspar, sesspar, stimpar, extrapar, quintpar, 
-                            figpar, parallel=False, plt_bkend=None):
+                            figpar, parallel=False):
     """
 
     plot_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts, 
@@ -951,7 +978,6 @@ def plot_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts,
         - quintpar (QuintPar)  : named tuple containing quintile analysis 
                                  parameters
         - figpar (dict)        : dictionary containing figure parameters
-        - plt_bkend (str): mpl backend to use, e.g. when running on server
 
     Optional args:
         - parallel (bool): if True, some of the analysis is parallelized across 
@@ -960,9 +986,6 @@ def plot_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts,
 
     stimstr    = sess_str_util.stim_par_str(stimpar.stimtype, stimpar.bri_dir, 
                                             stimpar.bri_size, stimpar.gabk)
-
-    if parallel and plt_bkend is not None:
-        plt.switch_backend(plt_bkend) # needs to be repeated within joblib
     
     qu_str, qu_str_pr = quintpar.qu_lab[0], quintpar.qu_lab[0]
     if qu_str != '':
@@ -1014,7 +1037,7 @@ def plot_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts,
             }
     
     roi_plots.plot_oridir_colormaps(figpar=figpar, parallel=parallel, 
-                                    plt_bkend=plt_bkend, **info)
+                                    **info)
 
     fulldir = roi_plots.plot_oridir_traces(figpar=figpar, **info)
 
@@ -1027,8 +1050,7 @@ def plot_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts,
 
 #############################################
 def plot_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar, 
-                       extrapar, quintpar, figpar, parallel=False, 
-                       plt_bkend=None):
+                       extrapar, quintpar, figpar, parallel=False):
     """
     plot_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
                        extrapar, quintpar, figpar)
@@ -1054,7 +1076,6 @@ def plot_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
     Optional args:
         - parallel (bool): if True, some of the analysis is parallelized across 
                            CPU cores
-        - plt_bkend (str): mpl backend to use, e.g. when running on server
     """
 
     # for each orientation/direction
@@ -1083,22 +1104,21 @@ def plot_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
                                     for sess_c in trace_info[2]])
     
     if parallel:
-        num_cores = multiprocessing.cpu_count()
-        Parallel(n_jobs=num_cores)(delayed(plot_oridirs_by_qu_sess)
+        n_jobs = min(multiprocessing.cpu_count(), len(sessions))
+        Parallel(n_jobs=n_jobs)(delayed(plot_oridirs_by_qu_sess)
                 (se, sess, oridirs, surps, xran, mes, counts, analyspar, 
-                 sesspar, stimpar, extrapar, quintpar, figpar, parallel, 
-                 plt_bkend) 
+                 sesspar, stimpar, extrapar, quintpar, figpar, False) 
                  for se, sess in enumerate(sessions))
     else:
         for se, sess in enumerate(sessions):
             plot_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts, 
                                     analyspar, sesspar, stimpar, extrapar, 
-                                    quintpar, figpar, parallel, plt_bkend)
+                                    quintpar, figpar, parallel)
 
 
 #############################################
 def plot_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar, 
-                 figpar, parallel=False, plt_bkend=None):
+                 figpar, parallel=False):
     """
     plot_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar, 
                  figpar)
@@ -1120,7 +1140,6 @@ def plot_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar,
     Optional args:
         - parallel (bool): if True, some of the analysis is parallelized across 
                            CPU cores
-        - plt_bkend (str): mpl backend to use, e.g. when running on server
     """
    
     # update stim parameters parameters
@@ -1160,150 +1179,21 @@ def plot_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar,
     if figpar['save']['use_dt'] is None:
         figpar['save']['use_dt'] = gen_util.create_time_str()
 
-    if parallel:
-        num_cores = multiprocessing.cpu_count()
-        Parallel(n_jobs=num_cores)(delayed(plot_oridirs_by_qu)
+    if parallel and len(quintpars) > len(sessions):
+        n_jobs = min(multiprocessing.cpu_count(), len(quintpars))
+        Parallel(n_jobs=n_jobs)(delayed(plot_oridirs_by_qu)
                 (sessions, oridirs, surps, analyspar, sesspar, stimpar, 
-                 extrapar, quintpar, figpar, parallel, plt_bkend) 
+                 extrapar, quintpar, figpar, False) 
                  for quintpar in quintpars)
     else:
         for quintpar in quintpars:
             plot_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, 
-                               stimpar, extrapar, quintpar, figpar, parallel, 
-                               plt_bkend)
+                               stimpar, extrapar, quintpar, figpar, parallel)
 
 
 #############################################
-def estim_vm(x_cuml, data_sort, tc_oris, hist_n=1000):
-    """
-    estim_vm(x_cuml, data_sort, tc_oris)
-
-    Returns estimates of von Mises distributions for an ROI based on the 
-    input orientations and ROI activations.
-
-    Required args:
-        - x_cuml (1D array)   : mask array where values are incremented for 
-                                each new orientation (sorted)
-        - data_sort (1D array): ROI values corresponding to the mask
-        - tc_oris (list)      : list of orientation values (sorted and unique)
-   
-    Optional args:
-        - hist_n (int): number of values to build the histogram with
-                        default: 1000 
-
-   Returns:
-        - av_roi_data (list): list of mean integrated fluorescence data per 
-                              unique orientation
-        - vm_pars (list)    : tuning curve (von Mises) parameter estimates
-                              (kappa, mean, scale)
-        - hist_pars (list)  : parameters to create histograms from (sub, mult) 
-    """
-
-    av_roi_data = np.bincount(x_cuml, data_sort)/ \
-                              np.bincount(x_cuml).astype(float)
-    sub = np.min(av_roi_data)
-    mult = hist_n/np.sum(av_roi_data - sub)
-    counts = np.around((av_roi_data - sub) * mult).astype(int)
-    freq_data = np.repeat(tc_oris, counts)
-    # von mises fit
-    pars = st.vonmises.fit(np.radians(freq_data), fkappa=0.5, fscale=0.5)
-    vm_pars = st.vonmises.fit(np.radians(freq_data), floc=pars[1], fscale=0.5)
-    hist_pars = [sub, mult]
-
-    av_roi_data = av_roi_data.tolist()
-
-    return av_roi_data, vm_pars, hist_pars
-
-
-#############################################
-def estim_vm_by_roi(oris, roi_data, hist_n=1000, parallel=False):
-    """
-    estim_vm_by_roi(oris, roi_data)
-
-    Returns estimates of von Mises distributions for each ROI based on the 
-    input orientations and ROI activations.
-
-    Required args:
-        - oris (array-like)  : array of orientations
-        - roi_data (2D array): corresponding array of ROI values, 
-                               structured as ROI x ori
-    
-    Optional args:
-        - hist_n (int)   : number of values to build the histogram with
-                           default: 1000 
-        - parallel (bool): if True, some of the analysis is parallelized across 
-                           CPU cores
-
-    Returns:
-        - tc_oris (list)         : list of orientation values (sorted and 
-                                   unique)
-        - tc_data (list)         : list of mean integrated fluorescence data 
-                                   per unique orientation, structured 
-                                   as ROI x orientation
-        - tc_vm_pars (nd array)  : tuning curve (von Mises) parameter estimates, 
-                                   structured as ROI x par (kappa, mean, scale)
-        - tc_hist_pars (nd array): paremeters to create histograms, structured 
-                                   as ROI x par (sub, mult)
-    """
-
-    # sort by gab orientation
-    x_sort_idx    = np.argsort(oris)
-    xsort         = oris[x_sort_idx]
-    roi_data_sort = roi_data[:, x_sort_idx]
-    
-    # get mask of int values for each unique x value
-    x_cuml = np.insert((np.diff(xsort) != 0).cumsum(), 0, 0)
-    tc_oris = np.unique(xsort).tolist()
-    tc_data = []
-    tc_hist_pars = np.empty([len(roi_data_sort), 2])
-
-    if parallel:
-        num_cores = multiprocessing.cpu_count()
-        returns = Parallel(n_jobs=num_cores)(delayed(estim_vm)
-                          (x_cuml, data_sort, tc_oris, hist_n) 
-                          for data_sort in roi_data_sort)       
-    else:
-        returns = []
-        for data_sort in roi_data_sort:
-            returns.append(estim_vm(x_cuml, data_sort, tc_oris, hist_n))        
-
-    tc_data      = zip(*returns)[0]
-    tc_vm_pars   = np.asarray(zip(*returns)[1])
-    tc_hist_pars = np.asarray(zip(*returns)[2])
-
-    return tc_oris, tc_data, tc_vm_pars, tc_hist_pars
-
-
-# #############################################
-
-# def perm_test()
-
-#     if parallel:
-#         num_cores = multiprocessing.cpu_count()
-#         returns = Parallel(n_jobs=num_cores)(delayed(
-#                             estim_vm_by_roi)(gab_oris_nodir[:, g], 
-#                             roi_data, hist_n, parallel) 
-#                             for g in range(ngab))       
-#     else:
-#         returns = []
-#         for g in range(ngab):
-#             returns.append(estim_vm_by_roi(gab_oris_nodir[:, g], 
-#                                            roi_data, hist_n))
-
-#     # gabor x ROI x par (kappa, mean)
-#     [_, _, gab_vm_pars, _] = zip(*returns)[:, :, 0:2]
-
-#     means = gab_vm_pars[:, :, 1]
-#     kaps = gab_vm_pars[:, :, 0]
-#     tc_vm_means = st.circmean(means, np.pi/2., -np.pi/2, axis=1)
-#     if not comb_gabs:
-#         # astropy only implemented with -pi to pi range
-#         tc_vm_wmeans = astrost.circmean(means * 2., axis=1, weights=kaps)/2.
-    
-
-#############################################
-def plot_tune_curves(sessions, analysis, analyspar, sesspar, stimpar, figpar, 
-                     parallel=False, plt_bkend=None):
+def plot_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar, 
+                     tcurvpar, figpar, parallel=False, plot_tc=True):
     """
     plot_tune_curves(sessions, analysis, analyspar, sesspar, stimpar, figpar)
 
@@ -1313,15 +1203,19 @@ def plot_tune_curves(sessions, analysis, analyspar, sesspar, stimpar, figpar,
     Required args:
         - sessions (list)      : list of Session objects
         - analysis (str)       : analysis type (e.g., 'c')
+        - seed (int)           : seed to use
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
+        - tcurvpar (TCurvPar)  : named tuple containing tuning curve 
+                                 parameters
         - figpar (dict)        : dictionary containing figure parameters
 
     Optional args:
         - parallel (bool): if True, some of the analysis is parallelized across 
                            CPU cores 
-        - plt_bkend (str): mpl backend to use, e.g. when running on server
+        - plot_tc (bool) : if True, tuning curves are plotted for each ROI 
+                           (causes errors on the clusters...)  
     """
 
     if stimpar.stimtype == 'bricks':
@@ -1332,206 +1226,187 @@ def plot_tune_curves(sessions, analysis, analyspar, sesspar, stimpar, figpar,
                                        sesspar.layer, stimpar.bri_dir, 
                                        stimpar.bri_size, stimpar.gabk, 'print')
     
+    print(('\nAnalysing and plotting ROI tuning curves for orientations '
+           '({}).').format(sessstr_pr))
+
     nrois = 'all'
-    ngab  = 'all'
-
-    # Q: correlation: only intercept? Assume slope of 1?
-    # 
-    # TO DO LATER
-    # 1. run permutation analysis
-    # 2. correlate E and D in 90 degree window: bin and correlate -> collapse across Gabors
-    # 3. repeat analysis only on shared 90 degree window -> collapse across Gabors
-    # 4. measure selectivity index? (peak to trough)
-
-    # PERMUTATION ANALYSIS
+    ngabs = 'all'
+    # small values for testing
+    if tcurvpar.test:
+        nrois = 2
+        ngabs = 3
     
+    print('Number ROIs: {}\nNumber of gabors: {}'.format(nrois, ngabs))
+
     # modify parameters
     stimpar_tc_dict = stimpar._asdict()
-    stimpar_tc_dict['gabfr'] = 3
-    stimpar_tc_dict['pre'] = 0
-    stimpar_tc_dict['post'] = 0.6
+    stimpar_tc_dict['gabfr'] = tcurvpar.gabfr
+    stimpar_tc_dict['pre'] = tcurvpar.pre
+    stimpar_tc_dict['post'] = tcurvpar.post
     stimpar_tc = sess_ntuple_util.init_stimpar(**stimpar_tc_dict)
 
-    print(('\nAnalysing and plotting ROI tuning curves for orientations and '
-           'positions ({}).').format(sessstr_pr))
+    gabfrs = gen_util.list_if_not(stimpar_tc.gabfr)
+    if len(gabfrs) == 1:
+        gabfrs = gabfrs * 2
+    if tcurvpar.grp2 == 'surp':
+        surps = [0, 1]
+    elif tcurvpar.grp2 in ['reg', 'rand']:
+        surps = [0, 0]
+    else:
+        gen_util.accepted_values_error('tcurvpar.grp2', tcurvpar.grp2, 
+                                       ['surp', 'reg', 'rand'])
 
-    # retrieve integ activity per ROI per gabor D and E segments, as well as 
-    # gabor orientations
-    
+    seed = gen_util.seed_all(seed, 'cpu', print_seed=False)
+
     if figpar['save']['use_dt'] is None:
         figpar['save']['use_dt'] = gen_util.create_time_str()
 
     for comb_gabs in [False, True]:
-        surps = [0, 1]
         for sess in sessions:
-            stim = sess.get_stim(stimpar.stimtype)
+            stim = sess.get_stim(stimpar_tc.stimtype)
             nrois_tot = sess_gen_util.get_nrois(sess.nrois, len(sess.nanrois), 
                                             len(sess.nanrois_dff), 
                                             analyspar.remnans, analyspar.fluor)
+            ngabs_tot = stim.n_patches
             if nrois == 'all':
-                nrois = nrois_tot
+                sess_nrois = nrois_tot
             else:
-                nrois = np.min([nrois_tot, nrois])
-                
-            hist_n = 1000
-            kapw_bool = [0, 1]
-            if comb_gabs:
-                ngab = 1
-                hist_n *= stim.n_patches
-                kapw_bool = [0]
-            elif ngab == 'all':
-                ngab = stim.n_patches
+                sess_nrois = np.min([nrois_tot, nrois])
+            
+            if ngabs == 'all':
+                sess_ngabs = stim.n_patches
+            else:
+                sess_ngabs = np.min([stim.n_patches, ngabs])                
 
-            tc_data, tc_oris = [], []
-            tc_vm_pars   = np.empty([nrois, len(surps), ngab, 3])
-            # non kappa weighted, kappa weighted
-            tc_vm_mean   = np.empty([nrois, len(surps), len(kapw_bool)])
-            # R squared, slope, intercept x non kappa weighted/kappa weighted
-            tc_vm_regr   = np.empty([3, len(kapw_bool)]) 
-            tc_hist_pars = np.empty([nrois, len(surps), ngab, 2])
-            for s in surps:
-                all_segs = stim.get_segs_by_criteria(gabfr=stimpar_tc.gabfr, 
-                                                  bri_dir=stimpar_tc.bri_dir, 
-                                                  bri_size=stimpar_tc.bri_size, 
-                                                  gabk=stimpar_tc.gabk, 
-                                                  surp=s, by='seg')
-                # all_segs = np.random.choice(all_segs, int(seg_p[surp] * len(all_segs)), replace=False)
-                twopfr = stim.get_twop_fr_per_seg(all_segs, first=True)
+            tc_data, tc_oris, tc_nseqs = [], [], []
+            if tcurvpar.prev: # PREVIOUS ESTIMATION METHOD
+                tc_vm_pars, tc_vm_mean, tc_hist_pars = [], [], []
+    
+            for i, (gf, s) in enumerate(zip(gabfrs, surps)):
+                # get segments
+                segs = stim.get_segs_by_criteria(gabfr=gf, 
+                                                 bri_dir=stimpar_tc.bri_dir, 
+                                                 bri_size=stimpar_tc.bri_size, 
+                                                 gabk=stimpar_tc.gabk, 
+                                                 surp=s, by='seg')
                 
+                if tcurvpar.grp2 == 'rand' and i == 1:
+                    n_segs = len(stim.get_segs_by_criteria(gabfr=gf, 
+                                                 bri_dir=stimpar_tc.bri_dir, 
+                                                 bri_size=stimpar_tc.bri_size, 
+                                                 gabk=stimpar_tc.gabk, 
+                                                 surp=1, by='seg'))
+                    np.random.shuffle(segs)
+                    segs = sorted(segs[: n_segs])
+                tc_nseqs.append(len(segs))
+                twopfr = stim.get_twop_fr_per_seg(segs, first=True)
                 # ROI x seq
                 roi_data = stim.get_roi_trace_array(twopfr, stimpar_tc.pre, 
                                   stimpar_tc.post, analyspar.fluor, integ=True, 
-                                  remnans=analyspar.remnans)[1][:nrois]
-                # seg x gab
-                gab_oris = stim.get_stim_par_by_seg(all_segs, pos=False, 
-                                                    ori=True, size=False)[0]
-
-                # move to -90 to 90 range by collapsing opposite angles
-                gab_oris_nodir = np.copy(gab_oris)
-                ori_ch = np.where(np.absolute(gab_oris) > 90)
-                new_vals = gab_oris[ori_ch] - np.sign(gab_oris[ori_ch]) * 180.0
-                gab_oris_nodir[ori_ch] = new_vals
-                    
-                # if s == 0:
-                #     n_surp = len(stim.get_segs_by_criteria(gabfr=stimpar_tc.gabfr, 
-                #                                   bri_dir=stimpar_tc.bri_dir, 
-                #                                   bri_size=stimpar_tc.bri_size, 
-                #                                   gabk=stimpar_tc.gabk, 
-                #                                   surp=1, by='seg'))
-                #     n_reg = len(all_segs) - n_surp
-
-                #     # array of gab_val, roi_data x segments
-                #     full_data = np.concatenate([gab_oris_nodir.T, roi_data], axis=0)
-                #     perm_data = math_util.run_permute(full_data, n_perms=4000, lim_e6='none')
-                    
-                #     reg_data = perm_data[:, : n_reg, :]
-                #     surp_data = perm_data[:, n_reg :, :]
-
-                #     if parallel:
-                #         num_cores = multiprocessing.cpu_count()
-                #         returns = Parallel(n_jobs=num_cores)(delayed(perm_test))
-
+                                  remnans=analyspar.remnans)[1][:sess_nrois]
+                # gab x seq 
+                gab_oris = stim.get_stim_par_by_seg(segs, pos=False, ori=True, 
+                                                    size=False)[0].T
+                gab_oris = ori_analys.collapse_dir(gab_oris)
 
                 if comb_gabs:
-                    ngabs_tot      = gab_oris_nodir.shape[1]
-                    roi_data       = np.tile(roi_data, [1, ngabs_tot])
-                    gab_oris_nodir = gab_oris_nodir.reshape([-1, 1])
+                    ngabs = 1
+                    gab_oris = gab_oris.reshape([1, -1])
+                    roi_data = np.tile(roi_data, [1, ngabs_tot])
+                    
+                tc_oris.append(gab_oris.tolist())
+                tc_data.append(roi_data.tolist())
 
-                if parallel:
-                    num_cores = multiprocessing.cpu_count()
-                    returns = Parallel(n_jobs=num_cores)(delayed(
-                                       estim_vm_by_roi)(gab_oris_nodir[:, g], 
-                                       roi_data, hist_n, parallel) 
-                                       for g in range(ngab))       
-                else:
-                    returns = []
-                    for g in range(ngab):
-                        returns.append(estim_vm_by_roi(gab_oris_nodir[:, g], 
-                                                       roi_data, hist_n))
-                [gab_tc_oris, gab_tc_data, 
-                 gab_vm_pars, gab_hist_pars] = zip(*returns)
-                tc_vm_pars[:, s]   = np.transpose(np.asarray(gab_vm_pars), 
-                                                [1, 0, 2])
-                means = tc_vm_pars[:, s, :, 1] 
-                kaps  = tc_vm_pars[:, s, :, 0]
-                tc_vm_mean[:, s, 0]  = st.circmean(means, np.pi/2., -np.pi/2, 
-                                                   axis=1)
-                if not comb_gabs:
-                    # astropy only implemented with -pi to pi range
-                    tc_vm_mean[:, s, 1] = astrost.circmean(means * 2., axis=1, 
-                                                           weights=kaps)/2.
-                tc_hist_pars[:, s] = np.transpose(np.asarray(gab_hist_pars), 
-                                                [1, 0, 2])
-                
-                gab_tc_data = zip(*gab_tc_data) # move ROIs to first idx
-                
-                tc_oris.append(gab_tc_oris)
-                tc_data.append(gab_tc_data)
-            
-            # calculate slope and intercept of linear regression
-            for i in kapw_bool: # mean value idx (0: not weighted, 1: weighted)
-                regr = linear_model.LinearRegression(fit_intercept=True)
-                regr.fit(tc_vm_mean[:, 0:1, i], tc_vm_mean[:, 1:2, i])
-                r_sqr = regr.score(tc_vm_mean[:, 0:1, i], tc_vm_mean[:, 1:2, i])
-                slope = regr.coef_.squeeze()
-                intercept = regr.intercept_.squeeze()
-                tc_vm_regr[:, i] = r_sqr, slope, intercept
+                if tcurvpar.prev: # PREVIOUS ESTIMATION METHOD
+                    [gab_tc_oris, gab_tc_data, gab_vm_pars, 
+                    gab_vm_mean, gab_hist_pars] = ori_analys.tune_curv_estims(
+                                     gab_oris, roi_data, ngabs_tot, sess_nrois, 
+                                     sess_ngabs, comb_gabs, parallel=parallel)
+                    tc_oris[i] = gab_tc_oris
+                    tc_data[i] = gab_tc_data
+                    tc_vm_pars.append(gab_vm_pars)
+                    tc_vm_mean.append(gab_vm_mean)
+                    tc_hist_pars.append(gab_hist_pars)
 
-            tcurv_data = {'tc_oris'     : tc_oris,
-                          'tc_data'     : zip(*tc_data), # makes ROIs 1st idx
-                          'tc_vm_pars'  : tc_vm_pars.tolist(),
-                          'tc_vm_mean'  : tc_vm_mean.tolist(),
-                          'tc_vm_regr'  : tc_vm_regr.tolist(),
-                          'tc_hist_pars': tc_hist_pars.tolist()
+            tcurv_data = {'oris'     : tc_oris,
+                          'data'     : [list(data) for data in zip(*tc_data)],
+                          'nseqs'    : tc_nseqs,
                           }
 
-            extrapar = {'analysis': analysis}
+            if tcurvpar.prev: # PREVIOUS ESTIMATION METHOD
+                tcurv_data['vm_pars'] = np.transpose(np.asarray(tc_vm_pars), 
+                                                     [1, 0, 2, 3]).tolist()
+                tcurv_data['vm_mean'] = np.transpose(np.asarray(tc_vm_mean), 
+                                                     [1, 0, 2]).tolist()
+                tcurv_data['hist_pars'] = np.transpose(np.asarray(tc_hist_pars), 
+                                                       [1, 0, 2, 3]).tolist()
+                tcurv_data['vm_regr'] = ori_analys.ori_pref_regr(
+                                                tcurv_data['vm_mean']).tolist()
+
+            extrapar = {'analysis': analysis,
+                        'seed': seed,
+                        'comb_gabs': comb_gabs,
+                        }
+
             sess_info = sess_gen_util.get_sess_info(sess, analyspar.fluor)
 
             info = {'analyspar' : analyspar._asdict(),
                     'sesspar'   : sesspar._asdict(),
-                    'stimpar'   : stimpar._asdict(),
+                    'stimpar'   : stimpar_tc._asdict(),
                     'extrapar'  : extrapar,
+                    'tcurvpar'  : tcurvpar._asdict(),
                     'tcurv_data': tcurv_data,
                     'sess_info' : sess_info
                     }
-            
+
             fulldir, savename = roi_plots.plot_tune_curves(figpar=figpar, 
-                            parallel=parallel, plt_bkend=plt_bkend, **info)
+                                   parallel=parallel, plot_tc=plot_tc, **info)
 
             file_util.saveinfo(info, savename, fulldir, 'json')
 
 
 #############################################
-def run_analyses(sess_n, args, mouse_df):
+def prep_analyses(sess_n, args, mouse_df):
     """
-    run_analyses(sess_n, args, mouse_df)
+    prep_analyses(sess_n, args, mouse_df)
 
-    Runs analyses on the sessions corresponding to the session numbers
-    passed.
+    Prepares named tuples and sessions for which to run analyses, based on the 
+    arguments passed.
 
     Required args:
         - sess_n (int)          : session number to run analyses on
         - args (Argument parser): parser containing all parameters
         - mouse_df (pandas df)  : path name of dataframe containing information 
                                   on each session
+
+    Returns:
+        - sessions (list)          : list of sessions
+        - analyspar (AnalysPar)    : named tuple containing analysis parameters
+        - sesspar (SessPar)        : named tuple containing session parameters
+        - stimpar (StimPar)        : named tuple containing stimulus parameters
+        - autocorrpar (AutocorrPar): named tuple containing autocorrelation 
+                                     parameters
+        - permpar (PermPar)        : named tuple containing permutation 
+                                     parameters
+        - quintpar (QuintPar)      : named tuple containing quintile 
+                                     parameters
+        - roigrppar (RoiGrpPar)    : named tuple containing ROI group 
+                                     parameters
+        - tcurvpar (TCurvPar)      : named tuple containing tuning curve 
+                                     parameters
+        - figpar (dict)            : dictionary containing figure parameters
+        - seed (int)               : seed to use
     """
 
     args = copy.deepcopy(args)
-    
-    plot_util.linclab_plt_defaults(font=['Arial', 'Liberation Sans'], 
-                                 font_dir=os.path.join('..', 'tools', 'fonts'))
-
-    if args.parallel and args.plt_bkend is not None:
-        plt.switch_backend(args.plt_bkend) # needs to be repeated within joblib
 
     # chose a seed if none is provided (i.e., args.seed=-1), but seed later
     seed = gen_util.seed_all(args.seed, 'cpu', print_seed=False, 
                              seed_now=False)
 
     args.sess_n = int(sess_n)
-    [analyspar, sesspar, stimpar, autocorrpar, 
-          permpar, quintpar, roigrppar, figpar] = init_param_cont(args)
+    [analyspar, sesspar, stimpar, autocorrpar, permpar,
+          quintpar, roigrppar, tcurvpar, figpar] = init_param_cont(args)
     
     # get session IDs and create Sessions
     sessids = sess_gen_util.sess_per_mouse(mouse_df, omit_sess=args.omit_sess, 
@@ -1544,43 +1419,118 @@ def run_analyses(sess_n, args, mouse_df):
            '\nSession {}').format(sesspar.layer, stimpar.stimtype[:-1],
                                   sesspar.runtype, sesspar.sess_n))
 
-    all_analys = False
-    if args.analyses == 'all':
-        all_analys = True
+    return [sessions, analyspar, sesspar, stimpar, autocorrpar, permpar, 
+            quintpar, roigrppar, tcurvpar, figpar, seed]
+
+    
+#############################################
+def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar, 
+                 permpar, quintpar, roigrppar, tcurvpar, figpar, seed=None, 
+                 analyses='all', skip=None, parallel=False, plot_tc=True):
+    """
+    run_analyses(sessions, analyses, analyspar, sesspar, stimpar, autocorrpar, 
+                 permpar, quintpar, roigrppar)
+
+    Run requested analyses on sessions using the named tuples passed.
+    Some analyses can be skipped (e.g., to be launched in a non parallel
+    process instead.)
+
+    Required args:
+        - sessions (list)          : list of sessions
+        - analyspar (AnalysPar)    : named tuple containing analysis parameters
+        - sesspar (SessPar)        : named tuple containing session parameters
+        - stimpar (StimPar)        : named tuple containing stimulus parameters
+        - autocorrpar (AutocorrPar): named tuple containing autocorrelation 
+                                     parameters
+        - permpar (PermPar)        : named tuple containing permutation 
+                                     parameters
+        - quintpar (QuintPar)      : named tuple containing quintile 
+                                     parameters
+        - roigrppar (RoiGrpPar)    : named tuple containing ROI group 
+                                     parameters
+        - tcurvpar (TCurvPar)      : named tuple containing tuning curve 
+                                     parameters
+        - figpar (dict)            : dictionary containing figure parameters
+    
+    Optional args:
+        - seed (int)     : seed to use
+                           default: None
+        - analyses (str) : analyses to run
+                           default: 'all'
+        - skip (str)     : analyses to skip
+                           default: None
+        - parallel (bool): if True, some analyses are parallelized 
+                           across CPU cores 
+                           default: False
+        - plot_tc (bool) : if True, tuning curves are plotted for each ROI 
+                           (causes errors on the clusters...) 
+                           default: True
+    
+    Returns:
+        - skipped (str): any analyses skipped
+    """
+
+    all_analyses = 'tgmaoc'
+    all_check = ''
+
+    if analyses == 'all':
+        analyses = all_analyses
+    
+    skipped = ''
+    if skip is not None:
+        for lett in skip:
+            if lett in analyses:
+                analyses = analyses.replace(lett, '')
+                skipped += lett
+
+    # changes backend and defaults
+    plot_util.manage_mpl(cmap=False, **figpar['mng'])
 
     # 1. Plot average traces by quintile x surprise for each session 
-    if 't' in args.analyses or all_analys: # traces
+    if 't' in analyses: # traces
         plot_traces_by_qu_surp_sess(sessions, 't', analyspar, sesspar, stimpar, 
                                     quintpar, figpar)
+    all_check += 't'
 
     # 2. Plots: a) trace areas by quintile, b) average traces, c) trace areas 
     # by suprise for first vs last quintile, for each ROI group, for each 
     # session
-    if 'g' in args.analyses or all_analys: # roi_grps_ch
+    if 'g' in analyses: # roi_grps_ch
         plot_rois_by_grp(sessions, 'g', seed, analyspar, sesspar, stimpar, 
                          permpar, quintpar, roigrppar, figpar)
+    all_check += 'g'
 
     # 3. Plot magnitude of change in dF/F area from first to last quintile of 
     # surprise vs no surprise sequences, for each session
-    if 'm' in args.analyses or all_analys: # mag
+    if 'm' in analyses: # mag
         plot_mag_change(sessions, 'm', seed, analyspar, sesspar, stimpar, 
                         permpar, quintpar, figpar)
+    all_check += 'm'
 
     # 4. Run autocorrelation analysis
-    if 'a' in args.analyses or all_analys: # autocorr
+    if 'a' in analyses: # autocorr
         plot_autocorr(sessions, 'a', analyspar, sesspar, stimpar, autocorrpar, 
                       figpar)
+    all_check += 'a'
 
     # 5. Plot colormaps by orientation or direction, as well as average traces
-    if 'o' in args.analyses or all_analys: # colormaps and traces
+    if 'o' in analyses: # colormaps and traces
         plot_oridirs(sessions, 'o', analyspar, sesspar, stimpar, quintpar, 
-                     figpar, args.parallel, args.plt_bkend)
+                     figpar, parallel)
+    all_check += 'o'
 
     # 6. Plot ROI tuning curves for gabor orientation and position
-    if 'c' in args.analyses or all_analys: # colormaps and traces
-        plot_tune_curves(sessions, 'c', analyspar, sesspar, stimpar, figpar, 
-                         args.parallel, args.plt_bkend)
+    if 'c' in analyses: # colormaps and traces
+        plot_tune_curves(sessions, 'c', seed, analyspar, sesspar, stimpar, 
+                         tcurvpar, figpar, parallel, plot_tc)
+    all_check += 'c'
 
+
+    if set(all_analyses) != set(all_check):
+        raise ValueError(('all_analyses variable is missing some analysis '
+                          'letters!'))
+
+    return skipped
 
 
 if __name__ == "__main__":
@@ -1607,6 +1557,8 @@ if __name__ == "__main__":
                               'data.'))
     parser.add_argument('--seed', default=-1, type=int, 
                         help='random seed (-1 for None)')
+    parser.add_argument('--no_plot_tc', action='store_true', 
+                        help='no tuning curve plots are generated')
 
         # session parameters
     parser.add_argument('--runtype', default='prod', help='prod or pilot')
@@ -1670,6 +1622,20 @@ if __name__ == "__main__":
                               'no_change'))
     parser.add_argument('--no_add_reg', action='store_true',
                         help='do not add reg_reg to ROI grp plots')
+        # tuning curve parameters
+    parser.add_argument('--tc_gabfr', default=3, 
+                        help='gabor frame at which to start sequences (if '
+                             'x_x, interpreted as 2 gabfrs)')  
+    parser.add_argument('--tc_post', default=0.6, type=float, 
+                        help='sec after reference frames')
+    parser.add_argument('--tc_grp2', default='surp', 
+                        help=('second group: either surp, reg or rand '
+                              '(random subsample of reg, the size of surp)'))
+    parser.add_argument('--tc_test', action='store_true',
+                        help='tests code on a small number of gabors and ROIs')
+    parser.add_argument('--tc_prev', action='store_true',
+                        help=('runs analysis using previous parameter '
+                              'estimation method'))
         # figure parameters
     parser.add_argument('--no_datetime', action='store_true',
                         help='create a datetime folder')
@@ -1678,13 +1644,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.plt_bkend is not None: # necessary for running on server
-        plt.switch_backend(args.plt_bkend)
+    args.fontdir = os.path.join('..', 'tools', 'fonts')
 
     if args.dict_path is not '':
         main_dir  = os.path.join('results', 'figures')
         dict_path = os.path.join(main_dir, args.dict_path)
-        roi_plots.plot_from_dict(dict_path)
+        roi_plots.plot_from_dict(dict_path, args.parallel, args.plt_bkend, 
+                                 args.fontdir, not(args.no_plot_tc))
 
     else:
         if args.datadir is None:
@@ -1701,14 +1667,39 @@ if __name__ == "__main__":
                             omit_sess=args.omit_sess, omit_mice=args.omit_mice)
         else:
             all_sess_ns = gen_util.list_if_not(args.sess_n)
-
+        
         # run through all sessions
         if args.parallel:
-            num_cores = multiprocessing.cpu_count()
-            Parallel(n_jobs=num_cores)(delayed(run_analyses)
-                    (sess_n, args, mouse_df) for sess_n in all_sess_ns)
+            n_cores = multiprocessing.cpu_count()
+            n_jobs = min(n_cores, len(all_sess_ns))
+
+            # initialize sessions and collect analysis params
+            all_analys_pars = Parallel(n_jobs=n_jobs)(delayed(prep_analyses)
+                                      (sess_n, args, mouse_df) 
+                                      for sess_n in all_sess_ns)
+            # run analyses, and record any skipped analyses 
+            # (to be run in sequential, as they themselves have been 
+            # parallelized)
+            run_seq = 'oc'
+            if not(set(args.analyses).issubset(set(run_seq))):
+                skipped = Parallel(n_jobs=n_jobs)(delayed(run_analyses)
+                                (*analys_pars, analyses=args.analyses, 
+                                skip=run_seq, parallel=False, 
+                                plot_tc=not(args.no_plot_tc))
+                                for analys_pars in all_analys_pars)[0]
+            else:
+                skipped = args.analyses
+            
+            # run skipped analyses in sequential
+            if len(skipped) != 0:
+                for analys_pars in all_analys_pars:
+                    run_analyses(*analys_pars, analyses=skipped, parallel=True, 
+                                plot_tc=not(args.no_plot_tc))
+            
         else:
             for sess_n in all_sess_ns:
-                run_analyses(sess_n, args, mouse_df)
+                analys_pars = prep_analyses(sess_n, args, mouse_df)
+                run_analyses(*analys_pars, analyses=args.analyses, 
+                parallel=False, plot_tc=not(args.no_plot_tc))
 
                 
