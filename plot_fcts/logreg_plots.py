@@ -23,30 +23,29 @@ from util import file_util, gen_util, logreg_util, math_util, plot_util
 
 
 #############################################
-def plot_from_dict(hyperpars_path, plt_bkend=None):
+def plot_from_dict(direc, plt_bkend=None, fontdir=None):
     """
-    plot_from_dict(info_path, args)
+    plot_from_dict(direc)
 
     Plots data from dictionaries containing analysis parameters and results, or 
     path to results.
 
     Required args:
-        - hyperpars_path (str): path to dictionary to plot data from
+        - direc (str): path to directory in which dictionaries to plot data 
+                       from are located
     
     Optional_args:
         - plt_bkend (str): mpl backend to use for plotting (e.g., 'agg')
+                           default: None
+        - fontdir (str)  : directory in which additional fonts are located
+                           default: None
     """
+    plot_util.manage_mpl(plt_bkend, fontdir=fontdir)
 
-    plot_util.linclab_plt_defaults(font=['Arial', 'Liberation Sans'], 
-                                 font_dir=os.path.join('..', 'tools', 'fonts'))
-
-    if plt_bkend is not None:
-        plt.switch_backend(plt_bkend) 
-
-    hyperpars = file_util.loadfile(hyperpars_path)
+    hyperpars = file_util.loadfile('hyperparameters.json', fulldir=direc)
 
     if 'logregpar' in hyperpars.keys():
-        plot_traces_scores(hyperpars)
+        plot_traces_scores(hyperpars, savedir=direc)
 
 
 #############################################
@@ -141,7 +140,7 @@ def plot_class_traces(analyspar, sesspar, stimpar, tr_stats, classes,
                                    tr_stats['train_class_stats'], classes, 
                                    tr_stats['train_ns'], plot_wei=plot_wei, 
                                    modeldir=modeldir, stats=analyspar['stats'], 
-                                   error=analyspar['error'])
+                                   error=analyspar['error'], xlabel='Time (s)')
     
     qu_str = ''
     test_label = 'test_Q4'
@@ -243,6 +242,7 @@ def plot_traces_scores(hyperpars, tr_stats=None, full_scores=None,
             ['analyspar'] (dict): dictionary with keys of analyspar named tuple
             ['extrapar'] (dict) : dictionary with extra parameters
                 ['classes'] (list) : class names
+                ['dirname'] (str)  : directory in which data and plots are saved
                 ['loss_name'] (str): name of loss
                 ['shuffle'] (bool) : if True, data was shuffled
             ['logregpar'] (dict): dictionary with keys of logregpar named tuple
@@ -268,8 +268,10 @@ def plot_traces_scores(hyperpars, tr_stats=None, full_scores=None,
                                       for each epoch
         - plot_wei (bool)           : if True, weights are plotted in a subplot
                                       default: True
-        - savedir (str)             : directory in which to save figure
-                                      default: '.'
+        - savedir (str)             : directory in which to save figure (used 
+                                      instead of extrapar['dirname'], if 
+                                      passed)
+                                      default: None
     """
 
     analyspar = hyperpars['analyspar']
@@ -282,14 +284,14 @@ def plot_traces_scores(hyperpars, tr_stats=None, full_scores=None,
         savedir = extrapar['dirname']
 
     if tr_stats is None:
-        tr_stats_path = os.path.join(extrapar['dirname'], 'tr_stats.json')
+        tr_stats_path = os.path.join(savedir, 'tr_stats.json')
         if os.path.exists(tr_stats_path):
             tr_stats = file_util.loadfile(tr_stats_path)
         else:
             print('No trace statistics found.')
     
     if full_scores is None:
-        full_scores_path = os.path.join(extrapar['dirname'], 'scores_df.csv')
+        full_scores_path = os.path.join(savedir, 'scores_df.csv')
         if os.path.exists(full_scores_path):
             full_scores = file_util.loadfile(full_scores_path)
         else:
@@ -299,7 +301,7 @@ def plot_traces_scores(hyperpars, tr_stats=None, full_scores=None,
         plot_class_traces(analyspar, sesspar, stimpar, tr_stats, 
                           extrapar['classes'], logregpar['comp'], 
                           logregpar['q1v4'], extrapar['shuffle'], 
-                          plot_wei=plot_wei, modeldir=extrapar['dirname'], 
+                          plot_wei=plot_wei, modeldir=savedir, 
                           savedir=savedir)
 
     if full_scores is not None:
@@ -577,7 +579,7 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
         - plot_lines (pd DataFrame): DataFrame containing scores summary
                                      for specific comparison and criteria
         - data (str)               : label of type of data to plot,
-                                     e.g., 'epoch_n' or 'test_acc' 
+                                     e.g., 'epoch_n' or 'test_acc_bal' 
         - stats (list)             : list of stats to use for non shuffled 
                                      data, e.g., ['mean', 'sem', 'sem']
         - shuff_stats (list)       : list of stats to use for shuffled 
@@ -597,10 +599,26 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
 
     fig, ax = init_res_fig(len(celltypes), max_sess)
     n_vals = 5 # (mean/med, sem/2.5p, sem/97.5p, n_rois, n_runs)
+    
+    if data == 'test_acc_bal':
+        found = False
+        for key in plot_lines.keys():
+            if data in key:
+                found = True
+        if not found:
+            print('test_acc_bal was not recorded')
+            return
+    
     data_types = gen_util.list_if_not(data)
-    if data == 'test_acc' and q1v4:
+    if q1v4 and 'test_acc' in data: 
         n_vals = 8 # (extra mean/med, sem/2.5p, sem/97.5p for Q4) 
-        data_types = ['test_acc', 'test_Q4_acc']
+        if data == 'test_acc': 
+            data_types = ['test_acc', 'test_Q4_acc']
+        elif data == 'test_acc_bal':   
+            data_types = ['test_acc_bal', 'test_Q4_acc_bal']
+        else:
+            gen_util.accepted_values_error('data', data, 
+                                           ['test_acc', 'test_acc_bal'])
 
     for i, [line, layer] in enumerate(celltypes):
         sub_ax = plot_util.get_subax(ax, i)
@@ -646,7 +664,7 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
 
 #############################################    
 def plot_summ(output, savename, stimtype='gabors', comp='surp', bri_dir='both', 
-              fluor='dff', scale='roi', CI=0.95, plt_bkend=None):
+              fluor='dff', scale='roi', CI=0.95, plt_bkend=None, fontdir=None):
     """
     plot_summ(output)
 
@@ -661,20 +679,24 @@ def plot_summ(output, savename, stimtype='gabors', comp='surp', bri_dir='both',
             
     Optional args:
         - stimtype (str) : stimulus type
+                           default: 'gabors'
         - comp (str)     : type of comparison
+                           default: 'surp'
         - bri_dir (str)  : brick direction
+                           default: 'both'
         - fluor (str)    : fluorescence trace type
+                           default: 'dff'
         - scale (str)    : type of scaling
+                           default: 'roi'
         - CI (float)     : CI for shuffled data
+                           default: 0.95
         - plt_bkend (str): mpl backend to use for plotting (e.g., 'agg')
-        
+                           default: None
+        - fontdir (str)  : directory in which additional fonts are located
+                           default: None
     """
     
-    plot_util.linclab_plt_defaults(font=['Arial', 'Liberation Sans'], 
-                                 font_dir=os.path.join('..', 'tools', 'fonts'))
-
-    if plt_bkend is not None:
-        plt.switch_backend(plt_bkend)        
+    plot_util.manage_mpl(plt_bkend, fontdir=fontdir)
 
     summ_scores_file = os.path.join(output, savename)
     
@@ -684,8 +706,8 @@ def plot_summ(output, savename, stimtype='gabors', comp='surp', bri_dir='both',
         print('{} not found.'.format(summ_scores_file))
         return
 
-    data_types  = ['epoch_n', 'test_acc']
-    data_titles = ['epoch nbr', 'test accuracy']
+    data_types  = ['epoch_n', 'test_acc', 'test_acc_bal']
+    data_titles = ['epoch nbr', 'test accuracy', 'test accuracy (balanced)']
 
     stats = ['mean', 'sem', 'sem']
     shuff_stats = ['median'] + math_util.get_percentiles(CI)[1]
