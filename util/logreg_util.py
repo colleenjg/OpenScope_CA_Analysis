@@ -195,14 +195,14 @@ def get_sc_types(info='label'):
             - title (list): list of score type titles
     """
 
-    label = ['loss', 'acc', 'acc_class0', 'acc_class1']
+    label = ['loss', 'acc', 'acc_class0', 'acc_class1', 'acc_bal']
     
     if info == 'label':
         return label
 
     elif info == 'title':
         title = ['Loss', 'Accuracy (%)', 'Accuracy on class0 trials (%)', 
-                 'Accuracy on class1 trials (%)']
+                 'Accuracy on class1 trials (%)', 'Balanced accuracy (%)']
         return title
 
 
@@ -348,7 +348,7 @@ def run_batches(mod, dl, device, train=True):
         ep_sc['loss'] += loss.item()*len(data) 
         ns, accs = accuracy(pred_class.cpu().detach(), targ.cpu().detach())
         ep_sc['acc'] += accs[0] + accs[1]
-        for lab, n, acc in zip(labs[-2:], ns, accs):
+        for lab, n, acc in zip(labs[-3:-1], ns, accs):
             if acc is not None:
                 ep_sc[lab] += acc
                 divs[lab]  += float(n)
@@ -357,7 +357,19 @@ def run_batches(mod, dl, device, train=True):
         mult = 1.0
         if 'acc' in lab:
             mult = 100.0
-        ep_sc[lab] = ep_sc[lab] * mult/divs[lab]
+        if lab != 'acc_bal':
+            ep_sc[lab] = ep_sc[lab] * mult/divs[lab]
+    
+    cl_accs = []
+    if 'acc_bal' in labs: # get balanced accuracy (across classes)
+        for lab in labs:
+            if 'class' in lab:
+                cl_accs.append(ep_sc[lab])
+        if len(cl_accs) > 0:
+            ep_sc['acc_bal'] = np.mean(cl_accs) 
+        else:
+            raise ValueError(('No class accuracies. Cannot calculate '
+                              'balanced accuracy.'))
     
     return ep_sc
 
@@ -626,7 +638,6 @@ def load_params(dirname, model='best'):
     """
 
     ep = get_epoch_n(dirname, model)
-    ext_str = ''
     if model == 'best':
         ext_str = '_best'
 
@@ -747,7 +758,7 @@ def get_stats(tr_data, tr_classes, classes, len_s, stats='mean', error='sem'):
 #############################################
 def plot_tr_data(xran, class_stats, classes, ns, fig=None, ax_data=None, 
                  plot_wei=True, stats='mean', error='sem', modeldir='.', 
-                 cols=None, data_type=None):
+                 cols=None, data_type=None, xlabel=None):
     """
     plot_tr_data(xran, class_stats, ns)
 
@@ -782,6 +793,8 @@ def plot_tr_data(xran, class_stats, classes, ns, fig=None, ax_data=None,
         - cols (list)          : colors to use
                                  default: None 
         - data_type (str)      : data type if not training (e.g., test)
+                                 default: None
+        - xlabel (str)         : x axis label
                                  default: None
     
     Returns:
@@ -822,6 +835,13 @@ def plot_tr_data(xran, class_stats, classes, ns, fig=None, ax_data=None,
     if plot_wei and mod_params is not None:
         plot_weights(ax[1], mod_params, xran, stats, error)
         ax_data.set_xlabel('') # remove redundant label
+    
+    if xlabel is not None:
+        if plot_wei and mod_params is not None:
+            ax[1].set_xlabel(xlabel)
+        else:
+            ax_data.set_xlabel(xlabel)
+
     
     return fig, ax_data, cols
 

@@ -23,7 +23,7 @@ import file_util, gen_util
 
 
 #############################################
-def linclab_plt_defaults(font='Liberation Sans', font_dir=None, 
+def linclab_plt_defaults(font='Liberation Sans', fontdir=None, 
                          print_fonts=False, example=False, dirname='.'):
     """
     linclab_plt_defaults()
@@ -33,7 +33,7 @@ def linclab_plt_defaults(font='Liberation Sans', font_dir=None,
     Optional args:
         - font (str or list): font to use, or list in order of preference
                               default: 'Liberation Sans'
-        - font_dir (str)    : directory to where extra fonts (.ttf) are stored
+        - fontdir (str)     : directory to where extra fonts (.ttf) are stored
                               default: None
         - print_fonts (bool): if True, an alphabetical list of available fonts 
                               is printed
@@ -83,9 +83,9 @@ def linclab_plt_defaults(font='Liberation Sans', font_dir=None,
               }
 
     # add new fonts to list if a font directory is provided
-    if font_dir and os.path.exists(font_dir):
-        font_dirs = [font_dir, ]
-        font_files = fm.findSystemFonts(fontpaths=font_dirs)
+    if fontdir and os.path.exists(fontdir):
+        fontdirs = [fontdir, ]
+        font_files = fm.findSystemFonts(fontpaths=fontdirs)
         font_list = fm.createFontList(font_files)
         fm.fontManager.ttflist.extend(font_list)
     
@@ -137,7 +137,7 @@ def linclab_plt_defaults(font='Liberation Sans', font_dir=None,
 
 
 #############################################
-def linclab_colormap(n_bins=100):
+def linclab_colormap(nbins=100):
     """
     linclab_colormap()
 
@@ -145,8 +145,8 @@ def linclab_colormap(n_bins=100):
     red.
 
     Optional args:
-        - n_bins (int): number of bins to use to create colormap
-                        default: 100
+        - nbins (int): number of bins to use to create colormap
+                       default: 100
 
     Returns:
         - cmap (colormap): a matplotlib colormap
@@ -162,9 +162,52 @@ def linclab_colormap(n_bins=100):
             rgb_col[c].append(ch_val)
 
     cmap = mpl.colors.LinearSegmentedColormap.from_list('linclab_byr', rgb_col, 
-                                                        N=100)
+                                                        N=nbins)
 
     return cmap
+
+
+#############################################
+def manage_mpl(plt_bkend=None, linclab=True, fontdir=None, cmap=False, 
+               nbins=100):
+    """
+    manage_mpl()
+
+    Makes changes to the matplotlib backend used as well as matplotlib plotting
+    defaults. If cmap is True, a colormap is returned.
+
+    Optional args:
+        - plt_bkend (str): matplotlib backend to use
+                           default: None
+        - linclab (bool) : if True, the Linclab default are set
+                           default: True
+        - fontdir (str ) : directory to where extra fonts (.ttf) are stored
+                           default: None
+        - cmap (bool)    : if True, a colormap is returned. If linclab is True,
+                           the Linclab colormap is returned, otherwise the 
+                           'jet' colormap
+                           default: False
+        - nbins (int)    : number of bins to use to create colormap
+                           default: 100
+
+    Returns:
+        if cmap:
+        - cmap (colormap): a matplotlib colormap
+    """
+
+    if plt_bkend is not None:
+        plt.switch_backend(plt_bkend)
+    
+    if linclab:
+        linclab_plt_defaults(font=['Arial', 'Liberation Sans'], 
+                             fontdir=fontdir)
+
+    if cmap:
+        if linclab:
+            cmap = linclab_colormap(nbins)
+        else:
+            cmap = 'jet'
+        return cmap
 
 
 #############################################
@@ -341,13 +384,14 @@ def init_fig(n_subplots, ncols=3, sharex=False, sharey=True, subplot_hei=7.5,
 def savefig(fig, savename, fulldir='.', datetime=True, use_dt=None, 
             fig_ext='svg', overwrite=False, print_dir=True):
     """
-    savefig(fig, savename, figpar)
+    savefig(fig, savename)
 
     Saves a figure under a specific directory and name, following figure
     parameters and returns final directory name.
 
     Required args:
-        - fig (plt Fig) : figure
+        - fig (plt Fig) : figure (if None, no figure is saved, but fulldir is 
+                          created and name is returned)
         - savename (str): name under which to save figure
     
     Optional args:
@@ -383,23 +427,24 @@ def savefig(fig, savename, fulldir='.', datetime=True, use_dt=None,
     # create directory if doesn't exist
     file_util.createdir(fulldir, print_dir=False)
 
-    # get extension and savename
-    fullname, ext = file_util.add_ext(savename, fig_ext) 
+    if fig is not None:
+        # get extension and savename
+        fullname, ext = file_util.add_ext(savename, fig_ext) 
 
-    # check if file aready exists, and if so, add number at end
-    if not overwrite:
-        if os.path.exists(os.path.join(fulldir, fullname)):     
-            savename, _ = os.path.splitext(fullname) # get only savename
-            count = 1
-            fullname = '{}_{}{}'.format(savename, count, ext) 
-            while os.path.exists(os.path.join(fulldir, fullname)):
-                count += 1 
-                fullname = '{}_{}{}'.format(savename, count, ext)
-    
-    if print_dir:
-        print('\nFigures saved under {}.'.format(fulldir))
+        # check if file aready exists, and if so, add number at end
+        if not overwrite:
+            if os.path.exists(os.path.join(fulldir, fullname)):     
+                savename, _ = os.path.splitext(fullname) # get only savename
+                count = 1
+                fullname = '{}_{}{}'.format(savename, count, ext) 
+                while os.path.exists(os.path.join(fulldir, fullname)):
+                    count += 1 
+                    fullname = '{}_{}{}'.format(savename, count, ext)
+        
+        if print_dir:
+            print('\nFigures saved under {}.'.format(fulldir))
 
-    fig.savefig(os.path.join(fulldir, fullname))
+        fig.savefig(os.path.join(fulldir, fullname))
 
     return fulldir
 

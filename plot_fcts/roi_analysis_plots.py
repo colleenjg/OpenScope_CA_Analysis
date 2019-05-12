@@ -26,7 +26,8 @@ from util import file_util, gen_util, plot_util
 
 
 #############################################
-def plot_from_dict(dict_path, plt_bkend=None):
+def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None,
+                   plot_tc=True):
     """
     plot_from_dict(info_path, args)
 
@@ -36,16 +37,17 @@ def plot_from_dict(dict_path, plt_bkend=None):
         - dict_path (str): path to dictionary to plot data from
     
     Optional_args:
+        - parallel (bool): if True, some of the analysis is parallelized across 
+                           CPU cores
+                           default: False
         - plt_bkend (str): mpl backend to use for plotting (e.g., 'agg')
+                           default: None
+        - plot_tc (bool) : if True, tuning curves are plotted for each ROI 
+                           (causes errors on the clusters...)
     """
 
-    plot_util.linclab_plt_defaults(font=['Arial', 'Liberation Sans'], 
-                                font_dir=os.path.join('..', 'tools', 'fonts'))
-
-    if plt_bkend is not None:
-        plt.switch_backend(plt_bkend) 
-
-    figpar = sess_plot_util.init_figpar()
+    figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir)
+    plot_util.manage_mpl(cmap=False, **figpar['mng'])
 
     info = file_util.loadfile(dict_path)
     savedir = os.path.dirname(dict_path)
@@ -73,11 +75,12 @@ def plot_from_dict(dict_path, plt_bkend=None):
     
     # 5. Plot colormaps and traces for orientations/directions
     elif analysis == 'o': # colormaps
-        plot_oridirs(figpar=figpar, savedir=savedir, **info)
+        plot_oridirs(figpar=figpar, savedir=savedir, parallel=parallel, **info)
 
     # 6. Plot orientation tuning curves for ROIs
     elif analysis == 'c': # colormaps
-        plot_tune_curves(figpar=figpar, savedir=savedir, **info)
+        plot_tune_curves(figpar=figpar, savedir=savedir, parallel=parallel, 
+                         plot_tc=plot_tc, **info)
 
 
 #############################################
@@ -1325,15 +1328,14 @@ def scale_sort_trace_data(tr_data, fig_type='byplot', surps=['reg', 'surp'],
 
 #############################################
 def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data, 
-                         sess_info, figpar=None, savedir=None, print_dir=True, 
-                         plt_bkend=None):
+                         sess_info, figpar=None, savedir=None, print_dir=True):
     """
-    plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar, 
-                          tr_data, sess_info)
+    plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data, 
+                         sess_info)
 
     From dictionaries, plots average activity across gabor orientations or 
-    brick directions per ROI as colormaps for a single session and optionally
-    a single quintile. 
+    brick directions per ROI for a single session and optionally a single 
+    quintile. (Single figure type) 
 
     Required args:
         - fig_type (str)  : type of figure to plot, i.e., 'byplot', 'byreg', 
@@ -1388,6 +1390,7 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
             ['init'] (dict): dictionary with figure initialization parameters
             ['save'] (dict): dictionary with figure saving parameters
             ['dirs'] (dict): dictionary with additional figure parameters
+            ['mng']  (dict): dictionary with parameters to manage matplotlib
         - savedir (str)  : path of directory in which to save plots.
                            default: None
     
@@ -1410,11 +1413,7 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
     if savedir is None:
         savedir = os.path.join(figpar['dirs']['roi'], figpar['dirs']['oridir'])
 
-    if plt_bkend is not None:
-        plt.switch_backend(plt_bkend)
-
-    cmap = plot_util.linclab_colormap(n_bins=100)   
-    # cmap = 'jet'
+    cmap = plot_util.manage_mpl(cmap=True, nbins=100, **figpar['mng'])
 
     # extract some info from sess_info (only one session)
     keys = ['mouse_ns', 'sess_ns', 'lines', 'layers']
@@ -1502,13 +1501,15 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
     fulldir = plot_util.savefig(fig, savename, savedir, print_dir=print_dir, 
                                 **figpar['save'])
     
+    plt.close(fig)
+    
     return fulldir
 
 
 #############################################
 def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar, 
                           tr_data, sess_info, figpar=None, savedir=None, 
-                          parallel=False, plt_bkend=None):
+                          parallel=False):
     """
     plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar, 
                           tr_data, sess_info)
@@ -1572,13 +1573,12 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
             ['init'] (dict): dictionary with figure initialization parameters
             ['save'] (dict): dictionary with figure saving parameters
             ['dirs'] (dict): dictionary with additional figure parameters
+            ['mng']  (dict): dictionary with parameters to manage matplotlib
         - savedir (str)  : path of directory in which to save plots.
                            default: None
         - parallel (bool): if True, some of the analysis is parallelized across 
                            CPU cores
                            default: False
-        - plt_bkend (str): matplotlib backend to use
-                           default: None
     
     Returns:
         - fulldir (str) : final name of the directory in which the figure is 
@@ -1605,27 +1605,26 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
     fig_last = len(fig_types) - 1
     
     if parallel:
-        num_cores = multiprocessing.cpu_count()
-        fulldirs = Parallel(n_jobs=num_cores)(delayed(plot_oridir_colormap)
+        n_jobs = min(multiprocessing.cpu_count(), len(fig_types))
+        fulldirs = Parallel(n_jobs=n_jobs)(delayed(plot_oridir_colormap)
                          (fig_type, analyspar, stimpar, quintpar, tr_data,
-                          sess_info, figpar, savedir, (f == fig_last), 
-                          plt_bkend) 
-                            for f, fig_type in enumerate(fig_types)) 
+                          sess_info, figpar, savedir, (f == fig_last)) 
+                          for f, fig_type in enumerate(fig_types)) 
         fulldir = fulldirs[-1]
     else:
         for f, fig_type in enumerate(fig_types):
             print_dir = (f == fig_last)
             fulldir = plot_oridir_colormap(fig_type, analyspar, stimpar, 
                                            quintpar, tr_data, sess_info, 
-                                           figpar, savedir, print_dir, 
-                                           plt_bkend)
+                                           figpar, savedir, print_dir)
 
     return fulldir
 
 
 #############################################
 def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar, 
-                 tr_data, sess_info, figpar=None, savedir=None):
+                 tr_data, sess_info, figpar=None, savedir=None, 
+                 parallel=False):
     """
     plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar, 
                  tr_data, sess_info)
@@ -1690,14 +1689,18 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar,
                                   (NaN arrays for combinations with 0 seqs.)
 
     Optional args:
-        - figpar (dict): dictionary containing the following figure parameter 
-                         dictionaries
-                         default: None
+        - figpar (dict)  : dictionary containing the following figure parameter 
+                           dictionaries
+                           default: None
             ['init'] (dict): dictionary with figure initialization parameters
             ['save'] (dict): dictionary with figure saving parameters
             ['dirs'] (dict): dictionary with additional figure parameters
-        - savedir (str): path of directory in which to save plots.
-                         default: None
+            ['mng']  (dict): dictionary with parameters to manage matplotlib
+        - savedir (str)  : path of directory in which to save plots.
+                           default: None
+        - parallel (bool): if True, some of the analysis is parallelized across 
+                           CPU cores
+                           default: False
     """
 
     if figpar is None:
@@ -1718,22 +1721,82 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar,
                  }
 
     if 'roi_me' in tr_data.keys():
-        plot_oridir_colormaps(savedir=savedir, **comm_info)
+        plot_oridir_colormaps(savedir=savedir, parallel=parallel, 
+                              **comm_info)
 
     if 'stats' in tr_data.keys():
         plot_oridir_traces(savedir=savedir, **comm_info)
 
 
 #############################################
-def plot_roi_tune_curves(roi_data, tc_oris, roi_vm_pars, roi_hist_pars, n, 
-                         nrois, fluor='dff', comb_gabs=False, gentitle='', 
-                         gen_savename='', figpar=None, savedir=None, 
-                         plt_bkend=None):
+def plot_prev_analysis(subax_col, xran, gab_oris, gab_data, gab_vm_pars, 
+                       gab_hist_pars, title_str='', fluor='dff'):
     """
-    plot_roi_tune_curves(roi_data, roi_oris, roi_vm_pars, roi_hist_pars, n, 
-                         nrois)
+    plot_prev_analysis(subax_col, xran, gab_oris, gab_data, gab_vm_pars, 
+                       gab_hist_pars)
+
+    Plots orientation fluorescence data for a specific ROI, as well as ROI 
+    orientation tuning curves. 
+
+    Required args:
+        - subax_col (plt Axis)    : axis column
+        - xran (array-like)       : x values
+        - gab_oris (list)         : list of orientation values corresponding to 
+                                    the gab_data
+        - gab_data (list)         : list of mean integrated fluorescence data 
+                                    per orientation
+        - gab_vm_pars (array-like): array of Von Mises parameters 
+                                    (kappa, mean, scale)
+        - gab_hist_pars (list)  : parameters used to convert gab_data to 
+                                  histogram values (sub, mult) used in Von 
+                                  Mises parameter estimation (sub, mult)
     
-    Plots tuning curves for orientations for a specific ROI. 
+    Optional args:
+        - title_str (str)   : main title
+                              default: ''
+        - fluor (str)       : fluorescence type
+                              default: 'dff'
+    """
+
+    deg = u'\u00B0'
+
+    # Top: Von Mises fits
+    vm_fit = st.vonmises.pdf(np.radians(xran), *gab_vm_pars)
+    subax_col[0].plot(xran, vm_fit)
+    subax_col[0].set_title('Von Mises fits{}'.format(title_str))
+    subax_col[0].set_ylabel('Probability density')
+    subax_col[0].legend()
+    col = subax_col[0].lines[-1].get_color()
+    
+    # Mid: actual data
+    subax_col[1].plot(gab_oris, gab_data, marker='.', lw=0, alpha=0.3, 
+                       color=col)
+    subax_col[1].set_title('Mean AUC per orientation')
+    y_str = sess_str_util.fluor_par_str(fluor, str_type='print')
+    subax_col[1].set_ylabel(u'{} area (mean)'.format(y_str))
+
+    # Bottom: data as histogram for fitting
+    counts = np.around((np.asarray(gab_data) - gab_hist_pars[0]) * \
+                        gab_hist_pars[1]).astype(int)
+    freq_data = np.repeat(np.asarray(gab_oris), counts)                
+    subax_col[2].hist(freq_data, 360, color=col)
+    subax_col[2].set_title('Orientation histogram')
+    subax_col[2].set_xlabel(u'Orientations {}'.format(deg))
+    subax_col[2].set_ylabel('Artificial counts')
+    plot_util.set_ticks(subax_col[2], 'x', np.min(xran), np.max(xran), 5)
+
+
+#############################################
+def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info, 
+                         roi_vm_pars=None, roi_hist_pars=None, 
+                         fluor='dff', comb_gabs=False, gentitle='', 
+                         gen_savename='', figpar=None, savedir=None):
+    """
+    plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info)
+    
+    Plots orientation fluorescence data for a specific ROI, as well as ROI 
+    orientation tuning curves, if provided. 
+
 
     Required args:
         - tc_oris (list)        : list of orientation values corresponding to 
@@ -1741,121 +1804,229 @@ def plot_roi_tune_curves(roi_data, tc_oris, roi_vm_pars, roi_hist_pars, n,
                                     surp x gabor (1 if comb_gabs) x oris
         - roi_data (list)       : list of mean integrated fluorescence data per 
                                   orientation, structured as 
-                                    surp x gabor (1 if comb_gabs) x oris
+                                    surp (x gabor (1 if comb_gabs)) x oris
+        - n (int)               : ROI number
+        - nrois (int)           : total number of ROIs
+        - seq_info (list)       : list of strings with info on each group
+                                  plotted (2)
+    
+    Optional args:
         - roi_vm_pars (3D array): array of Von Mises parameters: 
                                     surp x gabor (1 if comb_gabs) 
                                         x par (kappa, mean, scale)
+                                  default: None
         - roi_hist_pars (list)  : parameters used to convert tc_data to 
                                   histogram values (sub, mult) used in Von 
                                   Mises parameter estimation, structured as:
                                     surp x gabor (1 if comb_gabs) x 
                                     param (sub, mult)
-        - n (int)               : ROI number
-        - nrois (int)           : total number of ROIs
-    
-    Optional args:
-        - fluor (str)       : fluorescence type
-                              default: 'dff'
-        - comb_gabs (bool)  : if True, data from all gabors was combined
-                              default: False
-        - gentitle (str)    : general title for the plot
-                              default: ''
-        - gen_savename (str): general title for the plot
-                              default: ''
-        - figpar (dict)     : dictionary containing the following figure 
-                              parameter dictionaries
-                              default: None
+                                  default: None
+        - fluor (str)           : fluorescence type
+                                  default: 'dff'
+        - comb_gabs (bool)      : if True, data from all gabors was combined
+                                  default: False
+        - gentitle (str)        : general title for the plot
+                                  default: ''
+        - gen_savename (str)    : general title for the plot
+                                  default: ''
+        - figpar (dict)         : dictionary containing the following figure 
+                                  parameter dictionaries
+                                  default: None
             ['init'] (dict): dictionary with figure initialization parameters
             ['save'] (dict): dictionary with figure saving parameters
             ['dirs'] (dict): dictionary with additional figure parameters
-        - savedir (str)     : path of directory in which to save plots.
-                              default: None
-        - plt_bkend (str)   : mpl backend to use, e.g. when running on server
-                              default: None
+            ['mng']  (dict): dictionary with parameters to manage matplotlib
+        - savedir (str)         : path of directory in which to save plots.
+                                  default: None
+    Returns:
+        - fulldir (str)     : final name of the directory in which the figure 
+                              is saved (may differ from input savedir, if 
+                              datetime subfolder is added.)
     """
 
-    xran = np.linspace(-90, 90, 360)
-    deg = u'\u00B0'
+    flat_oris = [o for gos in tc_oris for oris in gos for o in oris]
+    max_val = 90
+    if np.max(np.absolute(flat_oris)) > max_val:
+        max_val = 180
+        if np.max(np.absolute(flat_oris)) > max_val:
+            raise ValueError(('Orientations expected to be at most between '
+                              '-180 and 180.'))
+    xran = np.linspace(-max_val, max_val, 360)
 
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
+    figpar = copy.deepcopy(figpar)
+    if figpar['save']['use_dt'] is None:
+        figpar['save']['use_dt'] = gen_util.create_time_str()
+    figpar['init']['ncols'] = 2
+    figpar['init']['sharex'] = True
+    figpar['init']['sharey'] = False
 
-    if plt_bkend is not None:
-        plt.switch_backend(plt_bkend)
+    plot_util.manage_mpl(**figpar['mng'])
 
     if savedir is None:
         savedir = os.path.join(figpar['dirs']['roi'], 
                                figpar['dirs']['tune_curv'])
+    if roi_vm_pars is not None:
+        savedir = os.path.join(savedir, 'prev')
+    else:
+        figpar['save']['fig_ext'] = 'jpg' # svg too big
 
+    print_dir = False
     if n == 0:
         print_dir = True
-    else:
-        print_dir = False
+    if n % 15 == 0:
+        print('ROI {}/{}'.format(n, nrois))
 
-    n_subplots = figpar['init']['ncols'] * 3
+    n_subplots = figpar['init']['ncols']
+    if roi_vm_pars is not None:
+        n_subplots *= 3
     fig, ax = plot_util.init_fig(n_subplots, **figpar['init'])
     fig.suptitle('{} - ROI {} ({} total)'.format(gentitle, n, nrois))
     
-    for s, surp_data in enumerate(roi_data):
-        if s == 0:
-            surp_str = ' for D seqs (reg)'
-            lab = 'reg'
-        else:
-            surp_str = ' for E seqs (surp)'
-            lab = 'surp'
+    deg = u'\u00B0'
+    for s, surp_oris in enumerate(tc_oris):
         if comb_gabs:
-            surp_str = '{}\n(gabors combined)'.format(surp_str)
-            subax_col = ax[:, 0]
+            gab_str = '(gabors combined)'            
         else:
-            lab = None
-            surp_str = '{}\n({} gabors)'.format(surp_str, len(surp_data))
-            subax_col = ax[:, s]
-        for g, gab_data in enumerate(surp_data):
-            # Top: Von Mises fits
-            vm_fit = st.vonmises.pdf(np.radians(xran), *roi_vm_pars[s][g])
-            subax_col[0].plot(xran, vm_fit, label=lab)
-            subax_col[0].set_title('Von Mises fits{}'.format(surp_str))
-            subax_col[0].set_ylabel('Probability density')
-            subax_col[0].legend()
-            col = subax_col[0].lines[-1].get_color()
-            
-            # Mid: actual data
-            subax_col[1].plot(tc_oris[s][g], gab_data, marker='.', 
-                                lw=0, alpha=0.3, color=col)
-            subax_col[1].set_title('Mean AUC per orientation')
-            subax_col[1].set_ylabel('Artificial counts')
-            y_str = sess_str_util.fluor_par_str(fluor, str_type='print')
-            subax_col[1].set_ylabel(u'{} area (mean)'.format(y_str))
+            gab_str = '({} gabors)'.format(len(surp_oris))
+        title_str = ' for {} {}'.format(seq_info[s], gab_str)
+        for g, gab_oris in enumerate(surp_oris):
+            if roi_vm_pars is not None:
+                plot_prev_analysis(ax[:, s], xran, gab_oris, roi_data[s][g], 
+                                roi_vm_pars[s][g], roi_hist_pars[s][g], 
+                                title_str, fluor)
+            else:
+                # Just plot activations by orientation
+                ax[0, s].plot(gab_oris, roi_data[s], marker='.', lw=0, 
+                              alpha=0.3)
+                ax[0, s].set_title('AUC per orientation{}'.format(title_str))
+                xlab = u'Orientations {}'.format(deg)
+                sess_plot_util.add_axislabels(ax[0, s], fluor=fluor, area=True, 
+                                              x_ax=xlab)
 
-            # Bottom: data as histogram for fitting
-            counts = np.around((np.asarray(gab_data) - \
-                                roi_hist_pars[s][g][0]) * \
-                                roi_hist_pars[s][g][1]).astype(int)
-            freq_data = np.repeat(np.asarray(tc_oris[s][g]), counts)                
-            subax_col[2].hist(freq_data, 360, color=col)
-            subax_col[2].set_title('Orientation histogram')
-            subax_col[2].set_xlabel(u'Orientations {}'.format(deg))
-            subax_col[2].set_ylabel('Artificial counts')
-            plot_util.set_ticks(subax_col[2], 'x', -90, 90, 5)
-
-    if not comb_gabs:
-        # share y axis ranges within rows
-        plot_util.share_lims(ax, 'row')
+    # share y axis ranges within rows
+    plot_util.share_lims(ax, 'row')
     savename = '{}_roi{}'.format(gen_savename, n)
-    _ = plot_util.savefig(fig, savename, savedir, 
-                            print_dir=print_dir, **figpar['save'])
+    fulldir = plot_util.savefig(fig, savename, savedir, 
+                                print_dir=print_dir, **figpar['save'])
+
+    plt.close(fig)
+
+    return fulldir
 
 
 #############################################
-def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurv_data, 
-                     sess_info, figpar=None, savedir=None, parallel=False, 
-                     plt_bkend=None):
+def plot_tune_curve_regr(vm_means, vm_regr, seq_info, gentitle='', 
+                         gen_savename='', figpar=None, savedir=None):
+    """
+    plot_tune_curve_regr(vm_means, vm_regr, seq_info)
+    
+    Plots correlation for regular vs surprise orientation preferences. 
+
+    Required args:
+        - vm_mean (3D array): array of mean Von Mises means for each ROI, not 
+                              weighted by kappa value or weighted (in rad): 
+                                ROI x surp x kappa weighted (False, (True)
+        - vm_regr (2D array): array of regression results correlating surprise 
+                              and non surprise means across ROIs, not weighted 
+                              by kappa value or weighted (in rad): 
+                                  regr_val (score, slope, intercept)
+                                     x kappa weighted (False, (True)
+        - seq_info (list)   : list of strings with info on each group
+                              plotted (2)
+    
+    Optional args:
+        - gentitle (str)        : general title for the plot
+                                  default: ''
+        - gen_savename (str)    : general title for the plot
+                                  default: ''
+        - figpar (dict)         : dictionary containing the following figure 
+                                  parameter dictionaries
+                                  default: None
+            ['init'] (dict): dictionary with figure initialization parameters
+            ['save'] (dict): dictionary with figure saving parameters
+            ['dirs'] (dict): dictionary with additional figure parameters
+            ['mng']  (dict): dictionary with parameters to manage matplotlib
+        - savedir (str)         : path of directory in which to save plots.
+                                  default: None
+    
+    Returns:
+        - fulldir (str)     : final name of the directory in which the figure 
+                              is saved (may differ from input savedir, if 
+                              datetime subfolder is added.)
+    """
+    
+    if figpar is None:
+        figpar = sess_plot_util.init_figpar()
+    figpar = copy.deepcopy(figpar)
+
+    if savedir is None:
+        savedir = os.path.join(figpar['dirs']['roi'], 
+                               figpar['dirs']['tune_curv'])
+    savedir = os.path.join(savedir, 'prev')
+
+    vm_means = np.asarray(vm_means)
+    vm_regr = np.asarray(vm_regr)
+
+    max_val = 90
+    if np.max(np.absolute(vm_means)) > max_val:
+        max_val = 180
+        if np.max(np.absolute(vm_means)) > max_val:
+            raise ValueError(('Orientations expected to be at most between '
+                              '-180 and 180.'))
+    xvals = [-max_val, max_val]
+
+    deg = u'\u00B0'
+    
+    kapw = [0, 1]
+    if vm_regr.shape[1] == 1:
+        kapw = [0]
+
+    for i in kapw:
+        if i == 0:
+            kap_str, kap_str_pr = '', ''
+        if i == 1:
+            kap_str = '_kapw'
+            kap_str_pr = ' (kappa weighted)'
+        data = np.rad2deg(vm_means[:, :, i])
+        r_sqr, slope, interc = vm_regr[:, i]
+        interc = np.rad2deg(interc)
+        figpar['init']['ncols'] = 1
+        fig, ax = plt.subplots(1)
+        ax.plot(data[:, 0], data[:, 1], marker='.', lw=0, alpha=0.8)
+        col = ax.lines[-1].get_color()
+        yvals = [x * slope + interc for x in xvals]
+        lab = u'R{} = {:.4f}'.format(u'\u00b2', r_sqr) # R2 = ##
+        ax.plot(xvals, yvals, marker='', label=lab, color=col)
+        for ax_let in ['x', 'y']:
+            plot_util.set_ticks(ax, ax_let, -90, 90, 5)
+        ax.set_xlabel((u'Mean orientation preference\nfrom {} '
+                        '({})'.format(seq_info[0], deg)))
+        ax.set_ylabel((u'Mean orientation preference\nfrom {} '
+                        '({})'.format(seq_info[1], deg)))
+        ax.set_title(('{}\nCorrelation btw orientation '
+                      'pref{}'.format(gentitle, kap_str_pr)))
+        ax.legend()
+        savename = '{}_regr{}'.format(gen_savename, kap_str)
+        fulldir = plot_util.savefig(fig, savename, savedir, print_dir=False, 
+                                    **figpar['save'])
+        plt.close(fig)
+
+        return fulldir
+
+
+#############################################
+def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar, 
+                     tcurv_data, sess_info, figpar=None, savedir=None, 
+                     parallel=False, plot_tc=True):
     """
     plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurv_data, 
                      sess_info)
 
-    Plots ROI orientation tuning curves, as well as a correlation plot for
-    regular vs surprise orientation preferences. 
+    Plots orientation fluorescence data, as well as ROI orientation tuning 
+    curves, and a correlation plot for regular vs surprise orientation 
+    preferences, if provided. 
 
     Required args:
         - analyspar (dict) : dictionary with keys of AnalysPar namedtuple
@@ -1863,7 +2034,10 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurv_data,
         - stimpar (dict)   : dictionary with keys of StimPar namedtuple
         - extrapar (dict)  : dictionary containing additional analysis 
                              parameters
-            ['analysis'] (str): analysis type (e.g., 'o')
+            ['analysis'] (str)  : analysis type (e.g., 'o')
+            ['comb_gabs'] (bool): if True, gabors were combined
+            ['seed'] (int)      : seed
+        - tcurvpar (dict)  : dictionary with keys of TCurvPar namedtuple
         - sess_info (dict) : dictionary containing information from each
                              session (one first session used) 
             ['mouse_ns'] (list)   : mouse numbers
@@ -1876,36 +2050,39 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurv_data,
                                     for sessions for which this attribute 
                                     exists
         - tcurv_data (dict): 
-            ['tc_oris'] (list)         : list of orientation values 
-                                         corresponding to the tc_data
-                                         surp x gabor (1 if comb_gabs) x oris
-            ['tc_data'] (list)         : list of mean integrated fluorescence 
-                                         data per orientation, for each ROI, 
-                                         structured as 
-                                         ROI x surp x gabor (1 if comb_gabs) 
-                                             x oris
-            ['tc_vm_pars'] (4D array)  : array of Von Mises parameters for each
-                                         ROI: 
-                                         ROI x surp x gabor (1 if comb_gabs) 
-                                             x par
-            ['tc_vm_mean'] (3D array)  : array of mean Von Mises means for each
-                                         ROI, not weighted by kappa value or 
-                                         weighted (if not comb_gabs) (in rad): 
-                                         ROI x surp 
-                                             x kappa weighted (False, (True))
-            ['tc_vm_regr'] (2D array)  : array of regression results 
-                                         correlating surprise and non surprise
-                                         means across ROIs, not weighted by 
-                                         kappa value or weighted (if not 
-                                         comb_gabs) (in rad): 
-                                         regr_val (score, slope, intercept)
-                                             x kappa weighted (False, (True)) 
-            ['tc_hist_pars'] (list)    : parameters used to convert tc_data to 
-                                         histogram values (sub, mult) used
-                                         in Von Mises parameter estimation, 
-                                         structured as:
-                                         ROI x surp x gabor (1 if comb_gabs) x 
-                                            param (sub, mult)
+            ['oris'] (list)         : list of orientation values 
+                                      corresponding to the tc_data
+                                      surp x gabor (1 if comb_gabs) x oris
+            ['data'] (list)         : list of mean integrated fluorescence 
+                                      data per orientation, for each ROI, 
+                                      structured as 
+                                      ROI x surp x gabor (1 if comb_gabs) 
+                                          x oris
+            ['nseqs'] (list)        : number of sequences per surp
+
+            if tcurvpar['prev']:
+            ['vm_pars'] (4D array)  : array of Von Mises parameters for each
+                                      ROI: 
+                                      ROI x surp x gabor (1 if comb_gabs) 
+                                          x par
+            ['vm_mean'] (3D array)  : array of mean Von Mises means for each
+                                      ROI, not weighted by kappa value or 
+                                      weighted (if not comb_gabs) (in rad): 
+                                      ROI x surp 
+                                          x kappa weighted (False, (True))
+            ['vm_regr'] (2D array)  : array of regression results 
+                                      correlating surprise and non surprise
+                                      means across ROIs, not weighted by 
+                                      kappa value or weighted (if not 
+                                      comb_gabs) (in rad): 
+                                      regr_val (score, slope, intercept)
+                                          x kappa weighted (False, (True)) 
+            ['hist_pars'] (list)    : parameters used to convert tc_data to 
+                                      histogram values (sub, mult) used
+                                      in Von Mises parameter estimation, 
+                                      structured as:
+                                      ROI x surp x gabor (1 if comb_gabs) x 
+                                         param (sub, mult)
 
     Optional args:
         - figpar (dict)  : dictionary containing the following figure parameter 
@@ -1914,13 +2091,14 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurv_data,
             ['init'] (dict): dictionary with figure initialization parameters
             ['save'] (dict): dictionary with figure saving parameters
             ['dirs'] (dict): dictionary with additional figure parameters
+            ['mng']  (dict): dictionary with parameters to manage matplotlib
         - savedir (str)  : path of directory in which to save plots.
                            default: None
         - parallel (bool): if True, some of the analysis is parallelized across 
                            CPU cores
                            default: False
-        - plt_bkend (str): mpl backend to use, e.g. when running on server
-                           default: None
+        - plot_tc (bool) : if True, tuning curves are plotted for each ROI 
+                           (causes errors on the clusters...)
 
     Returns:
         - fulldir (str)     : final name of the directory in which the figure 
@@ -1937,9 +2115,26 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurv_data,
                                        stimpar['bri_dir'], stimpar['bri_size'], 
                                        stimpar['gabk'])
 
-    if savedir is None:
-        savedir = os.path.join(figpar['dirs']['roi'], 
-                               figpar['dirs']['tune_curv'])
+    gabfrs = gen_util.list_if_not(stimpar['gabfr'])
+    if len(gabfrs) == 1:
+        gabfrs = gabfrs * 2
+    
+    rand_str, rand_str_pr = '', ['', '']
+    if tcurvpar['grp2'] == 'surp':
+        surps = [0, 1]
+        seq_types = ['reg', 'surp']
+    elif tcurvpar['grp2'] in ['reg', 'rand']:
+        surps = [0, 0]
+        seq_types = ['reg', 'reg']
+        if tcurvpar['grp2'] == 'rand':
+            rand_str = '_rand'
+            rand_str_pr = ['', ' samp']
+    gabfr_letts = sess_str_util.gabfr_letters(gabfrs, surps)
+
+    if extrapar['comb_gabs']:
+        comb_gab_str = '_comb'
+    else:
+        comb_gab_str = ''
 
     # extract some info from sess_info (only one session)
     keys = ['mouse_ns', 'sess_ns', 'lines', 'layers', 'nrois']
@@ -1949,82 +2144,58 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurv_data,
                                 ['nanrois', 'nanrois_dff']]
     sess_nrois = sess_gen_util.get_nrois(nrois, n_nan, n_nan_dff, 
                                      analyspar['remnans'], analyspar['fluor'])
-    deg = u'\u00B0'
-
-    if len(tcurv_data['tc_vm_regr'][0]) == 1: # only non weighted
-        comb_gabs = True
-        ncols = 1
-        comb_gab_str = '_comb'        
-    else:
-        comb_gabs = False
-        ncols = 2
-        comb_gab_str = ''
-
+    
+    seq_info = ['{}{} {} seqs ({})'.format(sqt, ra, gf, nseqs) 
+                                    for sqt, ra, gf, nseqs in 
+                                    zip(seq_types, rand_str_pr, gabfr_letts, 
+                                        tcurv_data['nseqs'])]
+    
     gentitle = (u'Mouse {} - {} orientation tuning\n(sess {}, '
                  '{} {})').format(mouse_n, stimstr_pr, sess_n, line, layer)
     gen_savename = 'roi_tc_m{}_sess{}_{}_{}{}'.format(mouse_n, sess_n, stimstr, 
                                                      layer, comb_gab_str)
+    if savedir is None:
+        savedir = os.path.join(figpar['dirs']['roi'], 
+                               figpar['dirs']['tune_curv'], 
+                               '{}v{}{}_seqs'.format(gabfr_letts[0], rand_str,
+                                                     gabfr_letts[1]))
 
-    # retrieve integ activity per ROI per gabor D and E segments, as well as 
-    # gabor orientations
+    if figpar is None:
+        figpar = sess_plot_util.init_figpar()
     figpar = copy.deepcopy(figpar)
     if figpar['save']['use_dt'] is None:
         figpar['save']['use_dt'] = gen_util.create_time_str()
 
-    # regression plot
-    kapw = [0, 1]
-    if comb_gabs:
-        kapw = [0]
-
-    for i in kapw:
-        if i == 0:
-            kap_str, kap_str_pr = '', ''
-        if i == 1:
-            kap_str = '_kapw'
-            kap_str_pr = ' (kappa weighted)'
-        data = np.rad2deg(np.asarray(tcurv_data['tc_vm_mean'])[:, :, i])
-        r_sqr, slope, interc = np.asarray(tcurv_data['tc_vm_regr'])[:, i]
-        interc = np.rad2deg(interc)
-        figpar['init']['ncols'] = 1
-        fig, ax = plt.subplots(1)
-        ax.plot(data[:, 0], data[:, 1], marker='.', lw=0, alpha=0.8)
-        col = ax.lines[-1].get_color()
-        xvals = [-90, 90]
-        yvals = [x * slope + interc for x in xvals]
-        lab = u'R{} = {:.4f}'.format(u'\u00b2', r_sqr) # R2 = ##
-        ax.plot(xvals, yvals, marker='', label=lab, color=col)
-        for ax_let in ['x', 'y']:
-            plot_util.set_ticks(ax, ax_let, -90, 90, 5)
-        ax.set_xlabel((u'Mean orientation preference\nfrom D seqs '
-                        '({})'.format(deg)))
-        ax.set_ylabel((u'Mean orientation preference\nfrom E seqs '
-                        '({})'.format(deg)))
-        ax.set_title(('{}\nCorrelation btw reg and surp orientation '
-                      'pref{}'.format(gentitle, kap_str_pr)))
-        ax.legend()
-        savename = '{}_regr{}'.format(gen_savename, kap_str)
-        fulldir = plot_util.savefig(fig, savename, savedir, print_dir=False, 
-                              **figpar['save'])
-
-    figpar['init']['ncols'] = ncols
-    figpar['init']['sharex'] = True
-    figpar['init']['sharey'] = False
-
-    if parallel:
-        num_cores = multiprocessing.cpu_count()
-        Parallel(n_jobs=num_cores)(delayed(plot_roi_tune_curves)
-                (roi_data, tcurv_data['tc_oris'], tcurv_data['tc_vm_pars'][n], 
-                 tcurv_data['tc_hist_pars'][n], n, sess_nrois, 
-                 analyspar['fluor'], comb_gabs, gentitle, gen_savename, figpar, 
-                 savedir, plt_bkend)
-                 for n, roi_data in enumerate(tcurv_data['tc_data'])) 
+    if tcurvpar['prev']: # plot regression
+        plot_tune_curve_regr(tcurv_data['vm_mean'], tcurv_data['vm_regr'], 
+                             seq_info, gentitle, gen_savename, figpar, savedir)
     else:
-        for n, roi_data in enumerate(tcurv_data['tc_data']):
-            plot_roi_tune_curves(roi_data, tcurv_data['tc_oris'], 
-                                 tcurv_data['tc_vm_pars'][n], 
-                                 tcurv_data['tc_hist_pars'][n], n, sess_nrois, 
-                                 analyspar['fluor'], comb_gabs, gentitle, 
-                                 gen_savename, figpar, savedir, plt_bkend)    
+        fulldir = plot_util.savefig(None, None, fulldir=savedir, 
+                                    print_dir=False, **figpar['save'])
+
+    if plot_tc:
+        if not tcurvpar['prev']: # send None values if not using previous analysis
+            tcurv_data = copy.deepcopy(tcurv_data)
+            tcurv_data ['vm_pars'] = [None] * len(tcurv_data['data'])
+            tcurv_data ['hist_pars'] = [None] * len(tcurv_data['data'])
+        if parallel:
+            n_jobs = min(multiprocessing.cpu_count(), len(tcurv_data['data']))
+            fulldir = Parallel(n_jobs=n_jobs)(delayed(plot_roi_tune_curves)
+                    (tcurv_data['oris'], roi_data, n, sess_nrois, seq_info, 
+                    tcurv_data['vm_pars'][n], tcurv_data['hist_pars'][n], 
+                    analyspar['fluor'], extrapar['comb_gabs'], gentitle, 
+                    gen_savename, figpar, savedir)
+                    for n, roi_data in enumerate(tcurv_data['data']))[0]
+        else:
+            for n, roi_data in enumerate(tcurv_data['data']):
+                fulldir = plot_roi_tune_curves(tcurv_data['oris'], roi_data, 
+                                n, sess_nrois, seq_info, 
+                                tcurv_data['vm_pars'][n], 
+                                tcurv_data['hist_pars'][n],  
+                                analyspar['fluor'], extrapar['comb_gabs'], 
+                                gentitle, gen_savename, figpar, savedir)
+    else:
+        print('Not plotting tuning curves.')
 
     return fulldir, gen_savename
 

@@ -49,8 +49,8 @@ def add_ext(filename, filetype='pickle'):
     filetype = filetype.replace('.', '')
 
     if ext == '':
-        filetypes = ['pkl', 'pickle', 'json', 'csv', 'svg']
-        file_exts  = ['.pkl', '.pkl', '.json', '.csv', '.svg']
+        filetypes = ['pkl', 'pickle', 'json', 'csv', 'svg', 'jpg']
+        file_exts  = ['.pkl', '.pkl', '.json', '.csv', '.svg', '.jpg']
         if filetype not in filetypes:
             gen_util.accepted_values_error('filetype', filetype, filetypes)
         ext = file_exts[filetypes.index(filetype)]

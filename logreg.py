@@ -53,6 +53,10 @@ def get_stimpars(comp='surp', stimtype='gabors', bri_dir='right', bri_size=128,
         if comp == 'surp':
             stimpar = sess_ntuple_util.init_stimpar(bri_dir, bri_size, gabfr, 
                                               gabk, gab_ori, 0, 1.5, stimtype)
+        elif comp == 'DvE':
+            gabfr   = sess_str_util.gabfr_nbrs(comp[0])
+            stimpar = sess_ntuple_util.init_stimpar(bri_dir, bri_size, gabfr, 
+                                              gabk, gab_ori, 0, 0.45, stimtype)
         else:
             gabfrs = sess_str_util.gabfr_nbrs([comp[0], comp[2]])
             stimpar = sess_ntuple_util.init_stimpar(bri_dir, bri_size, 
@@ -524,7 +528,7 @@ def init_comp_model(roi_seqs, seq_classes, logregpar, extrapar, scale='roi',
     n_fr, n_rois  = roi_seqs[0].shape[1:]
     model         = logreg_util.LogReg(n_rois, n_fr).to(device)
     model.opt     = torch.optim.Adam(model.parameters(), lr=logregpar.lr, 
-                                     weight_decay=logregpar.L2reg)
+                                     weight_decay=logregpar.wd)
     model.loss_fn = logreg_util.weighted_BCE(extrapar['cl_wei'])
     extrapar['loss_name'] = model.loss_fn.name
     
@@ -592,6 +596,8 @@ def single_run(run_n, analyspar, logregpar, quintpar, sesspar, stimpar,
         - techpar (dict)       : dictionary with technical parameters
             ['compdir'] (str) : specific output comparison directory
             ['device'] (str)   : device to use (e.g., 'cpu' or 'cuda')
+            ['fontdir'] (str)  : directory in which additional fonts are 
+                                 located
             ['output'] (str)   : main output directiory
             ['plt_bkend'] (str): plt backend to use (e.g., 'agg' or None)
             ['reseed'] (bool)  : if True, run is reseeded
@@ -606,13 +612,7 @@ def single_run(run_n, analyspar, logregpar, quintpar, sesspar, stimpar,
                                   quintile
     """
     
-    # needs to be repeated within joblib
-    if techpar['plt_bkend'] is not None:
-        plt.switch_backend(techpar['plt_bkend']) 
-
-    # set pyplot params
-    plot_util.linclab_plt_defaults(font=['Arial', 'Liberation Sans'], 
-                                 font_dir=os.path.join('..', 'tools', 'fonts'))
+    plot_util.manage_mpl(techpar['plt_bkend'], fontdir=techpar['fontdir'])
 
     extrapar = copy.deepcopy(extrapar)
     extrapar['run_n'] = run_n
@@ -639,10 +639,22 @@ def single_run(run_n, analyspar, logregpar, quintpar, sesspar, stimpar,
     if sesspar.runtype == 'pilot':
         thresh_cl = 1
 
-    mod, dls, extrapar = init_comp_model(roi_seqs, seq_classes, logregpar, 
+    set_prob = False
+    try:
+        mod, dls, extrapar = init_comp_model(roi_seqs, seq_classes, logregpar, 
                                   extrapar, analyspar.scale, techpar['device'], 
                                   thresh_cl=thresh_cl)
+    except ValueError as err:
+        if 'threshold' in str(err):
+            set_prob = True
+            print(err)
+        else:
+            raise err
+
     hyperpars = save_hyperpar(analyspar, logregpar, sesspar, stimpar, extrapar)
+
+    if set_prob:
+        return
 
     if logregpar.q1v4:
         dl_names = ['train', 'test_Q4']
@@ -682,9 +694,11 @@ def single_run(run_n, analyspar, logregpar, quintpar, sesspar, stimpar,
     full_scores = save_scores(info, scores, key_order=info_dict(), 
                               dirname=extrapar['dirname'])
 
-    # plot traces and scores
-    logreg_plots.plot_traces_scores(hyperpars, tr_stats, full_scores, 
-                                    plot_wei=True)
+    # plot traces and scores (only for first 5 runs)
+    # no plotting for the rest to reduce number of files generated
+    if run_n <= 5:
+        logreg_plots.plot_traces_scores(hyperpars, tr_stats, full_scores, 
+                                        plot_wei=True)
 
     plt.close('all')
 
@@ -712,6 +726,8 @@ def run_regr(args):
             error (str)           : error to take, i.e., 'std' (for std 
                                     or quintiles) or 'sem' (for SEM or MAD)
             fluor (str)           : fluorescence trace type
+            fontdir (str)         : directory in which additional fonts are 
+                                    located
             gabfr (int)           : gabor frame of reference if comparison 
                                     is 'surp'
             gabk (int or list)    : gabor kappas to include
@@ -745,6 +761,8 @@ def run_regr(args):
 
     if args.uniqueid == 'datetime':
         args.uniqueid = gen_util.create_time_str()
+    elif args.uniqueid in ['None', 'none']:
+        args.uniqueid = None
 
     reseed = False
     if args.seed in [None, 'None']:
@@ -759,6 +777,7 @@ def run_regr(args):
                'device'   : args.device,
                'parallel' : args.parallel,
                'plt_bkend': args.plt_bkend,
+               'fontdir'  : args.fontdir,
                'output'   : args.output,
                'ep_freq'  : args.ep_freq,
                'n_reg'    : args.n_reg,
@@ -777,7 +796,7 @@ def run_regr(args):
         quintpar = sess_ntuple_util.init_quintpar(1)
     logregpar = sess_ntuple_util.init_logregpar(args.comp, args.q1v4, 
                                         args.n_epochs, args.batchsize, args.lr, 
-                                        args.train_p, args.L2reg, args.bal)
+                                        args.train_p, args.wd, args.bal)
     omit_sess, omit_mice = sess_gen_util.all_omit(args.stimtype, args.runtype, 
                                    stimpars.bri_dir, stimpars.bri_size, 
                                    stimpars.gabk)
@@ -811,12 +830,13 @@ def run_regr(args):
                                             stimpars.bri_size, stimpars.gabk, 
                                             logregpar.comp, extrapar['shuffle'])
 
-            if techpar['parallel']:
-                num_cores = multiprocessing.cpu_count()
-                Parallel(n_jobs=num_cores)(delayed(single_run)
+            if techpar['parallel'] and runs != 0:
+                n_cores = multiprocessing.cpu_count()
+                n_jobs = min(n_cores, runs)
+                Parallel(n_jobs=n_jobs)(delayed(single_run)
                         (run, analyspar, logregpar, quintpar, sesspar, stimpars, 
                          extrapar, techpar, sess_data) for run in range(runs))
-            else:
+            elif runs != 0:
                 for run in range(runs):
                     single_run(run, analyspar, logregpar, quintpar, sesspar, 
                                stimpars, extrapar, techpar, sess_data)
@@ -1079,6 +1099,7 @@ def run_plot(args):
             CI (float)     : CI for shuffled data
             comp (str)     : type of comparison
             fluor (str)    : fluorescence trace type
+            fontdir (str)  : directory in which additional fonts are located
             output (str)   : general directory in which summary dataframe 
                              is saved
             plt_bkend (str): pyplot backend to use
@@ -1090,7 +1111,7 @@ def run_plot(args):
 
     logreg_plots.plot_summ(args.output, savename, args.stimtype, args.comp,
                            args.bri_dir, args.fluor, args.scale, args.CI, 
-                           args.plt_bkend)
+                           args.plt_bkend, args.fontdir)
 
 
 if __name__ == "__main__":
@@ -1127,8 +1148,8 @@ if __name__ == "__main__":
                         help='learning rate')
     parser.add_argument('--train_p', default=0.75, type=float, 
                         help='proportion of dataset used in training set')
-    parser.add_argument('--L2reg', default=0, type=float, 
-                        help='weight of L2 regularization to use')
+    parser.add_argument('--wd', default=0, type=float, 
+                        help='weight decay to use')
     parser.add_argument('--q1v4', action='store_true', 
                         help='run on 1st quintile and test on last')
     parser.add_argument('--bal', action='store_true', 
@@ -1138,7 +1159,6 @@ if __name__ == "__main__":
     parser.add_argument('--mouse_n', default=1, type=int)
     parser.add_argument('--runtype', default='prod', help='prod or pilot')
     parser.add_argument('--sess_n', default='all')
-    parser.add_argument('--layer', default='soma')
     
         # stimpar
     parser.add_argument('--stimtype', default='gabors', help='gabors or bricks')
@@ -1161,23 +1181,19 @@ if __name__ == "__main__":
                         help='manual seed (-1 for None)')
     parser.add_argument('--uniqueid', default='datetime', 
                         help=('passed string, \'datetime\' for date and time '
-                              'or None for no uniqueid'))
+                              'or \'none\' for no uniqueid'))
 
         # CI parameter for analyse and plot tasks
     parser.add_argument('--CI', default=0.95, type=float, help='shuffled CI')
 
+        # from dict
+    parser.add_argument('--dict_path', default=None, 
+                        help='path of directory to plot from')
 
     args = parser.parse_args()
 
     args.device = gen_util.get_device(args.cuda)
-
-    if args.plt_bkend is not None: # necessary for running on server
-        plt.switch_backend(args.plt_bkend)
-    
-    # set pyplot params
-    plot_util.linclab_plt_defaults(font=['Arial', 'Liberation Sans'], 
-                                 font_dir=os.path.join('..', 'tools', 'fonts'))
-
+    args.fontdir = os.path.join('..', 'tools', 'fonts')
 
     if args.runtype == 'pilot':
        args.output = '{}_pilot'.format(args.output)
@@ -1192,24 +1208,27 @@ if __name__ == "__main__":
     else:
         comps = gen_util.list_if_not(args.comp)
 
+    if args.dict_path is not None:
+        logreg_plots.plot_from_dict(args.dict_path, args.plt_bkend, 
+                                    args.fontdir)
 
-    for comp in comps:
-        args.comp = comp
-        print(('\nTask: {}\nStim: {} \nComparison: {}\n').format(args.task, 
-                                                 args.stimtype, args.comp))
+    else:
+        for comp in comps:
+            args.comp = comp
+            print(('\nTask: {}\nStim: {} \nComparison: {}\n').format(args.task, 
+                                                    args.stimtype, args.comp))
 
-        if args.task == 'run_regr':
-            run_regr(args)
+            if args.task == 'run_regr':
+                run_regr(args)
 
-        # collates regression runs and analyses accuracy
-        elif args.task == 'analyse':
-            run_analysis(args)
+            # collates regression runs and analyses accuracy
+            elif args.task == 'analyse':
+                run_analysis(args)
 
-        elif args.task == 'plot':
-            run_plot(args)
-        
-        else:
-            gen_util.accepted_values_error('args.task', args.task, 
-                                           ['run_regr', 'analyse', 'plot'])
+            elif args.task == 'plot':
+                run_plot(args)
 
+            else:
+                gen_util.accepted_values_error('args.task', args.task, 
+                                            ['run_regr', 'analyse', 'plot'])
 

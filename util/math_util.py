@@ -117,10 +117,10 @@ def error_stat(data, stats='mean', error='sem', axis=None, nanpol=None,
         else:
             me_shape = -1
         if nanpol is None:
-            me    = np.median(data, axis=axis).reshape(me_shape)
+            me    = np.asarray(np.median(data, axis=axis)).reshape(me_shape)
             error = np.median(np.absolute(data - me), axis=axis)
         elif nanpol == 'omit':
-            me    = np.nanmedian(data, axis=axis).reshape(me_shape)
+            me    = np.asarray(np.nanmedian(data, axis=axis)).reshape(me_shape)
             error = np.nanmedian(np.absolute(data - me), axis=axis)
     elif stats != 'median' and stats != 'mean':
         gen_util.accepted_values_error('stats', stats, ['mean', 'median'])
