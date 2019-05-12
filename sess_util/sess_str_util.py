@@ -267,7 +267,7 @@ def gabfr_nbrs(gabfr):
 
 
 #############################################
-def gabfr_letters(gabfr):
+def gabfr_letters(gabfr, surp='any'):
     """
     gabfr_letters(gabfr)
 
@@ -276,8 +276,14 @@ def gabfr_letters(gabfr):
     Required args:
         - gabfr (int or list): gabor frame number(s)
 
+    Optional args:
+        - surp (str, int or list): surprise values for all or each gabor frame 
+                                   number. If only value, applies to all.
+                                   (0, 1 or 'any')
+                                   default: 'any'
+
     Returns:
-        - gab_lett (str or list): gabor frame letter(s)
+        - gab_letts (str or list): gabor frame letter(s)
     """
 
     if not isinstance(gabfr, list):
@@ -286,18 +292,30 @@ def gabfr_letters(gabfr):
     else:
         gabfr_list = True
 
+    surp = gen_util.list_if_not(surp)
+    if len(surp) == 1:
+        surp = surp * len(gabfr)    
+    else:
+        if len(gabfr) != len(surp):
+            raise ValueError(('If passing more than one surp value, must '
+                              'pass as many as gabfr.'))
+
     if min(gabfr) < 0 or max(gabfr) > 3:
         raise ValueError('Gabor frames are only between 0 and 3, inclusively.')
-    
+
     all_gabfr = ['A', 'B', 'C', 'D/E']
 
-    if gabfr_list:
-        gab_lett = [all_gabfr[i] for i in gabfr]
+    gab_letts = []
+    for i, gf in enumerate(gabfr):
+        if gf == 3 and surp[i] != 'any':
+            gab_letts.append(all_gabfr[gf][-surp[i]]) # D or E is retained
+        else:
+            gab_letts.append(all_gabfr[gf])
+
+    if not gabfr_list:
+        gab_letts = gab_letts[0]
     
-    else:
-        gab_lett = all_gabfr[gabfr[0]]
-    
-    return gab_lett
+    return gab_letts
 
 
 #############################################

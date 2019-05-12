@@ -34,7 +34,7 @@ Once installed, you simply activate the appropriate environment, e.g. for Mac:
 All of the appropriate libraries should then be loaded, and the modules can
 be imported for use in ipython, python scripts, or jupyter notebooks.
 
-**Scripts**:
+**Scripts and modules**:
 * roi_analysis.py : run specific analyses on ROI data
 * logreg.py: run and analyse logistic regressions on the ROI data
 * **util**: general utilities module

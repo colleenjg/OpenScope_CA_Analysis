@@ -23,7 +23,8 @@ import sess_str_util
 #############################################
 def init_figpar(ncols=3, sharex=False, sharey=True, subplot_hei=7.5, 
                 subplot_wid=7.5, datetime=True, use_dt=None, fig_ext='svg', 
-                overwrite=False, runtype='prod', output='.'):
+                overwrite=False, runtype='prod', output='.', plt_bkend=None, 
+                linclab=True, fontdir=None):
     
     """
     Returns a dictionary containing figure parameter dictionaries for 
@@ -57,31 +58,30 @@ def init_figpar(ncols=3, sharex=False, sharey=True, subplot_hei=7.5,
 
     Returns:
         - figpar (dict): dictionary containing figure parameters:
-                ['init'] : dictionary containing the following inputs as
-                               attributes:
-                                   ncols, sharex, sharey, subplot_hei, 
-                                   subplot_wid
-                ['save'] : dictionary containing the following inputs as
-                               attributes:
-                                   datetime, use_dt, fig_ext, overwrite
-                ['dirs']: dictionary containing the following attributes:
-                        ['figdir']   (str) : main folder in which to save 
-                                             figures
-                        ['grp']      (str) : main folder in which to save
-                                             ROI grps data
-                        ['roi']      (str) : subdirectory name for ROI analyses
-                        ['run']      (str) : subdirectory name for running 
-                                             analyses
-                        ['autocorr'] (str) : subdirectory name for 
-                                             autocorrelation analyses
-                        ['mags']     (str) : subdirectory name for magnitude
-                                             analyses
-                        ['oridir']  (str)  : subdirectory name for 
-                                             orientation/direction analyses
-                        ['surp_qu']  (str) : subdirectory name for surprise, 
-                                             quintile analyses
-                        ['tune_curv'] (str): subdirectory name for tuning 
-                                             curves
+            ['init'] : dictionary containing the following inputs as
+                       attributes:
+                           ncols, sharex, sharey, subplot_hei, subplot_wid
+            ['save'] : dictionary containing the following inputs as
+                       attributes:
+                           datetime, use_dt, fig_ext, overwrite
+            ['dirs']: dictionary containing the following attributes:
+                ['figdir'] (str)   : main folder in which to save figures
+                ['grp'] (str)      : main folder in which to save ROI grps data
+                ['roi'] (str)      : subdirectory name for ROI analyses
+                ['run'] (str)      : subdirectory name for running analyses
+                ['autocorr'] (str) : subdirectory name for autocorrelation 
+                                     analyses
+                ['mags'] (str)     : subdirectory name for magnitude analyses
+                ['oridir'] (str)   : subdirectory name for 
+                                     orientation/direction analyses
+                ['surp_qu'] (str)  : subdirectory name for surprise, quintile 
+                                     analyses
+                ['tune_curv'] (str): subdirectory name for tuning curves
+            ['mng']: dictionary containing the following attributes:
+                ['plt_bkend'] (str): mpl backend to use
+                ['linclab'] (bool) : if True, Linclab mpl defaults are used
+                ['fontdir'] (str)  : path to directory containing additional 
+                                     fonts
     """
 
     fig_init = {'ncols'      : ncols,
@@ -95,6 +95,11 @@ def init_figpar(ncols=3, sharex=False, sharey=True, subplot_hei=7.5,
                 'use_dt'   : use_dt,
                 'fig_ext'  : fig_ext,
                 'overwrite': overwrite
+                }
+    
+    fig_mng = {'linclab'  : linclab,
+               'plt_bkend': plt_bkend,
+               'fontdir'  : fontdir,
                 }
 
     figdir = os.path.join(output, 'results', 'figures')
@@ -112,7 +117,8 @@ def init_figpar(ncols=3, sharex=False, sharey=True, subplot_hei=7.5,
 
     figpar = {'init' : fig_init,
               'save' : fig_save,
-              'dirs' : fig_dirs
+              'dirs' : fig_dirs,
+              'mng'  : fig_mng
               }
     
     return figpar

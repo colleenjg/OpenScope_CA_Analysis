@@ -272,8 +272,48 @@ def init_roigrppar(grps, add_reg=True, op='diff', plot_vals='surp'):
 
 
 #############################################
+def init_tcurvpar(gabfr=3, pre=0, post=0.6, grp2='surp', test=False, 
+                  prev=False):
+    """
+    Returns a TCurvPar namedtuple with the inputs arguments as named 
+    attributes.
+    
+    Optional args:
+        - gabfr (int or str): gabor frame at which sequences start 
+                              (0, 1, 2, 3) for tuning curve analysis
+                              (x_x, interpreted as 2 gabfrs)
+                              default: 3
+        - pre (float)       : range of frames to include before each 
+                              reference frame (in s) for tuning curve analysis
+                              default: 0
+        - post (float)      : range of frames to include after each 
+                              reference frame (in s) for tuning curve analysis
+                              default: 0.6
+        - tc_grp2 (str)     : second group: either surp, reg or rand (random 
+                              subsample of reg, the size of surp)
+                              default: 'surp'
+        - test (bool)       : if True, tuning curve analysis is run on a 
+                              small subset of ROIs and gabors
+                              default: False
+        - prev (bool)       : runs analysis using previous parameter 
+                              estimation method
+    """
+    # break 2 gabfr values into list
+    if '_' in str(gabfr):
+        gabfr = [int(gabf) for gabf in str(gabfr).split('_')]
+    else:
+        gabfr = int(gabfr)
+
+    tcurv_pars = [gabfr, float(pre), float(post), grp2, test, prev]
+    tcurv_keys = ['gabfr', 'pre', 'post', 'grp2', 'test', 'prev']
+    TCurvPar   = namedtuple('TCurvPar', tcurv_keys)
+    tcurvpar   = TCurvPar(*tcurv_pars)
+    return tcurvpar
+
+
+#############################################
 def init_logregpar(comp='surp', q1v4=False, epochs=1000, batchsize=200, 
-                   lr=0.0001, train_p=0.75, L2reg=0, bal=False):
+                   lr=0.0001, train_p=0.75, wd=0, bal=False):
     """
     Returns a LogRegPar namedtuple with the inputs arguments as named 
     attributes.
@@ -293,7 +333,7 @@ def init_logregpar(comp='surp', q1v4=False, epochs=1000, batchsize=200,
                            default: 0.0001
         - train_p (float): proportion of dataset used in training set
                            default: 0.75
-        - L2reg (float)  : weight of L2 regularization
+        - wd (float)     : weight decay
                            default: 0
         - bal (bool)     : if True, classes are balanced
                            default: False
@@ -303,9 +343,9 @@ def init_logregpar(comp='surp', q1v4=False, epochs=1000, batchsize=200,
                                             attributes
     """
 
-    logreg_pars = [comp, q1v4, epochs, batchsize, lr, train_p, L2reg, bal]
+    logreg_pars = [comp, q1v4, epochs, batchsize, lr, train_p, wd, bal]
     logreg_keys = ['comp', 'q1v4', 'epochs', 'batchsize', 'lr', 'train_p', 
-                   'L2reg', 'bal']
+                   'wd', 'bal']
     LogRegPar   = namedtuple('LogRegPar', logreg_keys)
     logregpar   = LogRegPar(*logreg_pars)
     return logregpar
