@@ -35,8 +35,8 @@ All of the appropriate libraries should then be loaded, and the modules can
 be imported for use in ipython, python scripts, or jupyter notebooks.
 
 **Scripts and modules**:
-* roi_analysis.py : run specific analyses on ROI data
-* logreg.py: run and analyse logistic regressions on the ROI data
+* run\_roi_analysis.py : run and plots specific analyses on ROI data
+* run_logreg.py: run, analyse and plot logistic regressions on the ROI data
 * **util**: general utilities module
 * **sess_util**: session specific utilities module
 * **analysis**: Session object as well as session data analysis module

@@ -1063,8 +1063,8 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
 def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar, 
                         tr_data, sess_info, figpar=None, savedir=None):
     """
-    plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar, 
-                           tr_data, sess_info)
+    plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar, 
+                       tr_data, sess_info)
 
     From dictionaries, plots average activity across gabor orientations or 
     brick directions per ROI as colormaps for a single session and optionally
@@ -1781,9 +1781,9 @@ def plot_prev_analysis(subax_col, xran, gab_oris, gab_data, gab_vm_pars,
     freq_data = np.repeat(np.asarray(gab_oris), counts)                
     subax_col[2].hist(freq_data, 360, color=col)
     subax_col[2].set_title('Orientation histogram')
-    subax_col[2].set_xlabel(u'Orientations {}'.format(deg))
+    subax_col[2].set_xlabel(u'Orientations ({})'.format(deg))
     subax_col[2].set_ylabel('Artificial counts')
-    plot_util.set_ticks(subax_col[2], 'x', np.min(xran), np.max(xran), 5)
+    plot_util.set_ticks(subax_col[2], 'x', np.min(xran), np.max(xran), 10)
 
 
 #############################################
@@ -1901,9 +1901,10 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
                 ax[0, s].plot(gab_oris, roi_data[s], marker='.', lw=0, 
                               alpha=0.3)
                 ax[0, s].set_title('AUC per orientation{}'.format(title_str))
-                xlab = u'Orientations {}'.format(deg)
+                xlab = u'Orientations ({})'.format(deg)
                 sess_plot_util.add_axislabels(ax[0, s], fluor=fluor, area=True, 
                                               x_ax=xlab)
+                plot_util.set_ticks(ax[0, s], 'x', -max_val, max_val, 10)
 
     # share y axis ranges within rows
     plot_util.share_lims(ax, 'row')
@@ -2000,7 +2001,7 @@ def plot_tune_curve_regr(vm_means, vm_regr, seq_info, gentitle='',
         lab = u'R{} = {:.4f}'.format(u'\u00b2', r_sqr) # R2 = ##
         ax.plot(xvals, yvals, marker='', label=lab, color=col)
         for ax_let in ['x', 'y']:
-            plot_util.set_ticks(ax, ax_let, -90, 90, 5)
+            plot_util.set_ticks(ax, ax_let, xvals[0], xvals[1], 5)
         ax.set_xlabel((u'Mean orientation preference\nfrom {} '
                         '({})'.format(seq_info[0], deg)))
         ax.set_ylabel((u'Mean orientation preference\nfrom {} '
