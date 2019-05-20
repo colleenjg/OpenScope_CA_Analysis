@@ -8,7 +8,7 @@ Authors: Colleen Gillon
 
 Date: October, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 """
 
@@ -49,7 +49,7 @@ def quint_segs(stim, stimpar, n_quints=4, qu_idx='all', surp='any',
     """
 
     if qu_idx == 'all':
-        qu_idx = range(n_quints)
+        qu_idx = list(range(n_quints))
     else:
         qu_idx = gen_util.pos_idx(qu_idx, n_quints)
 

@@ -9,7 +9,7 @@ Authors: Colleen Gillon
 
 Date: October, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 """
 
@@ -58,7 +58,7 @@ def sep_grps(sign_rois, nrois, grps='all', tails='2', add_reg=False):
     # get ROI numbers for each group
     if tails in ['up', 'lo']:
         # sign_rois[first/last]
-        all_rois  = range(nrois)
+        all_rois  = list(range(nrois))
         surp_surp = list(set(sign_rois[0]) & set(sign_rois[1]))
         surp_reg  = list(set(sign_rois[0]) - set(sign_rois[1]))
         reg_surp  = list(set(sign_rois[1]) - set(sign_rois[0]))
@@ -71,7 +71,7 @@ def sep_grps(sign_rois, nrois, grps='all', tails='2', add_reg=False):
         grp_inds = []
         for i, g in enumerate(grps):
             if g == 'all':
-                grp_ind = range(len(roi_grps))
+                grp_ind = list(range(len(roi_grps)))
             elif g == 'change':
                 grp_ind = [1, 2]
             elif g == 'no_change':
@@ -89,7 +89,7 @@ def sep_grps(sign_rois, nrois, grps='all', tails='2', add_reg=False):
 
     elif str(tails) == '2':
         # sign_rois[first/last][lo/up]
-        all_rois = range(nrois)         
+        all_rois = list(range(nrois))         
         surp_up_surp_up = list(set(sign_rois[0][1]) & set(sign_rois[1][1]))
         surp_up_surp_lo = list(set(sign_rois[0][1]) & set(sign_rois[1][0]))
         surp_lo_surp_up = list(set(sign_rois[0][0]) & set(sign_rois[1][1]))
@@ -121,7 +121,7 @@ def sep_grps(sign_rois, nrois, grps='all', tails='2', add_reg=False):
         grp_inds = []
         for i, g in enumerate(grps):
             if g == 'all':
-                grp_ind = range(len(roi_grps))
+                grp_ind = list(range(len(roi_grps)))
             elif g == 'change':
                 grp_ind = [1, 2, 4, 5, 6, 7]
             elif g == 'no_change':

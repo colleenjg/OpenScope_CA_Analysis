@@ -1,4 +1,4 @@
-# ignore all subdirectories, except analysis, util and sess_util
+# ignore all subdirectories, except analysis, plot_fcts, util and sess_util
 /*/ 
 !/util/
 !/sess_util/

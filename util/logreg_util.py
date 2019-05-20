@@ -7,7 +7,7 @@ Authors: Colleen Gillon
 
 Date: October, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 """
 
@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-import file_util, gen_util, math_util, plot_util
+from util import file_util, gen_util, math_util, plot_util
 
 
 #############################################
@@ -526,8 +526,8 @@ def fit_model(info, n_epochs, mod, dls, device, dirname='.', ep_freq=50,
                             ext_test_name=test_dl2_name)
 
     scores = pd.DataFrame()
-    scores = pd.DataFrame(np.nan, index=range(n_epochs), columns=col_names)
-    scores.insert(0, 'epoch_n', range(n_epochs))
+    scores = pd.DataFrame(np.nan, index=list(range(n_epochs)), columns=col_names)
+    scores.insert(0, 'epoch_n', list(range(n_epochs)))
     scores['saved'] = np.zeros([n_epochs], dtype=int)
     
     rectype = None
@@ -745,7 +745,7 @@ def get_stats(tr_data, tr_classes, classes, len_s, stats='mean', error='sem'):
     all_stats = []
     for cl in classes:
         idx = (tr_classes == cl) # bool array
-        ns.append(sum(idx))
+        ns.append(sum(idx.tolist()))
         class_stats = math_util.get_stats(tr_data[idx], stats, error, 
                                           axes=[0, 2])
         all_stats.append(class_stats)
@@ -868,7 +868,7 @@ def plot_scores(scores, classes, loss_name='loss', dirname='.', gen_title=''):
                                default: ''
     """
 
-    epochs = range(min(scores['epoch_n']), max(scores['epoch_n']) + 1)
+    epochs = list(range(min(scores['epoch_n']), max(scores['epoch_n']) + 1))
 
     sc_labs = get_sc_types('label')
     set_labs, set_names = [], []

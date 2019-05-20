@@ -8,11 +8,10 @@ Authors: Colleen Gillon, Blake Richards
 
 Date: August, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 """
 import copy
-import exceptions
 import glob
 import os
 import pdb
@@ -25,7 +24,7 @@ import pandas
 import pickle
 import scipy.stats as st
 
-from allensdk.brain_observatory.dff import compute_dff
+from allensdk.brain_observatory import dff
 
 from sess_util import sess_file_util, sess_sync_util
 from util import file_util, gen_util, math_util
@@ -368,7 +367,7 @@ class Session(object):
         
         if not os.path.exists(self.roi_traces_dff) or replace:
             print(('Creating dF/F files using {} basewin '
-                   'for session {})').format(basewin, self.sessid))
+                   'for session {}').format(basewin, self.sessid))
             # read the data points into the return array
             with h5py.File(self.roi_traces,'r') as f:
                 try:
@@ -377,8 +376,8 @@ class Session(object):
                     pdb.set_trace()
                     raise OSError('Could not read {}'.format(self.roi_traces))
             
-            traces = compute_dff(traces, mode_kernelsize=2*basewin, 
-                                 mean_kernelsize=basewin)
+            traces = dff.compute_dff(traces, mode_kernelsize=2*basewin, 
+                                     mean_kernelsize=basewin)
                 
             with h5py.File(self.roi_traces_dff, 'w') as hf:
                 hf.create_dataset('data',  data=traces)
@@ -2317,9 +2316,9 @@ class Gabors(Stim):
         self.phase     = gabor_par['phase']  
         self.sf        = gabor_par['sf']
         self.units     = gabor_par['units']
-        self.pos_x     = np.asarray(zip(*sess_par['possize'])[0])[:, :, 0]
-        self.pos_y     = np.asarray(zip(*sess_par['possize'])[0])[:, :, 1]
-        self.sizes_pr  = np.asarray(zip(*sess_par['possize'])[1])
+        self.pos_x     = np.asarray(list(zip(*sess_par['possize']))[0])[:, :, 0]
+        self.pos_y     = np.asarray(list(zip(*sess_par['possize']))[0])[:, :, 1]
+        self.sizes_pr  = np.asarray(list(zip(*sess_par['possize']))[1])
 
         self.pos_x_ran = [-self.win_size[0]/2., self.win_size[0]/2.]
         self.pos_y_ran = [-self.win_size[1]/2., self.win_size[1]/2.]
@@ -2456,6 +2455,7 @@ class Gabors(Stim):
                             (in x and y separately)
                             default: True
             - ori (bool)  : if True, the orientations of each Gabor are returned
+                            (in deg, -180 to 180)
                             default: True
             - size (bool) : if True, the sizes of each Gabor are returned
                             default: True

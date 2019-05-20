@@ -8,7 +8,7 @@ Authors: Colleen Gillon
 
 Date: October, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 """
 
@@ -17,7 +17,7 @@ import os
 import numpy as np
 
 from util import gen_util, plot_util
-import sess_str_util
+from sess_util import sess_str_util
 
 
 #############################################
@@ -279,7 +279,7 @@ def get_seg_comp(gabfr=0, plot_vals='both', op='diff', pre=0, post=1.5):
                                  default: None
     """
 
-    if gabfr not in range(0, 4):
+    if gabfr not in list(range(0, 4)):
         raise ValueError('Gabor frame must be 0, 1, 2 or 3.')
 
     seg_len = 0.3

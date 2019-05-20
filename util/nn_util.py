@@ -8,7 +8,7 @@ Authors: Blake Richards
 
 Date: September, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 """
 import argparse as ap

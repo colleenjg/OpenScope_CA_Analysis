@@ -7,18 +7,18 @@ Authors: Colleen Gillon
 
 Date: October, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 """
 
-import exceptions
 import os.path
+import sys
 
 import json
 import pandas as pd
 import pickle
 
-import gen_util
+from util import gen_util
 
 
 #############################################
@@ -34,7 +34,7 @@ def add_ext(filename, filetype='pickle'):
                           and extension
     
     Optional args:
-        - filetype (str): type of file (pickle, pkl, json, csv, svg).
+        - filetype (str): type of file (pickle, pkl, json, png, csv, svg, jpg).
                           Overridden if extension already in filename.
                           Can include '.'
                           default: 'pickle'
@@ -49,8 +49,8 @@ def add_ext(filename, filetype='pickle'):
     filetype = filetype.replace('.', '')
 
     if ext == '':
-        filetypes = ['pkl', 'pickle', 'json', 'csv', 'svg', 'jpg']
-        file_exts  = ['.pkl', '.pkl', '.json', '.csv', '.svg', '.jpg']
+        filetypes = ['pkl', 'pickle', 'json', 'csv', 'png', 'svg', 'jpg']
+        file_exts  = ['.pkl', '.pkl', '.json', '.csv', '.png', '.svg', '.jpg']
         if filetype not in filetypes:
             gen_util.accepted_values_error('filetype', filetype, filetypes)
         ext = file_exts[filetypes.index(filetype)]
@@ -86,8 +86,13 @@ def loadfile(filename, fulldir='.', filetype='pickle'):
     
     if os.path.exists(fullname):
         if ext == '.pkl':
-            with open(fullname, 'rb') as f:
-                datafile = pickle.load(f)
+            try:
+                with open(fullname, 'rb') as f:
+                    datafile = pickle.load(f)
+            except:
+                # load a python 2 pkl in python 3
+                with open(fullname, 'rb') as f: 
+                    datafile = pickle.load(f, encoding='latin1')
         elif ext == '.json':
             with open(fullname, 'rb') as f:
                 datafile = json.load(f)
@@ -147,7 +152,7 @@ def saveinfo(saveobj, savename='info', fulldir='.', save_as='pickle',
 
     if ext == '.pkl':
         with open(fullname, 'wb') as f:
-            pickle.dump(saveobj, f)
+            pickle.dump(saveobj, f, protocol=2)
     elif ext == '.json':
         with open(fullname, 'w') as f:
             json.dump(saveobj, f, sort_keys=sort)
@@ -171,8 +176,8 @@ def checkdir(dirname):
 
     # check that the directory exists
     if not os.path.isdir(dirname):
-        raise exceptions.OSError(('{} either does not exist or is not a '
-                                  'directory').format(dirname))
+        raise OSError(('{} either does not exist or is not a '
+                       'directory').format(dirname))
 
 
 #############################################

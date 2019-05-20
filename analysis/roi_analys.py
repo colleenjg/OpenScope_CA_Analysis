@@ -8,7 +8,7 @@ Authors: Colleen Gillon
 
 Date: October, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 """
 
@@ -18,7 +18,7 @@ import multiprocessing
 from joblib import Parallel, delayed
 import numpy as np
 
-import ori_analys, quint_analys, signif_grps
+from analysis import ori_analys, quint_analys, signif_grps
 from util import file_util, gen_util, math_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
 from plot_fcts import roi_analysis_plots as roi_plots
@@ -671,7 +671,7 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
                 raise NotImplementedError(('Segments used for autocorrelation '
                                            'must be contiguous within blocks.'))
             frame_edges = stim.get_twop_fr_per_seg([min(segs), max(segs)])
-            frames = range(min(frame_edges[0]), max(frame_edges[1])+1)
+            frames = list(range(min(frame_edges[0]), max(frame_edges[1])+1))
             traces = sess.get_roi_traces(frames, fluor=analyspar.fluor, 
                                          remnans=analyspar.remnans)
             sess_traces.append(traces)
@@ -1005,17 +1005,6 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
     stimpar_tc_dict['post'] = tcurvpar.post
     stimpar_tc = sess_ntuple_util.init_stimpar(**stimpar_tc_dict)
 
-    gabfrs = gen_util.list_if_not(stimpar_tc.gabfr)
-    if len(gabfrs) == 1:
-        gabfrs = gabfrs * 2
-    if tcurvpar.grp2 == 'surp':
-        surps = [0, 1]
-    elif tcurvpar.grp2 in ['reg', 'rand']:
-        surps = [0, 0]
-    else:
-        gen_util.accepted_values_error('tcurvpar.grp2', tcurvpar.grp2, 
-                                       ['surp', 'reg', 'rand'])
-
     seed = gen_util.seed_all(seed, 'cpu', print_seed=False)
 
     if figpar['save']['use_dt'] is None:
@@ -1023,70 +1012,14 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
     for comb_gabs in comb_gabs_all:
         for sess in sessions:
-            stim = sess.get_stim(stimpar_tc.stimtype)
-            nrois_tot = sess_gen_util.get_nrois(sess.nrois, len(sess.nanrois), 
-                                            len(sess.nanrois_dff), 
-                                            analyspar.remnans, analyspar.fluor)
-            ngabs_tot = stim.n_patches
-            if nrois == 'all':
-                sess_nrois = nrois_tot
+            returns = ori_analys.calc_tune_curvs(sess, analyspar, stimpar, 
+                                nrois, ngabs, tcurvpar.grp2, comb_gabs, 
+                                tcurvpar.prev, collapse=True, parallel=parallel)
+            if tcurvpar.prev:
+                [tc_oris, tc_data, tc_nseqs, tc_vm_pars, 
+                                tc_vm_mean, tc_hist_pars] = returns
             else:
-                sess_nrois = np.min([nrois_tot, nrois])
-            
-            if ngabs == 'all':
-                sess_ngabs = stim.n_patches
-            else:
-                sess_ngabs = np.min([stim.n_patches, ngabs])                
-
-            tc_data, tc_oris, tc_nseqs = [], [], []
-            if tcurvpar.prev: # PREVIOUS ESTIMATION METHOD
-                tc_vm_pars, tc_vm_mean, tc_hist_pars = [], [], []
-    
-            for i, (gf, s) in enumerate(zip(gabfrs, surps)):
-                # get segments
-                segs = stim.get_segs_by_criteria(gabfr=gf, 
-                                                 bri_dir=stimpar_tc.bri_dir, 
-                                                 bri_size=stimpar_tc.bri_size, 
-                                                 gabk=stimpar_tc.gabk, 
-                                                 surp=s, by='seg')
-                
-                if tcurvpar.grp2 == 'rand' and i == 1:
-                    n_segs = len(stim.get_segs_by_criteria(gabfr=gf, 
-                                                 bri_dir=stimpar_tc.bri_dir, 
-                                                 bri_size=stimpar_tc.bri_size, 
-                                                 gabk=stimpar_tc.gabk, 
-                                                 surp=1, by='seg'))
-                    np.random.shuffle(segs)
-                    segs = sorted(segs[: n_segs])
-                tc_nseqs.append(len(segs))
-                twopfr = stim.get_twop_fr_per_seg(segs, first=True)
-                # ROI x seq
-                roi_data = stim.get_roi_trace_array(twopfr, stimpar_tc.pre, 
-                                  stimpar_tc.post, analyspar.fluor, integ=True, 
-                                  remnans=analyspar.remnans)[1][:sess_nrois]
-                # gab x seq 
-                gab_oris = stim.get_stim_par_by_seg(segs, pos=False, ori=True, 
-                                                    size=False)[0].T
-                # gab_oris = ori_analys.collapse_dir(gab_oris)
-
-                if comb_gabs:
-                    ngabs = 1
-                    gab_oris = gab_oris.reshape([1, -1])
-                    roi_data = np.tile(roi_data, [1, ngabs_tot])
-                    
-                tc_oris.append(gab_oris.tolist())
-                tc_data.append(roi_data.tolist())
-
-                if tcurvpar.prev: # PREVIOUS ESTIMATION METHOD
-                    [gab_tc_oris, gab_tc_data, gab_vm_pars, 
-                    gab_vm_mean, gab_hist_pars] = ori_analys.tune_curv_estims(
-                                     gab_oris, roi_data, ngabs_tot, sess_nrois, 
-                                     sess_ngabs, comb_gabs, parallel=parallel)
-                    tc_oris[i] = gab_tc_oris
-                    tc_data[i] = gab_tc_data
-                    tc_vm_pars.append(gab_vm_pars)
-                    tc_vm_mean.append(gab_vm_mean)
-                    tc_hist_pars.append(gab_hist_pars)
+                tc_oris, tc_data, tc_nseqs = returns
 
             tcurv_data = {'oris'     : tc_oris,
                           'data'     : [list(data) for data in zip(*tc_data)],

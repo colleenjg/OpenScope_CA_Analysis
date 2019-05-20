@@ -8,7 +8,7 @@ Authors: Joel Zylberberg, Blake Richards, Colleen Gillon
 
 Date: August, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 '''
 
@@ -18,61 +18,65 @@ import pandas as pd
 import pickle
 from matplotlib import pyplot as plt
 import scipy.stats as stats
-from sklearn.decomposition import PCA, RandomizedPCA
+from sklearn.decomposition import PCA
 import exceptions
 import pdb
 
 ###############################################################################
-def run_pca(datafile, outfile, ncomps = 20, nframes=500, range=(1000,-1000), crop=(500, 500)):
+def run_pca(datafile, outfile, ncomps = 20, nframes=500, ran=(1000,-1000), crop=(500, 500)):
     '''
     run_pca(data_file, pca_file, frames=(1000,-1000), crop=(500,500))
 
     Runs principal components analysis on the raw 2p imaging data. Stores the results
     in a pickle file in the data directory.
 
-    Required arguments:
-            - data_file  (string): full path name of the motion corrected data
-            - pca_file (string)  : full path name for the pickle file to put the PCA results in
+    Required args:
+            - data_file  (str): full path name of the motion corrected data
+            - pca_file (str)  : full path name for the pickle file to put 
+                                the PCA results in
 
-    Optional arguments:
-            - ncomps (int)           : the number of principle components to extract
-                                       default = 20
-            - nframes (int)          : the number of frames to include for calculating the
-                                       principal components, if less than the max range,
-                                       will use linear spacing
-                                       default = 500
-            - range (2-tuple of ints): the range of frames to include in the analysis,
-                                       if the second number is negative, the analysis 
-                                       will include frames up to that number away
-                                       from the total number of frames
-                                       default = (1000,-1000)
-            - crop (2-tuple of ints) : the size of the image frame to take, e.g. the
-                                       crop size (note: max is (512,512)
-                                       default = (500,500)
+    Optional args:
+            - ncomps (int)          : the number of principle components to 
+                                      extract
+                                      default: 20
+            - nframes (int)         : the number of frames to include for 
+                                      calculating the principal components, if 
+                                      less than the max range, will use linear 
+                                      spacing
+                                      default: 500
+            - ran (2-tuple of ints) : the range of frames to include in the 
+                                      analysis, if the second number is 
+                                      negative, the analysis will include 
+                                      frames up to that number away
+                                      from the total number of frames
+                                      default: (1000,-1000)
+            - crop (2-tuple of ints): the size of the image frame to take, e.g.
+                                      the crop size (note: max is (512,512)
+                                      default: (500,500)
 
     Outputs:
-        - principle_components (array): array of the principle components, with shape
-                                        [ncomps, crop[0]*crop[1]]
+        - principle_components (array): array of the principle components, with 
+                                        shape [ncomps, crop[0]*crop[1]]
     '''
 
     # open the data file
     try:
         fdata = h5py.File(datafile,'r')
     except:
-        raise exceptions.IOError('Could not open %s for reading' %datafile)
+        raise OSError('Could not open %s for reading' %datafile)
 
     # determine the total number of frames in the recording
     totframes = len(fdata['data'])
 
     # get a list of all the frames we'll use here
-    if range[1] <= 0:
-        flist = [int(i) for i in np.ceil(np.linspace(range[0], totframes+range[1], nframes)).tolist()]
-    elif range[1] <= range[0]:
-        raise exceptions.UserWarning('Second element of range must either be negative or greater than first element, reverting to default')
-        range = [1000,-1000]
-        flist = [int(i) for i in np.ceil(np.linspace(range[0], totframes+range[1], nframes)).tolist()]
+    if ran[1] <= 0:
+        flist = [int(i) for i in np.ceil(np.linspace(ran[0], totframes+ran[1], nframes)).tolist()]
+    elif ran[1] <= ran[0]:
+        raise ValueError('Second element of range must either be negative or greater than first element, reverting to default')
+        ran = [1000,-1000]
+        flist = [int(i) for i in np.ceil(np.linspace(ran[0], totframes+ran[1], nframes)).tolist()]
     else:
-        flist = [int(i) for i in np.ceil(np.linspace(range[0], range[1], nframes)).tolist()]
+        flist = [int(i) for i in np.ceil(np.linspace(ran[0], ran[1], nframes)).tolist()]
 
     # get the requested frames (cropped) into a numpy array reshaped for PCA
     data = np.array(fdata['data'][flist,0:crop[0],0:crop[1]]).reshape([nframes, crop[0]*crop[1]])
@@ -114,7 +118,7 @@ def project_data(datafile, pcafile, frames):
     try:
         fdata = h5py.File(datafile,'r')
     except:
-        raise exceptions.IOError('Could not open %s for reading' %datafile)
+        raise OSError('Could not open %s for reading' %datafile)
 
     # open the pickle file
     try:
@@ -122,7 +126,7 @@ def project_data(datafile, pcafile, frames):
         pcapkl  = pickle.load(pklfile)
         pklfile.close()
     except:
-        raise exceptions.IOError('Could not open %s for reading' %pcafile)
+        raise OSError('Could not open %s for reading' %pcafile)
 
     # get the crop info
     crop = pcapkl['crop']

@@ -7,7 +7,7 @@ Authors: Colleen Gillon
 
 Date: October, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 """
 
@@ -444,7 +444,7 @@ def num_ranges(ns, pre=0, leng=10):
 
     pre, post = [int(np.around(p)) for p in [pre, post]]
 
-    num_ran = np.asarray([range(n-pre, n+post) for n in ns])
+    num_ran = np.asarray([list(range(n-pre, n+post)) for n in ns])
 
     return num_ran
 

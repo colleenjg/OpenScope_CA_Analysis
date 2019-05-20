@@ -7,7 +7,7 @@ Authors: Colleen Gillon
 
 Date: October, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 """
 
@@ -17,7 +17,7 @@ import numpy as np
 import scipy.stats as st
 import torch
 
-import gen_util
+from util import gen_util
 
 
 #############################################
@@ -179,7 +179,7 @@ def get_stats(data, stats='mean', error='sem', axes=None, nanpol=None,
 
     if axes is None:
         # reversed list of axes, omitting last one
-        axes = range(0, len(data.shape))[::-1]
+        axes = list(range(0, len(data.shape)))[::-1]
     axes = gen_util.list_if_not(axes)
 
     # make axis numbers positive
@@ -766,14 +766,12 @@ def id_elem(rand_vals, act_vals, tails='2', p_val=0.05, min_n=100,
         - ret_th (bool)     : if True, thresholds are returned for each element
 
     Returns:
-        - elems (list or 1D array): array of elements showing significant
-                                    differences, or list of arrays if 
-                                    2-tailed analysis [lo, up].
+        - elems (list): list of elements showing significant differences, or 
+                        list of lists if 2-tailed analysis [lo, up].
         if ret_th, also:
-        - threshs (list)          : list of threshold(s) for each element, 
-                                    either one value per element if 1-tailed
-                                    analysis, or list of 2 thresholds if
-                                    2-tailed [lo, up].
+        - threshs (list): list of threshold(s) for each element, either one 
+                          value per element if 1-tailed analysis, or list of 2 
+                          thresholds if 2-tailed [lo, up].
     """
 
     act_vals  = np.asarray(act_vals)
@@ -802,11 +800,13 @@ def id_elem(rand_vals, act_vals, tails='2', p_val=0.05, min_n=100,
         elems = np.where(act_vals < threshs)[0]
         if print_elems:
             print_elem_list(elems, 'lo', act_vals[elems])
+        elems = elems.tolist()
     elif tails == 'up':
         threshs = np.percentile(rand_vals, 100-p_val*100, axis=-1)
         elems = np.where(act_vals > threshs)[0]
         if print_elems:
             print_elem_list(elems, 'up', act_vals[elems])
+        elems = elems.tolist()
     elif str(tails) == '2':
         lo_threshs = np.percentile(rand_vals, p_val*100/2., axis=-1)
         lo_elems = np.where(act_vals < lo_threshs)[0]
@@ -815,7 +815,7 @@ def id_elem(rand_vals, act_vals, tails='2', p_val=0.05, min_n=100,
         if print_elems:
             print_elem_list(lo_elems, 'lo', act_vals[lo_elems])
             print_elem_list(up_elems, 'up', act_vals[up_elems])
-        elems = [lo_elems, up_elems]
+        elems = [lo_elems.tolist(), up_elems.tolist()]
     else:
         gen_util.accepted_values_error('tails', tails, ['up', 'lo', '2'])
     
