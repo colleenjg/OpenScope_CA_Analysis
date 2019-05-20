@@ -8,16 +8,17 @@ Authors: Colleen Gillon
 
 Date: October, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 """
 
 import os
 
 import numpy as np
+import pandas as pd
 
 from analysis import session
-import sess_str_util
+from sess_util import sess_str_util
 from util import file_util, gen_util
 
 
@@ -126,7 +127,7 @@ def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth,
                            (mouse_df['pass_fail'].isin(pass_fail)) &
                            (mouse_df['all_files'].isin(all_files)) &
                            (mouse_df['any_files'].isin(any_files)) &
-                           (mouse_df['nrois'] >= min_rois)][returnlab].tolist()
+                           (mouse_df['nrois'].astype(int) >= min_rois)][returnlab].tolist()
 
     if unique:
         df_vals = list(set(df_vals))
@@ -318,7 +319,7 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
 #############################################
 def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True):
     """
-    init_sessions(sess_ns, datadir)
+    init_sessions(sessids, datadir)
 
     Creates list of Session objects for each session ID passed.
 
@@ -613,12 +614,12 @@ def all_omit(stimtype='gabors', runtype='prod', bri_dir='both', bri_size=128,
             if 16 not in gen_util.list_if_not(gabk):
                 print(('The production data only includes gabor '
                        'stimuli with kappa=16'))
-                omit_mice = range(1, 9) # all
+                omit_mice = list(range(1, 9)) # all
         elif stimtype == 'bricks':
             if 128 not in gen_util.list_if_not(bri_size):
                 print(('The production data only includes bricks stimuli with '
                        'size=128'))
-                omit_mice = range(1, 9) # all
+                omit_mice = list(range(1, 9)) # all
 
     return omit_sess, omit_mice
 

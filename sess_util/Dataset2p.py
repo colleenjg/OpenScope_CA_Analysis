@@ -2,6 +2,8 @@
 """
 Created on Mon Mar 21 14:05:33 2016
 
+Code written and shared by colleagues at the Allen Institute for Brain Science.
+
 @author: derricw
 
 A few tools for analyzing an ophys experiment.
@@ -19,7 +21,7 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 
-from dataset import Dataset
+from sess_util import dataset
 
 
 def filter_digital(rising, falling, threshold=0.0001):
@@ -94,7 +96,7 @@ def bit_low(integer, bit):
     return (integer & ~(1 << bit))
 
 
-class Dataset2p(Dataset):
+class Dataset2p(dataset.Dataset):
     """
     Extends the sync.Dataset class to include some 2p-experiment-specific
         functions.  Stores a cache of derived values so subsequent calls can

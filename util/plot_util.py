@@ -7,7 +7,7 @@ Authors: Colleen Gillon
 
 Date: October, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 """
 
@@ -19,7 +19,7 @@ from matplotlib import pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 import numpy as np
 
-import file_util, gen_util
+from util import file_util, gen_util
 
 
 #############################################
@@ -123,9 +123,9 @@ def linclab_plt_defaults(font='Liberation Sans', fontdir=None,
         fig, ax = plt.subplots()
         
         n_col = len(colors)
-        x = np.asarray(range(10))[:, np.newaxis]
+        x = np.asarray(list(range(10)))[:, np.newaxis]
         y = np.repeat(x/2., n_col, axis=1) - \
-            np.asarray(range(-n_col, 0))[np.newaxis, :]
+            np.asarray(list(range(-n_col, 0)))[np.newaxis, :]
         ax.plot(x, y)
         ax.legend(colors)
         ax.set_xlabel('X axis')
@@ -646,7 +646,7 @@ def plot_errorbars(sub_ax, y, err, x=None, title='', lw=None, col=None,
     y = np.asarray(y).squeeze()
     
     if x is None:
-        x = range(1, len(y)+1)
+        x = list(range(1, len(y) + 1))
     
     if xticks is None:
         sub_ax.set_xticks(x)
@@ -925,7 +925,7 @@ def plot_colormap(sub_ax, data, xran=None, yran=None, title='', cmap=None,
         yran = np.linspace(yran[0], yran[1], data.shape[1]+1)
 
     if yticks_ev is not None:
-        yticks = range(0, data.shape[1], yticks_ev)
+        yticks = list(range(0, data.shape[1], yticks_ev))
         sub_ax.set_yticks(yticks)
     
     if xticks is None:

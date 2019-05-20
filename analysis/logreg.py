@@ -8,7 +8,7 @@ Authors: Colleen Gillon
 
 Date: October, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 """
 
@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-import quint_analys
+from analysis import quint_analys
 from util import data_util, file_util, gen_util, logreg_util, math_util, \
                  plot_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util

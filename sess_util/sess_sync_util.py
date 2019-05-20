@@ -8,11 +8,10 @@ Authors: Allen Brain Institute, Joel Zylberberg, Blake Richards, Colleen Gillon
 
 Date: August, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 """
 
-import exceptions
 import pdb
 import os.path
 
@@ -22,8 +21,8 @@ import numpy as np
 import pandas as pd
 import pickle
 
-from dataset import Dataset
-from Dataset2p import Dataset2p
+from util import file_util
+from sess_util import dataset, Dataset2p
 
 
 # set a few basic parameters
@@ -48,7 +47,7 @@ def calculate_stimulus_alignment(stim_time, valid_twop_vsync_fall):
 
     """
 
-    print 'Calculating stimulus alignment.'
+    print('Calculating stimulus alignment.')
 
     # convert stimulus frames into twop frames
     stimulus_alignment = np.empty(len(stim_time))
@@ -112,7 +111,7 @@ def calculate_delay(sync_data, stim_vsync_fall, sample_frequency):
 
     """
 
-    print 'calculating delay'
+    print('calculating delay')
 
     try:
         # photodiode transitions
@@ -184,18 +183,18 @@ def calculate_delay(sync_data, stim_vsync_fall, sample_frequency):
             delay = np.mean(delay_rise[:last_frame_index])
 
             if (delay > DELAY_THRESHOLD or np.isnan(delay)):
-                print 'Sync error needs to be fixed'
+                print('Sync error needs to be fixed')
                 delay = ASSUMED_DELAY
-                print 'Using assumed delay:', round(delay, ROUND_PRECISION)
+                print('Using assumed delay:', round(delay, ROUND_PRECISION))
 
         # assume delay
         else:
             delay = ASSUMED_DELAY
     except Exception as e:
-        print e
-        print 'Process without photodiode signal'
+        print(e)
+        print('Process without photodiode signal')
         delay = ASSUMED_DELAY
-        print 'Assumed delay:', round(delay, ROUND_PRECISION)
+        print('Assumed delay:', round(delay, ROUND_PRECISION))
 
     return delay
 
@@ -219,7 +218,7 @@ def get_frame_rate(syn_file_name):
     """
 
     # create a Dataset object with the sync file
-    sync_data = Dataset(syn_file_name)
+    sync_data = dataset.Dataset(syn_file_name)
    
     sample_frequency = sync_data.meta_data['ni_daq']['counter_output_freq']
     
@@ -259,15 +258,14 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
 
     # check that the input files exist
     if not os.path.isfile(pkl_file_name):
-        raise exceptions.OSError('%s does not exist' %(pkl_file_name))
+        raise OSError('%s does not exist' %(pkl_file_name))
     if not os.path.isfile(syn_file_name):
-        raise exceptions.OSError('%s does not exist' %(syn_file_name))
+        raise OSError('%s does not exist' %(syn_file_name))
 
     num_stimtypes = 2 #bricks and Gabors
 
     # read the pickle file and call it 'pkl'
-    with open(pkl_file_name, 'rb') as f:
-        pkl = pickle.load(f)
+    pkl = file_util.loadfile(f, filetype='pickle')
 
     if runtype == 'pilot':
         num_stimtypes = 2 # bricks and Gabors
@@ -278,10 +276,10 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
                          .format(num_stimtypes, len(pkl['stimuli'])))
         
     # create a Dataset object with the sync file
-    sync_data = Dataset(syn_file_name)
+    sync_data = dataset.Dataset(syn_file_name)
 
     # create Dataset2p object which will be used for the delay
-    dset = Dataset2p(syn_file_name)
+    dset = Dataset2p.Dataset2p(syn_file_name)
 
     sample_frequency = sync_data.meta_data['ni_daq']['counter_output_freq']
 
@@ -347,7 +345,7 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
     
     total_stimsegs = np.sum(segs)
     
-    stim_df = pd.DataFrame(index=range(np.sum(total_stimsegs)), 
+    stim_df = pd.DataFrame(index=list(range(np.sum(total_stimsegs))), 
                            columns=['stimType', 'stimPar1', 'stimPar2', 'surp', 
                                     'stimSeg', 'GABORFRAME', 'start_frame', 
                                     'end_frame', 'num_frames'])
@@ -399,7 +397,7 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
     # store in the pickle file
     try:
         with open(df_pkl_name, 'wb') as f:
-            pickle.dump(stim_dict,f)
+            pickle.dump(stim_dict, f, protocol=2)
     except:
         raise OSError(('Could not save stimulus '
                        'pickle file {}').format(df_pkl_name))  
@@ -488,7 +486,7 @@ def get_run_speed(pkl_file_name='', stim_dict=None):
     if stim_dict is None:
         # check that the input file exists
         if not os.path.isfile(pkl_file_name):
-            raise exceptions.OSError('{} does not exist'.format(pkl_file_name))
+            raise OSError('{} does not exist'.format(pkl_file_name))
 
         # read the input pickle file and call it 'pkl'
         with open(pkl_file_name, 'rb') as f:

@@ -8,11 +8,10 @@ Authors: Blake Richards
 
 Date: August, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 """
 
-import exceptions
 import os.path
 
 import json

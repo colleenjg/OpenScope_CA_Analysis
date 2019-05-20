@@ -8,7 +8,7 @@ Authors: Colleen Gillon
 
 Date: October, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 """
 
@@ -904,7 +904,7 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
         sess_plot_util.add_axislabels(sub_ax, fluor=analyspar['fluor'], 
                                       area=True, scale=scale, x_ax='')
         for s, lab in enumerate(leg):
-            xpos = zip(*bar_pos)[s]
+            xpos = list(zip(*bar_pos))[s]
             plot_util.plot_bars(sub_ax, xpos, mag_st[:, sc, s, 0],
                              err=mag_st[:, sc, s, 1:], width=barw, 
                              xlims=xlims, xticks='None', label=lab, capsize=4,
@@ -1047,6 +1047,7 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
                           '(n={}))').format(mouse_ns[i], statstr_pr, 
                                             stimstr_pr, title_str, sess_ns[i], 
                                             lines[i], layers[i], sess_nrois))
+        sub_ax.set_xlabel('Time (s)')
 
     if savedir is None:
         savedir = os.path.join(figpar['dirs']['roi'], 
@@ -1491,10 +1492,13 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
                                     title=title, cmap=cmap,
                                     xran=[stimpar['pre'], stimpar['post']])
     
-    if stimpar['stimtype'] == 'gabors':
-        sess_plot_util.plot_labels(ax, stimpar['gabfr'], surp, 
-                        pre=stimpar['pre'], post=stimpar['post'], 
-                        sharey=figpar['init']['sharey'], t_heis=-0.05)
+    for s, surp in enumerate(surps):
+        sub_ax = ax[s:s+1]
+        if stimpar['stimtype'] == 'gabors':
+            sess_plot_util.plot_labels(sub_ax, stimpar['gabfr'], surp, 
+                            pre=stimpar['pre'], post=stimpar['post'], 
+                            sharey=figpar['init']['sharey'], t_heis=-0.05)
+    
     plot_util.add_colorbar(fig, im, len(oridirs))
     fig.suptitle(suptitle)
     savename = '{}_{}'.format(gen_savename, fig_type)
@@ -1600,7 +1604,8 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
     figpar = copy.deepcopy(figpar)
     if figpar['save']['use_dt'] is None:
         figpar['save']['use_dt'] = gen_util.create_time_str()
-    
+    figpar['save']['fig_ext'] = 'png' # svg too big
+
     fig_types  = ['byplot', 'byreg', 'by{}{}'.format(oridirs[0], deg), 'byfir']
     fig_last = len(fig_types) - 1
     
@@ -1765,7 +1770,6 @@ def plot_prev_analysis(subax_col, xran, gab_oris, gab_data, gab_vm_pars,
     subax_col[0].plot(xran, vm_fit)
     subax_col[0].set_title('Von Mises fits{}'.format(title_str))
     subax_col[0].set_ylabel('Probability density')
-    subax_col[0].legend()
     col = subax_col[0].lines[-1].get_color()
     
     # Mid: actual data
@@ -1861,6 +1865,7 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
     figpar['init']['ncols'] = 2
     figpar['init']['sharex'] = True
     figpar['init']['sharey'] = False
+    figpar['save']['fig_ext'] = 'png' # svg too big
 
     plot_util.manage_mpl(**figpar['mng'])
 
@@ -1869,8 +1874,6 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
                                figpar['dirs']['tune_curv'])
     if roi_vm_pars is not None:
         savedir = os.path.join(savedir, 'prev')
-    else:
-        figpar['save']['fig_ext'] = 'jpg' # svg too big
 
     print_dir = False
     if n == 0:
@@ -1887,7 +1890,9 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
     deg = u'\u00B0'
     for s, surp_oris in enumerate(tc_oris):
         if comb_gabs:
-            gab_str = '(gabors combined)'            
+            gab_str = '(gabors combined)'
+            for subax in ax[0, s+1:]: # to advance the color cycle
+                subax.plot([], [])
         else:
             gab_str = '({} gabors)'.format(len(surp_oris))
         title_str = ' for {} {}'.format(seq_info[s], gab_str)

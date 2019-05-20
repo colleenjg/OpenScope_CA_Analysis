@@ -8,7 +8,7 @@ Authors: Colleen Gillon
 
 Date: October, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 """
 
@@ -582,6 +582,7 @@ if __name__ == "__main__":
                         help='allow overwriting')
 
     args = parser.parse_args()
+
 
     args.fontdir = os.path.join('..', 'tools', 'fonts')
 

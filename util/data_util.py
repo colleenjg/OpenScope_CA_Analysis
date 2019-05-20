@@ -7,7 +7,7 @@ Authors: Colleen Gillon
 
 Date: October, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 
 """
 
@@ -17,7 +17,7 @@ import numpy as np
 import torch
 import torch.utils.data
 
-import gen_util, math_util
+from util import gen_util, math_util
 
 
 #############################################
@@ -178,7 +178,7 @@ def data_indices(n, train_n, val_n, test_n=None, targets=None, thresh_cl=2,
     if test_n is None:
         test_n = n - train_n - val_n
    
-    mixed_idx = range(n)
+    mixed_idx = list(range(n))
 
     if targets is not None or strat_cl:
         cl_vals, cl_ns = np.unique(targets, return_counts=True)
@@ -244,8 +244,8 @@ def checkprop(train_p, val_p=0, test_p=0):
     set_p = [[x, y] for x, y in zip([train_p, val_p, test_p], 
              ['train_p', 'val_p', 'test_p'])]
     
-    sum_p = sum(zip(*set_p)[0])
-    min_p = min(zip(*set_p)[0])
+    sum_p = sum(list(zip(*set_p))[0])
+    min_p = min(list(zip(*set_p))[0])
 
     # raise error if proportions sum to > 1 or if a proportion is < 0.
     if sum_p != 1.0 or min_p < 0.0:
@@ -583,7 +583,7 @@ def create_dls(data, targets=None, train_p=0.75, val_p=None, test_p=None,
     # shuffle targets first
     if targets is not None:
         if shuffle:
-            shuff_reidx = range(len(targets))
+            shuff_reidx = list(range(len(targets)))
             np.random.shuffle(shuff_reidx)
             returns.append(shuff_reidx)
             targets = targets[shuff_reidx]

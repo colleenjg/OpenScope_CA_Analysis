@@ -8,7 +8,7 @@ Authors: Colleen Gillon
 
 Date: October, 2018
 
-Note: this code uses python 2.7.
+Note: this code uses python 3.7.
 """
 
 from collections import namedtuple
@@ -209,18 +209,18 @@ def init_quintpar(n_quints=4, qu_idx='all', qu_lab=None, qu_lab_pr=None):
     """
 
     if qu_idx == 'all':
-        qu_idx = range(n_quints)
+        qu_idx = list(range(n_quints))
     
     qu_idx = gen_util.list_if_not(qu_idx)
 
     # Quintile labels
     if qu_lab is None:
-        qu_lab = ['q{}'.format(range(n_quints)[q]+1) for q in qu_idx]
+        qu_lab = ['q{}'.format(list(range(n_quints))[q]+1) for q in qu_idx]
     else:
         qu_lab = gen_util.list_if_not(qu_lab)
 
     if qu_lab_pr is None:
-        qu_lab_pr = ['qu {}/{}'.format(range(n_quints)[q]+1, n_quints) 
+        qu_lab_pr = ['qu {}/{}'.format(list(range(n_quints))[q]+1, n_quints) 
                                                        for q in qu_idx]
     else:
         qu_lab_pr = gen_util.list_if_not(qu_lab_pr)
@@ -295,7 +295,7 @@ def init_tcurvpar(gabfr=3, pre=0, post=0.6, grp2='surp', test=False,
         - test (bool)       : if True, tuning curve analysis is run on a 
                               small subset of ROIs and gabors
                               default: False
-        - prev (bool)       : runs analysis using previous parameter 
+        - prev (bool)       : if True, analysis is run using previous tuning 
                               estimation method
     """
     # break 2 gabfr values into list
