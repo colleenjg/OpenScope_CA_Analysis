@@ -265,7 +265,7 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
     num_stimtypes = 2 #bricks and Gabors
 
     # read the pickle file and call it 'pkl'
-    pkl = file_util.loadfile(f, filetype='pickle')
+    pkl = file_util.loadfile(pkl_file_name, filetype='pickle')
 
     if runtype == 'pilot':
         num_stimtypes = 2 # bricks and Gabors
