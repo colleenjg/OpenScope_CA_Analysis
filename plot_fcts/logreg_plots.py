@@ -395,7 +395,7 @@ def mouse_runs_leg(arr, mouse_n=None, shuffle=False, CI=0.95):
         - shuffle (bool): if True, shuffle legend is created. Otherwise, 
                           mouse legend is created.
                           default: False
-        - CI (float)    : CI for shuffled data
+        - CI (num)      : CI for shuffled data
                           default: 0.95 
 
     Returns:
@@ -449,7 +449,7 @@ def plot_CI(ax, x_label, arr, sess_ns, CI=0.95, q1v4=False):
         - sess_ns (list)       : list of session numbers
     
     Optional args:
-        - CI (float) : CI for shuffled data
+        - CI (num)   : CI for shuffled data
                        default: 0.95 
         - q1v4 (bool): if True, analysis is separated across first and 
                        last quintiles
@@ -501,7 +501,7 @@ def summ_subplot(ax, arr, data_title, mouse_ns, sess_ns, line, layer, title,
         - stat (str) : stats to take for non shuffled data, 
                        i.e., 'mean' or 'median' 
                        default: 'mean'
-        - CI (float) : CI for shuffled data (e.g., 0.95)
+        - CI (num)   : CI for shuffled data (e.g., 0.95)
         - q1v4 (bool): if True, analysis is separated across first and 
                        last quintiles
 
@@ -588,7 +588,7 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
         - savename (str)           : plot save path
         
     Optional args:
-        - CI (float) : CI for shuffled data (e.g., 0.95)
+        - CI (num)   : CI for shuffled data (e.g., 0.95)
         - q1v4 (bool): if True, analysis is separated across first and 
                        last quintiles
     """
@@ -688,7 +688,7 @@ def plot_summ(output, savename, stimtype='gabors', comp='surp', bri_dir='both',
                            default: 'dff'
         - scale (str)    : type of scaling
                            default: 'roi'
-        - CI (float)     : CI for shuffled data
+        - CI (num)       : CI for shuffled data
                            default: 0.95
         - plt_bkend (str): mpl backend to use for plotting (e.g., 'agg')
                            default: None

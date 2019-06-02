@@ -32,16 +32,16 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
     Required args:
         - sess (Session)    : session
         - stimtype (str)    : stimulus type ('gabors'or 'bricks')
-        - win_leng_s (float): window length in seconds
+        - win_leng_s (num)  : window length in seconds
     
     Optional args:
         - gabfr (int)            : gabor reference frame for determining the
                                    2p frames in each sequence
                                    default: 0 
-        - pre (float)            : number of frames to include before reference
+        - pre (num)              : number of frames to include before reference
                                    gabor frame in each sequence (in sec)
                                    default: 0
-        - post (float)           : number of frames to include after reference
+        - post (num)             : number of frames to include after reference
                                    gabor frame in each sequence (in sec)
                                    default: 1.5
         - surp (str, list or int): surprise value criteria for including 
@@ -55,13 +55,13 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
         - run (bool)             : if True, running data is appended to the
                                    end of the stimulus data
                                    default: True
-        - run_mean (float)       : mean value with which to scale running 
+        - run_mean (num)         : mean value with which to scale running 
                                    data, if running data is included. If 
                                    run_mean or run_std is None, both are 
                                    calculated from the running data retrieved 
                                    and returned as outputs.
                                    default: None
-        - run_std (float)        : standard deviation value with which to 
+        - run_std (num)          : standard deviation value with which to 
                                    scale running data, if running data is 
                                    included. If run_mean or run_std is None, 
                                    both are calculated from the running data 
@@ -75,8 +75,8 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
                                     - run speed
         if run and run_mean or run_std is None:
         - (list):
-            - run_mean (float): mean of retrieved running values
-            - run_std (float) : standard deviation of retrieved running values
+            - run_mean (num)  : mean of retrieved running values
+            - run_std (num)   : standard deviation of retrieved running values
 
     """
 
@@ -142,16 +142,16 @@ def get_roi_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
     Required args:
         - sess (Session)    : session
         - stimtype (str)    : stimulus type ('gabors'or 'bricks')
-        - win_leng_s (float): window length in seconds
+        - win_leng_s (num)  : window length in seconds
     
     Optional args:
         - gabfr (int)            : gabor reference frame for determining the
                                    2p frames in each sequence
                                    default: 0 
-        - pre (float)            : number of frames to include before reference
+        - pre (num)              : number of frames to include before reference
                                    gabor frame in each sequence (in sec)
                                    default: 0
-        - post (float)           : number of frames to include after reference
+        - post (num)             : number of frames to include after reference
                                    gabor frame in each sequence (in sec)
                                    default: 1.5
         - surp (str, list or int): surprise value criteria for including 

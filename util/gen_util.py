@@ -30,7 +30,7 @@ def accepted_values_error(varname, wrong_val, accept_vals):
     accepted values for that variable and wrong value stored in the variable.
 
     Required args:
-        - varname (str)      : name of the variable
+        - varname (str)     : name of the variable
         - wrong_val (item)  : value stored in the variable
         - accept_vals (list): list of accepted values for the variable
     """
@@ -107,6 +107,40 @@ def list_if_not(items):
 
 
 #############################################
+def remove_lett(lett_str, rem):
+    """
+    remove_lett(lett_str, rem)
+
+    Returns input string with letters remove, as well as a list of the letters
+    that were actually present, and removed.
+
+    Required args:
+        - lett_str (str): string of letters
+        - rem (str)     : string of letters to remove
+
+    Returns:
+        - lett_str (str): string of letters where the letters to remove have 
+                          been removed
+        - removed (str) : string of letters that were actually present and 
+                          removed
+    """
+
+    if not isinstance(lett_str, str):
+        raise ValueError('lett_str must be a string.')
+    
+    if not isinstance(rem, str):
+        raise ValueError('rem must be a string.')
+
+    removed = ''
+    for lett in rem:
+        if lett in lett_str:
+            lett_str = lett_str.replace(lett, '')
+            removed += lett
+
+    return lett_str, removed
+
+
+#############################################
 def remove_idx(items, rem, axis=0):
     """
     remove_idx(items, rem)
@@ -174,6 +208,54 @@ def pos_idx(idx, leng):
         
     return idx
 
+
+#############################################
+def consec(idx, smallest=False):
+    """
+    consec(idx)
+
+    Returns the first of each consecutive series in the input, as well as the
+    corresponding number of consecutive values.
+    
+    Required args:
+        - idx (list)  : list of values, e.g. indices
+    
+    Optional args:
+        - smallest (bool): if True, the smallest interval present is considered 
+                           consecutive
+                           default: False
+    
+    Returns:
+        - firsts (list)  : list of values with consecutive values removed
+        - n_consec (list): list of number of consecutive values corresponding
+                             to (and including) the values in firsts
+    """
+
+
+    if len(idx) == 0:
+        return [], []
+
+    interv = 1
+    if smallest:
+        interv = min(np.diff(idx))
+
+    consec_bool = np.diff(idx) == interv
+    firsts = []
+    n_consec = []
+
+    firsts.append(idx[0])
+    count = 1
+    for i in range(len(consec_bool)):
+        if consec_bool[i] == 0:
+            n_consec.append(count)
+            firsts.append(idx[i+1])
+            count = 1
+        else:
+            count += 1
+    n_consec.append(count)
+    
+    return firsts, n_consec
+    
 
 #############################################
 def deepcopy_items(item_list):

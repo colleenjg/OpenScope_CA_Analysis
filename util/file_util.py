@@ -108,7 +108,7 @@ def loadfile(filename, fulldir='.', filetype='pickle'):
 def saveinfo(saveobj, savename='info', fulldir='.', save_as='pickle', 
              sort=True, overwrite=False):
     """
-    saveinfo(dict, fulldir)
+    saveinfo(saveobj)
 
     Saves dictionary or csv as a pickle, json or csv, under a specific 
     directory and optional name. If savename includes the extension, it will 
@@ -118,17 +118,19 @@ def saveinfo(saveobj, savename='info', fulldir='.', save_as='pickle',
         - saveobj (dict): object to save
     
     Optional args:
-        - fulldir (str) : directory in which to save pickle
-                           default: '.'
-        - savename (str): name under which to save info, can include the 
-                           whole directory name and extension
-                           default: 'info'
-        - save_as (str)  : type of file to save as (pickle, pkl, json, csv).
-                           Overridden if extension included in savename.
-                           default: 'pickle'
-        - sort (bool)    : whether to sort keys alphabetically, if saving a 
-                           dictionary as .json
-                           default: True
+        - fulldir (str)  : directory in which to save pickle
+                            default: '.'
+        - savename (str) : name under which to save info, can include the 
+                            whole directory name and extension
+                            default: 'info'
+        - save_as (str)   : type of file to save as (pickle, pkl, json, csv).
+                            Overridden if extension included in savename.
+                            default: 'pickle'
+        - sort (bool)     : whether to sort keys alphabetically, if saving a 
+                            dictionary as .json
+                            default: True
+        - overwrite (bool): if True, file name is modified to prevent 
+                            overwriting
     """
 
 
@@ -152,7 +154,7 @@ def saveinfo(saveobj, savename='info', fulldir='.', save_as='pickle',
 
     if ext == '.pkl':
         with open(fullname, 'wb') as f:
-            pickle.dump(saveobj, f, protocol=2)
+            pickle.dump(saveobj, f)
     elif ext == '.json':
         with open(fullname, 'w') as f:
             json.dump(saveobj, f, sort_keys=sort)

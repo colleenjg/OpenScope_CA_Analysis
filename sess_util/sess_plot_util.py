@@ -66,17 +66,20 @@ def init_figpar(ncols=3, sharex=False, sharey=True, subplot_hei=7.5,
                            datetime, use_dt, fig_ext, overwrite
             ['dirs']: dictionary containing the following attributes:
                 ['figdir'] (str)   : main folder in which to save figures
-                ['grp'] (str)      : main folder in which to save ROI grps data
                 ['roi'] (str)      : subdirectory name for ROI analyses
                 ['run'] (str)      : subdirectory name for running analyses
                 ['autocorr'] (str) : subdirectory name for autocorrelation 
                                      analyses
-                ['mags'] (str)     : subdirectory name for magnitude analyses
+                ['locori'] (str)   : subdirectory name for location and 
+                                     orientation responses
                 ['oridir'] (str)   : subdirectory name for 
                                      orientation/direction analyses
                 ['surp_qu'] (str)  : subdirectory name for surprise, quintile 
                                      analyses
                 ['tune_curv'] (str): subdirectory name for tuning curves
+                ['grped'] (str)    : subdirectory name for ROI grps data
+                ['mags'] (str)     : subdirectory name for magnitude analyses
+                
             ['mng']: dictionary containing the following attributes:
                 ['plt_bkend'] (str): mpl backend to use
                 ['linclab'] (bool) : if True, Linclab mpl defaults are used
@@ -108,11 +111,12 @@ def init_figpar(ncols=3, sharex=False, sharey=True, subplot_hei=7.5,
                 'roi'      : os.path.join(figdir, '{}_roi'.format(runtype)),
                 'run'      : os.path.join(figdir, '{}_run'.format(runtype)),
                 'autocorr' : 'autocorr',
-                'grp'      : 'grped',
-                'mags'     : 'mags',
+                'posori'   : 'posori',
                 'oridir'   : 'oridir',
                 'surp_qu'  : 'surp_qu',
-                'tune_curv': 'tune_curves'
+                'tune_curv': 'tune_curves',
+                'grped'    : 'grped',
+                'mags'     : 'mags',
                }
 
     figpar = {'init' : fig_init,
@@ -129,31 +133,47 @@ def get_quint_cols(n_quints=4):
     """
     get_quint_cols()
 
-    Returns regular and surprise colors for quintiles.
+    Returns regular and surprise colors for quintiles, as well as label colors
+    for regular and surprise.
 
     Required args:
         - n_quints (int): number of quintiles
 
     Returns:
-        - col_reg (list) : list of colors for regular data
-        - col_surp (list): list of colors for surprise data
+        - cols (list)    : nested list of colors, 
+                           structured as [regular, surprise]
+        - lab_cols (list): label colors for regular and surprise data
     """
+    # prev: '#50a2d5', 'cornflowerblue', 'steelblue', 'dodgerblue', 
+    #       'mediumblue', 'darkblue', 'royalblue'
+    col_reg  = ['#7cc7f9', '#50a2d5', '#2e78a9', '#16547d']
+    main_reg = 1
+    
+    # prev: '#eb3920', 'tomato', 'salmon', 'coral', 'orangered', 'indianred', 
+    #       'firebrick'
+    col_surp = ['#f36d58', '#eb3920', '#c12a12', '#971a07']
+    main_surp = 1
 
-    if n_quints <= 7:
-        col_reg  = ['#50a2d5', 'cornflowerblue', 'steelblue', 'dodgerblue', 
-                          'mediumblue', 'darkblue', 'royalblue'][0:n_quints]
-        
-        col_surp = ['#eb3920', 'tomato', 'salmon', 'coral', 'orangered', 
-                                  'indianred', 'firebrick', ][0:n_quints]
-    else:
+    max_qu = np.max([len(col_reg), len(col_surp)])
+    if n_quints > max_qu:
         raise NotImplementedError(('Not enough colors preselected for more '
-                                    'than 7 quintiles.'))
-    return col_reg, col_surp
+                                    'than 4 quintiles.'))
+
+    cols = []
+    for main, all_cols in zip([main_reg, main_surp], [col_reg, col_surp]):
+        if n_quints <= (max_qu - main):
+            cols.append(all_cols[main : main + n_quints])
+        else:
+            cols.append(all_cols[: n_quints])
+
+    lab_cols = [col_reg[main_reg], col_surp[main_surp]]
+
+    return cols, lab_cols
 
 
 #############################################
-def add_axislabels(sub_ax, fluor='dff', area=False, scale=False, x_ax=None, 
-                   y_ax=None):
+def add_axislabels(sub_ax, fluor='dff', area=False, scale=False, datatype='roi', 
+                   x_ax=None, y_ax=None):
     """
     add_axislabels(sub_ax)
 
@@ -167,17 +187,19 @@ def add_axislabels(sub_ax, fluor='dff', area=False, scale=False, x_ax=None,
         - sub_ax (plt Axis subplot): subplot
 
     Optional args:
-        - fluor (str) : if y_ax is None, whether 'raw' or processed 
-                        fluorescence traces 'dff' are plotted. 
-                        default: 'dff'
-        - area (bool) : if True, 'area' is added after the y_ax label
-                        default: False
-        - scale (bool): if True, '(scaled)' is added after the y_ax label
-                        default: False
-        - x_ax (str)  : label to use for x axis.
-                        default: None
-        - y_ax (str)  : label to use for y axis.
-                        default: None
+        - fluor (str)   : if y_ax is None, whether 'raw' or processed 
+                          fluorescence traces 'dff' are plotted. 
+                          default: 'dff'
+        - area (bool)   : if True, 'area' is added after the y_ax label
+                          default: False
+        - scale (bool)  : if True, '(scaled)' is added after the y_ax label
+                          default: False
+        - datatype (str): type of data, either 'run' or 'roi'
+                          default: 'roi'
+        - x_ax (str)    : label to use for x axis.
+                          default: None
+        - y_ax (str)    : label to use for y axis.
+                          default: None
     """
     
     area_str = ''
@@ -195,7 +217,12 @@ def add_axislabels(sub_ax, fluor='dff', area=False, scale=False, x_ax=None,
     sub_ax.set_xlabel(x_str)
 
     if y_ax is None:
-        y_str = sess_str_util.fluor_par_str(fluor, str_type='print')
+        if datatype == 'roi':
+            y_str = sess_str_util.fluor_par_str(fluor, str_type='print')
+        elif datatype == 'run':
+            y_str = 'Running speed (cm/s)'
+        else:
+            gen_util.accepted_values_error('datatype', datatype, ['roi', 'run'])
     else:
         y_str = y_ax
     sub_ax.set_ylabel(u'{}{}{}'.format(y_str, area_str, scale_str))
@@ -221,6 +248,7 @@ def get_fr_lab(plot_vals='both', op='diff', start_fr=-1):
     Returns:
         - labels (list)  : list of labels for gabor frames
     """
+
     labels = ['gray', 'A', 'B', 'C']
 
     if plot_vals == 'surp':
@@ -260,10 +288,10 @@ def get_seg_comp(gabfr=0, plot_vals='both', op='diff', pre=0, post=1.5):
                            default: 'both'
         - op (str)       : operation on the values, if both ('ratio' or 'diff')
                            default: 'diff'
-        - pre (float)    : range of frames to include before reference frame 
+        - pre (num)      : range of frames to include before reference frame 
                            (in s)
                            default: 0 (only value implemented)
-        - post (float)   : range of frames to include after reference frame
+        - post (num)     : range of frames to include after reference frame
                            (in s)
                            default: 1.5 (only value implemented)
     
@@ -273,10 +301,8 @@ def get_seg_comp(gabfr=0, plot_vals='both', op='diff', pre=0, post=1.5):
         - labels (list)         : ordered list of labels for gabor frames
         - hbars (list or float): list of x coordinates at which to add 
                                  heavy dashed vertical bars
-                                 default: None
         - bars (list or float) : list of x coordinates at which to add 
                                  dashed vertical bars
-                                 default: None
     """
 
     if gabfr not in list(range(0, 4)):
@@ -316,14 +342,14 @@ def plot_labels(ax, gabfr=0, plot_vals='both', op='none', pre=0, post=1.5,
     Optional args:
         - gabfr (int)    : gabor frame of reference
                            default: 0
-        - plot_vals (str): values plotted ('surp', 'reg', 'both')
+        - plot_vals (str): values plotted ('surp', 'reg', 'comb', 'both')
                            default: 'both'
         - op (str)       : operation on the values, if both ('ratio' or 'diff')
                            default: 'none'
-        - pre (float)    : range of frames to include before reference frame 
+        - pre (num)      : range of frames to include before reference frame 
                            (in s)
                            default: 0 (only value implemented)
-        - post (float)   : range of frames to include after reference frame
+        - post (num)     : range of frames to include after reference frame
                            (in s)
                            default: 1.5 (only value implemented)
         - cols (str)     : colors to use for labels
@@ -360,3 +386,33 @@ def plot_labels(ax, gabfr=0, plot_vals='both', op='none', pre=0, post=1.5,
         plot_util.add_bars(sub_ax, hbars=h_bars, bars=seg_bars)
 
 
+#############################################
+def plot_gabfr_pattern(sub_ax, x_ran, alpha=0.1, offset=0, bars_omit=[]):
+    """
+    plot_gabfr_pattern(sub_ax, x_ran)
+
+    Plots light dashed lines at the edges of each gabor sequence and shades
+    D/E segments.
+
+    Required args:
+        - sub_ax (plt Axis subplot): subplot
+        - x_ran (array-like)       : range of x axis values
+
+    Optional args:
+        - alpha (num)     : plt alpha variable controlling shading 
+                            transparency (from 0 to 1)
+                            default: 0.1
+        - offset (num)    : offset of sequence edges from 0
+                            default: 0
+        - bars_omit (list): positions at which to omit bars (e.g., in case they 
+                            would be redundant)
+                            default: []
+    """
+
+    bars = plot_util.get_repeated_bars(np.min(x_ran), np.max(x_ran), 1.5, 
+                                       offset=offset)
+    shade_st = [bar - 0.6 + offset for bar in bars 
+                                   if (bar - 0.6 + offset) > x_ran[0]]
+    bars = gen_util.remove_if(bars, bars_omit)
+    plot_util.add_bars(sub_ax, bars=bars)
+    plot_util.add_vshade(sub_ax, shade_st, width=0.3, alpha=0.1)

@@ -317,6 +317,99 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
 
 
 #############################################
+def sess_comb_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod', 
+                        layer='any', line='any', pass_fail='P', all_files=1, 
+                        any_files=1, min_rois=1, closest=False, omit_sess=[], 
+                        omit_mice=[]):
+    """
+    sess_comb_per_mouse(mouse_df)
+    
+    Returns list of session ID combinations (2 per mouse) that fit the 
+    specified criteria.
+
+    Required args:
+        - mouse_df (str): path name of dataframe containing information 
+                          on each session
+        
+    Optional args:
+        - mouse_n (int or str)   : mouse number(s) of interest
+                                   default: 'any'
+        - sess_n (int or str)    : session numbers of interest to compare
+                                   default: '1v2'
+        - runtype (str or list)  : runtype value(s) of interest
+                                   ('pilot', 'prod')
+                                   default: 'prod'
+        - layer (str or list)    : layer value(s) of interest
+                                   ('soma', 'dend', 'any')
+                                   default: 'any'
+        - line (str or list)     : line value(s) of interest
+                                   ('L5', 'L23', 'any')
+                                   default: 'any'
+        - pass_fail (str or list): pass/fail values of interest 
+                                   ('P', 'F', 'any')
+                                   default: 'P'
+        - all_files (int or list): all_files values of interest (0, 1)
+                                   default: 1
+        - any_files (int or list): any_files values of interest (0, 1)
+                                   default: 1
+        - min_rois (int)         : min number of ROIs
+                                   default: 1
+        - closest (bool)         : if False, only exact session number is 
+                                   retained, otherwise the closest
+                                   default: False
+        - omit_sess (list)       : sessions to omit
+                                   default: []
+        - omit_mice (list)       : mice to omit
+                                   default: []
+     
+    Returns:
+        - sessids (list): session combinations to analyse, structured as 
+                              mouse x sess
+    """
+
+    if closest:
+        print(('Session comparisons not implemented using the \'closest\' '
+               'parameter. Setting to False.'))
+        closest = False
+
+    if 'v' not in str(sess_n):
+        raise ValueError('sess_n must be of a format like \'1v3\'.')
+
+    sess_n = [int(n) for n in sess_n.split('v')]
+
+    if runtype == 'any':
+        raise ValueError(('Must specify runtype (cannot be any), as there is '
+                          'overlap in mouse numbers.'))
+
+    # get list of mice that fit the criteria
+    mouse_ns = []
+    for n in sess_n:
+        ns = get_sess_vals(mouse_df, 'mouse_n', mouse_n, n, runtype,  
+                           layer, line, pass_fail, all_files, any_files, 
+                           min_rois, omit_sess, omit_mice, unique=True, 
+                           sort=True)
+        mouse_ns.append(ns)
+    
+    mouse_ns = set(mouse_ns[0]).intersection(set(mouse_ns[1]))
+
+    # get session ID each mouse based on criteria 
+    sessids = []
+    for i in mouse_ns:
+        mouse_sessids = []
+        for n in sess_n:
+            sessid = get_sess_vals(mouse_df, 'sessid', i, n, runtype, 
+                                   layer, line, pass_fail, all_files, 
+                                   any_files, min_rois, omit_sess, omit_mice)[0]
+            mouse_sessids.append(sessid)
+        sessids.append(sessid)
+    
+    if len(sessids) == 0:
+        raise ValueError('No session combinations meet the criteria.')
+
+    return sessids
+
+
+#############################################
 def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True):
     """
     init_sessions(sessids, datadir)
@@ -473,7 +566,8 @@ def get_params(stimtype='both', bri_dir='both', bri_size=128, gabfr=0,
         - bri_dir (str or list)      : brick direction values 
                                        ('right', 'left', 'both')
         - bri_size (int, str or list): brick size values (128, 256, 'both')
-        - gabfr (int)                : gabor frame value (0, 1, 2, 3
+        - gabfr (int, list or str)   : gabor frame value (0, 1, 2, 3, '0_3', 
+                                                          [0, 3])
         - gabk (int, str or list)    : gabor kappa values (4, 16, 'both')
         - gab_ori (int, str or list) : gabor orientation values 
                                        (0, 45, 90, 135 or 'all')
@@ -492,8 +586,6 @@ def get_params(stimtype='both', bri_dir='both', bri_size=128, gabfr=0,
         gabk = [4, 16]
     else:
         gabk = int(gabk)
-
-    gabfr = int(gabfr)
 
     if gab_ori == 'all':
         gab_ori = [0, 45, 90, 135]

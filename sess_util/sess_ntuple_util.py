@@ -115,10 +115,10 @@ def init_stimpar(bri_dir=['right', 'left'], bri_size=128, gabfr=0, gabk=16,
                                    default: 16
         - gab_ori (int or list)  : gabor orientation values to include
                                    default: [0, 45, 90, 135]
-        - pre (float)            : range of frames to include before each
+        - pre (num)              : range of frames to include before each
                                    reference frame (in s)
                                    default: 0
-        - post (float)           : range of frames to include after each 
+        - post (num)             : range of frames to include after each 
                                    reference frame (in s)
                                    default: 1.5
         - stimtype (str)         : stimulus to analyse ('bricks' or 'gabors')
@@ -168,7 +168,7 @@ def init_permpar(n_perms=10000, p_val=0.05, tails=2):
     Optional args:
         - n_perms (int)     : nbr of permutations to run
                               default: 10000
-        - p_val (float)     : p-value to use for significance thresholding 
+        - p_val (num)       : p-value to use for significance thresholding 
                               (0 to 1)
                               default: 0.05
         - tails (str or int): which tail(s) to test ('up', 'lo', 2)
@@ -283,10 +283,10 @@ def init_tcurvpar(gabfr=3, pre=0, post=0.6, grp2='surp', test=False,
                               (0, 1, 2, 3) for tuning curve analysis
                               (x_x, interpreted as 2 gabfrs)
                               default: 3
-        - pre (float)       : range of frames to include before each 
+        - pre (num)         : range of frames to include before each 
                               reference frame (in s) for tuning curve analysis
                               default: 0
-        - post (float)      : range of frames to include after each 
+        - post (num)        : range of frames to include after each 
                               reference frame (in s) for tuning curve analysis
                               default: 0.6
         - tc_grp2 (str)     : second group: either surp, reg or rand (random 
@@ -299,8 +299,10 @@ def init_tcurvpar(gabfr=3, pre=0, post=0.6, grp2='surp', test=False,
                               estimation method
     """
     # break 2 gabfr values into list
-    if '_' in str(gabfr):
-        gabfr = [int(gabf) for gabf in str(gabfr).split('_')]
+    if isinstance(gabfr, list):
+        gabfr = [int(gf) for gf in gabfr]
+    elif '_' in str(gabfr):
+        gabfr = [int(gf) for gf in gabfr.split('_')]
     else:
         gabfr = int(gabfr)
 
@@ -329,11 +331,11 @@ def init_logregpar(comp='surp', q1v4=False, epochs=1000, batchsize=200,
                            default: 1000
         - batchsize (int): batch size
                            default: 200
-        - lr (float)     : learning rate
+        - lr (num)       : learning rate
                            default: 0.0001
-        - train_p (float): proportion of dataset used in training set
+        - train_p (num)  : proportion of dataset used in training set
                            default: 0.75
-        - wd (float)     : weight decay
+        - wd (num)       : weight decay
                            default: 0
         - bal (bool)     : if True, classes are balanced
                            default: False

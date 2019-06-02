@@ -50,7 +50,7 @@ class Session(object):
         directory and ID.
 
         Sets attributes:
-            - droptol (float): dropped frame tolerance (proportion of total)
+            - droptol (num)  : dropped frame tolerance (proportion of total)
             - home (str)     : path of the master data directory
             - runtype (str)  : 'prod' (production) or 'pilot' data
             - sessid (int)   : session ID (9 digits), e.g. '712483302'
@@ -66,7 +66,7 @@ class Session(object):
         Optional args:
             - runtype (str)   : the type of run, either 'pilot' or 'prod'
                                 default: 'prod'
-            - droptol (float) : the tolerance for percentage stimulus frames 
+            - droptol (num)   : the tolerance for percentage stimulus frames 
                                 dropped, create a Warning if this condition 
                                 isn't met.
                                 default: 0.0003 
@@ -211,7 +211,7 @@ class Session(object):
                                     stimulus end
             - pre_blank (num)     : number of blank screen seconds before the
                                     stimulus start 
-            - stim_fps (float)    : stimulus frames per second
+            - stim_fps (num)      : stimulus frames per second
             - tot_stim_fr (int)   : number of stimulus frames
             - run (1D array)      : array of running speeds in cm/s for each 
                                     recorded stimulus frames
@@ -278,7 +278,7 @@ class Session(object):
             - stim_align (1D array): list of 2p frame numbers for each
                                      stimulus frame, as well as the flanking
                                      blank screen frames 
-            - twop_fps (float)     : mean 2p frames per second
+            - twop_fps (num)       : mean 2p frames per second
             - twop_fr_stim (int)   : number of 2p frames recorded while stim
                                      was playing
         """
@@ -794,9 +794,9 @@ class Session(object):
         Required args:
             - twop_ref_fr (list): 1D list of 2p frame numbers 
                                   (e.g., all 1st seg frames)
-            - pre (float)       : range of frames to include before each 
+            - pre (num)         : range of frames to include before each 
                                   reference frame number (in s)
-            - post (float)      : range of frames to include after each 
+            - post (num)        : range of frames to include after each 
                                   reference frame number (in s)
          
         Returns:
@@ -809,8 +809,12 @@ class Session(object):
         ran_fr = [np.around(x*self.twop_fps) for x in [-pre, post]]
         xran   = np.linspace(-pre, post, int(np.diff(ran_fr)[0]))
 
+        if len(twop_ref_fr) == 0:
+            raise ValueError(('No frames: frames list must include at least 1 '
+                              'frame.'))
+
         if isinstance(twop_ref_fr[0], (list, np.ndarray)):
-            raise OSError('Frames must be passed as a 1D list, not by block.')
+            raise ValueError('Frames must be passed as a 1D list, not by block.')
 
         # get sequences x frames
         fr_idx = gen_util.num_ranges(twop_ref_fr, pre=-ran_fr[0], 
@@ -821,9 +825,12 @@ class Session(object):
         neg_idx  = np.where(fr_idx[:,0] < 0)[0].tolist()
         over_idx = np.where(fr_idx[:,-1] >= self.tot_twop_fr)[0].tolist()
         
-        fr_idx = gen_util.remove_idx(fr_idx, neg_idx + over_idx, axis=0)
+        num_ran = gen_util.remove_idx(fr_idx, neg_idx + over_idx, axis=0)
 
-        return fr_idx, xran
+        if len(num_ran) == 0:
+            raise ValueError('No frames: All frames were removed from list.')
+
+        return num_ran, xran
 
 
     #############################################
@@ -986,10 +993,10 @@ class Stim(object):
             - seg_len_s (sec)             : length of each segment 
                                             (1 sec for bricks, 0.3 sec for 
                                             gabors)
-            - seg_ps_nobl (float)         : average number of segments per 
+            - seg_ps_nobl (num)           : average number of segments per 
                                             second in a block, excluding blank 
                                             segments
-            - seg_ps_wibl (float)         : average number of segments per 
+            - seg_ps_wibl (num)           : average number of segments per 
                                             second in a block, including blank 
                                             segments
             - sess (Session object)       : session to which the stimulus 
@@ -1930,7 +1937,8 @@ class Stim(object):
 
 
     #############################################
-    def get_run_array(self, stim_ref_fr, pre, post, integ=False):
+    def get_run_array(self, stim_ref_fr, pre, post, integ=False, baseline=None, 
+                      stats='mean'):
         """
         self.get_run_array(stim_ref_fr, pre, post)
 
@@ -1940,15 +1948,21 @@ class Stim(object):
             - stim_ref_fr (list): 1D list of reference stimulus frame numbers
                                   around which to retrieve running data 
                                   (e.g., all 1st Gabor A frames)
-            - pre (float)       : range of frames to include before each 
+            - pre (num)         : range of frames to include before each 
                                   reference frame number (in s)
-            - post (float)      : range of frames to include after each 
+            - post (num)        : range of frames to include after each 
                                   reference frame number (in s)
         
         Optional args:
-            - integ (bool)  : if True, running is integrated over frames
-                              default: False
-        
+            - integ (bool)    : if True, running is integrated over frames
+                                default: False
+            - baseline (num)  : number of seconds to use as baseline. If None,
+                                data is not baselined.
+                                default: None
+            - stats (str)     : statistic to use for baseline, mean ('mean') or 
+                                median ('median')
+                                default: 'mean'
+            
         Returns:
             - xran (1D array)           : time values for the stimulus frames
             - data_array (1 to 2D array): running data array, structured as:
@@ -1973,6 +1987,15 @@ class Stim(object):
 
         data_array = self.sess.run[fr_idx]
 
+        if baseline is not None: # calculate baseline and subtract
+            if baseline > pre + post:
+                raise ValueError('Baseline greater than sequence length.')
+            baseline_fr = int(np.around(baseline * self.sess.twop_fps))
+            baseline_data = data_array[:, : baseline_fr]
+            data_array_base = math_util.mean_med(baseline_data, stats=stats, 
+                                                 axis=-1)[:, np.newaxis]
+            data_array = data_array - data_array_base
+
         if integ:
             data_array = math_util.integ(data_array, 1./self.sess.stim_fps, 
                                          axis=1)
@@ -1982,7 +2005,8 @@ class Stim(object):
 
     #############################################
     def get_run_array_stats(self, stim_ref_fr, pre, post, integ=False,
-                            ret_arr=False, stats='mean', error='std'):
+                            ret_arr=False, stats='mean', error='std', 
+                            baseline=None):
         """
         self.get_run_array_stats(stim_ref_fr, pre, post)
 
@@ -1993,23 +2017,26 @@ class Stim(object):
             - stim_ref_fr (list): 1D list of reference stimulus frames numbers
                                   around which to retrieve running data 
                                   (e.g., all 1st Gabor A frames)
-            - pre (float)       : range of frames to include before each 
+            - pre (num)         : range of frames to include before each 
                                   reference frame number (in s)
-            - post (float)      : range of frames to include after each 
+            - post (num)        : range of frames to include after each 
                                   reference frame number (in s)
 
         Optional args:
-            - integ (bool)  : if True, dF/F is integrated over sequences
-                              default: False
-            - ret_arr (bool): also return running data array, not just  
-                              statistics
-                              default: False 
-            - stats (str)   : return mean ('mean') or median ('median')
-                              default: 'mean'
-            - error (str)   : return std dev/quartiles ('std') or SEM/MAD 
-                              ('sem')
-                              default: 'sem'
-         
+            - integ (bool)    : if True, dF/F is integrated over sequences
+                                default: False
+            - ret_arr (bool)  : also return running data array, not just  
+                                statistics
+                                default: False 
+            - stats (str)     : return mean ('mean') or median ('median')
+                                default: 'mean'
+            - error (str)     : return std dev/quartiles ('std') or SEM/MAD 
+                                ('sem')
+                                default: 'sem'
+            - baseline (num)  : number of seconds to use as baseline. If None,
+                                data is not baselined.
+                                default: None
+
         Returns:
             - xran (1D array)           : time values for the stimulus frames 
                                           (length is equal to last data 
@@ -2022,7 +2049,8 @@ class Stim(object):
                                               sequences (x frames)
         """
 
-        xran, data_array = self.get_run_array(stim_ref_fr, pre, post, integ)
+        xran, data_array = self.get_run_array(stim_ref_fr, pre, post, integ, 
+                                              baseline=baseline, stats=stats)
 
         all_data = self.get_array_stats(xran, data_array, ret_arr, axes=0, 
                                         stats=stats, error=error, integ=integ)
@@ -2038,7 +2066,8 @@ class Stim(object):
 
     #############################################
     def get_roi_trace_array(self, twop_ref_fr, pre, post, fluor='dff', 
-                            integ=False, remnans=True):
+                            integ=False, remnans=True, baseline=None, 
+                            stats='mean'):
         """
         self.get_roi_trace_array(twop_ref_fr, pre, post)
 
@@ -2047,21 +2076,27 @@ class Stim(object):
         Required args:
             - twop_ref_fr (list): 1D list of 2p frame numbers 
                                   (e.g., all 1st Gabor A frames)
-            - pre (float)       : range of frames to include before each 
+            - pre (num)         : range of frames to include before each 
                                   reference frame number (in s)
-            - post (float)      : range of frames to include after each 
+            - post (num)        : range of frames to include after each 
                                   reference frame number (in s)
 
         Optional args:
-            - fluor (str)   : if 'dff', dF/F is used, if 'raw', ROI traces
-                              default: 'raw'
-            - integ (bool)  : if True, dF/F is integrated over frames
-                              default: False
-            - remnans (bool): if True, removes ROIs with NaN/Inf values 
-                              anywhere in session. If False, NaN values (but
-                              not Inf values) are omitted in calculating the 
-                              data statistics.
-                              default: True
+            - fluor (str)     : if 'dff', dF/F is used, if 'raw', ROI traces
+                                default: 'raw'
+            - integ (bool)    : if True, dF/F is integrated over frames
+                                default: False
+            - remnans (bool)  : if True, removes ROIs with NaN/Inf values 
+                                anywhere in session. If False, NaN values (but
+                                not Inf values) are omitted in calculating the 
+                                data statistics.
+                                default: True
+            - baseline (num)  : number of seconds to use as baseline. If None,
+                                data is not baselined.
+                                default: None
+            - stats (str)     : statistic to use for baseline, mean ('mean') or 
+                                median ('median')
+                                default: 'mean'
          
         Returns:
             - xran (1D array)           : time values for the 2p frames
@@ -2074,22 +2109,32 @@ class Stim(object):
         # get dF/F: ROI x seq x fr
         data_array = self.sess.get_roi_seqs(fr_idx, fluor=fluor, 
                                             remnans=remnans)
+        if remnans:
+            nanpol = None
+        else:
+            nanpol = 'omit'
+
+        if baseline is not None: # calculate baseline and subtract
+            if baseline > pre + post:
+                raise ValueError('Baseline greater than sequence length.')
+            baseline_fr = int(np.around(baseline * self.sess.twop_fps))
+            baseline_data = data_array[:, :, : baseline_fr]
+            data_array_base = math_util.mean_med(baseline_data, stats=stats, 
+                                     axis=-1, nanpol=nanpol)[:, :, np.newaxis]
+            data_array = data_array - data_array_base
 
         if integ:
-            if remnans:
-                nanpol = None
-            else:
-                nanpol = 'omit'
             data_array = math_util.integ(data_array, 1./self.sess.twop_fps, 
                                          axis=2, nanpol=nanpol)
-        
+
         return xran, data_array
     
     
     #############################################
     def get_roi_trace_stats(self, twop_ref_fr, pre, post, byroi=True, 
                             fluor='dff', integ=False, remnans=True, 
-                            ret_arr=False, stats='mean', error='std'):
+                            ret_arr=False, stats='mean', error='std', 
+                            baseline=None):
         """
         self.get_roi_trace_stats(twop_ref_fr, pre, post)
 
@@ -2099,31 +2144,34 @@ class Stim(object):
         Required args:
             - twop_ref_fr (list): 1D list of 2p frame numbers 
                                   (e.g., all 1st Gabor A frames)
-            - pre (float)       : range of frames to include before each 
+            - pre (num)         : range of frames to include before each 
                                   reference frame number (in s)
-            - post (float)      : range of frames to include after each  
+            - post (num)        : range of frames to include after each  
                                   reference frame number (in s)
 
         Optional args:
-            - byroi (bool)  : if True, returns statistics for each ROI. If 
-                              False, returns statistics across ROIs
-                              default: True 
-            - fluor (str)   : if 'dff', dF/F is used, if 'raw', ROI traces
-                              default: 'raw'
-            - integ (bool)  : if True, dF/F is integrated over sequences
-                              default: False
-            - remnans (bool): if True, removes ROIs with NaN/Inf values 
-                              anywhere in session. If False, NaN values (but
-                              not Inf values) are omitted in calculating the 
-                              data statistics.
-                              default: True
-            - ret_arr (bool): also return ROI trace data array, not just  
-                              statistics.
-            - stats (str)   : return mean ('mean') or median ('median')
-                              default: 'mean'
-            - error (str)   : return std dev/quartiles ('std') or SEM/MAD 
-                              ('sem')
-                              default: 'sem'
+            - byroi (bool)    : if True, returns statistics for each ROI. If 
+                                False, returns statistics across ROIs
+                                default: True 
+            - fluor (str)     : if 'dff', dF/F is used, if 'raw', ROI traces
+                                default: 'raw'
+            - integ (bool)    : if True, dF/F is integrated over sequences
+                                default: False
+            - remnans (bool)  : if True, removes ROIs with NaN/Inf values 
+                                anywhere in session. If False, NaN values (but
+                                not Inf values) are omitted in calculating the 
+                                data statistics.
+                                default: True
+            - ret_arr (bool)  : also return ROI trace data array, not just  
+                                statistics.
+            - stats (str)     : return mean ('mean') or median ('median')
+                                default: 'mean'
+            - error (str)     : return std dev/quartiles ('std') or SEM/MAD 
+                                ('sem')
+                                default: 'sem'
+            - baseline (num)  : number of seconds to use as baseline. If None,
+                                data is not baselined.
+                                default: None
 
         Returns:
             - xran (1D array)           : time values for the 2p frames
@@ -2139,9 +2187,9 @@ class Stim(object):
         
         # array is ROI x seq (x fr)
         xran, data_array = self.get_roi_trace_array(twop_ref_fr, pre, post, 
-                                                    fluor, integ,
-                                                    remnans=remnans)
-
+                                                fluor, integ, remnans=remnans, 
+                                                baseline=baseline, stats=stats)
+            
         # order in which to take statistics on data
         axes = [1, 0]
         if byroi:
@@ -2250,7 +2298,7 @@ class Gabors(Stim):
         Also calls
             self._set_block_params()
 
-            - deg_per_pix (float)     : degrees per pixels used in conversion
+            - deg_per_pix (num)       : degrees per pixels used in conversion
                                         to generate stimuli
             - n_patches (int)         : number of gabors 
             - ori_kaps (float or list): orientation kappa (calculated from std) 
@@ -2265,19 +2313,19 @@ class Gabors(Stim):
                                         of each gabor (in deg, -180 to 180), 
                                         structured as:
                                             segments x gabor
-            - phase (float)           : phase of the gabors (0-1)
+            - phase (num)             : phase of the gabors (0-1)
             - pos (3D array)          : gabor positions for each segment type
                                         (A, B, C, D, E), in pixels with window
                                         center being (0, 0), structured as:
                                             segment type x gabor x coord (x, y) 
-            - post (float)            : number of seconds from frame A that are
+            - post (num)              : number of seconds from frame A that are
                                         included in a set (gray, A, B, C, D/E)
-            - pre (float)             : number of seconds before frame A that
+            - pre (num)               : number of seconds before frame A that
                                         are included in a set 
                                         (gray, A, B, C, D/E)
-            - set_len_s (float)       : length of a set in seconds
+            - set_len_s (num)         : length of a set in seconds
                                         (set: gray, A, B, C, D/E)
-            - sf (float)              : spatial frequency of the gabors 
+            - sf (num)                : spatial frequency of the gabors 
                                         (in cyc/pix)
             - size_pr (2D array)      : specific gabor sizes for each segment
                                         types (A, B, C, D, E) (in pix), 
@@ -2312,7 +2360,7 @@ class Gabors(Stim):
         self.win_size = sess_par['windowpar'][0]
         self.deg_per_pix = sess_par['windowpar'][1]
         self.n_patches = gabor_par['n_gabors']
-        self.oris      = gabor_par['oris']
+        self.oris      = sorted(gabor_par['oris'])
         self.phase     = gabor_par['phase']  
         self.sf        = gabor_par['sf']
         self.units     = gabor_par['units']
@@ -2354,9 +2402,9 @@ class Gabors(Stim):
 
         # seg sets (hard-coded, based on the repeating structure  we are 
         # interested in, namely: blank, A, B, C, D/E)
-        self.pre  = 1*self.seg_len_s # 0.3 s blank
-        self.post = self.n_seg_per_set*self.seg_len_s # 1.2 ms gabors
-        self.set_len_s = self.pre+self.post
+        self.pre  = 1 * self.seg_len_s # 0.3 s blank
+        self.post = self.n_seg_per_set * self.seg_len_s # 1.2 ms gabors
+        self.set_len_s = self.pre + self.post
         
         # get parameters for each block
         self._set_block_params()
@@ -2572,9 +2620,9 @@ class Gabors(Stim):
         Required args:
             - twop_ref_fr (list): 1D list of 2p frame numbers 
                                   (e.g., all 1st Gabor A frames)
-            - pre (float)       : range of frames to include before each 
+            - pre (num)         : range of frames to include before each 
                                   reference frame number (in s)
-            - post (float)      : range of frames to include after each 
+            - post (num)        : range of frames to include after each 
                                   reference frame number (in s)
                     
         Optional args:
@@ -2642,17 +2690,17 @@ class Bricks(Stim):
         Also calls
             self._set_block_params()
 
-            - deg_per_pix (float)     : degrees per pixels used in conversion
+            - deg_per_pix (num)       : degrees per pixels used in conversion
                                         to generate stimuli
 
             - direcs (list)           : main brick direction for each block
-            - flipfrac (float)        : fraction of bricks that flip direction 
+            - flipfrac (num)          : fraction of bricks that flip direction 
                                         at each surprise
             - n_bricks (float or list): n_bricks for each brick block (only one
                                         value for production data)
             - sizes (int or list)     : brick size for each brick block (only
                                         one value for production data) (in pix)
-            - speed (float)           : speed at which the bricks are moving 
+            - speed (num)             : speed at which the bricks are moving 
                                         (in pix/sec)
             - units (str)             : units used to create stimuli in 
                                         PsychoPy (e.g., 'pix')

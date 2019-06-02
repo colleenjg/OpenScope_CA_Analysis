@@ -907,7 +907,7 @@ def calc_stats(scores_summ, curr_lines, curr_idx, CI=0.95, q1v4=False):
                                       DataFrame 
     
     Optional args:
-        - CI (float) : Confidence interval around which to collect percentile 
+        - CI (num)   : Confidence interval around which to collect percentile 
                        values
                        default: 0.95
         - q1v4 (bool): if True, analysis is separated across first and last 
@@ -985,7 +985,7 @@ def run_analysis(output, stimtype='gabors', comp='surp', bri_dir='both',
                            default: 'surp'
         - bri_dir (str)  : brick direction
                            default: 'both'
-        - CI (float)     : CI for shuffled data
+        - CI (num)       : CI for shuffled data
                            default: 0.95
         - parallel (bool): if True, run information is collected in parallel
     """
@@ -1044,7 +1044,7 @@ def run_plot(output, stimtype='gabors', comp='surp', bri_dir='both',
                            default: 'dff'
         - scale (str)    : type of scaling
                            default: 'roi'
-        - CI (float)     : CI for shuffled data
+        - CI (num)       : CI for shuffled data
                            default: 0.95
         - plt_bkend (str): pyplot backend to use
                            default: None

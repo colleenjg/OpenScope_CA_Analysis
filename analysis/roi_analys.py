@@ -1,5 +1,5 @@
 """
-roi_analysis.py
+roi_analys.py
 
 This script runs ROI trace analyses using a Session object with data generated 
 by the AIBS experiments for the Credit Assignment Project.
@@ -25,80 +25,6 @@ from plot_fcts import roi_analysis_plots as roi_plots
 
 
 #############################################
-def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar, 
-                               stimpar, quintpar, figpar):
-    """
-    run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar, 
-                               stimpar, quintpar, figpar)
-
-    Retrieves trace statistics by session x surp val x quintile and
-    plots traces across ROIs by quintile/surprise with each session in a 
-    separate subplot.
-    
-    Also runs analysis for one quintile (full data).
-    
-    Saves results and parameters relevant to analysis in a dictionary.
-
-    Required args:
-        - sessions (list)      : list of Session objects
-        - analysis (str)       : analysis type (e.g., 't')
-        - analyspar (AnalysPar): named tuple containing analysis parameters
-        - sesspar (SessPar)    : named tuple containing session parameters
-        - stimpar (StimPar)    : named tuple containing stimulus parameters
-        - quintpar (QuintPar)  : named tuple containing quintile analysis 
-                                 parameters
-        - figpar (dict)        : dictionary containing figure parameters
-    """
-
-    sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                                            sesspar.layer, stimpar.bri_dir, 
-                                            stimpar.bri_size, stimpar.gabk,
-                                            'print')
-
-    print(('\nAnalysing and plotting surprise vs non surprise ROI traces '
-           'by quintile ({}) \n({}).').format(quintpar.n_quints, sessstr_pr))
-
-    # modify quintpar to retain all quintiles
-    quintpar_one  = sess_ntuple_util.init_quintpar(1, 0, '', '')
-    n_quints      = quintpar.n_quints
-    quintpar_mult = sess_ntuple_util.init_quintpar(n_quints, 'all')
-
-    figpar = copy.deepcopy(figpar)
-    if figpar['save']['use_dt'] is None:
-        figpar['save']['use_dt'] = gen_util.create_time_str()
-
-    for quintpar in [quintpar_one, quintpar_mult]:
-        print('\n{} quint'.format(quintpar.n_quints))
-        # get the stats (all) separating by session, surprise and quintiles    
-        trace_info = quint_analys.trace_stats_by_qu_sess(sessions, analyspar, 
-                                                  stimpar, quintpar.n_quints, 
-                                                  quintpar.qu_idx, 
-                                                  byroi=False, bysurp=True)
-        extrapar = {'analysis': analysis}
-
-        all_stats = [sessst.tolist() for sessst in trace_info[1]]
-        trace_stats = {'x_ran'     : trace_info[0].tolist(),
-                       'all_stats' : all_stats,
-                       'all_counts': trace_info[2]
-                      }
-
-        sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)
-
-        info = {'analyspar'  : analyspar._asdict(),
-                'sesspar'    : sesspar._asdict(),
-                'stimpar'    : stimpar._asdict(),
-                'quintpar'   : quintpar._asdict(),
-                'extrapar'   : extrapar,
-                'sess_info'  : sess_info,
-                'trace_stats': trace_stats
-                }
-
-        fulldir, savename = roi_plots.plot_traces_by_qu_surp_sess(figpar=figpar, 
-                                                                  **info)
-        file_util.saveinfo(info, savename, fulldir, 'json')
-
-      
-#############################################
 def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
                             permpar, quintpar, roigrppar, roi_grps, figpar, 
                             savedict=True):
@@ -118,6 +44,9 @@ def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
+        - extrapar (dict)      : dictionary containing additional analysis 
+                                 parameters
+            ['datatype'] (str): datatype (e.g., 'roi')
         - permpar (PermPar)    : named tuple containing permutation parameters
         - quintpar (QuintPar)  : named tuple containing quintile analysis 
                                  parameters
@@ -153,14 +82,17 @@ def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
     """
 
     opstr_pr = sess_str_util.op_par_str(roigrppar.plot_vals, roigrppar.op, 
-                                        area=True, str_type='print')
+                                        str_type='print')
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
                                     sesspar.layer, stimpar.bri_dir, 
                                     stimpar.bri_size, stimpar.gabk, 'print')
+    datastr = sess_str_util.datatype_par_str(extrapar['datatype'])
+    if extrapar['datatype'] != 'roi':
+        raise ValueError('Analysis only implemented for roi datatype.')
 
-    print(('\nAnalysing and plotting {} ROI average responses '
-           'by quintile ({}). \n{}.').format(opstr_pr, quintpar.n_quints, 
-                                             sessstr_pr))
+    print(('\nAnalysing and plotting {} {} average responses '
+           'by quintile ({}). \n{}.').format(opstr_pr, datastr, 
+                                             quintpar.n_quints, sessstr_pr))
     
     # get full data for qu of interest: session x surp x [seq x ROI]
     integ_info = quint_analys.trace_stats_by_qu_sess(sessions, analyspar, 
@@ -227,6 +159,9 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
+        - extrapar (dict)      : dictionary containing additional analysis 
+                                 parameters
+            ['datatype'] (str): datatype (e.g., 'roi')
         - permpar (PermPar)    : named tuple containing permutation parameters
         - quintpar (QuintPar)  : named tuple containing quintile analysis 
                                 parameters
@@ -272,9 +207,12 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
     sessstr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
                                          sesspar.layer, stimpar.bri_dir,
                                          stimpar.bri_size, stimpar.gabk, 'file')
+    datastr = sess_str_util.datatype_par_str(extrapar['datatype'])
+    if extrapar['datatype'] != 'roi':
+        raise ValueError('Analysis only implemented for roi datatype.')
 
-    print(('\nAnalysing and plotting {} ROI surp vs reg traces by '
-           'quintile ({}). \n{}.').format(opstr_pr, quintpar.n_quints, 
+    print(('\nAnalysing and plotting {} {} surp vs reg traces by '
+           'quintile ({}). \n{}.').format(opstr_pr, datastr, quintpar.n_quints, 
                                           sessstr_pr))
 
     # get sess x surp x quint x stats x ROIs x frames
@@ -342,6 +280,9 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
+        - extrapar (dict)      : dictionary containing additional analysis 
+                                 parameters
+            ['datatype'] (str): datatype (e.g., 'roi')
         - permpar (PermPar)    : named tuple containing permutation parameters
         - quintpar (QuintPar)  : named tuple containing quintile analysis 
                                  parameters
@@ -388,10 +329,13 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
     sessstr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
                                          sesspar.layer, stimpar.bri_dir,
                                          stimpar.bri_size, stimpar.gabk)
+    datastr = sess_str_util.datatype_par_str(extrapar['datatype'])
+    if extrapar['datatype'] != 'roi':
+        raise ValueError('Analysis only implemented for roi datatype.')
 
-    print(('\nAnalysing and plotting {} ROI surp vs reg average responses '
-           'by quintile ({}). \n{}.').format(opstr_pr, quintpar.n_quints,
-                                             sessstr_pr))
+    print(('\nAnalysing and plotting {} {} surp vs reg average responses '
+           'by quintile ({}). \n{}.').format(opstr_pr, datastr, 
+                                             quintpar.n_quints, sessstr_pr))
 
     # get full data for qu of interest: session x surp x [seq x ROI]
     integ_info = quint_analys.trace_stats_by_qu_sess(sessions, analyspar, 
@@ -465,6 +409,8 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
         - figpar (dict)        : dictionary containing figure parameters
     """
 
+    datatype = 'roi'
+
     opstr = sess_str_util.op_par_str(roigrppar.plot_vals, roigrppar.op)
     sessstr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
                                          sesspar.layer, stimpar.bri_dir,
@@ -499,6 +445,7 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
                }
     
     extrapar  = {'analysis': analysis,
+                 'datatype': datatype,
                  'seed'    : seed
                  }
 
@@ -547,162 +494,6 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
 
 #############################################
-def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar, 
-                   permpar, quintpar, figpar):
-    """
-    run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar, 
-                   permpar, quintpar, figpar)
-
-    Calculates and plots the magnitude of change in activity of ROIs between 
-    the first and last quintile for non surprise vs surprise sequences.
-    Saves results and parameters relevant to analysis in a dictionary.
-
-    Required args:
-        - sessions (list)      : list of Session objects
-        - analysis (str)       : analysis type (e.g., 'm')
-        - seed (int)           : seed value to use. (-1 treated as None) 
-        - analyspar (AnalysPar): named tuple containing analysis parameters
-        - sesspar (SessPar)    : named tuple containing session parameters
-        - stimpar (StimPar)    : named tuple containing stimulus parameters
-        - permpar (PermPar)    : named tuple containing permutation parameters
-        - quintpar (QuintPar)  : named tuple containing quintile analysis 
-                                 parameters
-        - figpar (dict)        : dictionary containing figure parameters    
-    """
-
-    sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
-                                       sesspar.layer, stimpar.bri_dir,
-                                       stimpar.bri_size, stimpar.gabk, 'print')
-
-    print(('\nCalculating and plotting the magnitude changes in ROI activity '
-           'across quintiles \n({})').format(sessstr_pr))
-
-    
-    # get full data: session x surp x quints of interest x [ROI x seq]
-    integ_info = quint_analys.trace_stats_by_qu_sess(sessions, analyspar, 
-                                stimpar, quintpar.n_quints, quintpar.qu_idx, 
-                                bysurp=True, integ=True, ret_arr=True)
-    all_counts = integ_info[-2]
-    qu_data = integ_info[-1]
-
-    # extract session info
-    mouse_ns = [sess.mouse_n for sess in sessions]
-    lines    = [sess.line for sess in sessions]
-
-    if analyspar.remnans:
-        nanpol = None
-    else:
-        nanpol = 'omit'
-
-    seed = gen_util.seed_all(seed, 'cpu', print_seed=False)
-
-    mags = quint_analys.qu_mags(qu_data, permpar, mouse_ns, lines, 
-                                analyspar.stats, analyspar.error, 
-                                nanpol=nanpol, op_qu='diff', op_surp='diff')
-
-    # convert mags items to list
-    mags = copy.deepcopy(mags)
-    mags['all_counts'] = all_counts
-    for key in ['mag_st', 'L2', 'mag_rel_th', 'L2_rel_th']:
-        mags[key] = mags[key].tolist()
-
-    sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)
-    extrapar  = {'analysis': analysis,
-                 'seed'    : seed
-                 }
-
-    info = {'analyspar': analyspar._asdict(),
-            'sesspar': sesspar._asdict(),
-            'stimpar': stimpar._asdict(),
-            'extrapar': extrapar,
-            'permpar': permpar._asdict(),
-            'quintpar': quintpar._asdict(),
-            'mags': mags,
-            'sess_info': sess_info
-            }
-    
-    fulldir, savename = roi_plots.plot_mag_change(figpar=figpar, **info)
-
-    file_util.saveinfo(info, savename, fulldir, 'json')
-
-
-#############################################
-def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar, 
-                 figpar):
-    """
-    run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar, 
-                 figpar)
-
-    Calculates and plots autocorrelation during stimulus blocks.
-    Saves results and parameters relevant to analysis in a dictionary.
-
-    Required args:
-        - sessions (list)          : list of Session objects
-        - analysis (str)           : analysis type (e.g., 'a')
-        - analyspar (AnalysPar)    : named tuple containing analysis parameters
-        - sesspar (SessPar)        : named tuple containing session parameters
-        - stimpar (StimPar)        : named tuple containing stimulus parameters
-        - autocorrpar (AutocorrPar): named tuple containing autocorrelation 
-                                     analysis parameters
-        - figpar (dict)            : dictionary containing figure parameters
-    """
-
-    sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
-                                       sesspar.layer, stimpar.bri_dir,
-                                       stimpar.bri_size, stimpar.gabk, 'print')
-
-    print(('\nAnalysing and plotting ROI autocorrelations ' 
-           '({}).').format(sessstr_pr))
-
-    xrans = []
-    stats = []
-    for sess in sessions:
-        stim = sess.get_stim(stimpar.stimtype)
-        all_segs = stim.get_segs_by_criteria(bri_dir=stimpar.bri_dir, 
-                                             bri_size=stimpar.bri_size, 
-                                             gabk=stimpar.gabk, by='block')
-        sess_traces = []
-        for segs in all_segs:
-            if len(segs) == 0:
-                continue
-            segs = sorted(segs)
-            # check that segs are contiguous
-            if max(np.diff(segs)) > 1:
-                raise NotImplementedError(('Segments used for autocorrelation '
-                                           'must be contiguous within blocks.'))
-            frame_edges = stim.get_twop_fr_per_seg([min(segs), max(segs)])
-            frames = list(range(min(frame_edges[0]), max(frame_edges[1])+1))
-            traces = sess.get_roi_traces(frames, fluor=analyspar.fluor, 
-                                         remnans=analyspar.remnans)
-            sess_traces.append(traces)
-        xran, ac_st = math_util.autocorr_stats(sess_traces, autocorrpar.lag_s, 
-                                  sess.twop_fps, byitem=autocorrpar.byitem, 
-                                  stats=analyspar.stats, error=analyspar.error)
-        xrans.append(xran)
-        stats.append(ac_st)
-
-    autocorr_data = {'xrans': [xran.tolist() for xran in xrans],
-                     'stats': [stat.tolist() for stat in stats]
-                     }
-
-    sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)
-    extrapar  = {'analysis': analysis}
-
-    info = {'analyspar'     : analyspar._asdict(),
-            'sesspar'       : sesspar._asdict(),
-            'stimpar'       : stimpar._asdict(),
-            'extrapar'      : extrapar,
-            'autocorrpar'   : autocorrpar._asdict(),
-            'autocorr_data': autocorr_data,
-            'sess_info'     : sess_info
-            }
-
-    fulldir, savename = roi_plots.plot_autocorr(figpar=figpar, **info)
-
-    file_util.saveinfo(info, savename, fulldir, 'json')
-
-
-#############################################
 def run_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts, 
                            analyspar, sesspar, stimpar, extrapar, quintpar, 
                            figpar, parallel=False):
@@ -733,6 +524,7 @@ def run_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts,
         - extrapar (dict)      : dictionary containing additional analysis 
                                  parameters
             ['analysis'] (str): analysis type (e.g., 'o')
+            ['datatype'] (str): datatype (e.g., 'roi')
         - quintpar (QuintPar)  : named tuple containing quintile analysis 
                                  parameters
         - figpar (dict)        : dictionary containing figure parameters
@@ -744,7 +536,9 @@ def run_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts,
 
     stimstr    = sess_str_util.stim_par_str(stimpar.stimtype, stimpar.bri_dir, 
                                             stimpar.bri_size, stimpar.gabk)
-    
+    if extrapar['datatype'] != 'roi':
+        raise ValueError('Analysis only implemented for roi datatype.')
+
     qu_str, qu_str_pr = quintpar.qu_lab[0], quintpar.qu_lab[0]
     if qu_str != '':
         qu_str_pr = ', {}'.format(qu_str_pr.capitalize())
@@ -827,6 +621,7 @@ def run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
         - extrapar (dict)      : dictionary containing additional analysis 
                                  parameters
             ['analysis'] (str): analysis type (e.g., 'o')
+            ['datatype'] (str): datatype (e.g., 'roi')
         - quintpar (QuintPar)  : named tuple containing quintile analysis 
                                  parameters
         - figpar (dict)        : dictionary containing figure parameters
@@ -900,6 +695,8 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar,
                            CPU cores
     """
    
+    datatype = 'roi'
+
     # update stim parameters parameters
     stimpar_dict = stimpar._asdict()
     if stimpar.stimtype == 'bricks':
@@ -930,7 +727,9 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar,
     print(('\nAnalysing and plotting colormaps and '
            'traces ({}).').format(sessstr_pr))
 
-    extrapar = {'analysis': analysis}
+    extrapar = {'analysis': analysis,
+                'datatype': datatype,
+                }
 
     surps = ['reg', 'surp']  
     figpar = copy.deepcopy(figpar)
@@ -953,7 +752,8 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar,
 def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar, 
                     tcurvpar, figpar, parallel=False, plot_tc=True):
     """
-    run_tune_curves(sessions, analysis, analyspar, sesspar, stimpar, figpar)
+    run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar, 
+                    tcurvpar, figpar)
 
     Calculates and plots ROI orientation tuning curves, as well as a 
     correlation plot for regular vs surprise orientation preferences. 
@@ -975,6 +775,8 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
         - plot_tc (bool) : if True, tuning curves are plotted for each ROI 
                            (causes errors on the clusters...)  
     """
+
+    datatype = 'roi'
 
     if stimpar.stimtype == 'bricks':
         print('Tuning curve analysis not implemented for bricks.')
@@ -1012,7 +814,7 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
     for comb_gabs in comb_gabs_all:
         for sess in sessions:
-            returns = ori_analys.calc_tune_curvs(sess, analyspar, stimpar, 
+            returns = ori_analys.calc_tune_curvs(sess, analyspar, stimpar_tc, 
                                 nrois, ngabs, tcurvpar.grp2, comb_gabs, 
                                 tcurvpar.prev, collapse=True, parallel=parallel)
             if tcurvpar.prev:
@@ -1037,6 +839,7 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
                                                 tcurv_data['vm_mean']).tolist()
 
             extrapar = {'analysis': analysis,
+                        'datatype': datatype,
                         'seed': seed,
                         'comb_gabs': comb_gabs,
                         }
@@ -1056,4 +859,152 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
                                    parallel=parallel, plot_tc=plot_tc, **info)
 
             file_util.saveinfo(info, savename, fulldir, 'json')
+
+
+#############################################
+def posori_resp(sess, analyspar, stimpar, nrois='all'):
+    """
+    posori_resp(sess, analyspar, stimpar)
+
+    Calculates integrated fluorescence levels for ROI locations and 
+    orientations.
+
+    Required args:
+        - sess (Session): Session object
+        - analyspar (AnalysPar): named tuple containing analysis parameters
+        - stimpar (StimPar)    : named tuple containing stimulus parameters
+
+    Optional args:
+        - nrois (int): number of ROIs to include in analysis
+                       default: 'all'
+
+    Returns:
+        - oris (list)     : stimulus mean orientations
+        - roi_stats (list): ROI statistics, structured as 
+                                mean orientation x gaborframe x stats x ROI
+        - nseqs (list)    : number of sequences structured as 
+                                mean orientation x gaborframe
+    """
+
+    stim = sess.get_stim(stimpar.stimtype)
+    oris = stim.oris
+    nrois_tot = sess_gen_util.get_nrois(sess.nrois, len(sess.nanrois), 
+                                        len(sess.nanrois_dff), 
+                                        analyspar.remnans, analyspar.fluor)
+    if nrois == 'all':
+        sess_nrois = nrois_tot
+    else:
+        sess_nrois = np.min([nrois_tot, nrois])
+
+    roi_stats = []
+    nseqs = []
+    
+    for ori in oris:
+        ori_stats = []
+        ori_nseqs = []
+        for gf in range(5):
+            if gf == 3:
+                s = 0
+            elif gf == 4:
+                s = 1
+                gf = 3
+            else:
+                s = 'any'
+            # get segments
+            segs = stim.get_segs_by_criteria(gabfr=gf, 
+                                             bri_dir=stimpar.bri_dir, 
+                                             bri_size=stimpar.bri_size, 
+                                             gab_ori=ori, gabk=stimpar.gabk, 
+                                             surp=s, by='seg')
+            ori_nseqs.append(len(segs))
+            twopfr = stim.get_twop_fr_per_seg(segs, first=True)
+            # stats x ROI
+            gf_stats = stim.get_roi_trace_stats(twopfr, stimpar.pre, 
+                            stimpar.post, byroi=True, 
+                            fluor=analyspar.fluor, integ=True, 
+                            remnans=analyspar.remnans, 
+                            stats=analyspar.stats, 
+                            error=analyspar.error)[1][:, :sess_nrois]
+            ori_stats.append(gf_stats.tolist())
+        roi_stats.append(ori_stats)
+        nseqs.append(ori_nseqs)
+    
+    return oris, roi_stats, nseqs 
+
+
+#############################################
+def run_posori_resp(sessions, analysis, analyspar, sesspar, stimpar, figpar, 
+                    parallel=False):
+    """
+    run_posori_resp(sessions, analysis, analyspar, sesspar, stimpar, figpar)
+
+    Calculates and plots integrated fluorescence levels for ROI positions and 
+    mean orientations.
+
+    Required args:
+        - sessions (list)      : list of Session objects
+        - analysis (str)       : analysis type (e.g., 'c')
+        - analyspar (AnalysPar): named tuple containing analysis parameters
+        - sesspar (SessPar)    : named tuple containing session parameters
+        - stimpar (StimPar)    : named tuple containing stimulus parameters
+        - figpar (dict)        : dictionary containing figure parameters
+
+    Optional args:
+        - parallel (bool): if True, some of the analysis is parallelized across 
+                           CPU cores 
+    """
+
+    datatype = 'roi'
+    
+    if stimpar.stimtype == 'bricks':
+        print('Location preference analysis not implemented for bricks.')
+        return
+    
+    sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
+                                       sesspar.layer, stimpar.bri_dir, 
+                                       stimpar.bri_size, stimpar.gabk, 'print')
+    datastr = sess_str_util.datatype_par_str(datatype)
+    
+    print(('\nAnalysing and plotting {} location preferences '
+           '({}).').format(datastr, sessstr_pr))
+
+    nrois = 'all'
+    nrois = 8
+    
+    print('Number ROIs: {}'.format(nrois))
+
+    # modify parameters
+    stimpar_loc_dict = stimpar._asdict()
+    stimpar_loc_dict['pre'] = 0
+    stimpar_loc_dict['post'] = 0.45
+    stimpar_loc = sess_ntuple_util.init_stimpar(**stimpar_loc_dict)
+
+    if figpar['save']['use_dt'] is None:
+        figpar['save']['use_dt'] = gen_util.create_time_str()
+
+    for sess in sessions:
+        oris, roi_stats, nseqs = posori_resp(sess, analyspar, stimpar_loc, 
+                                             nrois)
+        posori_data = {'oris'     : oris,
+                       'roi_stats': roi_stats,
+                       'nseqs'    : nseqs
+                      }
+
+        extrapar = {'analysis': analysis,
+                   'datatype' : datatype,
+                   }
+
+        sess_info = sess_gen_util.get_sess_info(sess, analyspar.fluor)
+
+        info = {'analyspar'   : analyspar._asdict(),
+                'sesspar'     : sesspar._asdict(),
+                'stimpar'     : stimpar_loc._asdict(),
+                'extrapar'    : extrapar,
+                'posori_data': posori_data,
+                'sess_info'   : sess_info
+                }
+
+        fulldir, savename = roi_plots.plot_posori_resp(figpar=figpar, **info)
+
+        file_util.saveinfo(info, savename, fulldir, 'json')
 

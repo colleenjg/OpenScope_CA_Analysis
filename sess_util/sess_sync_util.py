@@ -212,9 +212,9 @@ def get_frame_rate(syn_file_name):
                                 file
 
     Returns:
-        - twop_rate_mean (float): mean ophys frame rate
-        - twop_rate_med (float) : median ophys frame rate
-        - twop_rate_std (float) : standard deviation of ophys frame rate
+        - twop_rate_mean (num)  : mean ophys frame rate
+        - twop_rate_med (num)   : median ophys frame rate
+        - twop_rate_std (num)   : standard deviation of ophys frame rate
     """
 
     # create a Dataset object with the sync file
@@ -300,7 +300,7 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
     # find the alignment
     stimulus_alignment = calculate_stimulus_alignment(stim_time, 
                                                       valid_twop_vsync_fall)
-    offset = int(pkl['pre_blank_sec'] *pkl['fps'])
+    offset = int(pkl['pre_blank_sec'] * pkl['fps'])
     
     print('Creating the stim_df:')
     
@@ -358,8 +358,8 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
     stim_df.ix[zz, 'surp'] = -1
     stim_df.ix[zz, 'stimSeg'] = -1
     stim_df.ix[zz, 'GABORFRAME'] = -1
-    stim_df.ix[zz, 'start_frame'] = stimulus_alignment[0]
-    stim_df.ix[zz, 'end_frame'] = stimulus_alignment[offset]
+    stim_df.ix[zz, 'start_frame'] = stimulus_alignment[0] # 2p start frame
+    stim_df.ix[zz, 'end_frame'] = stimulus_alignment[offset] # 2p end frame
     stim_df.ix[zz, 'num_frames'] = (stimulus_alignment[offset] - \
                                     stimulus_alignment[0])
     zz += 1
@@ -396,8 +396,7 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
  
     # store in the pickle file
     try:
-        with open(df_pkl_name, 'wb') as f:
-            pickle.dump(stim_dict, f, protocol=2)
+        file_util.saveinfo(stim_dict, df_pkl_name, overwrite=True)
     except:
         raise OSError(('Could not save stimulus '
                        'pickle file {}').format(df_pkl_name))  
@@ -476,7 +475,7 @@ def get_run_speed(pkl_file_name='', stim_dict=None):
         - running_speed (array): array of length equal to the number of 
                                  stimulus frames, each element indicates 
                                  running speed for that stimulus frame
-        - wheel_radius (float) : wheel radius in cm
+        - wheel_radius (num)   : wheel radius in cm
     """
 
     if pkl_file_name == '' and stim_dict is None:
@@ -489,9 +488,8 @@ def get_run_speed(pkl_file_name='', stim_dict=None):
             raise OSError('{} does not exist'.format(pkl_file_name))
 
         # read the input pickle file and call it 'pkl'
-        with open(pkl_file_name, 'rb') as f:
-            stim_dict = pickle.load(f)
-
+        stim_dict = file_util.loadfile(pkl_file_name)
+        
     # Info from Allen
     wheel_radius = 5.5036
 

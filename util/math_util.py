@@ -232,7 +232,7 @@ def integ(data, dx, axis=None, nanpol=None):
 
     Required args:
         - data (nd array): data on which to calculate integral
-        - dx (float)     : interval between data points
+        - dx (num)       : interval between data points
 
     Optional args:
         - axis (int)  : axis along which to take the statistic
@@ -325,17 +325,17 @@ def scale_facts(data, axis=None, pos=None, sc_type='min_max', extrem='reg',
                          'reg': the minimum and maximum of the data are used 
                          'perc': the 5th and 95th percentiles are used as min
                                  and max respectively (robust to outliers)
-        - mult (float) : value by which to multiply scaled data
+        - mult (num)   : value by which to multiply scaled data
                          default: 1.0
-        - shift (float): value by which to shift scaled data (applied after
+        - shift (num)  : value by which to shift scaled data (applied after
                          mult)
                          default: 0.0
 
     Returns:
         - sub (float or list): value(s) to subtract from scaled data
         - div (float or list): value(s) by which to divide scaled data
-        - mult (float)       : value by which to multiply scaled data
-        - shift (float)      : value by which to shift scaled data (applied 
+        - mult (num)         : value by which to multiply scaled data
+        - shift (num)        : value by which to shift scaled data (applied 
                                after mult)
     """  
 
@@ -414,9 +414,9 @@ def scale_data(data, axis=None, pos=None, sc_type='min_max', extrem='reg',
                          'reg': the minimum and maximum of the data are used 
                          'perc': the 5th and 95th percentiles are used as min
                                  and max respectively (robust to outliers)
-        - mult (float) : value by which to multiply scaled data
+        - mult (num)   : value by which to multiply scaled data
                          default: 1.0
-        - shift (float): value by which to shift scaled data (applied after
+        - shift (num)  : value by which to shift scaled data (applied after
                          mult)
                          default: 0.0
         - facts (list) : list of sub, div, mult and shift values to use on data
@@ -893,20 +893,20 @@ def autocorr_stats(data, lag, spu=None, byitem=True, stats='mean', error='std',
     Calculates average autocorrelation across data series.
 
     Required args:
-        - data (list or 1 or 2D array): list of series or single series 
-                                        (1-2D array), where autocorrelation is 
-                                        calculated along the last axis. 
-                                        Structured as: 
-                                            (blocks x ) item x frame
-        - lag (num)                   : lag for which to calculate 
-                                        autocorrelation (in steps ir in units 
-                                        if steps per units (spu) is provided).
+        - data (list or 2-3D array): list of series or single series 
+                                     (2D array), where autocorrelation is 
+                                     calculated along the last axis. 
+                                     Structured as: 
+                                         (blocks x ) item x frame
+        - lag (num)                : lag for which to calculate 
+                                     autocorrelation (in steps ir in units 
+                                     if steps per units (spu) is provided).
 
     Optional args:
-        - spu (float)  : spu (steps per unit) value to calculate lag in steps
+        - spu (num)    : spu (steps per unit) value to calculate lag in steps
                          default: None
-        - byitem (bool): if True, autocorrelation statistics are taken across 
-                         items
+        - byitem (bool): if True, autocorrelation statistics are taken by 
+                         item, else across items
                          default: True
         - stats (str)  : statistic parameter, i.e. 'mean' or 'median'
                          default: 'mean'
@@ -922,7 +922,7 @@ def autocorr_stats(data, lag, spu=None, byitem=True, stats='mean', error='std',
                                           dimension of autocorr_stats) 
         - autocorr_stats (2 or 3D array): autocorr statistics, structured as 
                                           follows:
-                                          (item if item x) stats (me, de) x lag
+                                          stats (me, de) x (item if item x) lag
     """
     
     if spu is None:

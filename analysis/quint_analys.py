@@ -12,6 +12,7 @@ Note: this code uses python 3.7.
 
 """
 
+import copy
 import numpy as np
 
 from util import gen_util, math_util
@@ -20,12 +21,11 @@ from sess_util import sess_gen_util, sess_ntuple_util
 
 #############################################
 def quint_segs(stim, stimpar, n_quints=4, qu_idx='all', surp='any', 
-               empty_ok=False):
+               empty_ok=False, remconsec=False, by_surp_len=False):
     """
     quint_segs(stim, stimpar)
 
-    Returns parameters for splitting segments into the quintiles specified
-    by n_quints and qu_idx.
+    Returns segments split into quintiles.
     
     Required args:
         - stim (Stim)      : stim object
@@ -40,12 +40,24 @@ def quint_segs(stim, stimpar, n_quints=4, qu_idx='all', surp='any',
                                 default: 'any'
         - empty_ok (bool)     : if True, catches error if no segments respond 
                                 to criteria and returns empty qu_segs and 
-                                qu_counts = 0. 
+                                qu_counts = 0.
+                                default: False 
+        - remconsec (bool)    : if True, consecutive segments are removed
+                                default: False
+        - by_surp_len (bool)  : if True, consecutive segments are removed and
+                                the number of consecutive segments 
+                                corresponding to each retained segment is also 
+                                returned
+                                default: False
 
     Returns:
         - qu_segs (list)  : list of sublists for each quintile, each containing 
                             segment numbers for that quintile
         - qu_counts (list): list of number of segments in each quintile
+        if by_surp_len:
+            - qu_n_consec (list): list of sublists for each quintile, each
+                                  containing the number of consecutive segments
+                                  corresponding to the values in qu_segs
     """
 
     if qu_idx == 'all':
@@ -56,8 +68,8 @@ def quint_segs(stim, stimpar, n_quints=4, qu_idx='all', surp='any',
     # get all seg values (for all gabor frames and orientations)
     try:
         all_segs = stim.get_segs_by_criteria(gabk=stimpar.gabk, 
-                                         bri_dir=stimpar.bri_dir,
-                                         bri_size=stimpar.bri_size, by='seg')
+                                           bri_dir=stimpar.bri_dir,
+                                           bri_size=stimpar.bri_size, by='seg')
     except ValueError as err:
         if empty_ok:
             all_segs = []
@@ -82,31 +94,108 @@ def quint_segs(stim, stimpar, n_quints=4, qu_idx='all', surp='any',
     # get all seg values
     try:
         all_segs = stim.get_segs_by_criteria(gabfr=stimpar.gabfr,
-                                            gabk=stimpar.gabk, 
-                                            gab_ori=stimpar.gab_ori,
-                                            bri_dir=stimpar.bri_dir,
-                                            bri_size=stimpar.bri_size,
-                                            surp=surp, by='seg')
+                                              gabk=stimpar.gabk, 
+                                              gab_ori=stimpar.gab_ori,
+                                              bri_dir=stimpar.bri_dir,
+                                              bri_size=stimpar.bri_size,
+                                              surp=surp, by='seg', 
+                                              remconsec=remconsec)
     except ValueError as err:
         if empty_ok:
             all_segs = []
         else:
             raise err                                         
     
+    if by_surp_len:
+        all_segs, n_consec = gen_util.consec(all_segs)
+        qu_n_consec = []
+
     for q in qu_idx:
         qu_segs.append([seg for seg in all_segs 
                             if (seg >= q * qu_len + seg_min and 
-                                seg < (q+1) * qu_len + seg_min)])
+                                seg < (q + 1) * qu_len + seg_min)])
         qu_counts.extend([len(qu_segs[-1])])
+        if by_surp_len: # also include lengths
+            qu_n_consec.append([n for i, n in enumerate(n_consec) 
+                                  if (all_segs[i] >= q * qu_len + seg_min and 
+                                    all_segs[i] < (q + 1) * qu_len + seg_min)])
 
-    return qu_segs, qu_counts
+    if by_surp_len:
+        return qu_segs, qu_counts, qu_n_consec
+    else:
+        return qu_segs, qu_counts
+
+
+#############################################
+def samp_quint_segs(qu_segs, seg_pre=0, seg_post=0):
+    """
+    samp_quint_segs(qu_segs, seg_pre, seg_post)
+
+    Returns segments sampled from each series of consecutive segments, still 
+    split into quintiles.
+
+    Required args:
+        - qu_segs (list)  : list of sublists for each quintile, each containing 
+                            segment numbers for that quintile
+
+    Optional args:
+        - seg_pre (int) : minimum difference between the sampled segment number 
+                          and the lowest segment number in each consecutive 
+                          series  
+                          default: 0
+        - seg_post (int): minimum difference between the sampled segment number 
+                          and the highest segment number in each consecutive 
+                          series  
+                          default: 0
+
+    Returns:
+        - qu_segs (list)  : list of sublists for each quintile, each containing 
+                            the sampled segment numbers for that quintile
+        - qu_counts (list): list of number of segments in each quintile
+
+    """
+    seg_pre = int(np.around(seg_pre))
+    seg_post = int(np.around(seg_post))
+
+    qu_segs_flat = [seg for segs in qu_segs for seg in segs]
+
+    if min(np.diff(qu_segs_flat)) not in [1, 4]:
+        raise ValueError(('No consecutive segments (1 or 4 interval) found in '
+                          ' qu_segs.'))
+
+    all_segs, n_consec = gen_util.consec(qu_segs_flat, smallest=True)
+
+
+    samp_segs = []
+    i = 0
+    for seg, n in zip(all_segs, n_consec):
+        qu_sub = qu_segs_flat[i : i + n]
+        min_seg = min(qu_sub) + seg_pre
+        max_seg = max(qu_sub) - seg_post
+        if min_seg < max_seg:
+            qu_samp = [seg for seg in qu_sub if seg in range(min_seg, max_seg)]
+            samp_seg = np.random.choice(qu_samp)
+            samp_segs.append(samp_seg)
+        i += n
+    
+    qu_samp_segs = []
+    qu_counts = []
+    for sub_segs in qu_segs:
+        min_seg = min(sub_segs)
+        max_seg = max(sub_segs)
+        qu_samps = [seg for seg in samp_segs if seg in range(min_seg, max_seg)]
+        qu_samp_segs.append(qu_samps)
+        qu_counts.append(len(qu_samps))
+
+    return qu_samp_segs, qu_counts
 
 
 #############################################
 def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True, 
-                      integ=False, ret_arr=False, nan_empty=False):
+                      integ=False, ret_arr=False, nan_empty=False, 
+                      baseline=None, datatype='roi'):
     """
-    trace_stats_by_qu(stim, qu_seg, pre, post)
+    trace_stats_by_qu(stim, qu_seg, pre, post, analyspar)
 
     Returns trace statistics for the quintiles of interest. If ret_arr, also
     returns trace data arrays.
@@ -115,15 +204,16 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
         - stim (Stim object)   : stim object
         - qu_segs (dict)       : list of sublists for each quintile, each 
                                  containing segment numbers for that quintile
-        - pre (float)          : range of frames to include before each frame 
+        - pre (num)            : range of frames to include before each frame 
                                  reference (in s)
-        - post (float)         : range of frames to include after each frame 
+        - post (num)           : range of frames to include after each frame 
                                  reference (in s)
         - analyspar (AnalysPar): named tuple containing analysis parameters
     
     Optional args:
-        - byroi (bool)    : if True, returns statistics for each ROI. If False,
-                            returns statistics across ROIs.
+        - byroi (bool)    : If datatype is 'roi', if True, returns statistics 
+                            for each ROI. If False, returns statistics 
+                            across ROIs.
                             default: True
         - integ (bool)    : if True, dF/F is integrated over sequences
                             default: False
@@ -132,6 +222,11 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
         - nan_empty (bool): if a quintile is empty, returns NaN arrays instead
                             of an error (1 sequence, for qu_array) 
                             default: False
+        - baseline (num)  : number of seconds to use as baseline. If None,
+                            data is not baselined.
+                            default: None
+        - datatype (str)  : datatype, i.e. ROIs or running
+                            default: 'roi'
 
     Returns:
         - xran (1D array)          : time values for the 2p frames
@@ -141,25 +236,43 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
                                          (ROIs if byroi x)
                                          (frames if not integ)
         if ret_arr, also:
-        - qu_array (list)          : list per quintile of 2-3D arrays of trace 
+        - qu_array (list)          : list per quintile of 1-3D arrays of trace 
                                      data structured as:
-                                        ROIs x sequences (x frames if not integ)
+                                        (ROIs x) sequences 
+                                        (x frames if not integ)
     """
   
-    qu_stats = []
-    qu_array = []
+    qu_stats, qu_array = [], []
     for segs in qu_segs:
         rep_nan = False
-        if nan_empty and len(segs) == 0:
-            segs = [1]     # dummy segment to use
-            rep_nan = True # later, replace values with NaNs
-        twop_fr = stim.get_twop_fr_per_seg(segs, first=True)
-        trace_info = stim.get_roi_trace_stats(twop_fr, pre, post, byroi=byroi, 
-                                              fluor=analyspar.fluor, 
-                                              remnans=analyspar.remnans, 
-                                              stats=analyspar.stats, 
-                                              error=analyspar.error,
-                                              integ=integ, ret_arr=ret_arr)
+        for _ in range(2): # allows retrying if nan_empty is True
+            try:
+                twop_fr = stim.get_twop_fr_per_seg(segs, first=True)
+                if datatype == 'roi':
+                    trace_info = stim.get_roi_trace_stats(twop_fr, pre, post, 
+                                        byroi=byroi, fluor=analyspar.fluor, 
+                                        remnans=analyspar.remnans, 
+                                        stats=analyspar.stats, 
+                                        error=analyspar.error,
+                                        integ=integ, ret_arr=ret_arr, 
+                                        baseline=baseline)
+                elif datatype == 'run':
+                    trace_info = stim.get_run_array_stats(twop_fr, pre, post, 
+                                        stats=analyspar.stats, 
+                                        error=analyspar.error,
+                                        integ=integ, ret_arr=ret_arr, 
+                                        baseline=baseline)
+                else:
+                    gen_util.accepted_values_error('datatype', datatype, 
+                                                    ['roi', 'run'])
+                break # break out of for loop if successful
+            except ValueError as err:
+                if nan_empty and 'No frames' in str(err):
+                    segs = [10]     # dummy segment to use
+                    rep_nan = True # later, replace values with NaNs
+                else:
+                    raise err
+
         xran = trace_info[0]
         # array: stats [me, err] (x ROI) (x frames)
         trace_stats = trace_info[1]
@@ -182,13 +295,14 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
 
 #############################################
 def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4, 
-                           qu_idx= 'all', byroi=True, bysurp=False, 
-                           integ=False, ret_arr=False, nan_empty=False):
+                           qu_idx='all', byroi=True, bysurp=False, integ=False, 
+                           ret_arr=False, nan_empty=False, lock='no', 
+                           baseline=None, sample_reg=False, datatype='roi'):
     """
-    trace_stats_by_qu_sess(sessions, analys_par, basic_par)
+    trace_stats_by_qu_sess(sessions, analyspar, stimpar)
 
     Returns trace statistics for the quintiles of interest for each
-    session and surprise value. 
+    session and surprise value, for the datatype of interest.
 
     Required args:
         - sessions (list)      : list of Session objects
@@ -200,9 +314,10 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
                                 default: 4
         - qu_idx (str or list): indices of quintiles to retain
                                 default: 'all'
-        - byroi (bool)        : if True, returns statistics for each ROI. If 
-                                False, returns statistics across ROIs.
-                                default: True 
+        - byroi (bool)        : If datatype is 'roi', if True, returns 
+                                statistics for each ROI. If False, returns 
+                                statistics across ROIs.
+                                default: True
         - bysurp (bool)       : if True, quintiles are separated into surprise 
                                 and no surprise groups.
                                 default: False
@@ -213,57 +328,83 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
         - nan_empty (bool)    : if a quintile is empty, return NaN arrays 
                                 (avoids an error)
                                 default: False
+        - lock (bool)         : if 'surp', 'reg', 'regsamp', only the first 
+                                surprise or regular segments are retained 
+                                (bysurp is ignore).
+                                default: False
+        - baseline (num)      : number of seconds to use as baseline. If None,
+                                data is not baselined.
+                                default: None
+        - datatype (str)      : datatype, i.e. ROIs or running
+                                default: 'roi'
 
     Returns:
-        - xran (1D array)         : time values for the 2p frames
-        - all_stats (list)        : list of 2 to 5D arrays of trace data 
-                                    statistics for each session, structured as:
-                                        (surp if bysurp x)
-                                        quintiles x
-                                        stats (me, err) x
-                                        (ROIs if byroi x)
-                                        (frames if not integ)
+        - xran (1D array)          : time values for the 2p frames
+        - all_stats (list)         : list of 2 to 5D arrays of trace data 
+                                     statistics for each session, structured as:
+                                         (surp if bysurp x)
+                                         quintiles x
+                                         stats (me, err) x
+                                         (ROIs if byroi x)
+                                         (frames if not integ)
         - all_counts (nested list) : list of number of sequences, 
                                      structured as:
                                         sess x (surp if bysurp) x quintiles
         if ret_arr:
-        - all_arrays (nested lists): list of ROI trace arrays, structured as:
+        - all_arrays (nested lists): list of data trace arrays, structured as:
                                         session (x surp if bysurp) x quintile 
-                                        of 2 to 3D arrays: 
-                                            ROI x sequences 
+                                        of 1 to 3D arrays: 
+                                            (ROI x) sequences 
                                             (x frames if not integ)
     """
 
-    if bysurp:
-        surp_vals = [0, 1]
-    else:
-        surp_vals = ['any']
+    remconsec, sample = False, False
+    surp_vals = ['any']
+    if lock in ['surp', 'reg']:
+        remconsec = True
+        surp_vals = [0]
+        if lock == 'surp':
+            surp_vals = [1]
+        if stimpar.stimtype == 'gabors' and stimpar.gabfr != 'any':
+            stimpar = stimpar._asdict()
+            stimpar['gabfr'] = 'any'
+            stimpar = sess_ntuple_util.init_stimpar(**stimpar)
+            print(('If locking to surprise or regular onset, stimpar.gabfr '
+                   'is set to \'any\'.'))
+    elif lock == 'regsamp':
+        remconsec, sample = False, True
+        surp_vals = [0]
+    elif bysurp:
+        surp_vals = [0, 1]    
 
-    all_counts = []
-    all_stats = []
-    all_arrays = []
+    all_counts, all_stats, all_arrays = [], [], []
     for sess in sessions:
         stim = sess.get_stim(stimpar.stimtype)
-        sess_counts = []
-        sess_stats = []
-        sess_arrays = []
+        sess_counts, sess_stats, sess_arrays = [], [], []
         for surp in surp_vals:
             qu_segs, qu_counts = quint_segs(stim, stimpar, n_quints, qu_idx, 
-                                            surp, empty_ok=nan_empty)
+                                            surp, empty_ok=nan_empty, 
+                                            remconsec=remconsec)
+            if sample:
+                pre_seg = stimpar.pre/stim.seg_len_s
+                post_seg = stimpar.post/stim.seg_len_s
+                qu_segs, qu_counts = samp_quint_segs(qu_segs, pre_seg, post_seg)
             sess_counts.append(qu_counts)
             trace_info = trace_stats_by_qu(stim, qu_segs, stimpar.pre,
                                            stimpar.post, analyspar, 
                                            byroi=byroi, integ=integ, 
                                            ret_arr=ret_arr, 
-                                           nan_empty=nan_empty)
+                                           nan_empty=nan_empty, 
+                                           baseline=baseline, datatype=datatype)
             xran = trace_info[0]
             sess_stats.append(trace_info[1])
             if ret_arr:
                 sess_arrays.append(trace_info[2])
-        if bysurp:
+        if len(surp_vals) > 1:
             sess_stats = np.asarray(sess_stats)
         else:
             sess_stats = np.asarray(sess_stats[0]) # list of length 1
+            sess_counts = sess_counts[0]
             if ret_arr:
                 sess_arrays = sess_arrays[0] # list of length 1
         all_counts.append(sess_counts)
@@ -275,6 +416,112 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
         return xran, all_stats, all_counts, all_arrays
     else:
         return xran, all_stats, all_counts
+
+
+#############################################
+def trace_stats_by_surp_len_sess(sessions, analyspar, stimpar, n_quints=4, 
+                                 qu_idx='all', byroi=True, integ=False, 
+                                 ret_arr=False, nan_empty=False, 
+                                 baseline=None, datatype='roi'):
+    """
+    trace_stats_by_surp_len_sess(sessions, analyspar, stimpar)
+
+    Returns trace statistics for the quintiles of interest for each
+    session and surprise length value, for the datatype of interest.
+
+    Required args:
+        - sessions (list)      : list of Session objects
+        - analyspar (AnalysPar): named tuple containing analysis parameters
+        - stimpar (StimPar)    : named tuple containing stimulus parameters
+        
+    Optional args:
+        - n_quints (int)      : number of quintiles to divide sessions into
+                                default: 4
+        - qu_idx (str or list): indices of quintiles to retain
+                                default: 'all'
+        - byroi (bool)        : If datatype is 'roi', if True, returns 
+                                statistics for each ROI. If False, returns 
+                                statistics across ROIs.
+                                default: True
+        - integ (bool)        : if True, dF/F is integrated over sequences
+                                default: False
+        - ret_arr (bool)      : if True, data arrays are returned also
+                                default: False
+        - nan_empty (bool)    : if a quintile is empty, return NaN arrays 
+                                (avoids an error)
+                                default: False
+        - baseline (num)      : number of seconds to use as baseline. If None,
+                                data is not baselined.
+                                default: None
+        - datatype (str)      : datatype, i.e. ROIs or running
+                                default: 'roi'
+
+    Returns:
+        - xran (1D array)         : time values for the 2p frames
+        - all_stats (list)        : list of 2 to 5D arrays of trace data 
+                                    statistics for each session, structured as:
+                                        surp_len x
+                                        quintiles x
+                                        stats (me, err) x
+                                        (ROIs if byroi x)
+                                        (frames if not integ)
+        - all_counts (nested list) : list of number of sequences, 
+                                     structured as:
+                                        sess x surp_len x quintiles
+        - all_n_consec (list)      : unique values of number of consecutive 
+                                     segments, by session  
+        if ret_arr:
+        - all_arrays (nested lists): list of data trace arrays, structured as:
+                                        session x surp_len x quintile 
+                                        of 1 to 3D arrays: 
+                                            (ROI x) sequences 
+                                            (x frames if not integ)
+    """
+
+    if stimpar.stimtype == 'gabors' and stimpar.gabfr != 'any':
+        stimpar = stimpar._asdict()
+        stimpar['gabfr'] = 'any'
+        stimpar = sess_ntuple_util.init_stimpar(**stimpar)
+        print(('If locking to surprise onset, stimpar.gabfr is set to '
+               '\'any\'.'))
+
+    all_counts, all_stats, all_arrays, all_n_consec = [], [], [], []
+    for sess in sessions:
+        stim = sess.get_stim(stimpar.stimtype)
+        sess_counts, sess_stats, sess_arrays = [], [], []
+        qu_segs, _, qu_n_consec = quint_segs(stim, stimpar, n_quints, qu_idx, 
+                                             1, empty_ok=nan_empty, 
+                                             by_surp_len=True)
+        n_consec_flat   = [n for sub_ns in qu_n_consec for n in sub_ns]
+        all_n_consec.append(sorted(set(n_consec_flat)))
+
+        for n_consec in all_n_consec[-1]:
+            sub_segs, sub_counts = [], []
+            # retain segments with correct number of consecutive values
+            for segs, ns in zip(qu_segs, qu_n_consec): 
+                idx = np.where(np.asarray(ns) == n_consec)[0]
+                sub_segs.append([segs[i] for i in idx])
+                sub_counts.append(len(idx))
+            sess_counts.append(sub_counts)
+            trace_info = trace_stats_by_qu(stim, sub_segs, stimpar.pre,
+                                           stimpar.post, analyspar, 
+                                           byroi=byroi, integ=integ, 
+                                           ret_arr=ret_arr, 
+                                           nan_empty=nan_empty, 
+                                           baseline=baseline, datatype=datatype)
+            xran = trace_info[0]
+            sess_stats.append(trace_info[1])
+            if ret_arr:
+                sess_arrays.append(trace_info[2])
+        all_counts.append(sess_counts)
+        all_stats.append(np.asarray(sess_stats))
+        if ret_arr:
+            all_arrays.append(sess_arrays)
+
+    if ret_arr:
+        return xran, all_stats, all_counts, all_n_consec, all_arrays
+    else:
+        return xran, all_stats, all_counts, all_n_consec
 
 
 #############################################
@@ -393,16 +640,16 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats='mean', error='sem',
 
     Required args:
         - all_data (list)  : nested list of data, structured as:
-                                 session x surp x qu x array[seq x ROI]
+                                 session x surp x qu x array[(ROI x) seqs]
         - permpar (PermPar): named tuple containing permutation parameters
         - mouse_ns (list)  : list of mouse numbers (1 per session)
         - lines (list)     : list of mouse lines (1 per session)
 
     Optional args:
-        - stats (str)      : statistic to take across segments, then ROIs 
+        - stats (str)      : statistic to take across segments, (then ROIs) 
                              ('mean' or 'median')
                              default: 'mean'
-        - error (str)      : statistic to take across segments, then ROIs 
+        - error (str)      : statistic to take across segments, (then ROIs) 
                              ('std' or 'sem')
                              default: 'sem'
         - nanpol (str)     : policy for NaNs, 'omit' or None when taking 
@@ -460,16 +707,22 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats='mean', error='sem',
     for lab in ['mag_rel_th', 'L2_rel_th']:
         mags[lab] = np.empty([n_sess, tail_len])
 
+    all_data = copy.deepcopy(all_data)
     for i in range(n_sess):
         print('\nMouse {}, {}:'.format(mouse_ns[i], lines[i]))
         sess_data_me = []
         # number of regular sequences
-        n_regs = [all_data[i][0][q].shape[1] for q in range(n_qu)]
+        n_regs = [all_data[i][0][q].shape[-1] for q in range(n_qu)]
         for s in range(len(surps)):
             # take the mean for each quintile
             data_me = np.asarray([math_util.mean_med(all_data[i][s][q], stats, 
-                                                     axis=1, nanpol=nanpol) 
+                                                     axis=-1, nanpol=nanpol) 
                                                      for q in range(n_qu)])
+            if len(data_me.shape) == 1:
+                # add dummy ROI-like axis, e.g. for run data
+                data_me = data_me[:, np.newaxis]
+                all_data[i][s] = [qu_data[np.newaxis, :] 
+                                  for qu_data in all_data[i][s]]
             mags['mag_st'][i, 0, s] = math_util.calc_mag_change(data_me, 0, 1, 
                                                     order='stats', op=op_qu, 
                                                     stats=stats, error=error)

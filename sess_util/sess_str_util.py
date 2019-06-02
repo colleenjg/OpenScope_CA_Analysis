@@ -18,6 +18,41 @@ from util import gen_util
 
 
 #############################################
+def base_par_str(baseline=None, str_type='file'):
+    """
+    base_par_str()
+
+    Returns string from baseline parameter to print or for a filename.
+
+    Optional args:
+        - baseline (num)  : baseline value, in seconds
+                            default: None
+        - str_type (str)  : 'print' for a printable string and 'file' for a
+                            string usable in a filename.
+                            default: 'file'
+    
+    Returns:
+        - base_str (str): baseline parameter string
+    """
+
+    if baseline is not None:
+        if (baseline - int(baseline)) == 0:
+            baseline = int(baseline) 
+        if str_type == 'print':
+            base_str = ' ({}s baseline)'.format(baseline)    
+        elif str_type == 'file':
+            baseline = str(baseline).replace('.', '_')
+            base_str = '_b{}'.format(baseline)
+        else:
+            gen_util.accepted_values_error('str_type', str_type, 
+                                           ['print', 'file'])        
+    else:
+        base_str = ''
+
+    return base_str
+    
+    
+#############################################
 def shuff_par_str(shuffle=True, str_type='file'):
     """
     shuff_par_str()
@@ -27,7 +62,7 @@ def shuff_par_str(shuffle=True, str_type='file'):
     Optional args:
         - shuffle (bool): default: True
         - str_type (str): 'print' for a printable string and 'file' for a
-                          string usable in a filename.
+                          string usable in a filename, 'label' for a label.
                           default: 'file'
     
     Returns:
@@ -43,7 +78,7 @@ def shuff_par_str(shuffle=True, str_type='file'):
             shuff_str = ' (shuffled labels)'
         else:
             gen_util.accepted_values_error('str_type', str_type, 
-                                           ['print', 'file'])
+                                           ['labels', 'print', 'file'])
     else:
         shuff_str = ''
 
@@ -174,7 +209,7 @@ def stat_par_str(stats='mean', error='sem', str_type='file'):
 
 
 #############################################
-def op_par_str(plot_vals='both', op='diff', area=False, str_type='file'):
+def op_par_str(plot_vals='both', op='diff', str_type='file'):
     """
     op_par_str()
 
@@ -185,9 +220,6 @@ def op_par_str(plot_vals='both', op='diff', area=False, str_type='file'):
         - plot_vals (str): 'both', 'surp' or 'reg'
         - op (str)       : 'diff', 'ratio'
                            default: 'diff'
-        - area (bool)    : if True, print string indicates that 'area' is 
-                           plotted, not trace
-                           default: False 
         - str_type (str) : use of output str, i.e., for a filename ('file') or
                            to print the info to console ('print')
                            default: 'file'
@@ -204,14 +236,9 @@ def op_par_str(plot_vals='both', op='diff', area=False, str_type='file'):
         gen_util.accepted_values_error('plot_vals', plot_vals, 
                                       ['both', 'reg', 'surp'])
     
-    if area:
-        area_str = ' area'
-    else:
-        area_str = ''
-
     if plot_vals == 'both':
         if str_type == 'print':
-            op_str = '{} in dF/F{} for surp v reg'.format(op, area_str)
+            op_str = 'for surp v reg'
         elif str_type == 'file':
             op_str = op
         else:
@@ -219,7 +246,7 @@ def op_par_str(plot_vals='both', op='diff', area=False, str_type='file'):
                                            ['print', 'file'])
     else:
         if str_type == 'print':
-            op_str = 'dF/F{} for {}'.format(area_str, plot_vals)
+            op_str = 'for {}'.format(plot_vals)
         elif str_type == 'file':
             op_str = plot_vals
         else:
@@ -600,3 +627,51 @@ def sess_par_str(sess_n, stimtype='gabors', layer='soma', bri_dir=None,
     return sess_str
     
 
+#############################################
+def datatype_par_str(datatype='roi'):
+    """
+    datatype_par_str()
+
+    Returns a string for the datatype.
+
+    Optional args:
+        - datatype (str): type of data, i.e. 'run' or 'roi'
+                          default: 'roi'
+    Returns:
+        - data_str (list): string containing dimension
+    """
+
+    if datatype == 'run':
+        data_str = 'running'
+    elif datatype == 'roi':
+        data_str = 'ROI'
+    else:
+        gen_util.accepted_values_error('datatype', datatype, ['roi', 'run'])
+    
+    return data_str
+    
+
+#############################################
+def datatype_dim_str(datatype='roi'):
+    """
+    datatype_dim_str()
+
+    Returns a string for the dimension along which error is calculated for 
+    the specified datatype.
+
+    Optional args:
+        - datatype (str): type of data, i.e. 'run' or 'roi'
+                          default: 'roi'
+    Returns:
+        - dim_str (list): string containing dimension
+    """
+
+    if datatype == 'run':
+        dim_str = 'seqs'
+    elif datatype == 'roi':
+        dim_str = 'ROIs'
+    else:
+        gen_util.accepted_values_error('datatype', datatype, ['roi', 'run'])
+    
+    return dim_str
+    
