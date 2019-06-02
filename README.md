@@ -37,8 +37,8 @@ All of the appropriate libraries should then be loaded, and the modules can
 be imported for use in ipython, python scripts, or jupyter notebooks.
 
 **Scripts and modules**:
-* run\_roi_analysis.py: run and plots specific analyses on ROI data
-* run\_running_analysis.py: run and plots specific analyses on running data
+* run\_roi_analysis.py: run and plot specific analyses on ROI data
+* run\_running_analysis.py: run and plot specific analyses on running data
 * run_logreg.py: run, analyse and plot logistic regressions on the ROI data
 * **analysis**: Session object as well as session data analysis module
 * **plot_fcts**: module with functions to plot analysis results from saved dictionaries or dataframes 
