@@ -43,7 +43,7 @@ class SessionROIDataset(torch.utils.data.Dataset):
             - sessionid (string): the ID for this session.
 
         Optional arguments:
-            - droptol (float): the tolerance for percentage stimulus frames 
+            - droptol (num)  : the tolerance for percentage stimulus frames 
                                dropped, create a Warning if this condition 
                                isn't met.
                                default: 0.0003 
@@ -76,7 +76,7 @@ class SessionROIDataset(torch.utils.data.Dataset):
 #            - sessionid (string): the ID for this session.
 #
 #        Optional arguments:
-#            - droptol (float): the tolerance for percentage stimulus frames 
+#            - droptol (num)  : the tolerance for percentage stimulus frames 
 #                               dropped, create a Warning if this condition 
 #                               isn't met.
 #                               default: 0.0003 

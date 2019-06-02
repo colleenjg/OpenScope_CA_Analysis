@@ -435,9 +435,9 @@ def scale_datasets(set_data, sc_dim='all', sc_type='min_max', extrem='reg',
                             'perc': the 5th and 95th percentiles are used as 
                                     min and max respectively (robust to 
                                     outliers)
-        - mult (float)    : value by which to multiply scaled data
+        - mult (num)      : value by which to multiply scaled data
                             default: 1.0
-        - shift (float)   : value by which to shift scaled data (applied after
+        - shift (num)     : value by which to shift scaled data (applied after
                             mult)
                             default: 0.0
         - sc_facts (list) : list of sub, div, mult and shift values to use on 
@@ -539,9 +539,9 @@ def create_dls(data, targets=None, train_p=0.75, val_p=None, test_p=None,
                               'perc': the 5th and 95th percentiles are used as 
                                       min and max respectively (robust to 
                                       outliers)
-        - mult (float)      : value by which to multiply scaled data
+        - mult (num)        : value by which to multiply scaled data
                               default: 1.0
-        - shift (float)     : value by which to shift scaled data (applied 
+        - shift (num)       : value by which to shift scaled data (applied 
                               after mult)
                               default: 0.0
         - shuffle (bool)    : if True, targets are shuffled in all sets to 

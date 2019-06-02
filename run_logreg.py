@@ -50,7 +50,7 @@ def run_regr(args):
             gabfr (int)           : gabor frame of reference if comparison 
                                     is 'surp'
             gabk (int or list)    : gabor kappas to include
-            lr (float)            : model learning rate
+            lr (num)              : model learning rate
             mouse_n (int)         : mouse number
             n_epochs (int)        : number of epochs
             n_reg (int)           : number of regular runs

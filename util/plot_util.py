@@ -450,6 +450,36 @@ def savefig(fig, savename, fulldir='.', datetime=True, use_dt=None,
 
 
 #############################################
+def get_repeated_bars(xmin, xmax, cycle=1.0, offset=0):
+    """
+    get_repeated_bars(xmin, xmax)
+
+    Returns lists of positions at which to place bars cyclicly.
+
+    Required args:
+        - xmin (num): minimum x value
+        - xmax (num): maximum x value
+
+    Optional args:
+        - cycle (num) : distance between bars
+                        default: 1.0
+        - offset (num): offset from 0 
+                        default: 0
+    
+    Returns:
+        - bars (list) : list of x coordinates at which to add bars
+                        
+    """
+
+    min_bar = int(np.absolute(xmin - offset)//1.5 * np.sign(xmin - offset))
+    max_bar = int(np.absolute(xmax - offset)//1.5 * np.sign(xmax - offset))
+    bars = [1.5 * b + offset for b in range(min_bar, max_bar + 1)]
+ 
+    return bars
+
+
+
+#############################################
 def add_labels(sub_ax, labels, xpos, t_hei=0.9, col='k'):
     """
     add_labels(sub_ax, labels, xpos)
@@ -483,7 +513,7 @@ def add_labels(sub_ax, labels, xpos, t_hei=0.9, col='k'):
 
 
 #############################################
-def add_bars(sub_ax, hbars=None, bars=None, col='k'):
+def add_bars(sub_ax, hbars=None, bars=None, col='k', alpha=0.5):
     """
     add_bars(sub_ax)
 
@@ -501,6 +531,9 @@ def add_bars(sub_ax, hbars=None, bars=None, col='k'):
                                default: None
         - col (str)          : color to use
                                default: 'k'
+        - alpha (num)        : plt alpha variable controlling shading 
+                               transparency (from 0 to 1)
+                               default: 0.5
     """
 
     torem = []
@@ -508,11 +541,11 @@ def add_bars(sub_ax, hbars=None, bars=None, col='k'):
         hbars = gen_util.list_if_not(hbars)
         torem = hbars
         for b in hbars:
-            sub_ax.axvline(x=b, ls='dashed', c='k', lw=2.5, alpha=0.5)
+            sub_ax.axvline(x=b, ls='dashed', c=col, lw=2.5, alpha=alpha)
     if bars is not None:
         bars = gen_util.remove_if(bars, torem)
         for b in bars:
-            sub_ax.axvline(x=b, ls='dashed', c='k', lw=1.5, alpha=0.5)
+            sub_ax.axvline(x=b, ls='dashed', c=col, lw=1.5, alpha=alpha)
 
 
 #############################################
@@ -544,9 +577,48 @@ def incr_ymax(ax, incr=1.1, sharey=False):
         sub_ax.set_ylim(ymin, ymax) 
 
 
+
+#############################################
+def add_vshade(sub_ax, start, end=None, width=None, alpha=0.4, col='k'):
+    """
+    add_vshade(sub_ax, start)
+
+    Plots shaded vertical areas on subplot.
+
+    Required args:
+        - sub_ax (plt Axis subplot): subplot
+        - start (list)             : start positions for shaded areas
+
+    Optional args:
+        - end (list)   : end positions for shaded areas 
+                         (takes priority over width)
+        - width (num)  : width of the shaded areas
+        - alpha (num)  : plt alpha variable controlling shading 
+                         transparency (from 0 to 1)
+                         default: 0.5
+    """
+
+    start = gen_util.list_if_not(start)
+    
+    if end is None and width is None:
+        raise ValueError('Must specify end or width.')
+    elif end is not None:
+        end = gen_util.list_if_not(end)
+        if len(start) != len(end):
+            raise ValueError('end and start must be of the same length.')
+        for st, e in zip(start, end):
+            sub_ax.axvspan(st, e, alpha, col)
+        if width is not None:
+            print('Cannot specify both end and width. Using end.')
+    else:
+        for st in start:
+            sub_ax.axvspan(st, st + width, alpha=alpha, color=col)
+
+
 #############################################
 def plot_traces(sub_ax, x, y, err=None, title='', lw=None, col=None, 
-                alpha=0.5, xticks_ev=6, xticks=None, yticks=None, label=None):
+                alpha=0.5, xticks_ev=6, xticks=None, yticks=None, label=None, 
+                alpha_line=1.0):
     """
     plot_traces(sub_ax, x, y)
 
@@ -578,12 +650,15 @@ def plot_traces(sub_ax, x, y, err=None, title='', lw=None, col=None,
                                default: None
         - label (str)        : label for legend
                                default: None
+        - alpha_line (num)   : plt alpha variable controlling line 
+                               transparency (from 0 to 1)
+                               default: 1.0
     """
     
     x = np.asarray(x).squeeze()
     y = np.asarray(y).squeeze()
     
-    sub_ax.plot(x, y, lw=lw, color=col, label=label)
+    sub_ax.plot(x, y, lw=lw, color=col, label=label, alpha=alpha_line)
     col = sub_ax.lines[-1].get_color()
     
     if err is not None:
@@ -648,7 +723,9 @@ def plot_errorbars(sub_ax, y, err, x=None, title='', lw=None, col=None,
     if x is None:
         x = list(range(1, len(y) + 1))
     
-    if xticks is None:
+    if xticks in ['None', 'none']:
+        sub_ax.tick_params(axis='x', which='both', bottom=False) 
+    elif xticks is None:
         sub_ax.set_xticks(x)
     else:
         sub_ax.set_xticks(xticks)
@@ -684,11 +761,11 @@ def get_barplot_xpos(n_grps, n_bars_per, barw, in_grp=1.5, btw_grps=4.0):
         - barw (num)      : width of each bar
 
     Optional args:
-        - in_grp (float)  : space between bars in a group, relative to bar 
-                            default: 1.5
-        - btw_grps (float): space between groups, relative to bar
-                            (also determines space on each end, which is half)
-                            default: 4.0
+        - in_grp (num)  : space between bars in a group, relative to bar 
+                          default: 1.5
+        - btw_grps (num): space between groups, relative to bar
+                          (also determines space on each end, which is half)
+                          default: 4.0
 
     Returns:
         - center_pos (list)    : central position of each group
@@ -735,12 +812,16 @@ def plot_barplot_signif(sub_ax, xpos, yval, yerr=None, rel_y=0.01):
     Optional args:
         - yerr (array-like): list of errors to add to ypos when placing line
                              default: None
-        - rel_y (float)    : relative position above ypos at which to place
+        - rel_y (num)      : relative position above ypos at which to place
                              line and star.
                              default: 0.01
     """
 
     rel_y = float(rel_y)
+    
+    for y, err in enumerate(yerr): # in case of NaNs
+        if np.isnan(err):
+            yerr[y] = 0
 
     # x positions
     if len(xpos) < 2:

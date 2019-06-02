@@ -157,8 +157,8 @@ def accuracy(pred_class, act_class):
             - n_class0 (int): number of class 0 samples
             - n_class1 (int): number of class 1 samples
         - (list):
-            - acc_class0 (float): number of class 0 samples correctly predicted
-            - acc_class1 (float): number of class 1 samples correctly predicted
+            - acc_class0 (num)  : number of class 0 samples correctly predicted
+            - acc_class1 (num)  : number of class 1 samples correctly predicted
     """
 
     act_class  = np.asarray(act_class).squeeze()
@@ -421,7 +421,7 @@ def print_loss(s, loss):
     
     Required args:
         - s (str)     : set (e.g., 'train')
-        - loss (float): loss score
+        - loss (num)  : loss score
     """
 
     print('    {} loss: {:.4f}'.format(s, loss))
@@ -722,7 +722,7 @@ def get_stats(tr_data, tr_classes, classes, len_s, stats='mean', error='sem'):
                                  trials x frames x units
         - tr_classes (1D array): training data targets
         - classes (list)       : list of class names
-        - len_s (float)        : length of x axis in seconds
+        - len_s (num)          : length of x axis in seconds
 
     Optional args:
         - stats (str): stats to take, i.e., 'mean' or 'median'

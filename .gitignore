@@ -4,6 +4,7 @@
 !/sess_util/
 !/analysis/
 !/plot_fcts/
+!/ipynb/
 
 *.pyc
 *.ods
