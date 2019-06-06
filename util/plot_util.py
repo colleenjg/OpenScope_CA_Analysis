@@ -57,7 +57,7 @@ def linclab_plt_defaults(font='Liberation Sans', fontdir=None,
     col_cyc = plt.cycler(color=colors)
 
     # set pyplot params
-    params = {'axes.labelsize'       : 'x-large',  # large axis labels
+    params = {'axes.labelsize'       : 'xx-large', # xx-large axis labels
               'axes.linewidth'       : 1.5,        # thicker axis lines
               'axes.prop_cycle'      : col_cyc,    # line color cycle
               'axes.spines.right'    : False,      # no axis spine on right
@@ -65,7 +65,8 @@ def linclab_plt_defaults(font='Liberation Sans', fontdir=None,
               'axes.titlesize'       : 'x-large',  # x-large axis title
               'errorbar.capsize'     : 8,          # errorbar cap length
               'figure.titlesize'     : 'x-large',  # x-large figure title
-              'legend.fontsize'      : 'large',    # large legend text
+              'font.size'            : 12,         # basic font size value
+              'legend.fontsize'      : 'x-large',  # x-large legend text
               'lines.dashed_pattern' : [8.0, 4.0], # longer dashes
               'lines.linewidth'      : 2.5,        # thicker lines
               'lines.markeredgewidth': 2.5,        # thick marker edge widths 
@@ -74,10 +75,10 @@ def linclab_plt_defaults(font='Liberation Sans', fontdir=None,
               'patch.linewidth'      : 2.5,        # thicker lines for patches
               'savefig.format'       : 'svg',      # figure save format
               'savefig.bbox'         : 'tight',    # tight cropping of figure
-              'xtick.labelsize'      : 'large',    # large x-tick labels
+              'xtick.labelsize'      : 'x-large',  # x-large x-tick labels
               'xtick.major.size'     : 8.0,        # longer x-ticks
               'xtick.major.width'    : 2.0,        # thicker x-ticks
-              'ytick.labelsize'      : 'large',    # large y-tick labels
+              'ytick.labelsize'      : 'x-large',  # x-large y-tick labels
               'ytick.major.size'     : 8.0,        # longer y-ticks
               'ytick.major.width'    : 2.0,        # thicker y-ticks
               }
@@ -509,7 +510,7 @@ def add_labels(sub_ax, labels, xpos, t_hei=0.9, col='k'):
     ymin, ymax = sub_ax.get_ylim()
     ypos = (ymax-ymin)*t_hei+ymin
     for l, x in zip(labels, xpos):
-        sub_ax.text(x, ypos, l, ha='center', fontsize=15, color=col)
+        sub_ax.text(x, ypos, l, ha='center', fontsize=18, color=col)
 
 
 #############################################
@@ -670,7 +671,8 @@ def plot_traces(sub_ax, x, y, err=None, title='', lw=None, col=None,
             sub_ax.fill_between(x, y - err, y + err, facecolor=col, alpha=alpha)
 
     if xticks is None:
-        set_ticks(sub_ax, 'x', np.min(x), np.max(x), xticks_ev)
+        set_ticks(sub_ax, 'x', np.around(np.min(x), 1), 
+                  np.around(np.max(x), 1), xticks_ev)
     else:
         sub_ax.set_xticks(xticks)
     
