@@ -71,6 +71,9 @@ def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None,
     elif analysis == 'a': # autocorr
         plot_autocorr(figpar=figpar, savedir=savedir, **info)
 
+    else:
+        print('No plotting function for analysis {}'.format(analysis))
+
 
 #############################################
 def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar, 
@@ -565,8 +568,9 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
         if i == len(figs) - 1:
             print_dir = True
         scalestr = sess_str_util.scale_par_str(scale)
-        savename = ('{}_mag_diff_{}{}').format(datatype, sessstr, scalestr)
-        fulldir = plot_util.savefig(fig, savename, savedir, 
+        savename = '{}_mag_diff_{}'.format(datatype, sessstr)
+        savename_full = '{}{}'.format(savename, scalestr)
+        fulldir = plot_util.savefig(fig, savename_full, savedir, 
                                     print_dir=print_dir, ** figpar['save'])
 
     return fulldir, savename
@@ -681,6 +685,10 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
         sub_ax = plot_util.get_subax(ax, i)
         sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i], 
                                     analyspar['remnans'], analyspar['fluor'])
+        title = (u'Mouse {} - {} {} {}\n(sess {}, {} {}, '
+                  '(n={}))').format(mouse_ns[i], statstr_pr, stimstr_pr, 
+                                    title_str, sess_ns[i], lines[i], layers[i], 
+                                    sess_nrois)
         # transpose to ROI/lag x stats x series
         sess_stats = stats[i].transpose(1, 0, 2) 
         for s, sub_stats in enumerate(sess_stats):
@@ -693,10 +701,7 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
                                   alpha=0.2, label=lab)
         plot_util.add_bars(sub_ax, hbars=seq_bars)
         sub_ax.set_ylim([0, 1])
-        sub_ax.set_title((u'Mouse {} - {} {} {}\n(sess {}, {} {}, '
-                          '(n={}))').format(mouse_ns[i], statstr_pr, 
-                                            stimstr_pr, title_str, sess_ns[i], 
-                                            lines[i], layers[i], sess_nrois))
+        sub_ax.set_title(title)
         sub_ax.set_xlabel('Lag (s)')
 
     if savedir is None:

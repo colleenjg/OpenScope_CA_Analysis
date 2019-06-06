@@ -28,6 +28,7 @@ from sess_util import sess_gen_util, sess_ntuple_util, sess_plot_util, \
                       sess_str_util
 from analysis import session, roi_analys, gen_analys
 from plot_fcts import roi_analysis_plots as roi_plots
+from plot_fcts import modif_analysis_plots as mod_plots
 
 
 #############################################
@@ -510,10 +511,10 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
 
     # 9. Analyses and plots ROI responses for positions and mean gabor 
     # orientations
-    if 'p' in analyses and not comb: # position orientation resp
-        roi_analys.run_posori_resp(sessions, 'p', analyspar, sesspar, stimpar, 
-                                   figpar, parallel)
-    all_check += 'p'
+    # if 'p' in analyses and not comb: # position orientation resp
+    #     roi_analys.run_posori_resp(sessions, 'p', analyspar, sesspar, stimpar, 
+    #                                figpar, parallel)
+    # all_check += 'p'
 
 
     if set(all_analyses) != set(all_check):
@@ -633,17 +634,24 @@ if __name__ == "__main__":
                         help='create a datetime folder')
     parser.add_argument('--overwrite', action='store_true', 
                         help='allow overwriting')
+        # plot using modif_analys_plots (if plotting from dictionary)
+    parser.add_argument('--modif', action='store_true', 
+                        help=('plot from dictionary using modified plot '
+                              'functions'))
 
     args = parser.parse_args()
-
 
     args.fontdir = os.path.join('..', 'tools', 'fonts')
 
     if args.dict_path is not '':
         main_dir  = os.path.join('results', 'figures')
         dict_path = os.path.join(main_dir, args.dict_path)
-        roi_plots.plot_from_dict(dict_path, args.parallel, args.plt_bkend, 
-                                 args.fontdir, not(args.no_plot_tc))
+        if args.modif:
+            mod_plots.plot_from_dict(dict_path, args.parallel, args.plt_bkend, 
+                                    args.fontdir, not(args.no_plot_tc))
+        else:
+            roi_plots.plot_from_dict(dict_path, args.parallel, args.plt_bkend, 
+                                     args.fontdir, not(args.no_plot_tc))
 
     else:
         if args.datadir is None:

@@ -28,6 +28,7 @@ from sess_util import sess_gen_util, sess_ntuple_util, sess_plot_util, \
                       sess_str_util
 from analysis import session, gen_analys
 from plot_fcts import gen_analysis_plots as gen_plots
+from plot_fcts import modif_analysis_plots as mod_plots
 
 
 #############################################
@@ -486,7 +487,10 @@ if __name__ == "__main__":
                         help='create a datetime folder')
     parser.add_argument('--overwrite', action='store_true', 
                         help='allow overwriting')
-
+        # plot using modif_analys_plots (if plotting from dictionary)
+    parser.add_argument('--modif', action='store_true', 
+                        help=('plot from dictionary using modified plot '
+                              'functions'))
     args = parser.parse_args()
 
 
@@ -495,8 +499,12 @@ if __name__ == "__main__":
     if args.dict_path is not '':
         main_dir  = os.path.join('results', 'figures')
         dict_path = os.path.join(main_dir, args.dict_path)
-        gen_plots.plot_from_dict(dict_path, args.parallel, args.plt_bkend, 
-                                 args.fontdir)
+        if args.modif:
+            mod_plots.plot_from_dict(dict_path, args.parallel, args.plt_bkend, 
+                                     args.fontdir)
+        else:
+            gen_plots.plot_from_dict(dict_path, args.parallel, args.plt_bkend, 
+                                     args.fontdir)
 
     else:
         if args.datadir is None:

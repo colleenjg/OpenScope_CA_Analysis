@@ -40,6 +40,7 @@ def plot_from_dict(direc, plt_bkend=None, fontdir=None):
         - fontdir (str)  : directory in which additional fonts are located
                            default: None
     """
+    
     plot_util.manage_mpl(plt_bkend, fontdir=fontdir)
 
     hyperpars = file_util.loadfile('hyperparameters.json', fulldir=direc)
@@ -328,13 +329,15 @@ def init_res_fig(n_subplots, max_sess=None):
         - ax (plt Axis): axis
     """
 
-    subplot_hei = 7.5
+    subplot_hei = 10
 
+    subplot_wid = 7.5
     if max_sess is not None:
-        subplot_hei *= 4/3.0
+        subplot_wid *= max_sess/4.0
 
     fig, ax = plot_util.init_fig(n_subplots, 2, sharey=True, 
-                                 subplot_hei=subplot_hei)
+                                 subplot_hei=subplot_hei, 
+                                 subplot_wid=subplot_wid)
 
     return fig, ax
 

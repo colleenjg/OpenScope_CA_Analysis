@@ -61,7 +61,7 @@ def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None,
                                               **info)
 
     # 2. Plot average traces by quintile, locked to surprise for each session 
-    if analysis == 'l': # surprise locked traces
+    elif analysis == 'l': # surprise locked traces
         gen_plots.plot_traces_by_qu_lock_sess(figpar=figpar, savedir=savedir, 
                                               **info)
 
@@ -85,13 +85,16 @@ def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None,
         plot_oridirs(figpar=figpar, savedir=savedir, parallel=parallel, **info)
 
     # 7. Plot orientation tuning curves for ROIs
-    elif analysis == 'c': # colormaps
+    elif analysis == 'c': # tuning curves
         plot_tune_curves(figpar=figpar, savedir=savedir, parallel=parallel, 
                          plot_tc=plot_tc, **info)
 
     # 8. Plots ROI responses for positions and mean gabor orientations
     elif analysis == 'p': # position orientation resp
         plot_posori_resp(figpar=figpar, savedir=savedir, **info)
+
+    else:
+        print('No plotting function for analysis {}'.format(analysis))
 
 
 #############################################
@@ -1073,6 +1076,7 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
         figpar = sess_plot_util.init_figpar()
     figpar = copy.deepcopy(figpar)
     figpar['init']['ncols'] = len(oridirs)
+    figpar['init']['sharex'] = True
     
     # plot colormaps
     gentitle = (u'Mouse {} - {} {} across seqs colormaps{}\n(sess {}, '
@@ -1117,8 +1121,11 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
             key = '{}_{}'.format(surp, od)
             title = u'{} segs ({}{}) (n={})'.format(surp.capitalize(), od, 
                                                 deg_pr, tr_data['n_segs'][key])
+            x_ax = None
+            if s == 0:
+                x_ax = ''
             sess_plot_util.add_axislabels(sub_ax, fluor=analyspar['fluor'], 
-                                          y_ax='ROIs', datatype='roi')
+                                       x_ax=x_ax, y_ax='ROIs', datatype='roi')
             im = plot_util.plot_colormap(sub_ax, scaled_sort_me[key], 
                                     title=title, cmap=cmap,
                                     xran=[stimpar['pre'], stimpar['post']])
@@ -1549,7 +1556,7 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
                 xlab = u'Orientations ({})'.format(deg)
                 sess_plot_util.add_axislabels(ax[0, s], fluor=fluor, area=True, 
                                               x_ax=xlab, datatype='roi')
-                plot_util.set_ticks(ax[0, s], 'x', -max_val, max_val, 9)
+                plot_util.set_ticks(ax[0, s], 'x', -max_val, max_val, 5)
 
     # share y axis ranges within rows
     plot_util.share_lims(ax, 'row')
@@ -1956,7 +1963,7 @@ def plot_posori_resp(analyspar, sesspar, stimpar, extrapar, sess_info,
         raise ValueError('Expected data for 5 gabor frames.')
 
     center_pos, dot_pos, _ = plot_util.get_barplot_xpos(n_oris, n_gabfr, 
-                                                        barw=0.3)
+                                                        in_grp=2.5, barw=0.3)
 
     all_labs = []
     tick_pos = []
@@ -1978,7 +1985,7 @@ def plot_posori_resp(analyspar, sesspar, stimpar, extrapar, sess_info,
 
     deg = u'\u00B0'
     oris = [u'{} {}'.format(ori, deg) for ori in posori_data['oris']]
-    plot_util.add_labels(sub_ax, oris, center_pos, t_hei=-0.12, col='k')
+    plot_util.add_labels(sub_ax, oris, center_pos, t_hei=-0.18, col='k')
 
     sub_ax.set_xticks(tick_pos)
     sub_ax.set_xticklabels(all_labs)
