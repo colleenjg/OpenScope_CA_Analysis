@@ -1,8 +1,8 @@
 """
 modif_analysis_plots.py
 
-This script is used to modify plots on the fly for ROI and running analyses 
-from dictionaries, e.g. for presentations or papers.
+This script is used to modify plot designs on the fly for ROI and running 
+analyses from dictionaries, e.g. for presentations or papers.
 
 Authors: Colleen Gillon
 

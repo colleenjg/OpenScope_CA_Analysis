@@ -425,7 +425,7 @@ if __name__ == "__main__":
                         help='mpl backend to use, e.g. when running on server')
     parser.add_argument('--analyses', default='all', 
                         help=('analyses to run: traces (t), locked traces (l), '
-                              'mag (m), autocorr (a) or \'all\' or \'all_m\' '
+                              'mag (m), autocorr (a) or `all` or `all_m` '
                               'to, for example, run all analyses except m'))
     parser.add_argument('--sess_n', default='all',
                         help='session to aim for, e.g. 1, 2, last, all')

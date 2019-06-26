@@ -368,12 +368,12 @@ def sess_comb_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
     """
 
     if closest:
-        print(('Session comparisons not implemented using the \'closest\' '
+        print(('Session comparisons not implemented using the `closest` '
                'parameter. Setting to False.'))
         closest = False
 
     if 'v' not in str(sess_n):
-        raise ValueError('sess_n must be of a format like \'1v3\'.')
+        raise ValueError('sess_n must be of a format like `1v3`.')
 
     sess_n = [int(n) for n in sess_n.split('v')]
 
@@ -401,7 +401,7 @@ def sess_comb_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
                                    layer, line, pass_fail, all_files, 
                                    any_files, min_rois, omit_sess, omit_mice)[0]
             mouse_sessids.append(sessid)
-        sessids.append(sessid)
+        sessids.append(mouse_sessids)
     
     if len(sessids) == 0:
         raise ValueError('No session combinations meet the criteria.')

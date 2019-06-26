@@ -370,7 +370,7 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
             stimpar['gabfr'] = 'any'
             stimpar = sess_ntuple_util.init_stimpar(**stimpar)
             print(('If locking to surprise or regular onset, stimpar.gabfr '
-                   'is set to \'any\'.'))
+                   'is set to `any`.'))
     elif lock == 'regsamp':
         remconsec, sample = False, True
         surp_vals = [0]
@@ -483,7 +483,7 @@ def trace_stats_by_surp_len_sess(sessions, analyspar, stimpar, n_quints=4,
         stimpar['gabfr'] = 'any'
         stimpar = sess_ntuple_util.init_stimpar(**stimpar)
         print(('If locking to surprise onset, stimpar.gabfr is set to '
-               '\'any\'.'))
+               '`any`.'))
 
     all_counts, all_stats, all_arrays, all_n_consec = [], [], [], []
     for sess in sessions:
