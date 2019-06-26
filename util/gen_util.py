@@ -13,8 +13,11 @@ Note: this code uses python 3.7.
 
 import copy
 import datetime
+import logging
+import os
 import random
 import re
+import sys
 
 import numpy as np
 import pandas as pd
@@ -35,8 +38,8 @@ def accepted_values_error(varname, wrong_val, accept_vals):
         - accept_vals (list): list of accepted values for the variable
     """
 
-    val_str = ', '.join(['\'{}\''.format(x) for x in accept_vals])
-    error_message = ('\'{}\' value \'{}\' unsupported. Must be in '
+    val_str = ', '.join(['`{}`'.format(x) for x in accept_vals])
+    error_message = ('`{}` value `{}` unsupported. Must be in '
                      '{}.').format(varname, wrong_val, val_str)
     raise ValueError(error_message)
 
@@ -562,4 +565,64 @@ def get_device(cuda=False, device=None):
 
     return device
 
+
+#############################################
+def get_logger(logtype='both', name='all logs', filename='logs.txt', 
+               fulldir='.', level='info'):
+    """
+    get_logger()
+
+    Returns logger and handler(s).
+
+    Optional args:
+        - logtype (str) : type or types of handlers to add to logger 
+                          ('stream', 'file', 'both', 'none')
+                          default: 'both'
+        - name (str)    : logger name
+                          default: 'all logs'
+        - filename (str): name under which to save file handler, if it is 
+                          included
+                          default: 'logs.txt'
+        - fulldir (str) : path under which to save file handler, if it is
+                          included
+                          default: '.'
+        - level (str)   : level of the handler ('info', 'error', 'warning', 
+                          'debug')
+                          default: 'info'
+        
+    Returns:
+        - logger (Logger): logger object
+    """
+
+
+    # create one instance
+    logger = logging.getLogger(name)
+    logger.handlers = []
+    
+    # create handlers
+    sh, fh = None, None
+    if logtype in ['stream', 'both']:
+        sh = logging.StreamHandler(sys.stdout)
+        logger.addHandler(sh)
+    if logtype in ['file', 'both']:
+        fh = logging.FileHandler(os.path.join(fulldir, filename))
+        logger.addHandler(fh)
+    all_types = ['file', 'stream', 'both', 'none']
+    if logtype not in all_types:
+        accepted_values_error('logtype', logtype, all_types)
+    
+    if level.lower() == 'info':
+        level = logging.INFO
+    elif level.lower() == 'error':
+        level = logging.ERROR
+    elif level.lower() == 'warning':
+        level = logging.WARNING
+    elif level.lower() == 'debug':
+        level = logging.DEBUG
+    else:
+        accepted_values_error('level', level, 
+                              ['info', 'error', 'warning', 'debug'])
+    logger.setLevel(level)
+
+    return logger
 

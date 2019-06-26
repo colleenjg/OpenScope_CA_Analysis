@@ -413,18 +413,26 @@ def run_dl(mod, dl, device, train=True):
 
 
 #############################################
-def print_loss(s, loss):
+def print_loss(s, loss, logger=None):
     """
     print_loss(s, loss)
 
-    Print loss for set.
+    Prints or logs at info level loss for set to console.
     
     Required args:
         - s (str)     : set (e.g., 'train')
         - loss (num)  : loss score
+    
+    Optional args:
+        - logger (logger): logger to use. If logger is None, loss is printed to 
+                           console.
     """
 
-    print('    {} loss: {:.4f}'.format(s, loss))
+    print_str = '    {} loss: {:.4f}'.format(s, loss)
+    if logger is None:
+        print(print_str)
+    else:
+        logger.info(print_str)
 
 
 #############################################
@@ -480,12 +488,12 @@ def save_model(info, ep, mod, scores, dirname='.', rectype=None):
 
 #############################################
 def fit_model(info, n_epochs, mod, dls, device, dirname='.', ep_freq=50, 
-              test_dl2_name=None):
+              test_dl2_name=None, logger=None):
     """
     fit_model(info, epochs, mod, dls, device)
 
-    Fits model to data and evaluates. Returns an array of scores and an array
-    recording which epochs models were saved for.
+    Fits model to data and evaluates. Logs scores at info level. Returns an 
+    array of scores and an array recording which epochs models were saved for.
     
     Required args:
         - info (dict)          : dictionary of info to save along with model
@@ -502,12 +510,17 @@ def fit_model(info, n_epochs, mod, dls, device, dirname='.', ep_freq=50,
                                default: 50
         - test_dl2_name (str): name of extra DataLoader
                                default: None
+        - logger (logger)    : logger object
+                               default: None
 
     Returns:
         - scores (pd DataFrame): dataframe in which scores are recorded, with
                                  columns epoch_n, saved_eps and combinations of
                                  sets x score types
     """
+
+    if logger is None:
+        logger = gen_util.get_logger('stream', 'loss_logs', level='info')
 
     test = False
     ext_test = False
@@ -525,8 +538,8 @@ def fit_model(info, n_epochs, mod, dls, device, dirname='.', ep_freq=50,
     col_names = get_sc_labs(test, 'flat', ext_test=ext_test, 
                             ext_test_name=test_dl2_name)
 
-    scores = pd.DataFrame()
-    scores = pd.DataFrame(np.nan, index=list(range(n_epochs)), columns=col_names)
+    scores = pd.DataFrame(np.nan, index=list(range(n_epochs)), 
+                          columns=col_names)
     scores.insert(0, 'epoch_n', list(range(n_epochs)))
     scores['saved'] = np.zeros([n_epochs], dtype=int)
     
@@ -559,9 +572,11 @@ def fit_model(info, n_epochs, mod, dls, device, dirname='.', ep_freq=50,
             rectype = None
         
         if ep % ep_freq == 0:
-            print('Epoch {}'.format(ep))
-            print_loss('train', scores.loc[ep_loc]['train_loss'].tolist()[0])
-            print_loss('val', scores.loc[ep_loc]['val_loss'].tolist()[0])
+            logger.info('Epoch {}'.format(ep))
+            print_loss('train', scores.loc[ep_loc]['train_loss'].tolist()[0], 
+                       logger)
+            print_loss('val', scores.loc[ep_loc]['val_loss'].tolist()[0], 
+                       logger)
     
     return scores
 
@@ -638,13 +653,15 @@ def load_params(dirname, model='best'):
     """
 
     ep = get_epoch_n(dirname, model)
+    ext_str = ''
     if model == 'best':
         ext_str = '_best'
 
     if ep is None:
         return None
     else:
-        models = glob.glob(os.path.join(dirname, 'ep{}*.pth'.format(ep)))[0]
+        models = glob.glob(os.path.join(dirname, 
+                                        'ep{}*{}.pth'.format(ep, ext_str)))[0]
         checkpoint = torch.load(models)
         weights = checkpoint['net']['lin.weight']
         biases = checkpoint['net']['lin.bias']
@@ -918,7 +935,7 @@ def check_scores(scores_df, best_ep, hyperpars):
                                   recorded.
     """
 
-    warn_str='===> Warning: '
+    warn_str = '===> Warning: '
 
     ep_info = None
 
@@ -944,8 +961,8 @@ def check_scores(scores_df, best_ep, hyperpars):
             if ep_best != best_ep:
                 print('Best recorded model is actually epoch '
                        '{}, but actual best model is {} based on dataframe. '
-                       'Using dataframe one.').format(warn_str, max_ep, 
-                                                      max_ep_df)
+                       'Using dataframe one.').format(warn_str, ep_best, 
+                                                      ep_df)
             ep_info = scores_df.loc[(scores_df['epoch_n'] == ep_best)]
             if len(ep_info) != 1:
                 print(('{} {} lines found in dataframe for epoch '

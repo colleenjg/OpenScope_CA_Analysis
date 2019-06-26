@@ -504,7 +504,7 @@ def add_labels(sub_ax, labels, xpos, t_hei=0.9, col='k'):
     xpos = gen_util.list_if_not(xpos)
 
     if len(labels) != len(xpos):
-        raise ValueError(('Arguments \'labels\' and \'xpos\' must be of '
+        raise ValueError(('Arguments `labels` and `xpos` must be of '
                           'the same length.'))
 
     ymin, ymax = sub_ax.get_ylim()

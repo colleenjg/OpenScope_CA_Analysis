@@ -2243,8 +2243,8 @@ class Stim(object):
             if by == 'frame':
                 run = [x for sub in run for x in sub]
         elif by != 'disp':
-            raise ValueError(('\'by\' can only take the values \'disp\', '
-                             '\'block\' or \'frame\'.'))
+            raise ValueError(('`by` can only take the values `disp`, '
+                             '`block` or `frame`.'))
     
         return run
 
@@ -3008,8 +3008,8 @@ class Grayscr():
                 if by == 'frame':
                     gab_grays = [x for sub in gab_grays for x in sub]
             elif by != 'disp':
-                raise ValueError(('\'by\' can only take the values \'disp\', '
-                                 '\'block\' or \'frame\'.'))
+                raise ValueError(('`by` can only take the values `disp`, '
+                                 '`block` or `frame`.'))
             
             return gab_grays
         else:
@@ -3080,8 +3080,8 @@ class Grayscr():
                 first_gab_grays = [x for sub in first_gab_grays for x in sub]
                 n_gab_grays     = [x for sub in n_gab_grays for x in sub]
         elif by != 'disp':
-            raise ValueError(('\'by\' can only take the values \'disp\', '
-                             '\'block\' or \'frame\'.'))
+            raise ValueError(('`by` can only take the values `disp`, '
+                             '`block` or `frame`.'))
 
         return first_gab_grays, n_gab_grays
 

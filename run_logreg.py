@@ -203,8 +203,8 @@ if __name__ == "__main__":
     parser.add_argument('--seed', default=-1, type=int, 
                         help='manual seed (-1 for None)')
     parser.add_argument('--uniqueid', default='datetime', 
-                        help=('passed string, \'datetime\' for date and time '
-                              'or \'none\' for no uniqueid'))
+                        help=('passed string, `datetime` for date and time '
+                              'or `none` for no uniqueid'))
 
         # CI parameter for analyse and plot tasks
     parser.add_argument('--CI', default=0.95, type=float, help='shuffled CI')

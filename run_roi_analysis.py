@@ -428,7 +428,7 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
         - skipped (str): any analyses skipped
     """
 
-    all_analyses = 'tlmagocp'
+    all_analyses = 'tlmagocpr'
     all_check = ''
 
     if 'all' in analyses:
@@ -506,15 +506,15 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
                                    figpar, parallel)
     all_check += 'p'
 
-
-    ################## RATIO ANALYSIS ########################
-
     # 9. Analyses and plots ROI responses for positions and mean gabor 
     # orientations
-    # if 'p' in analyses and not comb: # position orientation resp
-    #     roi_analys.run_posori_resp(sessions, 'p', analyspar, sesspar, stimpar, 
-    #                                figpar, parallel)
-    # all_check += 'p'
+    if 'r' in analyses and comb: # correlation
+        gen_analys.run_trace_corr_acr_sess(sessions, 'r', analyspar, sesspar, 
+                                           stimpar, figpar)
+    all_check += 'r'
+
+
+    ################## RATIO ANALYSIS ########################
 
 
     if set(all_analyses) != set(all_check):
@@ -539,7 +539,7 @@ if __name__ == "__main__":
                         help=('analyses to run: traces (t), locked traces (l), '
                               'roi_grps_qu (q), roi_grps_ch (c), mag (m), '
                               'autocorr (a), ori/dir (o), tuning curves (c) '
-                              'or \'all\' or \'all_m\' to, for example, '
+                              'or `all` or `all_m` to, for example, '
                               'run all analyses except m'))
     parser.add_argument('--sess_n', default='all',
                         help='session to aim for, e.g. 1, 2, last, all')

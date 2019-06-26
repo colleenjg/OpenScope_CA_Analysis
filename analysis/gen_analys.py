@@ -420,3 +420,121 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
 
     file_util.saveinfo(info, savename, fulldir, 'json')
 
+
+#############################################
+def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar, 
+                            stimpar, figpar, datatype='roi'):
+    """
+    run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar, 
+                             stimpar, quintpar, figpar)
+
+    Retrieves trace statistics by session x surp val and calculates 
+    correlations across sessions per surp val.
+    
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list)      : list of Session objects
+        - analysis (str)       : analysis type (e.g., 't')
+        - analyspar (AnalysPar): named tuple containing analysis parameters
+        - sesspar (SessPar)    : named tuple containing session parameters
+        - stimpar (StimPar)    : named tuple containing stimulus parameters
+        - figpar (dict)        : dictionary containing figure parameters
+    
+    Optional args:
+        - datatype (str): type of data (e.g., 'roi', 'run')
+    """
+
+    sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
+                                            sesspar.layer, stimpar.bri_dir, 
+                                            stimpar.bri_size, stimpar.gabk,
+                                            'print')
+    datastr = sess_str_util.datatype_par_str(datatype)
+
+    print(('\nAnalysing and plotting correlations between surprise vs non '
+           'surprise {} traces between sessions ({}).').format(datastr, 
+                                                               sessstr_pr))
+
+    import scipy.stats as st
+
+    figpar = copy.deepcopy(figpar)
+    if figpar['save']['use_dt'] is None:
+        figpar['save']['use_dt'] = gen_util.create_time_str()
+    
+    # correlate average traces between sessions for each mouse and each surprise
+    # value   
+    all_counts = []
+    all_me_tr = []
+    all_corrs = []
+    print('\nIntramouse correlations')
+    for sess_grp in sessions:
+        print('Mouse {}, sess {} vs {} corr:'.format(sess_grp[0].mouse_n, 
+                                    sess_grp[0].sess_n, sess_grp[1].sess_n))
+        trace_info = quint_analys.trace_stats_by_qu_sess(sess_grp, analyspar, 
+                                            stimpar, 1, [0], byroi=False, 
+                                            bysurp=True, datatype=datatype)
+        # remove quint dim
+        grp_stats = np.asarray(trace_info[1]).squeeze(2) 
+        all_counts.append([[qu_c[0] for qu_c in c] for c in trace_info[2]])
+        # get mean/median per grp (sess x surp_val x frame)
+        grp_me = grp_stats[:, :, 0]
+        grp_corrs = []
+        for s, surp in enumerate(['reg', 'surp']):
+            # numpy corr
+            # corr = float(np.correlate(grp_me[0, s], grp_me[1, s]))
+            corr = st.pearsonr(grp_me[0, s], grp_me[1, s])
+            grp_corrs.append(corr[0])
+            print('    {}: {:.4f} (p={:.2f})'.format(surp, corr[0], corr[1]))
+        all_corrs.append(grp_corrs)
+        all_me_tr.append(grp_me)
+        
+    # mice x sess x surp x frame
+    all_me_tr = np.asarray(all_me_tr)
+    print('\nIntermouse correlations')
+    all_mouse_corrs = []
+    for n, m1_sess_mes in enumerate(all_me_tr):
+        if n + 1 < len(all_me_tr):
+            mouse_corrs = []
+            for n_add, m2_sess_mes in enumerate(all_me_tr[n+1:]):
+                sess_corrs = []
+                print('Mouse {} vs {} corr:'.format(
+                      sessions[n][0].mouse_n, sessions[n+1+n_add][0].mouse_n))
+                for se, m1_s1_me in enumerate(m1_sess_mes):
+                    surp_corrs = []
+                    print('    sess {}:'.format(sessions[n][se].sess_n))
+                    for s, surp in enumerate(['reg', 'surp']):
+                        # numpy corr
+                        # corr = float(np.correlate(m1_s1_me[s], 
+                        #                           m2_sess_mes[se][s]))
+                        corr = st.pearsonr(m1_s1_me[s], m2_sess_mes[se][s])
+                        surp_corrs.append(corr[0])
+                        print('\t{}: {:.4f} (p={:.2f})'.format(surp, corr[0], 
+                                                               corr[1]))
+                    sess_corrs.append(corr)
+                mouse_corrs.append(sess_corrs)
+            all_mouse_corrs.append(mouse_corrs)
+
+    extrapar = {'analysis': analysis,
+                'datatype': datatype,
+                }
+
+    corr_data = {'all_corrs'      : all_corrs,
+                 'all_mouse_corrs': all_mouse_corrs,
+                 'all_counts'     : all_counts
+                }
+    
+    sess_info = []
+    for sess_grp in sessions:
+        sess_info.append(sess_gen_util.get_sess_info(sess_grp, analyspar.fluor))
+
+    info = {'analyspar': analyspar._asdict(),
+            'sesspar'  : sesspar._asdict(),
+            'stimpar'  : stimpar._asdict(),
+            'extrapar' : extrapar,
+            'sess_info': sess_info,
+            'corr_data': corr_data
+            }
+
+    # fulldir, savename = gen_plots.plot_trace_corr_acr_sess(figpar=figpar, 
+    #                                                        **info)
+    # file_util.saveinfo(info, savename, fulldir, 'json')

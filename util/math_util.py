@@ -506,7 +506,7 @@ def calc_mag_change(data, change_dim, item_dim, order=1, op='diff',
     """
 
     if op not in ['diff', 'ratio']:
-        raise ValueError('op can only take values \'diff\' or \'ratio\'.')
+        raise ValueError('op can only take values `diff` or `ratio`.')
     
     data_change = np.absolute(calc_op(data, op, dim=change_dim))
 
@@ -727,7 +727,7 @@ def print_elem_list(elems, tail='up', act_vals=None):
             for x in elems)))
         if act_vals is not None:
             if len(act_vals) != len(elems):
-                raise ValueError(('\'elems\' and \'act_vals\' should be the '
+                raise ValueError(('`elems` and `act_vals` should be the '
                                   'same length, but are of length {} and {} '
                                   'respectively.').format(len(elems), 
                                                           len(act_vals)))
