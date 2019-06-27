@@ -1525,14 +1525,14 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
     print_dir = False
     if n == 0:
         print_dir = True
-    if n % 15 == 0:
-        print('ROI {}/{}'.format(n, nrois))
+    if (n + 1) % 15 == 0 or (n + 1) == nrois:
+        print('ROI {}/{}'.format(n + 1, nrois))
 
     n_subplots = figpar['init']['ncols']
     if roi_vm_pars is not None:
         n_subplots *= 3
     fig, ax = plot_util.init_fig(n_subplots, **figpar['init'])
-    fig.suptitle('{} - ROI {} ({} total)'.format(gentitle, n, nrois))
+    fig.suptitle('{} - ROI {} ({} total)'.format(gentitle, n + 1, nrois))
     
     deg = u'\u00B0'
     for s, surp_oris in enumerate(tc_oris):
@@ -1552,7 +1552,8 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
                 # Just plot activations by orientation
                 ax[0, s].plot(gab_oris, roi_data[s], marker='.', lw=0, 
                               alpha=0.3)
-                ax[0, s].set_title('AUC per orientation{}'.format(title_str))
+                ax[0, s].set_title('AUC per orientation{}'.format(title_str), 
+                                   fontsize='large')
                 xlab = u'Orientations ({})'.format(deg)
                 sess_plot_util.add_axislabels(ax[0, s], fluor=fluor, area=True, 
                                               x_ax=xlab, datatype='roi')
@@ -1560,7 +1561,7 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
 
     # share y axis ranges within rows
     plot_util.share_lims(ax, 'row')
-    savename = '{}_roi{}'.format(gen_savename, n)
+    savename = '{}_roi{}'.format(gen_savename, n + 1)
     fulldir = plot_util.savefig(fig, savename, savedir, 
                                 print_dir=print_dir, **figpar['save'])
 

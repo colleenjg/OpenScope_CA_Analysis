@@ -180,13 +180,13 @@ class Session(object):
         self.stim_dict = file_util.loadfile(self.stim_pkl)
 
         if self.runtype == 'pilot':
-            stim_par = 'stimParams'
+            stim_par_key = 'stimParams'
         elif self.runtype == 'prod':
-            stim_par = 'stim_params'
+            stim_par_key = 'stim_params'
 
         for i in range(len(self.stim_dict['stimuli'])):
-            stim_keys = self.stim_dict['stimuli'][i][stim_par].keys()
-            stim_par = self.stim_dict['stimuli'][i][stim_par]
+            stim_keys = self.stim_dict['stimuli'][i][stim_par_key].keys()
+            stim_par = self.stim_dict['stimuli'][i][stim_par_key]
             if self.runtype == 'pilot' and 'posByFrame' in stim_keys:
                 _ = stim_par.pop('posByFrame')
             elif self.runtype == 'prod' and 'square_params' in stim_keys:
