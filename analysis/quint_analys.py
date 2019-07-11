@@ -247,8 +247,8 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
         rep_nan = False
         for _ in range(2): # allows retrying if nan_empty is True
             try:
-                twop_fr = stim.get_twop_fr_per_seg(segs, first=True)
                 if datatype == 'roi':
+                    twop_fr = stim.get_twop_fr_by_seg(segs, first=True)
                     trace_info = stim.get_roi_trace_stats(twop_fr, pre, post, 
                                         byroi=byroi, fluor=analyspar.fluor, 
                                         remnans=analyspar.remnans, 
@@ -257,7 +257,9 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
                                         integ=integ, ret_arr=ret_arr, 
                                         baseline=baseline)
                 elif datatype == 'run':
-                    trace_info = stim.get_run_array_stats(twop_fr, pre, post, 
+                    stim_fr = stim.get_stim_fr_by_seg(segs, first=True)
+                    trace_info = stim.get_run_array_stats(stim_fr, pre, post, 
+                                        remnans=analyspar.remnans,
                                         stats=analyspar.stats, 
                                         error=analyspar.error,
                                         integ=integ, ret_arr=ret_arr, 

@@ -551,13 +551,13 @@ def run_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts,
 
     print(('    Mouse {}, sess {}, {}, {}{}').format(sess.mouse_n, sess.sess_n, 
                                     sess.line, sess.layer, qu_str_pr))
-    [n_segs, roi_me, stats, 
+    [n_seqs, roi_me, stats, 
         scale_vals, roi_sort] = [dict(), dict(), dict(), dict(), dict()]
     for o, od in enumerate(oridirs):
         for s, surp in enumerate(surps):
             key = '{}_{}'.format(surp, od)
             me = mes[o][se][s] # me per ROI
-            n_segs[key] = counts[o][se][s]
+            n_seqs[key] = counts[o][se][s]
             # sorting idx
             roi_sort[key] = np.argsort(np.argmax(me, axis=1)).tolist()
             scale_vals['{}_max'.format(key)] = np.max(me, 
@@ -570,7 +570,7 @@ def run_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts,
                                 analyspar.error, 0, nanpol).tolist()
 
     tr_data = {'xran'      : xran.tolist(),
-               'n_segs'    : n_segs,
+               'n_seqs'    : n_seqs,
                'roi_me'    : roi_me,
                'stats'     : stats,
                'scale_vals': scale_vals,
@@ -917,7 +917,7 @@ def posori_resp(sess, analyspar, stimpar, nrois='all'):
                                              gab_ori=ori, gabk=stimpar.gabk, 
                                              surp=s, by='seg')
             ori_nseqs.append(len(segs))
-            twopfr = stim.get_twop_fr_per_seg(segs, first=True)
+            twopfr = stim.get_twop_fr_by_seg(segs, first=True)
             # stats x ROI
             gf_stats = stim.get_roi_trace_stats(twopfr, stimpar.pre, 
                             stimpar.post, byroi=True, 

@@ -23,10 +23,11 @@ import numpy as np
 import pandas
 import pickle
 import scipy.stats as st
+import scipy.signal as scsig
 
 from allensdk.brain_observatory import dff
 
-from sess_util import sess_file_util, sess_sync_util
+from sess_util import sess_file_util, sess_pupil_util, sess_sync_util
 from util import file_util, gen_util, math_util
 
 
@@ -90,24 +91,28 @@ class Session(object):
         Checks that the session data directory obeys the expected organization
         scheme and sets the following attributes:
         
-            - align_pkl (str)     : path name of the stimulus alignment pickle 
-                                    file
-            - corrected (str)     : path name of the motion corrected 2p data 
-                                    hdf5 file
-            - date (str)          : session date (i.e., yyyymmdd)
-            - dir (str)           : path of session directory
-            - expdir (str)        : path name of experiment directory
-            - expid (int)         : experiment ID (8 digits)
-            - mouseid (int)       : mouse ID (6 digits)
-            - procdir (str)       : path name of the processed data directory
-            - roi_traces (str)    : path name of the ROI raw fluorescence trace 
-                                    hdf5 file
-            - roi_traces_dff (str): path name of the ROI raw dF/F trace 
-                                    hdf5 file
-            - stim_pkl (str)      : path name of the stimulus pickle file
-            - stim_sync (str)     : path name of the stimulus synchronisation 
-                                    hdf5 file
-            - z_stack (str)       : path name of the z-stack 2p hdf5 file
+            - align_pkl (str)       : path name of the stimulus alignment pickle 
+                                      file
+            - behav_h5 (str)        : path name of the behavior hdf5 file
+            - correct_data_h5 (str) : path name of the motion corrected 2p data 
+                                      hdf5 file
+            - date (str)            : session date (i.e., yyyymmdd)
+            - dir (str)             : path of session directory
+            - expdir (str)          : path name of experiment directory
+            - expid (int)           : experiment ID (8 digits)
+            - mouseid (int)         : mouse ID (6 digits)
+            - procdir (str)         : path name of the processed data directory
+            - pupilh5 (str)         : path name of the pupil hdf5 file
+            - roi_trace_h5 (str)    : path name of the ROI raw fluorescence trace 
+                                      hdf5 file
+            - roi_trace_dff_h5 (str): path name of the ROI raw dF/F trace 
+                                      hdf5 file
+            - stim_pkl (str)        : path name of the stimulus pickle file
+            - stim_sync_h5 (str)    : path name of the stimulus synchronisation 
+                                      hdf5 file
+            - time_sync_h5 (str)    : path name of the time synchronization hdf5 
+                                      file
+            - zstack_h5 (str)       : path name of the z-stack 2p hdf5 file
         """
 
         # check that the high-level home directory exists
@@ -153,13 +158,23 @@ class Session(object):
         self.expid = int(expinfo[2])
 
         # create the filenames
-        (self.expdir, self.procdir, self.stim_pkl, self.stim_sync, 
-        self.align_pkl, self.corrected, self.roi_traces, self.roi_traces_dff, 
-            self.zstack) = \
+        (self.expdir, self.procdir, filepaths) = \
             sess_file_util.get_file_names(self.home, self.sessid, self.expid, 
                                           self.date, self.mouseid, 
-                                          self.runtype, mouse_dir)       
-    
+                                          self.runtype, mouse_dir)  
+        self.stim_pkl         = filepaths['stim_pkl']
+        self.stim_sync_h5     = filepaths['stim_sync_h5']
+        self.align_pkl        = filepaths['align_pkl']
+        self.behav_h5         = filepaths['behav_h5']
+        self.pupil_h5         = filepaths['pupil_h5']
+        self.time_sync_h5     = filepaths['time_sync_h5']
+        self.roi_trace_h5     = filepaths['roi_trace_h5']
+        self.roi_trace_dff_h5 = filepaths['roi_trace_dff_h5']
+
+        # existence not checked in get_file_names()
+        # self.zstack_h5 = filepaths['zstack_h5']
+        # self.correct_data_h5 = filepaths['correct_data_h5']
+        
 
     #############################################
     def _create_small_stim_pkl(self, small_stim_pkl):
@@ -196,6 +211,61 @@ class Session(object):
 
 
     #############################################
+    def _load_run_speed(self, diff_thr=100):
+        """
+        self._load_run_speed()
+
+        Loads run speed and replaces outliers with NaNs (for self.run) and
+        replaces outliers with interpolated values (for self.run_interp)
+
+        Sets the following attribute:
+            - run (1D array)       : array of running speeds in cm/s for each 
+                                     recorded stimulus frames
+            - run_interp (1D array): array of running speeds in cm/s for each
+                                     recorded stimulus frames, where NaNs are
+                                     reinterpolated
+            - tot_run_fr (1D array): number of running speed frames
+        """
+
+        self.run = sess_sync_util.get_run_speed(stim_dict=self.stim_dict)
+        self.run_interp = copy.deepcopy(self.run)
+
+        self.tot_run_fr = len(self.run)
+
+        # identify outliers by identifying unusual changes in running speed
+        run_diff = np.diff(self.run)
+
+        out_idx = np.where((run_diff < -diff_thr) | (run_diff > diff_thr))[0]
+
+        if len(out_idx) > 0:
+            print(('WARNING: {} running values were replaced with '
+                   'NaNs.\n').format(len(out_idx)))
+        
+        at_idx = -1
+        for idx in out_idx:
+            if idx > at_idx:
+                orig = idx
+                if idx == 0:
+                    # in case the first value is completely off
+                    comp_val = 0
+                    if np.absolute(self.run[0]) > diff_thr:
+                        self.run[0] = np.nan
+                        orig = -1
+                else:
+                    comp_val = self.run[idx]
+                while np.absolute(self.run[idx + 1] - comp_val) > diff_thr:
+                    self.run[idx + 1] = np.nan
+                    idx += 1
+                # linearly reinterpolate in the values
+                self.run_interp[orig+1:idx+1] = np.mean([comp_val, 
+                                                       self.run[idx + 1]])
+                if idx - orig > 5:
+                    print(('WARNING: {} consecutive running values had to be'
+                           'dropped.'.format(idx - orig)))
+                at_idx = idx
+
+
+    #############################################
     def _load_stim_dict(self, fulldict=True):
         """
         self._load_stim_dict()
@@ -213,8 +283,6 @@ class Session(object):
                                     stimulus start 
             - stim_fps (num)      : stimulus frames per second
             - tot_stim_fr (int)   : number of stimulus frames
-            - run (1D array)      : array of running speeds in cm/s for each 
-                                    recorded stimulus frames
 
         Optional args:
             - fulldict (bool)  : if True, the full stim_dict is loaded,
@@ -244,7 +312,7 @@ class Session(object):
         self.n_drop_stim_fr = len(self.drop_stim_fr[0])
 
         # running speed per stimulus frame in cm/s
-        self.run = sess_sync_util.get_run_speed(stim_dict=self.stim_dict)
+        self._load_run_speed()
 
         # check our drop tolerance
         if np.float(self.n_drop_stim_fr)/self.tot_stim_fr > self.droptol:
@@ -253,39 +321,100 @@ class Session(object):
         
 
     #############################################
-    def _load_sync_h5(self):
+    def _get_twop2stimfr(self):
         """
-        self._load_sync_h5()
+        self._get_twop2stimfr()
 
-        Loads the stimulus synchronisation hdf5 file.
+        Creates the 2p to stimulus frame alignment list.
+        
+        Sets the following attribute:
+            - twop2stimfr (1D array): stimulus frame numbers for the beginning
+                                      of each 2p frame (np.nan when no stimulus
+                                      appears)
         """
 
-        raise NotImplementedError(('Loading h5 sync file of a session has '
-                                   'not been implemented yet.'))
-    
+        stim2twopfr_diff = np.append(1, np.diff(self.stim2twopfr))
+        stim_idx = np.where(stim2twopfr_diff)[0]
+
+        dropped = np.where(stim2twopfr_diff > 1)[0]
+        if len(dropped) > 0:
+            print(('WARNING: {} dropped stimulus frames '
+                   'detected.'.format(len(dropped))))
+            # repeat stim idx when frame is dropped
+            for drop in dropped[-1:]:
+                loc = np.where(stim_idx == drop)[0][0]
+                add = [stim_idx[loc-1]] * (stim2twopfr_diff[drop] - 1)
+                stim_idx = np.insert(stim_idx, loc, add)
+        
+        self.twop2stimfr = np.full(len(self.twop2pupfr), np.nan) 
+        start = int(self.stim2twopfr[0])
+        end = int(self.stim2twopfr[-1]) + 1
+        try:
+            self.twop2stimfr[start:end] = stim_idx
+        except:
+            print('NON FUNCTIONAL')
+
 
     #############################################
-    def _load_align_df(self):
+    def _load_sync_h5s(self):
         """
-        self._load_align_df()
+        self._load_sync_h5s()
 
-        Creates the alignment dataframe (align_df) and stores it as a pickle
+        Loads the synchronisation hdf5 files for behavior and pupil, and
+        calls self._get_twopfr2stim().
+
+        Sets the following attributes
+            - pup_fps (num)           : average pupil frame rate (frames per 
+                                        sec)
+            - pup_fr_interv (1D array): interval in sec between each pupil 
+                                        frame
+            - stim2twopfr2 (1D array) : 2p frame numbers for each stimulus 
+                                        frame, as well as the flanking
+                                        blank screen frames (second 
+                                        version, very similar to stim2twopfr 
+                                        with a few differences)
+            - twop2bodyfr (1D array)  : body-tracking video (video-0) frame 
+                                        numbers for each 2p frame
+            - twop2pupfr (1D array)   : eye-tracking video (video-1) frame 
+                                        numbers for each 2p frame
+        """
+
+        with h5py.File(self.pupil_h5, 'r') as f:
+            self.pup_fr_interv = f['frame_intervals'].value.astype('float64')
+
+        with h5py.File(self.time_sync_h5, 'r') as f:
+            self.twop2bodyfr  = f['body_camera_alignment'].value.astype('int')
+            self.twop2pupfr   = f['eye_tracking_alignment'].value.astype('int')
+            self.stim2twopfr2 = f['stimulus_alignment'].value.astype('int')
+
+        self.pup_fps = 1/(np.mean(self.pup_fr_interv))
+        self.tot_pup_fr = len(self.pup_fr_interv + 1)
+        self._get_twop2stimfr()
+
+
+    #############################################
+    def _load_stim_df(self):
+        """
+        self._load_stim_df()
+
+        Creates the alignment dataframe (stim_df) and stores it as a pickle
         in the session directory, if it does not already exist. Loads
-        it if it exists, along with the stimulus alignment list (stim_align).
+        it if it exists, along with the stimulus to 2p frame alignment list 
+        (stim2twopfr).
         Sets the following attributes:
         
-            - align_df (pandas df) : stimlus alignment dataframe
-            - stim_align (1D array): list of 2p frame numbers for each
-                                     stimulus frame, as well as the flanking
-                                     blank screen frames 
-            - twop_fps (num)       : mean 2p frames per second
-            - twop_fr_stim (int)   : number of 2p frames recorded while stim
-                                     was playing
+            - stim_df (pandas df)   : stimlus alignment dataframe
+            - stim2twopfr (1D array): 2p frame numbers for each stimulus frame, 
+                                      as well as the flanking
+                                      blank screen frames 
+            - twop_fps (num)        : mean 2p frames per second
+            - twop_fr_stim (int)    : number of 2p frames recorded while stim
+                                      was playing
         """
 
-        # create align_df if doesn't exist
+        # create stim_df if doesn't exist
         if not os.path.exists(self.align_pkl):
-            sess_sync_util.get_stim_frames(self.stim_pkl, self.stim_sync, 
+            sess_sync_util.get_stim_frames(self.stim_pkl, self.stim_sync_h5, 
                                            self.align_pkl, self.runtype)
             
         else:
@@ -294,11 +423,53 @@ class Session(object):
 
         align = file_util.loadfile(self.align_pkl)
 
-        self.align_df     = align['stim_df']
-        self.stim_align   = align['stim_align']
-        self.twop_fps     = sess_sync_util.get_frame_rate(self.stim_sync)[0] 
+        self.stim_df      = align['stim_df']
+        self.stim2twopfr  = align['stim_align'].astype('int')
+        self.twop_fps     = sess_sync_util.get_frame_rate(self.stim_sync_h5)[0] 
         self.twop_fr_stim = int(max(align['stim_align']))
-    
+
+
+    #############################################
+    def _load_pup_data(self, thr=5):
+        """
+        self._load_pup_data()
+
+        If it exists, loads the pupil tracking data. Extracts pupil diameter
+        and position information. 
+
+        Sets the following attributes:
+            - pup_center (1D array)     : pupil center position at each pupil 
+                                          frame
+            - pup_center_diff (1D array): change in pupil center between each 
+                                          pupil frame
+            - pup_data_csv (str)        : path to the pupil data csv
+            - pup_med_diam (1D array)   : median pupil diameter at each pupil 
+                                          frame
+            - pup_nan_diam (1D array)   : median pupil diameter where blinks 
+                                          and outlier values have been replaced
+                                          with NaNs
+        """
+
+        pupil_data_files = glob.glob(os.path.join(self.dir, 
+                                                  '*eye-tracking*.csv'))
+
+        if len(pupil_data_files) == 1:
+            print('Loading pupil tracking information.')
+            self.pup_data_csv = pupil_data_files[0]
+            pup_data = file_util.loadfile(self.pup_data_csv)[2:].to_numpy(
+                                                             dtype='float64')
+
+        elif len(pupil_data_files) > 1:
+            raise ValueError('Several pupil data files were found.')
+        else:
+            raise OSError('No pupil data file found.')
+        
+        [self.pup_med_diam, self.pup_center, 
+            self.pup_center_diff] = sess_pupil_util.eye_diam_center(pup_data)
+
+        self.pup_nan_diam = sess_pupil_util.diam_no_blink(self.pup_med_diam,
+                                                          thr)
+
 
     #############################################
     def _set_nanrois(self, fluor='dff'):
@@ -324,9 +495,9 @@ class Session(object):
         
         # generate attribute listing ROIs with NaNs or Infs (for dff traces)
         if fluor == 'dff':
-            full_trace_file = self.roi_traces_dff
+            full_trace_file = self.roi_trace_dff_h5
         elif fluor == 'raw':
-            full_trace_file = self.roi_traces
+            full_trace_file = self.roi_trace_h5
         else:
             gen_util.accepted_values_error('fluor', fluor, ['raw', 'dff'])
         
@@ -351,7 +522,7 @@ class Session(object):
         """
         self._create_dff()
 
-        Creates and saves the dF/F traces.
+        Creates and saves the dF/F traces (ROIs x frames)
 
         Also calls self._set_nanrois().
 
@@ -365,21 +536,21 @@ class Session(object):
         
         """
         
-        if not os.path.exists(self.roi_traces_dff) or replace:
+        if not os.path.exists(self.roi_trace_dff_h5) or replace:
             print(('Creating dF/F files using {} basewin '
                    'for session {}').format(basewin, self.sessid))
             # read the data points into the return array
-            with h5py.File(self.roi_traces,'r') as f:
+            with h5py.File(self.roi_trace_h5,'r') as f:
                 try:
                     traces = f['data'].value
                 except:
                     pdb.set_trace()
-                    raise OSError('Could not read {}'.format(self.roi_traces))
+                    raise OSError('Could not read {}'.format(self.roi_trace_h5))
             
             traces = dff.compute_dff(traces, mode_kernelsize=2*basewin, 
                                      mean_kernelsize=basewin)
                 
-            with h5py.File(self.roi_traces_dff, 'w') as hf:
+            with h5py.File(self.roi_trace_dff_h5, 'w') as hf:
                 hf.create_dataset('data',  data=traces)
         
         # generate attribute listing ROIs with NaNs or Infs (for dF/F traces)
@@ -409,20 +580,23 @@ class Session(object):
         
         try:
             # open the roi file and get the info
-            with h5py.File(self.roi_traces,'r') as f:
+            with h5py.File(self.roi_trace_h5, 'r') as f:
                 
                 # get the names of the rois
-                self.roi_names = f['roi_names'].value.tolist()
+                try:
+                    self.roi_names = f['roi_names'].value.tolist()
+                except:
+                    self.roi_names = None
 
                 # get the number of rois
-                self.nrois = len(self.roi_names)
+                self.nrois = f['data'].shape[0]
 
                 # get the number of data points in the traces
                 self.tot_twop_fr = f['data'].shape[1]
     
         except:
             raise OSError(('Could not open {} for '
-                        'reading').format(self.roi_traces))
+                        'reading').format(self.roi_trace_h5))
 
         # generate attribute listing ROIs with NaNs or Infs (for raw traces)
         self._set_nanrois('raw')
@@ -433,7 +607,7 @@ class Session(object):
         """
         self._modif_bri_segs()
 
-        Modifies brick segment numbers in align_df attribute to ensure that
+        Modifies brick segment numbers in stim_df attribute to ensure that
         they are different for the two brick stimuli in the production data.
 
         Also updates the block segment ranges and both brick stim segment lists 
@@ -444,10 +618,10 @@ class Session(object):
             return
 
         elif self.runtype == 'prod':
-            bri_st_fr = gen_util.get_df_vals(self.align_df, 'stimType', 'b', 
+            bri_st_fr = gen_util.get_df_vals(self.stim_df, 'stimType', 'b', 
                                              'start_frame', unique=False)
             bri_num_fr = np.diff(bri_st_fr)
-            num_fr = gen_util.get_df_vals(self.align_df, 'stimType', 'b', 
+            num_fr = gen_util.get_df_vals(self.stim_df, 'stimType', 'b', 
                                           'num_frames', unique=False)[:-1]
             break_idx = np.where(num_fr != bri_num_fr)[0]
             n_br = len(break_idx)
@@ -457,15 +631,15 @@ class Session(object):
             
             # last start frame and seg for the first brick stim
             last_fr1 = bri_st_fr[break_idx[0]] 
-            last_seg1 = gen_util.get_df_vals(self.align_df, 
+            last_seg1 = gen_util.get_df_vals(self.stim_df, 
                                              ['stimType', 'start_frame'], 
                                              ['b', last_fr1], 'stimSeg')[0]
             
-            seg_idx = ((self.align_df['stimType'] == 'b') & 
-                       (self.align_df['start_frame'] > last_fr1))
+            seg_idx = ((self.stim_df['stimType'] == 'b') & 
+                       (self.stim_df['start_frame'] > last_fr1))
 
-            new_idx = self.align_df.loc[seg_idx]['stimSeg'] + last_seg1 + 1
-            self.align_df = gen_util.set_df_vals(self.align_df, seg_idx, 
+            new_idx = self.stim_df.loc[seg_idx]['stimSeg'] + last_seg1 + 1
+            self.stim_df = gen_util.set_df_vals(self.stim_df, seg_idx, 
                                                  'stimSeg', new_idx)
 
             self._bri_segs_modified = True
@@ -529,9 +703,10 @@ class Session(object):
         object. It creates the stimulus objects attached to the Session 
 
         If the attributes they set have not been initialized yet, calls:
-            self._load_align_df()
+            self._load_stim_df()
             self._load_roi_trace_info()
             self._load_stim_dict()
+            self._load_sync_h5s()
 
         If the runtype is 'prod', calls self._modif_bri_segs().
 
@@ -566,15 +741,16 @@ class Session(object):
 
         # load the stimulus, running, alignment and trace information 
         if not hasattr(self, 'stim_dict'):
-            print("Loading stimulus dictionary...")
+            print('Loading stimulus dictionary...')
             self._load_stim_dict(fulldict=fulldict)
-        if not hasattr(self, 'align_df'):
-            print("Loading alignment dataframe...")
-            self._load_align_df()
+        if not hasattr(self, 'stim_df'):
+            print('Loading alignment dataframe...')
+            self._load_stim_df()
         if not hasattr(self, 'roi_names'):
-            print("Loading ROI trace info...")
+            print('Loading ROI trace info...')
             self._load_roi_trace_info(basewin=basewin)
-        # TODO: load h5 sync
+        print('Loading sync h5 info...')
+        self._load_sync_h5s()
         
         # create the stimulus fields and objects
         self.stimtypes = []
@@ -583,7 +759,7 @@ class Session(object):
         if self.runtype == 'prod':
             n_bri = []
             # modify segment numbers for second bricks block as they are 
-            # the same for both in production in the align_df
+            # the same for both in production in the stim_df
             self._modif_bri_segs()
         for i in range(self.n_stims):
             stim = self.stim_dict['stimuli'][i]
@@ -664,30 +840,51 @@ class Session(object):
 
 
     #############################################
-    def get_run_speed(self, twop_fr):
+    def get_run_speed_by_fr(self, fr, fr_type='stim', remnans=False):
         """
-        self.get_run_speed(twop_fr)
+        self.get_run_speed_by_fr(fr)
 
-        Returns the running speed for the given two-photon imaging
-        frames using linear interpolation.
+        Returns the running speed for the given frames, either stimulus frames
+        or two-photon imaging frames using linear interpolation.
 
         Required args:
-            - twop_fr (array-like): set of 2p imaging frames for which 
-                                    to get running speed
+            - fr (array-like): set of frames for which to get running speed
         
+        Optional args:
+            - fr_type (str) : type of frames passed ('stim' or 'twop' frames)
+                              default: 'stim'
+            - remnans (bool): if True, NaN values are removed using linear 
+                              interpolation
+                              default: False
+
         Returns:
             - speed (nd array): running speed (in cm/s), with same dimensions 
                                 as input array
         """
 
-        twop_fr = np.asarray(twop_fr)
+        fr = np.asarray(fr)
 
-        # make sure the frames are within the range of 2p frames
-        if (twop_fr >= self.tot_twop_fr).any() or (twop_fr < 0).any():
-            raise UserWarning('Some of the specified frames are out of range')
+        if fr_type == 'stim':
+            max_val = self.tot_run_fr
+        elif fr_type == 'twop':
+            max_val = self.tot_twop_fr
+        else:
+            gen_util.accepted_values_error('fr_type', fr_type, 
+                                           ['stim', 'twop'])
 
-        # perform linear interpolation on the running speed
-        speed = np.interp(twop_fr, self.stim_align, self.run)
+        if (fr >= max_val).any() or (fr < 0).any():
+                raise UserWarning(('Some of the specified frames are out of '
+                                   'range'))
+        
+        if remnans:
+            run = self.run_interp
+        else:
+            run = self.run
+
+        if fr_type == 'stim':
+            speed = run[fr]
+        elif fr_type == 'twop':
+            speed = np.interp(fr, self.stim2twopfr, run)
 
         return speed
 
@@ -714,6 +911,60 @@ class Session(object):
             return self.nanrois
         else:
             gen_util.accepted_values_error('fluor', fluor, ['raw', 'dff'])
+
+
+    #############################################
+    def get_active_rois(self, fluor='dff', stimtype=None, remnans=True):
+        """
+        self.active_rois()
+
+        Returns as a list the indices of ROIs that have calcium transients 
+        (defined as median + 3 std), optionally during a specific stimulus type.
+
+        Optional args:
+            - fluor (str): if 'dff', the indices of ROIs with NaNs or Infs in 
+                           the dF/F traces are returned. If 'raw', for raw 
+                           traces.
+                           default: 'dff'
+        Returns:
+            - (list): indices of ROIs containing NaNs or Infs
+        """
+
+        print('Identifying active ROIs.')
+
+        win = [1, 5]
+        
+        full_data = self.get_roi_traces(None, fluor, remnans)
+        full_data_sm = scsig.medfilt(full_data, win)
+
+        if stimtype is None:
+            stim_data = full_data
+            stim_data_sm = full_data_sm
+        else:
+            stim = self.get_stim(stimtype)
+            twop_fr = []
+            all_ran = [ran for dispran in stim.block_ran_seg for ran in dispran]
+            for bl in all_ran:
+                stfr = self.stim_df.loc[(self.stim_df['stimType'] == stimtype[0]) &
+                                        (self.stim_df['stimSeg'] == bl[0])]['start_frame'].values[0]
+                endfr = self.stim_df.loc[(self.stim_df['stimType'] == stimtype[0]) &
+                                         (self.stim_df['stimSeg'] == bl[1]-1)]['end_frame'].values[0]               
+                twop_fr.extend(list(range(stfr, endfr + 1)))
+            stim_data = self.get_roi_traces(twop_fr, fluor, remnans)
+            stim_data_sm = scsig.medfilt(stim_data, win)
+
+        med = np.nanmedian(full_data_sm, axis=1) # smooth full data median
+        std = np.nanstd(full_data_sm, axis=1) # smooth full data std
+
+        # count how many calcium transients occur in the data of interest for
+        # each ROI and identify inactive ROIs
+        diff = stim_data_sm - (med + 3 * std)[:, np.newaxis]
+        counts = np.sum(diff > 0, axis=1)
+        inactive = np.where(counts == 0)[0]
+        n_rois = len(stim_data)
+        active_rois = list(set(range(n_rois)) - set(inactive))
+
+        return active_rois
 
 
     #############################################
@@ -761,18 +1012,18 @@ class Session(object):
         # read the data points into the return array
         self._load_roi_trace_info(basewin=basewin)
         if fluor == 'dff':
-            roi_traces = self.roi_traces_dff
+            roi_trace_h5 = self.roi_trace_dff_h5
         elif fluor == 'raw':
-            roi_traces = self.roi_traces
+            roi_trace_h5 = self.roi_trace_h5
         else:
             gen_util.accepted_values_error('fluor', fluor, ['raw', 'dff'])
 
-        with h5py.File(roi_traces, 'r') as f:
+        with h5py.File(roi_trace_h5, 'r') as f:
             try:
                 traces = f['data'].value[:,frames]
             except:
                 pdb.set_trace()
-                raise OSError('Could not read {}'.format(self.roi_traces))
+                raise OSError('Could not read {}'.format(self.roi_trace_h5))
         
         if remnans:
             rem_rois = self.get_nanrois(fluor)
@@ -1365,9 +1616,45 @@ class Stim(object):
 
 
     #############################################
-    def get_twop_fr_per_seg(self, seglist, first=False):
+    def get_stim_fr_by_seg(self, seglist, first=False):
         """
-        self.get_twop_fr_per_seg(seglist)
+        self.get_stim_fr_by_seg(seglist)
+
+        Returns a list of arrays containing the stimulus frame numbers that 
+        correspond to a given set of stimulus segments provided in a list 
+        for a specific stimulus.
+
+        Required args:
+            - seglist (list of ints): the stimulus segments for which to get 
+                                      2p frames
+
+        Optional args:
+            - first (bool): return only first frame for each seg
+                            default: False
+        Returns:
+            - frames (list of int arrays): a list (one entry per segment) of
+                                           arrays containing the 2p frame 
+                                           numbers OR (if first is True) a 
+                                           list of first 2p frames numbers for 
+                                           each segment
+        """
+
+        if first == True:
+            frames = [self.stim_seg_list.index(val) for val in seglist]
+        else:
+            stim_seg_list_array = np.asarray(self.stim_seg_list)
+            frames = []
+            for val in seglist:
+                all_fr = np.where(stim_seg_list_array == val)[0]
+                frames.append(all_fr.tolist())
+
+        return frames
+        
+        
+    #############################################
+    def get_twop_fr_by_seg(self, seglist, first=False):
+        """
+        self.get_twop_fr_by_seg(seglist)
 
         Returns a list of arrays containing the 2-photon frame numbers that 
         correspond to a given set of stimulus segments provided in a list 
@@ -1379,7 +1666,7 @@ class Stim(object):
 
         Optional args:
             - first (bool): return only first frame for each seg
-                            default: Falsle
+                            default: False
         Returns:
             - frames (list of int arrays): a list (one entry per segment) of
                                            arrays containing the 2p frame 
@@ -1392,8 +1679,8 @@ class Stim(object):
         frames = []
 
         # get the rows in the alignment dataframe that correspond to the segments
-        rows = self.sess.align_df.loc[(self.sess.align_df['stimType'] == self.stimtype[0]) &
-                                      (self.sess.align_df['stimSeg'].isin(seglist))]
+        rows = self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == self.stimtype[0]) &
+                                      (self.sess.stim_df['stimSeg'].isin(seglist))]
 
         # get the start frames and end frames from each row
         start_frames = rows['start_frame'].values
@@ -1410,9 +1697,9 @@ class Stim(object):
 
 
     #############################################
-    def get_n_twop_fr_per_seg(self, segs):
+    def get_n_twop_fr_by_seg(self, segs):
         """
-        self.get_n_twop_fr_per_seg(segs)
+        self.get_n_twop_fr_by_seg(segs)
 
         Returns a list with the number of twop frames for each seg passed.    
 
@@ -1428,8 +1715,8 @@ class Stim(object):
         segs_unique = sorted(set(segs))
         
         # number of frames will be returned in ascending order of seg number
-        n_fr = self.sess.align_df.loc[(self.sess.align_df['stimType'] == self.stimtype[0]) &
-                                      (self.sess.align_df['stimSeg'].isin(segs_unique))]['num_frames'].tolist()
+        n_fr = self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == self.stimtype[0]) &
+                                      (self.sess.stim_df['stimSeg'].isin(segs_unique))]['num_frames'].tolist()
         
         # resort based on order in which segs were passed and include any 
         # duplicates
@@ -1529,7 +1816,7 @@ class Stim(object):
 
         for i in range(len(pars)):
             if pars[i] == 'any':
-                pars[i] = gen_util.get_df_vals(self.sess.align_df, 'stimType', 
+                pars[i] = gen_util.get_df_vals(self.sess.stim_df, 'stimType', 
                                                self.stimtype, stimpar_names[i])
             if pars[i] is not None:
                 pars[i] = gen_util.list_if_not(pars[i])
@@ -1544,47 +1831,47 @@ class Stim(object):
             stimPar2 = sp2 
 
         # converts values to lists or gets all possible values, if 'any'
-        stimPar1 = gen_util.get_df_label_vals(self.sess.align_df, 
+        stimPar1 = gen_util.get_df_label_vals(self.sess.stim_df, 
                                               'stimPar1', stimPar1)
-        stimPar2 = gen_util.get_df_label_vals(self.sess.align_df, 
+        stimPar2 = gen_util.get_df_label_vals(self.sess.stim_df, 
                                               'stimPar2', stimPar2)
-        surp     = gen_util.get_df_label_vals(self.sess.align_df, 
+        surp     = gen_util.get_df_label_vals(self.sess.stim_df, 
                                               'surp', surp)
-        stimSeg  = gen_util.get_df_label_vals(self.sess.align_df, 
+        stimSeg  = gen_util.get_df_label_vals(self.sess.stim_df, 
                                               'stimSeg', stimSeg)
         # here, ensure that the -1s are removed
         stimSeg = gen_util.remove_if(stimSeg, -1)
-        gabfr   = gen_util.get_df_label_vals(self.sess.align_df, 
+        gabfr   = gen_util.get_df_label_vals(self.sess.stim_df, 
                                              'GABORFRAME', gabfr)
         
         if start_frame in ['any', None]:
-            start_frame_min = int(self.sess.align_df['start_frame'].min())
-            start_frame_max = int(self.sess.align_df['start_frame'].max()+1)
+            start_frame_min = int(self.sess.stim_df['start_frame'].min())
+            start_frame_max = int(self.sess.stim_df['start_frame'].max()+1)
         if end_frame in ['any', None]:
-            end_frame_min = int(self.sess.align_df['end_frame'].min())
-            end_frame_max = int(self.sess.align_df['end_frame'].max()+1)
+            end_frame_min = int(self.sess.stim_df['end_frame'].min())
+            end_frame_max = int(self.sess.stim_df['end_frame'].max()+1)
         if num_frames in ['any', None]:
-            num_frames_min = int(self.sess.align_df['num_frames'].min())
-            num_frames_max = int(self.sess.align_df['num_frames'].max()+1)
+            num_frames_min = int(self.sess.stim_df['num_frames'].min())
+            num_frames_max = int(self.sess.stim_df['num_frames'].max()+1)
         
         segs = []
         for i in self.block_ran_seg:
             temp = []
             for j in i:
-                idxs = self.sess.align_df.loc[(self.sess.align_df['stimType']==self.stimtype[0])     & 
-                                              (self.sess.align_df['stimPar1'].isin(stimPar1))        &
-                                              (self.sess.align_df['stimPar2'].isin(stimPar2))        &
-                                              (self.sess.align_df['surp'].isin(surp))                &
-                                              (self.sess.align_df['stimSeg'].isin(stimSeg))          &
-                                              (self.sess.align_df['GABORFRAME'].isin(gabfr))         &
-                                              (self.sess.align_df['start_frame'] >= start_frame_min) &
-                                              (self.sess.align_df['start_frame'] < start_frame_max)  &
-                                              (self.sess.align_df['end_frame'] >= end_frame_min)     &
-                                              (self.sess.align_df['end_frame'] < end_frame_max)      &
-                                              (self.sess.align_df['num_frames'] >= num_frames_min)   &
-                                              (self.sess.align_df['num_frames'] < num_frames_max)    &
-                                              (self.sess.align_df['stimSeg'] >= j[0])                &
-                                              (self.sess.align_df['stimSeg'] < j[1])]['stimSeg'].tolist()
+                idxs = self.sess.stim_df.loc[(self.sess.stim_df['stimType']==self.stimtype[0])     & 
+                                              (self.sess.stim_df['stimPar1'].isin(stimPar1))        &
+                                              (self.sess.stim_df['stimPar2'].isin(stimPar2))        &
+                                              (self.sess.stim_df['surp'].isin(surp))                &
+                                              (self.sess.stim_df['stimSeg'].isin(stimSeg))          &
+                                              (self.sess.stim_df['GABORFRAME'].isin(gabfr))         &
+                                              (self.sess.stim_df['start_frame'] >= start_frame_min) &
+                                              (self.sess.stim_df['start_frame'] < start_frame_max)  &
+                                              (self.sess.stim_df['end_frame'] >= end_frame_min)     &
+                                              (self.sess.stim_df['end_frame'] < end_frame_max)      &
+                                              (self.sess.stim_df['num_frames'] >= num_frames_min)   &
+                                              (self.sess.stim_df['num_frames'] < num_frames_max)    &
+                                              (self.sess.stim_df['stimSeg'] >= j[0])                &
+                                              (self.sess.stim_df['stimSeg'] < j[1])]['stimSeg'].tolist()
                 
                 # if removing consecutive values
                 if remconsec: 
@@ -1702,15 +1989,8 @@ class Stim(object):
         for i in segs:
             temp = []
             for idxs in i:
-                temp2 = []
-                if first_fr: # if getting only first frame for each segment
-                    for val in idxs:
-                        temp2.extend([self.stim_seg_list.index(val)])
-                else: # if getting all frames for each segment
-                    stim_seg_list_array = np.asarray(self.stim_seg_list)
-                    for val in idxs:
-                        all_fr = np.where(stim_seg_list_array == val)[0]
-                        temp2.extend(all_fr.tolist())
+                temp2 = self.get_stim_fr_by_seg(idxs, first=first_fr)
+                temp2 = [val for vals in temp2 for val in vals] # flatten
                 # check for empty
                 if len(temp2) != 0:
                     temp.append(temp2)
@@ -1935,10 +2215,89 @@ class Stim(object):
         else:
             return xran, data_stats
 
+    #############################################
+    def get_pup_diam_array(self, pup_ref_fr, pre, post, integ=False, 
+                          remnans=True, baseline=None, stats='mean'):
+        """
+        self.get_pup_diam_array(pup_ref_fr, pre, post)
+
+        Returns array of pupil data around specific pupil frame numbers. 
+
+        Required args:
+            - pup_ref_fr (list): 1D list of reference pupil frame numbers
+                                  around which to retrieve running data 
+                                  (e.g., all 1st Gabor A frames)
+            - pre (num)         : range of frames to include before each 
+                                  reference frame number (in s)
+            - post (num)        : range of frames to include after each 
+                                  reference frame number (in s)
+        
+        Optional args:
+            - integ (bool)    : if True, running is integrated over frames
+                                default: False
+            - remnans (bool)  : if True, NaN values are omitted in calculating 
+                                the data statistics.
+                                default: True
+            - baseline (num)  : number of seconds to use as baseline. If None,
+                                data is not baselined.
+                                default: None
+            - stats (str)     : statistic to use for baseline, mean ('mean') or 
+                                median ('median')
+                                default: 'mean'
+            
+        Returns:
+            - xran (1D array)           : time values for the stimulus frames
+            - data_array (1 to 2D array): running data array, structured as:
+                                          sequences (x frames)
+        """
+
+        if not hasattr(self.sess, 'pup_nan_diam'):
+            self.sess._load_pup_data()
+
+        ran_fr = [np.around(x*self.sess.pup_fps) for x in [-pre, post]]
+        xran  = np.linspace(-pre, post, int(np.diff(ran_fr)[0]))
+
+        if isinstance(pup_ref_fr[0], (list, np.ndarray)):
+            raise OSError('Frames must be passed as a 1D list, not by block.')
+
+        # get corresponding running subblocks sequences x frames
+        fr_idx = gen_util.num_ranges(pup_ref_fr, pre=-ran_fr[0], 
+                                     leng=len(xran))
+                     
+        # remove sequences with negatives or values above total number of stim 
+        # frames
+        neg_idx  = np.where(fr_idx[:,0] < 0)[0].tolist()
+        over_idx = np.where(fr_idx[:,-1] >= self.sess.tot_pup_fr)[0].tolist()
+        
+        fr_idx = gen_util.remove_idx(fr_idx, neg_idx + over_idx, axis=0)
+
+        data_array = self.sess.pup_nan_diam[fr_idx]
+
+        if remnans:
+            nanpol = 'omit'
+        else:
+            nanpol = None
+
+        if baseline is not None: # calculate baseline and subtract
+            if baseline > pre + post:
+                raise ValueError('Baseline greater than sequence length.')
+            baseline_fr = int(np.around(baseline * self.sess.pup_fps))
+            baseline_data = data_array[:, : baseline_fr]
+            data_array_base = math_util.mean_med(baseline_data, stats=stats, 
+                                                 axis=-1, 
+                                                 nanpol=nanpol)[:, np.newaxis]
+            data_array = data_array - data_array_base
+
+        if integ:
+            data_array = math_util.integ(data_array, 1./self.sess.pup_fps, 
+                                         axis=1, nanpol=nanpol)
+
+        return xran, data_array
+
 
     #############################################
-    def get_run_array(self, stim_ref_fr, pre, post, integ=False, baseline=None, 
-                      stats='mean'):
+    def get_run_array(self, stim_ref_fr, pre, post, integ=False, remnans=True, 
+                      baseline=None, stats='mean'):
         """
         self.get_run_array(stim_ref_fr, pre, post)
 
@@ -1956,6 +2315,9 @@ class Stim(object):
         Optional args:
             - integ (bool)    : if True, running is integrated over frames
                                 default: False
+            - remnans (bool)  : if True, NaN values are omitted in calculating 
+                                the data statistics.
+                                default: True
             - baseline (num)  : number of seconds to use as baseline. If None,
                                 data is not baselined.
                                 default: None
@@ -1976,37 +2338,44 @@ class Stim(object):
             raise OSError('Frames must be passed as a 1D list, not by block.')
 
         # get corresponding running subblocks sequences x frames
-        fr_idx = gen_util.num_ranges(stim_ref_fr, pre=-ran_fr[0], leng=len(xran))
+        fr_idx = gen_util.num_ranges(stim_ref_fr, pre=-ran_fr[0], 
+                                     leng=len(xran))
                      
         # remove sequences with negatives or values above total number of stim 
         # frames
         neg_idx  = np.where(fr_idx[:,0] < 0)[0].tolist()
-        over_idx = np.where(fr_idx[:,-1] >= self.sess.tot_stim_fr)[0].tolist()
+        over_idx = np.where(fr_idx[:,-1] >= self.sess.tot_run_fr)[0].tolist()
         
         fr_idx = gen_util.remove_idx(fr_idx, neg_idx + over_idx, axis=0)
 
-        data_array = self.sess.run[fr_idx]
+        data_array = self.sess.get_run_speed_by_fr(fr_idx, fr_type='stim')
+
+        if remnans:
+            nanpol = 'omit'
+        else:
+            nanpol = None
 
         if baseline is not None: # calculate baseline and subtract
             if baseline > pre + post:
                 raise ValueError('Baseline greater than sequence length.')
-            baseline_fr = int(np.around(baseline * self.sess.twop_fps))
+            baseline_fr = int(np.around(baseline * self.sess.stim_fps))
             baseline_data = data_array[:, : baseline_fr]
             data_array_base = math_util.mean_med(baseline_data, stats=stats, 
-                                                 axis=-1)[:, np.newaxis]
+                                                 axis=-1, 
+                                                 nanpol=nanpol)[:, np.newaxis]
             data_array = data_array - data_array_base
 
         if integ:
             data_array = math_util.integ(data_array, 1./self.sess.stim_fps, 
-                                         axis=1)
+                                         axis=1, nanpol=nanpol)
 
         return xran, data_array
 
 
     #############################################
     def get_run_array_stats(self, stim_ref_fr, pre, post, integ=False,
-                            ret_arr=False, stats='mean', error='std', 
-                            baseline=None):
+                            remnans=True, ret_arr=False, stats='mean', 
+                            error='std', baseline=None):
         """
         self.get_run_array_stats(stim_ref_fr, pre, post)
 
@@ -2025,6 +2394,9 @@ class Stim(object):
         Optional args:
             - integ (bool)    : if True, dF/F is integrated over sequences
                                 default: False
+            - remnans (bool)  : if True, NaN values are omitted in calculating 
+                                the data statistics.
+                                default: True
             - ret_arr (bool)  : also return running data array, not just  
                                 statistics
                                 default: False 
@@ -2052,8 +2424,14 @@ class Stim(object):
         xran, data_array = self.get_run_array(stim_ref_fr, pre, post, integ, 
                                               baseline=baseline, stats=stats)
 
+        if not remnans:
+            nanpol = 'omit'
+        else:
+            nanpol = None
+
         all_data = self.get_array_stats(xran, data_array, ret_arr, axes=0, 
-                                        stats=stats, error=error, integ=integ)
+                                        stats=stats, error=error, integ=integ, 
+                                        nanpol=nanpol)
 
         if ret_arr:
             xran, data_stats, data_array = all_data
@@ -2250,9 +2628,9 @@ class Stim(object):
 
     
     #############################################
-    def get_segs_per_twopfr(self, twop_fr):
+    def get_segs_by_twopfr(self, twop_fr):
         """
-        self.get_segs_per_twopfr(twop_fr)
+        self.get_segs_by_twopfr(twop_fr)
 
         Returns the stimulus segment numbers for the given two-photon imaging
         frames using linear interpolation, and round the segment numbers.
@@ -2273,7 +2651,7 @@ class Stim(object):
             raise UserWarning('Some of the specified frames are out of range')
 
         # perform linear interpolation on the running speed
-        segs = np.interp(twop_fr, self.sess.stim_align, self.stim_seg_list)
+        segs = np.interp(twop_fr, self.sess.stim2twopfr, self.stim_seg_list)
 
         segs = segs.astype(int)
 
@@ -2374,8 +2752,8 @@ class Gabors(Stim):
         
         # modify self.oris_pr E frames, as they are rotated 90 deg from what is 
         # recorded
-        seg_surps = np.asarray(self.sess.align_df.loc[(self.sess.align_df['stimType'] == 'g')]['surp'])
-        seg_gabfr = np.asarray(self.sess.align_df.loc[(self.sess.align_df['stimType'] == 'g')]['GABORFRAME'])
+        seg_surps = np.asarray(self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == 'g')]['surp'])
+        seg_gabfr = np.asarray(self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == 'g')]['GABORFRAME'])
         seg_surp_gabfr = np.asarray((seg_surps == 1) * (seg_gabfr == 3))
         self.oris_pr = oris_pr + seg_surp_gabfr[:, np.newaxis] * 90
         # in case some E frames values are now above upper range, so fix
@@ -2426,9 +2804,9 @@ class Gabors(Stim):
         for i, disp in enumerate(self.block_ran_seg):
             block_par = []
             for j, block in enumerate(disp):
-                segs = self.sess.align_df.loc[(self.sess.align_df['stimType']==self.stimtype[0]) & 
-                                              (self.sess.align_df['stimSeg'] >= block[0]) & 
-                                              (self.sess.align_df['stimSeg'] < block[1])]
+                segs = self.sess.stim_df.loc[(self.sess.stim_df['stimType']==self.stimtype[0]) & 
+                                              (self.sess.stim_df['stimSeg'] >= block[0]) & 
+                                              (self.sess.stim_df['stimSeg'] < block[1])]
                 # skipping stimPar1 which indicates gabor orientations which 
                 # change at each gabor sequence presentation
                 stimPar2 = segs['stimPar2'].unique().tolist()
@@ -2553,10 +2931,10 @@ class Gabors(Stim):
             segs_max = np.max(segs)
             
             # values will be returned in ascending order of seg number
-            gabfr = self.sess.align_df.loc[(self.sess.align_df['stimType'] == 'g') &
-                                        (self.sess.align_df['stimSeg'] < segs_max)]['GABORFRAME'].tolist()
-            surps = self.sess.align_df.loc[(self.sess.align_df['stimType'] == 'g') &
-                                        (self.sess.align_df['stimSeg'] < segs_max)]['surp'].tolist()
+            gabfr = self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == 'g') &
+                                        (self.sess.stim_df['stimSeg'] < segs_max)]['GABORFRAME'].tolist()
+            surps = self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == 'g') &
+                                        (self.sess.stim_df['stimSeg'] < segs_max)]['surp'].tolist()
 
             # reintroduce -1s
             gabfr.append(-1)
@@ -2658,13 +3036,13 @@ class Gabors(Stim):
 
         # check whether any of the segments occur during Bricks
         if hasattr(self.sess, 'bricks'):
-            bri_segs = self.sess.bricks.get_segs_per_twopfr(twopfr_seqs)
+            bri_segs = self.sess.bricks.get_segs_by_twopfr(twopfr_seqs)
             if not (bri_segs == -1).all():
                 print(('\nWARNING: some of the frames requested occur while '
                        'Bricks are presented.'))
 
         # get seg numbers for each twopfr in each sequence
-        seq_segs = self.get_segs_per_twopfr(twopfr_seqs)
+        seq_segs = self.get_segs_by_twopfr(twopfr_seqs)
 
         pars = self.get_stim_par_by_seg(seq_segs, pos=pos, ori=ori, size=size, 
                                         scale=scale)
@@ -2773,9 +3151,9 @@ class Bricks(Stim):
         for i, disp in enumerate(self.block_ran_seg):
             block_par = []
             for j, block in enumerate(disp):
-                segs = self.sess.align_df.loc[(self.sess.align_df['stimType']==self.stimtype[0]) & 
-                                              (self.sess.align_df['stimSeg'] >= block[0]) & 
-                                              (self.sess.align_df['stimSeg'] < block[1])]
+                segs = self.sess.stim_df.loc[(self.sess.stim_df['stimType']==self.stimtype[0]) & 
+                                              (self.sess.stim_df['stimSeg'] >= block[0]) & 
+                                              (self.sess.stim_df['stimSeg'] < block[1])]
                 stimPars = []
                 for par_name in ['stimPar2', 'stimPar1']:
                     stimPar = segs[par_name].unique().tolist()

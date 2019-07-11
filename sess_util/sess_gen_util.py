@@ -806,7 +806,7 @@ def create_sess_dicts(mouse_df, datadir, runtype='prod', output='.'):
             segs = stim.get_segs_by_criteria(gabk=gabk, gabfr=gabfr, 
                                              bri_dir=direc, bri_size=bri_size, 
                                              by='seg')
-            frames = stim.get_twop_fr_per_seg(segs, first=True)
+            frames = stim.get_twop_fr_by_seg(segs, first=True)
 
             surp_segs = stim.get_segs_by_criteria(gabk=gabk, gabfr=gabfr, 
                                                   bri_dir=direc, 
