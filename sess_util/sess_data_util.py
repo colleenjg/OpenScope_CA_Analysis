@@ -87,7 +87,7 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
 
     segs = stim.get_segs_by_criteria(gabfr=gabfr, gabk=gabk, surp=surp, 
                                      by='seg')
-    twopfr = stim.get_twop_fr_per_seg(segs, first=True)
+    twopfr = stim.get_twop_fr_by_seg(segs, first=True)
 
     # get stim params as seq x frame x gabor x par (x, y, ori, size)
     # each param scaled to between -1 and 1 based on known ranges
@@ -194,7 +194,7 @@ def get_roi_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
 
     segs = stim.get_segs_by_criteria(gabfr=gabfr, gabk=gabk, surp=surp, 
                                      by='seg')
-    twopfr = stim.get_twop_fr_per_seg(segs, first=True)
+    twopfr = stim.get_twop_fr_by_seg(segs, first=True)
     
     xran, traces = stim.get_roi_trace_array(twopfr, pre, post)
     ret_roi_stats = False

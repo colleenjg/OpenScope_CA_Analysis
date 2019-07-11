@@ -357,7 +357,7 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois='all', ngabs='all',
             np.random.shuffle(segs)
             segs = sorted(segs[: n_segs])
         tc_nseqs.append(len(segs))
-        twopfr = stim.get_twop_fr_per_seg(segs, first=True)
+        twopfr = stim.get_twop_fr_by_seg(segs, first=True)
         # ROI x seq
         roi_data = stim.get_roi_trace_array(twopfr, stimpar.pre, 
                             stimpar.post, analyspar.fluor, integ=True, 

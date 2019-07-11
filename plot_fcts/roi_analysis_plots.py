@@ -723,7 +723,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
                              [{}_{}.format(s, od)] for surp in ['reg', 'surp']
                                                   and od in [0, 45, 90, 135] or 
                                                             ['right', 'left']
-            ['n_segs'] (dict): dictionary containing number of segs for each
+            ['n_seqs'] (dict): dictionary containing number of segs for each
                                surprise x ori/dir combination under a 
                                separate key
             ['stats'] (dict) : dictionary containing trace mean/medians across
@@ -814,7 +814,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
             key = '{}_{}'.format(surp, od)
             stimtype_str_pr = stimpar['stimtype'][:-1].capitalize()
             title_tr = u'{} traces ({}{})'.format(stimtype_str_pr, od, deg)
-            lab = '{} (n={})'.format(surp, tr_data['n_segs'][key])
+            lab = '{} (n={})'.format(surp, tr_data['n_seqs'][key])
             sess_plot_util.add_axislabels(sub_ax, datatype=datatype)
             me  = np.asarray(tr_data['stats'][key][0])
             err = np.asarray(tr_data['stats'][key][1:])
@@ -847,7 +847,7 @@ def scale_sort_trace_data(tr_data, fig_type='byplot', surps=['reg', 'surp'],
                             [{}_{}.format(s, od)] for surp in ['reg', 'surp']
                                                 and od in [0, 45, 90, 135] or 
                                                         ['right', 'left']
-            ['n_segs'] (dict)    : dictionary containing number of segs for 
+            ['n_seqs'] (dict)    : dictionary containing number of segs for 
                                    each surprise x ori/dir combination under a 
                                    separate key
             ['scale_vals'] (dict): dictionary containing 1D array or list of 
@@ -904,7 +904,7 @@ def scale_sort_trace_data(tr_data, fig_type='byplot', surps=['reg', 'surp'],
             key = '{}_{}'.format(s, od)
             me = np.asarray(tr_data['roi_me'][key])
             # mean/median organized as ROI x fr
-            if tr_data['n_segs'][key] == 0: # no data under these criteria
+            if tr_data['n_seqs'][key] == 0: # no data under these criteria
                 scaled_sort_data_me[key] = me.T
                 continue
             if fig_type == 'byplot':
@@ -919,7 +919,7 @@ def scale_sort_trace_data(tr_data, fig_type='byplot', surps=['reg', 'surp'],
                 max_v = np.nanmax(np.asarray(maxs), axis=0)
                 idx = 0
                 # find first reg/surp plot with data
-                while tr_data['n_segs']['{}_{}'.format(surps[idx], od)] == 0:
+                while tr_data['n_seqs']['{}_{}'.format(surps[idx], od)] == 0:
                     idx += 1
                 sort_arg = roi_sort['{}_{}'.format(surps[idx], od)]
             
@@ -932,7 +932,7 @@ def scale_sort_trace_data(tr_data, fig_type='byplot', surps=['reg', 'surp'],
                 max_v = np.nanmax(np.asarray(maxs), axis=0)
                 idx = 0
                 # find first oridir plot with data
-                while tr_data['n_segs']['{}_{}'.format(s, oridirs[idx])] == 0:
+                while tr_data['n_seqs']['{}_{}'.format(s, oridirs[idx])] == 0:
                     idx += 1
                 sort_arg = roi_sort['{}_{}'.format(s, oridirs[idx])]
                 
@@ -946,7 +946,7 @@ def scale_sort_trace_data(tr_data, fig_type='byplot', surps=['reg', 'surp'],
                 max_v = np.nanmax(np.asarray(maxs), axis=0)
                 idx_s, idx_od, count = 0, 0, 0
                 # find first plot with data (by oridirs, then surps)
-                while tr_data['n_segs']['{}_{}'.format(surps[idx_s], 
+                while tr_data['n_seqs']['{}_{}'.format(surps[idx_s], 
                                                        oridirs[idx_od])] == 0:
                     count += 1
                     idx_od = count % len(oridirs)
@@ -993,7 +993,7 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
                              [{}_{}.format(s, od)] for surp in ['reg', 'surp']
                                                   and od in [0, 45, 90, 135] or 
                                                             ['right', 'left']
-            ['n_segs'] (dict)    : dictionary containing number of segs for 
+            ['n_seqs'] (dict)    : dictionary containing number of segs for 
                                    each surprise x ori/dir combination under a 
                                    separate key
             ['scale_vals'] (dict): dictionary containing 1D array or list of 
@@ -1115,12 +1115,14 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
     scaled_sort_me = scale_sort_trace_data(tr_data, fig_type, surps, oridirs)
     fig, ax = plot_util.init_fig(len(oridirs) * len(surps), **figpar['init'])
 
+    nrois = scale_sort_me.shape[0]
+    yticks_ev = int(10 * np.max([1, np.ceil(nrois/100)])) # to avoid more than 10 ticks
     for o, od in enumerate(oridirs):
         for s, surp in enumerate(surps):    
             sub_ax = ax[s][o]
             key = '{}_{}'.format(surp, od)
-            title = u'{} segs ({}{}) (n={})'.format(surp.capitalize(), od, 
-                                                deg_pr, tr_data['n_segs'][key])
+            title = u'{} seqs ({}{}) (n={})'.format(surp.capitalize(), od, 
+                                                deg_pr, tr_data['n_seqs'][key])
             x_ax = None
             if s == 0:
                 x_ax = ''
@@ -1128,7 +1130,8 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
                                        x_ax=x_ax, y_ax='ROIs', datatype='roi')
             im = plot_util.plot_colormap(sub_ax, scaled_sort_me[key], 
                                     title=title, cmap=cmap,
-                                    xran=[stimpar['pre'], stimpar['post']])
+                                    xran=[stimpar['pre'], stimpar['post']], 
+                                    yticks_ev=yticks_ev)
     
     for s, surp in enumerate(surps):
         sub_ax = ax[s:s+1]
@@ -1185,7 +1188,7 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
                              [{}_{}.format(s, od)] for surp in ['reg', 'surp']
                                                   and od in [0, 45, 90, 135] or 
                                                             ['right', 'left']
-            ['n_segs'] (dict)    : dictionary containing number of segs for 
+            ['n_seqs'] (dict)    : dictionary containing number of seqs for 
                                    each surprise x ori/dir combination under a 
                                    separate key
             ['scale_vals'] (dict): dictionary containing 1D array or list of 
@@ -1305,7 +1308,7 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar,
                              [{}_{}.format(s, od)] for surp in ['reg', 'surp']
                                                   and od in [0, 45, 90, 135] or 
                                                             ['right', 'left']
-            ['n_segs'] (dict)    : dictionary containing number of segs for each
+            ['n_seqs'] (dict)    : dictionary containing number of segs for each
                                    surprise x ori/dir combination under a 
                                    separate key
             ['scale_vals'] (dict): dictionary containing 1D array or list of 

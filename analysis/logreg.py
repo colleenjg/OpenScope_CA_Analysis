@@ -386,7 +386,7 @@ def get_sess_data(sess, analyspar, stimpar, quintpar):
         qu_roi_tr = []
         qu_classes = []
         for segs in qu_segs:
-            twop_fr = stim.get_twop_fr_per_seg(segs, first=True)
+            twop_fr = stim.get_twop_fr_by_seg(segs, first=True)
             roi_info = stim.get_roi_trace_array(twop_fr, stimpar_sp.pre, 
                                                 stimpar.post, analyspar.fluor)
             # transpose to seqs x frames x ROIs

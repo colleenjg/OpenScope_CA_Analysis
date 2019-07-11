@@ -174,8 +174,9 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
 
     fig, ax = plot_util.init_fig(n_sess, **figpar['init'])
     for i in range(n_sess):
+        remnans = analyspar['remnans'] * (datatype == 'roi')
         sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i],
-                                    analyspar['remnans'], analyspar['fluor'])
+                                             remnans, analyspar['fluor'])
         sub_ax = plot_util.get_subax(ax, i)
         for s, [col, leg_ext] in enumerate(zip(cols, surps)):
             for q, qu_lab in enumerate(quintpar['qu_lab']):
@@ -341,8 +342,9 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
     fig, ax = plot_util.init_fig(n_sess, **figpar['init'])
     for i, (stats, counts) in enumerate(zip(all_stats, all_counts)):
         sub_ax = plot_util.get_subax(ax, i)
+        remnans = analyspar['remnans'] * (datatype == 'roi')
         sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i],
-                                     analyspar['remnans'], analyspar['fluor'])
+                                             remnans, analyspar['fluor'])
         title=(u'Mouse {} - {} {} {} locked across {}{}\n(sess {}, {} {}, '
                 'n={})').format(mouse_ns[i], stimstr_pr, statstr_pr, lock, 
                                 dimstr, basestr_pr, sess_ns[i], lines[i], 
@@ -493,9 +495,10 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
     [n_nan, n_nan_dff] = [[len(val[i]) for i in range(n_sess)] 
                                        for val in nanroi_vals]
 
+    remnans = analyspar['remnans'] * (datatype == 'roi')
     all_nrois = [sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i], 
-                                analyspar['remnans'], analyspar['fluor']) 
-                                for i in range(n_sess)]
+                                         remnans, analyspar['fluor']) 
+                                         for i in range(n_sess)]
 
     qu_ns = [gen_util.pos_idx(q, quintpar['n_quints'])+1 for q in 
              quintpar['qu_idx']]
@@ -683,8 +686,9 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
     fig, ax = plot_util.init_fig(n_sess, **figpar['init'])
     for i in range(n_sess):
         sub_ax = plot_util.get_subax(ax, i)
+        remnans = analyspar['remnans'] * (datatype == 'roi')
         sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i], 
-                                    analyspar['remnans'], analyspar['fluor'])
+                                             remnans, analyspar['fluor'])
         title = (u'Mouse {} - {} {} {}\n(sess {}, {} {}, '
                   '(n={}))').format(mouse_ns[i], statstr_pr, stimstr_pr, 
                                     title_str, sess_ns[i], lines[i], layers[i], 

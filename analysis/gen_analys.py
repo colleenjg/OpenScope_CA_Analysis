@@ -13,6 +13,7 @@ Note: this code uses python 3.7.
 """
 
 import copy
+import glob
 import multiprocessing
 
 from joblib import Parallel, delayed
@@ -369,16 +370,20 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
             if max(np.diff(segs)) > 1:
                 raise NotImplementedError(('Segments used for autocorrelation '
                                            'must be contiguous within blocks.'))
-            frame_edges = stim.get_twop_fr_per_seg([min(segs), max(segs)])
-            frames = list(range(min(frame_edges[0]), max(frame_edges[1])+1))
             if datatype == 'roi':
-                traces = sess.get_roi_traces(frames, fluor=analyspar.fluor, 
+                frame_edges = stim.get_twop_fr_by_seg([min(segs), max(segs)])
+                fr = list(range(min(frame_edges[0]), max(frame_edges[1])+1))
+                traces = sess.get_roi_traces(fr, fluor=analyspar.fluor, 
                                              remnans=analyspar.remnans)
             elif datatype == 'run':
                 if autocorrpar.byitem != False:
                     raise ValueError(('autocorrpar.byitem must be False for '
                                       'running data.'))
-                traces = sess.get_run_speed(frames)[np.newaxis, :]
+                frame_edges = stim.get_stim_fr_by_seg([min(segs), max(segs)])
+                fr = list(range(min(frame_edges[0]), max(frame_edges[1])+1))
+                
+                traces = sess.get_run_speed_by_fr(fr, fr_type='stim', 
+                            remnans=analyspar.remnans)[np.newaxis, :]
                 
             sess_traces.append(traces)
         xran, ac_st = math_util.autocorr_stats(sess_traces, autocorrpar.lag_s, 
@@ -538,3 +543,48 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
     # fulldir, savename = gen_plots.plot_trace_corr_acr_sess(figpar=figpar, 
     #                                                        **info)
     # file_util.saveinfo(info, savename, fulldir, 'json')
+
+
+#############################################
+def run_pupil_corr(sessions, analysis, analyspar, sesspar, 
+                   stimpar, figpar, datatype='roi'):
+    """
+    run_pupil_corr(sessions, analysis, analyspar, sesspar, 
+                   stimpar, quintpar, figpar)
+    
+    Retrieves trace statistics by session x surp val and calculates 
+    correlations across sessions per surp val.
+    
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list)      : list of Session objects
+        - analysis (str)       : analysis type (e.g., 't')
+        - analyspar (AnalysPar): named tuple containing analysis parameters
+        - sesspar (SessPar)    : named tuple containing session parameters
+        - stimpar (StimPar)    : named tuple containing stimulus parameters
+        - figpar (dict)        : dictionary containing figure parameters
+    
+    Optional args:
+        - datatype (str): type of data (e.g., 'roi', 'run')
+    """
+
+    sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
+                                            sesspar.layer, stimpar.bri_dir, 
+                                            stimpar.bri_size, stimpar.gabk,
+                                            'print')
+    datastr = sess_str_util.datatype_par_str(datatype)
+
+    print(('\nAnalysing and plotting correlations between surprise vs non '
+           'surprise {} traces between sessions ({}).').format(datastr, 
+                                                               sessstr_pr))
+
+    
+    # for sess in sessions:
+    #     glob.glob(self.sess.dir, '*eye-tracking*.csv')
+    #     # if sess.dir
+    
+    # try:
+
+    # except AssertionError as err:
+

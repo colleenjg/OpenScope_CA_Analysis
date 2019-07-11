@@ -48,22 +48,30 @@ def get_file_names(masterdir, sessid, expid, date, mouseid, runtype='prod',
                             default: True
 
     Returns:
-        - expdir (str)            : full path name of the experiment directory
-        - procdir (str)           : full path name of the processed 
-                                    data directory
-        - stim_pkl_file  (str)    : full path name of the stimulus
-                                    pickle file
-        - stim_sync_file (str)    : full path name of the stimulus
-                                    synchronization hdf5 file
-        - align_pkl_file (str)    : full path name of the stimulus
-                                    alignment pickle file
-        - corrected_data (str)    : full path name of the motion
-                                    corrected 2p data hdf5 file
-        - roi_trace_data (str)    : full path name of the ROI raw fluorescence 
-                                    trace hdf5 file
-        - roi_trace_data_dff (str): full path name of the ROI dF/F trace 
-                                    hdf5 file
-        - zstack (str)            : full path name of the zstack 2p hdf5 file
+        - expdir (str)    : full path name of the experiment directory
+        - procdir (str)   : full path name of the processed 
+                            data directory
+        - filepaths (dict): dictionary of file paths
+            ['behav_h5'] (str)         : full path name of the behavioral hdf5
+                                         file
+            ['align_pkl'] (str)        : full path name of the stimulus
+                                         alignment pickle file
+            ['corrected_data_h5'] (str): full path name of the motion
+                                         corrected 2p data hdf5 file
+            ['pupil_h5'] (str)         : full path name of the pupil hdf5
+                                         file
+            ['roi_trace_h5'] (str)     : full path name of the ROI raw 
+                                         fluorescence trace hdf5 file
+            ['roi_trace_dff_h5'] (str) : full path name of the ROI dF/F trace 
+                                         hdf5 file
+            ['stim_pkl']  (str)        : full path name of the stimulus
+                                         pickle file
+            ['stim_sync_h5'] (str)     : full path name of the stimulus
+                                         synchronization hdf5 file
+            ['time_sync_h5'] (str)     : full path name of the time 
+                                         synchronization hdf5 file
+            ['zstack_h5'] (str)        : full path name of the zstack 2p hdf5 
+                                         file
     """
     
     # get the name of the session and experiment data directories
@@ -81,34 +89,40 @@ def get_file_names(masterdir, sessid, expid, date, mouseid, runtype='prod',
     try:
         file_util.checkdir(sessdir)
     except OSError:
-        raise exceptions.UserWarning(('{} does not conform to expected AIBS '
-                                      'structure').format(sessdir))
+        raise OSError(('{} does not conform to expected AIBS '
+                       'structure').format(sessdir))
 
     # set the file names
     sess_m_d = '{}_{}_{}'.format(sessid, mouseid, date) 
-    stim_pkl_file  = os.path.join(sessdir, '{}_stim.pkl'.format(sess_m_d))
-    stim_sync_file = os.path.join(sessdir, '{}_sync.h5'.format(sess_m_d))
-    align_pkl_file = os.path.join(sessdir, '{}_df.pkl'.format(sess_m_d))
-    corrected_data = os.path.join(procdir, 'concat_31Hz_0.h5')
-    roi_trace_data = os.path.join(procdir, 'roi_traces.h5')
-    roi_trace_dff  = os.path.join(procdir, 'roi_traces_dff.h5')
-    zstack         = os.path.join(sessdir, '{}_zstack_column.h5'.format(sessid))
+    filepaths = {'align_pkl'        : os.path.join(sessdir, 
+                                      '{}_df.pkl'.format(sess_m_d)),
+                 'behav_h5'         : os.path.join(sessdir, 
+                                      '{}_video-0.h5'.format(sess_m_d)),
+                 'correct_data_h5'  : os.path.join(procdir, 'concat_31Hz_0.h5'),
+                 'pupil_h5'         : os.path.join(sessdir, 
+                                      '{}_video-1.h5'.format(sess_m_d)),
+                 'roi_trace_h5'     : os.path.join(procdir, 'roi_traces.h5'),
+                 'roi_trace_dff_h5' : os.path.join(procdir, 
+                                      'roi_traces_dff.h5'),
+                 'stim_pkl'         : os.path.join(sessdir, 
+                                      '{}_stim.pkl'.format(sess_m_d)),
+                 'stim_sync_h5'     : os.path.join(sessdir, 
+                                      '{}_sync.h5'.format(sess_m_d)),
+                 
+                 'time_sync_h5'     : os.path.join(expdir, 
+                                      '{}_time_synchronization.h5'.format(
+                                      expid)),
+                 'zstack_h5'        : os.path.join(sessdir, 
+                                      '{}_zstack_column.h5'.format(sessid)),
+                }
+    
+    # files not to check for (will be created if needed or 
+    # not  currently needed)
+    no_check = ['roi_trace_dff_h5', 'correct_data_h5', 'zstack_h5']
 
-    # double check that the files actually exist
-    if not os.path.isfile(stim_pkl_file):
-        raise OSError('{} does not exist'.format(stim_pkl_file))
-    if not os.path.isfile(stim_sync_file):
-        raise OSError('{} does not exist'.format(stim_sync_file))
-    #if not os.path.isfile(corrected_data): ADD THIS BACK LATER...
-    #    raise OSError('{} does not exist'.format(corrected_data))
-    if not os.path.isfile(roi_trace_data):
-        raise OSError('{} does not exist'.format(roi_trace_data))
-    #if not os.path.isfile(zstack): ADD THIS BACK LATER...
-    #    raise OSError('{} does not exist'.format(zstack))
+    for key in filepaths.keys():
+        if key not in no_check and not os.path.isfile(filepaths[key]):
+            raise OSError('{} does not exist'.format(filepaths[key]))
 
-    # TO-DO: ADD OTHER KEY FILES
-
-    return [expdir, procdir, stim_pkl_file, stim_sync_file, align_pkl_file, 
-            corrected_data, roi_trace_data, roi_trace_dff, zstack]
-
+    return [expdir, procdir, filepaths]
 

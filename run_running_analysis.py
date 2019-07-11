@@ -111,6 +111,8 @@ def init_param_cont(args):
                                      (4, 16 or [4, 16])
             gab_ori (int or list)  : gabor orientation values to include
                                      ([0, 45, 90, 135])
+            keepnans (str)         : if True, ROIs with NaN/Inf values are 
+                                     kept in the analyses.
             lag_s (num)            : lag for autocorrelation (in sec)
             layer (str)            : layer ('soma', 'dend', 'L23_soma', 
                                      'L5_soma', 'L23_dend', 'L5_dend', 
@@ -186,8 +188,8 @@ def init_param_cont(args):
     """
 
     # analysis parameters
-    analyspar = sess_ntuple_util.init_analyspar('n/a', False, args.stats, 
-                                                args.error)
+    analyspar = sess_ntuple_util.init_analyspar('n/a', not(args.keepnans), 
+                                                args.stats, args.error)
 
     # session parameters
     sesspar = sess_ntuple_util.init_sesspar(args.sess_n, args.closest, 
@@ -454,6 +456,8 @@ if __name__ == "__main__":
     
     # generally fixed 
         # analysis parameters
+    parser.add_argument('--keepnans', action='store_true', 
+                        help='keep ROIs containing NaNs or Infs in session.')
     parser.add_argument('--stats', default='mean', help='plot mean or median')
     parser.add_argument('--error', default='sem', 
                         help='sem for SEM/MAD, std for std/qu')    
@@ -492,6 +496,20 @@ if __name__ == "__main__":
                         help=('plot from dictionary using modified plot '
                               'functions'))
     args = parser.parse_args()
+
+
+
+
+
+    args.runtype = 'pilot'
+    args.layer = 'dend'
+    args.bri_dir = 'left'
+    args.analyses = 'a'
+
+
+
+
+
 
 
     args.fontdir = os.path.join('..', 'tools', 'fonts')
