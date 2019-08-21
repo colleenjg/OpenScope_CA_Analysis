@@ -44,7 +44,6 @@ def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None,
         - plt_bkend (str): mpl backend to use for plotting (e.g., 'agg')
                            default: None
         - plot_tc (bool) : if True, tuning curves are plotted for each ROI 
-                           (causes errors on the clusters...)
     """
 
     figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir)
@@ -57,6 +56,10 @@ def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None,
     savedir = os.path.dirname(dict_path)
 
     analysis = info['extrapar']['analysis']
+
+    # 0. Plots the full traces for each session
+    if analysis == 'f': # full traces
+        plot_full_traces(figpar=figpar, savedir=savedir, **info)
 
     # 1. Plot average traces by quintile x surprise for each session 
     if analysis == 't': # traces
@@ -76,7 +79,143 @@ def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None,
 
 
     else:
-        print('No plotting function for analysis {}'.format(analysis))
+        print('No modified plotting function for analysis {}'.format(analysis))
+
+
+#############################################
+def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info, 
+                     figpar=None, savedir=None):
+    """
+    plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info)
+
+    From dictionaries, plots full traces for each session in a separate subplot.
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict)  : dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict)    : dictionary with keys of SessPar namedtuple
+        - extrapar (dict)   : dictionary containing additional analysis 
+                              parameters
+            ['analysis'] (str): analysis type (e.g., 't')
+            ['datatype'] (str): datatype (e.g., 'run', 'roi')
+        - sess_info (dict)  : dictionary containing information from each
+                              session 
+            ['mouse_ns'] (list)   : mouse numbers
+            ['sess_ns'] (list)    : session numbers  
+            ['lines'] (list)      : mouse lines
+            ['layers'] (list)     : imaging layers
+            ['nrois'] (list)      : number of ROIs in session
+            ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
+            ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
+                                    for sessions for which this attribute 
+                                    exists
+        - trace_info (dict): dictionary containing trace information
+            ['all_tr'] (nested list): trace values structured as
+                                          sess x 
+                                          ([each_roi (scaled), averaged] 
+                                            if datatype is 'roi' x)
+                                          (ROI if each_roi x)
+                                          (me/err if averaged x)
+                                          frames
+            ['all_edges'] (list)    : edge values for each parameter, 
+                                      structured as sess x block x 
+                                                    edges ([start, end])
+            ['all_pars'] (list)     : stimulus parameter strings structured as 
+                                                    sess x block
+                
+    Optional args:
+        - figpar (dict): dictionary containing the following figure parameter 
+                         dictionaries
+                         default: None
+            ['init'] (dict): dictionary with figure initialization parameters
+            ['save'] (dict): dictionary with figure saving parameters
+            ['dirs'] (dict): dictionary with additional figure parameters
+        - savedir (str): path of directory in which to save plots.
+                         default: None    
+    
+    Returns:
+        - fulldir (str) : final name of the directory in which the figure is 
+                          saved (may differ from input savedir, if datetime 
+                          subfolder is added.)
+        - savename (str): name under which the figure is saved
+    """
+ 
+    statstr_pr = sess_str_util.stat_par_str(analyspar['stats'], 
+                                            analyspar['error'], 'print')
+
+    sessstr = 'sess{}_{}'.format(sesspar['sess_n'], sesspar['layer'])
+    
+    datatype = extrapar['datatype']
+
+    # extract some info from sess_info
+    keys = ['mouse_ns', 'sess_ns', 'lines', 'layers', 'nrois']
+    [mouse_ns, sess_ns, lines, layers, nrois] = [sess_info[key] for key in keys]
+    
+    n_sess = len(mouse_ns)
+    nanroi_vals = [sess_info['nanrois'], sess_info['nanrois_dff']]
+    [n_nan, n_nan_dff] = [[len(val[i]) for i in range(n_sess)] 
+                                       for val in nanroi_vals]
+
+    n_rows = 1
+    if datatype == 'roi':
+        n_rows = 2
+    
+    if figpar is None:
+        figpar = sess_plot_util.init_figpar()
+    figpar = copy.deepcopy(figpar)
+    figpar['init']['subplot_wid'] *= 4
+    figpar['init']['subplot_hei'] *= 4
+    figpar['init']['sharex'] = True
+    figpar['init']['sharey'] = False
+    
+    fig, ax = plot_util.init_fig(n_sess*n_rows, n_sess, **figpar['init'])
+    for i in range(n_sess):
+        remnans = analyspar['remnans'] * (datatype == 'roi')
+        sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i],
+                                             remnans, analyspar['fluor'])
+        title='Mouse {} (sess {}, {} {}, n={})'.format(mouse_ns[i], sess_ns[i], 
+                                                lines[i], layers[i], sess_nrois)
+
+        sub_axs = ax[:, i]
+        sub_axs[0].set_title(title)
+        if datatype == 'roi':
+            # average trace
+            av_tr = np.asarray(trace_info['all_tr'][i][1])
+            x_ran = range(roi_tr_sep.shape[1])
+            subtitle = 'u{} across ROIs'.format(statstr_pr)
+            plot_util.plot_traces(sub_axs[1], x_ran, av_tr[0], av_tr[1:], 
+                                  title=subtitle)
+            
+            # each ROI trace
+            roi_tr = np.asarray(trace_info['all_tr'][i][0])
+            # values to add to each ROI to split them apart
+            add = np.linspace(0, roi_tr.shape[0] * 1.5 + 1, 
+                              roi_tr.shape[0])[:, np.newaxis]
+            roi_tr_sep = roi_tr + add
+            sub_axs[0].plot(roi_tr_sep.T)
+        else:
+            run_tr = np.asarray(trace_info['all_tr'][i])
+            sub_axs[0].plot(run_tr)
+
+        for b, block in enumerate(trace_info['all_edges']):
+            # all block labels to the lower plot
+            plot_util.add_labels(sub_axs[-1], trace_info['all_pars'][b], 
+                                 np.mean(block), 0.85, 'k')
+            # add lines to both plots
+            for r in range(n_rows):
+                plot_util.add_bars(sub_axs[r], hbars=block)
+                sess_plot_util.add_axislabels(sub_axs[r], 
+                                              fluor=analyspar['fluor'], 
+                                              datatype=datatype, x_ax='')
+                
+    if savedir is None:
+        savedir = os.path.join(figpar['dirs'][datatype])
+
+    savename = '{}_tr_{}'.format(datatype, sessstr)
+    fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
+
+    return fulldir, savename
 
 
 #############################################

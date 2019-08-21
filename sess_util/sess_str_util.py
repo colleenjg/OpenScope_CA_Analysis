@@ -167,7 +167,7 @@ def stat_par_str(stats='mean', error='sem', str_type='file'):
     stat_par_str()
 
     Returns a string from statistical analysis parameters to print or for a 
-    title.
+    filename.
 
     Optional args:
         - stats (str)   : 'mean' or 'median'
@@ -214,7 +214,7 @@ def op_par_str(plot_vals='both', op='diff', str_type='file'):
     op_par_str()
 
     Returns a string from plot values and operation parameters to print or  
-    for a title.
+    for a filename.
 
     Optional args:
         - plot_vals (str): 'both', 'surp' or 'reg'
@@ -254,6 +254,49 @@ def op_par_str(plot_vals='both', op='diff', str_type='file'):
                                            ['print', 'file'])
     
     return op_str
+
+
+#############################################
+def dend_par_str(dend='aibs', layer='dend', datatype='roi', str_type='file'):
+    """
+    dend_par_str()
+
+    Returns a string from dendrite parameter to print or for a filename.
+
+    Optional args:
+        - dend (str)     : type of dendrite ('aibs' or 'extr')
+                           default: 'aibs'
+        - layer (str)    : layer ('dend' or 'soma')
+                           default: 'dend'
+        - datatype (str) : type of data ('roi', 'run')
+                           default: 'roi'
+        - str_type (str) : use of output str, i.e., for a filename ('file') or
+                           to print the info to console ('print')
+                           default: 'file'
+    
+    Returns:
+        - dend_str (str): dendrite type string
+    """
+
+    layers = ['dend', 'soma']
+    if layer not in layers:
+        gen_util.accepted_values_error('layer', layer, layers)
+    
+    datatypes = ['roi', 'run']
+    if datatype not in datatypes:
+        gen_util.accepted_values_error('datatype', datatype, datatypes)
+    
+    dend_str = ''
+    if layer == 'dend' and datatype == 'roi' and dend == 'extr':
+        if str_type == 'file':
+            dend_str = '_extr'
+        elif str_type == 'print':
+            dend_str = ' (extr)'
+        else:
+            gen_util.accepted_values_error('str_type', str_type, 
+                                           ['print', 'file'])
+    
+    return dend_str
 
 
 #############################################
@@ -674,4 +717,28 @@ def datatype_dim_str(datatype='roi'):
         gen_util.accepted_values_error('datatype', datatype, ['roi', 'run'])
     
     return dim_str
+    
+
+#############################################
+def pars_to_desc(par_str):
+    """
+    pars_to_desc()
+
+    Converts numeric parameters in a string to parameter descriptions.
+
+    Required args:
+        - par_str (str): string with numeric parameters
+
+    Returns:
+        - par_str (str): string with parameter descriptions
+    """
+
+    vals  = [128.0, 256.0, 4.0, 16.0]
+    descs = ['small', 'big', 'high disp', 'low disp']
+
+    for val, desc in zip(vals, descs):
+        par_str = par_str.replace(str(val), desc)
+        par_str = par_str.replace(str(int(val)), desc)
+    
+    return par_str
     
