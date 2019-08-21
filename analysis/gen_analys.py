@@ -15,15 +15,115 @@ Note: this code uses python 3.7.
 import copy
 import glob
 import multiprocessing
+import os
 
 from joblib import Parallel, delayed
 import numpy as np
 
-from analysis import ori_analys, quint_analys, signif_grps
+from analysis import pup_analys, ori_analys, quint_analys, signif_grps
 from util import file_util, gen_util, math_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
 from plot_fcts import gen_analysis_plots as gen_plots
 
+
+#############################################
+def run_full_traces(sessions, analysis, analyspar, sesspar, figpar, 
+                    datatype='roi'):
+    """
+    run_full_traces(sessions, analysis, analyspar, sesspar, figpar)
+
+    Plots full traces across an entire session. If ROI traces are plotted,
+    each ROI is scaled and plotted separately and an average is plotted.
+    
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list)      : list of Session objects
+        - analysis (str)       : analysis type (e.g., 't')
+        - analyspar (AnalysPar): named tuple containing analysis parameters
+        - sesspar (SessPar)    : named tuple containing session parameters
+        - figpar (dict)        : dictionary containing figure parameters
+    
+    Optional args:
+        - datatype (str): type of data (e.g., 'roi', 'run')
+    """
+
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+                                            datatype, 'print')
+    
+    sessstr_pr = 'session: {}, layer: {}{}'.format(sesspar.sess_n, 
+                                                   sesspar.layer, dendstr_pr)
+
+
+    datastr = sess_str_util.datatype_par_str(datatype)
+
+    print(('\nPlotting {} traces across an entire '
+           'session\n({}).').format(datastr, sessstr_pr))
+
+    figpar = copy.deepcopy(figpar)
+    if figpar['save']['use_dt'] is None:
+        figpar['save']['use_dt'] = gen_util.create_time_str()
+    
+    all_tr, roi_tr, all_edges, all_pars = [], [], [], []
+    for sess in sessions:
+        # get the block edges and parameters
+        edge_fr, par_descs = [], []
+        for stim in sess.stims:
+            if datatype == 'roi':
+                edges = [fr for d_fr in stim.block_ran_twop_fr for fr in d_fr]
+            elif datatype == 'run':
+                edges = [fr for d_fr in stim.block_ran_fr for fr in d_fr]
+            else:
+                gen_util.accepted_values_error('datatype', datatype, 
+                                               ['roi', 'run'])
+            edge_fr.extend(edges)
+            # collect parameters for each block
+            params = [pars for d_pars in stim.block_params for pars in d_pars]
+            par_desc = []
+            for pars in params:
+                pars = [str(par) for par in pars]
+                par_desc.append(sess_str_util.pars_to_desc('{}\n{}'.format(
+                            stim.stimtype.capitalize(), ', '.join(pars[0:2]))))
+            par_descs.extend(par_desc)
+        if datatype == 'roi':
+            nanpol = None
+            if not analyspar.remnans:
+                nanpol = 'omit'
+            all_rois = sess.get_roi_traces(None, analyspar.fluor, 
+                                           analyspar.remnans)
+            full_tr = math_util.get_stats(all_rois, analyspar.stats, 
+                                          analyspar.error, axes=0, 
+                                          nanpol=nanpol).tolist()
+            roi_tr.append(all_rois.tolist())
+        elif datatype == 'run':
+            full_tr = sess.get_run_speed(remnans=analyspar.remnans).tolist()
+            roi_tr = None
+        all_tr.append(full_tr)
+        all_edges.append(edge_fr)
+        all_pars.append(par_descs)
+
+    extrapar = {'analysis': analysis,
+                'datatype': datatype,
+                }
+
+    trace_info = {'all_tr'   : all_tr,
+                  'all_edges': all_edges,
+                  'all_pars' : all_pars
+                  }
+
+    sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)
+
+    info = {'analyspar' : analyspar._asdict(),
+            'sesspar'   : sesspar._asdict(),
+            'extrapar'  : extrapar,
+            'sess_info' : sess_info,
+            'trace_info': trace_info
+            }
+
+    fulldir, savename = gen_plots.plot_full_traces(roi_tr=roi_tr, 
+                                                    figpar=figpar, **info)
+    file_util.saveinfo(info, savename, fulldir, 'json')
+    
 
 #############################################
 def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar, 
@@ -58,11 +158,14 @@ def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar,
                                             sesspar.layer, stimpar.bri_dir, 
                                             stimpar.bri_size, stimpar.gabk,
                                             'print')
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+                                            datatype, 'print')
+       
     datastr = sess_str_util.datatype_par_str(datatype)
 
     print(('\nAnalysing and plotting surprise vs non surprise {} traces '
-           'by quintile ({}) \n({}).').format(datastr, quintpar.n_quints, 
-                                              sessstr_pr))
+           'by quintile ({}) \n({}{}).').format(datastr, quintpar.n_quints, 
+                                              sessstr_pr, dendstr_pr))
 
     # modify quintpar to retain all quintiles
     quintpar_one  = sess_ntuple_util.init_quintpar(1, 0, '', '')
@@ -143,11 +246,15 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
                                             sesspar.layer, stimpar.bri_dir, 
                                             stimpar.bri_size, stimpar.gabk,
                                             'print')
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+                                            datatype, 'print')
+       
     datastr = sess_str_util.datatype_par_str(datatype)
 
     print(('\nAnalysing and plotting surprise vs non surprise {} traces '
            'locked to surprise onset by quintile ({}) '
-           '\n({}).').format(datastr, quintpar.n_quints, sessstr_pr))
+           '\n({}{}).').format(datastr, quintpar.n_quints, sessstr_pr, 
+                               dendstr_pr))
 
     seed = gen_util.seed_all(seed, 'cpu', print_seed=False)
 
@@ -266,10 +373,13 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
                                        sesspar.layer, stimpar.bri_dir,
                                        stimpar.bri_size, stimpar.gabk, 'print')
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+                                            datatype, 'print')
+  
     datastr = sess_str_util.datatype_par_str(datatype)
 
     print(('\nCalculating and plotting the magnitude changes in {} activity '
-           'across quintiles \n({})').format(datastr, sessstr_pr))
+           'across quintiles \n({}{})').format(datastr, sessstr_pr, dendstr_pr))
 
     
     # get full data: session x surp x quints of interest x [ROI x seq]
@@ -349,10 +459,13 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
                                        sesspar.layer, stimpar.bri_dir,
                                        stimpar.bri_size, stimpar.gabk, 'print')
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+                                            datatype, 'print')
+  
     datastr = sess_str_util.datatype_par_str(datatype)
 
     print(('\nAnalysing and plotting {} autocorrelations ' 
-           '({}).').format(datastr, sessstr_pr))
+           '({}{}).').format(datastr, sessstr_pr, dendstr_pr))
 
     xrans = []
     stats = []
@@ -436,7 +549,8 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
     Retrieves trace statistics by session x surp val and calculates 
     correlations across sessions per surp val.
     
-    Saves results and parameters relevant to analysis in a dictionary.
+    Currently only prints results to the console. Does NOT save results and 
+    parameters relevant to analysis in a dictionary.
 
     Required args:
         - sessions (list)      : list of Session objects
@@ -454,6 +568,9 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
                                             sesspar.layer, stimpar.bri_dir, 
                                             stimpar.bri_size, stimpar.gabk,
                                             'print')
+    # dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    #                                         datatype, 'print')
+       
     datastr = sess_str_util.datatype_par_str(datatype)
 
     print(('\nAnalysing and plotting correlations between surprise vs non '
@@ -519,72 +636,29 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
                 mouse_corrs.append(sess_corrs)
             all_mouse_corrs.append(mouse_corrs)
 
-    extrapar = {'analysis': analysis,
-                'datatype': datatype,
-                }
+    # CURRENTLY RESULTS ARE ONLY PRINTED TO THE CONSOLE, NOT SAVED
+    # extrapar = {'analysis': analysis,
+    #             'datatype': datatype,
+    #             }
 
-    corr_data = {'all_corrs'      : all_corrs,
-                 'all_mouse_corrs': all_mouse_corrs,
-                 'all_counts'     : all_counts
-                }
+    # corr_data = {'all_corrs'      : all_corrs,
+    #              'all_mouse_corrs': all_mouse_corrs,
+    #              'all_counts'     : all_counts
+    #             }
     
-    sess_info = []
-    for sess_grp in sessions:
-        sess_info.append(sess_gen_util.get_sess_info(sess_grp, analyspar.fluor))
+    # sess_info = []
+    # for sess_grp in sessions:
+    #     sess_info.append(sess_gen_util.get_sess_info(sess_grp, analyspar.fluor))
 
-    info = {'analyspar': analyspar._asdict(),
-            'sesspar'  : sesspar._asdict(),
-            'stimpar'  : stimpar._asdict(),
-            'extrapar' : extrapar,
-            'sess_info': sess_info,
-            'corr_data': corr_data
-            }
+    # info = {'analyspar': analyspar._asdict(),
+    #         'sesspar'  : sesspar._asdict(),
+    #         'stimpar'  : stimpar._asdict(),
+    #         'extrapar' : extrapar,
+    #         'sess_info': sess_info,
+    #         'corr_data': corr_data
+    #         }
 
-    # fulldir, savename = gen_plots.plot_trace_corr_acr_sess(figpar=figpar, 
-    #                                                        **info)
+    # savename = 'trace_corr' # should be modified to include session info
     # file_util.saveinfo(info, savename, fulldir, 'json')
 
-
-#############################################
-def run_pupil_corr(sessions, analysis, analyspar, sesspar, 
-                   stimpar, figpar, datatype='roi'):
-    """
-    run_pupil_corr(sessions, analysis, analyspar, sesspar, 
-                   stimpar, quintpar, figpar)
-    
-    Retrieves trace statistics by session x surp val and calculates 
-    correlations across sessions per surp val.
-    
-    Saves results and parameters relevant to analysis in a dictionary.
-
-    Required args:
-        - sessions (list)      : list of Session objects
-        - analysis (str)       : analysis type (e.g., 't')
-        - analyspar (AnalysPar): named tuple containing analysis parameters
-        - sesspar (SessPar)    : named tuple containing session parameters
-        - stimpar (StimPar)    : named tuple containing stimulus parameters
-        - figpar (dict)        : dictionary containing figure parameters
-    
-    Optional args:
-        - datatype (str): type of data (e.g., 'roi', 'run')
-    """
-
-    sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                                            sesspar.layer, stimpar.bri_dir, 
-                                            stimpar.bri_size, stimpar.gabk,
-                                            'print')
-    datastr = sess_str_util.datatype_par_str(datatype)
-
-    print(('\nAnalysing and plotting correlations between surprise vs non '
-           'surprise {} traces between sessions ({}).').format(datastr, 
-                                                               sessstr_pr))
-
-    
-    # for sess in sessions:
-    #     glob.glob(self.sess.dir, '*eye-tracking*.csv')
-    #     # if sess.dir
-    
-    # try:
-
-    # except AssertionError as err:
 

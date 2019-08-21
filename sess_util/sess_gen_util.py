@@ -291,7 +291,7 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
 
     # get session ID each mouse based on criteria 
     sessids = []
-    for i in mouse_ns:
+    for i in sorted(mouse_ns):
         sess_ns = get_sess_vals(mouse_df, 'sess_n', i, sess_n, runtype, layer, 
                                 line, pass_fail, all_files, any_files, 
                                 min_rois, omit_sess, omit_mice, sort=True)
@@ -410,7 +410,8 @@ def sess_comb_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
 
 
 #############################################
-def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True):
+def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True, 
+                  dend='aibs', omit=False, pupil=False):
     """
     init_sessions(sessids, datadir)
 
@@ -424,7 +425,17 @@ def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True):
 
     Optional args:
         - runtype (str)  : the type of run, either 'pilot' or 'prod'
-                           default: 'prod' 
+                           default: 'prod'
+        - fulldict (bool): if True, the full stimulus dictionary is loaded 
+                           (with all the brick positions).
+                           default: True
+        - dend (str)     : type of dendrites to use ('aibs' or 'extr')
+                           default: 'aibs'
+        - omit (bool)    : if True, dendritic sessions with the wrong type of 
+                           dendrite are omitted
+                           default: False
+        - pupil (bool)   : if True, only sessions with pupil data are included
+                           default: False
 
     Returns:
         - sessions (list): list of Session objects
@@ -438,9 +449,16 @@ def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True):
         sess = session.Session(datadir, sessid, runtype=runtype) 
         # extracts necessary info for analysis
         sess.extract_sess_attribs(mouse_df)
-        sess.extract_info(fulldict=fulldict)
-        print('Finished session {}.'.format(sessid))
-        sessions.append(sess)
+        sess.extract_info(fulldict=fulldict, dend=dend)
+        if omit and sess.layer == 'dend' and sess.dend != dend:
+            print(('Omitting session {} ({} dendrites not '
+                   'found).').format(sessid, dend))
+        elif pupil and sess.pup_data_csv in ['none', 'several']:
+            print(('Omitting session {} as {} pupil data csvs were '
+                 'found.').format(sessid ,sess.pup_data_csv.replace('ne', '')))
+        else:
+            print('Finished session {}.'.format(sessid))
+            sessions.append(sess)
 
     return sessions
 
@@ -702,6 +720,7 @@ def all_omit(stimtype='gabors', runtype='prod', bri_dir='both', bri_size=128,
             omit_mice = pilot_bri_omit(bri_dir, bri_size)
 
     elif runtype == 'prod':
+        omit_sess = [828754259] # stim pickle not saved correctly
         if stimtype == 'gabors': 
             if 16 not in gen_util.list_if_not(gabk):
                 print(('The production data only includes gabor '

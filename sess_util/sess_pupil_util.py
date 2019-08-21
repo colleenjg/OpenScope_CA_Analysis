@@ -13,48 +13,79 @@ Note: this code uses python 3.7.
 
 """
 
+import copy
+
 import numpy as np
 
 
 #############################################
-def eye_diam_center(M):
+def eye_diam_center(df):
     """
     Returns the approximated pupil diameter, center, and frame-by-frame
     center differences (approximate derivative).  All in pixels.
+
+    Optional args:
+        - data (pd DataFrame): dataframe with the following columns 
+                               ('coords', 'bodyparts', ordered frame numbers)
+
+    Returns:
+        - median_diam (1D array)     : median pupil diameter at each pupil 
+                                       frame
+        - center (2D array)          : pupil center position at each pupil 
+                                       frame, structured as 
+                                           frame x coord (x, y)
+        - center_dist_diff (1D array): change in pupil center between each 
+                                       pupil frame
     """
     
-    # ordering of data (from config.yaml)is (w = whatever): 
-    # w, left x2, w, right x2, w, top x2, w, bottom x2, w, 
-    # lower left x2, w, upper left x2, w, upper right x2, w, lower right x2, w
-    x = M[ :, [1,4,7,10,13,16,19,22] ]
-    y = M[ :, [2,5,8,11,14,17,20,23] ]
+    pupil = '--pupil'
     
-    # dx and dy are pairwise distances of points furthest apart; ordering:
-    # left -- right, top -- bottom, lower left -- upper right, upper left --
-    # lower right
-    dx = np.zeros( [x.shape[0], 4] )
-    dy = np.zeros( [x.shape[0], 4] )
-    dx[:,0] = np.abs( x[:,0]-x[:,1] )
-    dx[:,1] = np.abs( x[:,2]-x[:,3] )
-    dx[:,2] = np.abs( x[:,4]-x[:,6] )
-    dx[:,3] = np.abs( x[:,5]-x[:,7] )
-    dy[:,0] = np.abs( y[:,0]-y[:,1] )
-    dy[:,1] = np.abs( y[:,2]-y[:,3] )
-    dy[:,2] = np.abs( y[:,4]-y[:,6] )
-    dy[:,3] = np.abs( y[:,5]-y[:,7] )
+    pup_df = df.loc[(df['bodyparts'].str.contains(pupil))]
+
+    ds = [None, None]
+    all_vals = [None, None]
+    coords = ['x', 'y']
     
+    for c, coord in enumerate(coords):
+        coord_df = pup_df.loc[(pup_df['coords'].str.match(coord))]
     
+        col = [col_name.replace(pupil, '') 
+               for col_name in coord_df['bodyparts'].tolist()]
+    
+        # Remove 'bodyparts' and 'coords' columns
+        coord_df.pop('bodyparts')
+        coord_df.pop('coords')
+
+        #### FROM HERE ###
+        vals = coord_df.to_numpy('float')
+
+        diffs = [['left', 'right'], ['top', 'bottom'], 
+                 ['lower-left', 'upper-right'], 
+                 ['upper-left', 'lower-right']]
+        diff_vals = np.empty([vals.shape[1], len(diffs)])
+        
+        # pairwise distances between points furthest apart (see diffs for pairs)
+        for d, diff in enumerate(diffs):
+            diff_vals[:, d] = np.abs(vals[col.index(diff[0]), :] - \
+                                     vals[col.index(diff[1]), :])
+        ds[c] = diff_vals
+        all_vals[c] = vals
+
+    [dx, dy] = ds
+    [x, y] = all_vals
+
     # find diameters
-    diams = np.sqrt( dx**2 + dy**2 )
-    #max_diam = np.max( diams )
-    #mean_diam = np.mean( diams )
-    median_diam = np.median( diams, axis=1 )
-    #min_diam = np.min( diams )
+    diams = np.sqrt(dx**2 + dy**2)
+
+    # max_diam = np.max(diams)
+    # mean_diam = np.mean(diams)
+    median_diam = np.median(diams, axis=1)
+    # min_diam = np.min(diams)
     
     # find centers and frame-to-frame differences
-    center = np.transpose( [np.mean( x,axis=1 ), np.mean( y,axis=1 )] )
-    center_diff = np.diff( center, axis=0 )
-    center_dist_diff = np.sqrt( center_diff[:,0]**2 + center_diff[:,1]**2 )
+    center = np.transpose([np.mean(x, axis=1), np.mean(y, axis=1)])
+    center_diff = np.diff(center, axis=0)
+    center_dist_diff = np.sqrt(center_diff[:, 0]**2 + center_diff[:, 1]**2)
     
     return median_diam, center, center_dist_diff
 
@@ -63,30 +94,40 @@ def eye_diam_center(M):
 def diam_no_blink(diam, thr=5):
     """
     Returns the diameter without large deviations likely caused by blinks
+    
+    Required args:
+        - diam (1D array): array of diameter values
+
+    Optional args:
+        - thr (num): threshold diameter to identify blinks
+                     default: 5
+
+    Returns:
+        - nan_diam (1D array): array of diameter values with aberrant values 
+                               removed
     """
 
-    nan_diam = diam
+    nan_diam = copy.deepcopy(diam)
 
-    #Find aberrant blocks:
-    diam_diff = np.append( 0, np.diff(diam) )
-    diam_thr = np.where( np.abs(diam_diff) > thr )[0]
-    diam_thr_diff = np.append( 1, np.diff(diam_thr) ) 
+    # Find aberrant blocks
+    diam_diff = np.append(0, np.diff(diam))
+    diam_thr = np.where(np.abs(diam_diff) > thr)[0]
+    diam_thr_diff = np.append(1, np.diff(diam_thr)) 
     
-    diff_thr = 10 #how many consecutive frames should be non-aberrant
-    searching = 1
+    diff_thr = 10 # how many consecutive frames should be non-aberrant
+    searching = True
     i = 0
-    while( searching ):
+    while(searching):
         left = diam_thr[i]
-        w =  np.where( diam_thr_diff[ i+1 : diam_thr_diff.size+1 
-                                                  ] > diff_thr )[0]
-        if w.size: #i.e., non-empty array
-            right_i = np.min( w+i+1 ) - 1
+        w = np.where(diam_thr_diff[i + 1:] > diff_thr)[0]
+        if w.size: # i.e., non-empty array
+            right_i = np.min(w + i + 1) - 1
             right = diam_thr[right_i]
         else:
             right = diam_thr[-1]
-            searching = 0
+            searching = False
         i = right_i + 1
-        nan_diam[left:right+1] = np.nan
+        nan_diam[left:right + 1] = np.nan
         
     return nan_diam
         

@@ -133,7 +133,7 @@ def get_roi_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
                  surp='any', step_size=1, gabk=16, roi_means=None, 
                  roi_stds=None):
     """
-    get_stim_data(sess, stimtype, win_leng_s)
+    get_roi_data(sess, stimtype, win_leng_s)
 
     Returns stimulus data (x position, y position, size, orientation, each 
     scaled based on its maximal range), and optionally running for windows 

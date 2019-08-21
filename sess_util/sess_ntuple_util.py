@@ -18,7 +18,7 @@ from util import gen_util
 
 #############################################
 def init_analyspar(fluor='dff', remnans=True, stats='mean', error='sem', 
-                   scale=None):
+                   scale=None, dend='aibs'):
     """
     Returns a AnalysPar namedtuple with the inputs arguments as named 
     attributes.
@@ -37,14 +37,16 @@ def init_analyspar(fluor='dff', remnans=True, stats='mean', error='sem',
         - scale (str or bool): if scaling is used or type of scaling used 
                                (e.g., 'roi', 'all', 'none')
                                default: None
+        - dend (str)         : dendrites to use ('aibs' or 'extr')
+                               default: 'aibs'
 
     Returns:
         - analyspar (AnalysPar namedtuple): AnalysPar with input arguments as 
                                             attributes
     """
 
-    analys_pars = [fluor, remnans, stats, error, scale]
-    analys_keys = ['fluor', 'remnans', 'stats', 'error', 'scale']
+    analys_pars = [fluor, remnans, stats, error, scale, dend]
+    analys_keys = ['fluor', 'remnans', 'stats', 'error', 'scale', 'dend']
     AnalysPar   = namedtuple('AnalysPar', analys_keys)
     analyspar   = AnalysPar(*analys_pars)
     return analyspar
@@ -52,7 +54,7 @@ def init_analyspar(fluor='dff', remnans=True, stats='mean', error='sem',
 
 #############################################
 def init_sesspar(sess_n, closest=False, layer='soma', line='any', min_rois=1, 
-                 pass_fail='P', runtype='prod', mouse_n='any'):
+                 pass_fail='P', runtype='prod', mouse_n='any', dend='aibs'):
     """
     Returns a SessPar namedtuple with the inputs arguments as named 
     attributes.
@@ -95,7 +97,7 @@ def init_sesspar(sess_n, closest=False, layer='soma', line='any', min_rois=1,
 
 #############################################
 def init_stimpar(bri_dir=['right', 'left'], bri_size=128, gabfr=0, gabk=16, 
-                 gab_ori=[0, 45, 90, 135], pre=0, post=1.5, stimtype='gabors'):
+                 gab_ori=[0, 45, 90, 135], pre=0, post=1.5, stimtype='both'):
     """
     Returns a StimPar namedtuple with the inputs arguments as named 
     attributes.
@@ -121,8 +123,9 @@ def init_stimpar(bri_dir=['right', 'left'], bri_size=128, gabfr=0, gabk=16,
         - post (num)             : range of frames to include after each 
                                    reference frame (in s)
                                    default: 1.5
-        - stimtype (str)         : stimulus to analyse ('bricks' or 'gabors')
-                                   default: 'gabors'
+        - stimtype (str)         : stimulus to analyse ('bricks', 'gabors' or 
+                                   'both')
+                                   default: 'both'
     
     Returns:
         - stimpar (StimPar namedtuple): StimPar with input arguments as 

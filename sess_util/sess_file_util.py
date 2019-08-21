@@ -22,6 +22,58 @@ from util import file_util
 
 
 ###############################################################################
+def get_sess_dirs(masterdir, sessid, expid, mouseid, runtype='prod',
+                  mouse_dir=True):
+    """
+    get_sess_dirs(masterdir, sessionid, expid, mouseid)
+
+    Returns the full path names of the session directory and subdirectories for 
+    the specified session and experiment on the given date that can be used for 
+    the Credit Assignment analysis.
+ 
+    Required arguments:
+        - masterdir (str): name of the master data directory
+        - sessid (int)   : session ID (9 digits), e.g. '712483302'
+        - expid (str)    : experiment ID (9 digits), e.g. '715925563'
+        - mouseid (str)  : mouse 6-digit ID string used for session files
+                           e.g. '389778' 
+
+    Optional arguments
+        - runtype (str)   : 'prod' (production) or 'pilot' data
+                            default: 'prod'
+        - mouse_dir (bool): if True, session information is in a 'mouse_*'
+                            subdirectory
+                            default: True
+
+    Returns:
+        - sessdir (str) : full path name of the session directory
+        - expdir (str)  : full path name of the experiment directory
+        - procdir (str) : full path name of the processed 
+                          data directory
+    """
+    
+    # get the name of the session and experiment data directories
+    if mouse_dir:
+        sessdir = os.path.join(masterdir, runtype, 'mouse_{}'.format(mouseid), 
+                               'ophys_session_{}'.format(sessid))
+    else:
+        sessdir = os.path.join(masterdir, runtype, 
+                               'ophys_session_{}'.format(sessid))
+
+    expdir = os.path.join(sessdir, 'ophys_experiment_{}'.format(expid))
+    procdir = os.path.join(expdir, 'processed')
+
+    # check that directory exists 
+    try:
+        file_util.checkdir(sessdir)
+    except OSError:
+        raise OSError(('{} does not conform to expected AIBS '
+                       'structure').format(sessdir))
+
+    return sessdir, expdir, procdir
+
+
+###############################################################################
 def get_file_names(masterdir, sessid, expid, date, mouseid, runtype='prod',
                    mouse_dir=True):
     """
@@ -74,26 +126,12 @@ def get_file_names(masterdir, sessid, expid, date, mouseid, runtype='prod',
                                          file
     """
     
-    # get the name of the session and experiment data directories
-    if mouse_dir:
-        sessdir = os.path.join(masterdir, runtype, 'mouse_{}'.format(mouseid), 
-                               'ophys_session_{}'.format(sessid))
-    else:
-        sessdir = os.path.join(masterdir, runtype, 
-                               'ophys_session_{}'.format(sessid))
-
-    expdir = os.path.join(sessdir, 'ophys_experiment_{}'.format(expid))
-    procdir = os.path.join(expdir, 'processed')
-
-    # check that directory exists 
-    try:
-        file_util.checkdir(sessdir)
-    except OSError:
-        raise OSError(('{} does not conform to expected AIBS '
-                       'structure').format(sessdir))
+    sessdir, expdir, procdir = get_sess_dirs(masterdir, sessid, expid, 
+                                             mouseid, runtype, mouse_dir)
 
     # set the file names
     sess_m_d = '{}_{}_{}'.format(sessid, mouseid, date) 
+
     filepaths = {'align_pkl'        : os.path.join(sessdir, 
                                       '{}_df.pkl'.format(sess_m_d)),
                  'behav_h5'         : os.path.join(sessdir, 
@@ -118,11 +156,76 @@ def get_file_names(masterdir, sessid, expid, date, mouseid, runtype='prod',
     
     # files not to check for (will be created if needed or 
     # not  currently needed)
-    no_check = ['roi_trace_dff_h5', 'correct_data_h5', 'zstack_h5']
+    no_check = ['align_pkl', 'roi_trace_dff_h5', 'correct_data_h5', 'zstack_h5']
 
     for key in filepaths.keys():
         if key not in no_check and not os.path.isfile(filepaths[key]):
             raise OSError('{} does not exist'.format(filepaths[key]))
 
     return [expdir, procdir, filepaths]
+
+
+###############################################################################
+def get_mask_path(masterdir, sessid, expid, mouseid, runtype='prod', 
+              mouse_dir=True):
+    """
+    get_mask_path(masterdir, sessid, expid, mouseid)
+
+    Required args:
+        - masterdir (str): name of the master data directory
+        - sessid (int)   : session ID (9 digits), e.g. '712483302'
+        - expid (str)    : experiment ID (9 digits), e.g. '715925563'
+        - date (str)     : date for the session in YYYYMMDD
+                           e.g. '20160802'
+        - mouseid (str)  : mouse 6-digit ID string used for session files
+                           e.g. '389778' 
+
+    Optional args:
+        - runtype (str)   : 'prod' (production) or 'pilot' data
+                            default: 'prod'
+        - mouse_dir (bool): if True, session information is in a 'mouse_*'
+                            subdirectory
+                            default: True
+
+    Returns:
+        - maskfile (str): full path name of the extract masks hdf5 file
+    """
+
+    _, _, procdir = get_sess_dirs(masterdir, sessid, expid, mouseid, runtype, 
+                                  mouse_dir)
+
+    maskfile = os.path.join(procdir, '{}_extract_masks.h5'.format(sessid))
+
+    if not os.path.exists(maskfile):
+        raise OSError('No extract masks found under \'{}\''.format(maskfile))
+
+    return maskfile
+
+
+###############################################################################
+def get_extr_trace_paths(trace_file):
+    """
+    get_extr_trace_paths(trace_file)
+
+    Returns modified path to traces for EXTRACT trace data.
+
+    Required args:
+        - trace_file (str): path to ROI traces
+
+    Returns:
+        - extr_tr_file (str)    : path to EXTRACT ROI traces
+        - extr_tr_dff_file (str): path to EXTRACT ROI dF/F traces
+
+    """
+
+    path, ext = os.path.splitext(trace_file)
+    extr_part = '_extr{}'.format(ext)
+
+    if extr_part in trace_file:
+        path = trace_file.replace(extr_part, '')
+
+    extr_tr_file = '{}{}'.format(path, extr_part)
+    extr_tr_dff_file = '{}_dff{}'.format(path, extr_part)
+
+    return extr_tr_file, extr_tr_dff_file
 
