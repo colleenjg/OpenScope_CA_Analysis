@@ -14,6 +14,7 @@ Note: this code uses python 3.7.
 
 import argparse
 import copy
+import glob
 import multiprocessing
 import os
 import re
@@ -107,6 +108,7 @@ def init_param_cont(args):
                                      (128, 256 or [128, 256])
             closest (bool)         : if False, only exact session number is 
                                      retained, otherwise the closest.
+            dend (str)             : type of dendrites to use ('aibs' or 'dend')
             error (str)            : error statistic parameter ('std' or 'sem')
             fluor (str)            : if 'raw', raw ROI traces are used. If 
                                      'dff', dF/F ROI traces are used.
@@ -220,9 +222,14 @@ def init_param_cont(args):
                                      fonts
     """
 
+    args = copy.deepcopy(args)
+    if args.layer != 'dend':
+        args.dend = 'aibs'
+
     # analysis parameters
     analyspar = sess_ntuple_util.init_analyspar(args.fluor, not(args.keepnans), 
-                                                args.stats, args.error)
+                                                args.stats, args.error, 
+                                                dend=args.dend)
 
     # session parameters
     sesspar = sess_ntuple_util.init_sesspar(args.sess_n, args.closest, 
@@ -364,15 +371,24 @@ def prep_analyses(sess_n, args, mouse_df):
         sessions = []
         for ids in sessids:
             subs = sess_gen_util.init_sessions(ids, args.datadir, mouse_df, 
-                                               sesspar.runtype, fulldict=False)
-            sessions.append(subs)
+                                               sesspar.runtype, fulldict=False,
+                                               dend=analyspar.dend, omit=True)
+            if len(subs) == 2:
+                sessions.append(subs)
+            else:
+                print(('Omitting session {} due to incomplete '
+                       'pair.').format(subs[0].sessid))
     else:
         sessids = sess_gen_util.sess_per_mouse(mouse_df, 
                                                omit_sess=args.omit_sess, 
                                                omit_mice=args.omit_mice, 
                                                **sesspar._asdict())
         sessions = sess_gen_util.init_sessions(sessids, args.datadir, mouse_df, 
-                                               sesspar.runtype, fulldict=False)
+                                               sesspar.runtype, fulldict=False, 
+                                               dend=analyspar.dend, omit=True)
+
+    if len(sessids) == 0:
+        raise ValueError('No sessions meet the criteria.')
 
     print(('\nAnalysis of {} responses to {} stimuli ({} data)'
            '\nSession {}').format(sesspar.layer, stimpar.stimtype[:-1],
@@ -428,7 +444,11 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
         - skipped (str): any analyses skipped
     """
 
-    all_analyses = 'tlmagocpr'
+    if len(sessions) == 0:
+        print('No sessions fit these criteria.')
+        return
+
+    all_analyses = 'ftlmagocpr'
     all_check = ''
 
     if 'all' in analyses:
@@ -446,6 +466,11 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
 
     # changes backend and defaults
     plot_util.manage_mpl(cmap=False, **figpar['mng'])
+
+    # 0. Plots the full traces for each session
+    if 'f' in analyses and not comb: # full traces
+        gen_analys.run_full_traces(sessions, 'f', analyspar, sesspar, figpar)
+    all_check += 'f'
 
     # 1. Analyses and plots average traces by quintile x surprise for each 
     # session 
@@ -579,6 +604,7 @@ if __name__ == "__main__":
     parser.add_argument('--stats', default='mean', help='plot mean or median')
     parser.add_argument('--error', default='sem', 
                         help='sem for SEM/MAD, std for std/qu')    
+    parser.add_argument('--dend', default='aibs', help='aibs, extr')
         # session parameters
     parser.add_argument('--closest', action='store_true', 
                         help=('if True, the closest session number is used. '
@@ -634,7 +660,7 @@ if __name__ == "__main__":
                         help='create a datetime folder')
     parser.add_argument('--overwrite', action='store_true', 
                         help='allow overwriting')
-        # plot using modif_analys_plots (if plotting from dictionary)
+        # plot using modif_analys_plots (only if plotting from dictionary)
     parser.add_argument('--modif', action='store_true', 
                         help=('plot from dictionary using modified plot '
                               'functions'))
@@ -644,14 +670,33 @@ if __name__ == "__main__":
     args.fontdir = os.path.join('..', 'tools', 'fonts')
 
     if args.dict_path is not '':
-        main_dir  = os.path.join('results', 'figures')
-        dict_path = os.path.join(main_dir, args.dict_path)
-        if args.modif:
-            mod_plots.plot_from_dict(dict_path, args.parallel, args.plt_bkend, 
-                                    args.fontdir, not(args.no_plot_tc))
+        if os.path.isdir(args.dict_path):
+            dict_paths = glob.glob('{}/*.json'.format(args.dict_path))
+            if len(dict_paths) == 0:
+                raise ValueError('No jsons found in directory.')
         else:
-            roi_plots.plot_from_dict(dict_path, args.parallel, args.plt_bkend, 
-                                     args.fontdir, not(args.no_plot_tc))
+            dict_paths = [args.dict_path]
+        if args.parallel and len(dict_paths) > 1:
+            n_cores = multiprocessing.cpu_count()
+            n_jobs = min(n_cores,len(dict_paths))
+            if args.modif:
+                fct = mod_plots.plot_from_dict
+            else:
+                fct = roi_plots.plot_from_dict
+            Parallel(n_jobs=n_jobs)(delayed(fct)(dict_path, False, 
+                                    args.plt_bkend, args.fontdir, 
+                                    not(args.no_plot_tc)) 
+                                    for dict_path in dict_paths)
+        else:
+            for dict_path in dict_paths:
+                if args.modif:
+                    mod_plots.plot_from_dict(dict_path, args.parallel, 
+                              args.plt_bkend, args.fontdir, 
+                              not(args.no_plot_tc))
+                else:
+                    roi_plots.plot_from_dict(dict_path, args.parallel, 
+                              args.plt_bkend, args.fontdir, 
+                              not(args.no_plot_tc))
 
     else:
         if args.datadir is None:

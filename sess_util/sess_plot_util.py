@@ -21,7 +21,7 @@ from sess_util import sess_str_util
 
 
 #############################################
-def init_figpar(ncols=3, sharex=False, sharey=True, subplot_hei=7.5, 
+def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7.5, 
                 subplot_wid=7.5, datetime=True, use_dt=None, fig_ext='svg', 
                 overwrite=False, runtype='prod', output='.', plt_bkend=None, 
                 linclab=True, fontdir=None):
@@ -33,7 +33,7 @@ def init_figpar(ncols=3, sharex=False, sharey=True, subplot_hei=7.5,
 
     Required args: 
         - ncols (int)      : number of columns in the figure
-                             default: 3 
+                             default: 4 
         - sharex (bool)    : if True, x axis lims are shared across subplots
                              default: False 
         - sharey (bool)    : if True, y axis lims are shared across subplots
@@ -70,8 +70,12 @@ def init_figpar(ncols=3, sharex=False, sharey=True, subplot_hei=7.5,
                 ['run'] (str)      : subdirectory name for running analyses
                 ['autocorr'] (str) : subdirectory name for autocorrelation 
                                      analyses
+                ['full'] (str)     : subdirectory name for full trace plots
                 ['locori'] (str)   : subdirectory name for location and 
                                      orientation responses
+                ['posori'] (str)   : subdirectory name for position and 
+                                     orientation plots
+                ['pupil'] (str)    : subdirectory for pupil analyses
                 ['oridir'] (str)   : subdirectory name for 
                                      orientation/direction analyses
                 ['surp_qu'] (str)  : subdirectory name for surprise, quintile 
@@ -111,7 +115,9 @@ def init_figpar(ncols=3, sharex=False, sharey=True, subplot_hei=7.5,
                 'roi'      : os.path.join(figdir, '{}_roi'.format(runtype)),
                 'run'      : os.path.join(figdir, '{}_run'.format(runtype)),
                 'autocorr' : 'autocorr',
+                'full'     : 'full',
                 'posori'   : 'posori',
+                'pupil'    : 'pupil',
                 'oridir'   : 'oridir',
                 'surp_qu'  : 'surp_qu',
                 'tune_curv': 'tune_curves',

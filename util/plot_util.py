@@ -19,7 +19,7 @@ from matplotlib import pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 import numpy as np
 
-from util import file_util, gen_util
+from util import file_util, gen_util, math_util
 
 
 #############################################
@@ -330,6 +330,20 @@ def share_lims(ax, dim='row'):
 
 #############################################
 def set_axis_digits(sub_ax, xaxis=None, yaxis=None):
+    """
+    set_axis_digits(sub_ax)
+
+    Sets the number of digits in the axis tick labels.
+
+    Required args:
+        - sub_ax (plt Axis subplot): subplot
+    
+    Optional args:
+        - xaxis (int): number of digits for the x axis 
+                       default: None
+        - yaxis (int): number of digits for the y axis
+                       default: None
+    """
 
     if xaxis is not None:
         n_dig_str = '%.{}f'.format(int(xaxis))
@@ -341,8 +355,67 @@ def set_axis_digits(sub_ax, xaxis=None, yaxis=None):
 
 
 #############################################
+def remove_ticks(sub_ax, xaxis=True, yaxis=True):
+    """
+    remove_ticks(sub_ax)
+
+    Removes ticks and tick labels for the specified axes.
+
+    Required args:
+        - sub_ax (plt Axis subplot): subplot
+    
+    Optional args:
+        - xaxis (bool): if True, applies to x axis 
+                        default: None
+        - yaxis (bool): if True, applies to y axis
+                       default: None
+    """
+
+    if xaxis:
+        sub_ax.tick_params(axis='x', which='both', bottom=False) 
+        sub_ax.set_xticks([])
+    if yaxis:
+        sub_ax.tick_params(axis='y', which='both', bottom=False) 
+        sub_ax.set_yticks([])
+
+
+#############################################
+def remove_graph_bars(sub_ax, bars='all'):
+    """
+    remove_graph_bars(sub_ax)
+
+    Removes the framing bars around a subplot.
+
+    Required args:
+        - sub_ax (plt Axis subplot): subplot
+    
+    Optional args:
+        - bars (str or list): bars to remove ('all', 'vert', 'horiz' or a list 
+                              of bars (amongst 'top', 'bottom', 'left', 
+                              'right'))
+                              default: 'all'
+    """
+
+    if isinstance(bars, list):
+        for bar in bars:
+            sub_ax.spines[bar].set_visible(False)
+
+    else: 
+        if bars in ['top', 'bottom', 'right', 'left']:
+            keys = [bars]
+        if bars == 'all':
+            keys = sub_ax.spines.keys()
+        elif bars == 'vert':
+            keys = ['left', 'right']
+        elif bars == 'horiz':
+            keys = ['top', 'bottom']    
+        for key in keys:
+            sub_ax.spines[key].set_visible(False)
+
+
+#############################################
 def init_fig(n_subplots, ncols=3, sharex=False, sharey=True, subplot_hei=7.5, 
-             subplot_wid=7.5):
+             subplot_wid=7.5, gs=None):
     """
     init_fig(n_subplots, fig_par)
 
@@ -363,6 +436,8 @@ def init_fig(n_subplots, ncols=3, sharex=False, sharey=True, subplot_hei=7.5,
                              default: 7.5
         - subplot_wid (num): width of each subplot (inches)
                              default: 7.5
+        - gs (dict)        : plt gridspec dictionary
+                             default: None
 
     Returns:
         - fig (plt Fig): fig
@@ -377,13 +452,14 @@ def init_fig(n_subplots, ncols=3, sharex=False, sharey=True, subplot_hei=7.5,
     nrows = int(np.ceil(n_subplots/float(ncols)))
     fig, ax = plt.subplots(ncols=ncols, nrows=nrows, 
                            figsize=(ncols*subplot_wid, nrows*subplot_hei), 
-                           sharex=sharex, sharey=sharey, squeeze=False)
+                           sharex=sharex, sharey=sharey, squeeze=False, 
+                           gridspec_kw=gs)
     return fig, ax
 
 
 #############################################
 def savefig(fig, savename, fulldir='.', datetime=True, use_dt=None, 
-            fig_ext='svg', overwrite=False, print_dir=True):
+            fig_ext='svg', overwrite=False, print_dir=True, dpi=None):
     """
     savefig(fig, savename)
 
@@ -410,6 +486,8 @@ def savefig(fig, savename, fulldir='.', datetime=True, use_dt=None,
                             default: False        
         - print_dir (bool): if True, the save directory is printed 
                             default: True
+        - dpi (int)       : figure dpi
+                            default: None
     
     Returns:
         - fulldir (str): final name of the directory in which the figure is 
@@ -441,12 +519,12 @@ def savefig(fig, savename, fulldir='.', datetime=True, use_dt=None,
                 while os.path.exists(os.path.join(fulldir, fullname)):
                     count += 1 
                     fullname = '{}_{}{}'.format(savename, count, ext)
+
+        fig.savefig(os.path.join(fulldir, fullname), dpi=dpi)
         
         if print_dir:
             print('\nFigures saved under {}.'.format(fulldir))
-
-        fig.savefig(os.path.join(fulldir, fullname))
-
+            
     return fulldir
 
 
@@ -477,7 +555,6 @@ def get_repeated_bars(xmin, xmax, cycle=1.0, offset=0):
     bars = [1.5 * b + offset for b in range(min_bar, max_bar + 1)]
  
     return bars
-
 
 
 #############################################
@@ -550,6 +627,38 @@ def add_bars(sub_ax, hbars=None, bars=None, col='k', alpha=0.5):
 
 
 #############################################
+def av_cols(cols):
+    """
+    av_cols(cols)
+
+    Returns average across list of colors provided.
+
+    Required args:
+        - cols (list): list of colors in hex format
+
+    Returns:
+        - col (str): averaged color in hex format
+    """
+
+    cols = gen_util.list_if_not(cols)
+
+    n_comp = 3 # r, g, b
+    col_arr = np.empty([len(cols), n_comp])
+    pos = [1, 3, 5] # start of each component
+    leng = 2 
+    for c, col in enumerate(cols):
+        if '#' not in col:
+            raise ValueError('All colors must be provided in hex format.')
+        # get the int value for each color component
+        col_arr[c] = [int(col[pos[i]:pos[i] + leng], 16) for i in range(n_comp)]
+    col_arr = np.mean(col_arr, axis=0) # average each component
+    # extract hex string
+    col = '#{}{}{}'.format(*[hex(int(np.round(c)))[2:] for c in col_arr]) 
+
+    return col
+
+
+#############################################
 def incr_ymax(ax, incr=1.1, sharey=False):
     """
     incr_ymax(ax)
@@ -588,15 +697,18 @@ def add_vshade(sub_ax, start, end=None, width=None, alpha=0.4, col='k'):
 
     Required args:
         - sub_ax (plt Axis subplot): subplot
-        - start (list)             : start positions for shaded areas
+        - start (list)             : list of start position arrays for each 
+                                     shaded area (bottom)
 
     Optional args:
-        - end (list)   : end positions for shaded areas 
+        - end (list)   : list of end position arrays for each shaded area 
                          (takes priority over width)
         - width (num)  : width of the shaded areas
         - alpha (num)  : plt alpha variable controlling shading 
                          transparency (from 0 to 1)
                          default: 0.5
+        - col (str)    : color to use
+                         default: None
     """
 
     start = gen_util.list_if_not(start)
@@ -608,7 +720,7 @@ def add_vshade(sub_ax, start, end=None, width=None, alpha=0.4, col='k'):
         if len(start) != len(end):
             raise ValueError('end and start must be of the same length.')
         for st, e in zip(start, end):
-            sub_ax.axvspan(st, e, alpha, col)
+            sub_ax.axvspan(st, e, alpha=alpha, color=col)
         if width is not None:
             print('Cannot specify both end and width. Using end.')
     else:
@@ -683,6 +795,51 @@ def plot_traces(sub_ax, x, y, err=None, title='', lw=None, col=None,
         sub_ax.legend()
 
     sub_ax.set_title(title)
+
+
+#############################################
+def plot_btw_traces(sub_ax, y1, y2, x=None, col='k', alpha=0.5):
+    """
+    plot_btw_traces(sub_ax, y1, y2)
+
+    Plots shaded area between x and y lines on subplot (ax).
+
+    Required args:
+        - sub_ax (plt Axis subplot): subplot
+        - y1 (array-like)          : first array of y values
+        - y2 (array-like)          : first array of y values
+        
+    Optional args:
+        - x (array-like)     : array of x values. If None, a range is used.
+                               default: None
+        - col (str)          : color to use. If a list is provided, the
+                               average is used.
+                               default: 'k'
+        - alpha (num)        : plt alpha variable controlling shading 
+                               transparency (from 0 to 1)
+                               default: 0.5
+    """
+
+    y1 = np.asarray(y1).squeeze()
+    y2 = np.asarray(y2).squeeze()
+
+    if x is None:
+        x = list(range(len(y1)))
+    else:
+        x = np.asarray(x).squeeze()
+
+    if len(y1) != len(y2) or len(x) != len(y1):
+        raise ValueError(('y1 and y2, and x if provided, must have the same '
+                          'length.'))
+
+    comp_arr = np.concatenate([y1[:, np.newaxis], y2[:, np.newaxis]], axis=1)
+    maxes = np.max(comp_arr, axis=1)
+    mins  = np.min(comp_arr, axis=1)
+
+    if isinstance(col, list):
+        col = av_cols(col)
+
+    sub_ax.fill_between(x, mins, maxes, alpha=alpha, facecolor=col)
 
 
 #############################################
@@ -1027,4 +1184,38 @@ def plot_colormap(sub_ax, data, xran=None, yran=None, title='', cmap=None,
 
     return im
 
+
+#############################################
+def plot_sep_data(sub_ax, data, lw=0.1, no_edges=True):
+    """
+    plot_sep_data(sub_ax, data)
+
+    Plots data separated along the first axis, so that each item is scaled to 
+    within a unit range, and shifted by 1 from the previous item. Allows 
+    items in the same range to be plotted in a stacked fashion. 
+
+    Required args:
+        - sub_ax (plt Axis subplot): subplot
+        - data (2D array)          : data array (items x values)
+
+    Optional args:
+        - lw (num)       : linewidth
+        - no_edges (bool): if True, the edges and ticks are removed and the 
+                           y limits are tightened
+                           default: True
+    """
+
+    data_sc = math_util.scale_data(data, axis=1, sc_type='min_max')[0]
+    add = np.linspace(0, data.shape[0] * 1.2 + 1, data.shape[0])[:, np.newaxis]
+    data_sep = data_sc + add
+
+    sub_ax.plot(data_sep.T, lw=lw)
+
+    if no_edges:
+        # removes ticks
+        remove_ticks(sub_ax, True, True)
+        # removes subplot edges
+        remove_graph_bars(sub_ax, bars='all')
+        # tighten y limits
+        sub_ax.set_ylim(np.min(data_sep), np.max(data_sep))
 

@@ -60,7 +60,7 @@ def add_ext(filename, filetype='pickle'):
 
 
 #############################################
-def loadfile(filename, fulldir='.', filetype='pickle'):
+def loadfile(filename, fulldir='.', filetype='pickle', dtype=None):
     """
     loadfile(filename)
 
@@ -76,6 +76,8 @@ def loadfile(filename, fulldir='.', filetype='pickle'):
                           default: '.'
         - filetype (str): type of file (pickle, pkl, json, csv)
                           default: 'pickle'
+        - dtype (str)   : datatype for csv
+                          default: None
 
     Returns:
         - datafile (dict or pd df): loaded file
@@ -97,7 +99,7 @@ def loadfile(filename, fulldir='.', filetype='pickle'):
             with open(fullname, 'rb') as f:
                 datafile = json.load(f)
         elif ext == '.csv':
-            datafile = pd.read_csv(fullname)
+            datafile = pd.read_csv(fullname, dtype=dtype)
     else:
         raise ValueError('{} does not exist.'.format(fullname))
 

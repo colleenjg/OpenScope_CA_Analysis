@@ -39,6 +39,7 @@ def run_regr(args):
             bri_size (int or list): brick sizes to include
             comp (str)            : type of comparison
             datadir (str)         : data directory
+            dend (str)            : type of dendrites to use ('aibs' or 'dend')
             device (str)          : device name (i.e., 'cuda' or 'cpu')
             ep_freq (int)         : frequency at which to print loss to 
                                     console
@@ -108,7 +109,8 @@ def run_regr(args):
     stimpar = logreg.get_stimpar(args.comp, args.stimtype, args.bri_dir, 
                                  args.bri_size, args.gabfr, args.gabk)
     analyspar = sess_ntuple_util.init_analyspar(args.fluor, stats=args.stats, 
-                                            error=args.error, scale=args.scale)  
+                                            error=args.error, scale=args.scale, 
+                                            dend=args.dend)  
     if args.q1v4:
         quintpar = sess_ntuple_util.init_quintpar(4, [0, -1])
     else:
@@ -131,7 +133,8 @@ def run_regr(args):
 
     for sessid in sessids:
         sess = sess_gen_util.init_sessions(sessid, args.datadir, mouse_df, 
-                                           args.runtype, fulldict=False)[0]
+                                           args.runtype, fulldict=False, 
+                                           dend=analyspar.dend)[0]
         logreg.run_regr(sess, analyspar, stimpar, logregpar, quintpar, 
                         extrapar, techpar)
 
@@ -198,6 +201,7 @@ if __name__ == "__main__":
     parser.add_argument('--fluor', default='dff', help='raw or dff')
     parser.add_argument('--stats', default='mean', help='mean or median')
     parser.add_argument('--error', default='sem', help='std or sem')
+    parser.add_argument('--dend', default='aibs', help='aibs, extr')
 
         # extra parameters
     parser.add_argument('--seed', default=-1, type=int, 
@@ -226,6 +230,8 @@ if __name__ == "__main__":
         args.output = '{}_q1v4'.format(args.output)
     if args.bal:
         args.output = '{}_bal'.format(args.output)
+    if args.dend == 'extr':
+        args.output = '{}_extr'.format(args.output)
 
     if args.comp == 'all':
         comps = ['surp', 'AvB', 'AvC', 'BvC', 'DvE']

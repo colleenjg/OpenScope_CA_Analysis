@@ -20,12 +20,12 @@ import warnings
 
 import h5py
 import numpy as np
-import pandas
+import pandas as pd
 import pickle
 import scipy.stats as st
 import scipy.signal as scsig
 
-from allensdk.brain_observatory import dff
+from allensdk.brain_observatory import dff, roi_masks
 
 from sess_util import sess_file_util, sess_pupil_util, sess_sync_util
 from util import file_util, gen_util, math_util
@@ -122,14 +122,14 @@ class Session(object):
         wild_dir  = os.path.join(self.home, self.runtype, 'mouse_*', 
                                  'ophys_session_{}'.format(self.sessid))
         name_dir  = glob.glob(wild_dir)
-        mouse_dir = True
+        self.mouse_dir = True
         
         # pilot data may not be in a 'mouse_' folder
         if len(wild_dir) == 0:
             wild_dir  = os.path.join(self.home, self.runtype,  
                                      'ophys_session_{}'.format(self.sessid))
             name_dir  = glob.glob(wild_dir)
-            mouse_dir = False
+            self.mouse_dir = False
         
         if len(name_dir) == 0:
             raise OSError(('Could not find directory for session {} in {}'
@@ -161,7 +161,7 @@ class Session(object):
         (self.expdir, self.procdir, filepaths) = \
             sess_file_util.get_file_names(self.home, self.sessid, self.expid, 
                                           self.date, self.mouseid, 
-                                          self.runtype, mouse_dir)  
+                                          self.runtype, self.mouse_dir)  
         self.stim_pkl         = filepaths['stim_pkl']
         self.stim_sync_h5     = filepaths['stim_sync_h5']
         self.align_pkl        = filepaths['align_pkl']
@@ -190,7 +190,7 @@ class Session(object):
                                     pickle file
         """
     
-        print('Creating smaller stimulus pickle.')
+        print('    Creating smaller stimulus pickle.')
 
         self.stim_dict = file_util.loadfile(self.stim_pkl)
 
@@ -225,6 +225,11 @@ class Session(object):
                                      recorded stimulus frames, where NaNs are
                                      reinterpolated
             - tot_run_fr (1D array): number of running speed frames
+        
+        Optional args:
+            - diff_thr (int): threshold of difference in running speed to 
+                              identify outliers
+                              default: 100
         """
 
         self.run = sess_sync_util.get_run_speed(stim_dict=self.stim_dict)
@@ -238,8 +243,8 @@ class Session(object):
         out_idx = np.where((run_diff < -diff_thr) | (run_diff > diff_thr))[0]
 
         if len(out_idx) > 0:
-            print(('WARNING: {} running values were replaced with '
-                   'NaNs.\n').format(len(out_idx)))
+            print(('    WARNING: {} running values were replaced with '
+                   'NaNs.').format(len(out_idx)))
         
         at_idx = -1
         for idx in out_idx:
@@ -260,8 +265,8 @@ class Session(object):
                 self.run_interp[orig+1:idx+1] = np.mean([comp_val, 
                                                        self.run[idx + 1]])
                 if idx - orig > 5:
-                    print(('WARNING: {} consecutive running values had to be'
-                           'dropped.'.format(idx - orig)))
+                    print(('    WARNING: {} consecutive running values had '
+                           'to be dropped.'.format(idx - orig)))
                 at_idx = idx
 
 
@@ -301,7 +306,7 @@ class Session(object):
                 self._create_small_stim_pkl(small_stim_pkl[0:-4])
             else:
                 self.stim_dict = file_util.loadfile(small_stim_pkl)
-            print('Using smaller stimulus pickle.')
+            print('    Using smaller stimulus pickle.')
 
         # store some variables for easy access
         self.stim_fps       = self.stim_dict['fps']
@@ -316,7 +321,7 @@ class Session(object):
 
         # check our drop tolerance
         if np.float(self.n_drop_stim_fr)/self.tot_stim_fr > self.droptol:
-            print('WARNING: {} dropped stimulus frames out of {}.'
+            print('    WARNING: {} dropped stimulus frames out of {}.'
                   .format(self.n_drop_stim_fr, self.tot_stim_fr))
         
 
@@ -338,8 +343,8 @@ class Session(object):
 
         dropped = np.where(stim2twopfr_diff > 1)[0]
         if len(dropped) > 0:
-            print(('WARNING: {} dropped stimulus frames '
-                   'detected.'.format(len(dropped))))
+            print(('    WARNING: {} dropped stimulus frames sequences '
+                   '(2nd align).'.format(len(dropped))))
             # repeat stim idx when frame is dropped
             for drop in dropped[-1:]:
                 loc = np.where(stim_idx == drop)[0][0]
@@ -352,7 +357,8 @@ class Session(object):
         try:
             self.twop2stimfr[start:end] = stim_idx
         except:
-            print('NON FUNCTIONAL')
+            print('    WARNING: self._get_twop2stimf() not working for '
+                  'this session.')
 
 
     #############################################
@@ -418,7 +424,7 @@ class Session(object):
                                            self.align_pkl, self.runtype)
             
         else:
-            print('NOTE: Stimulus alignment pickle already exists in {}'
+            print('    NOTE: Stimulus alignment pickle already exists in {}'
                   .format(self.dir))
 
         align = file_util.loadfile(self.align_pkl)
@@ -430,6 +436,29 @@ class Session(object):
 
 
     #############################################
+    def _find_pup_data(self):
+        """
+        self._find_pup_data()
+
+        Looks for pupil tracking data, and if just one is found, saves 
+        location as an attribute. 
+
+        Sets the following attributes:
+            - pup_data_csv (str): path to the pupil data csv, 'none' if none 
+                                  are found or 'several' if several are found
+        """
+        
+        name_part = '*eye-tracking*.csv'
+        pupil_data_files = glob.glob(os.path.join(self.dir, name_part))
+
+        self.pup_data_csv = 'none'
+        if len(pupil_data_files) == 1:
+            self.pup_data_csv = pupil_data_files[0]     
+        elif len(pupil_data_files) > 1:
+            self.pup_data_csv = 'several'
+            
+
+    #############################################
     def _load_pup_data(self, thr=5):
         """
         self._load_pup_data()
@@ -438,8 +467,9 @@ class Session(object):
         and position information. 
 
         Sets the following attributes:
-            - pup_center (1D array)     : pupil center position at each pupil 
-                                          frame
+            - pup_center (2D array)     : pupil center position at each pupil 
+                                          frame, structured as 
+                                              frame x coord (x, y)
             - pup_center_diff (1D array): change in pupil center between each 
                                           pupil frame
             - pup_data_csv (str)        : path to the pupil data csv
@@ -448,21 +478,21 @@ class Session(object):
             - pup_nan_diam (1D array)   : median pupil diameter where blinks 
                                           and outlier values have been replaced
                                           with NaNs
+        
+        Optional args:
+            - thr (num): threshold diameter to identify blinks
+                         default: 5
         """
 
-        pupil_data_files = glob.glob(os.path.join(self.dir, 
-                                                  '*eye-tracking*.csv'))
+        print('Loading pupil tracking information.')
 
-        if len(pupil_data_files) == 1:
-            print('Loading pupil tracking information.')
-            self.pup_data_csv = pupil_data_files[0]
-            pup_data = file_util.loadfile(self.pup_data_csv)[2:].to_numpy(
-                                                             dtype='float64')
-
-        elif len(pupil_data_files) > 1:
-            raise ValueError('Several pupil data files were found.')
-        else:
+        if self.pup_data_csv == 'none':
             raise OSError('No pupil data file found.')
+        elif self.pup_data_csv == 'several':
+            raise ValueError('Several pupil data files were found.')
+        
+        pup_data = pd.read_csv(self.pup_data_csv, dtype='str', 
+                               index_col=False).set_index('scorer').T
         
         [self.pup_med_diam, self.pup_center, 
             self.pup_center_diff] = sess_pupil_util.eye_diam_center(pup_data)
@@ -535,9 +565,9 @@ class Session(object):
                               default: 1000
         
         """
-        
+
         if not os.path.exists(self.roi_trace_dff_h5) or replace:
-            print(('Creating dF/F files using {} basewin '
+            print(('    Creating dF/F files using {} basewin '
                    'for session {}').format(basewin, self.sessid))
             # read the data points into the return array
             with h5py.File(self.roi_trace_h5,'r') as f:
@@ -558,7 +588,7 @@ class Session(object):
 
 
     #############################################
-    def _load_roi_trace_info(self, basewin=1000):
+    def _load_roi_trace_info(self, basewin=1000, dend='aibs'):
         """
         self._load_roi_trace_info()
 
@@ -566,6 +596,7 @@ class Session(object):
         
         Also calls self._set_nanrois().
 
+            - dend (str)       : type of dendrites loaded ('aibs' or 'extr')
             - nrois (int)      : number of ROIs in traces
             - roi_names (list) : list of ROI names (9 digits)
             - tot_twop_fr (int): number of 2p frames recorded
@@ -574,10 +605,29 @@ class Session(object):
             - basewin (int): window length for calculating baseline 
                              fluorescence
                              default: 1000
+            - dend (str)   : dendritic traces to use ('aibs' for the 
+                             original extracted traces and 'extr' for the
+                             ones extracted with Hakan's EXTRACT code, if
+                             available)
+                             default: 'aibs'
         """
-        
+        self.dend = 'aibs'
+
+        if self.layer == 'dend' and dend == 'extr':
+            [extr_tr_file, 
+             extr_tr_dff_file] = sess_file_util.get_extr_trace_paths(
+                                                    self.roi_trace_h5)
+            if os.path.exists(extr_tr_file):
+                print('    Using EXTRACT extracted dendrites.')
+                self.dend = 'extr'
+                self.roi_trace_h5 = extr_tr_file
+                self.roi_trace_dff_h5 = extr_tr_dff_file
+            else:
+                print(('    No extr extracted dendrites found. AIBS extracted '
+                       'dendrites will be used instead.'))
+            
         self._create_dff(basewin=basewin)
-        
+
         try:
             # open the roi file and get the info
             with h5py.File(self.roi_trace_h5, 'r') as f:
@@ -650,7 +700,8 @@ class Session(object):
         """
         self.extract_sess_attribs(mouse_df)
 
-        Loads the dataframe containing information on each session,
+        This function should be run immediately after creating a Session 
+        object. It loads the dataframe containing information on each session,
         and sets the following attributes:
 
             - all_files (bool) : if True, all files have been acquired for
@@ -695,23 +746,28 @@ class Session(object):
 
 
     #############################################
-    def extract_info(self, fulldict=True, basewin=1000):
+    def extract_info(self, fulldict=True, basewin=1000, dend='aibs'):
         """
         self.extract_info()
 
         This function should be run immediately after creating a Session 
-        object. It creates the stimulus objects attached to the Session 
+        object and running self.extract_sess_attribs(). It creates the 
+        stimulus objects attached to the Session, and loads the ROI traces, 
+        running data, synchronization data, etc. If stimtypes have not been 
+        initialized, also initializes stimtypes.
 
-        If the attributes they set have not been initialized yet, calls:
+        Calls:
             self._load_stim_df()
             self._load_roi_trace_info()
             self._load_stim_dict()
             self._load_sync_h5s()
+            self._find_pup_data()
 
         If the runtype is 'prod', calls self._modif_bri_segs().
 
         Initializes the following attributes, including Stim objects (Gabors, 
-        Bricks, Grayscr):
+        Bricks, Grayscr), if the stimtypes attribute has not already been
+        initialized:
 
             - bricks (list or Bricks object): session bricks object, if 
                                               runtype is 'pilot' or list
@@ -737,21 +793,37 @@ class Session(object):
             - basewin (int)  : window length for calculating baseline 
                                fluorescence
                                default: 1000
+            - dend (str)     : dendritic traces to use ('aibs' for the 
+                               original extracted traces and 'extr' for the
+                               ones extracted with Hakan's EXTRACT code, if
+                               available)
+                               default: 'aibs'
         """
 
+        if not hasattr(self, 'layer'):
+            raise ValueError(('Session attributes missing to extract info. '
+                              'Make sure to run self.extract_sess_attribs() '
+                              'first'))
+
         # load the stimulus, running, alignment and trace information 
-        if not hasattr(self, 'stim_dict'):
-            print('Loading stimulus dictionary...')
-            self._load_stim_dict(fulldict=fulldict)
-        if not hasattr(self, 'stim_df'):
-            print('Loading alignment dataframe...')
-            self._load_stim_df()
-        if not hasattr(self, 'roi_names'):
-            print('Loading ROI trace info...')
-            self._load_roi_trace_info(basewin=basewin)
+        print('\nLoading stimulus dictionary...')
+        self._load_stim_dict(fulldict=fulldict)
+    
+        print('Loading alignment dataframe...')
+        self._load_stim_df()
+    
+        print('Loading ROI trace info...')
+        self._load_roi_trace_info(basewin=basewin, dend=dend)
+        
         print('Loading sync h5 info...')
         self._load_sync_h5s()
-        
+
+        # Look for pupil data file
+        self._find_pup_data()
+
+        if hasattr(self, 'stimtypes'):
+            return
+
         # create the stimulus fields and objects
         self.stimtypes = []
         self.n_stims    = len(self.stim_dict['stimuli'])
@@ -790,12 +862,87 @@ class Session(object):
                     self.stims.append(self.bricks)
                 
             else:
-                print(('{} stimulus type not recognized. No Stim object ' 
+                print(('    {} stimulus type not recognized. No Stim object ' 
                       'created for this stimulus. \n').format(stimtype))
 
         # initialize a Grayscr object
         self.grayscr = Grayscr(self)
 
+
+    ############################################
+    def extract_traces_from_masks(self, h5_dir=None, replace=False, 
+                                  block_size=100):
+        """
+        self.extract_traces_from_masks()
+
+        Extracts traces from masks generated with Hakan's EXTRACT code and 
+        saves them.
+
+        Optional args:
+            - h5_dir (str)    : path to full corrected twop data. If None, then 
+                                it should already be an attribute of the 
+                                Session object.
+                                default: None
+            - replace (bool)  : if True, existing extracted EXTRACT traces are 
+                                replaced (and existing EXTRACT dF/F traces are 
+                                deleted)
+                                default: False
+            - block_size (int): number of frames to load and extract traces for
+                                at a time 
+                                default: 100
+        """
+
+        [extr_tr_file, 
+         extr_tr_dff_file] = sess_file_util.get_extr_trace_paths(
+                                            self.roi_trace_h5)
+
+        # Skip extracting traces if they already exist and replace is False
+        if os.path.exists(extr_tr_file) and not replace:
+            print('\nExtract traces already exist')
+            return
+
+        # Raise error if not dendritic data
+        if self.layer != 'dend':
+            raise ValueError(('Extracting traces from masks is meant to be '
+                              'used with dendritic data, not somatic.'))
+
+        # Retrieve masks generated with EXTRACT
+        self.masks = sess_file_util.get_mask_path(self.home, self.sessid, 
+                                    self.expid, self.mouseid, self.runtype, 
+                                    self.mouse_dir) 
+        with h5py.File(self.masks, 'r') as f:
+            masks = f['data'][:]
+
+        # Get the full video information
+        if h5_dir is not None:
+            self.correct_data_h5 = h5_dir
+        elif not hasattr(self, 'correct_data_h5'):
+            raise ValueError(('No path to full corrected twop data '
+                              '(self.correct_data_h5).'))
+
+        with h5py.File(self.correct_data_h5, 'r') as f:
+            _, wid, hei = f['data'].shape
+
+        # extract ROI traces using masks
+        all_masks = [] 
+        border = [0, 0, 0, 0]
+        for mask in masks:
+            all_masks.append(roi_masks.create_roi_mask(wid, hei, border, 
+                             roi_mask=mask.astype(bool)))
+
+        with h5py.File(self.correct_data_h5, 'r') as f:
+            traces = roi_masks.calculate_traces(f['data'], all_masks, 
+                                                block_size=block_size)
+        
+        # Save traces
+        with h5py.File(extr_tr_file, 'w') as hf:
+            hf.create_dataset('data', data=traces)
+
+        # Removes pre-existing EXTRACT dF/F file
+        if os.path.exists(extr_tr_dff_file):
+            print('\nRemoving pre-existing EXTRACT dF/F file.')
+            os.remove(extr_tr_dff_file)
+        
 
     #############################################
     def get_stim(self, stimtype='gabors'):
@@ -840,7 +987,35 @@ class Session(object):
 
 
     #############################################
-    def get_run_speed_by_fr(self, fr, fr_type='stim', remnans=False):
+    def get_run_speed(self, remnans=True):
+        """
+        self.get_run_speed()
+
+        Returns the correct full running speed array based on whether NaNs are
+        to be removed or not. 
+
+        Optional args:
+            - remnans (bool): if True, the full running array in which NaN 
+                              values have been removed using linear 
+                              interpolation is returned. If False, the non
+                              interpolated running array is returned.
+                              default: True
+
+        Returns:
+            - run (nd array): full running speed array (in cm/s)
+        """
+
+        if remnans:
+            run = self.run_interp
+        else:
+            run = self.run
+
+        return run
+
+
+
+    #############################################
+    def get_run_speed_by_fr(self, fr, fr_type='stim', remnans=True):
         """
         self.get_run_speed_by_fr(fr)
 
@@ -854,8 +1029,8 @@ class Session(object):
             - fr_type (str) : type of frames passed ('stim' or 'twop' frames)
                               default: 'stim'
             - remnans (bool): if True, NaN values are removed using linear 
-                              interpolation
-                              default: False
+                              interpolation.
+                              default: True
 
         Returns:
             - speed (nd array): running speed (in cm/s), with same dimensions 
@@ -876,10 +1051,7 @@ class Session(object):
                 raise UserWarning(('Some of the specified frames are out of '
                                    'range'))
         
-        if remnans:
-            run = self.run_interp
-        else:
-            run = self.run
+        run = self.get_run_speed(remnans=remnans)
 
         if fr_type == 'stim':
             speed = run[fr]
@@ -905,7 +1077,7 @@ class Session(object):
             - (list): indices of ROIs containing NaNs or Infs
         """
 
-        if fluor == 'dff':
+        if fluor == 'dff' or self.dend == 'extr':
             return self.nanrois_dff
         elif fluor == 'raw':
             return self.nanrois
@@ -922,15 +1094,22 @@ class Session(object):
         (defined as median + 3 std), optionally during a specific stimulus type.
 
         Optional args:
-            - fluor (str): if 'dff', the indices of ROIs with NaNs or Infs in 
-                           the dF/F traces are returned. If 'raw', for raw 
-                           traces.
-                           default: 'dff'
+            - fluor (str)   : if 'dff', the indices of ROIs with NaNs or Infs 
+                              in the dF/F traces are returned. If 'raw', for 
+                              raw traces.
+                              default: 'dff'
+            - stimtype (str): stimulus type during which to check for 
+                              transients ('bricks', 'gabors' or None). If None,
+                              the entire session is checked.
+                              default: None
+            - remnans (bool): if True, the indices ignore ROIs containg NaNs or 
+                              Infs
+                              default: True
         Returns:
-            - (list): indices of ROIs containing NaNs or Infs
+            - active_rois (list): indices of active ROIs
         """
 
-        print('Identifying active ROIs.')
+        print('\nIdentifying active ROIs.')
 
         win = [1, 5]
         
@@ -988,8 +1167,8 @@ class Session(object):
                                   before return, using a sliding window of 
                                   length basewin (see below). 
                                   default: 'dff'
-            - remnans (bool)    : if True, removes ROIs with NaN/Inf values 
-                                  anywhere in session. 
+            - remnans (bool)    : if True, ROIs with NaN/Inf values anywhere 
+                                  in session are excluded. 
                                   default: True
             - basewin (int)     : window length for calculating baseline 
                                   fluorescence
@@ -999,7 +1178,7 @@ class Session(object):
             - traces (float array): array of dF/F for the specified frames,
                                     (ROI x frames)
         """
-        
+
         # check whether the frames to retrieve are within range
         if frames is None:
             frames = np.arange(self.tot_twop_fr)
@@ -1010,7 +1189,6 @@ class Session(object):
         traces    = np.full((self.nrois, len(frames)), np.nan)
 
         # read the data points into the return array
-        self._load_roi_trace_info(basewin=basewin)
         if fluor == 'dff':
             roi_trace_h5 = self.roi_trace_dff_h5
         elif fluor == 'raw':
@@ -1113,8 +1291,8 @@ class Session(object):
                                          sliding window of length basewin 
                                          (see below). 
                                          default: 'dff'
-            - remnans (bool)           : if True, removes ROIs with NaN/Inf 
-                                         values anywhere in session. 
+            - remnans (bool)           : if True, ROIs with NaN/Inf values 
+                                         anywhere in session are excluded. 
                                          default: True
             - basewin (int)            : window length for calculating baseline 
                                          fluorescence
@@ -1163,7 +1341,7 @@ class Session(object):
         # Warn about removed sequences and update pad_seql and stim_fr_seqs 
         # to remove these sequences
         if len(seq_rem) != 0 :
-            print(('Some of the specified frames for sequences {} are out of '
+            print(('\nSome of the specified frames for sequences {} are out of '
                    'range so the sequence will not be '
                    'included.').format(seq_rem))
             pad_seql     = np.delete(pad_seql, seq_rem)
@@ -1202,7 +1380,30 @@ class Session(object):
 
         return traces
 
+
+    #############################################
+    def get_pup_fr_by_twop_fr(self, twop_fr):
+        """
+        self.get_pup_fr_by_twop_fr(twop_fr)
+
+        Returns pupil frames corresponding to 2p frames, taking into
+        account the delay to display.
+
+        Required args:
+            - twop_fr (array-like): the 2p frame segments for which to get 
+                                    pupil frames
+
+        Returns:
+            - pup_fr (array-like): the pupil frames corresponding to the 2p
+                                   frames
+        """
  
+        # delay of ~0.1s to display on screen
+        delay = int(np.round(self.twop_fps * 0.1))
+        pup_fr = self.twop2pupfr[list(twop_fr)] + delay
+
+        return pup_fr
+
 
 #############################################
 #############################################
@@ -1227,6 +1428,7 @@ class Stim(object):
         Also calls
             self._set_blocks()
             self._set_stim_fr()
+            self._set_twop_fr()
 
             and if stimulus is a bricks stimulus from the production data:
             self._check_brick_prod_params()
@@ -1350,7 +1552,7 @@ class Stim(object):
                                                                                                 
         self._set_blocks()
         self._set_stim_fr()
-
+        self._set_twop_fr()
 
     #############################################
     def _check_brick_prod_params(self):
@@ -1431,12 +1633,12 @@ class Stim(object):
         whether expected number of blocks were shown and whether they 
         comprised the expected number of segments.
 
-        Note: A block is a sequence of stimulus presentations of the same 
+        NOTE: A block is a sequence of stimulus presentations of the same 
         stimulus type, and there can be multiple blocks in one experiment. 
         For Gabors, segments refer to each gabor frame (lasting 0.3 s). For 
         Bricks, segments refer to 1s of moving bricks. 
         
-        Note: Grayscr segments are not omitted when a session's segments are 
+        NOTE: Grayscr segments are not omitted when a session's segments are 
         numbered.
 
             - act_n_blocks (int)          : actual number of blocks of the 
@@ -1449,7 +1651,7 @@ class Stim(object):
             - block_ran_seg (nested lists): segment tuples (start, end) for 
                                             each block (end is EXCLUDED) each
                                             sublist contains display sequence
-                                            list, structures as 
+                                            list, structured as 
                                                 display sequence x block x 
                                                 [start, end] 
             - disp_seq (2D array)         : display start and end times in sec, 
@@ -1482,13 +1684,14 @@ class Stim(object):
         self.act_n_blocks = int(np.ceil(float(tot_disp)/block_len))
         self.extra_segs = 0
         if self.act_n_blocks != self.exp_n_blocks:
-            print('WARNING: {} {} blocks started instead of the expected {}. \n'
-                  .format(self.act_n_blocks, self.stimtype, self.exp_n_blocks))            
+            print(('    WARNING: {} {} blocks started instead of the expected '
+                   '{}.').format(self.act_n_blocks, self.stimtype, 
+                                 self.exp_n_blocks))            
             if self.act_n_blocks > self.exp_n_blocks:
                 self.extra_segs = (float(tot_disp) - \
                                    self.exp_n_blocks*block_len)*self.seg_ps_wibl 
-                print(('WARNING: In total, {} extra segments were shown, '
-                       'including blanks. \n').format(self.extra_segs))
+                print(('    WARNING: In total, {} extra segments were shown, '
+                       'including blanks.').format(self.extra_segs))
     
         # calculate uninterrupted segment ranges for each block and check for 
         # incomplete or split blocks
@@ -1518,26 +1721,26 @@ class Stim(object):
             
             if rem_seg == 1:
                 if i == len(self.disp_seq)-1:
-                    print(('WARNING: During last sequence of {}, the last '
-                          'blank segment of the {}. block was omitted. \n')
+                    print(('    WARNING: During last sequence of {}, the last '
+                          'blank segment of the {}. block was omitted.')
                           .format(self.stimtype, n_bl))
                 else:
-                    print(('WARNING: During {}. sequence of {}, the last blank '
-                          'segment of the {}. block was pushed to the start of '
-                          'the next sequence. \n').format(i+1, self.stimtype, 
-                                                          n_bl))
+                    print(('    WARNING: During {}. sequence of {}, the last '
+                          'blank segment of the {}. block was pushed to the '
+                          'start of the next sequence.').format(i+1, 
+                                                        self.stimtype, n_bl))
             elif rem_seg > 1:
 
                 if i == len(self.disp_seq)-1:
-                    print(('WARNING: During last sequence of {}, {} segments '
-                         '(incl. blanks) from the {}. block were omitted. \n')
-                         .format(self.stimtype, rem_seg, n_bl))
+                    print(('    WARNING: During last sequence of {}, {} '
+                           'segments (incl. blanks) from the {}. block were '
+                           'omitted.').format(self.stimtype, rem_seg, n_bl))
                 else:
-                    print(('WARNING: During {}. sequence of {}, {} segments '
-                          '(incl. blanks) from the {}. block were pushed to '
-                          'the next sequence. These segments will be omitted '
-                          'from analysis. \n').format(i+1, self.stimtype, 
-                                                      rem_seg, n_bl))
+                    print(('    WARNING: During {}. sequence of {}, {} '
+                          'segments (incl. blanks) from the {}. block were '
+                          'pushed to the next sequence. These segments will '
+                          'be omitted from analysis.').format(i+1, 
+                                                self.stimtype, rem_seg, n_bl))
             # get the actual length in segments of each block
             self.block_len_seg = np.diff(self.block_ran_seg).squeeze(2).tolist()
 
@@ -1601,7 +1804,6 @@ class Stim(object):
             temp = []
             for j in i:
                 # get first occurrence of first segment
-                
                 try:
                     min_idx = self.stim_seg_list.index(j[0])
                     max_idx = len(self.stim_seg_list)-1 - \
@@ -1613,6 +1815,39 @@ class Stim(object):
             self.block_ran_fr.append(temp)
         
         self.block_len_fr = np.diff(self.block_ran_fr).squeeze(2).tolist()
+
+
+    #############################################
+    def _set_twop_fr(self):
+        """
+        self._set_twop_fr()
+
+        Sets attributes related to twop frames.
+
+            - block_len_twop_fr (nested lists): same as block_ran_len but in
+                                                twop frame numbers instead,
+                                                with the flanking grayscreens
+                                                omitted
+            - block_ran_twop_fr (nested lists): same as block_ran_seg but in 
+                                                twop frame numbers instead,
+                                                with the flanking grayscreens
+                                                omitted
+        """
+
+        self.block_ran_twop_fr = []
+        for i in self.block_ran_seg:
+            temp = []
+            for j in i:
+                # get first occurrence of first segment
+                min_idx = self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == self.stimtype[0]) &
+                                                (self.sess.stim_df['stimSeg'] == j[0])]['start_frame'].tolist()[0]
+                max_idx = self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == self.stimtype[0]) &
+                                                (self.sess.stim_df['stimSeg'] == j[1]-1)]['end_frame'].tolist()[0] + 1
+                # 1 added as range end is excluded
+                temp.append([min_idx, max_idx])
+            self.block_ran_twop_fr.append(temp)
+        
+        self.block_len_twop_fr = np.diff(self.block_ran_twop_fr).squeeze(2).tolist()
 
 
     #############################################
@@ -1917,7 +2152,7 @@ class Stim(object):
         
         Will return frame numbers only for the current stim object.
 
-        Note: grayscreen frames are NOT returned
+        NOTE: grayscreen frames are NOT returned
 
         Optional args:
             - stimPar1 (str, int or list)  : stimPar1 value(s) of interest 
@@ -2217,11 +2452,12 @@ class Stim(object):
 
     #############################################
     def get_pup_diam_array(self, pup_ref_fr, pre, post, integ=False, 
-                          remnans=True, baseline=None, stats='mean'):
+                           baseline=None, stats='mean'):
         """
         self.get_pup_diam_array(pup_ref_fr, pre, post)
 
-        Returns array of pupil data around specific pupil frame numbers. 
+        Returns array of pupil data around specific pupil frame numbers. NaNs
+        are omitted in calculating statistics.
 
         Required args:
             - pup_ref_fr (list): 1D list of reference pupil frame numbers
@@ -2233,16 +2469,14 @@ class Stim(object):
                                   reference frame number (in s)
         
         Optional args:
-            - integ (bool)    : if True, running is integrated over frames
+            - integ (bool)    : if True, pupil diameter is integrated over 
+                                frames
                                 default: False
-            - remnans (bool)  : if True, NaN values are omitted in calculating 
-                                the data statistics.
-                                default: True
             - baseline (num)  : number of seconds to use as baseline. If None,
                                 data is not baselined.
                                 default: None
             - stats (str)     : statistic to use for baseline, mean ('mean') or 
-                                median ('median')
+                                median ('median') (NaN values are omitted)
                                 default: 'mean'
             
         Returns:
@@ -2273,14 +2507,8 @@ class Stim(object):
 
         data_array = self.sess.pup_nan_diam[fr_idx]
 
-        if remnans:
-            nanpol = 'omit'
-        else:
-            nanpol = None
-
-        if baseline is not None: # calculate baseline and subtract
-            if baseline > pre + post:
-                raise ValueError('Baseline greater than sequence length.')
+        nanpol = 'omit'
+        if baseline is not None:
             baseline_fr = int(np.around(baseline * self.sess.pup_fps))
             baseline_data = data_array[:, : baseline_fr]
             data_array_base = math_util.mean_med(baseline_data, stats=stats, 
@@ -2315,8 +2543,10 @@ class Stim(object):
         Optional args:
             - integ (bool)    : if True, running is integrated over frames
                                 default: False
-            - remnans (bool)  : if True, NaN values are omitted in calculating 
-                                the data statistics.
+            - remnans (bool)  : if True, NaN values are removed using linear 
+                                interpolation. If False, NaN values (but
+                                not Inf values) are omitted in calculating the 
+                                data statistics.
                                 default: True
             - baseline (num)  : number of seconds to use as baseline. If None,
                                 data is not baselined.
@@ -2348,12 +2578,13 @@ class Stim(object):
         
         fr_idx = gen_util.remove_idx(fr_idx, neg_idx + over_idx, axis=0)
 
-        data_array = self.sess.get_run_speed_by_fr(fr_idx, fr_type='stim')
+        data_array = self.sess.get_run_speed_by_fr(fr_idx, fr_type='stim', 
+                                                   remnans=remnans)
 
         if remnans:
-            nanpol = 'omit'
+            nanpol = None 
         else:
-            nanpol = None
+            nanpol = 'omit'
 
         if baseline is not None: # calculate baseline and subtract
             if baseline > pre + post:
@@ -2361,8 +2592,7 @@ class Stim(object):
             baseline_fr = int(np.around(baseline * self.sess.stim_fps))
             baseline_data = data_array[:, : baseline_fr]
             data_array_base = math_util.mean_med(baseline_data, stats=stats, 
-                                                 axis=-1, 
-                                                 nanpol=nanpol)[:, np.newaxis]
+                                        axis=-1, nanpol='omit')[:, np.newaxis]
             data_array = data_array - data_array_base
 
         if integ:
@@ -2394,8 +2624,10 @@ class Stim(object):
         Optional args:
             - integ (bool)    : if True, dF/F is integrated over sequences
                                 default: False
-            - remnans (bool)  : if True, NaN values are omitted in calculating 
-                                the data statistics.
+            - remnans (bool)  : if True, NaN values are removed using linear 
+                                interpolation. If False, NaN values (but
+                                not Inf values) are omitted in calculating the 
+                                data statistics.
                                 default: True
             - ret_arr (bool)  : also return running data array, not just  
                                 statistics
@@ -2422,12 +2654,13 @@ class Stim(object):
         """
 
         xran, data_array = self.get_run_array(stim_ref_fr, pre, post, integ, 
-                                              baseline=baseline, stats=stats)
+                                              baseline=baseline, stats=stats, 
+                                              remnans=remnans)
 
-        if not remnans:
-            nanpol = 'omit'
-        else:
+        if remnans:
             nanpol = None
+        else:
+            nanpol = 'omit'
 
         all_data = self.get_array_stats(xran, data_array, ret_arr, axes=0, 
                                         stats=stats, error=error, integ=integ, 
@@ -2445,7 +2678,7 @@ class Stim(object):
     #############################################
     def get_roi_trace_array(self, twop_ref_fr, pre, post, fluor='dff', 
                             integ=False, remnans=True, baseline=None, 
-                            stats='mean'):
+                            stats='mean', transients=False):
         """
         self.get_roi_trace_array(twop_ref_fr, pre, post)
 
@@ -2460,21 +2693,24 @@ class Stim(object):
                                   reference frame number (in s)
 
         Optional args:
-            - fluor (str)     : if 'dff', dF/F is used, if 'raw', ROI traces
-                                default: 'raw'
-            - integ (bool)    : if True, dF/F is integrated over frames
-                                default: False
-            - remnans (bool)  : if True, removes ROIs with NaN/Inf values 
-                                anywhere in session. If False, NaN values (but
-                                not Inf values) are omitted in calculating the 
-                                data statistics.
-                                default: True
-            - baseline (num)  : number of seconds to use as baseline. If None,
-                                data is not baselined.
-                                default: None
-            - stats (str)     : statistic to use for baseline, mean ('mean') or 
-                                median ('median')
-                                default: 'mean'
+            - fluor (str)      : if 'dff', dF/F is used, if 'raw', ROI traces
+                                 default: 'raw'
+            - integ (bool)     : if True, dF/F is integrated over frames
+                                 default: False
+            - remnans (bool)   : if True, ROIs with NaN/Inf values anywhere
+                                 in session are excluded. If False, NaN values 
+                                 (but not Inf values) are omitted in 
+                                 calculating the data statistics.
+                                 default: True
+            - baseline (num)   : number of seconds to use as baseline. If None,
+                                 data is not baselined.
+                                 default: None
+            - stats (str)      : statistic to use for baseline, mean ('mean') 
+                                 or median ('median')
+                                 default: 'mean'
+            - transients (bool): if True, only ROIs with transients are 
+                                 retained
+                                 default: False
          
         Returns:
             - xran (1D array)           : time values for the 2p frames
@@ -2505,6 +2741,11 @@ class Stim(object):
             data_array = math_util.integ(data_array, 1./self.sess.twop_fps, 
                                          axis=2, nanpol=nanpol)
 
+        if transients:
+            keep_rois = self.sess.get_active_rois(fluor=fluor, stimtype=None, 
+                                                  remnans=remnans)
+            data_array = data_array[keep_rois]
+
         return xran, data_array
     
     
@@ -2512,7 +2753,7 @@ class Stim(object):
     def get_roi_trace_stats(self, twop_ref_fr, pre, post, byroi=True, 
                             fluor='dff', integ=False, remnans=True, 
                             ret_arr=False, stats='mean', error='std', 
-                            baseline=None):
+                            baseline=None, transients=False):
         """
         self.get_roi_trace_stats(twop_ref_fr, pre, post)
 
@@ -2528,28 +2769,31 @@ class Stim(object):
                                   reference frame number (in s)
 
         Optional args:
-            - byroi (bool)    : if True, returns statistics for each ROI. If 
-                                False, returns statistics across ROIs
-                                default: True 
-            - fluor (str)     : if 'dff', dF/F is used, if 'raw', ROI traces
-                                default: 'raw'
-            - integ (bool)    : if True, dF/F is integrated over sequences
+            - byroi (bool)     : if True, returns statistics for each ROI. If 
+                                 False, returns statistics across ROIs
+                                 default: True 
+            - fluor (str)      : if 'dff', dF/F is used, if 'raw', ROI traces
+                                 default: 'raw'
+            - integ (bool)     : if True, dF/F is integrated over sequences
+                                 default: False
+            - remnans (bool)   : if True, ROIs with NaN/Inf values anywhere
+                                 in session are excluded. If False, NaN values 
+                                 (but not Inf values) are omitted in 
+                                 calculating the data statistics.
+                                 default: True
+            - ret_arr (bool)   : also return ROI trace data array, not just  
+                                 statistics.
+            - stats (str)      : return mean ('mean') or median ('median')
+                                 default: 'mean'
+            - error (str)      : return std dev/quartiles ('std') or SEM/MAD 
+                                 ('sem')
+                                 default: 'sem'
+            - baseline (num)   : number of seconds to use as baseline. If None,
+                                 data is not baselined.
+                                 default: None
+            - transients (bool): if True, only ROIs with transients are 
+                                retained
                                 default: False
-            - remnans (bool)  : if True, removes ROIs with NaN/Inf values 
-                                anywhere in session. If False, NaN values (but
-                                not Inf values) are omitted in calculating the 
-                                data statistics.
-                                default: True
-            - ret_arr (bool)  : also return ROI trace data array, not just  
-                                statistics.
-            - stats (str)     : return mean ('mean') or median ('median')
-                                default: 'mean'
-            - error (str)     : return std dev/quartiles ('std') or SEM/MAD 
-                                ('sem')
-                                default: 'sem'
-            - baseline (num)  : number of seconds to use as baseline. If None,
-                                data is not baselined.
-                                default: None
 
         Returns:
             - xran (1D array)           : time values for the 2p frames
@@ -2566,17 +2810,18 @@ class Stim(object):
         # array is ROI x seq (x fr)
         xran, data_array = self.get_roi_trace_array(twop_ref_fr, pre, post, 
                                                 fluor, integ, remnans=remnans, 
-                                                baseline=baseline, stats=stats)
+                                                baseline=baseline, stats=stats, 
+                                                transients=transients)
             
         # order in which to take statistics on data
         axes = [1, 0]
         if byroi:
             axes = 1
 
-        if not remnans:
-            nanpol = 'omit'
-        else:
+        if remnans:
             nanpol = None
+        else:
+            nanpol = 'omit'
 
         all_data = self.get_array_stats(xran, data_array, ret_arr, axes=axes, 
                                         stats=stats, error=error, 
@@ -2592,27 +2837,31 @@ class Stim(object):
 
 
     #############################################
-    def get_run(self, by='block'):
+    def get_run(self, by='block', remnans=True):
         """
         self.get_run()
 
         Returns run values for each stimulus frame of each stimulus block.
 
         Optional args:
-            - by (str): determines whether run values are returned in a flat 
-                        list ('frame'), grouped by block ('block'), or further 
-                        grouped by display sequence ('disp')
-                        default: 'block'
-
+            - by (str)      : determines whether run values are returned in a  
+                              flat list ('frame'), grouped by block ('block'), 
+                              or further grouped by display sequence ('disp')
+                              default: 'block'
+            - remnans (bool): if True, NaN values are removed using linear 
+                              interpolation.
+                              default: True
         Returns:
             - run (list): list of running values for stimulus blocks
         """
+        
+        full_run = self.sess.get_run_speed(remnans=remnans)
         
         run = []
         for i in self.block_ran_fr:
             temp = []
             for j in i:
-                temp.append(self.sess.run[j[0]: j[1]].tolist())
+                temp.append(full_run[j[0]: j[1]].tolist())
             run.append(temp)
 
         # if not returning by disp
@@ -2675,7 +2924,7 @@ class Gabors(Stim):
         
         Also calls
             self._set_block_params()
-
+        
             - deg_per_pix (num)       : degrees per pixels used in conversion
                                         to generate stimuli
             - n_patches (int)         : number of gabors 
@@ -2818,7 +3067,7 @@ class Gabors(Stim):
                                       'values: {}').format(block_n, 
                                                            self.stimtype, 
                                                            stimPar2))
-                block_par.append(stimPar2[0])
+                block_par.append([stimPar2[0]])
             self.block_params.append(block_par)
 
 
@@ -2990,7 +3239,7 @@ class Gabors(Stim):
         Returns stimulus parameters for 2p frame sequences specified by the 
         reference frame numbers and pre and post ranges.
 
-        Note: A warning will be thrown if any of the 2p frame sequences occur
+        NOTE: A warning will be thrown if any of the 2p frame sequences occur
         during Bricks frames. 
         (-1 parameter values will be returned for these frames, as if they
         were grayscreen frames.)
@@ -3038,7 +3287,7 @@ class Gabors(Stim):
         if hasattr(self.sess, 'bricks'):
             bri_segs = self.sess.bricks.get_segs_by_twopfr(twopfr_seqs)
             if not (bri_segs == -1).all():
-                print(('\nWARNING: some of the frames requested occur while '
+                print(('    WARNING: some of the frames requested occur while '
                        'Bricks are presented.'))
 
         # get seg numbers for each twopfr in each sequence
@@ -3205,44 +3454,13 @@ class Bricks(Stim):
         return right_segs, left_segs
 
 
-    #############################################
-    def get_dir_frames_reg(self, by='block'):
-        """
-        self.get_dir_frames_reg()
-
-        Returns two lists of stimulus frame number, the first is a list of the 
-        first frame for each right moving segment. The second is a list of the 
-        first frame for each left moving segment. Both lists exclude surprise 
-        segments.
-
-        Optional args:
-            - by (str): determines whether frame numbers are returned in a 
-                        flat list ('frame'), grouped by block ('block'), or 
-                        further grouped by display sequence ('disp')
-                        default: 'block'
-
-        Returns:
-            - right_frames (list): list of first stimulus frame numbers for 
-                                   each right moving segment, excluding 
-                                   surprise segments.
-            - left_frames (list) : list of first stimulus frame numbers for 
-                                   each left moving segment, excluding surprise 
-                                   segments.
-        """
-
-        right_frames = self.get_stim_fr_by_criteria(bri_dir='right', surp=0, 
-                                                   by=by)
-        left_frames  = self.get_stim_fr_by_criteria(bri_dir='left', surp=0, 
-                                                   by=by)
-
-        return right_frames, left_frames
-        
-
 #############################################
 #############################################
 class Grayscr():
     """
-    The Grayscr object describes describes grayscreen specific properties. 
+    The Grayscr object describes describes grayscreen specific properties.
+
+    NOTE: Not well fleshed out, currently.
     """
 
     
@@ -3319,7 +3537,7 @@ class Grayscr():
         grayscreen sequence occuring outside of gabor stimulus blocks, and 
         the number of consecutive grayscreen stimulus frames for each sequence. 
                 
-        Note that any grayscreen stimulus frames for sequences flanking gabor 
+        NOTE: any grayscreen stimulus frames for sequences flanking gabor 
         stimulus blocks are included in the returned list.
         
         Returns:
@@ -3405,7 +3623,7 @@ class Grayscr():
         grayscreen sequence occuring during a gabor stimulus blocks, and the 
         number of consecutive grayscreen stimulus frames for each sequence. 
                 
-        Note that any grayscreen stimulus frames for sequences flanking gabor 
+        NOTE: any grayscreen stimulus frames for sequences flanking gabor 
         stimulus blocks are excluded in the returned list.
 
         Optional args:
