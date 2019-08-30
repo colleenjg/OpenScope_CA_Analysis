@@ -365,7 +365,7 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
     zz += 1
 
     for stype_n in range(num_stimtypes):
-        print('stimtype:', stim_types[stype_n])
+        print('    stimtype: {}'.format(stim_types[stype_n]))
         movie_segs = pkl['stimuli'][stype_n]['frame_list']
 
         for segment in range(segs[stype_n]):

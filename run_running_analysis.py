@@ -111,8 +111,9 @@ def init_param_cont(args):
                                      (4, 16 or [4, 16])
             gab_ori (int or list)  : gabor orientation values to include
                                      ([0, 45, 90, 135])
-            keepnans (str)         : if True, ROIs with NaN/Inf values are 
-                                     kept in the analyses.
+            keepnans (str)         : if True, the original running array is 
+                                     used instead of the one where NaNs
+                                     are interpolated.
             lag_s (num)            : lag for autocorrelation (in sec)
             layer (str)            : layer ('soma', 'dend', 'L23_soma', 
                                      'L5_soma', 'L23_dend', 'L5_dend', 
@@ -361,7 +362,7 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
         - skipped (str): any analyses skipped
     """
 
-    all_analyses = 'tlma'
+    all_analyses = 'ftlma'
     all_check = ''
 
     if 'all' in analyses:
@@ -375,6 +376,13 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
 
     # changes backend and defaults
     plot_util.manage_mpl(cmap=False, **figpar['mng'])
+
+    # 0. Plots the full traces for each session
+    if 'f' in analyses: # full traces
+        gen_analys.run_full_traces(sessions, 'f', analyspar, sesspar, figpar, 
+                                   datatype='run')
+    all_check += 'f'
+
 
     # 1. Analyses and plots average running by quintile x surprise for each 
     # session 
@@ -457,7 +465,8 @@ if __name__ == "__main__":
     # generally fixed 
         # analysis parameters
     parser.add_argument('--keepnans', action='store_true', 
-                        help='keep ROIs containing NaNs or Infs in session.')
+                        help=('use running array in which NaN values have not '
+                              'been interpolated.'))
     parser.add_argument('--stats', default='mean', help='plot mean or median')
     parser.add_argument('--error', default='sem', 
                         help='sem for SEM/MAD, std for std/qu')    
@@ -496,21 +505,6 @@ if __name__ == "__main__":
                         help=('plot from dictionary using modified plot '
                               'functions'))
     args = parser.parse_args()
-
-
-
-
-
-    args.runtype = 'pilot'
-    args.layer = 'dend'
-    args.bri_dir = 'left'
-    args.analyses = 'a'
-
-
-
-
-
-
 
     args.fontdir = os.path.join('..', 'tools', 'fonts')
 

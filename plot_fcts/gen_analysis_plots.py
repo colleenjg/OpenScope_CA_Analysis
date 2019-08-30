@@ -22,12 +22,11 @@ import numpy as np
 import scipy.stats as st
 
 from sess_util import sess_gen_util, sess_plot_util, sess_str_util
-from util import file_util, gen_util, plot_util
+from util import file_util, gen_util, math_util, plot_util
 
 
 #############################################
-def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None,
-                   plot_tc=True):
+def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None):
     """
     plot_from_dict(info_path, args)
 
@@ -42,8 +41,6 @@ def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None,
                            default: False
         - plt_bkend (str): mpl backend to use for plotting (e.g., 'agg')
                            default: None
-        - plot_tc (bool) : if True, tuning curves are plotted for each ROI 
-                           (causes errors on the clusters...)
     """
 
     figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir)
@@ -53,6 +50,10 @@ def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None,
     savedir = os.path.dirname(dict_path)
 
     analysis = info['extrapar']['analysis']
+
+    # 0. Plots the full traces for each session
+    if analysis == 'f': # full traces
+        plot_full_traces(figpar=figpar, savedir=savedir, **info)
 
     # 1. Plot average traces by quintile x surprise for each session 
     if analysis == 't': # traces
@@ -73,6 +74,155 @@ def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None,
 
     else:
         print('No plotting function for analysis {}'.format(analysis))
+
+
+#############################################
+def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info, 
+                     roi_tr=None, figpar=None, savedir=None):
+    """
+    plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info)
+
+    From dictionaries, plots full traces for each session in a separate subplot.
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict)  : dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict)    : dictionary with keys of SessPar namedtuple
+        - extrapar (dict)   : dictionary containing additional analysis 
+                              parameters
+            ['analysis'] (str): analysis type (e.g., 't')
+            ['datatype'] (str): datatype (e.g., 'run', 'roi')
+        - sess_info (dict)  : dictionary containing information from each
+                              session 
+            ['mouse_ns'] (list)   : mouse numbers
+            ['sess_ns'] (list)    : session numbers  
+            ['lines'] (list)      : mouse lines
+            ['layers'] (list)     : imaging layers
+            ['nrois'] (list)      : number of ROIs in session
+            ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
+            ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
+                                    for sessions for which this attribute 
+                                    exists
+        - trace_info (dict): dictionary containing trace information
+            ['all_tr'] (nested list): trace values structured as
+                                          sess x 
+                                          (me/err if datatype is 'roi' x)
+                                          frames
+            ['all_edges'] (list)    : frame edge values for each parameter, 
+                                      structured as sess x block x 
+                                                    edges ([start, end])
+            ['all_pars'] (list)     : stimulus parameter strings structured as 
+                                                    sess x block
+                
+    Optional args:
+        - roi_tr (list): trace values for each ROI, structured as 
+                         sess x ROI x frames
+                         default: None
+        - figpar (dict): dictionary containing the following figure parameter 
+                         dictionaries
+                         default: None
+            ['init'] (dict): dictionary with figure initialization parameters
+            ['save'] (dict): dictionary with figure saving parameters
+            ['dirs'] (dict): dictionary with additional figure parameters
+        - savedir (str): path of directory in which to save plots.
+                         default: None    
+    
+    Returns:
+        - fulldir (str) : final name of the directory in which the figure is 
+                          saved (may differ from input savedir, if datetime 
+                          subfolder is added.)
+        - savename (str): name under which the figure is saved
+    """
+ 
+    statstr_pr = sess_str_util.stat_par_str(analyspar['stats'], 
+                                            analyspar['error'], 'print')
+    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+                                            extrapar['datatype'], 'print')
+        
+    sessstr = 'sess{}_{}'.format(sesspar['sess_n'], sesspar['layer'])
+    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+                                         extrapar['datatype'])
+
+    datatype = extrapar['datatype']
+
+    # extract some info from sess_info
+    keys = ['mouse_ns', 'sess_ns', 'lines', 'layers', 'nrois']
+    [mouse_ns, sess_ns, lines, layers, nrois] = [sess_info[key] for key in keys]
+    
+    n_sess = len(mouse_ns)
+    nanroi_vals = [sess_info['nanrois'], sess_info['nanrois_dff']]
+    [n_nan, n_nan_dff] = [[len(val[i]) for i in range(n_sess)] 
+                                       for val in nanroi_vals]
+
+    if figpar is None:
+        figpar = sess_plot_util.init_figpar()
+    figpar = copy.deepcopy(figpar)
+    figpar['init']['subplot_wid'] = 15
+    figpar['init']['ncols'] = n_sess
+    if datatype == 'roi':
+        figpar['save']['fig_ext'] = 'jpg'
+        figpar['init']['sharex'] = False
+        figpar['init']['sharey'] = False
+        # set subplot ratios and removes extra space between plots vertically
+        gs = {'height_ratios': [5, 1], 'hspace': 0.1} 
+        n_rows = 2
+        if roi_tr is None:
+            raise ValueError(('Cannot plot data as ROI traces are '
+                              'missing (not recorded in dictionary)'))
+    else:
+        gs = None
+        n_rows = 1
+
+    fig, ax = plot_util.init_fig(n_sess*n_rows, gs=gs, **figpar['init'])
+    fig.suptitle('Full traces across sessions')
+    if datatype == 'roi':
+        fig.subplots_adjust(top=0.92) # remove extra white space at top
+    for i in range(n_sess):
+        remnans = analyspar['remnans'] * (datatype == 'roi')
+        sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i],
+                                             remnans, analyspar['fluor'])
+        title = 'Mouse {} (sess {}, {} {}{}, n={})'.format(mouse_ns[i], 
+                sess_ns[i], lines[i], layers[i], dendstr_pr, sess_nrois)
+        sub_axs = ax[:, i]
+        sub_axs[0].set_title(title)
+        if datatype == 'roi':
+            xran = range(len(trace_info['all_tr'][i][1]))   
+            # each ROI (top subplot)
+            plot_util.plot_sep_data(sub_axs[0], np.asarray(roi_tr[i]), 0.1)
+            sess_plot_util.add_axislabels(sub_axs[0], fluor=analyspar['fluor'], 
+                                        scale=True, datatype=datatype, x_ax='')
+            
+            # average across ROIs (bottom subplot)
+            av_tr = np.asarray(trace_info['all_tr'][i])
+            subtitle = u'{} across ROIs'.format(statstr_pr)
+            plot_util.plot_traces(sub_axs[1], xran, av_tr[0], av_tr[1:], lw=0.2,
+                                  title=subtitle)
+        else:
+            xran = range(len(trace_info['all_tr'][i]))
+            run_tr = np.asarray(trace_info['all_tr'][i])
+            sub_axs[0].plot(run_tr, lw=0.2)
+        for b, block in enumerate(trace_info['all_edges'][i]):
+            # all block labels to the lower plot
+            plot_util.add_labels(sub_axs[-1], trace_info['all_pars'][i][b], 
+                                 np.mean(block), 0.75, 'k')
+            sess_plot_util.add_axislabels(sub_axs[-1], 
+                                          fluor=analyspar['fluor'], 
+                                          datatype=datatype, x_ax='')
+            plot_util.remove_ticks(sub_axs[-1], True, False)
+            plot_util.remove_graph_bars(sub_axs[-1], bars='horiz')
+            # add lines to both plots
+            for r in range(n_rows):
+                plot_util.add_bars(sub_axs[r], bars=block)
+                
+    if savedir is None:
+        savedir = os.path.join(figpar['dirs'][datatype], figpar['dirs']['full'])
+
+    savename = '{}_tr_{}{}'.format(datatype, sessstr, dendstr)
+    fulldir = plot_util.savefig(fig, savename, savedir, dpi=400, 
+                                **figpar['save'])
+
+    return fulldir, savename
 
 
 #############################################
@@ -109,7 +259,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
                                     for sessions for which this attribute 
                                     exists
         - trace_stats (dict): dictionary containing trace stats information
-            ['x_ran'] (array-like)     : time values for the 2p frames
+            ['x_ran'] (array-like)     : time values for the frames
             ['all_stats'] (list)       : list of 4D arrays or lists of trace 
                                          data statistics across ROIs, 
                                          structured as:
@@ -140,11 +290,15 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
                                     stimpar['gabk'], 'print')
     statstr_pr = sess_str_util.stat_par_str(analyspar['stats'], 
                                             analyspar['error'], 'print')
-
+    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+                                            extrapar['datatype'], 'print')
+        
     sessstr = sess_str_util.sess_par_str(sesspar['sess_n'], stimpar['stimtype'],
                                          sesspar['layer'], stimpar['bri_dir'], 
                                          stimpar['bri_size'], stimpar['gabk'])
-    
+    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+                                         extrapar['datatype'])
+     
     datatype = extrapar['datatype']
     dimstr = sess_str_util.datatype_dim_str(datatype)
 
@@ -183,9 +337,9 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
                 if qu_lab != '':
                     qu_lab = '{} '.format(qu_lab.capitalize())
                 title=(u'Mouse {} - {} {} across {}\n(sess {}, '
-                       '{} {}, n={})').format(mouse_ns[i], stimstr_pr, 
-                                              statstr_pr, dimstr, sess_ns[i], 
-                                              lines[i], layers[i], sess_nrois)
+                       '{} {}{}, n={})').format(mouse_ns[i], stimstr_pr, 
+                                      statstr_pr, dimstr, sess_ns[i], lines[i], 
+                                      layers[i], dendstr_pr, sess_nrois)
                 leg = '{}{} ({})'.format(qu_lab, leg_ext, all_counts[i][s][q])
                 plot_util.plot_traces(sub_ax, x_ran, all_stats[i][s, q, 0], 
                                       all_stats[i][s, q, 1:], title, 
@@ -207,7 +361,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
     if quintpar['n_quints'] == 1:
         qu_str = ''
 
-    savename = '{}_av_{}{}'.format(datatype, sessstr, qu_str)
+    savename = '{}_av_{}{}{}'.format(datatype, sessstr, dendstr, qu_str)
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
 
     return fulldir, savename
@@ -294,10 +448,15 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                                     stimpar['gabk'], 'print')
     statstr_pr = sess_str_util.stat_par_str(analyspar['stats'], 
                                             analyspar['error'], 'print')
-
+    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+                                            extrapar['datatype'], 'print')
+        
     sessstr = sess_str_util.sess_par_str(sesspar['sess_n'], stimpar['stimtype'],
                                          sesspar['layer'], stimpar['bri_dir'], 
                                          stimpar['bri_size'], stimpar['gabk'])
+    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+                                         extrapar['datatype'])
+     
     basestr = sess_str_util.base_par_str(trace_stats['baseline'])
     basestr_pr = sess_str_util.base_par_str(trace_stats['baseline'], 'print')
 
@@ -345,10 +504,10 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         remnans = analyspar['remnans'] * (datatype == 'roi')
         sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i],
                                              remnans, analyspar['fluor'])
-        title=(u'Mouse {} - {} {} {} locked across {}{}\n(sess {}, {} {}, '
+        title=(u'Mouse {} - {} {} {} locked across {}{}\n(sess {}, {} {}{}, '
                 'n={})').format(mouse_ns[i], stimstr_pr, statstr_pr, lock, 
                                 dimstr, basestr_pr, sess_ns[i], lines[i], 
-                                layers[i], sess_nrois)
+                                layers[i], dendstr_pr, sess_nrois)
         sess_plot_util.add_axislabels(sub_ax, fluor=analyspar['fluor'], 
                                       datatype=datatype)
         plot_util.add_bars(sub_ax, hbars=0)
@@ -400,8 +559,8 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
     if quintpar['n_quints'] == 1:
         qu_str = ''
  
-    savename = '{}_av_{}lock{}{}_{}{}'.format(datatype, lock, len_ext, basestr, 
-                                              sessstr, qu_str)
+    savename = '{}_av_{}lock{}{}_{}{}{}'.format(datatype, lock, len_ext, basestr, 
+                                                sessstr, dendstr, qu_str)
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
 
     return fulldir, savename
@@ -478,11 +637,15 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
                                        stimpar['gabk'], 'print')
     statstr_pr = sess_str_util.stat_par_str(analyspar['stats'], 
                                             analyspar['error'], 'print')
-
+    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+                                            extrapar['datatype'], 'print')
+        
     sessstr = sess_str_util.sess_par_str(sesspar['sess_n'], stimpar['stimtype'], 
                                          sesspar['layer'], stimpar['bri_dir'],
                                          stimpar['bri_size'], stimpar['gabk']) 
-
+    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+                                         extrapar['datatype'])
+     
     datatype = extrapar['datatype']
     dimstr = sess_str_util.datatype_dim_str(datatype)
     
@@ -526,9 +689,9 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
     title = ((u'Magnitude ({}) of difference in activity \nbetween Q{}'
                ' and {} across {} \n({})').format(statstr_pr, qu_ns[0], 
                                                  qu_ns[1], dimstr, sessstr_pr))
-    labels = ['Mouse {} sess {},\n {} {} (n={})'.format(mouse_ns[i], sess_ns[i], 
-                                            lines[i], layers[i], all_nrois[i]) 
-                                            for i in range(n_sess)]
+    labels = ['Mouse {} sess {},\n {} {}{} (n={})'.format(mouse_ns[i], 
+              sess_ns[i], lines[i], layers[i], dendstr_pr, all_nrois[i]) 
+              for i in range(n_sess)]
 
     figs, axs = [], []
     for sc, scale in enumerate(scales):
@@ -571,7 +734,7 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
         if i == len(figs) - 1:
             print_dir = True
         scalestr = sess_str_util.scale_par_str(scale)
-        savename = '{}_mag_diff_{}'.format(datatype, sessstr)
+        savename = '{}_mag_diff_{}{}'.format(datatype, sessstr, dendstr)
         savename_full = '{}{}'.format(savename, scalestr)
         fulldir = plot_util.savefig(fig, savename_full, savedir, 
                                     print_dir=print_dir, ** figpar['save'])
@@ -639,11 +802,15 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
     stimstr_pr = sess_str_util.stim_par_str(stimpar['stimtype'], 
                                     stimpar['bri_dir'], stimpar['bri_size'], 
                                     stimpar['gabk'], 'print')
-    
+    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+                                    extrapar['datatype'], 'print')
+
     sessstr = sess_str_util.sess_par_str(sesspar['sess_n'], stimpar['stimtype'], 
                                          sesspar['layer'], stimpar['bri_dir'],
                                          stimpar['bri_size'], stimpar['gabk']) 
- 
+    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+                                         extrapar['datatype'])
+     
     datatype = extrapar['datatype']
     if datatype == 'roi':
         fluorstr_pr = sess_str_util.fluor_par_str(analyspar['fluor'], 
@@ -689,10 +856,10 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
         remnans = analyspar['remnans'] * (datatype == 'roi')
         sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i], 
                                              remnans, analyspar['fluor'])
-        title = (u'Mouse {} - {} {} {}\n(sess {}, {} {}, '
+        title = (u'Mouse {} - {} {} {}\n(sess {}, {} {}{}, '
                   '(n={}))').format(mouse_ns[i], statstr_pr, stimstr_pr, 
                                     title_str, sess_ns[i], lines[i], layers[i], 
-                                    sess_nrois)
+                                    dendstr_pr, sess_nrois)
         # transpose to ROI/lag x stats x series
         sess_stats = stats[i].transpose(1, 0, 2) 
         for s, sub_stats in enumerate(sess_stats):
@@ -712,10 +879,10 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
         savedir = os.path.join(figpar['dirs'][datatype], 
                                figpar['dirs']['autocorr'])
 
-    savename = ('{}_autocorr{}_{}').format(datatype, byitemstr, sessstr)
+    savename = ('{}_autocorr{}_{}{}').format(datatype, byitemstr, sessstr, 
+                                             dendstr)
 
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
 
     return fulldir, savename
-    
     
