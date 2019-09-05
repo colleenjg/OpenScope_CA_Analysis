@@ -71,8 +71,8 @@ def depth_vals(layer, line):
 
 #############################################
 def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth, 
-                pass_fail='P', all_files=1, any_files=1, min_rois=1, 
-                unique=False, sort=False):
+                pass_fail='P', incl='yes', all_files=1, any_files=1, 
+                min_rois=1, unique=False, sort=False):
     """
     get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth)
 
@@ -93,6 +93,9 @@ def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth,
     Optional args:
         - pass_fail (str or list)     : pass/fail values of interest ('P', 'F')
                                         default: 'P'
+        - incl (str)                  : which sessions to include ('yes', 'no', 
+                                        'any')
+                                        default: 'yes'
         - all_files (int, str or list): all_files values of interest (0, 1)
                                         default: 1
         - any_files (int, str or list): any_files values of interest (0, 1)
@@ -112,12 +115,12 @@ def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth,
 
     # make sure all of these labels are lists
     all_labs = [mouse_n, sessid, sess_n, runtype, depth, pass_fail, 
-                all_files, any_files]
+                incl, all_files, any_files]
     for i in range(len(all_labs)):
         all_labs[i] = gen_util.list_if_not(all_labs[i])
 
     [mouse_n, sessid, sess_n, runtype, depth, 
-              pass_fail, all_files, any_files] = all_labs
+        pass_fail, incl, all_files, any_files] = all_labs
 
     df_vals = mouse_df.loc[(mouse_df['mouse_n'].isin(mouse_n)) & 
                            (mouse_df['sessid'].isin(sessid)) &
@@ -125,6 +128,7 @@ def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth,
                            (mouse_df['runtype'].isin(runtype)) &
                            (mouse_df['depth'].isin(depth)) &
                            (mouse_df['pass_fail'].isin(pass_fail)) &
+                           (mouse_df['incl'].isin(incl)) &
                            (mouse_df['all_files'].isin(all_files)) &
                            (mouse_df['any_files'].isin(any_files)) &
                            (mouse_df['nrois'].astype(int) >= min_rois)][returnlab].tolist()
@@ -141,8 +145,8 @@ def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth,
 #############################################
 def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any', 
                   runtype='any', layer='any', line='any', pass_fail='P', 
-                  all_files=1, any_files=1, min_rois=1, omit_sess=[], 
-                  omit_mice=[], unique=True, sort=True):
+                  incl='all', all_files=1, any_files=1, min_rois=1, 
+                  omit_sess=[], omit_mice=[], unique=True, sort=True):
     """
     get_sess_vals(mouse_df, returnlab)
 
@@ -171,6 +175,9 @@ def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any',
         - pass_fail (str or list)     : pass/fail values of interest 
                                         ('P', 'F', 'any')
                                         default: 'P'
+        - incl (str)                  : which sessions to include ('yes', 'no', 
+                                        'any')
+                                        default: 'yes'
         - all_files (str, int or list): all_files values of interest (0, 1)
                                         default: 1
         - any_files (str, int or list): any_files values of interest (0, 1)
@@ -199,16 +206,16 @@ def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any',
 
     sessid      = 'any'
     params      = [mouse_n, sessid, sess_n, runtype, depth,  
-                   pass_fail, all_files, any_files]
+                   pass_fail, incl, all_files, any_files]
     param_names = ['mouse_n', 'sessid', 'sess_n', 'runtype', 'depth',
-                   'pass_fail', 'all_files', 'any_files']
+                   'pass_fail', 'incl', 'all_files', 'any_files']
     
     # for each label, collect values in a list
     for i in range(len(params)):
         params[i] = gen_util.get_df_label_vals(mouse_df, param_names[i], 
                                                params[i])   
     [mouse_n, sessid, sess_n, runtype, depth,  
-              pass_fail, all_files, any_files] = params
+              pass_fail, incl, all_files, any_files] = params
 
     # remove omitted sessions from the session id list
     sessid = gen_util.remove_if(sessid, omit_sess)
@@ -217,7 +224,7 @@ def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any',
     mouse_n = gen_util.remove_if(mouse_n, omit_mice)
 
     sess_vals = get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, 
-                            runtype, depth, pass_fail, all_files, 
+                            runtype, depth, pass_fail, incl, all_files, 
                             any_files, min_rois, unique, sort)
 
     sess_vals = list(set(sess_vals)) # get unique
@@ -227,9 +234,9 @@ def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any',
 
 #############################################
 def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod', 
-                   layer='any', line='any', pass_fail='P', all_files=1, 
-                   any_files=1, min_rois=1, closest=False, omit_sess=[], 
-                   omit_mice=[]):
+                   layer='any', line='any', pass_fail='P', incl='yes',
+                   all_files=1, any_files=1, min_rois=1, closest=False, 
+                   omit_sess=[], omit_mice=[]):
     """
     sess_per_mouse(mouse_df)
     
@@ -258,6 +265,9 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
         - pass_fail (str or list): pass/fail values of interest 
                                    ('P', 'F', 'any')
                                    default: 'P'
+        - incl (str)             : which sessions to include ('yes', 'no', 
+                                   'any')
+                                   default: 'yes'
         - all_files (int or list): all_files values of interest (0, 1)
                                    default: 1
         - any_files (int or list): any_files values of interest (0, 1)
@@ -285,15 +295,15 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
 
     # get list of mice that fit the criteria
     mouse_ns = get_sess_vals(mouse_df, 'mouse_n', mouse_n, sess_n, runtype,  
-                             layer, line, pass_fail, all_files, any_files, 
-                             min_rois, omit_sess, omit_mice, unique=True, 
-                             sort=True)
+                             layer, line, pass_fail, incl, all_files, 
+                             any_files, min_rois, omit_sess, omit_mice, 
+                             unique=True, sort=True)
 
     # get session ID each mouse based on criteria 
     sessids = []
     for i in sorted(mouse_ns):
         sess_ns = get_sess_vals(mouse_df, 'sess_n', i, sess_n, runtype, layer, 
-                                line, pass_fail, all_files, any_files, 
+                                line, pass_fail, incl, all_files, any_files, 
                                 min_rois, omit_sess, omit_mice, sort=True)
         # skip mouse if no sessions meet criteria
         if len(sess_ns) == 0:
@@ -306,8 +316,8 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
             sess_n = sess_ns[np.argmin(np.absolute([x-sess_n 
                                                     for x in sess_ns]))]
         sessid = get_sess_vals(mouse_df, 'sessid', i, sess_n, runtype, layer, 
-                               line, pass_fail, all_files, any_files, min_rois,
-                               omit_sess, omit_mice)[0]
+                               line, pass_fail, incl, all_files, any_files, 
+                               min_rois, omit_sess, omit_mice)[0]
         sessids.append(sessid)
     
     if len(sessids) == 0:
@@ -318,9 +328,9 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
 
 #############################################
 def sess_comb_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod', 
-                        layer='any', line='any', pass_fail='P', all_files=1, 
-                        any_files=1, min_rois=1, closest=False, omit_sess=[], 
-                        omit_mice=[]):
+                        layer='any', line='any', pass_fail='P', incl='yes', 
+                        all_files=1, any_files=1, min_rois=1, closest=False, 
+                        omit_sess=[], omit_mice=[]):
     """
     sess_comb_per_mouse(mouse_df)
     
@@ -348,6 +358,9 @@ def sess_comb_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
         - pass_fail (str or list): pass/fail values of interest 
                                    ('P', 'F', 'any')
                                    default: 'P'
+        - incl (str)             : which sessions to include ('yes', 'no', 
+                                   'any')
+                                   default: 'yes'
         - all_files (int or list): all_files values of interest (0, 1)
                                    default: 1
         - any_files (int or list): any_files values of interest (0, 1)
@@ -385,7 +398,7 @@ def sess_comb_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
     mouse_ns = []
     for n in sess_n:
         ns = get_sess_vals(mouse_df, 'mouse_n', mouse_n, n, runtype,  
-                           layer, line, pass_fail, all_files, any_files, 
+                           layer, line, pass_fail, incl, all_files, any_files, 
                            min_rois, omit_sess, omit_mice, unique=True, 
                            sort=True)
         mouse_ns.append(ns)
@@ -398,7 +411,7 @@ def sess_comb_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
         mouse_sessids = []
         for n in sess_n:
             sessid = get_sess_vals(mouse_df, 'sessid', i, n, runtype, 
-                                   layer, line, pass_fail, all_files, 
+                                   layer, line, pass_fail, incl, all_files, 
                                    any_files, min_rois, omit_sess, omit_mice)[0]
             mouse_sessids.append(sessid)
         sessids.append(mouse_sessids)

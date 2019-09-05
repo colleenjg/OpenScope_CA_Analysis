@@ -43,6 +43,8 @@ def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None):
                            default: None
     """
 
+    print('\nPlotting from dictionary: {}'.format(dict_path))
+    
     figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir)
     plot_util.manage_mpl(cmap=False, **figpar['mng'])
 
@@ -73,7 +75,7 @@ def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None):
         plot_autocorr(figpar=figpar, savedir=savedir, **info)
 
     else:
-        print('No plotting function for analysis {}'.format(analysis))
+        print('    No plotting function for analysis {}'.format(analysis))
 
 
 #############################################
@@ -319,9 +321,9 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
     alpha = np.min([0.4, 0.8/quintpar['n_quints']])
 
     surps = ['reg', 'surp']
-    ev = 6
+    n = 6
     if stimpar['stimtype'] == 'bricks':
-        ev = 7
+        n = 7
 
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
@@ -344,7 +346,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
                 plot_util.plot_traces(sub_ax, x_ran, all_stats[i][s, q, 0], 
                                       all_stats[i][s, q, 1:], title, 
                                       col=col[q], alpha=alpha, label=leg, 
-                                      xticks_ev=ev)
+                                      n_xticks=n)
                 sess_plot_util.add_axislabels(sub_ax, fluor=analyspar['fluor'], 
                                               datatype=datatype)
 
@@ -496,7 +498,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         figpar = sess_plot_util.init_figpar()
     figpar = copy.deepcopy(figpar)
     figpar['init']['subplot_wid'] *= 2
-    ev = 21
+    n = 21
 
     fig, ax = plot_util.init_fig(n_sess, **figpar['init'])
     for i, (stats, counts) in enumerate(zip(all_stats, all_counts)):
@@ -543,7 +545,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                 leg = '{} ({})'.format(lab, counts[q])
                 plot_util.plot_traces(sub_ax, x_ran, stats[q][0], stats[q][1:], 
                                       title, alpha=alpha, label=leg, 
-                                      xticks_ev=ev, alpha_line=0.8, 
+                                      n_xticks=n, alpha_line=0.8, 
                                       col=cols[n])
                 n += 1
             if surp_len is not None:

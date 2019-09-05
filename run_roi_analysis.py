@@ -123,6 +123,7 @@ def init_param_cont(args):
             grps (str or list)     : set or sets of groups to return, 
                                      ('all', 'change', 'no_change', 'reduc', 
                                      'incr'.)
+            incl (str)             : sessions to include ('yes', 'no', 'all') 
             keepnans (str)         : if True, ROIs with NaN/Inf values are 
                                      kept in the analyses.
             lag_s (num)            : lag for autocorrelation (in sec)
@@ -132,6 +133,7 @@ def init_param_cont(args):
             min_rois (int)         : min number of ROIs
             n_perms (int)          : nbr of permutations to run
             n_quints (int)         : number of quintiles
+            ncols (int)            : number of columns
             no_add_reg (bool)      : if True, the group of ROIs showing no 
                                      significance in either is not added to   
                                      the groups returned
@@ -234,8 +236,8 @@ def init_param_cont(args):
     # session parameters
     sesspar = sess_ntuple_util.init_sesspar(args.sess_n, args.closest, 
                                             args.layer, 'any', args.min_rois, 
-                                            args.pass_fail, args.runtype)
-
+                                            args.pass_fail, args.incl, 
+                                            args.runtype)
     # stimulus parameters
     stimpar = sess_ntuple_util.init_stimpar(args.bri_dir, args.bri_size, 
                                             args.gabfr, args.gabk, 
@@ -263,7 +265,8 @@ def init_param_cont(args):
                                               args.tc_prev)
 
     # figure parameters
-    figpar = sess_plot_util.init_figpar(datetime=not(args.no_datetime), 
+    figpar = sess_plot_util.init_figpar(ncols=int(args.ncols), 
+                                        datetime=not(args.no_datetime), 
                                         overwrite=args.overwrite, 
                                         runtype=args.runtype, 
                                         output=args.output, 
@@ -571,8 +574,8 @@ if __name__ == "__main__":
     parser.add_argument('--parallel', action='store_true', 
                         help='do sess_n\'s in parallel.')
     parser.add_argument('--dict_path', default='', 
-                        help=('path to info dictionary from which to plot '
-                              'data.'))
+                        help=('path to info dictionary or directory of '
+                              'dictionaries from which to plot data.'))
     parser.add_argument('--seed', default=-1, type=int, 
                         help='random seed (-1 for None)')
     parser.add_argument('--no_plot_tc', action='store_true', 
@@ -604,13 +607,15 @@ if __name__ == "__main__":
     parser.add_argument('--stats', default='mean', help='plot mean or median')
     parser.add_argument('--error', default='sem', 
                         help='sem for SEM/MAD, std for std/qu')    
-    parser.add_argument('--dend', default='aibs', help='aibs, extr')
+    parser.add_argument('--dend', default='extr', help='aibs, extr')
         # session parameters
     parser.add_argument('--closest', action='store_true', 
                         help=('if True, the closest session number is used. '
                               'Otherwise, only exact.'))
     parser.add_argument('--pass_fail', default='P', 
                         help='P to take only passed sessions')
+    parser.add_argument('--incl', default='yes',
+                        help='include only `yes`, `no` or `any`')
         # stimulus parameters
     parser.add_argument('--bri_size', default=128, 
                         help='brick size (128, 256, or both)')
@@ -656,6 +661,7 @@ if __name__ == "__main__":
                         help=('runs analysis using previous parameter '
                               'estimation method'))
         # figure parameters
+    parser.add_argument('--ncols', default=4, help='number of columns')
     parser.add_argument('--no_datetime', action='store_true',
                         help='create a datetime folder')
     parser.add_argument('--overwrite', action='store_true', 
@@ -710,7 +716,8 @@ if __name__ == "__main__":
             all_sess_ns = sess_gen_util.get_sess_vals(mouse_df, 'sess_n', 
                             runtype=args.runtype, layer=args.layer, 
                             min_rois=args.min_rois, pass_fail=args.pass_fail, 
-                            omit_sess=args.omit_sess, omit_mice=args.omit_mice)
+                            incl=args.incl, omit_sess=args.omit_sess, 
+                            omit_mice=args.omit_mice)
         else:
             all_sess_ns = gen_util.list_if_not(args.sess_n)
 

@@ -730,7 +730,7 @@ def add_vshade(sub_ax, start, end=None, width=None, alpha=0.4, col='k'):
 
 #############################################
 def plot_traces(sub_ax, x, y, err=None, title='', lw=None, col=None, 
-                alpha=0.5, xticks_ev=6, xticks=None, yticks=None, label=None, 
+                alpha=0.5, n_xticks=6, xticks=None, yticks=None, label=None, 
                 alpha_line=1.0):
     """
     plot_traces(sub_ax, x, y)
@@ -755,7 +755,7 @@ def plot_traces(sub_ax, x, y, err=None, title='', lw=None, col=None,
         - alpha (num)        : plt alpha variable controlling shading 
                                transparency (from 0 to 1)
                                default: 0.5
-        - xticks_ev (int)    : frequency of xtick labels
+        - n_xticks (int)     : number of xticks
                                default: 6
         - xticks (str)       : xtick labels (overrides xticks_ev)
                                default: None
@@ -784,7 +784,7 @@ def plot_traces(sub_ax, x, y, err=None, title='', lw=None, col=None,
 
     if xticks is None:
         set_ticks(sub_ax, 'x', np.around(np.min(x), 1), 
-                  np.around(np.max(x), 1), xticks_ev)
+                  np.around(np.max(x), 1), n_xticks)
     else:
         sub_ax.set_xticks(xticks)
     
@@ -1042,7 +1042,6 @@ def plot_bars(sub_ax, x, y, err=None, title='', width=0.75, lw=None, col=None,
                                transparency (from 0 to 1)
                                default: 0.5
         - xticks (str)       : xtick labels ('None' to omit ticks entirely) 
-                               (overrides xticks_ev)
                                default: None
         - yticks (str)       : ytick labels
                                default: None
@@ -1117,7 +1116,7 @@ def add_colorbar(fig, im, n_cols):
 
 #############################################
 def plot_colormap(sub_ax, data, xran=None, yran=None, title='', cmap=None, 
-                  xticks_ev=6, xticks=None, yticks_ev=10, xlims=None, 
+                  n_xticks=6, xticks=None, yticks_ev=10, xlims=None, 
                   ylims=None):
     """
     plot_colormap(sub_ax, data)
@@ -1139,9 +1138,9 @@ def plot_colormap(sub_ax, data, xran=None, yran=None, title='', cmap=None,
                            default: ''
         - cmap (colormap): a matplotlib colormap
                            default: None
-        - xticks_ev (int): frequency of xtick labels
+        - n_xticks (int) : number of xtick labels
                            default: 6
-        - xticks (str)   : xtick labels (overrides xticks_ev)
+        - xticks (str)   : xtick labels (overrides n_xticks)
                            default: None
         - yticks_ev (str): frequency at which to set ytick labels
                            default: None
@@ -1169,7 +1168,7 @@ def plot_colormap(sub_ax, data, xran=None, yran=None, title='', cmap=None,
         sub_ax.set_yticks(yticks)
     
     if xticks is None:
-        xticks = np.linspace(np.min(xran), np.max(xran), xticks_ev)
+        xticks = np.linspace(np.min(xran), np.max(xran), n_xticks)
     sub_ax.set_xticks(xticks)
 
     im = sub_ax.pcolormesh(xran, yran, data.T, cmap=cmap)

@@ -747,7 +747,8 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
                                with each surprise x ori/dir combination under a 
                                separate key
                                (NaN arrays for combinations with 0 seqs.)
-    
+            ['xran'] (list)  : time values for the 2p frames
+
     Optional args:
         - figpar (dict): dictionary containing the following figure parameter 
                          dictionaries
@@ -795,15 +796,20 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
     sess_nrois = sess_gen_util.get_nrois(nrois, n_nan, n_nan_dff, 
                                     analyspar['remnans'], analyspar['fluor'])
 
-    xran = tr_data['xran']
-
+    xran_ends = [-stimpar['pre'], stimpar['post']]
+    
     surps = ['reg', 'surp']
     if stimpar['stimtype'] == 'gabors':
+        surp_labs = surps
         deg = u'\u00B0'
         oridirs = stimpar['gab_ori']
+        n = 6
     elif stimpar['stimtype'] == 'bricks':
+        surp_labs = ['{} -> {}'.format(surps[i], surps[1-i]) 
+                                      for i in range(len(surps))]
         deg = ''
         oridirs = stimpar['bri_dir']
+        n = 7
 
     qu_str, qu_str_pr = quintpar['qu_lab'][0], quintpar['qu_lab_pr'][0]
     if qu_str != '':
@@ -826,17 +832,21 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
     fig, ax = plot_util.init_fig(len(oridirs), **figpar['init'])
     for o, od in enumerate(oridirs):
         cols = []
-        for surp in surps: 
+        for surp, surp_lab in zip(surps, surp_labs): 
             sub_ax = plot_util.get_subax(ax, o)
             key = '{}_{}'.format(surp, od)
             stimtype_str_pr = stimpar['stimtype'][:-1].capitalize()
             title_tr = u'{} traces ({}{})'.format(stimtype_str_pr, od, deg)
-            lab = '{} (n={})'.format(surp, tr_data['n_seqs'][key])
+            lab = '{} (n={})'.format(surp_lab, tr_data['n_seqs'][key])
             sess_plot_util.add_axislabels(sub_ax, datatype=datatype)
             me  = np.asarray(tr_data['stats'][key][0])
             err = np.asarray(tr_data['stats'][key][1:])
-            plot_util.plot_traces(sub_ax, xran, me, err, title_tr, label=lab)
+            xran = np.linspace(xran_ends[0], xran_ends[1], me.shape[0])
+            plot_util.plot_traces(sub_ax, xran, me, err, title_tr, n_xticks=n, 
+                                  label=lab)
             cols.append(sub_ax.lines[-1].get_color())
+            if stimpar['stimtype'] == 'bricks':
+                plot_util.add_bars(sub_ax, 0)
     
     if stimpar['stimtype'] == 'gabors':
         sess_plot_util.plot_labels(ax, stimpar['gabfr'], cols=cols,
@@ -887,6 +897,7 @@ def scale_sort_trace_data(tr_data, fig_type='byplot', surps=['reg', 'surp'],
                                    with each surprise x ori/dir combination 
                                    under a separate key. 
                                    (NaN arrays for combinations with 0 seqs.)
+            ['xran'] (list)      : time values for the 2p frames
 
     Optional args:
         - fig_type (str) : how to scale and sort ROIs, 
@@ -1035,7 +1046,8 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quintpar,
                                    with each surprise x ori/dir combination 
                                    under a separate key
                                    (NaN arrays for combinations with 0 seqs.)
-    
+            ['xran'] (list)      : time values for the 2p frames
+
     Optional args:
         - figpar (dict)  : dictionary containing the following figure parameter 
                            dictionaries
@@ -1079,15 +1091,20 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quintpar,
 
     surps = ['reg', 'surp']
     if stimpar['stimtype'] == 'gabors':
+        surp_labs = surps
         var_name = 'orientation'
         deg  = 'deg'
         deg_pr = u'\u00B0'
         oridirs = stimpar['gab_ori']
+        n = 6
     elif stimpar['stimtype'] == 'bricks':
+        surp_labs = ['{} -> {}'.format(surps[i], surps[1-i]) 
+                                  for i in range(len(surps))]
         var_name = 'direction'
         deg  = ''
         deg_pr = ''
         oridirs = stimpar['bri_dir']
+        n = 7
     
     qu_str, qu_str_pr = quintpar['qu_lab'][0], quintpar['qu_lab_pr'][0]
     if qu_str != '':
@@ -1141,10 +1158,10 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quintpar,
     nrois = scaled_sort_me['{}_{}'.format(surps[0], oridirs[0])].shape[1]
     yticks_ev = int(10 * np.max([1, np.ceil(nrois/100)])) # avoid > 10 ticks
     for o, od in enumerate(oridirs):
-        for s, surp in enumerate(surps):    
+        for s, (surp, surp_lab) in enumerate(zip(surps, surp_labs)):    
             sub_ax = ax[s][o]
             key = '{}_{}'.format(surp, od)
-            title = u'{} seqs ({}{}) (n={})'.format(surp.capitalize(), od, 
+            title = u'{} seqs ({}{}) (n={})'.format(surp_lab.capitalize(), od, 
                                                 deg_pr, tr_data['n_seqs'][key])
             x_ax = None
             if s == 0:
@@ -1154,16 +1171,18 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quintpar,
                                        x_ax=x_ax, y_ax='ROIs', datatype='roi')
             im = plot_util.plot_colormap(sub_ax, scaled_sort_me[key], 
                                     title=title, cmap=cmap,
-                                    xran=[stimpar['pre'], stimpar['post']], 
-                                    yticks_ev=yticks_ev)
-    
+                                    xran=[-stimpar['pre'], stimpar['post']], 
+                                    n_xticks=n, yticks_ev=yticks_ev)
+            if stimpar['stimtype'] == 'bricks':
+                plot_util.add_bars(sub_ax, 0)
+
     for s, surp in enumerate(surps):
         sub_ax = ax[s:s+1]
         if stimpar['stimtype'] == 'gabors':
             sess_plot_util.plot_labels(sub_ax, stimpar['gabfr'], surp, 
                             pre=stimpar['pre'], post=stimpar['post'], 
                             sharey=figpar['init']['sharey'], t_heis=-0.05)
-    
+        
     plot_util.add_colorbar(fig, im, len(oridirs))
     fig.suptitle(suptitle)
     savename = '{}_{}'.format(gen_savename, fig_type)
@@ -1235,7 +1254,8 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
                                    with each surprise x ori/dir combination 
                                    under a separate key
                                    (NaN arrays for combinations with 0 seqs.)
-    
+            ['xran'] (list)      : time values for the 2p frames
+
     Optional args:
         - figpar (dict)  : dictionary containing the following figure parameter 
                            dictionaries
@@ -1362,6 +1382,7 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar,
                                   with each surprise x ori/dir combination 
                                   under a separate key
                                   (NaN arrays for combinations with 0 seqs.)
+            ['xran'] (list)     : time values for the 2p frames
 
     Optional args:
         - figpar (dict)  : dictionary containing the following figure parameter 

@@ -503,11 +503,11 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
                                   sess.twop_fps, byitem=autocorrpar.byitem, 
                                   stats=analyspar.stats, error=analyspar.error)
         if not autocorrpar.byitem: # also add a 10x lag
-            _, ac_st_10x = math_util.autocorr_stats(sess_traces, 
-                                       autocorrpar.lag_s * 10, sess.twop_fps, 
-                                       byitem=autocorrpar.byitem, 
-                                       stats=analyspar.stats, 
-                                       error=analyspar.error)
+            lag_fr = 10 * int(autocorrpar.lag_s * sess.twop_fps)
+            _, ac_st_10x = math_util.autocorr_stats(sess_traces, lag_fr, 
+                                                byitem=autocorrpar.byitem, 
+                                                stats=analyspar.stats, 
+                                                error=analyspar.error)
             downsamp = range(0, ac_st_10x.shape[-1], 10)
             if len(downsamp) != ac_st.shape[-1]:
                 raise ValueError(('Failed to downsample correctly. '

@@ -54,7 +54,7 @@ def init_analyspar(fluor='dff', remnans=True, stats='mean', error='sem',
 
 #############################################
 def init_sesspar(sess_n, closest=False, layer='soma', line='any', min_rois=1, 
-                 pass_fail='P', runtype='prod', mouse_n='any', dend='aibs'):
+                 pass_fail='P', incl='yes', runtype='prod', mouse_n='any'):
     """
     Returns a SessPar namedtuple with the inputs arguments as named 
     attributes.
@@ -76,6 +76,9 @@ def init_sesspar(sess_n, closest=False, layer='soma', line='any', min_rois=1,
                                       default: 1
         - pass_fail (str or list)   : pass/fail values of interest ('P', 'F')
                                       default: 'P'
+        - incl (str or list)        : incl values of interest ('yes', 'no', 
+                                      'all')
+                                      default: 'yes'
         - runtype (str)             : runtype value ('pilot', 'prod')
                                       default: 'prod'
         - mouse_n (str, int or list): mouse number
@@ -86,10 +89,10 @@ def init_sesspar(sess_n, closest=False, layer='soma', line='any', min_rois=1,
                                         attributes
     """
 
-    sess_pars = [sess_n, closest, layer, line, min_rois, pass_fail, runtype, 
-                 mouse_n]
+    sess_pars = [sess_n, closest, layer, line, min_rois, pass_fail, incl, 
+                 runtype, mouse_n]
     sess_keys = ['sess_n', 'closest', 'layer', 'line', 'min_rois', 'pass_fail', 
-                 'runtype', 'mouse_n']
+                 'incl', 'runtype', 'mouse_n']
     SessPar   = namedtuple('SessPar', sess_keys)
     sesspar   = SessPar(*sess_pars)
     return sesspar
