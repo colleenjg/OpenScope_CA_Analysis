@@ -44,6 +44,8 @@ def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None,
                            default: None
     """
 
+    print('\nPlotting from dictionary: {}'.format(dict_path))
+    
     figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir)
     plot_util.manage_mpl(cmap=False, **figpar['mng'])
 

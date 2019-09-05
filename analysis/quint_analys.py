@@ -331,8 +331,9 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
                                 (avoids an error)
                                 default: False
         - lock (bool)         : if 'surp', 'reg', 'regsamp', only the first 
-                                surprise or regular segments are retained 
-                                (bysurp is ignore).
+                                surprise or regular segments are retained.
+                                If 'both'
+                                (bysurp is ignore). 
                                 default: False
         - baseline (num)      : number of seconds to use as baseline. If None,
                                 data is not baselined.
@@ -351,7 +352,9 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
                                          (frames if not integ)
         - all_counts (nested list) : list of number of sequences, 
                                      structured as:
-                                        sess x (surp if bysurp) x quintiles
+                                        sess 
+                                        x (surp if bysurp or lock is 'both') 
+                                        x quintiles
         if ret_arr:
         - all_arrays (nested lists): list of data trace arrays, structured as:
                                         session (x surp if bysurp) x quintile 
@@ -362,17 +365,19 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
 
     remconsec, sample = False, False
     surp_vals = ['any']
-    if lock in ['surp', 'reg']:
+    if lock in ['surp', 'reg', 'both']:
         remconsec = True
-        surp_vals = [0]
-        if lock == 'surp':
+        surp_vals = [1, 0]
+        if lock == 'reg':
+            surp_vals = [0]
+        elif lock == 'surp':
             surp_vals = [1]
         if stimpar.stimtype == 'gabors' and stimpar.gabfr != 'any':
             stimpar = stimpar._asdict()
             stimpar['gabfr'] = 'any'
             stimpar = sess_ntuple_util.init_stimpar(**stimpar)
-            print(('If locking to surprise or regular onset, stimpar.gabfr '
-                   'is set to `any`.'))
+            print(('If locking to surprise, regular onset or both, '
+                   'stimpar.gabfr is set to `any`.'))
     elif lock == 'regsamp':
         remconsec, sample = False, True
         surp_vals = [0]

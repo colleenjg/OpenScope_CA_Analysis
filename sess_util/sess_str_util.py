@@ -257,7 +257,7 @@ def op_par_str(plot_vals='both', op='diff', str_type='file'):
 
 
 #############################################
-def dend_par_str(dend='aibs', layer='dend', datatype='roi', str_type='file'):
+def dend_par_str(dend='extr', layer='dend', datatype='roi', str_type='file'):
     """
     dend_par_str()
 
@@ -265,7 +265,7 @@ def dend_par_str(dend='aibs', layer='dend', datatype='roi', str_type='file'):
 
     Optional args:
         - dend (str)     : type of dendrite ('aibs' or 'extr')
-                           default: 'aibs'
+                           default: 'extr'
         - layer (str)    : layer ('dend' or 'soma')
                            default: 'dend'
         - datatype (str) : type of data ('roi', 'run')
@@ -287,11 +287,11 @@ def dend_par_str(dend='aibs', layer='dend', datatype='roi', str_type='file'):
         gen_util.accepted_values_error('datatype', datatype, datatypes)
     
     dend_str = ''
-    if layer == 'dend' and datatype == 'roi' and dend == 'extr':
+    if layer == 'dend' and datatype == 'roi' and dend == 'aibs':
         if str_type == 'file':
-            dend_str = '_extr'
+            dend_str = '_aibs'
         elif str_type == 'print':
-            dend_str = ' (extr)'
+            dend_str = ' (aibs)'
         else:
             gen_util.accepted_values_error('str_type', str_type, 
                                            ['print', 'file'])

@@ -930,7 +930,7 @@ def autocorr_stats(data, lag, spu=None, byitem=True, stats='mean', error='std',
     else:
         lag_fr = int(lag * spu)
 
-    snip_len = 2*lag_fr+1
+    snip_len = 2 * lag_fr + 1
 
     data = gen_util.list_if_not(data)
     n_series = len(data)

@@ -141,7 +141,7 @@ def run_sess_lstm(args, sessid):
 
     sess = sess_gen_util.init_sessions(sessid, args.datadir, args.mouse_df, 
                                        args.runtype, fulldict=False, 
-                                       dend=args.dend)[0]
+                                       dend='extr')[0]
 
     analysdir = sess_gen_util.get_analysdir(sess.mouse_n, sess.sess_n, 
                                     sess.layer, stimtype=args.stimtype, 
@@ -297,7 +297,6 @@ if __name__ == "__main__":
                         help='do sess_n\'s in parallel.')
     parser.add_argument('--seed', default=-1, type=int, help='random seed (-1 for None)')
 
-    parser.add_argument('--dend', default='aibs', help='aibs, extr')
     parser.add_argument('--n_epochs', default=100, type=int)
 
     parser.add_argument('--conv', action='store_true')

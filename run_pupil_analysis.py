@@ -14,6 +14,7 @@ Note: this code uses python 3.7.
 
 import argparse
 import copy
+import glob
 import multiprocessing
 import os
 import re
@@ -114,6 +115,7 @@ def init_param_cont(args):
                                      (4, 16 or [4, 16])
             gab_ori (int or list)  : gabor orientation values to include
                                      ([0, 45, 90, 135])
+            incl (str)             : 
             keepnans (str)         : if True, ROIs with NaN/Inf values are 
                                      kept in the analyses and the original 
                                      running array is used instead of the one 
@@ -125,6 +127,7 @@ def init_param_cont(args):
             min_rois (int)         : min number of ROIs
             n_perms (int)          : nbr of permutations to run
             n_quints (int)         : number of quintiles
+            ncols (int)            : number of columns
             no_datetime (bool)     : if True, figures are not saved in a 
                                      subfolder named based on the date and time.
             output (str)           : general directory in which to save output
@@ -205,7 +208,8 @@ def init_param_cont(args):
     # session parameters
     sesspar = sess_ntuple_util.init_sesspar(args.sess_n, args.closest, 
                                             args.layer, 'any', args.min_rois, 
-                                            args.pass_fail, args.runtype)
+                                            args.pass_fail, args.incl, 
+                                            args.runtype)
 
     # stimulus parameters
     stimpar = sess_ntuple_util.init_stimpar(args.bri_dir, args.bri_size, 
@@ -224,7 +228,8 @@ def init_param_cont(args):
     quintpar = sess_ntuple_util.init_quintpar(args.n_quints, [0, -1])
 
     # figure parameters
-    figpar = sess_plot_util.init_figpar(datetime=not(args.no_datetime), 
+    figpar = sess_plot_util.init_figpar(ncols=int(args.ncols),
+                                        datetime=not(args.no_datetime), 
                                         overwrite=args.overwrite, 
                                         runtype=args.runtype, 
                                         output=args.output, 
@@ -470,13 +475,15 @@ if __name__ == "__main__":
     parser.add_argument('--stats', default='mean', help='plot mean or median')
     parser.add_argument('--error', default='sem', 
                         help='sem for SEM/MAD, std for std/qu')    
-    parser.add_argument('--dend', default='aibs', help='aibs, extr')
+    parser.add_argument('--dend', default='extr', help='aibs, extr')
         # session parameters
     parser.add_argument('--closest', action='store_true', 
                         help=('if True, the closest session number is used. '
                               'Otherwise, only exact.'))
     parser.add_argument('--pass_fail', default='P', 
                         help='P to take only passed sessions')
+    parser.add_argument('--incl', default='yes',
+                        help='include only `yes`, `no` or `any`')
         # stimulus parameters
     parser.add_argument('--bri_size', default=128, 
                         help='brick size (128, 256, or both)')
@@ -496,6 +503,7 @@ if __name__ == "__main__":
     parser.add_argument('--lag_s', default=4, type=float,
                         help='lag for autocorrelation (in sec)')
         # figure parameters
+    parser.add_argument('--ncols', default=4, help='number of columns')
     parser.add_argument('--no_datetime', action='store_true',
                         help='create a datetime folder')
     parser.add_argument('--overwrite', action='store_true', 
@@ -509,14 +517,30 @@ if __name__ == "__main__":
     args.fontdir = os.path.join('..', 'tools', 'fonts')
 
     if args.dict_path is not '':
-        main_dir  = os.path.join('results', 'figures')
-        dict_path = os.path.join(main_dir, args.dict_path)
-        if args.modif:
-            mod_plots.plot_from_dict(dict_path, args.parallel, args.plt_bkend, 
-                                     args.fontdir)
+        if os.path.isdir(args.dict_path):
+            dict_paths = glob.glob('{}/*.json'.format(args.dict_path))
+            if len(dict_paths) == 0:
+                raise ValueError('No jsons found in directory.')
         else:
-            pup_plots.plot_from_dict(dict_path, args.parallel, args.plt_bkend, 
-                                     args.fontdir)
+            dict_paths = [args.dict_path]
+        if args.parallel and len(dict_paths) > 1:
+            n_cores = multiprocessing.cpu_count()
+            n_jobs = min(n_cores,len(dict_paths))
+            if args.modif:
+                fct = mod_plots.plot_from_dict
+            else:
+                fct = pup_plots.plot_from_dict
+            Parallel(n_jobs=n_jobs)(delayed(fct)(dict_path, False, 
+                                    args.plt_bkend, args.fontdir) 
+                                    for dict_path in dict_paths)
+        else:
+            for dict_path in dict_paths:
+                if args.modif:
+                    mod_plots.plot_from_dict(dict_path, args.parallel, 
+                              args.plt_bkend, args.fontdir)
+                else:
+                    pup_plots.plot_from_dict(dict_path, args.parallel, 
+                              args.plt_bkend, args.fontdir)
 
     else:
         if args.datadir is None:
@@ -530,7 +554,8 @@ if __name__ == "__main__":
             all_sess_ns = sess_gen_util.get_sess_vals(mouse_df, 'sess_n', 
                             runtype=args.runtype, layer=args.layer, 
                             min_rois=args.min_rois, pass_fail=args.pass_fail, 
-                            omit_sess=args.omit_sess, omit_mice=args.omit_mice)
+                            incl=args.incl, omit_sess=args.omit_sess, 
+                            omit_mice=args.omit_mice)
         else:
             all_sess_ns = gen_util.list_if_not(args.sess_n)
 

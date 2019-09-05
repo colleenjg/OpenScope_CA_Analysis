@@ -51,6 +51,7 @@ def run_regr(args):
             gabfr (int)           : gabor frame of reference if comparison 
                                     is 'surp'
             gabk (int or list)    : gabor kappas to include
+            incl (str or list)    : sessions to include ('yes', 'no', 'all')
             lr (num)              : model learning rate
             mouse_n (int)         : mouse number
             n_epochs (int)        : number of epochs
@@ -110,7 +111,7 @@ def run_regr(args):
                                  args.bri_size, args.gabfr, args.gabk)
     analyspar = sess_ntuple_util.init_analyspar(args.fluor, stats=args.stats, 
                                             error=args.error, scale=args.scale, 
-                                            dend=args.dend)  
+                                            dend='extr')  
     if args.q1v4:
         quintpar = sess_ntuple_util.init_quintpar(4, [0, -1])
     else:
@@ -124,7 +125,7 @@ def run_regr(args):
 
     sessids = sess_gen_util.get_sess_vals(mouse_df, 'sessid', args.mouse_n, 
                                           args.sess_n, args.runtype, 
-                                          omit_sess=omit_sess, 
+                                          incl=args.incl, omit_sess=omit_sess, 
                                           omit_mice=omit_mice)
 
     if len(sessids) == 0:
@@ -185,7 +186,8 @@ if __name__ == "__main__":
     parser.add_argument('--mouse_n', default=1, type=int)
     parser.add_argument('--runtype', default='prod', help='prod or pilot')
     parser.add_argument('--sess_n', default='all')
-    
+    parser.add_argument('--incl', default='yes',
+                        help='include only `yes`, `no` or `any`')
         # stimpar
     parser.add_argument('--stimtype', default='gabors', help='gabors or bricks')
     parser.add_argument('--gabk', default=16, type=int, 
@@ -201,7 +203,6 @@ if __name__ == "__main__":
     parser.add_argument('--fluor', default='dff', help='raw or dff')
     parser.add_argument('--stats', default='mean', help='mean or median')
     parser.add_argument('--error', default='sem', help='std or sem')
-    parser.add_argument('--dend', default='aibs', help='aibs, extr')
 
         # extra parameters
     parser.add_argument('--seed', default=-1, type=int, 
@@ -230,8 +231,6 @@ if __name__ == "__main__":
         args.output = '{}_q1v4'.format(args.output)
     if args.bal:
         args.output = '{}_bal'.format(args.output)
-    if args.dend == 'extr':
-        args.output = '{}_extr'.format(args.output)
 
     if args.comp == 'all':
         comps = ['surp', 'AvB', 'AvC', 'BvC', 'DvE']

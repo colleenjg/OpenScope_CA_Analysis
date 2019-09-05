@@ -516,9 +516,9 @@ def run_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts,
                            analyspar, sesspar, stimpar, extrapar, quintpar, 
                            figpar)
 
-    Plots average activity across gabor orientations or brick directions 
-    per ROI as colormaps, and across ROIs as traces for a single session and
-    specified quintile.
+    Plots average activity across gabor orientations or across brick directions,
+    locked to surprise/regular transition per ROI as colormaps, and across ROIs 
+    as traces for a single session and specified quintile.
     Saves results and parameters relevant to analysis in a dictionary. 
 
     Required args:
@@ -624,8 +624,9 @@ def run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
     run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
                       extrapar, quintpar, figpar)
 
-    Plots average activity across gabor orientations or brick directions 
-    per ROI as colormaps, and across ROIs as traces for a specified quintile.
+    Plots average activity across gabor orientations or across brick directions,
+    locked to surprise/regular transition per ROI as colormaps, and across ROIs 
+    as traces for a specified quintile.
     Saves results and parameters relevant to analysis in a dictionary. 
 
     Required args:
@@ -655,15 +656,17 @@ def run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
         stimpar_dict = stimpar._asdict()
         if stimpar.stimtype == 'bricks':
             stimpar_dict['bri_dir'] = od
+            lock = 'both'
         elif stimpar.stimtype == 'gabors':
             stimpar_dict['gab_ori'] = od
+            lock = 'no'
         stimpar_od = sess_ntuple_util.init_stimpar(**stimpar_dict)
         # NaN stats if no segments fit criteria
         nan_empty = True
         trace_info = quint_analys.trace_stats_by_qu_sess(sessions, 
                                         analyspar, stimpar_od, 
                                         quintpar.n_quints, quintpar.qu_idx,
-                                        byroi=True, bysurp=True,
+                                        byroi=True, bysurp=True, lock=lock,
                                         nan_empty=nan_empty)
         xran = trace_info[0]
         # retrieve mean/medians and single quintile data:
@@ -720,6 +723,8 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar,
         # update stimpar with both brick directions
         # replace quintpar with quintpar split in 2 (for each direction)
         stimpar_dict['bri_dir'] = ['right', 'left']
+        stimpar_dict['pre'] = 2.0 # extended colormap range for bricks
+        stimpar_dict['post'] = 4.0
         oridirs = stimpar_dict['bri_dir']
     elif stimpar.stimtype == 'gabors':
         # update stimpar with gab_fr = 0 and all gabor orientations

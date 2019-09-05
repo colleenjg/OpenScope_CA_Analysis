@@ -588,7 +588,7 @@ class Session(object):
 
 
     #############################################
-    def _load_roi_trace_info(self, basewin=1000, dend='aibs'):
+    def _load_roi_trace_info(self, basewin=1000, dend='extr'):
         """
         self._load_roi_trace_info()
 
@@ -609,7 +609,7 @@ class Session(object):
                              original extracted traces and 'extr' for the
                              ones extracted with Hakan's EXTRACT code, if
                              available)
-                             default: 'aibs'
+                             default: 'extr'
         """
         self.dend = 'aibs'
 
