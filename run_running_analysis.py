@@ -142,9 +142,9 @@ def init_param_cont(args):
             tails (str or int)     : which tail(s) to test ('up', 'lo', 2)
 
     Returns:
+        - analyspar (AnalysPar)    : named tuple of analysis parameters
         - sesspar (SessPar)        : named tuple of session parameters
         - stimpar (StimPar)        : named tuple of stimulus parameters
-        - analyspar (AnalysPar)    : named tuple of analysis parameters
         - autocorrpar (AutocorrPar): named tuple of autocorrelation 
                                      parameters
         - permpar (PermPar)        : named tuple of permutation parameters
@@ -202,10 +202,10 @@ def init_param_cont(args):
                                             args.runtype)
 
     # stimulus parameters
-    stimpar = sess_ntuple_util.init_stimpar(args.bri_dir, args.bri_size, 
-                                            args.gabfr, args.gabk, 
-                                            args.gab_ori, args.pre, 
-                                            args.post, args.stimtype)
+    stimpar = sess_ntuple_util.init_stimpar(args.stimtype, args.bri_dir, 
+                                            args.bri_size, args.gabfr, 
+                                            args.gabk, args.gab_ori, 
+                                            args.pre, args.post)
 
     # SPECIFIC ANALYSES    
     # autocorrelation parameters
@@ -332,8 +332,8 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
                  permpar, quintpar, figpar, seed=None, analyses='all', 
                  skip='', parallel=False):
     """
-    run_analyses(sessions, analyses, analyspar, sesspar, stimpar, autocorrpar, 
-                 permpar, quintpar)
+    run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar, 
+                 permpar, quintpar, figpar)
 
     Run requested analyses on sessions using the named tuples passed.
     Some analyses can be skipped (e.g., to be launched in a non parallel

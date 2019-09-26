@@ -1106,9 +1106,11 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
                                        x_ax=x_ax, y_ax='ROIs', datatype='roi')
             im = plot_util.plot_colormap(sub_ax, scaled_sort_me[key], 
                            title=title, cmap=cmap, n_xticks=n,
-                           yticks_ev=yticks_ev, xran=[stimpar['pre'], 
+                           yticks_ev=yticks_ev, xran=[-stimpar['pre'], 
                            stimpar['post']])
-    
+            if stimpar['stimtype'] == 'bricks':
+                plot_util.add_bars(sub_ax, 0)
+
     for s, surp in enumerate(surps):
         sub_ax = ax[s:s+1]
         if stimpar['stimtype'] == 'gabors':
@@ -1228,6 +1230,7 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
     figpar['save']['fig_ext'] = 'png' # svg too big
 
     fig_types  = ['byplot', 'byreg', 'by{}{}'.format(oridirs[0], deg), 'byfir']
+    fig_types = ['byfir']
     fig_last = len(fig_types) - 1
     
     if parallel:
@@ -1355,6 +1358,6 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar,
         plot_oridir_colormaps(savedir=savedir, parallel=parallel, 
                               **comm_info)
 
-    if 'stats' in tr_data.keys():
-        plot_oridir_traces(savedir=savedir, **comm_info)
+    # if 'stats' in tr_data.keys():
+    #     plot_oridir_traces(savedir=savedir, **comm_info)
 

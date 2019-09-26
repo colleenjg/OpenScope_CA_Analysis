@@ -281,15 +281,15 @@ def calc_op(data, op='diff', dim=0, rev=False):
         raise ValueError('Data should have length 2 along dim: {}'.format(dim))
 
     if isinstance(op, int):
-        data_idx = tuple([slice(None)] * dim + [op])
+        data_idx = gen_util.slice_idx(dim, op)
         data = data[data_idx]
     else:
         if rev:
             fir, sec = [0, 1]
         else:
             fir, sec = [1, 0]
-        fir_idx = tuple([slice(None)] * dim + [fir])
-        sec_idx = tuple([slice(None)] * dim + [sec])
+        fir_idx = gen_util.slice_idx(dim, fir)
+        sec_idx = gen_util.slice_idx(dim, sec)
         if op == 'diff':
             data = (data[fir_idx] - data[sec_idx])
         elif op == 'ratio':
@@ -343,10 +343,10 @@ def scale_facts(data, axis=None, pos=None, sc_type='min_max', extrem='reg',
         raise ValueError('Must pass an axis if passing a position.')
     
     if pos is not None:
-        sc_idx = [slice(None)] * axis + [pos] # for a slice
+        sc_idx = gen_util.slice_idx(axis, pos) # for a slice
         axis = None
     else:
-        sc_idx = tuple([slice(None)]) # for entire data
+        sc_idx = gen_util.slice_idx(None, None) # for entire data
 
     if sc_type == 'stand':
         sub = np.mean(data[sc_idx], axis=axis)

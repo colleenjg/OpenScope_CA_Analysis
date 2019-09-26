@@ -37,6 +37,7 @@ All of the appropriate libraries should then be loaded, and the modules can
 be imported for use in ipython, python scripts, or jupyter notebooks.
 
 **Scripts and modules**:
+* example_code.py: run and plot an example analysis (heavily commented)
 * run\_roi_analysis.py: run and plot specific analyses on ROI data
 * run\_running_analysis.py: run and plot specific analyses on running data
 * run_logreg.py: run, analyse and plot logistic regressions on the ROI data

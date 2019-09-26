@@ -32,6 +32,8 @@ from util import file_util, gen_util, math_util
 
 
 
+#############################################
+#############################################
 class Session(object):
     """
     The Session object is the top-level object for analyzing a session from the 
@@ -1851,7 +1853,7 @@ class Stim(object):
 
 
     #############################################
-    def get_stim_fr_by_seg(self, seglist, first=False):
+    def get_stim_fr_by_seg(self, seglist, first=False, last=False):
         """
         self.get_stim_fr_by_seg(seglist)
 
@@ -1861,33 +1863,50 @@ class Stim(object):
 
         Required args:
             - seglist (list of ints): the stimulus segments for which to get 
-                                      2p frames
+                                      stim frames
 
         Optional args:
-            - first (bool): return only first frame for each seg
+            - first (bool): instead returns the first frame for each seg.
+                            default: False
+            - last (bool) : instead returns the last for each seg.
                             default: False
         Returns:
-            - frames (list of int arrays): a list (one entry per segment) of
-                                           arrays containing the 2p frame 
-                                           numbers OR (if first is True) a 
-                                           list of first 2p frames numbers for 
-                                           each segment
+            if first and last are True:
+                - frames (nested list): list of the first and last stim frames 
+                                        numbers for each segment, structured
+                                        as [first, last]
+            if first or last is True, but not both:
+                - frames (list)       : a list of first or last stim frames 
+                                        numbers for each segment
+            else:
+                - frames (list of int arrays): a list (one entry per segment) 
+                                               of arrays containing the stim 
+                                               frame
         """
 
-        if first == True:
-            frames = [self.stim_seg_list.index(val) for val in seglist]
-        else:
+        if not first and not last:
             stim_seg_list_array = np.asarray(self.stim_seg_list)
             frames = []
             for val in seglist:
                 all_fr = np.where(stim_seg_list_array == val)[0]
                 frames.append(all_fr.tolist())
+        else:
+            frames = []
+            if first:
+                first_fr = [self.stim_seg_list.index(val) for val in seglist]
+                frames.append(first_fr)
+            if last:
+                rev_list = self.stim_seg_list[::-1]
+                last_fr = [len(rev_list) - rev_list.index(val) - 1 
+                                                for val in seglist]
+                frames.append(last_fr)
+            frames = gen_util.delist_if_not(frames)
 
         return frames
         
         
     #############################################
-    def get_twop_fr_by_seg(self, seglist, first=False):
+    def get_twop_fr_by_seg(self, seglist, first=False, last=False):
         """
         self.get_twop_fr_by_seg(seglist)
 
@@ -1900,14 +1919,22 @@ class Stim(object):
                                       2p frames
 
         Optional args:
-            - first (bool): return only first frame for each seg
+            - first (bool): instead, return first frame for each seg
+                            default: False
+            - last (bool) : instead return last frame for each seg
                             default: False
         Returns:
-            - frames (list of int arrays): a list (one entry per segment) of
-                                           arrays containing the 2p frame 
-                                           numbers OR (if first is True) a 
-                                           list of first 2p frames numbers for 
-                                           each segment
+            if first and last are True:
+                - frames (nested list): list of the first and last 2p frames 
+                                        numbers for each segment, structured
+                                        as [first, last]
+            if first or last is True, but not both:
+                - frames (list)       : a list of first or last 2p frames 
+                                        numbers for each segment
+            else:
+                - frames (list of int arrays): a list (one entry per segment) 
+                                               of arrays containing the 2p 
+                                               frame
         """
 
         # initialize the frames list
@@ -1919,14 +1946,19 @@ class Stim(object):
 
         # get the start frames and end frames from each row
         start_frames = rows['start_frame'].values
-        if not first:
+        if not first or last:
             end_frames = rows['end_frame'].values
 
+        if not first and not last:
             # build arrays for each segment
             for r in range(start_frames.shape[0]):
-                frames.append(np.arange(start_frames[r],end_frames[r]))
+                frames.append(np.arange(start_frames[r], end_frames[r]))
         else:
-            frames = start_frames
+            if first:
+                frames.append(start_frames)
+            if last:
+                frames.append(end_frames)
+            frames = gen_util.delist_if_not(frames)
 
         return frames
 
@@ -1961,6 +1993,216 @@ class Stim(object):
 
 
     #############################################
+    def _format_stim_criteria(self, stimPar1='any', stimPar2='any', surp='any', 
+                              stimSeg='any', gabfr='any', start_frame='any', 
+                              end_frame='any', num_frames='any', gabk=None, 
+                              gab_ori=None, bri_size=None, bri_dir=None):
+        """
+        self._format_stim_criteria()
+
+        Returns a list of stimulus parameters formatted correctly to use
+        as criteria when searching through the stim dataframe. 
+
+        Will strip any criteria not related to the current stim object.
+
+        Optional args:
+            - stimPar1 (str, int or list)  : stimPar1 value(s) of interest 
+                                             (sizes: 128, 256, 
+                                             oris: 0, 45, 90, 135)
+                                             default: 'any'
+            - stimPar2 (str, int or list)  : stimPar2 value(s) of interest 
+                                             ('right', 'left', 4, 16)
+                                             default: 'any'
+            - surp (str, int or list)      : surp value(s) of interest (0, 1)
+                                             default: 'any'
+            - stimSeg (str, int or list)   : stimSeg value(s) of interest
+                                             default: 'any'
+            - gabfr (str, int or list)    : gaborframe value(s) of interest 
+                                             (0, 1, 2, 3)
+                                             default: 'any'
+            - start_frame_min (str or int): minimum of 2p start_frame range of 
+                                            interest 
+                                            default: 'any'
+            - start_frame_max (str or int): maximum of 2p start_frame range of 
+                                            interest (excl)
+                                            default: 'any'
+            - end_frame_min (str or int)  : minimum of 2p end_frame range of 
+                                            interest
+                                            default: 'any'
+            - end_frame_max (str or int)  : maximum of 2p end_frame range of 
+                                            interest (excl)
+                                            default: 'any'
+            - num_frames_min (str or int) : minimum of num_frames range of 
+                                            interest
+                                            default: 'any'
+            - num_frames_max (str or int) : maximum of num_frames range of 
+                                            interest (excl)
+                                            default: 'any'
+            - gabk (int or list)          : if not None, will overwrite 
+                                            stimPar2 (4, 16, or 'any')
+                                            default: None
+            - gab_ori (int or list)       : if not None, will overwrite 
+                                            stimPar1 (0, 45, 90, 135, or 'any')
+                                            default: None
+            - bri_size (int or list)      : if not None, will overwrite 
+                                            stimPar1 (128, 256, or 'any')
+                                            default: None
+            - bri_dir (str or list)       : if not None, will overwrite 
+                                            stimPar2 ('right', 'left' or 'any')
+                                            default: None
+        """
+
+        # remove brick criteria for gabors and vv
+        if self.stimtype == 'gabors':
+            bri_size = None
+            bri_dir = None
+        elif self.stimtype == 'bricks':
+            gabfr = None
+            gabk = None
+            gab_ori = None
+
+        # if passed, replace StimPar1 and StimPar2 with the gabor and brick
+        # arguments
+        pars = [gabk, gab_ori, bri_size, bri_dir]
+        stimpar_names = ['stimPar2', 'stimPar1', 'stimPar1', 'stimPar2']
+        sp1 = []
+        sp2 = []
+
+        for i in range(len(pars)):
+            if pars[i] == 'any':
+                pars[i] = gen_util.get_df_vals(self.sess.stim_df, 'stimType', 
+                                               self.stimtype, stimpar_names[i])
+            if pars[i] is not None:
+                pars[i] = gen_util.list_if_not(pars[i])
+                if stimpar_names[i] == 'stimPar1':
+                    sp1.extend(pars[i])
+                elif stimpar_names[i] == 'stimPar2':
+                    sp2.extend(pars[i])
+        
+        if len(sp1) != 0:
+            stimPar1 = sp1
+        if len(sp2) != 0:
+            stimPar2 = sp2 
+
+        # converts values to lists or gets all possible values, if 'any'
+        stimPar1 = gen_util.get_df_label_vals(self.sess.stim_df, 
+                                              'stimPar1', stimPar1)
+        stimPar2 = gen_util.get_df_label_vals(self.sess.stim_df, 
+                                              'stimPar2', stimPar2)
+        surp     = gen_util.get_df_label_vals(self.sess.stim_df, 
+                                              'surp', surp)
+        stimSeg  = gen_util.get_df_label_vals(self.sess.stim_df, 
+                                              'stimSeg', stimSeg)
+        # here, ensure that the -1s are removed
+        stimSeg = gen_util.remove_if(stimSeg, -1)
+        gabfr   = gen_util.get_df_label_vals(self.sess.stim_df, 
+                                             'GABORFRAME', gabfr)
+        
+        if start_frame in ['any', None]:
+            start_frame_min = int(self.sess.stim_df['start_frame'].min())
+            start_frame_max = int(self.sess.stim_df['start_frame'].max()+1)
+        if end_frame in ['any', None]:
+            end_frame_min = int(self.sess.stim_df['end_frame'].min())
+            end_frame_max = int(self.sess.stim_df['end_frame'].max()+1)
+        if num_frames in ['any', None]:
+            num_frames_min = int(self.sess.stim_df['num_frames'].min())
+            num_frames_max = int(self.sess.stim_df['num_frames'].max()+1)
+
+        return [stimPar1, stimPar2, surp, stimSeg, gabfr, start_frame_min, 
+                start_frame_max, end_frame_min, end_frame_max, num_frames_min, 
+                num_frames_max] 
+
+
+    #############################################
+    def get_stim_df_by_criteria(self, stimPar1='any', stimPar2='any', 
+                                surp='any', stimSeg='any', gabfr='any', 
+                                start_frame='any', end_frame='any', 
+                                num_frames='any', gabk=None, gab_ori=None, 
+                                bri_size=None, bri_dir=None):
+        """
+        self.get_stim_df_by_criteria()
+
+        Returns a subset of the stimulus dataframe based on the criteria 
+        provided.    
+
+        Will return lines only for the current stim object.
+
+        Optional args:
+            - stimPar1 (str, int or list)  : stimPar1 value(s) of interest 
+                                             (sizes: 128, 256, 
+                                             oris: 0, 45, 90, 135)
+                                             default: 'any'
+            - stimPar2 (str, int or list)  : stimPar2 value(s) of interest 
+                                             ('right', 'left', 4, 16)
+                                             default: 'any'
+            - surp (str, int or list)      : surp value(s) of interest (0, 1)
+                                             default: 'any'
+            - stimSeg (str, int or list)   : stimSeg value(s) of interest
+                                             default: 'any'
+            - gabfr (str, int or list)    : gaborframe value(s) of interest 
+                                             (0, 1, 2, 3)
+                                             default: 'any'
+            - start_frame_min (str or int): minimum of 2p start_frame range of 
+                                            interest 
+                                            default: 'any'
+            - start_frame_max (str or int): maximum of 2p start_frame range of 
+                                            interest (excl)
+                                            default: 'any'
+            - end_frame_min (str or int)  : minimum of 2p end_frame range of 
+                                            interest
+                                            default: 'any'
+            - end_frame_max (str or int)  : maximum of 2p end_frame range of 
+                                            interest (excl)
+                                            default: 'any'
+            - num_frames_min (str or int) : minimum of num_frames range of 
+                                            interest
+                                            default: 'any'
+            - num_frames_max (str or int) : maximum of num_frames range of 
+                                            interest (excl)
+                                            default: 'any'
+            - gabk (int or list)          : if not None, will overwrite 
+                                            stimPar2 (4, 16, or 'any')
+                                            default: None
+            - gab_ori (int or list)       : if not None, will overwrite 
+                                            stimPar1 (0, 45, 90, 135, or 'any')
+                                            default: None
+            - bri_size (int or list)      : if not None, will overwrite 
+                                            stimPar1 (128, 256, or 'any')
+                                            default: None
+            - bri_dir (str or list)       : if not None, will overwrite 
+                                            stimPar2 ('right', 'left' or 'any')
+                                            default: None
+        
+        Returns:
+            - sub_df (pd Dataframe): subset of the stimulus dataframe 
+                                     fitting the criteria provided
+        """
+
+        pars = self._format_stim_criteria(stimPar1, stimPar2, surp, 
+                                stimSeg, gabfr, start_frame, end_frame, 
+                                num_frames, gabk, gab_ori, bri_size, bri_dir)
+
+        [stimPar1, stimPar2, surp, stimSeg, gabfr, start_frame_min, 
+         start_frame_max, end_frame_min, end_frame_max, num_frames_min, 
+         num_frames_max] = pars
+
+        sub_df = self.sess.stim_df.loc[(self.sess.stim_df['stimType']==self.stimtype[0])     & 
+                                       (self.sess.stim_df['stimPar1'].isin(stimPar1))        &
+                                       (self.sess.stim_df['stimPar2'].isin(stimPar2))        &
+                                       (self.sess.stim_df['surp'].isin(surp))                &
+                                       (self.sess.stim_df['stimSeg'].isin(stimSeg))          &
+                                       (self.sess.stim_df['GABORFRAME'].isin(gabfr))         &
+                                       (self.sess.stim_df['start_frame'] >= start_frame_min) &
+                                       (self.sess.stim_df['start_frame'] < start_frame_max)  &
+                                       (self.sess.stim_df['end_frame'] >= end_frame_min)     &
+                                       (self.sess.stim_df['end_frame'] < end_frame_max)      &
+                                       (self.sess.stim_df['num_frames'] >= num_frames_min)   &
+                                       (self.sess.stim_df['num_frames'] < num_frames_max)]
+        
+        return sub_df
+
+
+    #############################################
     def get_segs_by_criteria(self, stimPar1='any', stimPar2='any', surp='any', 
                              stimSeg='any', gabfr='any', start_frame='any', 
                              end_frame='any', num_frames='any', gabk=None, 
@@ -1970,7 +2212,7 @@ class Stim(object):
         self.get_segs_by_criteria()
 
         Returns a list of stimulus seg numbers that have the specified values 
-        in specified columns in the alignment dataframe.    
+        in specified columns in the stimulus dataframe.    
 
         Will return segs only for the current stim object.
 
@@ -2033,80 +2275,32 @@ class Stim(object):
             - segs (list): list of seg numbers that obey the criteria
         """
 
-        # remove brick criteria for gabors and vv
-        if self.stimtype == 'gabors':
-            bri_size = None
-            bri_dir = None
-        elif self.stimtype == 'bricks':
-            gabfr = None
-            gabk = None
-            gab_ori = None
+        pars = self._format_stim_criteria(stimPar1, stimPar2, surp, 
+                                stimSeg, gabfr, start_frame, end_frame, 
+                                num_frames, gabk, gab_ori, bri_size, bri_dir)
 
-        # if passed, replace StimPar1 and StimPar2 with the gabor and brick
-        # arguments
-        pars = [gabk, gab_ori, bri_size, bri_dir]
-        stimpar_names = ['stimPar2', 'stimPar1', 'stimPar1', 'stimPar2']
-        sp1 = []
-        sp2 = []
-
-        for i in range(len(pars)):
-            if pars[i] == 'any':
-                pars[i] = gen_util.get_df_vals(self.sess.stim_df, 'stimType', 
-                                               self.stimtype, stimpar_names[i])
-            if pars[i] is not None:
-                pars[i] = gen_util.list_if_not(pars[i])
-                if stimpar_names[i] == 'stimPar1':
-                    sp1.extend(pars[i])
-                elif stimpar_names[i] == 'stimPar2':
-                    sp2.extend(pars[i])
-        
-        if len(sp1) != 0:
-            stimPar1 = sp1
-        if len(sp2) != 0:
-            stimPar2 = sp2 
-
-        # converts values to lists or gets all possible values, if 'any'
-        stimPar1 = gen_util.get_df_label_vals(self.sess.stim_df, 
-                                              'stimPar1', stimPar1)
-        stimPar2 = gen_util.get_df_label_vals(self.sess.stim_df, 
-                                              'stimPar2', stimPar2)
-        surp     = gen_util.get_df_label_vals(self.sess.stim_df, 
-                                              'surp', surp)
-        stimSeg  = gen_util.get_df_label_vals(self.sess.stim_df, 
-                                              'stimSeg', stimSeg)
-        # here, ensure that the -1s are removed
-        stimSeg = gen_util.remove_if(stimSeg, -1)
-        gabfr   = gen_util.get_df_label_vals(self.sess.stim_df, 
-                                             'GABORFRAME', gabfr)
-        
-        if start_frame in ['any', None]:
-            start_frame_min = int(self.sess.stim_df['start_frame'].min())
-            start_frame_max = int(self.sess.stim_df['start_frame'].max()+1)
-        if end_frame in ['any', None]:
-            end_frame_min = int(self.sess.stim_df['end_frame'].min())
-            end_frame_max = int(self.sess.stim_df['end_frame'].max()+1)
-        if num_frames in ['any', None]:
-            num_frames_min = int(self.sess.stim_df['num_frames'].min())
-            num_frames_max = int(self.sess.stim_df['num_frames'].max()+1)
+        [stimPar1, stimPar2, surp, stimSeg, gabfr, start_frame_min, 
+         start_frame_max, end_frame_min, end_frame_max, num_frames_min, 
+         num_frames_max] = pars
         
         segs = []
         for i in self.block_ran_seg:
             temp = []
             for j in i:
                 idxs = self.sess.stim_df.loc[(self.sess.stim_df['stimType']==self.stimtype[0])     & 
-                                              (self.sess.stim_df['stimPar1'].isin(stimPar1))        &
-                                              (self.sess.stim_df['stimPar2'].isin(stimPar2))        &
-                                              (self.sess.stim_df['surp'].isin(surp))                &
-                                              (self.sess.stim_df['stimSeg'].isin(stimSeg))          &
-                                              (self.sess.stim_df['GABORFRAME'].isin(gabfr))         &
-                                              (self.sess.stim_df['start_frame'] >= start_frame_min) &
-                                              (self.sess.stim_df['start_frame'] < start_frame_max)  &
-                                              (self.sess.stim_df['end_frame'] >= end_frame_min)     &
-                                              (self.sess.stim_df['end_frame'] < end_frame_max)      &
-                                              (self.sess.stim_df['num_frames'] >= num_frames_min)   &
-                                              (self.sess.stim_df['num_frames'] < num_frames_max)    &
-                                              (self.sess.stim_df['stimSeg'] >= j[0])                &
-                                              (self.sess.stim_df['stimSeg'] < j[1])]['stimSeg'].tolist()
+                                             (self.sess.stim_df['stimPar1'].isin(stimPar1))        &
+                                             (self.sess.stim_df['stimPar2'].isin(stimPar2))        &
+                                             (self.sess.stim_df['surp'].isin(surp))                &
+                                             (self.sess.stim_df['stimSeg'].isin(stimSeg))          &
+                                             (self.sess.stim_df['GABORFRAME'].isin(gabfr))         &
+                                             (self.sess.stim_df['start_frame'] >= start_frame_min) &
+                                             (self.sess.stim_df['start_frame'] < start_frame_max)  &
+                                             (self.sess.stim_df['end_frame'] >= end_frame_min)     &
+                                             (self.sess.stim_df['end_frame'] < end_frame_max)      &
+                                             (self.sess.stim_df['num_frames'] >= num_frames_min)   &
+                                             (self.sess.stim_df['num_frames'] < num_frames_max)    &
+                                             (self.sess.stim_df['stimSeg'] >= j[0])                &
+                                             (self.sess.stim_df['stimSeg'] < j[1])]['stimSeg'].tolist()
                 
                 # if removing consecutive values
                 if remconsec: 
@@ -2148,7 +2342,7 @@ class Stim(object):
         self.get_stim_fr_by_criteria()
 
         Returns a list of stimulus frames numbers that have the specified 
-        values in specified columns in the alignment dataframe. 
+        values in specified columns in the stimulus dataframe. 
         
         Will return frame numbers only for the current stim object.
 
@@ -2521,6 +2715,70 @@ class Stim(object):
                                          axis=1, nanpol=nanpol)
 
         return xran, data_array
+
+
+    #############################################
+    def get_pup_diam_stats(self, pup_ref_fr, pre, post, integ=False,
+                           ret_arr=False, stats='mean', error='std', 
+                           baseline=None):
+        """
+        self.get_pup_diam_stats(pup_ref_fr, pre, post)
+
+        Returns stats (mean and std or median and quartiles) for sequences of 
+        pupil diameter data around specific pupil frame numbers. NaNs
+        are omitted in calculating statistics.
+
+        Required args:
+            - pup_ref_fr (list): 1D list of reference pupil frame numbers
+                                  around which to retrieve running data 
+                                  (e.g., all 1st Gabor A frames)
+            - pre (num)         : range of frames to include before each 
+                                  reference frame number (in s)
+            - post (num)        : range of frames to include after each 
+                                  reference frame number (in s)
+
+        Optional args:
+            - integ (bool)    : if True, dF/F is integrated over sequences
+                                default: False
+            - ret_arr (bool)  : also return running data array, not just  
+                                statistics
+                                default: False 
+            - stats (str)     : return mean ('mean') or median ('median')
+                                default: 'mean'
+            - error (str)     : return std dev/quartiles ('std') or SEM/MAD 
+                                ('sem')
+                                default: 'sem'
+            - baseline (num)  : number of seconds to use as baseline. If None,
+                                data is not baselined.
+                                default: None
+
+        Returns:
+            - xran (1D array)           : time values for the pupil frames 
+                                          (length is equal to last data 
+                                          dimension) 
+            - data_stats (1 to 2D array): array of pupil diameter statistics, 
+                                          structured as:
+                                             stats [me, err] (x frames)
+            if ret_arr, also:
+            - data_array (1 to 2D array): puil diameter data array, structured 
+                                          as: sequences (x frames)
+        """
+
+        xran, data_array = self.get_pup_diam_array(pup_ref_fr, pre, post, 
+                                integ, baseline=baseline, stats=stats)
+
+        nanpol = 'omit'
+        all_data = self.get_array_stats(xran, data_array, ret_arr, axes=0, 
+                                        stats=stats, error=error, integ=integ, 
+                                        nanpol=nanpol)
+
+        if ret_arr:
+            xran, data_stats, data_array = all_data
+            return xran, data_stats, data_array
+        
+        else:
+            xran, data_stats = all_data
+            return xran, data_stats
 
 
     #############################################

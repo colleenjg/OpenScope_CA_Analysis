@@ -173,9 +173,9 @@ def init_param_cont(args):
                                      small subset of ROIs and gabors
 
     Returns:
+        - analyspar (AnalysPar)    : named tuple of analysis parameters
         - sesspar (SessPar)        : named tuple of session parameters
         - stimpar (StimPar)        : named tuple of stimulus parameters
-        - analyspar (AnalysPar)    : named tuple of analysis parameters
         - autocorrpar (AutocorrPar): named tuple of autocorrelation 
                                      parameters
         - permpar (PermPar)        : named tuple of permutation parameters
@@ -239,10 +239,10 @@ def init_param_cont(args):
                                             args.pass_fail, args.incl, 
                                             args.runtype)
     # stimulus parameters
-    stimpar = sess_ntuple_util.init_stimpar(args.bri_dir, args.bri_size, 
-                                            args.gabfr, args.gabk, 
-                                            args.gab_ori, args.pre, 
-                                            args.post, args.stimtype)
+    stimpar = sess_ntuple_util.init_stimpar(args.stimtype, args.bri_dir, 
+                                            args.bri_size, args.gabfr, 
+                                            args.gabk, args.gab_ori, 
+                                            args.pre, args.post)
 
     # SPECIFIC ANALYSES    
     # autocorrelation parameters
@@ -406,7 +406,7 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
                  permpar, quintpar, roigrppar, tcurvpar, figpar, seed=None, 
                  analyses='all', skip='', parallel=False, plot_tc=True):
     """
-    run_analyses(sessions, analyses, analyspar, sesspar, stimpar, autocorrpar, 
+    run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar, 
                  permpar, quintpar, roigrppar, tcurvpar, figpar)
 
     Run requested analyses on sessions using the named tuples passed.

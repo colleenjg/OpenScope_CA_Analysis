@@ -18,7 +18,7 @@ from util import gen_util
 
 #############################################
 def init_analyspar(fluor='dff', remnans=True, stats='mean', error='sem', 
-                   scale=None, dend='aibs'):
+                   scale=None, dend='extr'):
     """
     Returns a AnalysPar namedtuple with the inputs arguments as named 
     attributes.
@@ -38,7 +38,7 @@ def init_analyspar(fluor='dff', remnans=True, stats='mean', error='sem',
                                (e.g., 'roi', 'all', 'none')
                                default: None
         - dend (str)         : dendrites to use ('aibs' or 'extr')
-                               default: 'aibs'
+                               default: 'extr'
 
     Returns:
         - analyspar (AnalysPar namedtuple): AnalysPar with input arguments as 
@@ -99,13 +99,16 @@ def init_sesspar(sess_n, closest=False, layer='soma', line='any', min_rois=1,
 
 
 #############################################
-def init_stimpar(bri_dir=['right', 'left'], bri_size=128, gabfr=0, gabk=16, 
-                 gab_ori=[0, 45, 90, 135], pre=0, post=1.5, stimtype='both'):
+def init_stimpar(stimtype='both', bri_dir=['right', 'left'], bri_size=128, 
+                 gabfr=0, gabk=16, gab_ori=[0, 45, 90, 135], pre=0, post=1.5):
     """
     Returns a StimPar namedtuple with the inputs arguments as named 
     attributes.
 
     Optional args:
+        - stimtype (str)         : stimulus to analyse ('bricks', 'gabors' or 
+                                   'both')
+                                   default: 'both'
         - bri_dir (str or list)  : brick direction values to include
                                    ('right', 'left', ['right', 'left'])
                                    default: ['right', 'left']
@@ -126,18 +129,15 @@ def init_stimpar(bri_dir=['right', 'left'], bri_size=128, gabfr=0, gabk=16,
         - post (num)             : range of frames to include after each 
                                    reference frame (in s)
                                    default: 1.5
-        - stimtype (str)         : stimulus to analyse ('bricks', 'gabors' or 
-                                   'both')
-                                   default: 'both'
     
     Returns:
         - stimpar (StimPar namedtuple): StimPar with input arguments as 
                                         attributes
     """
 
-    stim_keys = ['bri_dir', 'bri_size', 'gabfr', 'gabk', 'gab_ori', 'pre', 
-                 'post', 'stimtype']
-    stim_pars = [bri_dir, bri_size, gabfr, gabk, gab_ori, pre, post, stimtype]
+    stim_keys = ['stimtype', 'bri_dir', 'bri_size', 'gabfr', 'gabk', 'gab_ori', 
+                 'pre', 'post']
+    stim_pars = [stimtype, bri_dir, bri_size, gabfr, gabk, gab_ori, pre, post]
     StimPar   = namedtuple('StimPar', stim_keys)
     stimpar   = StimPar(*stim_pars)
     return stimpar

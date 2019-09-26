@@ -76,13 +76,13 @@ def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth,
     """
     get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth)
 
-    Returns values from mouse dataframe under a specified label that fit the 
-    criteria.
+    Returns values from mouse dataframe under a specified label or labels that 
+    fit the criteria.
 
     Required args:
         - mouse_df (pandas df)      : dataframe containing parameters for each 
                                       session.
-        - returnlab (str)           : label from which to return values
+        - returnlab (str or list)   : labels for which to return values
         - mouse_n (int, str or list): mouse id value(s) of interest  
         - sessid (int or list)      : session id value(s) of interest
         - sess_n (int, str or list) : session number(s) of interest
@@ -122,7 +122,7 @@ def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth,
     [mouse_n, sessid, sess_n, runtype, depth, 
         pass_fail, incl, all_files, any_files] = all_labs
 
-    df_vals = mouse_df.loc[(mouse_df['mouse_n'].isin(mouse_n)) & 
+    df_rows = mouse_df.loc[(mouse_df['mouse_n'].isin(mouse_n)) & 
                            (mouse_df['sessid'].isin(sessid)) &
                            (mouse_df['sess_n'].isin(sess_n)) &
                            (mouse_df['runtype'].isin(runtype)) &
@@ -131,13 +131,20 @@ def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth,
                            (mouse_df['incl'].isin(incl)) &
                            (mouse_df['all_files'].isin(all_files)) &
                            (mouse_df['any_files'].isin(any_files)) &
-                           (mouse_df['nrois'].astype(int) >= min_rois)][returnlab].tolist()
+                           (mouse_df['nrois'].astype(int) >= min_rois)]
 
-    if unique:
-        df_vals = list(set(df_vals))
-
-    if sort:
-        df_vals = sorted(df_vals)
+    returnlab = gen_util.list_if_not(returnlab)
+    
+    df_vals = []
+    for lab in returnlab:
+        vals = df_rows[lab].tolist()
+        if unique:
+            vals = list(set(vals))
+        if sort:
+            vals = sorted(vals)
+        df_vals.append(vals)
+        
+    df_vals = gen_util.delist_if_not(df_vals)
 
     return df_vals
 
@@ -146,7 +153,7 @@ def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth,
 def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any', 
                   runtype='any', layer='any', line='any', pass_fail='P', 
                   incl='all', all_files=1, any_files=1, min_rois=1, 
-                  omit_sess=[], omit_mice=[], unique=True, sort=True):
+                  omit_sess=[], omit_mice=[], unique=True, sort=False):
     """
     get_sess_vals(mouse_df, returnlab)
 
@@ -225,9 +232,12 @@ def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any',
 
     sess_vals = get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, 
                             runtype, depth, pass_fail, incl, all_files, 
-                            any_files, min_rois, unique, sort)
+                            any_files, min_rois, unique)
 
     sess_vals = list(set(sess_vals)) # get unique
+
+    if sort:
+        sess_vals = sorted(sess_vals)
 
     return sess_vals
 
@@ -424,7 +434,7 @@ def sess_comb_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
 
 #############################################
 def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True, 
-                  dend='aibs', omit=False, pupil=False):
+                  dend='extr', omit=False, pupil=False):
     """
     init_sessions(sessids, datadir)
 
@@ -443,7 +453,7 @@ def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True,
                            (with all the brick positions).
                            default: True
         - dend (str)     : type of dendrites to use ('aibs' or 'extr')
-                           default: 'aibs'
+                           default: 'extr'
         - omit (bool)    : if True, dendritic sessions with the wrong type of 
                            dendrite are omitted
                            default: False
