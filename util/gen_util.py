@@ -110,6 +110,26 @@ def list_if_not(items):
 
 
 #############################################
+def delist_if_not(items):
+    """
+    delist_if_not(items)
+
+    If a list contains only one element, returns the element. Otherwise,
+    returns the original list.
+
+    Required args:
+        - items (list): list
+
+    Returns:
+        - items (item or list): only item in the list or original list.
+    """
+    
+    if len(items) == 1:
+        items = items[0]
+    return items
+
+
+#############################################
 def remove_lett(lett_str, rem):
     """
     remove_lett(lett_str, rem)
@@ -144,6 +164,35 @@ def remove_lett(lett_str, rem):
 
 
 #############################################
+def slice_idx(axis, pos):
+    """
+    slice_idx(axis, pos)
+
+    Returns a tuple to index an array based on an axis and position on that
+    axis.
+
+    Required args:
+        - axis (int): axis number (non negative)
+        - post (int): position on axis
+
+    Returns:
+        - sl_idx (slice): slice corresponding to axis and position passed.
+    """
+
+    if axis is None and pos is None:
+        sl_idx = tuple([slice(None)])
+
+    elif axis < 0:
+        raise ValueError(('Do not pass -1 axis value as this will always '
+                          'be equivalent to axis 0.'))
+
+    else:
+        sl_idx = tuple([slice(None)] * axis + [pos])
+
+    return sl_idx
+
+
+#############################################
 def remove_idx(items, rem, axis=0):
     """
     remove_idx(items, rem)
@@ -174,7 +223,7 @@ def remove_idx(items, rem, axis=0):
 
     all_idx = items.shape[axis]
     keep = sorted(set(range(all_idx)) - set(rem))
-    keep_slice = tuple([slice(None)] * axis + [keep])
+    keep_slice = slice_idx(axis, keep)
 
     items = items[keep_slice]
 
@@ -356,9 +405,39 @@ def seed_all(seed=None, device='cpu', print_seed=True, seed_now=True):
 
 
 #############################################
-def conv_type(items, dtype=int):
+def conv_type(item, dtype=int):
     """
-    conv_type(items)
+    conv_type(item)
+
+    Returns input item converted to a specific type (int, float or str). 
+
+    Required args:
+        - item (item): value to convert
+
+    Optional args:
+        - dtype (dtype): target datatype (int, float or str)
+                         default: int
+
+    Returns:
+        - item (item): converted value
+    """
+
+    if dtype in [int, 'int']:
+        item = int(item)
+    elif dtype in [float, 'float']:
+        item = float(item)
+    elif dtype in [str, 'str']:
+        item = str(item)
+    else:
+        accepted_values_error('dtype', dtype, ['int', 'float', 'str'])
+
+    return item
+
+
+#############################################
+def conv_types(items, dtype=int):
+    """
+    conv_types(items)
 
     Returns input list with items converted to a specific type (int, float or 
     str). 
@@ -371,20 +450,13 @@ def conv_type(items, dtype=int):
                          default: int
 
     Returns:
-        - vals (list): converted values
+        - items (list): converted values
     """
 
     items = list_if_not(items)
 
     for i in range(len(items)):
-        if dtype in [int, 'int']:
-            items[i] = int(items[i])
-        elif dtype in [float, 'float']:
-            items[i] = float(items[i])
-        elif dtype in [str, 'str']:
-            items[i] = str(items[i])
-        else:
-            accepted_values_error('dtype', dtype, ['int', 'float', 'str'])
+        items[i] = conv_type(items[i])
 
     return items
 
@@ -418,7 +490,8 @@ def get_df_label_vals(df, label, vals=None):
 
 
 #############################################
-def get_df_vals(df, cols=[], criteria=[], label=None, unique=True, dtype=None):
+def get_df_vals(df, cols=[], criteria=[], label=None, unique=True, dtype=None, 
+                single=False):
     """
     get_df_vals(df, cols, criteria)
 
@@ -443,12 +516,19 @@ def get_df_vals(df, cols=[], criteria=[], label=None, unique=True, dtype=None):
         - dtype (str)    : if not None, values are converted to the specified 
                            datatype (int, float or str)
                            dtype: None
+        - single (bool)  : if True, checks whether only one value or row is 
+                           found and if so, returns it
+                           dtype: False 
 
     Returns:
         if label is None:
             - lines (pd Dataframe): dataframe containing lines corresponding to 
                                     the specified criteria.
         else:
+            if single:
+            - vals (item)         : value from a specific column corresponding 
+                                    to the specified criteria. 
+            else:
             - vals (list)         : list of values from a specific column 
                                     corresponding to the specified criteria. 
     """
@@ -467,9 +547,18 @@ def get_df_vals(df, cols=[], criteria=[], label=None, unique=True, dtype=None):
         if unique:
             vals = sorted(list(set(vals)))
         if dtype is not None:
-            vals = conv_type(vals, dtype)
+            vals = conv_types(vals, dtype)
+        if single:
+            if len(vals) != 1:
+                raise ValueError(('Expected to find 1 value, but '
+                                  'found {}.').format(len(vals)))
+            else:
+                vals = vals[0]
         return vals
     else: 
+        if single and len(df) != 1:
+            raise ValueError(('Expected to find 1 dataframe line, but '
+                              'found {}.').format(len(df)))
         return df
 
 
@@ -626,3 +715,66 @@ def get_logger(logtype='both', name='all logs', filename='logs.txt',
 
     return logger
 
+
+#############################################
+def hierarch_argsort(data, sorter='fwd', axis=0, dtypes=None):
+    """
+    hierarch_argsort(data)
+
+    Returns the sorting argument and sorted data. Data is sorted hierarchically
+    based on the sorter (top -> bottom hierarchy) along the specified axis.
+
+    Required args:
+        - data (nd array): array of data to use for sorting
+
+    Optional args:
+        - sorter (str or list): order to use for the sorting hierarchy, from
+                                top to bottom (list of indices or 'fwd' or 
+                                'rev')
+                                default: 'fwd'
+        - axis (int)          : axis number
+                                default: 0
+        - dtypes (list)       : datatypes to which to convert each data sorting
+                                sub array (one per sorting position)
+                                default: None
+    
+    Returns:
+        - overall_sort (list): sorting index
+        - data (nd array)    : sorted data array
+    """
+
+    if len(data.shape) != 2:
+        raise ValueError('Only implemented for 2D arrays.')
+
+    axis, rem_axis = pos_idx([axis, 1-axis], len(data.shape))
+    axis_len = data.shape[axis]
+
+    data = copy.deepcopy(data)
+
+    if sorter in ['fwd', 'rev']:
+        sorter = range(axis_len)
+        if sorter == 'rev':
+            sorter = reversed(sorter)
+    else:
+        sorter = list_if_not(sorter)
+        sorter = pos_idx(sorter, data.shape[axis])
+
+    if dtypes is None:
+        dtypes = [None] * len(sorter)
+    elif len(dtypes) != len(sorter):
+        raise ValueError(('If `dtypes` are provided, must pass one per '
+                          'sorting position.'))
+
+    overall_sort = np.asarray(range(data.shape[rem_axis]))
+
+    for i, dt in zip(reversed(sorter), dtypes):
+        sc_idx = slice_idx(axis, i)
+        sort_data = data[sc_idx]
+        if dt is not None:
+            sort_data = sort_data.astype(dt)
+        sort_arr = np.argsort(sort_data)
+        overall_sort = overall_sort[sort_arr]
+        sort_slice   = slice_idx(rem_axis, sort_arr)
+        data         = data[sort_slice]
+
+    return overall_sort, data
