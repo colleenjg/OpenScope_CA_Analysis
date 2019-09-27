@@ -109,8 +109,8 @@ def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth,
                                         default: False
                                     
     Returns:
-        - df_vals (list): list of values under the specified label that fit
-                          the criteria
+        - df_vals (list): list of values under the specified labels that fit
+                          the criteria (or list of lists in multiple labels)
     """
 
     # make sure all of these labels are lists
@@ -134,6 +134,11 @@ def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth,
                            (mouse_df['nrois'].astype(int) >= min_rois)]
 
     returnlab = gen_util.list_if_not(returnlab)
+    if len(returnlab) != 1 and (sort or unique):
+        print(('WARNING: Sorted and unique will be set to False as multiple '
+               'labels are requested.'))
+        sort   = False
+        unique = False
     
     df_vals = []
     for lab in returnlab:
@@ -161,9 +166,9 @@ def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any',
     criteria.
 
     Required args:
-        - mouse_df (str) : path name of dataframe containing information 
-                           on each session
-        - returnlab (str): label from which to return values
+        - mouse_df (str)         : path name of dataframe containing 
+                                   information on each session
+        - returnlab (str or list): label(s) from which to return values
 
     Optional args:
         - mouse_n (int, str or list)  : mouse number(s) of interest
@@ -196,9 +201,11 @@ def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any',
         - omit_mice (list)            : mice to omit
                                         default: []
         - unique (bool)               : whether to return a list of values 
-                                        without duplicates
+                                        without duplicates (only done if only 
+                                        one returnlab is provided)
                                         default: False 
-        - sort (bool)                 : whether to sort output values
+        - sort (bool)                 : whether to sort output values (only 
+                                        done if only one returnlab is provided)
                                         default: False
      
     Returns:
@@ -232,12 +239,7 @@ def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any',
 
     sess_vals = get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, 
                             runtype, depth, pass_fail, incl, all_files, 
-                            any_files, min_rois, unique)
-
-    sess_vals = list(set(sess_vals)) # get unique
-
-    if sort:
-        sess_vals = sorted(sess_vals)
+                            any_files, min_rois, unique, sort)
 
     return sess_vals
 
@@ -295,8 +297,11 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
     Returns:
         - sessids (list): sessions to analyse (1 per mouse)
     """
-
+    if isinstance(mouse_df, str):
+        mouse_df = file_util.loadfile(mouse_df)
+        
     if closest or sess_n == 'last':
+        orig_sess_n = sess_n
         sess_n = gen_util.get_df_label_vals(mouse_df, 'sess_n', 'any')
     
     if runtype == 'any':
@@ -323,7 +328,7 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
             sess_n = sess_ns[-1]
         # find closest sess number among possible sessions
         else:
-            sess_n = sess_ns[np.argmin(np.absolute([x-sess_n 
+            sess_n = sess_ns[np.argmin(np.absolute([x - orig_sess_n 
                                                     for x in sess_ns]))]
         sessid = get_sess_vals(mouse_df, 'sessid', i, sess_n, runtype, layer, 
                                line, pass_fail, incl, all_files, any_files, 

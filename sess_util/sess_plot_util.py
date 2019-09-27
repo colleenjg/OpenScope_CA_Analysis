@@ -31,7 +31,7 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7.5,
     initializing a figure, saving a figure, and extra save directory 
     parameters.
 
-    Required args: 
+    Optional args: 
         - ncols (int)      : number of columns in the figure
                              default: 4 
         - sharex (bool)    : if True, x axis lims are shared across subplots
