@@ -411,7 +411,10 @@ class Session(object):
         (stim2twopfr).
         Sets the following attributes:
         
-            - stim_df (pandas df)   : stimlus alignment dataframe
+            - stim_df (pandas df)   : stimlus alignment dataframe with columns:
+                                        'stimType', 'stimPar1', 'stimPar2', 
+                                        'surp', 'stimSeg', 'gabfr', 
+                                        'start2pfr', 'end2pfr', 'num2pfr'
             - stim2twopfr (1D array): 2p frame numbers for each stimulus frame, 
                                       as well as the flanking
                                       blank screen frames 
@@ -431,7 +434,11 @@ class Session(object):
 
         align = file_util.loadfile(self.align_pkl)
 
-        self.stim_df      = align['stim_df']
+        self.stim_df = align['stim_df']
+        self.stim_df = self.stim_df.rename(columns={'GABORFRAME': 'gabfr', 
+                                                    'start_frame': 'start2pfr', 
+                                                    'end_frame': 'end2pfr', 
+                                                    'num_frames': 'num2pfr'})
         self.stim2twopfr  = align['stim_align'].astype('int')
         self.twop_fps     = sess_sync_util.get_frame_rate(self.stim_sync_h5)[0] 
         self.twop_fr_stim = int(max(align['stim_align']))
@@ -671,10 +678,10 @@ class Session(object):
 
         elif self.runtype == 'prod':
             bri_st_fr = gen_util.get_df_vals(self.stim_df, 'stimType', 'b', 
-                                             'start_frame', unique=False)
+                                             'start2pfr', unique=False)
             bri_num_fr = np.diff(bri_st_fr)
             num_fr = gen_util.get_df_vals(self.stim_df, 'stimType', 'b', 
-                                          'num_frames', unique=False)[:-1]
+                                          'num2pfr', unique=False)[:-1]
             break_idx = np.where(num_fr != bri_num_fr)[0]
             n_br = len(break_idx)
             if n_br != 1:
@@ -684,11 +691,11 @@ class Session(object):
             # last start frame and seg for the first brick stim
             last_fr1 = bri_st_fr[break_idx[0]] 
             last_seg1 = gen_util.get_df_vals(self.stim_df, 
-                                             ['stimType', 'start_frame'], 
+                                             ['stimType', 'start2pfr'], 
                                              ['b', last_fr1], 'stimSeg')[0]
             
             seg_idx = ((self.stim_df['stimType'] == 'b') & 
-                       (self.stim_df['start_frame'] > last_fr1))
+                       (self.stim_df['start2pfr'] > last_fr1))
 
             new_idx = self.stim_df.loc[seg_idx]['stimSeg'] + last_seg1 + 1
             self.stim_df = gen_util.set_df_vals(self.stim_df, seg_idx, 
@@ -1127,9 +1134,9 @@ class Session(object):
             all_ran = [ran for dispran in stim.block_ran_seg for ran in dispran]
             for bl in all_ran:
                 stfr = self.stim_df.loc[(self.stim_df['stimType'] == stimtype[0]) &
-                                        (self.stim_df['stimSeg'] == bl[0])]['start_frame'].values[0]
+                                        (self.stim_df['stimSeg'] == bl[0])]['start2pfr'].values[0]
                 endfr = self.stim_df.loc[(self.stim_df['stimType'] == stimtype[0]) &
-                                         (self.stim_df['stimSeg'] == bl[1]-1)]['end_frame'].values[0]               
+                                         (self.stim_df['stimSeg'] == bl[1]-1)]['end2pfr'].values[0]               
                 twop_fr.extend(list(range(stfr, endfr + 1)))
             stim_data = self.get_roi_traces(twop_fr, fluor, remnans)
             stim_data_sm = scsig.medfilt(stim_data, win)
@@ -1842,9 +1849,9 @@ class Stim(object):
             for j in i:
                 # get first occurrence of first segment
                 min_idx = self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == self.stimtype[0]) &
-                                                (self.sess.stim_df['stimSeg'] == j[0])]['start_frame'].tolist()[0]
+                                                (self.sess.stim_df['stimSeg'] == j[0])]['start2pfr'].tolist()[0]
                 max_idx = self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == self.stimtype[0]) &
-                                                (self.sess.stim_df['stimSeg'] == j[1]-1)]['end_frame'].tolist()[0] + 1
+                                                (self.sess.stim_df['stimSeg'] == j[1]-1)]['end2pfr'].tolist()[0] + 1
                 # 1 added as range end is excluded
                 temp.append([min_idx, max_idx])
             self.block_ran_twop_fr.append(temp)
@@ -1945,19 +1952,19 @@ class Stim(object):
                                       (self.sess.stim_df['stimSeg'].isin(seglist))]
 
         # get the start frames and end frames from each row
-        start_frames = rows['start_frame'].values
+        start2pfrs = rows['start2pfr'].values
         if not first or last:
-            end_frames = rows['end_frame'].values
+            end2pfrs = rows['end2pfr'].values
 
         if not first and not last:
             # build arrays for each segment
-            for r in range(start_frames.shape[0]):
-                frames.append(np.arange(start_frames[r], end_frames[r]))
+            for r in range(start2pfrs.shape[0]):
+                frames.append(np.arange(start2pfrs[r], end2pfrs[r]))
         else:
             if first:
-                frames.append(start_frames)
+                frames.append(start2pfrs)
             if last:
-                frames.append(end_frames)
+                frames.append(end2pfrs)
             frames = gen_util.delist_if_not(frames)
 
         return frames
@@ -1983,7 +1990,7 @@ class Stim(object):
         
         # number of frames will be returned in ascending order of seg number
         n_fr = self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == self.stimtype[0]) &
-                                      (self.sess.stim_df['stimSeg'].isin(segs_unique))]['num_frames'].tolist()
+                                      (self.sess.stim_df['stimSeg'].isin(segs_unique))]['num2pfr'].tolist()
         
         # resort based on order in which segs were passed and include any 
         # duplicates
@@ -1994,8 +2001,8 @@ class Stim(object):
 
     #############################################
     def _format_stim_criteria(self, stimPar1='any', stimPar2='any', surp='any', 
-                              stimSeg='any', gabfr='any', start_frame='any', 
-                              end_frame='any', num_frames='any', gabk=None, 
+                              stimSeg='any', gabfr='any', start2pfr='any', 
+                              end2pfr='any', num2pfr='any', gabk=None, 
                               gab_ori=None, bri_size=None, bri_dir=None):
         """
         self._format_stim_criteria()
@@ -2017,39 +2024,39 @@ class Stim(object):
                                              default: 'any'
             - stimSeg (str, int or list)   : stimSeg value(s) of interest
                                              default: 'any'
-            - gabfr (str, int or list)    : gaborframe value(s) of interest 
+            - gabfr (str, int or list)     : gaborframe value(s) of interest 
                                              (0, 1, 2, 3)
                                              default: 'any'
-            - start_frame_min (str or int): minimum of 2p start_frame range of 
-                                            interest 
-                                            default: 'any'
-            - start_frame_max (str or int): maximum of 2p start_frame range of 
-                                            interest (excl)
-                                            default: 'any'
-            - end_frame_min (str or int)  : minimum of 2p end_frame range of 
-                                            interest
-                                            default: 'any'
-            - end_frame_max (str or int)  : maximum of 2p end_frame range of 
-                                            interest (excl)
-                                            default: 'any'
-            - num_frames_min (str or int) : minimum of num_frames range of 
-                                            interest
-                                            default: 'any'
-            - num_frames_max (str or int) : maximum of num_frames range of 
-                                            interest (excl)
-                                            default: 'any'
-            - gabk (int or list)          : if not None, will overwrite 
-                                            stimPar2 (4, 16, or 'any')
-                                            default: None
-            - gab_ori (int or list)       : if not None, will overwrite 
-                                            stimPar1 (0, 45, 90, 135, or 'any')
-                                            default: None
-            - bri_size (int or list)      : if not None, will overwrite 
-                                            stimPar1 (128, 256, or 'any')
-                                            default: None
-            - bri_dir (str or list)       : if not None, will overwrite 
-                                            stimPar2 ('right', 'left' or 'any')
-                                            default: None
+            - start2pfr_min (str or int)   : minimum of 2p start2pfr range of 
+                                             interest 
+                                             default: 'any'
+            - start2pfr_max (str or int)   : maximum of 2p start2pfr range of 
+                                             interest (excl)
+                                             default: 'any'
+            - end2pfr_min (str or int)     : minimum of 2p end2pfr range of 
+                                             interest
+                                             default: 'any'
+            - end2pfr_max (str or int)     : maximum of 2p end2pfr range of 
+                                             interest (excl)
+                                             default: 'any'
+            - num2pfr_min (str or int)     : minimum of num2pfr range of 
+                                             interest
+                                             default: 'any'
+            - num2pfr_max (str or int)     : maximum of num2pfr range of 
+                                             interest (excl)
+                                             default: 'any'
+            - gabk (int or list)           : if not None, will overwrite 
+                                             stimPar2 (4, 16, or 'any')
+                                             default: None
+            - gab_ori (int or list)        : if not None, will overwrite 
+                                             stimPar1 (0, 45, 90, 135, or 'any')
+                                             default: None
+            - bri_size (int or list)       : if not None, will overwrite 
+                                             stimPar1 (128, 256, or 'any')
+                                             default: None
+            - bri_dir (str or list)        : if not None, will overwrite 
+                                             stimPar2 ('right', 'left' or 'any')
+                                             default: None
         """
 
         # remove brick criteria for gabors and vv
@@ -2095,29 +2102,28 @@ class Stim(object):
                                               'stimSeg', stimSeg)
         # here, ensure that the -1s are removed
         stimSeg = gen_util.remove_if(stimSeg, -1)
-        gabfr   = gen_util.get_df_label_vals(self.sess.stim_df, 
-                                             'GABORFRAME', gabfr)
+        gabfr   = gen_util.get_df_label_vals(self.sess.stim_df, 'gabfr', gabfr)
         
-        if start_frame in ['any', None]:
-            start_frame_min = int(self.sess.stim_df['start_frame'].min())
-            start_frame_max = int(self.sess.stim_df['start_frame'].max()+1)
-        if end_frame in ['any', None]:
-            end_frame_min = int(self.sess.stim_df['end_frame'].min())
-            end_frame_max = int(self.sess.stim_df['end_frame'].max()+1)
-        if num_frames in ['any', None]:
-            num_frames_min = int(self.sess.stim_df['num_frames'].min())
-            num_frames_max = int(self.sess.stim_df['num_frames'].max()+1)
+        if start2pfr in ['any', None]:
+            start2pfr_min = int(self.sess.stim_df['start2pfr'].min())
+            start2pfr_max = int(self.sess.stim_df['start2pfr'].max()+1)
+        if end2pfr in ['any', None]:
+            end2pfr_min = int(self.sess.stim_df['end2pfr'].min())
+            end2pfr_max = int(self.sess.stim_df['end2pfr'].max()+1)
+        if num2pfr in ['any', None]:
+            num2pfr_min = int(self.sess.stim_df['num2pfr'].min())
+            num2pfr_max = int(self.sess.stim_df['num2pfr'].max()+1)
 
-        return [stimPar1, stimPar2, surp, stimSeg, gabfr, start_frame_min, 
-                start_frame_max, end_frame_min, end_frame_max, num_frames_min, 
-                num_frames_max] 
+        return [stimPar1, stimPar2, surp, stimSeg, gabfr, start2pfr_min, 
+                start2pfr_max, end2pfr_min, end2pfr_max, num2pfr_min, 
+                num2pfr_max] 
 
 
     #############################################
     def get_stim_df_by_criteria(self, stimPar1='any', stimPar2='any', 
                                 surp='any', stimSeg='any', gabfr='any', 
-                                start_frame='any', end_frame='any', 
-                                num_frames='any', gabk=None, gab_ori=None, 
+                                start2pfr='any', end2pfr='any', 
+                                num2pfr='any', gabk=None, gab_ori=None, 
                                 bri_size=None, bri_dir=None):
         """
         self.get_stim_df_by_criteria()
@@ -2139,39 +2145,39 @@ class Stim(object):
                                              default: 'any'
             - stimSeg (str, int or list)   : stimSeg value(s) of interest
                                              default: 'any'
-            - gabfr (str, int or list)    : gaborframe value(s) of interest 
+            - gabfr (str, int or list)     : gaborframe value(s) of interest 
                                              (0, 1, 2, 3)
                                              default: 'any'
-            - start_frame_min (str or int): minimum of 2p start_frame range of 
-                                            interest 
-                                            default: 'any'
-            - start_frame_max (str or int): maximum of 2p start_frame range of 
-                                            interest (excl)
-                                            default: 'any'
-            - end_frame_min (str or int)  : minimum of 2p end_frame range of 
-                                            interest
-                                            default: 'any'
-            - end_frame_max (str or int)  : maximum of 2p end_frame range of 
-                                            interest (excl)
-                                            default: 'any'
-            - num_frames_min (str or int) : minimum of num_frames range of 
-                                            interest
-                                            default: 'any'
-            - num_frames_max (str or int) : maximum of num_frames range of 
-                                            interest (excl)
-                                            default: 'any'
-            - gabk (int or list)          : if not None, will overwrite 
-                                            stimPar2 (4, 16, or 'any')
-                                            default: None
-            - gab_ori (int or list)       : if not None, will overwrite 
-                                            stimPar1 (0, 45, 90, 135, or 'any')
-                                            default: None
-            - bri_size (int or list)      : if not None, will overwrite 
-                                            stimPar1 (128, 256, or 'any')
-                                            default: None
-            - bri_dir (str or list)       : if not None, will overwrite 
-                                            stimPar2 ('right', 'left' or 'any')
-                                            default: None
+            - start2pfr_min (str or int)   : minimum of 2p start2pfr range of 
+                                             interest 
+                                             default: 'any'
+            - start2pfr_max (str or int)   : maximum of 2p start2pfr range of 
+                                             interest (excl)
+                                             default: 'any'
+            - end2pfr_min (str or int)     : minimum of 2p end2pfr range of 
+                                             interest
+                                             default: 'any'
+            - end2pfr_max (str or int)     : maximum of 2p end2pfr range of 
+                                             interest (excl)
+                                             default: 'any'
+            - num2pfr_min (str or int)     : minimum of num2pfr range of 
+                                             interest
+                                             default: 'any'
+            - num2pfr_max (str or int)     : maximum of num2pfr range of 
+                                             interest (excl)
+                                             default: 'any'
+            - gabk (int or list)           : if not None, will overwrite 
+                                             stimPar2 (4, 16, or 'any')
+                                             default: None
+            - gab_ori (int or list)        : if not None, will overwrite 
+                                             stimPar1 (0, 45, 90, 135, or 'any')
+                                             default: None
+            - bri_size (int or list)       : if not None, will overwrite 
+                                             stimPar1 (128, 256, or 'any')
+                                             default: None
+            - bri_dir (str or list)        : if not None, will overwrite 
+                                             stimPar2 ('right', 'left' or 'any')
+                                             default: None
         
         Returns:
             - sub_df (pd Dataframe): subset of the stimulus dataframe 
@@ -2179,33 +2185,33 @@ class Stim(object):
         """
 
         pars = self._format_stim_criteria(stimPar1, stimPar2, surp, 
-                                stimSeg, gabfr, start_frame, end_frame, 
-                                num_frames, gabk, gab_ori, bri_size, bri_dir)
+                                stimSeg, gabfr, start2pfr, end2pfr, 
+                                num2pfr, gabk, gab_ori, bri_size, bri_dir)
 
-        [stimPar1, stimPar2, surp, stimSeg, gabfr, start_frame_min, 
-         start_frame_max, end_frame_min, end_frame_max, num_frames_min, 
-         num_frames_max] = pars
+        [stimPar1, stimPar2, surp, stimSeg, gabfr, start2pfr_min, 
+         start2pfr_max, end2pfr_min, end2pfr_max, num2pfr_min, 
+         num2pfr_max] = pars
 
         sub_df = self.sess.stim_df.loc[(self.sess.stim_df['stimType']==self.stimtype[0])     & 
                                        (self.sess.stim_df['stimPar1'].isin(stimPar1))        &
                                        (self.sess.stim_df['stimPar2'].isin(stimPar2))        &
                                        (self.sess.stim_df['surp'].isin(surp))                &
                                        (self.sess.stim_df['stimSeg'].isin(stimSeg))          &
-                                       (self.sess.stim_df['GABORFRAME'].isin(gabfr))         &
-                                       (self.sess.stim_df['start_frame'] >= start_frame_min) &
-                                       (self.sess.stim_df['start_frame'] < start_frame_max)  &
-                                       (self.sess.stim_df['end_frame'] >= end_frame_min)     &
-                                       (self.sess.stim_df['end_frame'] < end_frame_max)      &
-                                       (self.sess.stim_df['num_frames'] >= num_frames_min)   &
-                                       (self.sess.stim_df['num_frames'] < num_frames_max)]
+                                       (self.sess.stim_df['gabfr'].isin(gabfr))              &
+                                       (self.sess.stim_df['start2pfr'] >= start2pfr_min) &
+                                       (self.sess.stim_df['start2pfr'] < start2pfr_max)  &
+                                       (self.sess.stim_df['end2pfr'] >= end2pfr_min)     &
+                                       (self.sess.stim_df['end2pfr'] < end2pfr_max)      &
+                                       (self.sess.stim_df['num2pfr'] >= num2pfr_min)   &
+                                       (self.sess.stim_df['num2pfr'] < num2pfr_max)]
         
         return sub_df
 
 
     #############################################
     def get_segs_by_criteria(self, stimPar1='any', stimPar2='any', surp='any', 
-                             stimSeg='any', gabfr='any', start_frame='any', 
-                             end_frame='any', num_frames='any', gabk=None, 
+                             stimSeg='any', gabfr='any', start2pfr='any', 
+                             end2pfr='any', num2pfr='any', gabk=None, 
                              gab_ori=None, bri_size=None, bri_dir=None, 
                              remconsec=False, by='block'):
         """
@@ -2228,60 +2234,60 @@ class Stim(object):
                                              default: 'any'
             - stimSeg (str, int or list)   : stimSeg value(s) of interest
                                              default: 'any'
-            - gabfr (str, int or list)    : gaborframe value(s) of interest 
+            - gabfr (str, int or list)     : gaborframe value(s) of interest 
                                              (0, 1, 2, 3)
                                              default: 'any'
-            - start_frame_min (str or int): minimum of 2p start_frame range of 
-                                            interest 
-                                            default: 'any'
-            - start_frame_max (str or int): maximum of 2p start_frame range of 
-                                            interest (excl)
-                                            default: 'any'
-            - end_frame_min (str or int)  : minimum of 2p end_frame range of 
-                                            interest
-                                            default: 'any'
-            - end_frame_max (str or int)  : maximum of 2p end_frame range of 
-                                            interest (excl)
-                                            default: 'any'
-            - num_frames_min (str or int) : minimum of num_frames range of 
-                                            interest
-                                            default: 'any'
-            - num_frames_max (str or int) : maximum of num_frames range of 
-                                            interest (excl)
-                                            default: 'any'
-            - gabk (int or list)          : if not None, will overwrite 
-                                            stimPar2 (4, 16, or 'any')
-                                            default: None
-            - gab_ori (int or list)       : if not None, will overwrite 
-                                            stimPar1 (0, 45, 90, 135, or 'any')
-                                            default: None
-            - bri_size (int or list)      : if not None, will overwrite 
-                                            stimPar1 (128, 256, or 'any')
-                                            default: None
-            - bri_dir (str or list)       : if not None, will overwrite 
-                                            stimPar2 ('right', 'left' or 'any')
-                                            default: None
-            - remconsec (bool)              if True, consecutive segments are 
-                                            removed within a block
-                                            default: False
-            - by (str)                    : determines whether segment numbers
-                                            are returned in a flat list ('seg'),
-                                            grouped by block ('block'), or 
-                                            further grouped by display  
-                                            sequence ('disp')
-                                            default: 'block'
+            - start2pfr_min (str or int)   : minimum of 2p start2pfr range of 
+                                             interest 
+                                             default: 'any'
+            - start2pfr_max (str or int)   : maximum of 2p start2pfr range of 
+                                             interest (excl)
+                                             default: 'any'
+            - end2pfr_min (str or int)     : minimum of 2p end2pfr range of 
+                                             interest
+                                             default: 'any'
+            - end2pfr_max (str or int)     : maximum of 2p end2pfr range of 
+                                             interest (excl)
+                                             default: 'any'
+            - num2pfr_min (str or int)     : minimum of num2pfr range of 
+                                             interest
+                                             default: 'any'
+            - num2pfr_max (str or int)     : maximum of num2pfr range of 
+                                             interest (excl)
+                                             default: 'any'
+            - gabk (int or list)           : if not None, will overwrite 
+                                             stimPar2 (4, 16, or 'any')
+                                             default: None
+            - gab_ori (int or list)        : if not None, will overwrite 
+                                             stimPar1 (0, 45, 90, 135, or 'any')
+                                             default: None
+            - bri_size (int or list)       : if not None, will overwrite 
+                                             stimPar1 (128, 256, or 'any')
+                                             default: None
+            - bri_dir (str or list)        : if not None, will overwrite 
+                                             stimPar2 ('right', 'left' or 'any')
+                                             default: None
+            - remconsec (bool)               if True, consecutive segments are 
+                                             removed within a block
+                                             default: False
+            - by (str)                     : determines whether segment numbers
+                                             are returned in a flat list ('seg'),
+                                             grouped by block ('block'), or 
+                                             further grouped by display  
+                                             sequence ('disp')
+                                             default: 'block'
         
         Returns:
             - segs (list): list of seg numbers that obey the criteria
         """
 
         pars = self._format_stim_criteria(stimPar1, stimPar2, surp, 
-                                stimSeg, gabfr, start_frame, end_frame, 
-                                num_frames, gabk, gab_ori, bri_size, bri_dir)
+                                stimSeg, gabfr, start2pfr, end2pfr, 
+                                num2pfr, gabk, gab_ori, bri_size, bri_dir)
 
-        [stimPar1, stimPar2, surp, stimSeg, gabfr, start_frame_min, 
-         start_frame_max, end_frame_min, end_frame_max, num_frames_min, 
-         num_frames_max] = pars
+        [stimPar1, stimPar2, surp, stimSeg, gabfr, start2pfr_min, 
+         start2pfr_max, end2pfr_min, end2pfr_max, num2pfr_min, 
+         num2pfr_max] = pars
         
         segs = []
         for i in self.block_ran_seg:
@@ -2292,13 +2298,13 @@ class Stim(object):
                                              (self.sess.stim_df['stimPar2'].isin(stimPar2))        &
                                              (self.sess.stim_df['surp'].isin(surp))                &
                                              (self.sess.stim_df['stimSeg'].isin(stimSeg))          &
-                                             (self.sess.stim_df['GABORFRAME'].isin(gabfr))         &
-                                             (self.sess.stim_df['start_frame'] >= start_frame_min) &
-                                             (self.sess.stim_df['start_frame'] < start_frame_max)  &
-                                             (self.sess.stim_df['end_frame'] >= end_frame_min)     &
-                                             (self.sess.stim_df['end_frame'] < end_frame_max)      &
-                                             (self.sess.stim_df['num_frames'] >= num_frames_min)   &
-                                             (self.sess.stim_df['num_frames'] < num_frames_max)    &
+                                             (self.sess.stim_df['gabfr'].isin(gabfr))              &
+                                             (self.sess.stim_df['start2pfr'] >= start2pfr_min) &
+                                             (self.sess.stim_df['start2pfr'] < start2pfr_max)  &
+                                             (self.sess.stim_df['end2pfr'] >= end2pfr_min)     &
+                                             (self.sess.stim_df['end2pfr'] < end2pfr_max)      &
+                                             (self.sess.stim_df['num2pfr'] >= num2pfr_min)   &
+                                             (self.sess.stim_df['num2pfr'] < num2pfr_max)    &
                                              (self.sess.stim_df['stimSeg'] >= j[0])                &
                                              (self.sess.stim_df['stimSeg'] < j[1])]['stimSeg'].tolist()
                 
@@ -2334,8 +2340,8 @@ class Stim(object):
     #############################################
     def get_stim_fr_by_criteria(self, stimPar1='any', stimPar2='any', 
                                 surp='any', stimSeg='any', gabfr='any', 
-                                start_frame='any', end_frame='any', 
-                                num_frames='any', gabk=None, gab_ori=None, 
+                                start2pfr='any', end2pfr='any', 
+                                num2pfr='any', gabk=None, gab_ori=None, 
                                 bri_size=None, bri_dir=None, first_fr=True, 
                                 remconsec=False, by='block'):
         """
@@ -2360,48 +2366,48 @@ class Stim(object):
                                              default: 'any'
             - stimSeg (str, int or list)   : stimSeg value(s) of interest
                                              default: 'any'
-            - gabfr (str, int or list)    : gaborframe value(s) of interest 
+            - gabfr (str, int or list)     : gaborframe value(s) of interest 
                                              (0, 1, 2, 3)
                                              default: 'any'
-            - start_frame_min (str or int): minimum of 2p start_frame range of 
-                                            interest 
-                                            default: 'any'
-            - start_frame_max (str or int): maximum of 2p start_frame range of 
-                                            interest (excl)
-                                            default: 'any'
-            - end_frame_min (str or int)  : minimum of 2p end_frame range of 
-                                            interest
-                                            default: 'any'
-            - end_frame_max (str or int)  : maximum of 2p end_frame range of 
-                                            interest (excl)
-                                            default: 'any'
-            - num_frames_min (str or int) : minimum of num_frames range of 
-                                            interest
-                                            default: 'any'
-            - num_frames_max (str or int) : maximum of num_frames range of 
-                                            interest (excl)
-                                            default: 'any'
-            - gabk (int or list)          : if not None, will overwrite 
-                                            stimPar2 (4, 16, or 'any')
-                                            default: None
-            - gab_ori (int or list)       : if not None, will overwrite 
-                                            stimPar1 (0, 45, 90, 135, or 'any')
-                                            default: None
-            - bri_size (int or list)      : if not None, will overwrite 
-                                            stimPar1 (128, 256, or 'any')
-                                            default: None
-            - bri_dir (str or list)       : if not None, will overwrite 
-                                            stimPar2 ('right', 'left' or 'any')
-                                            default: None
-            - remconsec (bool)              if True, consecutive segments are 
-                                            removed within a block
-                                            default: False
-            - by (str)                    : determines whether frame numbers 
-                                            are returned in a flat list 
-                                            ('frame'), grouped by block 
-                                            ('block'), or further grouped by 
-                                            display sequence ('disp')
-                                            default: 'block'
+            - start2pfr_min (str or int)   : minimum of 2p start2pfr range of 
+                                             interest 
+                                             default: 'any'
+            - start2pfr_max (str or int)   : maximum of 2p start2pfr range of 
+                                             interest (excl)
+                                             default: 'any'
+            - end2pfr_min (str or int)     : minimum of 2p end2pfr range of 
+                                             interest
+                                             default: 'any'
+            - end2pfr_max (str or int)     : maximum of 2p end2pfr range of 
+                                             interest (excl)
+                                             default: 'any'
+            - num2pfr_min (str or int)     : minimum of num2pfr range of 
+                                             interest
+                                             default: 'any'
+            - num2pfr_max (str or int)     : maximum of num2pfr range of 
+                                             interest (excl)
+                                             default: 'any'
+            - gabk (int or list)           : if not None, will overwrite 
+                                             stimPar2 (4, 16, or 'any')
+                                             default: None
+            - gab_ori (int or list)        : if not None, will overwrite 
+                                             stimPar1 (0, 45, 90, 135, or 'any')
+                                             default: None
+            - bri_size (int or list)       : if not None, will overwrite 
+                                             stimPar1 (128, 256, or 'any')
+                                             default: None
+            - bri_dir (str or list)        : if not None, will overwrite 
+                                             stimPar2 ('right', 'left' or 'any')
+                                             default: None
+            - remconsec (bool)               if True, consecutive segments are 
+                                             removed within a block
+                                             default: False
+            - by (str)                     : determines whether frame numbers 
+                                             are returned in a flat list 
+                                             ('frame'), grouped by block 
+                                             ('block'), or further grouped by 
+                                             display sequence ('disp')
+                                             default: 'block'
         
         Returns:
             - frames (list): list of stimulus frame numbers that obey the 
@@ -2410,8 +2416,8 @@ class Stim(object):
 
 
         segs = self.get_segs_by_criteria(stimPar1, stimPar2, surp, stimSeg, 
-                                         gabfr, start_frame, end_frame, 
-                                         num_frames, gabk, gab_ori, bri_size, 
+                                         gabfr, start2pfr, end2pfr, 
+                                         num2pfr, gabk, gab_ori, bri_size, 
                                          bri_dir, remconsec, by='disp')
 
         frames = []
@@ -3260,7 +3266,7 @@ class Gabors(Stim):
         # modify self.oris_pr E frames, as they are rotated 90 deg from what is 
         # recorded
         seg_surps = np.asarray(self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == 'g')]['surp'])
-        seg_gabfr = np.asarray(self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == 'g')]['GABORFRAME'])
+        seg_gabfr = np.asarray(self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == 'g')]['gabfr'])
         seg_surp_gabfr = np.asarray((seg_surps == 1) * (seg_gabfr == 3))
         self.oris_pr = oris_pr + seg_surp_gabfr[:, np.newaxis] * 90
         # in case some E frames values are now above upper range, so fix
@@ -3439,7 +3445,7 @@ class Gabors(Stim):
             
             # values will be returned in ascending order of seg number
             gabfr = self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == 'g') &
-                                        (self.sess.stim_df['stimSeg'] < segs_max)]['GABORFRAME'].tolist()
+                                        (self.sess.stim_df['stimSeg'] < segs_max)]['gabfr'].tolist()
             surps = self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == 'g') &
                                         (self.sess.stim_df['stimSeg'] < segs_max)]['surp'].tolist()
 

@@ -358,8 +358,10 @@ def prep_analyses(sess_n, args, mouse_df):
 
     comp = True
     if 'v' not in str(sess_n):
-        sess_n = int(sess_n)
         comp = False
+        if sess_n not in ['first', 'last']:
+            sess_n = int(sess_n)
+        
     args.sess_n = sess_n
 
     [analyspar, sesspar, stimpar, autocorrpar, permpar,
@@ -570,7 +572,7 @@ if __name__ == "__main__":
                               'or `all` or `all_m` to, for example, '
                               'run all analyses except m'))
     parser.add_argument('--sess_n', default='all',
-                        help='session to aim for, e.g. 1, 2, last, all')
+                        help='session to aim for, e.g. 1, 2, first, last, all')
     parser.add_argument('--parallel', action='store_true', 
                         help='do sess_n\'s in parallel.')
     parser.add_argument('--dict_path', default='', 
