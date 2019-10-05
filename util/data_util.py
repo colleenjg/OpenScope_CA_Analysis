@@ -342,7 +342,7 @@ def split_idx(n, train_p=0.75, val_p=None, test_p=None, thresh_set=10,
 
 
 #############################################
-def split_data(data, set_idxs):
+def split_data(data, set_idxs, make_torch=True):
     """
     split_data(data, set_idxs)
 
@@ -354,23 +354,31 @@ def split_data(data, set_idxs):
         - set_idxs (nested list): nested list of indices structured as:
                                   set (train, val, test) x indx
 
+    Optional args:
+        - make_torch (bool): if True, date is returned in torch Tensors instead 
+                             of input format, e.g. numpy array
+                             default: True
+
     Returns:
-        - sets (list of torch Tensors): list of torch Tensors containing the 
-                                        data for the train, val and test sets
-                                        respectively.
+        - sets (list of torch Tensors): list of torch Tensors or numpy arrays 
+                                        containing the data for the train, val 
+                                        and test sets respectively.
                                         If a group is empty, None is used
-                                        instead of an empty tensor.
+                                        instead of an empty tensor or array.
     """
 
     sets = []
     for set_idx in set_idxs:
         if len(set_idx) > 0:
-            sets.append(torch.Tensor(data[set_idx]))
+            if make_torch:
+                sets.append(torch.Tensor(data[set_idx]))
+            else:
+                sets.append(data[set_idx])
         else:
             sets.append(None)
     
     return sets
-
+    
 
 #############################################
 def init_dl(data, targets=None, batchsize=200, shuffle=False):

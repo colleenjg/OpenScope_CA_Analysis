@@ -19,6 +19,7 @@ import os
 
 from joblib import Parallel, delayed
 import numpy as np
+import scipy.stats as st
 
 from analysis import pup_analys, ori_analys, quint_analys, signif_grps
 from util import file_util, gen_util, math_util
@@ -576,8 +577,6 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
     print(('\nAnalysing and plotting correlations between surprise vs non '
            'surprise {} traces between sessions ({}).').format(datastr, 
                                                                sessstr_pr))
-
-    import scipy.stats as st
 
     figpar = copy.deepcopy(figpar)
     if figpar['save']['use_dt'] is None:

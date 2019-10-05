@@ -100,8 +100,8 @@ def build_stim_beh_df(sessions, analyspar, sesspar, stimpar):
     """
 
     full_df = pd.DataFrame()
-    retain = ['stimPar1', 'stimPar2', 'surp', 'stimSeg', 'GABORFRAME', 
-              'start_frame', 'end_frame']
+    retain = ['stimPar1', 'stimPar2', 'surp', 'stimSeg', 'gabfr', 
+              'start2pfr', 'end2pfr']
     drop = ['stimSeg', 'start_twop_fr', 'end_twop_fr', 'start_stim_fr', 
             'end_stim_fr']
     if stimpar.stimtype == 'bricks':
@@ -114,9 +114,8 @@ def build_stim_beh_df(sessions, analyspar, sesspar, stimpar):
         sub_df = stim.get_stim_df_by_criteria(gabk=stimpar.gabk, 
                                             bri_dir=stimpar.bri_dir,
                                             bri_size=stimpar.bri_size)[retain]
-        sub_df = sub_df.rename(columns={'start_frame': 'start_twop_fr', 
-                                        'end_frame': 'end_twop_fr', 
-                                        'GABORFRAME': 'gabfr'})
+        sub_df = sub_df.rename(columns={'start2pfr': 'start_twop_fr', 
+                                        'end2pfr'  : 'end_twop_fr'})
         
         print('Getting stimulus frames by segment.')
         start_stim_fr, end_stim_fr = stim.get_stim_fr_by_seg(sub_df['stimSeg'], 

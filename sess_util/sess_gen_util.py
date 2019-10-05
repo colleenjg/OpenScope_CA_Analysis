@@ -263,7 +263,7 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
         - mouse_n (int or str)   : mouse number(s) of interest
                                    default: 'any'
         - sess_n (int or str)    : session number(s) of interest
-                                   (1, 2, 3, ... or 'last')
+                                   (1, 2, 3, ... or 'first', 'last')
                                    default: 1
         - runtype (str or list)  : runtype value(s) of interest
                                    ('pilot', 'prod')
@@ -300,8 +300,8 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
     if isinstance(mouse_df, str):
         mouse_df = file_util.loadfile(mouse_df)
         
-    if closest or sess_n == 'last':
-        orig_sess_n = sess_n
+    orig_sess_n = sess_n
+    if closest or str(sess_n) in ['first', 'last', '-1']:
         sess_n = gen_util.get_df_label_vals(mouse_df, 'sess_n', 'any')
     
     if runtype == 'any':
@@ -324,13 +324,15 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
         if len(sess_ns) == 0:
             continue
         # if only exact sess n is accepted (not closest)
-        elif sess_n == 'last' or not closest:
-            sess_n = sess_ns[-1]
+        elif str(orig_sess_n) == 'first' or not closest:
+            n = sess_ns[0]
+        elif str(orig_sess_n) in ['last', '-1']:
+            n = sess_ns[-1]
         # find closest sess number among possible sessions
         else:
-            sess_n = sess_ns[np.argmin(np.absolute([x - orig_sess_n 
-                                                    for x in sess_ns]))]
-        sessid = get_sess_vals(mouse_df, 'sessid', i, sess_n, runtype, layer, 
+            n = sess_ns[np.argmin(np.absolute([x - orig_sess_n 
+                                              for x in sess_ns]))]
+        sessid = get_sess_vals(mouse_df, 'sessid', i, n, runtype, layer, 
                                line, pass_fail, incl, all_files, any_files, 
                                min_rois, omit_sess, omit_mice)[0]
         sessids.append(sessid)
@@ -403,7 +405,10 @@ def sess_comb_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
     if 'v' not in str(sess_n):
         raise ValueError('sess_n must be of a format like `1v3`.')
 
-    sess_n = [int(n) for n in sess_n.split('v')]
+    sess_n = [n for n in sess_n.split('v')]
+    for i in range(len(sess_n)):
+        if sess_n[i] not in ['first', 'last']:
+            sess_n[i] = int(sess_n[i])
 
     if runtype == 'any':
         raise ValueError(('Must specify runtype (cannot be any), as there is '
@@ -412,6 +417,8 @@ def sess_comb_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
     # get list of mice that fit the criteria
     mouse_ns = []
     for n in sess_n:
+        if str(n) in ['last', '-1']:
+            n = 'any'
         ns = get_sess_vals(mouse_df, 'mouse_n', mouse_n, n, runtype,  
                            layer, line, pass_fail, incl, all_files, any_files, 
                            min_rois, omit_sess, omit_mice, unique=True, 
@@ -424,7 +431,18 @@ def sess_comb_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
     sessids = []
     for i in mouse_ns:
         mouse_sessids = []
-        for n in sess_n:
+        for j, n in enumerate(sess_n):
+            if str(n) in ['first', 'last', '-1']:
+                ns = get_sess_vals(mouse_df, 'sess_n', i, 'any', runtype, 
+                                   layer, line, pass_fail, incl, all_files, 
+                                   any_files, min_rois, omit_sess, 
+                                   omit_mice, sort=True)[-1]
+                if len(ns) == 0 or ns[-1] == sess_n[1-j]:
+                    break # mouse omitted
+                if n == 'first':
+                    n = ns[0]
+                else:
+                    n = ns[-1]
             sessid = get_sess_vals(mouse_df, 'sessid', i, n, runtype, 
                                    layer, line, pass_fail, incl, all_files, 
                                    any_files, min_rois, omit_sess, omit_mice)[0]
