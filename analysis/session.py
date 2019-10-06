@@ -411,7 +411,7 @@ class Session(object):
         (stim2twopfr).
         Sets the following attributes:
         
-            - stim_df (pandas df)   : stimlus alignment dataframe with columns:
+            - stim_df (pd DataFrame): stimlus alignment dataframe with columns:
                                         'stimType', 'stimPar1', 'stimPar2', 
                                         'surp', 'stimSeg', 'gabfr', 
                                         'start2pfr', 'end2pfr', 'num2pfr'
@@ -2027,23 +2027,14 @@ class Stim(object):
             - gabfr (str, int or list)     : gaborframe value(s) of interest 
                                              (0, 1, 2, 3)
                                              default: 'any'
-            - start2pfr_min (str or int)   : minimum of 2p start2pfr range of 
-                                             interest 
+            - start2pfr (str or list)      : 2p start frames range of interest
+                                             [min, max (excl)] 
                                              default: 'any'
-            - start2pfr_max (str or int)   : maximum of 2p start2pfr range of 
-                                             interest (excl)
+            - end2pfr (str or list)        : 2p end frames range of interest
+                                             [min, max (excl)]
                                              default: 'any'
-            - end2pfr_min (str or int)     : minimum of 2p end2pfr range of 
-                                             interest
-                                             default: 'any'
-            - end2pfr_max (str or int)     : maximum of 2p end2pfr range of 
-                                             interest (excl)
-                                             default: 'any'
-            - num2pfr_min (str or int)     : minimum of num2pfr range of 
-                                             interest
-                                             default: 'any'
-            - num2pfr_max (str or int)     : maximum of num2pfr range of 
-                                             interest (excl)
+            - num2pfr (str or list)        : 2p num frames range of interest
+                                             [min, max (excl)]
                                              default: 'any'
             - gabk (int or list)           : if not None, will overwrite 
                                              stimPar2 (4, 16, or 'any')
@@ -2057,6 +2048,22 @@ class Stim(object):
             - bri_dir (str or list)        : if not None, will overwrite 
                                              stimPar2 ('right', 'left' or 'any')
                                              default: None
+        
+        Returns:
+            - stimPar1 (list)    : stimPar1 value(s) of interest 
+            - stimPar2 (list)    : stimPar2 value(s) of interest 
+            - surp (list)        : surp value(s) of interest (0, 1)
+            - stimSeg (list)     : stimSeg value(s) of interest
+            - gabfr (list)       : gaborframe value(s) of interest 
+            - start2pfr_min (int): minimum of 2p start2pfr range of interest 
+            - start2pfr_max (int): maximum of 2p start2pfr range of interest 
+                                   (excl)
+            - end2pfr_min (int)  : minimum of 2p end2pfr range of interest
+            - end2pfr_max (int)  : maximum of 2p end2pfr range of interest 
+                                   (excl)
+            - num2pfr_min (int)  : minimum of num2pfr range of interest
+            - num2pfr_max (int)  : maximum of num2pfr range of interest 
+                                   (excl)
         """
 
         # remove brick criteria for gabors and vv
@@ -2107,12 +2114,26 @@ class Stim(object):
         if start2pfr in ['any', None]:
             start2pfr_min = int(self.sess.stim_df['start2pfr'].min())
             start2pfr_max = int(self.sess.stim_df['start2pfr'].max()+1)
+        elif len(start2pfr) == 2:
+            start2pfr_min, start2pfr_max = start2pfr
+        else:
+            raise ValueError('`start2pfr` must be of length 2 if passed.')
+
         if end2pfr in ['any', None]:
             end2pfr_min = int(self.sess.stim_df['end2pfr'].min())
             end2pfr_max = int(self.sess.stim_df['end2pfr'].max()+1)
+        elif len(start2pfr) == 2:
+            end2pfr_min, end2pfr_max = end2pfr
+        else:
+            raise ValueError('`end2pfr` must be of length 2 if passed.')
+
         if num2pfr in ['any', None]:
             num2pfr_min = int(self.sess.stim_df['num2pfr'].min())
             num2pfr_max = int(self.sess.stim_df['num2pfr'].max()+1)
+        elif len(start2pfr) == 2:
+            num2pfr_min, num2pfr_max = num2pfr
+        else:
+            raise ValueError('`num2pfr` must be of length 2 if passed.')
 
         return [stimPar1, stimPar2, surp, stimSeg, gabfr, start2pfr_min, 
                 start2pfr_max, end2pfr_min, end2pfr_max, num2pfr_min, 
@@ -2148,23 +2169,14 @@ class Stim(object):
             - gabfr (str, int or list)     : gaborframe value(s) of interest 
                                              (0, 1, 2, 3)
                                              default: 'any'
-            - start2pfr_min (str or int)   : minimum of 2p start2pfr range of 
-                                             interest 
+            - start2pfr (str or list)      : 2p start frames range of interest
+                                             [min, max (excl)] 
                                              default: 'any'
-            - start2pfr_max (str or int)   : maximum of 2p start2pfr range of 
-                                             interest (excl)
+            - end2pfr (str or list)        : 2p end frames range of interest
+                                             [min, max (excl)]
                                              default: 'any'
-            - end2pfr_min (str or int)     : minimum of 2p end2pfr range of 
-                                             interest
-                                             default: 'any'
-            - end2pfr_max (str or int)     : maximum of 2p end2pfr range of 
-                                             interest (excl)
-                                             default: 'any'
-            - num2pfr_min (str or int)     : minimum of num2pfr range of 
-                                             interest
-                                             default: 'any'
-            - num2pfr_max (str or int)     : maximum of num2pfr range of 
-                                             interest (excl)
+            - num2pfr (str or list)        : 2p num frames range of interest
+                                             [min, max (excl)]
                                              default: 'any'
             - gabk (int or list)           : if not None, will overwrite 
                                              stimPar2 (4, 16, or 'any')
@@ -2180,7 +2192,7 @@ class Stim(object):
                                              default: None
         
         Returns:
-            - sub_df (pd Dataframe): subset of the stimulus dataframe 
+            - sub_df (pd DataFrame): subset of the stimulus dataframe 
                                      fitting the criteria provided
         """
 
@@ -2237,23 +2249,14 @@ class Stim(object):
             - gabfr (str, int or list)     : gaborframe value(s) of interest 
                                              (0, 1, 2, 3)
                                              default: 'any'
-            - start2pfr_min (str or int)   : minimum of 2p start2pfr range of 
-                                             interest 
+            - start2pfr (str or list)      : 2p start frames range of interest
+                                             [min, max (excl)] 
                                              default: 'any'
-            - start2pfr_max (str or int)   : maximum of 2p start2pfr range of 
-                                             interest (excl)
+            - end2pfr (str or list)        : 2p end frames range of interest
+                                             [min, max (excl)]
                                              default: 'any'
-            - end2pfr_min (str or int)     : minimum of 2p end2pfr range of 
-                                             interest
-                                             default: 'any'
-            - end2pfr_max (str or int)     : maximum of 2p end2pfr range of 
-                                             interest (excl)
-                                             default: 'any'
-            - num2pfr_min (str or int)     : minimum of num2pfr range of 
-                                             interest
-                                             default: 'any'
-            - num2pfr_max (str or int)     : maximum of num2pfr range of 
-                                             interest (excl)
+            - num2pfr (str or list)        : 2p num frames range of interest
+                                             [min, max (excl)]
                                              default: 'any'
             - gabk (int or list)           : if not None, will overwrite 
                                              stimPar2 (4, 16, or 'any')
@@ -2267,7 +2270,7 @@ class Stim(object):
             - bri_dir (str or list)        : if not None, will overwrite 
                                              stimPar2 ('right', 'left' or 'any')
                                              default: None
-            - remconsec (bool)               if True, consecutive segments are 
+            - remconsec (bool)             : if True, consecutive segments are 
                                              removed within a block
                                              default: False
             - by (str)                     : determines whether segment numbers
@@ -2369,24 +2372,15 @@ class Stim(object):
             - gabfr (str, int or list)     : gaborframe value(s) of interest 
                                              (0, 1, 2, 3)
                                              default: 'any'
-            - start2pfr_min (str or int)   : minimum of 2p start2pfr range of 
-                                             interest 
+            - start2pfr (str or list)      : 2p start frames range of interest
+                                             [min, max (excl)] 
                                              default: 'any'
-            - start2pfr_max (str or int)   : maximum of 2p start2pfr range of 
-                                             interest (excl)
+            - end2pfr (str or list)        : 2p end frames range of interest
+                                             [min, max (excl)]
                                              default: 'any'
-            - end2pfr_min (str or int)     : minimum of 2p end2pfr range of 
-                                             interest
-                                             default: 'any'
-            - end2pfr_max (str or int)     : maximum of 2p end2pfr range of 
-                                             interest (excl)
-                                             default: 'any'
-            - num2pfr_min (str or int)     : minimum of num2pfr range of 
-                                             interest
-                                             default: 'any'
-            - num2pfr_max (str or int)     : maximum of num2pfr range of 
-                                             interest (excl)
-                                             default: 'any'
+            - num2pfr (str or list)        : 2p num frames range of interest
+                                             [min, max (excl)]
+                                             default: 'any'         
             - gabk (int or list)           : if not None, will overwrite 
                                              stimPar2 (4, 16, or 'any')
                                              default: None
