@@ -18,27 +18,26 @@ from util import gen_util
 
 #############################################
 def init_analyspar(fluor='dff', remnans=True, stats='mean', error='sem', 
-                   scale=None, dend='extr'):
+                   scale=False, dend='extr'):
     """
     Returns a AnalysPar namedtuple with the inputs arguments as named 
     attributes.
 
     Optional args:
-        - fluor (str)        : whether 'raw' or processed fluorescence traces 
-                               'dff' are used  
-                               default: 'dff'
-        - remnans (str)      : if True, ROIs with NaN/Inf values are removed in
-                               the analyses.
-                               default: True
-        - stats (str)        : statistic parameter ('mean' or 'median')
-                               default: 'mean'
-        - error (str)        : error statistic parameter, ('std' or 'sem')
-                               default: 'sem'
-        - scale (str or bool): if scaling is used or type of scaling used 
-                               (e.g., 'roi', 'all', 'none')
-                               default: None
-        - dend (str)         : dendrites to use ('aibs' or 'extr')
-                               default: 'extr'
+        - fluor (str)  : whether 'raw' or processed fluorescence traces 
+                         'dff' are used  
+                         default: 'dff'
+        - remnans (str): if True, ROIs with NaN/Inf values are removed in
+                         the analyses.
+                         default: True
+        - stats (str)  : statistic parameter ('mean' or 'median')
+                         default: 'mean'
+        - error (str)  : error statistic parameter, ('std' or 'sem')
+                         default: 'sem'
+        - scale (bool) : if True, data is scaled
+                         default: False
+        - dend (str)   : dendrites to use ('aibs' or 'extr')
+                         default: 'extr'
 
     Returns:
         - analyspar (AnalysPar namedtuple): AnalysPar with input arguments as 
@@ -116,7 +115,7 @@ def init_stimpar(stimtype='both', bri_dir=['right', 'left'], bri_size=128,
                                    (128, 256 or [128, 256])
                                    default: 128
         - gabfr (int)            : gabor frame at which segments start 
-                                   (0, 1, 2, 3)
+                                   (0, 1, 2, 3) (or to include, for GLM)
                                    default: 0
         - gabk (int or list)     : gabor kappa values to include 
                                    (4, 16 or [4, 16])
@@ -167,7 +166,7 @@ def init_autocorrpar(lag_s=4, byitem=True):
 
 
 #############################################
-def init_permpar(n_perms=10000, p_val=0.05, tails=2):
+def init_permpar(n_perms=10000, p_val=0.05, tails=2, multcomp=True):
     """
     Returns a PermPar namedtuple with the inputs arguments as named attributes.
 
@@ -179,14 +178,16 @@ def init_permpar(n_perms=10000, p_val=0.05, tails=2):
                               default: 0.05
         - tails (str or int): which tail(s) to test ('up', 'lo', 2)
                               default: 2
+        - multcomp (bool)   : if True, multiple comparison correction used to 
+                              assess significance
     
     Returns:
         - permpar (PermPar namedtuple): PermPar with input arguments as 
                                         attributes
     """
 
-    perm_pars = [n_perms, p_val, tails]
-    perm_keys = ['n_perms', 'p_val', 'tails']
+    perm_pars = [n_perms, p_val, tails, multcomp]
+    perm_keys = ['n_perms', 'p_val', 'tails', 'multcomp']
     PermPar   = namedtuple('PermPar', perm_keys)
     permpar   = PermPar(*perm_pars)
     return permpar
@@ -320,8 +321,9 @@ def init_tcurvpar(gabfr=3, pre=0, post=0.6, grp2='surp', test=False,
 
 
 #############################################
-def init_logregpar(comp='surp', q1v4=False, epochs=1000, batchsize=200, 
-                   lr=0.0001, train_p=0.75, wd=0, bal=False):
+def init_logregpar(comp='surp', ctrl=False, q1v4=False, regvsurp=False, 
+                   n_epochs=1000, batchsize=200, lr=0.0001, train_p=0.75, 
+                   wd=0, bal=False, alg='sklearn'):
     """
     Returns a LogRegPar namedtuple with the inputs arguments as named 
     attributes.
@@ -330,10 +332,15 @@ def init_logregpar(comp='surp', q1v4=False, epochs=1000, batchsize=200,
         - comp (str)     : comparison to run regression on 
                            (e.g., 'surp', 'AvB', 'AvC', 'BvC', 'DvE')
                            default: 'surp'
+        - ctrl (bool)    : if True, regression is run as a control for surp 
+                           comparison
+                           default: False
         - q1v4 (bool)    : if True, regression is run on quintile 1 and tested 
                            on quintile 4
                            default: False
-        - epochs (int)   : number of epochs to run
+        - regvsurp (bool): if True, regression is run on regular bricks 
+                           direction and tested on surprise trials
+        - n_epochs (int) : number of epochs to run
                            default: 1000
         - batchsize (int): batch size
                            default: 200
@@ -345,16 +352,132 @@ def init_logregpar(comp='surp', q1v4=False, epochs=1000, batchsize=200,
                            default: 0
         - bal (bool)     : if True, classes are balanced
                            default: False
+        - alg (str)      : algorithm to use ('sklearn' or 'pytorch')
+                           default: 'sklearn'
 
     Returns:
         - logregpar (LogRegPar namedtuple): LogRegPar with input arguments as 
                                             attributes
     """
 
-    logreg_pars = [comp, q1v4, epochs, batchsize, lr, train_p, wd, bal]
-    logreg_keys = ['comp', 'q1v4', 'epochs', 'batchsize', 'lr', 'train_p', 
-                   'wd', 'bal']
+    logreg_pars = [comp, ctrl, q1v4, regvsurp, n_epochs, batchsize, lr, 
+                   train_p, wd, bal, alg]
+    logreg_keys = ['comp', 'ctrl', 'q1v4', 'regvsurp', 'n_epochs', 'batchsize', 
+                   'lr', 'train_p', 'wd', 'bal', 'alg']
     LogRegPar   = namedtuple('LogRegPar', logreg_keys)
     logregpar   = LogRegPar(*logreg_pars)
     return logregpar
+
+
+#############################################
+def init_glmpar(each_roi=False, k=10, test=False):
+    """
+    Returns a GLMPar namedtuple with the inputs arguments as named attributes.
+
+    Optional args:
+        - each_roi (bool): if True, GLMs are run by ROI
+                           default: False
+        - k (int)        : number of folds to repeat GLM
+                           default: 10
+        - test (bool)    : if True, runs on only a few ROIs (if each_roi)
+    Returns:
+        - glmpar (GLMPar namedtuple): GLMPar with input arguments as attributes
+    """
+
+    glm_pars = [each_roi, k, test]
+    glm_keys = ['each_roi', 'k', 'test']
+    GLMPar   = namedtuple('GLMPar', glm_keys)
+    glmpar   = GLMPar(*glm_pars)
+    return glmpar
+
+
+#############################################
+def init_latpar(method='ttest', p_val_thr=0.005, rel_std=0.5):
+    """
+    Returns a latency namedtuple with the inputs arguments as named attributes.
+
+    Optional args:
+        - method (str)     : latency calculating method ('ratio' or 'ttest')
+                             default: 'ttest'
+        - p_val_thr (float): p-value threshold for t-test method
+                             default: 0.005
+        - rel_std (flot)   : relative standard deviation threshold for ratio 
+                             method
+                             default: 0.5
+    Returns:
+        - latpar (LatPar namedtuple): LatPar with input arguments as attributes
+    """
+
+    lat_pars = [method, p_val_thr, rel_std]
+    lat_keys = ['method', 'p_val_thr', 'rel_std']
+    LatPar   = namedtuple('LatPar', lat_keys)
+    latpar   = LatPar(*lat_pars)
+    return latpar
+
+
+#############################################
+def init_basepar(baseline=0.1):
+    """
+    Returns a baseline namedtuple with the inputs arguments as named attributes.
+
+    Optional args:
+        - baseline (float): baseline time
+                            default: 0.1
+    Returns:
+        - basepar (BasePar namedtuple): BasePar with input arguments as 
+                                        attributes
+    """
+
+    base_pars = [baseline]
+    base_keys = ['baseline']
+    BasePar   = namedtuple('BasePar', base_keys)
+    basepar   = BasePar(*base_pars)
+    return basepar
+
+
+#############################################
+def get_modif_ntuple(ntuple, keys, key_vals):
+    """
+    get_modif_ntuple(ntuple, keys, key_vals)
+    
+    Returns a ntuple with certain attributes modified.
+
+    Required args:
+        - ntuple (named tuple): specific type of named tuple
+        - keys (list)         : list of keys to modify
+        - key_vals (list)     : list of values to assign to keys
+
+    Returns:
+        - ntuple (named tuple): same namedtuple type, but modified
+    """
+
+    ntuple_dict = ntuple._asdict()
+
+    ntuple_name = type(ntuple).__name__
+
+    ntuple_types = ['AnalysPar', 'SessPar', 'StimPar', 'AutocorrPar', 'PermPar', 
+                    'QuintPar', 'RoiGrpPar', 'TCurvPar', 'LogRegPar', 'GLMPar']
+    
+    init_fcts = [init_analyspar, init_sesspar, init_stimpar, init_autocorrpar, 
+                 init_permpar, init_quintpar, init_roigrppar, init_tcurvpar, 
+                 init_logregpar, init_glmpar]
+
+    if not isinstance(keys, list):
+        keys = [keys]
+        key_vals = [key_vals]
+
+    for key, val in zip(keys, key_vals):
+        if key not in ntuple_dict.keys():
+            raise ValueError('{} not in ntuple dictionary keys.'.format(key))
+        ntuple_dict[key] = val
+
+    if ntuple_name in ntuple_types:
+        type_idx = ntuple_types.index(ntuple_name)
+        fct = init_fcts[type_idx]
+        ntuple_new = fct(**ntuple_dict)
+    else:
+        raise ValueError(('ntuple of type {} not recognized.').format(
+                            ntuple_name))
+
+    return ntuple_new
 

@@ -1,8 +1,8 @@
 """
-gen_analysis_plots.py
+pup_analysis_plots.py
 
-This script contains functions to plot results of ROI and running analyses on 
-specific sessions (gen_roi_analysis.py) from dictionaries.
+This script contains functions to plot results ofpupil analyses on 
+specific sessions (pup_analys.py) from dictionaries.
 
 Authors: Colleen Gillon
 
@@ -13,7 +13,6 @@ Note: this code uses python 3.7.
 """
 
 import copy
-import multiprocessing
 import os
 
 from joblib import Parallel, delayed
@@ -26,10 +25,9 @@ from util import file_util, gen_util, math_util, plot_util
 
 
 #############################################
-def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None,
-                   plot_tc=True):
+def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False):
     """
-    plot_from_dict(info_path, args)
+    plot_from_dict(dict_path)
 
     Plots data from dictionaries containing analysis parameters and results.
 
@@ -37,11 +35,13 @@ def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None,
         - dict_path (str): path to dictionary to plot data from
     
     Optional_args:
+        - plt_bkend (str): mpl backend to use for plotting (e.g., 'agg')
+                           default: None
+        - fontdir (str)  : path to directory where additional fonts are stored
+                           default: None
         - parallel (bool): if True, some of the analysis is parallelized across 
                            CPU cores
                            default: False
-        - plt_bkend (str): mpl backend to use for plotting (e.g., 'agg')
-                           default: None
     """
 
     print('\nPlotting from dictionary: {}'.format(dict_path))

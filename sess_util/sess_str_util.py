@@ -36,12 +36,11 @@ def base_par_str(baseline=None, str_type='file'):
     """
 
     if baseline is not None:
-        if (baseline - int(baseline)) == 0:
-            baseline = int(baseline) 
         if str_type == 'print':
+            baseline = gen_util.num_to_str(baseline, n_dec=2, dec_sep='.')
             base_str = ' ({}s baseline)'.format(baseline)    
         elif str_type == 'file':
-            baseline = str(baseline).replace('.', '_')
+            baseline = gen_util.num_to_str(baseline, n_dec=2, dec_sep='-')
             base_str = '_b{}'.format(baseline)
         else:
             gen_util.accepted_values_error('str_type', str_type, 
@@ -86,6 +85,37 @@ def shuff_par_str(shuffle=True, str_type='file'):
     
     
 #############################################
+def ctrl_par_str(ctrl=False, str_type='file'):
+    """
+    ctrl_par_str()
+
+    Returns string from control parameter to print or for a filename.
+
+    Optional args:
+        - ctrl (bool)   : default: False
+        - str_type (str): 'print' for a printable string and 'file' for a
+                          string usable in a filename, 'label' for a label.
+                          default: 'file'
+    
+    Returns:
+        - ctrl_str (str): shuffle parameter string
+    """
+
+    if ctrl:
+        if str_type == 'print':
+            ctrl_str = ' (control)'
+        elif str_type == 'file':
+            ctrl_str = '_ctrl'
+        else:
+            gen_util.accepted_values_error('str_type', str_type, 
+                                           ['print', 'file'])
+    else:
+        ctrl_str = ''
+
+    return ctrl_str
+    
+    
+#############################################
 def scale_par_str(scale=True, str_type='file'):
     """
     scale_par_str()
@@ -94,7 +124,7 @@ def scale_par_str(scale=True, str_type='file'):
 
     Optional args:
         - scale (str or bool): if scaling is used or type of scaling used 
-                               (e.g., 'roi', 'all', 'none')
+                               (e.g., 'roi', 'all', 'none', True, False)
                                default: None
         - str_type (str)     : 'print' for a printable string and 'file' for a
                                string usable in a filename.
@@ -257,6 +287,88 @@ def op_par_str(plot_vals='both', op='diff', str_type='file'):
 
 
 #############################################
+def lat_par_str(method='ttest', p_val_thr=0.005, rel_std=0.5, str_type='file'):
+    """
+    lat_par_str()
+
+    Returns a string for the latency calculation info.
+
+    Optional args:
+        - method (str)     : latency calculating method ('ratio' or 'ttest')
+                             default: 'ttest'
+        - p_val_thr (float): p-value threshold for t-test method
+                             default: 0.005
+        - rel_std (flot)   : relative standard deviation threshold for ratio 
+                             method
+                             default: 0.5
+        - str_type (str)   : use of output str, i.e., for a filename 
+                             ('file') or to print the info to console 
+                             ('print')
+                             default: 'file'
+    Return:
+        - lat_str (str): string containing latency info
+    """
+
+    if method == 'ttest':
+        ext_str = 'pval'
+        val = p_val_thr
+    elif method == 'ratio':
+        ext_str = 'std'
+        val = rel_std
+    else:
+        gen_util.accepted_values_error('method', method, ['ttest', 'ratio'])
+
+    if str_type == 'print':
+        val = gen_util.num_to_str(val, n_dec=5, dec_sep='.')
+        lat_str = '{} {}'.format(val, ext_str)
+    elif str_type == 'file':
+        val = gen_util.num_to_str(val, n_dec=5, dec_sep='-')
+        lat_str = '{}{}'.format(val, ext_str)
+    else:
+        gen_util.accepted_values_error('str_type', str_type, ['print', 'file'])
+
+    return lat_str
+
+
+#############################################
+def prepost_par_str(pre, post, str_type='file'):
+    """
+    prepost_par_str(pre, post)
+
+    Returns a string for the pre and post values.
+
+    Required args:
+        - pre (num) : pre value (in seconds)
+        - post (num): post value (in seconds) 
+
+    Optional args:
+        - str_type (str): use of output str, i.e., for a filename 
+                          ('file') or to print the info to console 
+                          ('print')
+                          default: 'file'
+    Return:
+        - prepost_str (str): string containing pre-post info
+    """
+
+    vals = [pre, post]
+
+    # convert to int if equivalent
+    for i in range(len(vals)):
+        if int(vals[i]) == float(vals[i]):
+            vals[i] = int(vals[i])
+    
+    if str_type == 'file':
+        # replace . by -
+        prepost_str = '{}pre-{}post'.format(*vals).replace('.', '')
+    elif str_type == 'print':
+        prepost_str = '{}-{}s'.format(*vals)
+    else:
+        gen_util.accepted_values_error('str_type', str_type, ['print', 'file'])
+
+    return prepost_str
+
+
+#############################################
 def dend_par_str(dend='extr', layer='dend', datatype='roi', str_type='file'):
     """
     dend_par_str()
@@ -278,7 +390,7 @@ def dend_par_str(dend='extr', layer='dend', datatype='roi', str_type='file'):
         - dend_str (str): dendrite type string
     """
 
-    layers = ['dend', 'soma']
+    layers = ['dend', 'soma', 'any']
     if layer not in layers:
         gen_util.accepted_values_error('layer', layer, layers)
     
@@ -287,7 +399,7 @@ def dend_par_str(dend='extr', layer='dend', datatype='roi', str_type='file'):
         gen_util.accepted_values_error('datatype', datatype, datatypes)
     
     dend_str = ''
-    if layer == 'dend' and datatype == 'roi' and dend == 'aibs':
+    if layer in ['dend', 'any'] and datatype == 'roi' and dend == 'aibs':
         if str_type == 'file':
             dend_str = '_aibs'
         elif str_type == 'print':
@@ -626,7 +738,7 @@ def sess_par_str(sess_n, stimtype='gabors', layer='soma', bri_dir=None,
     or to print or use in a title.
 
     Required args:
-        - sess_n (int)          : session number aimed for
+        - sess_n (int or list)  : session number aimed for
 
     Optional args:
         - stimtype (str)        : type of stimulus
@@ -658,6 +770,9 @@ def sess_par_str(sess_n, stimtype='gabors', layer='soma', bri_dir=None,
         stimtype = 'gabors'
     
     stim_str = stim_par_str(stimtype, bri_dir, bri_size, gabk, str_type)
+
+    if isinstance(sess_n, list):
+        sess_n = gen_util.intlist_to_str(sess_n)
 
     if str_type == 'file':
         sess_str = 'sess{}_{}_{}'.format(sess_n, stim_str, layer)
@@ -742,3 +857,55 @@ def pars_to_desc(par_str):
     
     return par_str
     
+
+#############################################
+def ext_test_str(q1v4=False, rvs=False, str_type='file'):
+    """
+    ext_test_str()
+    
+    Returns the string for the extra test set for logistic regressions, based 
+    on the parameters. Returns '' if neither q1v4 nor regvsurp is True.
+
+    Optional args:
+        - q1v4 (bool)    : if True, analysis is separated across first and last 
+                           quintiles
+                           default: False
+        - rvs (bool)     : if True, analysis is separated across regular and 
+                           surprise sequences 
+                           default: False
+        - str_type (str) : use of output str, i.e., for a filename 
+                           ('file') or to print the info to console ('print')
+                           or for a label ('label')
+                           default: 'file'
+
+    Returns:
+        - ext_str (str): string for the extra dataset ('' if neither 
+                         q1v4 nor rvs is True), and comparison details
+    """
+    if q1v4 + rvs > 1:
+        raise ValueError('`q1v4` and `rvs` cannot both be True.')
+
+    if str_type not in ['file', 'print', 'label']:
+        gen_util.accepted_values_error('str_type', str_type, ['file', 'print', 
+                                       'label'])
+
+    if q1v4:
+        if str_type == 'file':
+            ext_str = 'test_Q4'
+        elif str_type == 'label':
+            ext_str = ' (only Q1)'
+        else:
+            ext_str = ' (trained on Q1 and tested on Q4)'
+    elif rvs:
+        if str_type == 'file':
+            ext_str = 'test_surp'
+        elif str_type == 'label':
+            ext_str = ' (only reg)'
+        else:
+            ext_str = ' (trained on reg and tested on surp)'
+    else:
+        ext_str = ''
+
+    return ext_str
+
+

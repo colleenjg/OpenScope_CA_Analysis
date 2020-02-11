@@ -14,7 +14,10 @@ Note: this code uses python 3.7.
 import re
 
 import numpy as np
+import scipy.ndimage as scn
 import scipy.stats as st
+from sklearn import svm
+from sklearn.model_selection import cross_val_score
 import torch
 
 from util import gen_util
@@ -40,7 +43,7 @@ def mean_med(data, stats='mean', axis=None, nanpol=None):
                         default: None
     
     Returns:
-        - me (nd array): mean or median of data along specified axis
+        - me (nd array or num): mean or median of data along specified axis
     """
 
     if stats == 'mean':
@@ -87,8 +90,8 @@ def error_stat(data, stats='mean', error='sem', axis=None, nanpol=None,
                         default: [25, 75]
     
     Returns:
-        - error (nd array): std, SEM, quintiles or MAD of data along specified 
-                            axis
+        - error (nd array or num): std, SEM, quintiles or MAD of data along 
+                                   specified axis
     """
 
     if stats == 'mean' and error == 'std':
@@ -127,9 +130,11 @@ def error_stat(data, stats='mean', error='sem', axis=None, nanpol=None,
     else:
         gen_util.accepted_values_error('error', error, ['std', 'sem'])
     if nanpol is not None and nanpol != 'omit':
-        gen_util.accepted_values_error('nanpol', nanpol, ['None', 'omit'])
+        gen_util.accepted_values_error('nanpol', nanpol, ['[None]', 'omit'])
 
     error = np.asarray(error)
+    if len(error.shape) == 0:
+        error = error.item()
 
     return error
 
@@ -224,6 +229,46 @@ def get_stats(data, stats='mean', error='sem', axes=None, nanpol=None,
 
 
 #############################################
+def print_stats(stats, stat_str=None, ret_str_only=False):
+    """
+    print_stats(stats)
+
+    Prints the statistics.
+
+    Required args:
+        - stats (array-like): stats, structured as [me, err]
+
+    Optional args:
+        - stat_str (str)     : string associated with statistics
+                               default: None
+        - ret_str_only (bool): if True, string is returned instead of printed
+                               default: False
+    
+    Returns:
+        if ret_str_only:
+            full_stat_str: full string associated with statistics
+    """
+
+    me = stats[0]
+    err = stats[1:]
+    
+    err_str = '/'.join(['{:.3f}'.format(e) for e in err])
+
+    plusmin = u'\u00B1'
+
+    if stat_str is None:
+        stat_str = ''
+    else:
+        stat_str = '{}: '.format(stat_str)
+
+    full_stat_str = u'{}{:.5f} {} {}'.format(stat_str, me, plusmin, err_str)
+    if ret_str_only:
+        return full_stat_str
+    else:
+        print(full_stat_str)
+        
+
+#############################################
 def integ(data, dx, axis=None, nanpol=None):
     """
     integ(data, dx)
@@ -253,6 +298,32 @@ def integ(data, dx, axis=None, nanpol=None):
         gen_util.accepted_values_error('nanpol', nanpol, ['None', 'omit'])
 
     return integ_data
+
+
+#############################################
+def rolling_mean(vals, win=3):
+    """
+    rolling_mean(vals)
+
+    Returns rolling mean over the last dimension of the input data.
+
+    Required args:
+        - vals (nd array): data array, for which rolling mean will be taken 
+                           along last dimension
+
+    Optional args:
+        - win (int): length of the rolling mean window
+                     default: 3
+
+    Returns:
+        - vals_out (nd array): rolling mean data array 
+    """
+
+    targ_dims = tuple([1] * (len(vals.shape) - 1) + [win])
+    weights = (np.repeat(1.0, win)/win).reshape(targ_dims)
+    vals_out = scn.convolve(vals, weights, mode='mirror')
+
+    return vals_out
 
 
 #############################################
@@ -300,7 +371,7 @@ def calc_op(data, op='diff', dim=0, rev=False):
 
 #############################################
 def scale_facts(data, axis=None, pos=None, sc_type='min_max', extrem='reg', 
-               mult=1.0, shift=0.0):
+               mult=1.0, shift=0.0, nanpol=None, allow_0=False):
     """
     scale_facts(data)
 
@@ -310,26 +381,32 @@ def scale_facts(data, axis=None, pos=None, sc_type='min_max', extrem='reg',
         - data (nd array): data to scale
 
     Optional args:
-        - axis (int)   : axis along which to calculate scaling values (if None, 
-                         entire data array is used)     
-        - pos (int)    : position along axis along which to calculate scaling 
-                         values (if None, each position is scaled separately)
-        - sc_type (str): type of scaling to use
-                         'min_max': (data - min)/(max - min)
-                         'scale'  : (data - 0.0)/std
-                         'stand'  : (data - mean)/std
-                         'center' : (data - mean)/1.0
-                         'unit'   : (data - 0.0)/abs(mean)
-                         default: 'min_max'
-        - extrem (str) : only needed if min_max scaling is used. 
-                         'reg': the minimum and maximum of the data are used 
-                         'perc': the 5th and 95th percentiles are used as min
-                                 and max respectively (robust to outliers)
-        - mult (num)   : value by which to multiply scaled data
-                         default: 1.0
-        - shift (num)  : value by which to shift scaled data (applied after
-                         mult)
-                         default: 0.0
+        - axis (int)    : axis along which to calculate scaling values (if None, 
+                          entire data array is used)     
+        - pos (int)     : position along axis along which to calculate scaling 
+                          values (if None, each position is scaled separately)
+        - sc_type (str) : type of scaling to use
+                          'min_max'  : (data - min)/(max - min)
+                          'scale'    : (data - 0.0)/std
+                          'stand'    : (data - mean)/std
+                          'stand_rob': (data - median)/IQR (75-25)
+                          'center'   : (data - mean)/1.0
+                          'unit'     : (data - 0.0)/abs(mean)
+                          default: 'min_max'
+        - extrem (str)  : only needed if min_max  or stand_rob scaling is used. 
+                          'reg': the minimum and maximum (min_max) or 25-75 IQR 
+                                 of the data are used 
+                          'perc': the 5th and 95th percentiles are used as min
+                                  and max respectively (robust to outliers)
+        - mult (num)    : value by which to multiply scaled data
+                          default: 1.0
+        - shift (num)   : value by which to shift scaled data (applied after
+                          mult)
+                          default: 0.0
+        - nanpol (str)  : policy for NaNs, 'omit' or None
+                          default: None
+        - allow_0 (bool): if True, div == 0 is allowed (likely resulting from 
+                          np.nans)
 
     Returns:
         - sub (float or list): value(s) to subtract from scaled data
@@ -349,34 +426,57 @@ def scale_facts(data, axis=None, pos=None, sc_type='min_max', extrem='reg',
         sc_idx = gen_util.slice_idx(None, None) # for entire data
 
     if sc_type == 'stand':
-        sub = np.mean(data[sc_idx], axis=axis)
-        div = np.std(data[sc_idx], axis=axis)
+        sub = mean_med(data[sc_idx], stats='mean', axis=axis, nanpol=nanpol)
+        div = error_stat(data[sc_idx], stats='mean', error='std', axis=axis, 
+                         nanpol=nanpol)
+    elif sc_type == 'stand_rob':
+        sub = mean_med(data[sc_idx], stats='median', axis=axis, nanpol=nanpol)
+        if extrem == 'reg':
+            qus = [25, 75]
+        elif extrem == 'perc':
+            qus = [5, 95]
+        else:
+            gen_util.accepted_values_error('extrem', extrem, ['reg', 'perc'])
+        qs  = error_stat(data[sc_idx], stats='median', error='std', axis=axis, 
+                         qu=qus, nanpol=nanpol)
+        div = qs[1] - qs[0]
     elif sc_type == 'center':
-        sub = np.mean(data[sc_idx], axis=axis)
+        sub = mean_med(data[sc_idx], stats='mean', axis=axis, nanpol=nanpol)
         div = 1.0
     elif sc_type == 'scale':
         sub = 0.0
-        div = np.std(data[sc_idx], axis=axis)
+        div = error_stat(data[sc_idx], stats='mean', error='std', axis=axis, 
+                         nanpol=nanpol)
     elif sc_type == 'unit':
         sub = 0.0
-        div = np.absolute(np.mean(data[sc_idx], axis=axis))
+        div = np.absolute(mean_med(data[sc_idx], stats='mean', axis=axis, 
+                                   nanpol=nanpol))
     elif sc_type == 'min_max':
+        if nanpol is not None and nanpol != 'omit':
+            gen_util.accepted_values_error('nanpol', nanpol, ['[None]', 'omit'])
         if extrem == 'reg':
-            minim = np.min(data[sc_idx], axis=axis)
-            maxim = np.max(data[sc_idx], axis=axis)
+            if nanpol is None:
+                minim = np.min(data[sc_idx], axis=axis)
+                maxim = np.max(data[sc_idx], axis=axis)
+            elif nanpol == 'omit':
+                minim = np.nanmin(data[sc_idx], axis=axis)
+                maxim = np.nanmax(data[sc_idx], axis=axis)
         elif extrem == 'perc':
-            minim = np.percentile(data[sc_idx], 5, axis=axis)
-            maxim = np.percentile(data[sc_idx], 95, axis=axis)
+            if nanpol is None:
+                minim = np.percentile(data[sc_idx], 5, axis=axis)
+                maxim = np.percentile(data[sc_idx], 95, axis=axis)
+            elif nanpol == 'omit':
+                minim = np.percentile(data[sc_idx], 5, axis=axis)
+                maxim = np.percentile(data[sc_idx], 95, axis=axis)
         else:
-            gen_util.accepted_values_error('extrem', extrem, 
-                                        ['reg', 'perc'])
+            gen_util.accepted_values_error('extrem', extrem, ['reg', 'perc'])
         sub = minim
         div = maxim - minim
     else:
         gen_util.accepted_values_error('sc_type', sc_type, 
-                                    ['stand', 'center', 'scale', 'min_max'])
+                 ['stand', 'stand_rob', 'center', 'scale', 'min_max'])
     
-    if (np.asarray(div) == 0).any():
+    if not allow_0 and (np.asarray(div) == 0).any():
         raise ValueError('Scaling cannot proceed due to division by 0.')
 
     if isinstance(sub, np.ndarray):
@@ -388,8 +488,38 @@ def scale_facts(data, axis=None, pos=None, sc_type='min_max', extrem='reg',
 
 
 #############################################
+def extrem_to_med(data, ext_p=[5, 95]):
+    """
+    Returns data array with values above and below the threshold percentiles 
+    replaced with the median, for each channel.
+
+    Required args:
+        - data (2D array): data array, structured as vals x channels
+
+    Optional args:
+        - ext_p (list): percentile values to use [low, high]
+                        default: [5, 95]
+    
+    Returns:
+        - data (2D array): data array with extreme values replaced by median, 
+                           structured as vals x channels
+    """
+
+    p_lo, p_hi = ext_p
+
+    if p_hi < p_lo:
+        raise ValueError('p_lo must be smaller than p_hi.')
+    meds, lo, hi = [np.nanpercentile(data, p, axis=0).reshape([1, -1]) 
+                                                   for p in [50, p_lo, p_hi]]
+    modif = np.where(np.add(data < lo, data > hi))
+    data[modif] = meds[:, modif[1]]
+
+    return data
+
+
+#############################################
 def scale_data(data, axis=None, pos=None, sc_type='min_max', extrem='reg', 
-               mult=1.0, shift=0.0, facts=None):
+               mult=1.0, shift=0.0, facts=None, nanpol=None):
     """
     scale_data(data)
 
@@ -404,11 +534,12 @@ def scale_data(data, axis=None, pos=None, sc_type='min_max', extrem='reg',
         - pos (int)    : position along axis to retain when calculating scaling 
                          values (if None, each position is scaled separately)
         - sc_type (str): type of scaling to use
-                         'min_max': (data - min)/(max - min)
-                         'scale'  : (data - 0.0)/std
-                         'stand'  : (data - mean)/std
-                         'center' : (data - mean)/1.0
-                         'unit'   : (data - 0.0)/abs(mean)
+                         'min_max'  : (data - min)/(max - min)
+                         'scale'    : (data - 0.0)/std
+                         'stand'    : (data - mean)/std
+                         'stand_rob': (data - median)/IQR (75-25)
+                         'center'   : (data - mean)/1.0
+                         'unit'     : (data - 0.0)/abs(mean)
                          default: 'min_max'
         - extrem (str) : only needed if min_max scaling is used. 
                          'reg': the minimum and maximum of the data are used 
@@ -424,6 +555,9 @@ def scale_data(data, axis=None, pos=None, sc_type='min_max', extrem='reg',
                          sub is the value subtracted and div is the value
                          used as divisor (before applying mult and shift)
                          default: None
+        - nanpol (str) : policy for NaNs, 'omit' or None
+                         default: None
+
     Returns:
         - sc_data (nd array): scaled data
         if facts value passed is None:
@@ -436,7 +570,7 @@ def scale_data(data, axis=None, pos=None, sc_type='min_max', extrem='reg',
     ret_facts = False
     if facts is None:
         facts = scale_facts(data, axis, pos, sc_type, extrem=extrem, mult=mult, 
-                            shift=shift)
+                            shift=shift, nanpol=nanpol)
         ret_facts = True
     elif len(facts) != 4:
         raise ValueError(('If passing factors, must pass 4 items: '
@@ -489,11 +623,12 @@ def calc_mag_change(data, change_dim, item_dim, order=1, op='diff',
         - pos (int)      : position along axis along which to calculate scaling 
                            values (if None, each position is scaled separately)
         - sc_type (str)  : type of scaling to use
-                           'min_max': (data - min)/(max - min)
-                           'scale'  : (data - 0.0)/std
-                           'stand'  : (data - mean)/std
-                           'center' : (data - mean)/1.0
-                           'unit'   : (data - 0.0)/abs(mean)
+                           'min_max'  : (data - min)/(max - min)
+                           'scale'    : (data - 0.0)/std
+                           'stand'    : (data - mean)/std
+                           'stand_rob': (data - median)/IQR (75-25)
+                           'center'   : (data - mean)/1.0
+                           'unit'     : (data - 0.0)/abs(mean)
                            default: 'min_max'
 
     Returns:
@@ -535,7 +670,7 @@ def calc_mult_comp(n_comp, p_val=0.05, n_perms=10000, min_n=100):
     calc_mult_comp(n_comp)
 
     Returns new p-value, based on the original p-value and a new number of 
-    permutations.
+    permutations using a Bonferroni correction.
     
     Specifically, the p-value is divided by the number of comparisons,
     and the number of permutations is increased if necessary to ensure a 
@@ -647,7 +782,7 @@ def permute_diff_ratio(all_data, div='half', n_perms=10000, stats='mean',
 
     Returns:
         - all_rand_vals (2 or 3D array): permutation results, structured as:
-                                             (grps if op is 'non' x) 
+                                             (grps if op is 'none' x) 
                                              items x perms
     """
 
@@ -704,7 +839,7 @@ def permute_diff_ratio(all_data, div='half', n_perms=10000, stats='mean',
 #############################################
 def print_elem_list(elems, tail='up', act_vals=None):
     """
-    id_elem(rand_vals, act_vals)
+    print_elem_list(rand_vals, act_vals)
 
     Print numbers of elements showing significant difference in a specific tail,
     and optionally their actual values.
@@ -733,6 +868,31 @@ def print_elem_list(elems, tail='up', act_vals=None):
                                                           len(act_vals)))
             print('\tVals: {}'.format(', '.join(['{:.2f}'.format(x) 
                                                  for x in act_vals])))    
+
+
+#############################################
+def lin_interp_nan(data_arr):
+    """
+    lin_interp_nan(data_arr)
+
+    Linearly interpolate NaNs in data array.
+
+    Required args:
+        - data_arr (1D array): data array
+
+    Returns:
+        - data_arr_interp (1D array): linearly interpolated data array
+    """
+
+    arr_len = len(data_arr)
+
+    # get indices of non NaN values
+    nan_idx = np.where(1 - np.isnan(data_arr))[0]
+
+    arr_no_nans = data_arr[nan_idx]
+    data_arr_interp = np.interp(range(arr_len), nan_idx, arr_no_nans)
+
+    return data_arr_interp
 
 
 #############################################    
@@ -836,7 +996,7 @@ def id_elem(rand_vals, act_vals, tails='2', p_val=0.05, min_n=100,
 
 
 #############################################
-def get_percentiles(CI=0.95):
+def get_percentiles(CI=0.95, tails=2):
     """
     get_percentiles()
 
@@ -844,22 +1004,32 @@ def get_percentiles(CI=0.95):
     (centered on the median).
 
     Optional args:
-        - CI (num): confidence interval
-                    default: 0.95
+        - CI (num)          : confidence interval
+                              default: 0.95
+        - tails (str or int): which tail(s) to test: 'up', 'lo', '2'
+                              default: '2'
 
     Returns:
         - ps (list)     : list of percentile values, e.g., [2.5, 97.5]
-        - p_names (list): list of percentile names, e.g., ['p2p5', 'p97p5']
+        - p_names (list): list of percentile names, e.g., ['p2-5', 'p97-5']
     """
 
-    ps = [(100.-CI*100.)*0.5, CI*50.+50.] # high and lo quartiles
+    if CI < 0 or CI > 1:
+        raise ValueError('CI must be between 0 and 1.')
+
+    if tails == 'up':
+        ps = [0.0, CI]
+    elif tails == 'lo':
+        ps = [1.0 - CI, 1.0]
+    elif tails in ['2', 2]:
+        ps = [0.5 * (1.0 + v) for v in [-CI, CI]]
+    else:
+        gen_util.accepted_values_error('tails', tails, ['up', 'lo', 2])
+
+    ps = [100.0 * p for p in ps]
     p_names = []
     for p in ps:
-        p_res = p%1
-        if p_res == 0:
-            p_names.append('p{}'.format(int(p)))
-        else:
-            p_names.append('p{}p{}'.format(int(p), str(p_res)[2]))
+        p_names.append('p{}'.format(gen_util.num_to_str(p)))
 
     return ps, p_names
 
@@ -890,7 +1060,7 @@ def autocorr_stats(data, lag, spu=None, byitem=True, stats='mean', error='std',
     """
     autocorr_stats(data, lag)
     
-    Calculates average autocorrelation across data series.
+    Returns average autocorrelation across data series.
 
     Required args:
         - data (list or 2-3D array): list of series or single series 
@@ -955,4 +1125,76 @@ def autocorr_stats(data, lag, spu=None, byitem=True, stats='mean', error='std',
                                nanpol=nanpol)
 
     return xran, autocorr_stats
+
+
+#############################################
+def run_cv_svm(inp, target, cv=5, shuffle=False, stats='mean', error='std', 
+               class_weight='balanced', n_jobs=None):
+    """
+    run_cv_svm(inp, target)
+    
+    Returns scores from running a cross-validation SVM on the input and target
+    data.
+
+    Required args:
+        - inp (array-like)   : input array whose first dimension matches the 
+                               target first dimension 
+        - target (array-like): 1D target array
+
+    Optional args:
+        - cv (int)          : number of cross-validation folds (at least 3)
+                              (stratified KFold)
+                              default: 5
+        - shuffle (bool)    : if True, target is shuffled
+                              default: False
+        - stats (str)       : statistic to return across fold scores 
+                              ('mean' or 'median')  If None, all scores are 
+                              returned
+                              default: 'mean'
+        - error (str)       : error statistic to return across fold scores. If 
+                              None or if `stats` is None, no error statistic is 
+                              returned.('std' for std or q1-3 and 'sem' for 
+                              SEM or MAD, depending on the value or `stats`)
+                              default: 'std'
+        - class_weight (str): sklearn class_weight attribute
+                              default: 'balanced'
+        - n_jobs (int)      : number of CPUs to use (see sklearn)
+                              default: None
+
+    Returns:
+        if stats is None and error is None:
+        - sc (1D array): scores for each fold (accuracy or balanced accuracy if 
+                         class_weight is 'balanced')
+        elif only error is None:
+        - me (float)   : mean/median statistic across fold scores
+        else:
+        - me (float)   : mean/median statistic across fold scores
+        - err (float)  : std/SEM/q1-3/MAD across fold scores
+    """
+
+    clf = svm.SVC(kernel='poly', C=1, gamma='auto', class_weight=class_weight)                    
+    
+    # first dim must be trials
+    if shuffle:
+        np.random.shuffle(target)
+    
+    if cv < 3:
+        raise ValueError('`cv` must be at least 3.')
+
+    scoring = None
+    if class_weight == 'balanced':
+        scoring = 'balanced_accuracy'
+
+    sc = cross_val_score(clf, inp, target, cv=cv, scoring=scoring, 
+                         n_jobs=n_jobs)
+    
+    if stats is None:
+        return sc
+    else:
+        me = mean_med(sc, stats=stats)
+        if error is None:
+            return me
+        else:
+            err = error_stat(sc, stats=stats, error=error)
+            return me, err
 

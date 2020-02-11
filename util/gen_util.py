@@ -14,6 +14,7 @@ Note: this code uses python 3.7.
 import copy
 import datetime
 import logging
+import multiprocessing
 import os
 import random
 import re
@@ -333,6 +334,32 @@ def deepcopy_items(item_list):
 
 
 #############################################
+def intlist_to_str(intlist):
+    """
+    intlist_to_str(intlist)
+
+    Returns a string corresponding to the list of values, e.g. 1-4 or 1-3-6.
+
+    Required args:
+        - intlist (list): list of int values
+
+    Returns:
+        - intstr (str): corresponding string. If range, end is included
+    """
+
+    if isinstance(intlist, list):
+        extr = [min(intlist), max(intlist) + 1]
+        if set(intlist) == set(range(*extr)):
+            intstr = '{}-{}'.format(extr[0], extr[1] - 1)
+        else:
+            intstr = '-'.join([str(i) for i in sorted(intlist)])
+    else:
+        raise ValueError('`intlist` must be a string.')
+
+    return intstr
+
+
+#############################################
 def str_to_list(item_str, only_int=False):
     """
     str_to_list(item_str)
@@ -456,7 +483,7 @@ def conv_types(items, dtype=int):
     items = list_if_not(items)
 
     for i in range(len(items)):
-        items[i] = conv_type(items[i])
+        items[i] = conv_type(items[i], dtype)
 
     return items
 
@@ -505,7 +532,7 @@ def get_df_vals(df, cols=[], criteria=[], label=None, unique=True, dtype=None,
         - cols (list)    : ordered list of columns for which criteria are 
                            provided
                            default: []
-        - criteria (list): ordered list of criteria for each column
+        - criteria (list): ordered list of single criteria for each column
                            default: []
         - label (str)    : column for which to return values
                            if None, the dataframe lines are returned instead
@@ -513,7 +540,7 @@ def get_df_vals(df, cols=[], criteria=[], label=None, unique=True, dtype=None,
         - unique (bool)  : if True, only unique values are returned for the 
                            column of interest
                            default: True
-        - dtype (str)    : if not None, values are converted to the specified 
+        - dtype (dtype)  : if not None, values are converted to the specified 
                            datatype (int, float or str)
                            dtype: None
         - single (bool)  : if True, checks whether only one value or row is 
@@ -533,8 +560,9 @@ def get_df_vals(df, cols=[], criteria=[], label=None, unique=True, dtype=None,
                                     corresponding to the specified criteria. 
     """
 
-    cols = list_if_not(cols)
-    criteria = list_if_not(criteria)
+    if not isinstance(cols, list):
+        cols = [cols]
+        criteria = [criteria]
 
     if len(cols) != len(criteria):
         raise ValueError('Must pass the same number of columns and criteria.')
@@ -590,6 +618,29 @@ def set_df_vals(df, idx, cols, vals):
     for col, val in zip(cols, vals):
         df.loc[idx, col] = val
     
+    return df
+
+
+#############################################
+def drop_unique(df):
+    """
+    drop_unique(df)
+
+    Returns dataframe with columns containing only a unique value dropped.
+
+    Required args:
+        - df (pd DataFrame): dataframe
+
+    Returns:
+        - df (pd DataFrame): dataframe with columns containing only a unique 
+                             value dropped
+    """
+
+    for col in df.columns:
+        uniq_vals = df[col].unique().tolist()
+        if len(uniq_vals) == 1:
+            df = df.drop(columns=col)
+
     return df
 
 
@@ -657,7 +708,7 @@ def get_device(cuda=False, device=None):
 
 #############################################
 def get_logger(logtype='both', name='all logs', filename='logs.txt', 
-               fulldir='.', level='info'):
+               fulldir='', level='info'):
     """
     get_logger()
 
@@ -674,7 +725,7 @@ def get_logger(logtype='both', name='all logs', filename='logs.txt',
                           default: 'logs.txt'
         - fulldir (str) : path under which to save file handler, if it is
                           included
-                          default: '.'
+                          default: ''
         - level (str)   : level of the handler ('info', 'error', 'warning', 
                           'debug')
                           default: 'info'
@@ -778,3 +829,105 @@ def hierarch_argsort(data, sorter='fwd', axis=0, dtypes=None):
         data         = data[sort_slice]
 
     return overall_sort, data
+
+
+#############################################
+def compile_dict_list(dict_list):
+    """
+    compile_dict_list(dict_list)
+
+    Returns a dictionary of lists created from a list of dictionaries with 
+    shared keys.
+
+    Required args:
+        - dict_list (list): list of dictionaries with shared keys
+
+    Returns:
+        - full_dict (dict): dictionary with lists for each key
+    """
+
+    full_dict = dict()
+
+    all_keys = []
+    for sing_dict in dict_list:
+        all_keys.extend(sing_dict.keys())
+    all_keys = list(set(all_keys))
+
+    for key in all_keys:
+        vals = [sub_dict[key] for sub_dict in dict_list 
+                              if key in sub_dict.keys()]
+        full_dict[key] = vals
+
+    return full_dict
+
+
+#############################################
+def num_to_str(num, n_dec=2, dec_sep='-'):
+    """
+    num_to_str(num)
+
+    Returns number converted to a string with the specified number of decimals 
+    and decimal separator
+
+    Required args:
+        - num (num): number
+    
+    Optional args:
+        - n_dec (int)  : number of decimals to retain
+                         default: 2
+        - dec_sep (str): string to use as a separator
+                         default: '-'
+    
+    Returns:
+        - num_str (str): number as a string
+    """
+
+    num_str = str(int(num))
+
+    num_res = np.round(num % 1, n_dec)
+    if num_res != 0:
+        num_str = '{}{}{}'.format(num_str, dec_sep, str(num_res)[2:])
+
+    return num_str
+
+
+#############################################
+def get_n_jobs(n_tasks, parallel=True, max_cores='all'):
+    """
+    get_n_jobs(n_tasks)
+
+    Returns number of jobs corresponding to the criteria passed.
+
+    Required args:
+        - n_tasks (int): number of tasks to run
+    
+    Optional args:
+        - parallel (bool)       : if False, n_jobs of None is returned
+                                  default: True
+        - max_cores (str or num): max number or proportion of cores to use 
+                                  ('all', proportion or int)
+                                  default: 'all'
+
+    Returns:
+        - n_jobs (int): number of jobs to use (None if not parallel or fewer 
+                        than 2 jobs calculated)
+    """
+
+    if not parallel:
+        n_jobs = None
+
+    else:
+        n_cores = multiprocessing.cpu_count()
+        if max_cores != 'all':
+            max_cores = float(max_cores)
+            if max_cores >= 0.0 and max_cores <= 1.0:
+                n_cores = int(n_cores * max_cores)
+            else:
+                n_cores = np.min(n_cores, max_cores)
+        n_cores = int(n_cores)
+        n_jobs = min(int(n_tasks), n_cores)
+        if n_jobs < 2:
+            n_jobs = None
+
+    return n_jobs
+

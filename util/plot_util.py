@@ -17,14 +17,27 @@ import matplotlib as mpl
 from matplotlib import font_manager as fm
 from matplotlib import pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
+from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 
 from util import file_util, gen_util, math_util
 
 
+LINCLAB_COLS={'blue'  : '#50a2d5', # Linclab blue
+              'red'   : '#eb3920', # Linclab red
+              'grey'  : '#969696', # Linclab grey
+              'green' : '#76bb4b', # Linclab green
+              'purple': '#9370db',
+              'orange': '#ff8c00',
+              'pink'  : '#bb4b76',
+              'yellow': '#e0b424',
+              'brown' : '#b04900',
+              }
+
+
 #############################################
 def linclab_plt_defaults(font='Liberation Sans', fontdir=None, 
-                         print_fonts=False, example=False, dirname='.'):
+                         print_fonts=False, example=False, dirname=''):
     """
     linclab_plt_defaults()
 
@@ -40,20 +53,14 @@ def linclab_plt_defaults(font='Liberation Sans', fontdir=None,
                               default: False
         - example (bool)    : if True, an example plot is created and saved
                               default: False
-        - dirname (str)     : directory in which to save example if example is True 
-                              default: '.'
+        - dirname (str)     : directory in which to save example if example is 
+                              True 
+                              default: ''
     """
 
-    colors = ['#50a2d5', # Linclab blue
-              '#eb3920', # Linclab red
-              '#969696', # Linclab grey
-              '#76bb4b', # Linclab green
-              '#9370db', # purple
-              '#ff8c00', # orange
-              '#bb4b76', # pink
-              '#e0b424', # yellow
-              '#b04900', # brown
-              ] 
+    col_order = ['blue', 'red', 'grey', 'green', 'purple', 'orange', 'pink', 
+                 'yellow', 'brown']
+    colors = [get_color(key) for key in col_order] 
     col_cyc = plt.cycler(color=colors)
 
     # set pyplot params
@@ -63,7 +70,7 @@ def linclab_plt_defaults(font='Liberation Sans', fontdir=None,
               'axes.spines.right'    : False,      # no axis spine on right
               'axes.spines.top'      : False,      # no axis spine at top
               'axes.titlesize'       : 'x-large',  # x-large axis title
-              'errorbar.capsize'     : 8,          # errorbar cap length
+              'errorbar.capsize'     : 4,          # errorbar cap length
               'figure.titlesize'     : 'x-large',  # x-large figure title
               'font.size'            : 12,         # basic font size value
               'legend.fontsize'      : 'x-large',  # x-large legend text
@@ -153,7 +160,7 @@ def linclab_colormap(nbins=100):
         - cmap (colormap): a matplotlib colormap
     """
 
-    colors = ["#50a2d5", "#ffffff", "#eb3920"]
+    colors = [get_color('blue'), "#ffffff", get_color('red')]
 
     # convert to RGB
     rgb_col = [[] for _ in range(len(colors))]
@@ -166,6 +173,115 @@ def linclab_colormap(nbins=100):
                                                         N=nbins)
 
     return cmap
+
+
+#############################################
+def get_color(col='red', ret='single'):
+    """
+    get_color()
+
+    Returns requested info for the specified color.
+
+    Optional args:
+        - col (str): color for which to return info
+                     default: 'red'
+        - ret (str): type of information to return for color
+                     default: 'single'
+
+    Returns:
+        if ret == 'single' or 'both':
+        - single (str)   : single hex code corresponding to requested color
+        if ret == 'col_ends' or 'both':
+        - col_ends (list): hex codes for each end of a gradient corresponding to 
+                           requested color
+    """
+    
+    # list of defined colors
+    curr_cols = ['blue', 'red', 'grey', 'green', 'purple', 'orange', 'pink', 
+                 'yellow', 'brown']
+    
+    if col == 'blue':
+        # cols  = ['#7cc7f9', '#50a2d5', '#2e78a9', '#16547d']
+        col_ends = ['#8DCCF6', '#07395B']
+        single   = LINCLAB_COLS['blue']
+    elif col == 'red':
+        # cols = ['#f36d58', '#eb3920', '#c12a12', '#971a07']
+        col_ends = ['#EF6F5C', '#7D1606']
+        single   = LINCLAB_COLS['red']
+    elif col == 'grey':
+        col_ends = ['#969696', '#060707']
+        single   = LINCLAB_COLS['grey']
+    elif col == 'green':
+        col_ends = ['#B3F38E', '#2D7006']
+        single   = LINCLAB_COLS['green']
+    elif col == 'purple':
+        col_ends = ['#B391F6', '#372165']
+        single   = LINCLAB_COLS['purple']
+    elif col == 'orange':
+        col_ends = ['#F6B156', '#CD7707']
+        single   = LINCLAB_COLS['orange']
+    elif col == 'pink':
+        col_ends = ['#F285AD', '#790B33']
+        single   = LINCLAB_COLS['pink']
+    elif col == 'yellow':
+        col_ends = ['#F6D25D', '#B38B08']
+        single   = LINCLAB_COLS['yellow']
+    elif col == 'brown':
+        col_ends = ['#F7AD75', '#7F3904']
+        single   = LINCLAB_COLS['brown']
+    else:
+        gen_util.accepted_values_error('col', col, curr_cols)
+
+    if ret == 'single':
+        return single
+    elif ret == 'col_ends':
+        return col_ends
+    elif ret == 'both':
+        return single, col_ends
+    else:
+        gen_util.accepted_values_error('ret', ret, ['single', 'col_ends', 
+                                       'both'])
+
+
+#############################################
+def get_color_range(n=4, col='red'):
+    """
+    get_color_range()
+
+    Returns a list of color values around the specified general color requested.
+
+    Optional args:
+        - n (int)          : number of colors required
+                             default: 4
+        - col (str or list): general color or two colors (see get_color() for 
+                             accepted colors)
+                             default: 'red'
+
+    Returns:
+        - cols (list): list of colors
+    """
+
+    
+    cols = gen_util.list_if_not(col)
+    if len(cols) not in [1, 2]:
+        raise ValueError('`col` must be of length one or two')
+    if len(cols) == 2 and n == 1:
+        cols = cols[0:1] # retain only first colour
+
+    ends = []
+    for col in cols:
+        single, col_ends = get_color(col, ret='both')
+        if len(cols) == 2:
+            ends.append(single)
+        else:
+            ends = col_ends
+
+    if n == 1:
+        cols = [single]
+    else:
+        cols = get_col_series(ends, n)
+
+    return cols
 
 
 #############################################
@@ -415,7 +531,7 @@ def remove_graph_bars(sub_ax, bars='all'):
 
 #############################################
 def init_fig(n_subplots, ncols=3, sharex=False, sharey=True, subplot_hei=7.5, 
-             subplot_wid=7.5, gs=None):
+             subplot_wid=7.5, gs=None, proj=None):
     """
     init_fig(n_subplots, fig_par)
 
@@ -438,6 +554,8 @@ def init_fig(n_subplots, ncols=3, sharex=False, sharey=True, subplot_hei=7.5,
                              default: 7.5
         - gs (dict)        : plt gridspec dictionary
                              default: None
+        - proj (str)       : plt projection argument (e.g. '3d')
+                             default: None
 
     Returns:
         - fig (plt Fig): fig
@@ -453,12 +571,12 @@ def init_fig(n_subplots, ncols=3, sharex=False, sharey=True, subplot_hei=7.5,
     fig, ax = plt.subplots(ncols=ncols, nrows=nrows, 
                            figsize=(ncols*subplot_wid, nrows*subplot_hei), 
                            sharex=sharex, sharey=sharey, squeeze=False, 
-                           gridspec_kw=gs)
+                           gridspec_kw=gs, subplot_kw={'projection': proj})
     return fig, ax
 
 
 #############################################
-def savefig(fig, savename, fulldir='.', datetime=True, use_dt=None, 
+def savefig(fig, savename, fulldir='', datetime=True, use_dt=None, 
             fig_ext='svg', overwrite=False, print_dir=True, dpi=None):
     """
     savefig(fig, savename)
@@ -473,7 +591,7 @@ def savefig(fig, savename, fulldir='.', datetime=True, use_dt=None,
     
     Optional args:
         - fulldir (str)   : directory in which to save figure
-                            default: '.'
+                            default: ''
         - datetime (bool) : if True, figures are saved in a subfolder named 
                             based on the date and time.
                             default: True
@@ -508,17 +626,10 @@ def savefig(fig, savename, fulldir='.', datetime=True, use_dt=None,
 
     if fig is not None:
         # get extension and savename
-        fullname, ext = file_util.add_ext(savename, fig_ext) 
-
-        # check if file aready exists, and if so, add number at end
-        if not overwrite:
-            if os.path.exists(os.path.join(fulldir, fullname)):     
-                savename, _ = os.path.splitext(fullname) # get only savename
-                count = 1
-                fullname = '{}_{}{}'.format(savename, count, ext) 
-                while os.path.exists(os.path.join(fulldir, fullname)):
-                    count += 1 
-                    fullname = '{}_{}{}'.format(savename, count, ext)
+        if overwrite:
+            fullname, _ = file_util.add_ext(savename, fig_ext) 
+        else:
+            fullname = file_util.get_unique_path(savename, ext=fig_ext)
 
         fig.savefig(os.path.join(fulldir, fullname), dpi=dpi)
         
@@ -627,6 +738,97 @@ def add_bars(sub_ax, hbars=None, bars=None, col='k', alpha=0.5):
 
 
 #############################################
+def hex_to_rgb(col):
+    """
+    hex_to_rgb(col)
+
+    Returns hex color in RGB.
+
+    Required args:
+        - col (str): color in hex format
+
+    Returns:
+        - col_rgb (list): list of RGB values
+    """
+    n_comp = 3 # r, g, b
+    pos = [1, 3, 5] # start of each component
+    leng = 2 
+
+    if '#' not in col:
+            raise ValueError('All colors must be provided in hex format.')
+    
+    # get the int value for each color component
+    col_rgb = [int(col[pos[i]:pos[i] + leng], 16) for i in range(n_comp)]
+
+    return col_rgb
+
+
+#############################################
+def rgb_to_hex(col_rgb):
+    """
+    rgb_to_hex(col_rgb)
+
+    Returns RGB in hex color.
+
+    Required args:
+        - col_rgb (list): list of RGB values
+
+    Returns:
+        - col (str): color in hex format
+    """
+
+    if len(col_rgb) != 3:
+        raise ValueError('`col_rgb` must comprise 3 values.')
+ 
+    col = '#{}{}{}'.format(*[hex(c)[2:] for c in col_rgb])
+
+    return col
+
+
+#############################################
+def get_col_series(col_ends, n=3):
+    """
+    get_col_series(col_ends)
+
+    Returns colors between two reference colors, including the two provided.
+
+    Required args:
+        - col_ends (list): list of colors in hex format (2)
+
+    Optional args:
+        - n (int): number of colors to return, including the 2 provided
+                   default: 3
+
+    Returns:
+        - cols (list): list of colors between the two reference colors, 
+                       including the two provided.
+    """
+
+    if len(col_ends) != 2:
+        raise ValueError('Must provide exactly 2 reference colours as input.')
+
+    if n < 2:
+        raise ValueError('Must request at least 2 colors.')
+    else:
+        cols = col_ends[:]
+        cols_rgb = [hex_to_rgb(col) for col in col_ends]
+        div = n - 1
+        for i in range(n-2): # for each increment
+            vals = []
+            for c in range(3): # for each component
+                min_val = cols_rgb[0][c]
+                max_val = cols_rgb[1][c]
+                # get a weighted average for this value
+                val = int(np.around((max_val - min_val) * (i + 1)/div + \
+                          min_val))
+                vals.append(val)
+            hexval = rgb_to_hex(vals) # add as next to last
+            cols.insert(-1, hexval)
+    
+    return cols
+
+
+#############################################
 def av_cols(cols):
     """
     av_cols(cols)
@@ -644,17 +846,12 @@ def av_cols(cols):
 
     n_comp = 3 # r, g, b
     col_arr = np.empty([len(cols), n_comp])
-    pos = [1, 3, 5] # start of each component
-    leng = 2 
     for c, col in enumerate(cols):
-        if '#' not in col:
-            raise ValueError('All colors must be provided in hex format.')
-        # get the int value for each color component
-        col_arr[c] = [int(col[pos[i]:pos[i] + leng], 16) for i in range(n_comp)]
+        col_arr[c] = hex_to_rgb(col)
     col_arr = np.mean(col_arr, axis=0) # average each component
     # extract hex string
-    col = '#{}{}{}'.format(*[hex(int(np.round(c)))[2:] for c in col_arr]) 
-
+    col = rgb_to_hex([int(np.round(c)) for c in col_arr])
+    
     return col
 
 
@@ -686,6 +883,35 @@ def incr_ymax(ax, incr=1.1, sharey=False):
         ymax = (ymax-ymin)*incr + ymin
         sub_ax.set_ylim(ymin, ymax) 
 
+
+#############################################
+def rel_confine_ylims(sub_ax, sub_ran, rel=5):
+    """
+    rel_confine_ylims(sub_ax, sub_ran)
+
+    Adjusts the y limits of a sub axis to confine a specific range to a 
+    relative middle range in the y axis. Will not reduce the y lims only
+    increase them
+
+    Required args:
+        - sub_ax (plt Axis subplot): subplot
+        - sub_ran (list)           : range of values corresponding to subrange
+                                     [min, max]
+
+    Optional args:
+        - rel (num): relative space to be occupied by the specified range, 
+                     e.g. 5 for 1/5
+                     default: 5
+    """
+
+    y_min, y_max = sub_ax.get_ylim()
+    sub_min, sub_max = sub_ran 
+    sub_cen = np.mean([sub_min, sub_max])
+
+    y_min = np.min([y_min, sub_cen - rel/2 * (sub_cen - sub_min)])
+    y_max = np.max([y_max, sub_cen + rel/2 * (sub_max - sub_cen)])
+
+    sub_ax.set_ylim([y_min, y_max])
 
 
 #############################################
@@ -731,7 +957,7 @@ def add_vshade(sub_ax, start, end=None, width=None, alpha=0.4, col='k'):
 #############################################
 def plot_traces(sub_ax, x, y, err=None, title='', lw=None, col=None, 
                 alpha=0.5, n_xticks=6, xticks=None, yticks=None, label=None, 
-                alpha_line=1.0):
+                alpha_line=1.0, zorder=None, errx=False):
     """
     plot_traces(sub_ax, x, y)
 
@@ -739,7 +965,7 @@ def plot_traces(sub_ax, x, y, err=None, title='', lw=None, col=None,
 
     Required args:
         - sub_ax (plt Axis subplot): subplot
-        - x (array-like)           : array of x values
+        - x (array-like)           : array of x values (inferred if None)
         - y (array-like)           : array of y values
         
     Optional args:
@@ -766,25 +992,48 @@ def plot_traces(sub_ax, x, y, err=None, title='', lw=None, col=None,
         - alpha_line (num)   : plt alpha variable controlling line 
                                transparency (from 0 to 1)
                                default: 1.0
+        - zorder (int)       : plt zorder variable controlling fore-background 
+                               position of line
+                               default: None
+        - errx (bool)        : if True, error is on the x data, not y data
+                               default: False
     """
-    
+        
+    if x is None:
+        x = range(len(y))
+
     x = np.asarray(x).squeeze()
     y = np.asarray(y).squeeze()
-    
-    sub_ax.plot(x, y, lw=lw, color=col, label=label, alpha=alpha_line)
+
+    sub_ax.plot(x, y, lw=lw, color=col, label=label, alpha=alpha_line, 
+                zorder=zorder)
     col = sub_ax.lines[-1].get_color()
     
     if err is not None:
         err = np.asarray(err).squeeze()
-        # only condition where pos and neg error are different
-        if len(err.shape) == 2: 
-            sub_ax.fill_between(x, err[0], err[1], facecolor=col, alpha=alpha)
+        if not errx:
+            # only condition where pos and neg error are different
+            if len(err.shape) == 2: 
+                sub_ax.fill_between(x, err[0], err[1], facecolor=col, 
+                       alpha=alpha, zorder=zorder)
+            else:
+                sub_ax.fill_between(x, y - err, y + err, facecolor=col, 
+                       alpha=alpha, zorder=zorder)
         else:
-            sub_ax.fill_between(x, y - err, y + err, facecolor=col, alpha=alpha)
+            # only condition where pos and neg error are different
+            if len(err.shape) == 2: 
+                sub_ax.fill_betweenx(y, err[0], err[1], facecolor=col, 
+                       alpha=alpha, zorder=zorder)
+            else:
+                sub_ax.fill_betweenx(y, x - err, x + err, facecolor=col, 
+                       alpha=alpha, zorder=zorder)
+
 
     if xticks is None:
         set_ticks(sub_ax, 'x', np.around(np.min(x), 1), 
                   np.around(np.max(x), 1), n_xticks)
+    elif xticks in ['none', 'None']:
+        sub_ax.tick_params(axis='x', which='both', bottom=False) 
     else:
         sub_ax.set_xticks(xticks)
     
@@ -844,7 +1093,8 @@ def plot_btw_traces(sub_ax, y1, y2, x=None, col='k', alpha=0.5):
 
 #############################################
 def plot_errorbars(sub_ax, y, err, x=None, title='', lw=None, col=None, 
-                   alpha=0.8, xticks=None, yticks=None, label=None):
+                   alpha=0.8, xticks=None, yticks=None, label=None, 
+                   capsize=None, markersize=None):
     """
     plot_errorbars(sub_ax, y, err)
 
@@ -875,6 +1125,10 @@ def plot_errorbars(sub_ax, y, err, x=None, title='', lw=None, col=None,
                                default: None
         - label (str)        : label for legend
                                default: None
+        - capsize (num)      : capsize for errorbars
+                               default: None
+        - markersize(num)    : markersize
+                               default: None
     """
     
     y = np.asarray(y).squeeze()
@@ -882,7 +1136,7 @@ def plot_errorbars(sub_ax, y, err, x=None, title='', lw=None, col=None,
     if x is None:
         x = list(range(1, len(y) + 1))
     
-    if xticks in ['None', 'none']:
+    if not isinstance(xticks, list) and xticks in ['None', 'none']:
         sub_ax.tick_params(axis='x', which='both', bottom=False) 
     elif xticks is None:
         sub_ax.set_xticks(x)
@@ -900,7 +1154,8 @@ def plot_errorbars(sub_ax, y, err, x=None, title='', lw=None, col=None,
     # endpoints
     if len(err.shape) == 2: 
         err = [y - err[0], err[1] - y]
-    sub_ax.errorbar(x, y, err, fmt='-o', label=label, alpha=alpha, color=col)
+    sub_ax.errorbar(x, y, err, fmt='-o', label=label, alpha=alpha, color=col, 
+                    markersize=markersize, lw=lw)
 
     if label is not None:
         sub_ax.legend()
@@ -956,6 +1211,44 @@ def get_barplot_xpos(n_grps, n_bars_per, barw, in_grp=1.5, btw_grps=4.0):
 
 
 #############################################
+def add_signif_mark(sub_ax, xpos, yval, yerr=None, rel_y=0.01, col='k'):
+    """
+    Plots significance markers (star) on subplot.
+
+    Best to ensure that y axis limits are set before calling this function as
+    star position are set relative to these limits.
+
+    Required args:
+        - sub_ax (plt Axis subplot): subplot
+        - xpos (num)               : x positions for star
+        - yval (num)               : y value above which to place line
+    
+    Optional args:
+        - yerr (num) : errors to add to ypos when placing star
+                       default: None
+        - rel_y (num): relative position above ypos at which to place star.
+                       default: 0.01
+        - col (str)  : color for stars
+                       default: 'k'
+    """
+
+    rel_y = float(rel_y)
+    
+    # y positions
+    if yerr is not None:
+        yval = yval + yerr
+
+    ylims = sub_ax.get_ylim()
+
+    # y text position (will appear higher than line)
+    star_space = 0.015 # to lower star
+    ytext = yval + (rel_y - star_space) * (ylims[1] - ylims[0])
+
+    sub_ax.text(xpos, ytext, "*", color=col, fontsize='xx-large', 
+                fontweight='bold', ha='center', va='bottom')
+
+
+#############################################
 def plot_barplot_signif(sub_ax, xpos, yval, yerr=None, rel_y=0.01):
     """
     Plots significance markers (line and star) above bars showing a significant
@@ -978,10 +1271,6 @@ def plot_barplot_signif(sub_ax, xpos, yval, yerr=None, rel_y=0.01):
 
     rel_y = float(rel_y)
     
-    for y, err in enumerate(yerr): # in case of NaNs
-        if np.isnan(err):
-            yerr[y] = 0
-
     # x positions
     if len(xpos) < 2:
         raise ValueError('xpos must be at least of length 2.')
@@ -989,10 +1278,14 @@ def plot_barplot_signif(sub_ax, xpos, yval, yerr=None, rel_y=0.01):
     xmid = np.mean(xpos)
 
     # y positions
+    yval = np.asarray(yval)
     if yerr is None:
         yerr = np.zeros_like(yval)
 
-    yval = np.asarray(yval)    
+    for y, err in enumerate(yerr): # in case of NaNs
+        if np.isnan(err):
+            yerr[y] = 0
+
     yerr = np.asarray(yerr)
     if len(yval) != len(yerr):
         raise ValueError('If provided, yerr must have the same length as yval.')
@@ -1005,13 +1298,11 @@ def plot_barplot_signif(sub_ax, xpos, yval, yerr=None, rel_y=0.01):
     ylims = sub_ax.get_ylim()
 
     # y line position
-    yline = ymax + 2*rel_y*(ylims[1] - ylims[0])
+    yline = ymax + rel_y * (ylims[1] - ylims[0])
     
-    # y text position (will appear higher than line)
-    ytext = ymax + rel_y*(ylims[1] - ylims[0])
+    # y text position will be higher than line
+    add_signif_mark(sub_ax, xmid, ymax, rel_y=rel_y)
 
-    sub_ax.text(xmid, ytext, "*", color='k', fontsize='xx-large', 
-                fontweight='bold', ha='center', va='bottom')
     sub_ax.plot(xpos, [yline, yline], linewidth=2, color='k')
 
 
@@ -1084,7 +1375,7 @@ def plot_bars(sub_ax, x, y, err=None, title='', width=0.75, lw=None, col=None,
     if hline is not None:
         sub_ax.axhline(y=hline, c='k', lw=1.5)
     
-    if xticks in ['None', 'none']:
+    if not isinstance(xticks, list) and xticks in ['None', 'none']:
         sub_ax.tick_params(axis='x', which='both', bottom=False) 
     elif xticks is None:
         sub_ax.set_xticks(xticks)
@@ -1096,7 +1387,7 @@ def plot_bars(sub_ax, x, y, err=None, title='', width=0.75, lw=None, col=None,
 
 
 #############################################
-def add_colorbar(fig, im, n_cols):
+def add_colorbar(fig, im, n_cols, label=None, cm_prop=0.03):
     """
     add_colorbar(fig, im, n_cols)
 
@@ -1106,12 +1397,22 @@ def add_colorbar(fig, im, n_cols):
         - fig (plt Fig)     : figure
         - n_cols (int)      : number of columns in figure
         - im (plt Colormesh): colormesh
+
+    Optional args:
+        - label (str)    : colormap label
+                           default: None
+        - cm_prop (float): colormap width wrt figure size, to be scaled by number 
+                           of columns
+                           default: 0.03
     """
 
-    cm_w = 0.03/n_cols
+    cm_w = cm_prop/n_cols
     fig.subplots_adjust(right=1-cm_w*2)
     cbar_ax = fig.add_axes([1-cm_w*1.2, 0.15, cm_w, 0.7])
     fig.colorbar(im, cax=cbar_ax)
+
+    if label is not None:
+        fig.set_label(label)
 
 
 #############################################
@@ -1218,3 +1519,157 @@ def plot_sep_data(sub_ax, data, lw=0.1, no_edges=True):
         # tighten y limits
         sub_ax.set_ylim(np.min(data_sep), np.max(data_sep))
 
+
+#############################################
+def plot_lines(sub_ax, y, x=None, y_rat=0.0075, col='black', width=0.4, 
+              alpha=1.0, zorder=None):
+    """
+    plot_lines(sub_ax, y)
+
+    Plots lines for each x value at specified height on a subplot.
+
+    Required args:
+        - sub_ax (plt Axis subplot): subplot
+        - y (array-like)           : array of y values for each line
+
+    Optional args:
+        - x (array-like): array of x values
+                          default: None
+        - y_rat (float) : med line thickness, relative to subplot height
+                          default: 0.0075
+        - col (str)     : bar color
+                          default: 'black'
+        - width (float) : bar thickness
+                          default: 0.4
+        - alpha (num)   : plt alpha variable controlling shading 
+                          transparency (from 0 to 1)
+                          default: 0.5
+        - zorder (int)  : plt zorder variable controlling fore-background 
+                          position of line
+                          default: None
+    """
+
+    if x is None:
+        x = range(len(y))
+    if len(x) != len(y):
+        raise ValueError('`x` and `y` must have the same last length.')
+
+    y_lim = sub_ax.get_ylim()
+    y_th = y_rat * (y_lim[1] - y_lim[0])
+    bottom = y - y_th/2.
+
+    sub_ax.bar(x, height=y_th, bottom=bottom, color=col, width=width, 
+               alpha=alpha)
+
+
+#############################################
+def plot_CI(sub_ax, extr, med=None, x=None, width=0.4, label=None, 
+            color='lightgrey', med_col='grey', med_rat=0.015, zorder=None):
+    """
+    plot_CI(sub_ax, extr)
+
+    Plots confidence intervals on a subplot.
+
+    Required args:
+        - sub_ax (plt Axis subplot): subplot
+        - extr (2D array-like)     : array of CI extrema, structured 
+                                     as perc [low, high] x bar
+    Optional args:
+        - med (array-like): array of median/mean values for each bar. If 
+                            None, no median line is added
+                            default: None
+        - x (array-like)  : array of x values (if None, they are inferred)
+                            default: None
+        - width (float)   : bar thickness
+                            default: 0.4
+        - label (str)     : label for the bars
+                            default: None
+        - color (str)     : bar color
+                            default: 'lightgrey'
+        - med_col (str)   : med line color, if med is provided
+                            default: 'grey'
+        - med_rat (float) : med line thickness, relative to subplot height
+                            default: 0.015
+        - zorder (int)    : plt zorder variable controlling fore-background 
+                            position of line/shading
+                            default: None
+    """
+
+    extr = np.asarray(extr)
+    if len(extr.shape) == 1:
+        extr.reshape([-1, 1])
+    if extr.shape[0] != 2:
+        raise ValueError('Must provide exactly 2 extrema values for each bar.')
+
+    if x is None:
+        x = range(len(extr.shape[1]))
+    if len(x) != extr.shape[1]:
+        raise ValueError(('`x` and `extr` must have the same last '
+                          'dimension length.'))
+
+    # plot CI
+    sub_ax.bar(x, height=extr[1]-extr[0], bottom=extr[0], color=color, 
+               width=width, label=label, zorder=zorder)
+    
+    if label is not None:
+        sub_ax.legend()
+
+    # plot median (with some thickness based on ylim)
+    if med is not None:
+        med = np.asarray(med)
+        if len(x) != len(med):
+            raise ValueError(('`x` and `med` must have the same last '
+                            'dimension length.'))
+        
+        plot_lines(sub_ax, med, x, med_rat, col=med_col, width=width, 
+                  zorder=zorder)
+
+
+#############################################
+def plot_data_cloud(sub_ax, x_val, y_vals, disp_wid=0.3, label=None, 
+                    col='k', alpha=0.5, zorder=None):
+    """
+    plot_data_cloud(sub_ax, extr)
+
+    Plots y values as a data cloud around an x value
+
+    Required args:
+        - sub_ax (plt Axis subplot): subplot
+        - x_val (float)            : center of data
+        - y_vals (array-like)      : array of y values for each marker.
+                                     default: None
+
+    Optional args:
+        - disp_std (float)   : dispersion standard deviation 
+                               (will clip at 2.5 * disp_std)
+                               default: 0.4
+        - label (str)        : label for the bars
+                               default: None
+        - col (str)          : marker color
+                               default: 'k'
+        - alpha (float)      : transparency
+                               default: 0.5
+        - zorder (int)       : plt zorder variable controlling fore-background 
+                               position of line/shading
+                               default: None
+    
+    Returns:
+        - cloud (plt Line): pyplot Line object containing plotted dots
+    """
+
+    x_vals = np.random.normal(x_val, disp_wid, len(y_vals))
+
+    # clip points outside 2.5 stdev
+    min_val, max_val = [x_val + sign * 2.5 * disp_wid for sign in [-1, 1]]
+    x_vals[np.where(x_vals < min_val)] = min_val
+    x_vals[np.where(x_vals > max_val)] = max_val
+
+    cloud = sub_ax.plot(x_vals, y_vals, marker='.', lw=0, color=col,
+                        alpha=alpha, label=label, zorder=zorder)[0]
+
+    if label is not None:
+        sub_ax.legend()
+
+    return cloud
+
+    

@@ -12,9 +12,10 @@ Note: this code uses python 3.7.
 
 """
 
+import copy
 import numpy as np
 
-from util import data_util, gen_util
+from util import data_util, gen_util, math_util
 
 
 #############################################
@@ -222,4 +223,190 @@ def get_roi_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
         return xran, trace_wins, [roi_means, roi_stds]
     else:
         return xran, trace_wins
+
+
+#############################################
+def convert_to_binary_cols(df, col, vals, targ_vals):
+    """
+    convert_to_binary_cols(df, col, vals, targ_vals)
+
+    Returns the input dataframe with the column values converted to categorical
+    binary columns. The original column is dropped.
+
+    Required args:
+        - df (pd DataFrame): dataframe
+        - col (str)        : column name
+        - vals (list)      : ordered list of target values
+        - targ_vals (list) : ordered list of target value names
+
+    Returns:
+        - df (pd DataFrame): dataframe with column values converted to 
+                             categorical binary columns
+    """
+
+    uniq_vals = df[col].unique().tolist()    
+    if not set(uniq_vals).issubset(set(vals)):
+        raise ValueError('Unexpected values for {}.'.format(col))
+    
+    mapping = dict()
+    for val in vals:
+        mapping[val] = 0
+    for val, targ in zip(vals, targ_vals):    
+        col_name = '{}${}'.format(col, targ)
+        this_mapping = copy.deepcopy(mapping)
+        this_mapping[val] = 1
+        df[col_name] = df[col].copy().replace(this_mapping)
+    df = df.drop(columns=col)
+
+    return df
+
+
+#############################################
+def get_mapping(par, act_vals=None):
+    """
+    get_mapping(par, act_vals)
+
+    Returns a dictionary to map stimulus values to binary values.
+
+    Required args:
+        - par (str): stimulus parameter
+        
+    Optional args:
+        - act_vals (list): actual list of values to double check against 
+                           expected possible parameter values. If None, this
+                           is not checked.
+                           default: None
+
+    Returns:
+        - mapping (dict): value (between 0 and 1) for each parameter value
+    """
+
+    if par == 'gabk':
+        vals = [4, 16]
+    elif par == 'bri_size':
+        vals = [128, 256]
+    elif par == 'bri_dir':
+        vals = ['right', 'left']
+    elif par == 'line':
+        vals = ['L23-Cux2', 'L5-Rbp4']
+    elif par == 'layer':
+        vals = ['soma', 'dend']
+    else:
+        gen_util.accepted_values_error('par', par, ['gabk', 'bri_size', 
+                                       'bri_dir', 'line', 'layer'])
+    
+    if act_vals is not None:
+        if not set(act_vals).issubset(set(vals)):
+            vals_str = ', '.join(list(set(act_vals) - set(vals)))
+            raise ValueError('Unexpected value(s) for {}: {}'.format(par, 
+                             vals_str))
+
+    mapping = dict()
+    for i, val in enumerate(vals):
+        if val != i:
+            mapping[val] = i
+
+    return mapping
+
+
+#############################################
+def add_categ_stim_cols(df):
+    """
+    add_categ_stim_cols(df)
+
+    Returns dataframe with categorical stimulus information split into binary 
+    columns.
+
+    Required args:
+        - df (pd DataFrame): stimulus dataframe
+
+    Returns:
+        - df (pd DataFrame): stimulus dataframe with categorical stimulus 
+                             information split into binary columns
+    """
+
+    for col in df.columns:
+        if col == 'gab_ori':
+            vals = [0, 45, 90, 135, 180, 225]
+            df = convert_to_binary_cols(df, col, vals, vals)
+        elif col == 'gabfr':
+            # Method 1
+            # vals = ['grayE', 'grayD', 0, 1, 2, 3, 4]
+            # targ_vals = ['grayE', 'grayD', 'A', 'B', 'C', 'D', 'E']
+
+            # Method 2
+            vals = ['gray', 0, 1, 2, 3]
+            targ_vals = ['gray', 'A', 'B', 'C', 'D']
+            df = convert_to_binary_cols(df, col, vals, targ_vals)
+        elif col in ['gabk', 'bri_size', 'bri_dir', 'layer', 'line']:
+            uniq_vals = df[col].unique().tolist()
+            mapping = get_mapping(col, uniq_vals)
+            df = df.replace({col: mapping})
+        elif col == 'sessid':
+            vals = df['sessid'].unique().tolist()
+            df = convert_to_binary_cols(df, col, vals, vals)
+        else:
+            continue
+
+    return df
+
+
+#############################################
+def add_grayscreen_rows_gabors(df):
+    """
+    add_grayscreen_rows_gabors(df)
+
+    Returns dataframe with grayscreen rows added between Gabor D/E and Gabor A 
+    segments.
+
+    Required args:
+        - df (pd DataFrame): gabor stimulus dataframe with columns 'gabfr', 
+                             'stimSeg', 'start2pfr', 'end2pfr', 'start_stim_fr', 
+                             'end_stim_fr', 'surp'
+
+    Returns:
+        - df (pd DataFrame): gabor stimulus dataframe with grayscreen rows 
+                             added
+    """
+
+    if 'gabfr' not in df.columns:
+        raise ValueError(('Should only be used with dataframes containing '
+                          'gabor frame information'))
+
+    # add in lines for grayscreen with parameters of previous segment
+    # except gabfr and start/end frames          
+    pre_seg = df.loc[(df['gabfr'] == 3)].reset_index(drop=True)
+    pre_seg = pre_seg.loc[(pre_seg['stimSeg'] < max(pre_seg['stimSeg']))]
+
+    post_seg = df.loc[(df['gabfr'] == 0)].reset_index(drop=True)
+    post_seg = post_seg.loc[(post_seg['stimSeg'] > min(post_seg['stimSeg']))]
+
+    gray_seg = pre_seg.copy()
+
+    # Method 1
+    # gray_seg['gabfr'] = 'grayD'
+    # gray_seg.loc[(gray_seg['gabfr']=='grayD') & 
+    #              (gray_seg['surp']==1), 'gabfr'] = 'grayE'
+
+    # Method 2
+    gray_seg['gabfr'] = 'gray'
+
+    gray_seg['start2pfr']     = pre_seg['end2pfr'] + 1
+    gray_seg['start_stim_fr'] = pre_seg['end_stim_fr'] + 1
+    gray_seg['end2pfr']       = post_seg['start2pfr'] - 1
+    gray_seg['end_stim_fr']   = post_seg['start_stim_fr'] - 1
+    
+    df = df.append(gray_seg).sort_values('start2pfr').reset_index(drop=True)
+
+    # Method 1
+    # df.loc[(df['gabfr'] == 3) & (df['surp'] == 1), 'gabfr'] = 4
+    # df.loc[(df['gabfr'] == 4), 'gab_ori'] += 90
+    # df = df.drop(columns='surp')
+
+    # Method 2
+    df['surp'] = df['surp'].astype(int)    
+    df.loc[~(df['gabfr'].isin([3, 'gray'])) & (df['surp'] == 1), 'surp'] = 0
+    
+    
+    return df
 

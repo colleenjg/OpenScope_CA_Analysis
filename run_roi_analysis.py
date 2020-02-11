@@ -15,7 +15,6 @@ Note: this code uses python 3.7.
 import argparse
 import copy
 import glob
-import multiprocessing
 import os
 import re
 
@@ -28,8 +27,8 @@ from util import file_util, gen_util, math_util, plot_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_plot_util, \
                       sess_str_util
 from analysis import session, roi_analys, gen_analys
-from plot_fcts import roi_analysis_plots as roi_plots
-from plot_fcts import modif_analysis_plots as mod_plots
+from plot_fcts import plot_from_dicts_tool as plot_dicts
+
 
 
 #############################################
@@ -44,6 +43,7 @@ def reformat_args(args):
         - Changes grps string values to a list
 
     Adds the following args:
+        - dend (str)     : type of dendrites to use ('aibs' or 'extr')
         - omit_sess (str): sess to omit
         - omit_mice (str): mice to omit
 
@@ -67,18 +67,21 @@ def reformat_args(args):
     Returns:
         - args (Argument parser): input parser, with the following attributes
                                   modified: 
-                                      bri_dir, bri_size, gabfr, gabk, grps, 
+                                      bri_dir, bri_size, gabfr, gabk, gab_ori, 
+                                      grps 
                                   and the following attributes added:
-                                      omit_sess, omit_mice
+                                      omit_sess, omit_mice, dend
     """
     args = copy.deepcopy(args)
 
-    [args.bri_dir, args.bri_size, 
-          args.gab_fr, args.gabk, 
-                     args.gab_ori] = sess_gen_util.get_params(args.stimtype, 
-                                                   args.bri_dir, args.bri_size, 
-                                                   args.gabfr, args.gabk, 
-                                                   args.gab_ori)
+    if args.layer == 'soma':
+        args.dend = 'aibs'
+
+    [args.bri_dir, args.bri_size, args.gabfr, 
+     args.gabk, args.gab_ori] = sess_gen_util.get_params(args.stimtype, 
+                                              args.bri_dir, args.bri_size, 
+                                              args.gabfr, args.gabk, 
+                                              args.gab_ori)
 
     args.grps = gen_util.str_to_list(args.grps)
 
@@ -127,9 +130,8 @@ def init_param_cont(args):
             keepnans (str)         : if True, ROIs with NaN/Inf values are 
                                      kept in the analyses.
             lag_s (num)            : lag for autocorrelation (in sec)
-            layer (str)            : layer ('soma', 'dend', 'L23_soma', 
-                                     'L5_soma', 'L23_dend', 'L5_dend', 
-                                     'L23_all', 'L5_all')
+            layer (str)            : layer ('soma', 'dend', 'any')
+            line (str)             : 'L23', 'L5', 'any'
             min_rois (int)         : min number of ROIs
             n_perms (int)          : nbr of permutations to run
             n_quints (int)         : number of quintiles
@@ -139,6 +141,9 @@ def init_param_cont(args):
                                      the groups returned
             no_datetime (bool)     : if True, figures are not saved in a 
                                      subfolder named based on the date and time.
+            no_multcomp (bool)     : if True, multiple comparison corrections
+                                     not used to assess significance in 
+                                     permutation analysis
             not_byitem (bool)      : if True, autocorrelation statistics are
                                      taken across items (e.g., ROIs)
             op (str)               : operation on values, if plotvals if 'both' 
@@ -225,8 +230,6 @@ def init_param_cont(args):
     """
 
     args = copy.deepcopy(args)
-    if args.layer != 'dend':
-        args.dend = 'aibs'
 
     # analysis parameters
     analyspar = sess_ntuple_util.init_analyspar(args.fluor, not(args.keepnans), 
@@ -235,9 +238,9 @@ def init_param_cont(args):
 
     # session parameters
     sesspar = sess_ntuple_util.init_sesspar(args.sess_n, args.closest, 
-                                            args.layer, 'any', args.min_rois, 
-                                            args.pass_fail, args.incl, 
-                                            args.runtype)
+                               args.layer, args.line, args.min_rois, 
+                               args.pass_fail, args.incl, args.runtype)
+    
     # stimulus parameters
     stimpar = sess_ntuple_util.init_stimpar(args.stimtype, args.bri_dir, 
                                             args.bri_size, args.gabfr, 
@@ -247,31 +250,29 @@ def init_param_cont(args):
     # SPECIFIC ANALYSES    
     # autocorrelation parameters
     autocorrpar = sess_ntuple_util.init_autocorrpar(args.lag_s, 
-                                                    not(args.not_byitem))
+                                   not(args.not_byitem))
     
     # permutation parameters
-    permpar = sess_ntuple_util.init_permpar(args.n_perms, 0.05, args.tails)
+    permpar = sess_ntuple_util.init_permpar(args.n_perms, 0.05, args.tails, 
+                                            not(args.no_multcomp))
     
     # quintile parameters
     quintpar = sess_ntuple_util.init_quintpar(args.n_quints, [0, -1])
 
     # roi grp parameters
     roigrppar = sess_ntuple_util.init_roigrppar(args.grps, not(args.no_add_reg), 
-                                                args.op, args.plot_vals)
+                                 args.op, args.plot_vals)
 
     # tuning curve parameters
     tcurvpar = sess_ntuple_util.init_tcurvpar(args.tc_gabfr, 0, args.tc_post, 
-                                              args.tc_grp2, args.tc_test, 
-                                              args.tc_prev)
+                                args.tc_grp2, args.tc_test, args.tc_prev)
 
     # figure parameters
     figpar = sess_plot_util.init_figpar(ncols=int(args.ncols), 
-                                        datetime=not(args.no_datetime), 
-                                        overwrite=args.overwrite, 
-                                        runtype=args.runtype, 
-                                        output=args.output, 
-                                        plt_bkend=args.plt_bkend, 
-                                        fontdir=args.fontdir)
+                            datetime=not(args.no_datetime), 
+                            overwrite=args.overwrite, runtype=args.runtype, 
+                            output=args.output, plt_bkend=args.plt_bkend, 
+                            fontdir=args.fontdir)
 
     return [analyspar, sesspar, stimpar, autocorrpar, permpar, quintpar, 
             roigrppar, tcurvpar, figpar]
@@ -287,7 +288,7 @@ def prep_analyses(sess_n, args, mouse_df):
 
     Required args:
         - sess_n (int)          : session number to run analyses on, or 
-                                  combination of session numbers to compare, 
+                                  session numbers to compare, 
                                   e.g. '1v2'
         - args (Argument parser): parser containing all parameters
         - mouse_df (pandas df)  : path name of dataframe containing information 
@@ -295,7 +296,7 @@ def prep_analyses(sess_n, args, mouse_df):
 
     Returns:
         - sessions (list)          : list of sessions, or nested list per mouse 
-                                     if sess_n is a combination
+                                     if sess_n is a combination to compare
         - analyspar (AnalysPar)    : named tuple containing analysis parameters
         - sesspar (SessPar)        : named tuple containing session parameters
         - stimpar (StimPar)        : named tuple containing stimulus parameters
@@ -369,15 +370,14 @@ def prep_analyses(sess_n, args, mouse_df):
     
     # get session IDs and create Sessions
     if comp:
-        sessids = sess_gen_util.sess_comb_per_mouse(mouse_df, 
-                                                    omit_sess=args.omit_sess, 
-                                                    omit_mice=args.omit_mice, 
-                                                    **sesspar._asdict())
+        sessids = sess_gen_util.sess_comp_per_mouse(mouse_df, 
+                                omit_sess=args.omit_sess, 
+                                omit_mice=args.omit_mice, **sesspar._asdict())
         sessions = []
         for ids in sessids:
             subs = sess_gen_util.init_sessions(ids, args.datadir, mouse_df, 
-                                               sesspar.runtype, fulldict=False,
-                                               dend=analyspar.dend, omit=True)
+                                 sesspar.runtype, fulldict=False,
+                                 dend=analyspar.dend, omit=True)
             if len(subs) == 2:
                 sessions.append(subs)
             else:
@@ -385,9 +385,8 @@ def prep_analyses(sess_n, args, mouse_df):
                        'pair.').format(subs[0].sessid))
     else:
         sessids = sess_gen_util.sess_per_mouse(mouse_df, 
-                                               omit_sess=args.omit_sess, 
-                                               omit_mice=args.omit_mice, 
-                                               **sesspar._asdict())
+                                omit_sess=args.omit_sess, 
+                                omit_mice=args.omit_mice, **sesspar._asdict())
         sessions = sess_gen_util.init_sessions(sessids, args.datadir, mouse_df, 
                                                sesspar.runtype, fulldict=False, 
                                                dend=analyspar.dend, omit=True)
@@ -416,7 +415,7 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
     process instead.)
 
     Required args:
-        - sessions (list)          : list of sessions
+        - sessions (list)          : list of sessions, possibly nested
         - analyspar (AnalysPar)    : named tuple containing analysis parameters
         - sesspar (SessPar)        : named tuple containing session parameters
         - stimpar (StimPar)        : named tuple containing stimulus parameters
@@ -449,10 +448,6 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
         - skipped (str): any analyses skipped
     """
 
-    if len(sessions) == 0:
-        print('No sessions fit these criteria.')
-        return
-
     all_analyses = 'ftlmagocpr'
     all_check = ''
 
@@ -465,21 +460,25 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
     
     analyses, skipped = gen_util.remove_lett(analyses, skip)
 
-    comb = False
+    if len(sessions) == 0:
+        print('No sessions fit these criteria.')
+        return skipped
+
+    comp = False
     if isinstance(sessions[0], list):
-        comb = True
+        comp = True
 
     # changes backend and defaults
     plot_util.manage_mpl(cmap=False, **figpar['mng'])
 
     # 0. Plots the full traces for each session
-    if 'f' in analyses and not comb: # full traces
+    if 'f' in analyses and not comp: # full traces
         gen_analys.run_full_traces(sessions, 'f', analyspar, sesspar, figpar)
     all_check += 'f'
 
     # 1. Analyses and plots average traces by quintile x surprise for each 
     # session 
-    if 't' in analyses and not comb: # traces
+    if 't' in analyses and not comp: # traces
         gen_analys.run_traces_by_qu_surp_sess(sessions, 't', analyspar, 
                                               sesspar, stimpar, quintpar, 
                                               figpar)
@@ -487,7 +486,7 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
 
     # 2. Analyses and plots average traces locked to surprise by quintile x 
     # surprise for each session 
-    if 'l' in analyses and not comb: # surprise-locked traces
+    if 'l' in analyses and not comp: # surprise-locked traces
         gen_analys.run_traces_by_qu_lock_sess(sessions, 'l', seed, analyspar, 
                                               sesspar, stimpar, quintpar, 
                                               figpar)
@@ -495,13 +494,13 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
 
     # 3. Analyses and plots magnitude of change in dF/F area from first to last 
     # quintile of surprise vs no surprise sequences, for each session
-    if 'm' in analyses and not comb: # mag
+    if 'm' in analyses and not comp: # mag
         gen_analys.run_mag_change(sessions, 'm', seed, analyspar, sesspar, 
                                   stimpar, permpar, quintpar, figpar)
     all_check += 'm'
 
     # 4. Analyses and plots autocorrelation
-    if 'a' in analyses and not comb: # autocorr
+    if 'a' in analyses and not comp: # autocorr
         gen_analys.run_autocorr(sessions, 'a', analyspar, sesspar, stimpar, 
                                 autocorrpar, figpar)
     all_check += 'a'
@@ -509,7 +508,7 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
     # 5. Analyses and plots: a) trace areas by quintile, b) average traces, 
     # c) trace areas by suprise for first vs last quintile, for each ROI group, 
     # for each session
-    if 'g' in analyses and not comb: # roi_grps_ch
+    if 'g' in analyses and not comp: # roi_grps_ch
         roi_analys.run_rois_by_grp(sessions, 'g', seed, analyspar, sesspar, 
                                    stimpar, permpar, quintpar, roigrppar, 
                                    figpar)
@@ -517,13 +516,13 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
 
     # 6. Analyses and plots colormaps by orientation or direction, as well as 
     # average traces
-    if 'o' in analyses and not comb: # colormaps and traces
+    if 'o' in analyses and not comp: # colormaps and traces
         roi_analys.run_oridirs(sessions, 'o', analyspar, sesspar, stimpar, 
                                quintpar, figpar, parallel)
     all_check += 'o'
 
     # 7. Analyses and plots ROI tuning curves for gabor orientation
-    if 'c' in analyses and not comb: # tune curves
+    if 'c' in analyses and not comp: # tune curves
         roi_analys.run_tune_curves(sessions, 'c', seed, analyspar, sesspar, 
                                    stimpar, tcurvpar, figpar, parallel, 
                                    plot_tc)
@@ -531,14 +530,14 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
 
     # 8. Analyses and plots ROI responses for positions and mean gabor 
     # orientations
-    if 'p' in analyses and not comb: # position orientation resp
+    if 'p' in analyses and not comp: # position orientation resp
         roi_analys.run_posori_resp(sessions, 'p', analyspar, sesspar, stimpar, 
                                    figpar, parallel)
     all_check += 'p'
 
     # 9. Analyses and plots ROI responses for positions and mean gabor 
     # orientations
-    if 'r' in analyses and comb: # correlation
+    if 'r' in analyses and comp: # correlation
         gen_analys.run_trace_corr_acr_sess(sessions, 'r', analyspar, sesspar, 
                                            stimpar, figpar)
     all_check += 'r'
@@ -563,8 +562,6 @@ if __name__ == "__main__":
                         help=('data directory (if None, uses a directory '
                               'defined below'))
     parser.add_argument('--output', default='', help='where to store output')
-    parser.add_argument('--plt_bkend', default=None, 
-                        help='mpl backend to use, e.g. when running on server')
     parser.add_argument('--analyses', default='all', 
                         help=('analyses to run: traces (t), locked traces (l), '
                               'roi_grps_qu (q), roi_grps_ch (c), mag (m), '
@@ -573,15 +570,19 @@ if __name__ == "__main__":
                               'run all analyses except m'))
     parser.add_argument('--sess_n', default='all',
                         help='session to aim for, e.g. 1, 2, first, last, all')
-    parser.add_argument('--parallel', action='store_true', 
-                        help='do sess_n\'s in parallel.')
     parser.add_argument('--dict_path', default='', 
                         help=('path to info dictionary or directory of '
                               'dictionaries from which to plot data.'))
-    parser.add_argument('--seed', default=-1, type=int, 
-                        help='random seed (-1 for None)')
     parser.add_argument('--no_plot_tc', action='store_true', 
                         help='no tuning curve plots are generated')
+
+        # technical parameters
+    parser.add_argument('--plt_bkend', default=None, 
+                        help='switch mpl backend when running on server')
+    parser.add_argument('--parallel', action='store_true', 
+                        help='do runs in parallel.')
+    parser.add_argument('--seed', default=-1, type=int, 
+                        help='random seed (-1 for None)')
 
         # session parameters
     parser.add_argument('--runtype', default='prod', help='prod or pilot')
@@ -611,12 +612,13 @@ if __name__ == "__main__":
                         help='sem for SEM/MAD, std for std/qu')    
     parser.add_argument('--dend', default='extr', help='aibs, extr')
         # session parameters
+    parser.add_argument('--line', default='any', help='L23, L5')
     parser.add_argument('--closest', action='store_true', 
                         help=('if True, the closest session number is used. '
                               'Otherwise, only exact.'))
     parser.add_argument('--pass_fail', default='P', 
                         help='P to take only passed sessions')
-    parser.add_argument('--incl', default='yes',
+    parser.add_argument('--incl', default='any',
                         help='include only `yes`, `no` or `any`')
         # stimulus parameters
     parser.add_argument('--bri_size', default=128, 
@@ -631,6 +633,8 @@ if __name__ == "__main__":
                         help='nbr of permutations')
     parser.add_argument('--tails', default='2', 
                         help='nbr tails for perm analysis (2, lo, up)')
+    parser.add_argument('--no_multcomp', action='store_true', 
+                        help='no multiple comparisons correction')
         # quintile parameters
     parser.add_argument('--n_quints', default=4, type=int, 
                         help='nbr of quintiles')
@@ -678,33 +682,12 @@ if __name__ == "__main__":
     args.fontdir = os.path.join('..', 'tools', 'fonts')
 
     if args.dict_path is not '':
-        if os.path.isdir(args.dict_path):
-            dict_paths = glob.glob('{}/*.json'.format(args.dict_path))
-            if len(dict_paths) == 0:
-                raise ValueError('No jsons found in directory.')
-        else:
-            dict_paths = [args.dict_path]
-        if args.parallel and len(dict_paths) > 1:
-            n_cores = multiprocessing.cpu_count()
-            n_jobs = min(n_cores,len(dict_paths))
-            if args.modif:
-                fct = mod_plots.plot_from_dict
-            else:
-                fct = roi_plots.plot_from_dict
-            Parallel(n_jobs=n_jobs)(delayed(fct)(dict_path, False, 
-                                    args.plt_bkend, args.fontdir, 
-                                    not(args.no_plot_tc)) 
-                                    for dict_path in dict_paths)
-        else:
-            for dict_path in dict_paths:
-                if args.modif:
-                    mod_plots.plot_from_dict(dict_path, args.parallel, 
-                              args.plt_bkend, args.fontdir, 
-                              not(args.no_plot_tc))
-                else:
-                    roi_plots.plot_from_dict(dict_path, args.parallel, 
-                              args.plt_bkend, args.fontdir, 
-                              not(args.no_plot_tc))
+        source = 'roi'
+        if args.modif:
+            source = 'modif'
+        plot_dicts.plot_from_dicts(args.dict_path, source=source, 
+                   plt_bkend=args.plt_bkend, fontdir=args.fontdir, 
+                   plot_tc=not(args.no_plot_tc), parallel=args.parallel)
 
     else:
         if args.datadir is None:
@@ -717,17 +700,15 @@ if __name__ == "__main__":
         if args.sess_n == 'all':
             all_sess_ns = sess_gen_util.get_sess_vals(mouse_df, 'sess_n', 
                             runtype=args.runtype, layer=args.layer, 
-                            min_rois=args.min_rois, pass_fail=args.pass_fail, 
-                            incl=args.incl, omit_sess=args.omit_sess, 
-                            omit_mice=args.omit_mice)
+                            line=args.line, min_rois=args.min_rois, 
+                            pass_fail=args.pass_fail, incl=args.incl, 
+                            omit_sess=args.omit_sess, omit_mice=args.omit_mice)
         else:
             all_sess_ns = gen_util.list_if_not(args.sess_n)
 
         # run through all sessions
         if args.parallel:
-            n_cores = multiprocessing.cpu_count()
-            n_jobs = min(n_cores, len(all_sess_ns))
-
+            n_jobs = gen_util.get_n_jobs(len(all_sess_ns))
             # initialize sessions and collect analysis params
             all_analys_pars = Parallel(n_jobs=n_jobs)(delayed(prep_analyses)
                                       (sess_n, args, mouse_df) 

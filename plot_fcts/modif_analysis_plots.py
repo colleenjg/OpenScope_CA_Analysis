@@ -13,7 +13,6 @@ Note: this code uses python 3.7.
 """
 
 import copy
-import multiprocessing
 import os
 
 from joblib import Parallel, delayed
@@ -27,10 +26,10 @@ from plot_fcts import roi_analysis_plots as roi_plots
 
 
 #############################################
-def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None,
-                   plot_tc=True):
+def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True, 
+                   parallel=False):
     """
-    plot_from_dict(info_path, args)
+    plot_from_dict(dict_path)
 
     Plots data from dictionaries containing analysis parameters and results.
 
@@ -38,12 +37,15 @@ def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None,
         - dict_path (str): path to dictionary to plot data from
     
     Optional_args:
+        - plt_bkend (str): mpl backend to use for plotting (e.g., 'agg')
+                           default: None
+        - fontdir (str)  : path to directory where additional fonts are stored
+                           default: None
+        - plot_tc (bool) : if True, tuning curves are plotted for each ROI 
+                           default: True
         - parallel (bool): if True, some of the analysis is parallelized across 
                            CPU cores
                            default: False
-        - plt_bkend (str): mpl backend to use for plotting (e.g., 'agg')
-                           default: None
-        - plot_tc (bool) : if True, tuning curves are plotted for each ROI 
     """
 
     print('\nPlotting from dictionary: {}'.format(dict_path))
@@ -1054,11 +1056,16 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
         line_str = '2/3'
     if 'soma' in layer:
         layer_str = 'somata'
-    gentitle=('M{} - layer {} {}{}'.format(mouse_n, line_str, layer_str, 
+    gentitle=('Mouse {} - Layer {} {}{}'.format(mouse_n, line_str, layer_str, 
                                            dendstr_pr))
     
     gen_savename = 'roi_cm_m{}_sess{}{}_{}_{}{}'.format(mouse_n, sess_n, 
                                              qu_str, stimstr, layer, dendstr)
+
+    gen_savename = 'colormap_m{}s{}_{}_{}'.format(mouse_n, sess_n, stimstr, layer)
+
+    if fig_type != 'byfir':
+        return ''
 
     if fig_type == 'byplot':
         scale_type = 'per plot'
@@ -1084,7 +1091,8 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
     subtitle = (u'ROIs sorted by peak activity{} and scaled '
                  '{}').format(peak_sort, scale_type)
     print(u'    - {}'.format(subtitle))
-    suptitle = u'{}\n({})'.format(gentitle, subtitle)
+    # suptitle = u'{}\n({})'.format(gentitle, subtitle)
+    suptitle = gentitle
     
     # get scaled and sorted ROI mean/medians (ROI x frame)
     scaled_sort_me = roi_plots.scale_sort_trace_data(tr_data, fig_type, surps, 
@@ -1099,17 +1107,30 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
             key = '{}_{}'.format(surp, od)
             title = u'{} seqs ({}{}) (n={})'.format(surp_lab.capitalize(), od, 
                                                 deg_pr, tr_data['n_seqs'][key])
-            x_ax = None
             if s == 0:
+                od_pr = od
+                if stimpar['stimtype'] == 'bricks':
+                    od_pr = od_pr.capitalize()
+                title = u'{}{}'.format(od_pr, deg_pr)
+            else:
+                title = None
+            x_ax = None
+            y_ax = 'ROIs'
+            if s != 1 or o != 0:
+                y_ax = ''
+            if stimpar['stimtype'] == 'gabors':
                 x_ax = ''
             sess_plot_util.add_axislabels(sub_ax, fluor=analyspar['fluor'], 
-                                       x_ax=x_ax, y_ax='ROIs', datatype='roi')
+                                       x_ax=x_ax, y_ax=y_ax, datatype='roi')
             im = plot_util.plot_colormap(sub_ax, scaled_sort_me[key], 
                            title=title, cmap=cmap, n_xticks=n,
                            yticks_ev=yticks_ev, xran=[-stimpar['pre'], 
                            stimpar['post']])
+            
             if stimpar['stimtype'] == 'bricks':
                 plot_util.add_bars(sub_ax, 0)
+            else:
+                sub_ax.set_xticks([])
 
     for s, surp in enumerate(surps):
         sub_ax = ax[s:s+1]
@@ -1118,8 +1139,8 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
                             pre=stimpar['pre'], post=stimpar['post'], 
                             sharey=figpar['init']['sharey'], t_heis=-0.05)
     
-    plot_util.add_colorbar(fig, im, len(oridirs))
-    fig.suptitle(suptitle)
+    plot_util.add_colorbar(fig, im, len(oridirs), cm_prop=0.06)
+    fig.suptitle(suptitle, fontsize='xx-large')
     savename = '{}_{}'.format(gen_savename, fig_type)
     fulldir = plot_util.savefig(fig, savename, savedir, print_dir=print_dir, 
                                 **figpar['save'])
@@ -1227,14 +1248,14 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
     figpar = copy.deepcopy(figpar)
     if figpar['save']['use_dt'] is None:
         figpar['save']['use_dt'] = gen_util.create_time_str()
-    figpar['save']['fig_ext'] = 'png' # svg too big
+    figpar['save']['fig_ext'] = 'svg' # svg too big
 
     fig_types  = ['byplot', 'byreg', 'by{}{}'.format(oridirs[0], deg), 'byfir']
     fig_types = ['byfir']
     fig_last = len(fig_types) - 1
     
     if parallel:
-        n_jobs = min(multiprocessing.cpu_count(), len(fig_types))
+        n_jobs = gen_util.get_n_jobs(len(fig_types))
         fulldirs = Parallel(n_jobs=n_jobs)(delayed(plot_oridir_colormap)
                          (fig_type, analyspar, stimpar, quintpar, tr_data,
                           sess_info, figpar, savedir, (f == fig_last)) 

@@ -12,8 +12,6 @@ Note: this code uses python 3.7.
 
 """
 
-import multiprocessing
-
 import astropy.stats as astrost
 from joblib import Parallel, delayed
 import numpy as np
@@ -136,8 +134,7 @@ def estim_vm_by_roi(oris, roi_data, hist_n=1000, parallel=False):
     tc_oris = np.unique(xsort).tolist()
 
     if parallel:
-        n_cores = multiprocessing.cpu_count()
-        n_jobs = min(n_cores, len(roi_data_sort))
+        n_jobs = gen_util.get_n_jobs(len(roi_data_sort))
         returns = Parallel(n_jobs=n_jobs)(delayed(estim_vm)
                           (x_cuml, data_sort, tc_oris, hist_n) 
                           for data_sort in roi_data_sort)       
@@ -223,8 +220,7 @@ def tune_curv_estims(gab_oris, roi_data, ngabs_tot, nrois='all', ngabs='all',
         roi_data.shape[0]
 
     if parallel and ngabs > nrois:
-        n_cores = multiprocessing.cpu_count()
-        n_jobs = min(n_cores, ngabs)
+        n_jobs = gen_util.get_n_jobs(ngabs)
         returns = Parallel(n_jobs=n_jobs)(delayed(estim_vm_by_roi)(
                                                   gab_oris[g], roi_data, 
                                                   hist_n, False) 

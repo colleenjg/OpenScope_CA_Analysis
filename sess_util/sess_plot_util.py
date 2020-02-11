@@ -12,6 +12,7 @@ Note: this code uses python 3.7.
 
 """
 
+import copy
 import os
 
 import numpy as np
@@ -23,7 +24,7 @@ from sess_util import sess_str_util
 #############################################
 def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7.5, 
                 subplot_wid=7.5, datetime=True, use_dt=None, fig_ext='svg', 
-                overwrite=False, runtype='prod', output='.', plt_bkend=None, 
+                overwrite=False, runtype='prod', output='', plt_bkend=None, 
                 linclab=True, fontdir=None):
     
     """
@@ -54,7 +55,13 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7.5,
         - runtype (str)    : runtype ('pilot', 'prod')
                              default: 'prod'
         - output (str)     : general directory in which to save output
-                             default: '.'
+                             default: ''
+        - plt_bkend (str)  : mpl backend to use for plotting (e.g., 'agg')
+                             default: None
+        - linclab (bool)   : linclab style setting 
+                             default: None
+        - fontdir (str)    : path to directory where additional fonts are stored
+                             default: None
 
     Returns:
         - figpar (dict): dictionary containing figure parameters:
@@ -68,21 +75,27 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7.5,
                 ['figdir'] (str)   : main folder in which to save figures
                 ['roi'] (str)      : subdirectory name for ROI analyses
                 ['run'] (str)      : subdirectory name for running analyses
+                ['acr_sess'] (str) : subdirectory name for analyses across 
+                                     sessions
                 ['autocorr'] (str) : subdirectory name for autocorrelation 
                                      analyses
                 ['full'] (str)     : subdirectory name for full trace plots
+                ['glm'] (str)      : subdirectory name for glm plots
+                ['grped'] (str)    : subdirectory name for ROI grps data
+                ['lat'] (str)      : subdirectory name for latency analyses
                 ['locori'] (str)   : subdirectory name for location and 
                                      orientation responses
+                ['mags'] (str)     : subdirectory name for magnitude analyses
                 ['posori'] (str)   : subdirectory name for position and 
                                      orientation plots
+                ['prop_resp'] (str): subdirectory name for proportion 
+                                     responsive ROI analyses
                 ['pupil'] (str)    : subdirectory for pupil analyses
                 ['oridir'] (str)   : subdirectory name for 
                                      orientation/direction analyses
                 ['surp_qu'] (str)  : subdirectory name for surprise, quintile 
                                      analyses
                 ['tune_curv'] (str): subdirectory name for tuning curves
-                ['grped'] (str)    : subdirectory name for ROI grps data
-                ['mags'] (str)     : subdirectory name for magnitude analyses
                 
             ['mng']: dictionary containing the following attributes:
                 ['plt_bkend'] (str): mpl backend to use
@@ -114,15 +127,19 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7.5,
     fig_dirs = {'figdir'   : figdir,
                 'roi'      : os.path.join(figdir, '{}_roi'.format(runtype)),
                 'run'      : os.path.join(figdir, '{}_run'.format(runtype)),
+                'acr_sess' : 'acr_sess',
                 'autocorr' : 'autocorr',
                 'full'     : 'full',
+                'glm'      : 'glm',
+                'grped'    : 'grped',
+                'lat'      : 'latencies',
+                'prop'     : 'prop_resp',
+                'mags'     : 'mags',
                 'posori'   : 'posori',
                 'pupil'    : 'pupil',
                 'oridir'   : 'oridir',
                 'surp_qu'  : 'surp_qu',
                 'tune_curv': 'tune_curves',
-                'grped'    : 'grped',
-                'mags'     : 'mags',
                }
 
     figpar = {'init' : fig_init,
@@ -132,6 +149,102 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7.5,
               }
     
     return figpar
+
+
+#############################################
+def fig_init_linlay(figpar=None, traces=False):
+    """
+    fig_init_linlay()
+
+    Returns figpar dictionary with initialization parameters modified for
+    graphs across sessions divided by line/layer combinations.
+
+    Optional args:
+        - figpar (dict)       : dictionary containing figure parameters 
+                                (initialized if None):
+            ['init'] : dictionary containing the following inputs as
+                       attributes:
+                           ncols, sharex, sharey, subplot_hei, subplot_wid
+                                default: None
+        - traces (bool or int): if not False, provides number of traces per 
+                                line/layer combination to use in dividing 
+                                subplot height
+                                default: False
+
+    Returns:
+        - figpar (dict): dictionary containing figure parameters:
+            ['init'] : dictionary containing the following inputs modified:
+                           ncols, sharex, sharey, subplot_hei, subplot_wid
+    """
+
+    figpar = copy.deepcopy(figpar)
+
+    if figpar is None:
+        figpar = init_figpar()
+
+    if 'init' not in figpar.keys():
+        raise ValueError('figpar should have `init` subdictionary.')
+
+    if traces:
+        wid = 5
+        hei = wid/traces
+    else:
+        wid = 3
+        hei = wid * 2
+
+
+    figpar['init']['ncols'] = 2
+    figpar['init']['subplot_hei'] = hei
+    figpar['init']['subplot_wid'] = wid
+    figpar['init']['sharex'] = True
+    figpar['init']['sharey'] = True
+
+    return figpar
+
+
+#############################################
+def fig_linlay_pars(traces=False, n_grps=None):
+    """
+    fig_linlay_pars()
+
+    Returns parameters for a line/layer combination graph.
+
+    Optional args:
+        - traces (bool or int): if not False, provides number of traces per 
+                                line/layer combination to use in multiplying
+                                number of plots
+                                default: False
+        - n_grps (int or None): if not None, the number of groups in the data 
+                                is verified against the expected number of 
+                                groups
+                                default: None
+
+    Returns:
+        - lines (list)      : ordered list of lines
+        - layers (list)     : ordered list of layers
+        - linlay_iter (list): ordered list of lines and layers, structured as 
+                              grp x [lin, lay]
+        - lay_cols (list)   : colors for each layer
+        - lay_cols (list)   : color names for each layer
+        - n_plots (int)     : total number of plots
+    """
+
+    lines, layers = ['L2/3', 'L5'], ['dendrites', 'soma']
+    linlay_iter = [[lin, lay] for lin in lines for lay in layers]
+    lay_col_names = ['green', 'blue']
+    lay_cols = [plot_util.get_color(c, ret='single') for c in lay_col_names]
+    
+    if traces:
+        mult = traces
+    else:
+        mult = 1
+    n_plots = len(lines) * len(layers) * mult
+
+    if n_grps is not None and n_grps > n_plots/mult:
+        raise ValueError(('Expected up to {} line x layer '
+                          'combinations, not {}.').format(n_plots, n_grps))
+
+    return lines, layers, linlay_iter, lay_cols, lay_col_names, n_plots
 
 
 #############################################
@@ -150,29 +263,15 @@ def get_quint_cols(n_quints=4):
                            structured as [regular, surprise]
         - lab_cols (list): label colors for regular and surprise data
     """
-    # prev: '#50a2d5', 'cornflowerblue', 'steelblue', 'dodgerblue', 
-    #       'mediumblue', 'darkblue', 'royalblue'
-    col_reg  = ['#7cc7f9', '#50a2d5', '#2e78a9', '#16547d']
-    main_reg = 1
-    
-    # prev: '#eb3920', 'tomato', 'salmon', 'coral', 'orangered', 'indianred', 
-    #       'firebrick'
-    col_surp = ['#f36d58', '#eb3920', '#c12a12', '#971a07']
-    main_surp = 1
 
-    max_qu = np.max([len(col_reg), len(col_surp)])
-    if n_quints > max_qu:
-        raise NotImplementedError(('Not enough colors preselected for more '
-                                    'than 4 quintiles.'))
+    col_reg  = plot_util.get_color_range(n_quints, 'blue')
+    col_surp = plot_util.get_color_range(n_quints, 'red')
 
-    cols = []
-    for main, all_cols in zip([main_reg, main_surp], [col_reg, col_surp]):
-        if n_quints <= (max_qu - main):
-            cols.append(all_cols[main : main + n_quints])
-        else:
-            cols.append(all_cols[: n_quints])
+    lab_reg = plot_util.get_color_range(1, 'blue')[0]
+    lab_surp = plot_util.get_color_range(1, 'red')[0]
 
-    lab_cols = [col_reg[main_reg], col_surp[main_surp]]
+    cols = [col_reg, col_surp]
+    lab_cols = [lab_reg, lab_surp]
 
     return cols, lab_cols
 
@@ -338,7 +437,7 @@ def get_seg_comp(gabfr=0, plot_vals='both', op='diff', pre=0, post=1.5):
 def plot_labels(ax, gabfr=0, plot_vals='both', op='none', pre=0, post=1.5, 
                 cols=None, sharey=True, t_heis=[0.85, 0.75], incr=True):
     """
-    plot_labels()
+    plot_labels(ax)
 
     Plots lines and labels for gabors segments.
    
@@ -397,8 +496,8 @@ def plot_gabfr_pattern(sub_ax, x_ran, alpha=0.1, offset=0, bars_omit=[]):
     """
     plot_gabfr_pattern(sub_ax, x_ran)
 
-    Plots light dashed lines at the edges of each gabor sequence and shades
-    D/E segments.
+    Plots light dashed lines at the edges of each gabor sequence (end of 
+    grayscreen) and shades D/E segments.
 
     Required args:
         - sub_ax (plt Axis subplot): subplot
@@ -408,17 +507,112 @@ def plot_gabfr_pattern(sub_ax, x_ran, alpha=0.1, offset=0, bars_omit=[]):
         - alpha (num)     : plt alpha variable controlling shading 
                             transparency (from 0 to 1)
                             default: 0.1
-        - offset (num)    : offset of sequence edges from 0
+        - offset (num)    : offset of sequence start from 0 in segs 
+                            (start gabor frame number)
                             default: 0
         - bars_omit (list): positions at which to omit bars (e.g., in case they 
                             would be redundant)
                             default: []
     """
 
+    offset_s = 0.3 * offset
+
     bars = plot_util.get_repeated_bars(np.min(x_ran), np.max(x_ran), 1.5, 
-                                       offset=offset)
-    shade_st = [bar - 0.6 + offset for bar in bars 
-                                   if (bar - 0.6 + offset) > x_ran[0]]
+                                       offset=-offset_s)
+    shade_st = [bar - 0.6 for bar in bars if (bar - 0.6) > x_ran[0]]
     bars = gen_util.remove_if(bars, bars_omit)
     plot_util.add_bars(sub_ax, bars=bars)
     plot_util.add_vshade(sub_ax, shade_st, width=0.3, alpha=0.1)
+
+
+#############################################
+def format_linlay_subaxes(ax, fluor='dff', area=False, datatype='roi', 
+                          lines=None, layers=None, xlab=None, 
+                          xticks=None, sess_ns=None, y_ax=None):
+    """
+    format_linlay_subaxes(ax)
+
+    Formats axis labels and grids for a square of subplots, structured as 
+    layers (2 or more rows) x lines (2 columns). 
+    
+    Specifically:
+    - Removes bottom lines and ticks for top plots
+    - Adds line names to top plots
+    - Adds y labels on left plots (midde of top and bottom half)
+    - Adds layer information on right plots (midde of top and bottom half)
+    - Adds x labels to bottom plots
+    - Adds session numbers if provided
+
+    Required args:
+        - ax (plt Axis): plt axis
+
+    Optional args:
+        - fluor (str)   : if y_ax is None, whether 'raw' or processed 
+                            fluorescence traces 'dff' are plotted. 
+                            default: 'dff'
+        - area (bool)   : if True, 'area' is added after the y_ax label
+                            default: False
+        - datatype (str): type of data, either 'run' or 'roi'
+                            default: 'roi'
+        - lines (list)  : ordered lines (2)
+                            default: None
+        - layers (list) : ordered layers (2)
+                            default: None
+        - xlab (str)    : x label
+                          default: None
+        - xticks (list) : x tick labels (if None, none are added)
+                          default: None
+        - sess_ns (list): list of session numbers (inferred if None)
+                          default: None 
+        - y_ax (str)    : y axis label (overrides automatic one)
+                          default: None
+    """
+
+    if ax.shape[1] != 2:
+        raise ValueError('Expected 2 columns.')
+    
+    n_rows = ax.shape[0]
+    if n_rows%2 != 0:
+        raise ValueError('Expected even number of rows')
+    rs_mid = [n_rows//4, n_rows - n_rows//4 - 1]
+
+    if sess_ns is not None: # extra rows are seconds
+        xlab = 'Time (s)'
+
+    if lines is None:
+        lines = ['L2/3', 'L5']
+    if layers is None:
+        layers = ['dendrites', 'soma']
+    
+    for l, name in zip([lines, layers], ['lines', 'layers']):
+        if len(l) != 2:
+            raise ValueError('2 {} expected.'.format(name))
+
+
+    for r in range(ax.shape[0]):
+        for c in range(ax.shape[1]):
+            if xticks is not None:
+                ax[r, c].set_xticks(xticks)
+            if c == 0 and r in rs_mid: # LEFT MID LAYER
+                add_axislabels(ax[r, c], fluor=fluor, area=area, 
+                                datatype=datatype, x_ax='', y_ax=y_ax)
+            if c != 0: # RIGHT
+                right_lab = ''
+                if sess_ns is not None:
+                    sess_n = sess_ns[r%len(sess_ns)]
+                    right_lab = '{}\n'.format(sess_n)
+                    if sess_n == sess_ns[-1]:
+                        right_lab = 'sess {}'.format(right_lab)
+                if r in rs_mid: # RIGHT MID LAYER
+                    r_idx = rs_mid.index(r)
+                    right_lab = '{}{}\n'.format(right_lab, layers[r_idx])
+                ax[r, c].set_ylabel(right_lab[:-1])
+                ax[r, c].yaxis.set_label_position('right')
+            if r == 0: # TOP
+                ax[r, c].set_title('{} neurons'.format(lines[c]))            
+            if r != n_rows-1: # NOT BOTTOM
+                ax[r, c].tick_params(axis='x', which='both', bottom=False) 
+                ax[r, c].spines['bottom'].set_visible(False)
+            elif xlab is not None: # BOTTOM
+                ax[r, c].set_xlabel(xlab)
+                
