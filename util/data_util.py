@@ -613,6 +613,7 @@ def create_dls(data, targets=None, train_p=0.75, val_p=None, test_p=None,
         returns.append(sc_facts)
     
     dls = []
+    # if training set, shuffle targets
     for i, (data, targ) in enumerate(zip(set_data, set_targets)):
         if train_shuff and i == 0:
             shuff = True

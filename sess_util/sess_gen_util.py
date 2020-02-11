@@ -12,6 +12,7 @@ Note: this code uses python 3.7.
 
 """
 
+import copy
 import os
 
 import numpy as np
@@ -297,10 +298,11 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
     Returns:
         - sessids (list): sessions to analyse (1 per mouse)
     """
+    
     if isinstance(mouse_df, str):
         mouse_df = file_util.loadfile(mouse_df)
         
-    orig_sess_n = sess_n
+    orig_sess_n = int(sess_n)
     if closest or str(sess_n) in ['first', 'last', '-1']:
         sess_n = gen_util.get_df_label_vals(mouse_df, 'sess_n', 'any')
     
@@ -344,12 +346,12 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
 
 
 #############################################
-def sess_comb_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod', 
+def sess_comp_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod', 
                         layer='any', line='any', pass_fail='P', incl='yes', 
                         all_files=1, any_files=1, min_rois=1, closest=False, 
                         omit_sess=[], omit_mice=[]):
     """
-    sess_comb_per_mouse(mouse_df)
+    sess_comp_per_mouse(mouse_df)
     
     Returns list of session ID combinations (2 per mouse) that fit the 
     specified criteria.
@@ -499,9 +501,9 @@ def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True,
         if omit and sess.layer == 'dend' and sess.dend != dend:
             print(('Omitting session {} ({} dendrites not '
                    'found).').format(sessid, dend))
-        elif pupil and sess.pup_data_csv in ['none', 'several']:
-            print(('Omitting session {} as {} pupil data csvs were '
-                 'found.').format(sessid ,sess.pup_data_csv.replace('ne', '')))
+        elif pupil and sess.pup_data_h5 == 'none':
+            print(('Omitting session {} as no pupil data h5 was '
+                   'found.').format(sessid))
         else:
             print('Finished session {}.'.format(sessid))
             sessions.append(sess)
@@ -549,20 +551,23 @@ def get_nrois(nrois, n_nanrois=0, n_nanrois_dff=0, remnans=True, fluor='dff'):
 
 
 #############################################
-def get_sess_info(sessions, fluor='dff'):
+def get_sess_info(sessions, fluor='dff', add_none=False):
     """
     get_sess_info(sessions)
 
-    Puts information from all sessions into a dictionary.
+    Puts information from all sessions into a dictionary. Optionally allows 
+    None sessions.
 
     Required args:
         - sessions (list): ordered list of Session objects
     
     Optional args:
-        - fluor (str)        : if 'dff', an error is thrown if the list of ROIs 
-                               with NaNs/Infs in dF/F traces cannot be 
-                               extracted
-                               default: 'dff'
+        - fluor (str)    : if 'dff', an error is thrown if the list of ROIs 
+                           with NaNs/Infs in dF/F traces cannot be 
+                           extracted
+                           default: 'dff'
+        - add_none (bool): if True, None sessions are allowed and all values 
+                           are filled with None
 
     Returns:
         - sess_info (dict): dictionary containing information from each
@@ -582,6 +587,9 @@ def get_sess_info(sessions, fluor='dff'):
                                         attribute exists
     """
 
+    if add_none and set(sessions) == {None}:
+        print('All None value sessions.')
+
     sess_info = dict()
     keys = ['mouse_ns', 'mouseids', 'sess_ns', 'sessids', 'lines', 'layers', 
             'nrois', 'twop_fps', 'nanrois', 'nanrois_dff']
@@ -592,25 +600,33 @@ def get_sess_info(sessions, fluor='dff'):
     sessions = gen_util.list_if_not(sessions)
 
     for _, sess in enumerate(sessions):
-        sess_info['mouse_ns'].append(sess.mouse_n)
-        sess_info['mouseids'].append(sess.mouseid)
-        sess_info['sess_ns'].append(sess.sess_n)
-        sess_info['sessids'].append(sess.sessid)
-        sess_info['lines'].append(sess.line)
-        sess_info['layers'].append(sess.layer)
-        sess_info['nrois'].append(sess.nrois)
-        sess_info['twop_fps'].append(sess.twop_fps)
-        sess_info['nanrois'].append(sess.nanrois)
-
-        if hasattr(sess, 'nanrois_dff'):
-            sess_info['nanrois_dff'].append(sess.nanrois_dff)
-        elif fluor == 'dff':
-            raise ValueError(('dF/F nanrois cannot be added to sess_info, as '
-                              'dF/F traces have not been loaded for '
-                              'session {}'.format(sess.sessid)))
+        if sess is None:
+            if add_none:
+                 for key in keys:
+                     sess_info[key].append(None)
+            else:
+                raise ValueError('None sessions not allowed.')
         else:
-            sess_info['nanrois_dff'].append(None)
+            sess_info['mouse_ns'].append(sess.mouse_n)
+            sess_info['mouseids'].append(sess.mouseid)
+            sess_info['sess_ns'].append(sess.sess_n)
+            sess_info['sessids'].append(sess.sessid)
+            sess_info['lines'].append(sess.line)
+            sess_info['layers'].append(sess.layer)
+            sess_info['nrois'].append(sess.nrois)
+            sess_info['twop_fps'].append(sess.twop_fps)
+            sess_info['nanrois'].append(sess.nanrois)
+
+            if hasattr(sess, 'nanrois_dff'):
+                sess_info['nanrois_dff'].append(sess.nanrois_dff)
+            elif fluor == 'dff':
+                raise ValueError(('dF/F nanrois cannot be added to sess_info, '
+                                'as dF/F traces have not been loaded for '
+                                'session {}'.format(sess.sessid)))
+            else:
+                sess_info['nanrois_dff'].append(None)
             
+
     return sess_info
 
 
@@ -639,29 +655,35 @@ def get_params(stimtype='both', bri_dir='both', bri_size=128, gabfr=0,
     Returns:
         - bri_dir (str or list) : brick direction values
         - bri_size (int or list): brick size values
-        - gabfr (int)           : gabor frame values
+        - gabfr (int or list)   : gabor frame values
         - gabk (int or list)    : gabor kappa values
         - gab_ori (int or list) : gabor orientation values
 
     """
 
     # get all the parameters
-    if gabk == 'both':
+
+    if gabk in ['both', 'any', 'all']:
         gabk = [4, 16]
     else:
         gabk = int(gabk)
 
-    if gab_ori == 'all':
+    if gab_ori in ['both', 'any', 'all']:
         gab_ori = [0, 45, 90, 135]
     else:
         gab_ori = int(gab_ori)
 
-    if bri_size == 'both':
+    if gabfr in ['both', 'any', 'all']:
+        gabfr = [0, 1, 2, 3, 'gray']
+    elif gabfr != 'gray':
+        gabfr = int(gabfr)
+
+    if bri_size in ['both', 'any', 'all']:
         bri_size = [128, 256]
     else:
         bri_size = int(bri_size)
 
-    if bri_dir == 'both':
+    if bri_dir in ['both', 'any', 'all']:
         bri_dir = ['right', 'left']
 
     # set to 'none' any parameters that are irrelevant
@@ -782,7 +804,7 @@ def all_omit(stimtype='gabors', runtype='prod', bri_dir='both', bri_size=128,
 
 
 #############################################
-def create_sess_dicts(mouse_df, datadir, runtype='prod', output='.'):
+def create_sess_dicts(mouse_df, datadir, runtype='prod', output=''):
     """
     create_sess_dicts(mouse_df, datadir)
 
@@ -802,7 +824,7 @@ def create_sess_dicts(mouse_df, datadir, runtype='prod', output='.'):
         - runtype (str): the type of run, either 'pilot' or 'prod'
                          default: 'prod' 
         - output (str) : output directory
-                         default: '.'
+                         default: ''
     """
 
     bri_size = 128
@@ -891,7 +913,7 @@ def create_sess_dicts(mouse_df, datadir, runtype='prod', output='.'):
 #############################################
 def get_analysdir(mouse_n, sess_n, layer, fluor='dff', scale=True, 
                   stimtype='gabors', bri_dir='right', bri_size=128, gabk=16, 
-                  comp='surp', shuffle=False):
+                  comp='surp', ctrl=False, shuffle=False):
     """
     get_analysdir(mouse_n, sess_n, layer)
 
@@ -919,6 +941,8 @@ def get_analysdir(mouse_n, sess_n, layer, fluor='dff', scale=True,
                                   (4, 16 or [4, 16])        
         - comp (str)            : type of comparison
                                   default: 'surp'
+        - ctrl (bool)           : whether analysis is a control for 'surp'
+                                  default: False
         - shuffle (bool)        : whether analysis is on shuffled data
                                   default: False
 
@@ -932,14 +956,15 @@ def get_analysdir(mouse_n, sess_n, layer, fluor='dff', scale=True,
 
     scale_str = sess_str_util.scale_par_str(scale)
     shuff_str = sess_str_util.shuff_par_str(shuffle)
+    ctrl_str  = sess_str_util.ctrl_par_str(ctrl)
     if comp is None:
         comp_str = ''
     else:
         comp_str = '_{}'.format(comp)
 
-    analysdir = 'm{}_s{}_{}_{}_{}{}{}{}'.format(mouse_n, sess_n, layer, 
-                                                stim_str, fluor, scale_str, 
-                                                comp_str, shuff_str)
+    analysdir = 'm{}_s{}_{}_{}_{}{}{}{}{}'.format(mouse_n, sess_n, layer, 
+                            stim_str, fluor, scale_str, comp_str, ctrl_str, 
+                            shuff_str)
 
     return analysdir
 
@@ -1033,4 +1058,28 @@ def get_params_from_str(param_str):
         params['shuffle'] = False
 
     return params
+
+
+#############################################
+def check_both_stimuli(sessions):
+    """
+    check_both_stimuli(sessions)
+
+    Returns only sessions that have both stimuli ('gabors' and 'bricks').
+        
+    Required args:
+        - sessions (list) :  list of Session objects
+    
+    Returns:
+        - keep_sess (list): list of retained Session objects
+    """
+
+    keep_sess = []
+    all_stims = ['gabors', 'bricks']
+    for sess in sessions:
+        check = np.product([stim in sess.stimtypes for stim in all_stims])
+        if check:
+            keep_sess.append(sess)
+
+    return keep_sess
 

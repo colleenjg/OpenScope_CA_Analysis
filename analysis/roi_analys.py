@@ -13,7 +13,6 @@ Note: this code uses python 3.7.
 """
 
 import copy
-import multiprocessing
 
 from joblib import Parallel, delayed
 import numpy as np
@@ -98,17 +97,16 @@ def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
     
     # get full data for qu of interest: session x surp x [seq x ROI]
     integ_info = quint_analys.trace_stats_by_qu_sess(sessions, analyspar, 
-                                                  stimpar, quintpar.n_quints, 
-                                                  'all', bysurp=True, 
-                                                  integ=True)     
+                              stimpar, quintpar.n_quints, 'all', bysurp=True, 
+                              integ=True)     
 
     # retrieve only mean/medians per ROI
     all_me = [sess_stats[:, :, 0] for sess_stats in integ_info[1]]
 
     # get statistics per group and number of ROIs per group
     grp_st, grp_ns = signif_grps.grp_stats(all_me, roi_grps['all_roi_grps'], 
-                                           roigrppar.plot_vals, roigrppar.op, 
-                                           analyspar.stats, analyspar.error)
+                                 roigrppar.plot_vals, roigrppar.op, 
+                                 analyspar.stats, analyspar.error)
 
     roi_grps = copy.deepcopy(roi_grps)
     roi_grps['grp_st'] = grp_st.tolist()
@@ -223,16 +221,15 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
 
     # get sess x surp x quint x stats x ROIs x frames
     trace_info = quint_analys.trace_stats_by_qu_sess(sessions, analyspar, 
-                                           stimpar, n_quints=quintpar.n_quints, 
-                                           qu_idx=quintpar.qu_idx, byroi=True, 
-                                           bysurp=True)
+                              stimpar, n_quints=quintpar.n_quints, 
+                              qu_idx=quintpar.qu_idx, byroi=True, bysurp=True)
     xran = trace_info[0]
 
     # retain mean/median from trace stats
     trace_me = [sessst[:, :, 0] for sessst in trace_info[1]]
 
     grp_stats = signif_grps.grp_traces_by_qu_surp_sess(trace_me, analyspar, 
-                                           roigrppar, roi_grps['all_roi_grps'])
+                            roigrppar, roi_grps['all_roi_grps'])
 
     roi_grps = copy.deepcopy(roi_grps)
     roi_grps['xran'] = xran.tolist()
@@ -350,9 +347,8 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
 
     # get full data for qu of interest: session x surp x [seq x ROI]
     integ_info = quint_analys.trace_stats_by_qu_sess(sessions, analyspar, 
-                                                  stimpar, quintpar.n_quints, 
-                                                  quintpar.qu_idx, bysurp=True, 
-                                                  integ=True)     
+                              stimpar, quintpar.n_quints, quintpar.qu_idx, 
+                              bysurp=True, integ=True)     
 
     # retrieve only mean/medians per ROI
     all_me = [sess_stats[:, :, 0] for sess_stats in integ_info[1]]
@@ -445,17 +441,17 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
     seed = gen_util.seed_all(seed, 'cpu', print_seed=False)
 
-    # identify significant ROIs
-    [all_roi_grps, grp_names, 
-        permpar_mult] = signif_grps.signif_rois_by_grp_sess(sessids, 
-                                          qu_data, permpar, roigrppar, 
-                                          quintpar.qu_lab,
-                                          stats=analyspar.stats, nanpol=nanpol)
-    
-    roi_grps = {'grp_names'   : grp_names,
-                'all_roi_grps': all_roi_grps,
-                'permpar_mult': permpar_mult._asdict(),
+    # identify significant ROIs 
+    # (returns all_roi_grps, grp_names, and optionally permpar_mult)
+    outs = signif_grps.signif_rois_by_grp_sess(sessids, qu_data, permpar, 
+                       roigrppar, quintpar.qu_lab, stats=analyspar.stats, 
+                       nanpol=nanpol)
+
+    roi_grps = {'all_roi_grps': outs[0],
+                'grp_names'   : outs[1],
                }
+    if permpar.multcomp:
+        roi_grps['permpar_mult'] = outs[2]._asdict()
     
     extrapar  = {'analysis': analysis,
                  'datatype': datatype,
@@ -605,8 +601,7 @@ def run_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts,
             'sess_info': sess_info
             }
     
-    roi_plots.plot_oridir_colormaps(figpar=figpar, parallel=parallel, 
-                                    **info)
+    roi_plots.plot_oridir_colormaps(figpar=figpar, parallel=parallel, **info)
 
     fulldir = roi_plots.plot_oridir_traces(figpar=figpar, **info)
 
@@ -653,21 +648,19 @@ def run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
     xran, mes, counts = [], [], []
     for od in oridirs:
         # create a specific stimpar for each direction or orientation
-        stimpar_dict = stimpar._asdict()
         if stimpar.stimtype == 'bricks':
-            stimpar_dict['bri_dir'] = od
+            key = 'bri_dir'
             lock = 'both'
         elif stimpar.stimtype == 'gabors':
-            stimpar_dict['gab_ori'] = od
+            key = 'gab_ori'
             lock = 'no'
-        stimpar_od = sess_ntuple_util.init_stimpar(**stimpar_dict)
+        stimpar_od = sess_ntuple_util.get_modif_ntuple(stimpar, key, od)
         # NaN stats if no segments fit criteria
         nan_empty = True
         trace_info = quint_analys.trace_stats_by_qu_sess(sessions, 
-                                        analyspar, stimpar_od, 
-                                        quintpar.n_quints, quintpar.qu_idx,
-                                        byroi=True, bysurp=True, lock=lock,
-                                        nan_empty=nan_empty)
+                                  analyspar, stimpar_od, quintpar.n_quints, 
+                                  quintpar.qu_idx, byroi=True, bysurp=True, 
+                                  lock=lock, nan_empty=nan_empty)
         xran = trace_info[0]
         # retrieve mean/medians and single quintile data:
         # sess x [surp x ROIs x frames]
@@ -677,7 +670,7 @@ def run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
                                     for sess_c in trace_info[2]])
     
     if parallel:
-        n_jobs = min(multiprocessing.cpu_count(), len(sessions))
+        n_jobs = gen_util.get_n_jobs(len(sessions))
         Parallel(n_jobs=n_jobs)(delayed(run_oridirs_by_qu_sess)
                 (se, sess, oridirs, surps, xran, mes, counts, analyspar, 
                  sesspar, stimpar, extrapar, quintpar, figpar, False) 
@@ -718,20 +711,17 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar,
     datatype = 'roi'
 
     # update stim parameters parameters
-    stimpar_dict = stimpar._asdict()
     if stimpar.stimtype == 'bricks':
         # update stimpar with both brick directions
-        # replace quintpar with quintpar split in 2 (for each direction)
-        stimpar_dict['bri_dir'] = ['right', 'left']
-        stimpar_dict['pre'] = 2.0 # extended colormap range for bricks
-        stimpar_dict['post'] = 4.0
-        oridirs = stimpar_dict['bri_dir']
+        oridirs = ['right', 'left']
+        keys = ['bri_dir', 'pre', 'post']
+        vals = [oridirs, 2.0, 4.0]
     elif stimpar.stimtype == 'gabors':
         # update stimpar with gab_fr = 0 and all gabor orientations
-        stimpar_dict['gabfr'] = 0
-        stimpar_dict['gab_ori'] = [0, 45, 90, 135]
-        oridirs = stimpar_dict['gab_ori'] 
-    stimpar = sess_ntuple_util.init_stimpar(**stimpar_dict)
+        oridirs = [0, 45, 90, 135]
+        keys = ['gabfr', 'gab_ori']
+        vals = [0, oridirs]
+    stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, keys, vals)            
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
                                        sesspar.layer, stimpar.bri_dir, 
@@ -761,7 +751,7 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar,
         figpar['save']['use_dt'] = gen_util.create_time_str()
 
     if parallel and len(quintpars) > len(sessions):
-        n_jobs = min(multiprocessing.cpu_count(), len(quintpars))
+        n_jobs = gen_util.get_n_jobs(len(quintpars))
         Parallel(n_jobs=n_jobs)(delayed(run_oridirs_by_qu)
                 (sessions, oridirs, surps, analyspar, sesspar, stimpar, 
                  extrapar, quintpar, figpar, False) 
@@ -827,11 +817,8 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
     print('Number ROIs: {}\nNumber of gabors: {}'.format(nrois, ngabs))
 
     # modify parameters
-    stimpar_tc_dict = stimpar._asdict()
-    stimpar_tc_dict['gabfr'] = tcurvpar.gabfr
-    stimpar_tc_dict['pre'] = tcurvpar.pre
-    stimpar_tc_dict['post'] = tcurvpar.post
-    stimpar_tc = sess_ntuple_util.init_stimpar(**stimpar_tc_dict)
+    stimpar_tc = sess_ntuple_util.get_modif_ntuple(stimpar, ['gabfr', 'pre', 
+                        'post'], [tcurvpar.gabfr, tcurvpar.pre, tcurvpar.post])
 
     seed = gen_util.seed_all(seed, 'cpu', print_seed=False)
 
@@ -1003,10 +990,8 @@ def run_posori_resp(sessions, analysis, analyspar, sesspar, stimpar, figpar,
     print('Number ROIs: {}'.format(nrois))
 
     # modify parameters
-    stimpar_loc_dict = stimpar._asdict()
-    stimpar_loc_dict['pre'] = 0
-    stimpar_loc_dict['post'] = 0.45
-    stimpar_loc = sess_ntuple_util.init_stimpar(**stimpar_loc_dict)
+    stimpar_loc = sess_ntuple_util.get_modif_ntuple(stimpar, ['pre', 'post'], 
+                                   [0, 0.45])
 
     if figpar['save']['use_dt'] is None:
         figpar['save']['use_dt'] = gen_util.create_time_str()

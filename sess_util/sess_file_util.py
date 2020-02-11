@@ -167,9 +167,11 @@ def get_file_names(masterdir, sessid, expid, date, mouseid, runtype='prod',
 
 ###############################################################################
 def get_mask_path(masterdir, sessid, expid, mouseid, runtype='prod', 
-              mouse_dir=True):
+                  mouse_dir=True):
     """
     get_mask_path(masterdir, sessid, expid, mouseid)
+
+    Returns path to mask file.
 
     Required args:
         - masterdir (str): name of the master data directory
@@ -188,44 +190,68 @@ def get_mask_path(masterdir, sessid, expid, mouseid, runtype='prod',
                             default: True
 
     Returns:
-        - maskfile (str): full path name of the extract masks hdf5 file
+        - (str): full path name of the extract masks hdf5 file
     """
 
     _, _, procdir = get_sess_dirs(masterdir, sessid, expid, mouseid, runtype, 
                                   mouse_dir)
 
-    maskfile = os.path.join(procdir, '{}_extract_masks.h5'.format(sessid))
 
-    if not os.path.exists(maskfile):
-        raise OSError('No extract masks found under \'{}\''.format(maskfile))
+    maskfile = os.path.join(procdir, f'{sessid}_dendritic_masks.h5')
 
-    return maskfile
+    if os.path.exists(maskfile):
+        return maskfile
+    
+    # try previous mask file name
+    prev_maskfile = os.path.join(procdir, f'{sessid}_extract_masks.h5')
+
+    if os.path.exists(prev_maskfile):
+        return prev_maskfile
+
+    else:
+        file_str = ' or '.join([maskfile, prev_maskfile])
+        raise OSError(f'No dendritic masks found under \'{file_str}\'')
 
 
 ###############################################################################
-def get_extr_trace_paths(trace_file):
+def get_dendritic_trace_paths(trace_file):
     """
-    get_extr_trace_paths(trace_file)
+    get_dendritic_trace_paths(trace_file)
 
-    Returns modified path to traces for EXTRACT trace data.
+    Returns modified path to traces for EXTRACT dendritic trace data (actual 
+    and previous version of names).
 
     Required args:
         - trace_file (str): path to ROI traces
 
     Returns:
-        - extr_tr_file (str)    : path to EXTRACT ROI traces
-        - extr_tr_dff_file (str): path to EXTRACT ROI dF/F traces
+        (list):
+            - dend_tr_file (str)    : path to EXTRACT dendritic ROI traces
+            - dend_tr_dff_file (str): path to EXTRACT dendritic ROI dF/F 
+                                       traces
+        (list):
+            - prev_dend_tr_file (str)    : previous path to EXTRACT dendritic 
+                                           ROI traces
+            - prev_dend_tr_dff_file (str): previous path to EXTRACT dendritic 
+                                           ROI dF/F traces
+
 
     """
 
-    path, ext = os.path.splitext(trace_file)
-    extr_part = '_extr{}'.format(ext)
+    filepath, ext = os.path.splitext(trace_file)
+    
+    dend_part = '_dendritic'
+    prev_dend_part = '_extr'
 
-    if extr_part in trace_file:
-        path = trace_file.replace(extr_part, '')
+    if dend_part in trace_file:
+        filepath = trace_file.replace(dend_part, '')
 
-    extr_tr_file = '{}{}'.format(path, extr_part)
-    extr_tr_dff_file = '{}_dff{}'.format(path, extr_part)
+    dend_tr_file = f'{filepath}{dend_part}{ext}'
+    dend_tr_dff_file = f'{filepath}{dend_part}_dff{ext}'
 
-    return extr_tr_file, extr_tr_dff_file
+    prev_dend_tr_file = f'{filepath}{prev_dend_part}{ext}'
+    prev_dend_tr_dff_file = f'{filepath}_dff{prev_dend_part}{ext}'
+
+    return [dend_tr_file, dend_tr_dff_file], \
+           [prev_dend_tr_file, prev_dend_tr_dff_file]
 

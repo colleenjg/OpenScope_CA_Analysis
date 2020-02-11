@@ -239,7 +239,7 @@ def run_sess_lstm(args, sessid):
 
 
     plot_util.linclab_plt_defaults(font=['Arial', 'Liberation Sans'], 
-                                font_dir='../tools/fonts')
+                                   fontdir='../tools/fonts')
     fig, ax = plt.subplots(1)
     for dataset in ['train', 'val']:
         plot_util.plot_traces(ax, range(args.n_epochs), np.asarray(loss_df[dataset]), 
@@ -338,8 +338,8 @@ if __name__ == "__main__":
     # args.n_epochs = 0
 
     if args.parallel:
-        num_cores = multiprocessing.cpu_count()
-        Parallel(n_jobs=num_cores)(delayed(run_sess_lstm)
+        n_jobs = gen_util.get_n_jobs(len(all_sessids))
+        Parallel(n_jobs=n_jobs)(delayed(run_sess_lstm)
                 (args, sessid) for sessid in all_sessids)
     else:
         for sessid in all_sessids:

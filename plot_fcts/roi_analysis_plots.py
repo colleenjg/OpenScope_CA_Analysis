@@ -2,7 +2,7 @@
 roi_analysis_plots.py
 
 This script contains functions to plot results of ROI analyses on specific
-sessions (run_roi_analysis.py) from dictionaries.
+sessions (roi_analys.py) from dictionaries.
 
 Authors: Colleen Gillon
 
@@ -13,7 +13,6 @@ Note: this code uses python 3.7.
 """
 
 import copy
-import multiprocessing
 import os
 
 from joblib import Parallel, delayed
@@ -27,10 +26,10 @@ from plot_fcts import gen_analysis_plots as gen_plots
 
 
 #############################################
-def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None,
-                   plot_tc=True):
+def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True, 
+                   parallel=False):
     """
-    plot_from_dict(info_path, args)
+    plot_from_dict(dict_path)
 
     Plots data from dictionaries containing analysis parameters and results.
 
@@ -38,12 +37,15 @@ def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None,
         - dict_path (str): path to dictionary to plot data from
     
     Optional_args:
+        - plt_bkend (str): mpl backend to use for plotting (e.g., 'agg')
+                           default: None
+        - fontdir (str)  : path to directory where additional fonts are stored
+                           default: None
+        - plot_tc (bool) : if True, tuning curves are plotted for each ROI 
+                           default: True
         - parallel (bool): if True, some of the analysis is parallelized across 
                            CPU cores
                            default: False
-        - plt_bkend (str): mpl backend to use for plotting (e.g., 'agg')
-                           default: None
-        - plot_tc (bool) : if True, tuning curves are plotted for each ROI 
     """
 
     figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir)
@@ -1299,7 +1301,7 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
     fig_last = len(fig_types) - 1
     
     if parallel:
-        n_jobs = min(multiprocessing.cpu_count(), len(fig_types))
+        n_jobs = gen_util.get_n_jobs(len(fig_types))
         fulldirs = Parallel(n_jobs=n_jobs)(delayed(plot_oridir_colormap)
                          (fig_type, analyspar, sesspar, stimpar, quintpar, 
                           tr_data, sess_info, figpar, savedir, (f == fig_last)) 
@@ -1586,7 +1588,7 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
     for s, surp_oris in enumerate(tc_oris):
         if comb_gabs:
             gab_str = '(gabors combined)'
-            for subax in ax[0, s+1:]: # to advance the color cycle
+            for subax in ax[0, s+1:]: # advance color cycle past gray
                 subax.plot([], [])
         else:
             gab_str = '({} gabors)'.format(len(surp_oris))
@@ -1891,7 +1893,7 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
             tcurv_data ['vm_pars'] = [None] * len(tcurv_data['data'])
             tcurv_data ['hist_pars'] = [None] * len(tcurv_data['data'])
         if parallel:
-            n_jobs = min(multiprocessing.cpu_count(), len(tcurv_data['data']))
+            n_jobs = gen_util.get_n_jobs(len(tcurv_data['data']))
             fulldir = Parallel(n_jobs=n_jobs)(delayed(plot_roi_tune_curves)
                     (tcurv_data['oris'], roi_data, n, sess_nrois, seq_info, 
                     tcurv_data['vm_pars'][n], tcurv_data['hist_pars'][n], 

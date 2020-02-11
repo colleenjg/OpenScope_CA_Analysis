@@ -2,7 +2,7 @@
 gen_analysis_plots.py
 
 This script contains functions to plot results of ROI and running analyses on 
-specific sessions (gen_roi_analysis.py) from dictionaries.
+specific sessions (gen_analys.py) from dictionaries.
 
 Authors: Colleen Gillon
 
@@ -13,7 +13,6 @@ Note: this code uses python 3.7.
 """
 
 import copy
-import multiprocessing
 import os
 
 from joblib import Parallel, delayed
@@ -26,9 +25,9 @@ from util import file_util, gen_util, math_util, plot_util
 
 
 #############################################
-def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None):
+def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False):
     """
-    plot_from_dict(info_path, args)
+    plot_from_dict(dict_path)
 
     Plots data from dictionaries containing analysis parameters and results.
 
@@ -36,11 +35,13 @@ def plot_from_dict(dict_path, parallel=False, plt_bkend=None, fontdir=None):
         - dict_path (str): path to dictionary to plot data from
     
     Optional_args:
-        - parallel (bool): if True, some of the analysis is parallelized across 
-                           CPU cores
-                           default: False
         - plt_bkend (str): mpl backend to use for plotting (e.g., 'agg')
                            default: None
+        - fontdir (str)  : path to directory where additional fonts are stored
+                           default: None
+        - parallel (bool): if True, some of the plotting is parallelized across 
+                           CPU cores
+                           default: False
     """
 
     print('\nPlotting from dictionary: {}'.format(dict_path))
@@ -444,7 +445,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                           subfolder is added.)
         - savename (str): name under which the figure is saved
     """
- 
+    analyspar['dend'] = None
     stimstr_pr = sess_str_util.stim_par_str(stimpar['stimtype'], 
                                     stimpar['bri_dir'], stimpar['bri_size'],
                                     stimpar['gabk'], 'print')
@@ -488,19 +489,25 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
     
     surp_lab, len_ext = '', ''
     surp_lens = [[None]] * n_sess
+    offset = 0
+    if (stimpar['stimtype'] == 'gabors' and 
+        stimpar['gabfr'] not in ['any', 'all']):
+        offset = stimpar['gabfr']
     if 'surp_lens' in trace_stats.keys():
         surp_lens = trace_stats['surp_lens']
         len_ext = '_bylen'
         if stimpar['stimtype'] == 'gabors':
-            surp_lens = [[sl * 1.5/4 for sl in sls] for sls in surp_lens]
+            surp_lens = [[sl * 1.5/4 - 0.3 * offset for sl in sls] 
+                                                    for sls in surp_lens]
     
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
     figpar = copy.deepcopy(figpar)
     figpar['init']['subplot_wid'] *= 2
-    n = 21
+    n_ticks = 21
 
     fig, ax = plot_util.init_fig(n_sess, **figpar['init'])
+    reg_min, reg_max = np.inf, -np.inf
     for i, (stats, counts) in enumerate(zip(all_stats, all_counts)):
         sub_ax = plot_util.get_subax(ax, i)
         remnans = analyspar['remnans'] * (datatype == 'roi')
@@ -518,10 +525,10 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             cols = sess_plot_util.get_quint_cols(n_lines)[0][col_idx]
         except:
             cols = [None] * n_lines
-        alpha      = np.min([0.4, 0.8/n_lines])
+        alpha = np.min([0.4, 0.8/n_lines])
         if stimpar['stimtype'] == 'gabors':
-            sess_plot_util.plot_gabfr_pattern(sub_ax, x_ran, 
-                                              bars_omit=[0] + surp_lens[i])
+            sess_plot_util.plot_gabfr_pattern(sub_ax, x_ran, offset=offset,
+                           bars_omit=[0] + surp_lens[i])
         # plot regular data
         if reg_stats[i].shape[0] != 1:
             raise ValueError(('Expected only one quintile for reg_stats.'))
@@ -529,13 +536,19 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         plot_util.plot_traces(sub_ax, x_ran, reg_stats[i][0][0], 
                               reg_stats[i][0][1:], alpha=alpha, label=leg, 
                               alpha_line=0.8, col='darkgray')
+
+        # get regular data range to adjust y lims
+        reg_min = np.min([reg_min, np.nanmin(reg_stats[i][0][0])])
+        reg_max = np.max([reg_max, np.nanmax(reg_stats[i][0][0])])
+
         n = 0 # count lines plotted
         for s, surp_len in enumerate(surp_lens[i]):
             if surp_len is not None:
-                counts, stats = all_counts[i][s], all_stats[i][s]                
-                surp_lab = 'surp len {}'.format(surp_len)
+                counts, stats = all_counts[i][s], all_stats[i][s]       
+                # remove offset   
+                surp_lab = 'surp len {}'.format(surp_len + 0.3 * offset)
             else:
-                surp_lab = 'surp lock'
+                surp_lab = '{} lock'.format(lock)
             for q, qu_lab in enumerate(quintpar['qu_lab']):
                 if qu_lab != '':
                     qu_lab = '{} '.format(qu_lab.capitalize())
@@ -544,9 +557,8 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                     sub_ax.plot([], []) # to advance the color cycle (past gray)
                 leg = '{} ({})'.format(lab, counts[q])
                 plot_util.plot_traces(sub_ax, x_ran, stats[q][0], stats[q][1:], 
-                                      title, alpha=alpha, label=leg, 
-                                      n_xticks=n, alpha_line=0.8, 
-                                      col=cols[n])
+                          title, alpha=alpha, label=leg, n_xticks=n_ticks, 
+                          alpha_line=0.8, col=cols[n])
                 n += 1
             if surp_len is not None:
                 plot_util.add_bars(sub_ax, hbars=surp_len, 
@@ -556,6 +568,9 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         savedir = os.path.join(figpar['dirs'][datatype], 
                                figpar['dirs']['surp_qu'], 
                                '{}_lock'.format(lock), basestr.replace('_', ''))
+
+    if stimpar['stimtype'] == 'bricks':
+        plot_util.rel_confine_ylims(sub_ax, [reg_min, reg_max], 5)
 
     qu_str = '_{}q'.format(quintpar['n_quints'])
     if quintpar['n_quints'] == 1:

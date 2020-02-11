@@ -315,8 +315,9 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
 
     all_roi_grps = []
 
-    pvals_mult = []
-    nperms_mult = []
+    if permpar.multcomp:
+        pvals_mult = []
+        nperms_mult = []
 
     for sessid, sess_data in zip(sessids, integ_data):
         print('\nSession {}'.format(sessid))
@@ -324,9 +325,14 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
         sess_rois = []
         # adjust p-value to number of comparisons
         nrois   = sess_data[0][0].shape[0]
-        n_comps = nrois * float(len(qu_labs)) # number of comp
-        pval_mult, nperm_mult = math_util.calc_mult_comp(n_comps, permpar.p_val, 
-                                                         permpar.n_perms)
+        nperms_use = permpar.n_perms
+        pval_use  = permpar.pval
+        if permpar.multcomp: # multiple comparisons correction
+            n_comps = nrois * float(len(qu_labs)) # number of comp
+            pval_use, nperms_use = math_util.calc_mult_comp(n_comps, 
+                                             permpar.p_val, permpar.n_perms)
+            pvals_mult.append(pval_use)
+            nperms_mult.append(nperms_use)
         for q, q_lab in enumerate(qu_labs):
             print('    {}'.format(q_lab.capitalize()))
             n_reg = sess_data[0][q].shape[1]
@@ -343,15 +349,11 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
                                           sess_data[1][q]], axis=1)
             # run permutation to identify significant ROIs
             all_rand_res = math_util.permute_diff_ratio(qu_data_all, n_reg, 
-                                                        nperm_mult, stats, 
-                                                        nanpol, roigrppar.op)
+                                     nperms_use, stats, nanpol, roigrppar.op)
             sign_rois = math_util.id_elem(all_rand_res, qu_data_res, 
-                                          permpar.tails, pval_mult, 
+                                          permpar.tails, pval_use, 
                                           print_elems=True)
             sess_rois.append(sign_rois)
-
-        pvals_mult.append(pval_mult)
-        nperms_mult.append(nperm_mult)
             
         grps = gen_util.list_if_not(roigrppar.grps)
 
@@ -373,9 +375,13 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
             grp_names = roigrppar.grps
         
         all_roi_grps.append(roi_grps)
+    
+    if permpar.multcomp:
         permpar_mult = sess_ntuple_util.init_permpar(nperms_mult, pvals_mult, 
-                                                     permpar.tails)
-
-    return all_roi_grps, grp_names, permpar_mult
+                                        permpar.tails, 'done')
+        return all_roi_grps, grp_names, permpar_mult
+    
+    else:
+        return all_roi_grps, grp_names, permpar_mult
 
 

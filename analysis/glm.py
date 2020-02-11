@@ -14,72 +14,22 @@ Note: this code uses python 3.7.
 """
 import copy
 import multiprocessing
+import random
 
 import glm
+from joblib import Parallel, delayed
+import numpy as np
 import pandas as pd
-from sklearn import linear_model
+from sklearn import linear_model, metrics, model_selection, pipeline, \
+                    preprocessing
 
-from util import gen_util, math_util
-
-
-#############################################
-def add_columns(df, pars):
-
-    for par in pars:
-        if par == 'gabori':
-            vals = [0, 45, 90, 135, 180, 225]
-        elif par == 'gabfr':
-            vals = ['gray_surp', 'gray', 0, 1, 2, 3, 4]
-        else:
-            gen_util.accepted_values_error('par', par, ['gabori', 'gabfr'])
-        uniq_vals = df[par].unique().tolist()    
-        if not set(uniq_vals).issubset(set(vals)):
-            raise ValueError('Unexpected values for {}.'.format(par))
-        mapping = dict()
-        for val in vals:
-            mapping[val] = 0
-        for val in vals:    
-            col_name = '{}_{}'.format(par, val)
-            this_mapping = copy.deepcopy(mapping)
-            this_mapping[val] = 1
-            df[col_name] = df[par].copy().replace(this_mapping)
-        df = df.drop(columns=par)
-
-    return df
-
+from util import file_util, gen_util, math_util
+from sess_util import sess_data_util, sess_gen_util, sess_str_util
+from plot_fcts import glm_plots
 
 
 #############################################
-def get_mapping(par, uniq_vals):
-
-    if par == 'gabk':
-        vals = [4, 16]
-    elif par == 'brisize':
-        vals = [128, 256]
-    elif par == 'bridir':
-        vals = ['right', 'left']
-    elif par == 'line':
-        vals = ['L23-Cux2', 'L5-Rbp4']
-    elif par == 'layer':
-        vals = ['soma', 'dend']
-    else:
-        gen_util.accepted_values_error('par', par, ['gabk', 'brisize', 
-                                       'bridir', 'line', 'layer'])
-    
-    if not set(uniq_vals).issubset(set(vals)):
-        vals_str = ', '.join(list(set(uniq_vals) - set(vals)))
-        raise ValueError('Unexpected value(s) for {}: {}'.format(par, vals_str))
-
-    mapping = dict()
-    for i, val in enumerate(vals):
-        if val != i:
-            mapping[val] = i
-
-    return mapping
-
-
-#############################################
-def build_stim_beh_df(sessions, analyspar, sesspar, stimpar):
+def build_stim_beh_df(sessions, analyspar, sesspar, stimpar, each_roi=False):
     """
     build_stim_beh_df(sessions, stimpar)
 
@@ -88,7 +38,6 @@ def build_stim_beh_df(sessions, analyspar, sesspar, stimpar):
 
     Inputs: sessions, stimtype, segments, pre-post (pupil, running), pre-post (ROI)
 
-
     GLM inputs:
     - (Segments (A, B, C, D))
     - Surprise status (only 1 for E and the following grayscreen)
@@ -96,181 +45,404 @@ def build_stim_beh_df(sessions, analyspar, sesspar, stimpar):
     - Running speed
     - Layer
     - Line
+    - SessID
 
     """
 
     full_df = pd.DataFrame()
-    retain = ['stimPar1', 'stimPar2', 'surp', 'stimSeg', 'gabfr', 
-              'start2pfr', 'end2pfr']
-    drop = ['stimSeg', 'start_twop_fr', 'end_twop_fr', 'start_stim_fr', 
-            'end_stim_fr']
-    if stimpar.stimtype == 'bricks':
-        drop.append('gabfr')
     
     sessions = gen_util.list_if_not(sessions)
     for sess in sessions:
         print('\nBuilding dataframe for session {}'.format(sess.sessid))
         stim = sess.get_stim(stimpar.stimtype)
-        sub_df = stim.get_stim_df_by_criteria(gabk=stimpar.gabk, 
-                                            bri_dir=stimpar.bri_dir,
-                                            bri_size=stimpar.bri_size)[retain]
-        sub_df = sub_df.rename(columns={'start2pfr': 'start_twop_fr', 
-                                        'end2pfr'  : 'end_twop_fr'})
-        
-        print('Getting stimulus frames by segment.')
-        start_stim_fr, end_stim_fr = stim.get_stim_fr_by_seg(sub_df['stimSeg'], 
-                                                        first=True, last=True)
-        sub_df['start_stim_fr'] = start_stim_fr
-        sub_df['end_stim_fr'] = end_stim_fr
-        
-        if stimpar.stimtype == 'gabors':
-            print('    Adding grayscale rows')
-            # add in lines for greyscreen with parameters of previous segment
-            # except gabfr and start/end frames
-            sub_df = sub_df.rename(columns={'stimPar1': 'gabori', 
-                                            'stimPar2': 'gabk'})            
-            pre_seg = sub_df.loc[(sub_df['gabfr'] == 3)].reset_index(drop=True)
-            pre_seg = pre_seg.loc[(pre_seg['stimSeg'] < max(pre_seg['stimSeg']))]
-
-            post_seg = sub_df.loc[(sub_df['gabfr'] == 0)].reset_index(drop=True)
-            post_seg = post_seg.loc[(post_seg['stimSeg'] < max(post_seg['stimSeg']))]
-
-            gray_seg = pre_seg.copy()
-            gray_seg['gabfr'] = 'gray'
-            gray_seg.loc[(gray_seg['gabfr']=='gray') & 
-                         (gray_seg['surp']==1), 'gabfr'] = 'gray_surp'
-            gray_seg['start_twop_fr'] = gray_seg['end_twop_fr'] + 1
-            gray_seg['start_stim_fr'] = gray_seg['end_stim_fr'] + 1
-            gray_seg['end_twop_fr']   = post_seg['start_twop_fr'] - 1
-            gray_seg['end_stim_fr']   = post_seg['start_stim_fr'] - 1
-            sub_df = sub_df.append(gray_seg).reset_index(drop=True)
-
-            sub_df.loc[(sub_df['gabfr'] == 3) & 
-                       (sub_df['surp'] == 1), 'gabfr'] = 4
-            sub_df.loc[(sub_df['gabfr'] == 4), 'gabori'] += 90
-
-            sub_df = sub_df.drop(columns='surp')
-
-        elif stimpar.stimtype == 'bricks':
-            sub_df = sub_df.rename(columns={'stimPar1': 'brisize', 
-                                            'stimPar2': 'bridir'})
-
-        else:
-            gen_util.accepted_values_error('stimtype', stimpar.stimtype, 
-                                           ['bricks', 'gabors'])
-        
-        sub_df['layer'] = sess.layer
-        sub_df['line'] = sess.line
-        
-        # get running activity
-        print('    Getting running activity')
-        run_data = stim.get_run_array(sub_df['start_stim_fr'].tolist(), 
-                                      stimpar.pre, stimpar.post)[1]
-        run_data = math_util.mean_med(run_data, stats=analyspar.stats, axis=-1, 
-                                      nanpol='omit')
-        sub_df['run_data'] = run_data
-
-        # get pupil diameter
-        # pup_fr = sess.get_pup_fr_by_twop_fr(sub_df['start_twop_fr'].tolist())
-        # pup_data = stim.get_pup_diam_stats(pup_fr, stimpar.pre, 
-        #                 stimpar.post)[1]
-        # pup_data = math_util.mean_med(pup_data, stats=analyspar.stats, 
-        #                               axis=-1, nanpol='omit')
-        # sub_df['pup_data'] = pup_data
-        
-        # get ROI activity (averaged across frames, then ROIs)
-        print('    Getting ROI activity')
-        roi_data = stim.get_roi_trace_array(sub_df['start_twop_fr'].tolist(), 
-                        stimpar.pre, stimpar.post, fluor=analyspar.fluor)[1]
-        for axis in [-1, 0]:
-            roi_data = math_util.mean_med(roi_data, stats=analyspar.stats, 
-                                          axis=axis, nanpol='omit')
-            if axis == -1:
-                full_roi_data = copy.deepcopy(roi_data)
-                n_rois        = len(full_roi_data) 
-        sub_df['roi_data'] = roi_data
-        cols = ['roi_data_{}'.format(i) for i in range(n_rois)]
-        all_roi = pd.DataFrame(columns=cols, data=full_roi_data.T)
-        sub_df = sub_df.join(all_roi)
-
-        # drop columns irrelevant to GLM
-        sub_df = sub_df.drop(columns=drop)
+        sub_df = stim.get_stim_beh_sub_df(stimpar.pre, stimpar.post, 
+                      analyspar.stats, analyspar.fluor, stimpar.gabfr, 
+                      stimpar.gabk, stimpar.gab_ori, stimpar.bri_size, 
+                      stimpar.bri_dir, pupil=True, run=True)
 
         full_df = full_df.append(sub_df)
     
     full_df = full_df.reset_index(drop=True)
+    full_df = gen_util.drop_unique(full_df)
 
     return full_df
 
 
 #############################################
-def run_glm(full_df, analyspar, sesspar, stimpar, reg='ridge'):
+def print_sklearn_results(model, analyspar, name='bayes_ridge', var_names=None):
 
-    pars = ['layer', 'line']
-    if stimpar.stimtype == 'gabors':
-        pars.extend(['gabk'])
-        full_df = add_columns(full_df, ['gabfr', 'gabori'])
-    elif stimpar.stimtype == 'bricks':
-        pars.extend(['brisize', 'bridir'])
+    print('\n{} regression'.format(name.replace('_', ' ').upper()))
+    if var_names is None:
+        var_names = ['coef {}'.format(i) for i in range(len(model.coef_))] 
+
+    print('\n'.join(['{}: {:.5f}'.format(varn, coef) for varn, coef 
+                     in zip(var_names, model.coef_)]))
+    print('intercept: {:.5f}'.format(model.intercept_))
+    print('\nalpha: {:.5f}'.format(model.alpha_))
+    if name == 'ridge_cv':
+        alpha_idx = np.where(model.alphas == model.alpha_)[0]
+        score_data = model.cv_values_[:, alpha_idx]
+        score_name = 'MSE'
+    elif name == 'bayes_ridge':
+        score_data = model.scores_
+        score_name = 'Score'
     else:
-        gen_util.accepted_values_error('stimtype', stimpar.stimtype, 
-                                        ['bricks', 'gabors'])
+        gen_util.accepted_values_error('name', name, 
+                                       ['ridge_cv', 'bayes_ridge'])
+    stats = math_util.get_stats(score_data, stats=analyspar.stats, 
+                                error=analyspar.error)
+    math_util.print_stats(stats, '{}'.format(score_name))
 
-    for par in pars:
-        uniq_vals = full_df[par].unique().tolist()
-        mapping = get_mapping(par, uniq_vals)
-        full_df = full_df.replace({par: mapping})
 
-    # drop any column with only one value
-    for col in full_df.columns:
-        uniq_vals = full_df[col].unique().tolist()
-        if len(uniq_vals) == 1:
-            full_df = full_df.drop(columns=col)
+#############################################
+def run_ridge_cv(x_df, y_df, analyspar, alphas=None):
 
-    print('\nRun regression')
-    drop_cols = [col for col in full_df.columns if 'roi_data' in col]
-    x_vals = full_df.drop(columns=drop_cols).to_numpy()
-    y_vals = full_df['roi_data'].to_numpy()
-    # with data split by ROI (and all together)
-    y_vals_all = full_df[drop_cols].to_numpy()
+    if alphas is None:
+        alphas=(0.1, 0.1, 2.0)
+
+    steps = [('scaler', preprocessing.StandardScaler()), 
+             ('model', linear_model.RidgeCV(normalize=True, alphas=alphas, 
+                                            store_cv_values=True))] 
+
+    pipl = pipeline.Pipeline(steps)
+    pipl.fit(x_df, y_df)
+
+    print_sklearn_results(pipl, analyspar, name='ridge_cv', 
+                          var_names=x_df.columns)
+
+#############################################
+def run_bayesian_ridge(x_df, y_df, analyspar):
+
+    steps = [('scaler', preprocessing.StandardScaler()), 
+             ('model', linear_model.BayesianRidge(compute_score=True))] 
+    pipl = pipeline.Pipeline(steps)
+    pipl.fit(x_df, y_df)
+
+    print_sklearn_results(pipl, analyspar, name='bayes_ridge', 
+                          var_names=x_df.columns)
+
+
+#############################################
+def fit_expl_var(x_df, y_df, train_idx, test_idx, stimpar):
+
+    x_df = sess_data_util.add_categ_stim_cols(copy.deepcopy(x_df))
+
+    x_tr, y_tr     = x_df.loc[train_idx], y_df.loc[train_idx]
+    x_test, y_test = x_df.loc[test_idx], y_df.loc[test_idx]
+
+    # get explained variance
+    steps = [('scaler', preprocessing.StandardScaler()), 
+             ('model', linear_model.BayesianRidge(compute_score=True))] 
+    pipl = pipeline.Pipeline(steps)
+    pipl.fit(x_tr, y_tr)
+    y_pred = pipl.predict(x_test)
+    varsc = metrics.explained_variance_score(y_test, y_pred, 
+                    multioutput='uniform_average')
+    return varsc
+
+
+#############################################
+def is_bool_var(df_col):
+    if set(df_col.unique()).issubset({0, 1}):
+        is_bool = True
+    else:
+        is_bool = False
+
+    return is_bool
+
+
+#############################################
+def get_categ(col_name):
+    categ_symb = '$'
+    if categ_symb in col_name:
+        categ_name = col_name[ : col_name.find(categ_symb)]
+    else:
+        categ_name = col_name
+    return categ_name
+
+
+#############################################
+def shuffle_col_idx(full_df, col, idx=None):
+    full_df = copy.deepcopy(full_df)
+    if idx is None:
+        other_vals = full_df[col].tolist()
+        random.shuffle(other_vals)
+        full_df[col] = other_vals    
+    else:
+        other_vals = full_df.loc[idx, col].tolist()
+        random.shuffle(other_vals)
+        full_df.loc[idx, col] = other_vals
+    return full_df
+
+
+#############################################
+def fit_expl_var_per_coeff(x_df, y_df, train_idx, test_idx, stimpar):
+
+    # get df with categorical variables split up
+    x_df_cat = sess_data_util.add_categ_stim_cols(copy.deepcopy(x_df))
     
-    alphas=(0.1, 0.1, 2.0)
+    x_cols     = x_df.columns
+    x_cols_cat = x_df_cat.columns
 
-    if reg == 'ridge':
-        regr = linear_model.RidgeCV(normalize=True, alphas=alphas, 
-                                    store_cv_values=True)
-    elif reg == 'lasso':
-        regr = linear_model.LassoLarsCV(normalize=True)
-    else:
-        gen_util.accepted_values_error('reg', reg, ['ridge', 'lasso'])
+    done = []
+    expl_var = dict()
+    for col in x_cols_cat:
+        for run in ['full_categ', 'single_categ_value']:
+            curr_x_df = copy.deepcopy(x_df)
+            act = col
+            key = col
+            # categorical variables
+            if is_bool_var(x_df_cat[col]):
+                categ_name = get_categ(col)
+                act = categ_name
+                if run == 'full_categ':
+                    key = categ_name
+                    if categ_name in done or categ_name == col:
+                        continue
+                    else:
+                        done.append(categ_name)
+                # shuffle the other instances of category
+                elif run == 'single_categ_value':
+                    act_idx_tr = (x_df_cat.loc[train_idx, col] == 0)
+                    curr_x_df.loc[train_idx] = shuffle_col_idx(
+                            curr_x_df.loc[train_idx], categ_name, act_idx_tr)
 
-    regr.fit(x_vals, y_vals)
-    cols = list(full_df.drop(columns=drop_cols).columns)
+            # shuffle all other columns
+            for oth_col in x_cols:
+                if oth_col != act:
+                    curr_x_df.loc[train_idx] = shuffle_col_idx(
+                                              curr_x_df.loc[train_idx], oth_col)
+
+            expl_var[key] = fit_expl_var(curr_x_df, y_df, train_idx, test_idx, 
+                                         stimpar)
     
-    print('GENERAL REGRESSION')
-    print('\n'.join(['{}: {}'.format(col, coef) for col, coef 
-                                                in zip(cols, regr.coef_)]))
-    print('\nintercept: {}'.format(regr.intercept_))
-    print('\nalpha: {}'.format(regr.alpha_))
-    if reg == 'lasso':
-        print('\nMSEs: {}'.format(regr.mse_path_))
-        print('\nn_iter: {}'.format(regr.n_iter_))
+    return expl_var
+
+
+#############################################
+def fit_unique_expl_var_per_coeff(x_df, y_df, train_idx, test_idx, stimpar, 
+                                  full_expl_var):
+
+    # get df with categorical variables split up
+    x_df_cat = sess_data_util.add_categ_stim_cols(copy.deepcopy(x_df))
+    x_cols_cat = x_df_cat.columns
+
+    expl_var = dict()
+    done = []
+    for col in x_cols_cat:
+        if is_bool_var(x_df_cat[col]):
+            categ_name = get_categ(col)
+            if categ_name in done:
+                continue
+            else:
+                done.append(categ_name)
+                col = categ_name
+
+        curr_x_df = copy.deepcopy(x_df)
+        curr_x_df.loc[train_idx] = shuffle_col_idx(curr_x_df.loc[train_idx], 
+                                                   col)
+        varsc   = fit_expl_var(curr_x_df, y_df, train_idx, test_idx, stimpar)
+        expl_var[col] = full_expl_var - varsc
+
+    return expl_var
+
+
+#############################################
+def compile_dict_fold_stats(dict_list, analyspar):
+    
+    full_dict = dict()
+    all_keys = dict_list[0].keys()
+    for key in all_keys:
+        fold_vals = np.asarray([sub_dict[key] for sub_dict in dict_list])
+        me, de = math_util.get_stats(fold_vals, stats=analyspar.stats, 
+                                     error=analyspar.error)
+        full_dict[key] = [me, de]
+    return full_dict
+
+
+#############################################
+def stand_across_rois(y_df, tr_idx, sessids, stats='mean'):
+    """
+    """
+
+    y_df_new = copy.deepcopy(y_df)
+    sessid_vals = np.unique(sessids)
+
+    tr_idx_set = set(tr_idx)
+    for val in sessid_vals:
+        all_idx_set = set(np.where(sessids == val)[0])
+        curr_tr   = list(all_idx_set.intersection(tr_idx_set))
+        curr_test = list(all_idx_set - tr_idx_set)
+
+        scaled_tr, facts = math_util.scale_data(y_df.loc[curr_tr].to_numpy(), 
+                                                axis=0, sc_type='stand')
+        acr_rois_tr   = math_util.mean_med(scaled_tr, stats=stats, axis=1)
+        y_df_new.loc[curr_tr, 'roi_data'] = acr_rois_tr
+
+        scaled_test = math_util.scale_data(y_df.loc[curr_test].to_numpy(), 
+                                           axis=0, sc_type='stand', facts=facts)
+        acr_rois_test = math_util.mean_med(scaled_test, stats=stats, axis=1)
+        y_df_new.loc[curr_test, 'roi_data'] = acr_rois_test
+
+    y_df_new = y_df_new[['roi_data']]
+
+    return y_df_new
+
+
+#############################################
+def run_explained_variance(x_df, y_df, analyspar, stimpar, k=10):
+    """
+    Consider splitting 80:20 for a test set?
+
+    y: series or dataframe
+    """
+
+    x_df = copy.deepcopy(x_df)
+    
+    y_df_cols = y_df.columns
+
+    if len(y_df_cols) > 1: # multiple ROIs (to standardize and average)
+        all_rois = True
+        if 'sessid' in x_df.columns:
+            sessids = x_df['sessid'].tolist()
+        else:
+            sessids = [1] * len(x_df)
+        print('Running all ROIs')
     else:
-        print('\nCV_vals: {}'.format(regr.cv_values_))
+        all_rois = False
+        print('Running for ROI {}'.format(
+              y_df_cols[0].replace('roi_data_', '')))
 
-    regr_all = copy.deepcopy(regr)
-    regr_all.fit(x_vals, y_vals_all)
+    kf = model_selection.KFold(k, shuffle=True, random_state=None)
 
-    print('SEPARATE REGRESSION')
-    # print('\n'.join(['{}: {}'.format(col, coef) for col, coef 
-    #                                             in zip(cols, regr.coef_)]))
-    # print('\nintercept: {}'.format(regr.intercept_))
-    # print('\nalpha: {}'.format(regr.alpha_))
-    # if reg == 'lasso':
-    #     print('\nMSEs: {}'.format(regr.mse_path_))
-    #     print('\nn_iter: {}'.format(regr.n_iter_))
-    # else:
-    #     print('\nCV_vals: {}'.format(regr.cv_values_))
+    full, coef_all, coef_uni = [], [], []
+    for tr_idx, test_idx in kf.split(x_df):
+        if all_rois:
+            y_df = stand_across_rois(y_df, tr_idx, sessids, analyspar.stats)
+        # one model per category
+        full.append(fit_expl_var(x_df, y_df, tr_idx, test_idx, stimpar))
+        coef_all.append(fit_expl_var_per_coeff(x_df, y_df, tr_idx, test_idx, 
+                                               stimpar))
+        coef_uni.append(fit_unique_expl_var_per_coeff(x_df, y_df, tr_idx, 
+                        test_idx, stimpar, full[-1]))
 
-    return regr, all_regr
+    full = math_util.get_stats(np.asarray(full), stats=analyspar.stats, 
+                               error=analyspar.error).tolist()
+
+    coef_all = compile_dict_fold_stats(coef_all, analyspar)
+    coef_uni = compile_dict_fold_stats(coef_uni, analyspar)
+
+    return full, coef_all, coef_uni
+
+
+#############################################
+def run_glm(sesses, analyspar, sesspar, stimpar, glmpar, parallel=False):
+
+    full_df = build_stim_beh_df(sesses, analyspar, sesspar, stimpar, 
+                                glmpar.each_roi)
+
+    # run_bayesian_ridge(x_df, y_df, analyspar)
+    # run_ridge_cv(x_df, y_df, analyspar)
+    # run_ols_summary(x_df, y_df)
+
+    roi_nbrs = [-1]
+    roi_cols = [[col for col in full_df.columns if 'roi_data_' in col]]
+    if glmpar.each_roi:
+        for col in roi_cols[0]:
+            roi_cols.append([col])
+            roi_nbrs.append(int(col.replace('roi_data_', '')))
+
+    x_df = full_df.drop(columns=roi_cols[0])
+
+    if glmpar.test:
+        roi_cols = roi_cols[:8]
+        roi_nbrs = roi_nbrs[:8]
+
+    if parallel and glmpar.each_roi:
+        n_jobs = gen_util.get_n_jobs(len(roi_cols))
+        outs = Parallel(n_jobs=n_jobs)(delayed(run_explained_variance)
+                    (x_df, full_df[cols], analyspar, stimpar, glmpar.k) 
+                    for cols in roi_cols)
+        fulls, coef_alls, coef_unis = zip(*outs)
+    else:
+        fulls, coef_alls, coef_unis = [], [], []
+        for cols in roi_cols:
+            out = run_explained_variance(x_df, full_df[cols], analyspar, 
+                                         stimpar, glmpar.k)
+            fulls.append(out[0])
+            coef_alls.append(out[1])
+            coef_unis.append(out[2])
+
+    expl_var = {'full'    : fulls,
+                'coef_all': gen_util.compile_dict_list(coef_alls),
+                'coef_uni': gen_util.compile_dict_list(coef_unis),
+                'rois'    : roi_nbrs
+                }
+
+    return expl_var
+
+
+#############################################
+def run_glms(sesses, analysis, seed, analyspar, sesspar, stimpar, glmpar, 
+             figpar, parallel=False):
+
+
+    seed = gen_util.seed_all(seed, 'cpu', print_seed=False)
+
+    sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
+                                    sesspar.layer, stimpar.bri_dir, 
+                                    stimpar.bri_size, stimpar.gabk, 'print')
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+                                            'roi', 'print')
+
+    print(('\nAnalysing and plotting explained variance in ROI activity '
+           '({}{}).').format(sessstr_pr, dendstr_pr))
+
+    if glmpar.each_roi: # must do each session separately
+        glm_type = 'per_ROI_per_sess'
+        sess_batches = sesses
+        print('Per ROI, each session separately.')
+    else:
+        glm_type = 'across_sess'
+        sess_batches = [sesses]
+        print('Across ROIs, {} sessions together.'.format(len(sesses)))
+
+    if parallel and not(glmpar.each_roi) and len(sess_batches) != 1:
+        n_jobs = gen_util.get_n_jobs(len(sess_batches))
+        all_expl_var = Parallel(n_jobs=n_jobs)(delayed(run_glm)
+                       (sesses, analyspar, sesspar, stimpar, glmpar, 
+                        parallel=False) 
+                       for sesses in sess_batches)
+    else:
+        all_expl_var = []
+        for sesses in sess_batches:
+            expl_var = run_glm(sesses, analyspar, sesspar, stimpar, glmpar, 
+                               parallel=parallel)
+            all_expl_var.append(expl_var)
+    
+    sess_info = sess_gen_util.get_sess_info(sesses, analyspar.fluor)
+
+    extrapar = {'analysis': analysis,
+                'seed'    : seed,
+                'glm_type': glm_type,
+                }
+
+    info = {'analyspar'   : analyspar._asdict(),
+            'sesspar'     : sesspar._asdict(),
+            'stimpar'     : stimpar._asdict(),
+            'glmpar'      : glmpar._asdict(),
+            'extrapar'    : extrapar,
+            'all_expl_var': all_expl_var,
+            'sess_info'   : sess_info
+            }
+
+    fulldir, savename = glm_plots.plot_glm_expl_var(figpar=figpar, **info)
+
+    file_util.saveinfo(info, savename, fulldir, 'json')
+
+
+        # Sensitivity:
+        # - (Average response to A - Average response to not A)/std(data)
+
+    return
 

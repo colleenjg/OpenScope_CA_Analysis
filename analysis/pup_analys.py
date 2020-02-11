@@ -12,7 +12,6 @@ Note: this code uses python 3.7.
 
 """
 import copy
-import multiprocessing
 
 from joblib import Parallel, delayed
 import numpy as np
@@ -170,9 +169,8 @@ def peristim_data(sess, stimpar, ran_s=None, datatype='both',
 
     if first_surp:
         surp_segs = stim.get_segs_by_criteria(bri_dir=stimpar.bri_dir, 
-                                              bri_size=stimpar.bri_size, 
-                                              gabk=stimpar.gabk, 
-                                              surp=1, remconsec=True, by='seg')
+                         bri_size=stimpar.bri_size, gabk=stimpar.gabk, 
+                         surp=1, remconsec=True, by='seg')
         if stimpar.stimtype == 'gabors':
             surp_segs = [seg + stimpar.gabfr for seg in surp_segs]
     else:
@@ -189,7 +187,7 @@ def peristim_data(sess, stimpar, ran_s=None, datatype='both',
     # get data
     # trial x fr
     pup_data = stim.get_pup_diam_array(surp_pupfr, ran_s['pup_pre'], 
-                                       ran_s['pup_post'])[1]
+                                       ran_s['pup_post'], remnans=remnans)[1]
     datasets = [pup_data]
     datanames = ['pup']
     if datatype in ['roi', 'both']:
@@ -387,11 +385,12 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
         stim_corrs = []
         for sub_stimpar in stimpars:
             diffs = peristim_data(sess, sub_stimpar, datatype='roi', 
-                                  returns='diff', first_surp=True)
+                                  returns='diff', first_surp=True, 
+                                  remnans=analyspar.remnans)
             [pup_diff, roi_diff] = diffs 
             nrois = roi_diff.shape[-1]
             if parallel:
-                n_jobs = min(multiprocessing.cpu_count(), nrois)
+                n_jobs = gen_util.get_n_jobs(nrois)
                 corrs = Parallel(n_jobs=n_jobs)(delayed(np.corrcoef)
                 (roi_diff[:, r], pup_diff) for r in range(nrois))
                 corrs = np.asarray([corr[0, 1] for corr in corrs])

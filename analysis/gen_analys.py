@@ -14,7 +14,6 @@ Note: this code uses python 3.7.
 
 import copy
 import glob
-import multiprocessing
 import os
 
 from joblib import Parallel, delayed
@@ -52,14 +51,13 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
     dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
                                             datatype, 'print')
     
-    sessstr_pr = 'session: {}, layer: {}{}'.format(sesspar.sess_n, 
-                                                   sesspar.layer, dendstr_pr)
-
+    sessstr_pr = (f'session: {sesspar.sess_n}, '
+                  f'layer: {sesspar.layer}{dendstr_pr}')
 
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    print(('\nPlotting {} traces across an entire '
-           'session\n({}).').format(datastr, sessstr_pr))
+    print((f'\nPlotting {datastr} traces across an entire '
+           f'session\n({sessstr_pr}).'))
 
     figpar = copy.deepcopy(figpar)
     if figpar['save']['use_dt'] is None:
@@ -164,9 +162,9 @@ def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar,
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    print(('\nAnalysing and plotting surprise vs non surprise {} traces '
-           'by quintile ({}) \n({}{}).').format(datastr, quintpar.n_quints, 
-                                              sessstr_pr, dendstr_pr))
+    print((f'\nAnalysing and plotting surprise vs non surprise {datastr} '
+           f'traces by quintile ({quintpar.n_quints}) \n({sessstr_pr}'
+           f'{dendstr_pr}).'))
 
     # modify quintpar to retain all quintiles
     quintpar_one  = sess_ntuple_util.init_quintpar(1, 0, '', '')
@@ -178,7 +176,7 @@ def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar,
         figpar['save']['use_dt'] = gen_util.create_time_str()
         
     for quintpar in [quintpar_one, quintpar_mult]:
-        print('\n{} quint'.format(quintpar.n_quints))
+        print(f'\n{quintpar.n_quints} quint')
         # get the stats (all) separating by session, surprise and quintiles    
         trace_info = quint_analys.trace_stats_by_qu_sess(sessions, analyspar, 
                                                   stimpar, quintpar.n_quints, 
@@ -252,10 +250,9 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    print(('\nAnalysing and plotting surprise vs non surprise {} traces '
-           'locked to surprise onset by quintile ({}) '
-           '\n({}{}).').format(datastr, quintpar.n_quints, sessstr_pr, 
-                               dendstr_pr))
+    print((f'\nAnalysing and plotting surprise vs non surprise {datastr} '
+           f'traces locked to surprise onset by quintile ({quintpar.n_quints}) '
+           f'\n({sessstr_pr}{dendstr_pr}).'))
 
     seed = gen_util.seed_all(seed, 'cpu', print_seed=False)
 
@@ -264,12 +261,8 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
     n_quints      = quintpar.n_quints
     quintpar_mult = sess_ntuple_util.init_quintpar(n_quints, 'all')
 
-    stimpar = stimpar._asdict()
-    stimpar['pre']  = 10.0
-    stimpar['post'] = 10.0
-    if stimpar['stimtype'] == 'gabors':
-        stimpar['gabfr'] = 0
-    stimpar = sess_ntuple_util.init_stimpar(**stimpar)
+    stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, ['pre', 'post'], 
+                                                [10.0, 10.0])
 
     figpar = copy.deepcopy(figpar)
     if figpar['save']['use_dt'] is None:
@@ -283,8 +276,7 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
                 locks.append('surp_split')
             # get the stats (all) separating by session and quintiles
             for lock in locks:
-                print('\n{} quint, {} lock{}'.format(quintpar.n_quints, lock, 
-                                                     basestr_pr))
+                print(f'\n{quitnpar.n_quints} quint, {lock} lock{basestr_pr}')
                 if lock == 'surp_split':
                     trace_info = quint_analys.trace_stats_by_surp_len_sess(
                                             sessions, analyspar, stimpar, 
@@ -379,10 +371,15 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
   
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    print(('\nCalculating and plotting the magnitude changes in {} activity '
-           'across quintiles \n({}{})').format(datastr, sessstr_pr, dendstr_pr))
+    print((f'\nCalculating and plotting the magnitude changes in {datastr} '
+           f'activity across quintiles \n({sessstr_pr}{dendstr_pr})'))
 
     
+    if permpar.multcomp:
+        print(('NOTE: Multiple comparisons not implemented for magnitude '
+               'analysis. Setting to False.'))
+        permpar = sess_ntuple_util.get_modif_ntuple(permpar, 'multcomp', False)
+
     # get full data: session x surp x quints of interest x [ROI x seq]
     integ_info = quint_analys.trace_stats_by_qu_sess(sessions, analyspar, 
                                 stimpar, quintpar.n_quints, quintpar.qu_idx, 
@@ -465,8 +462,8 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
   
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    print(('\nAnalysing and plotting {} autocorrelations ' 
-           '({}{}).').format(datastr, sessstr_pr, dendstr_pr))
+    print((f'\nAnalysing and plotting {datastr} autocorrelations ' 
+           f'({sessstr_pr}{dendstr_pr}).'))
 
     xrans = []
     stats = []
@@ -574,9 +571,11 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
+    if sesspar.layer in ['any', 'all'] and sesspar.runtype == 'pilot':
+        print('WARNING: Layers may not match between sessions for a mouse!')
+
     print(('\nAnalysing and plotting correlations between surprise vs non '
-           'surprise {} traces between sessions ({}).').format(datastr, 
-                                                               sessstr_pr))
+           f'surprise {datastr} traces between sessions ({sessstr_pr}).'))
 
     figpar = copy.deepcopy(figpar)
     if figpar['save']['use_dt'] is None:
@@ -589,8 +588,8 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
     all_corrs = []
     print('\nIntramouse correlations')
     for sess_grp in sessions:
-        print('Mouse {}, sess {} vs {} corr:'.format(sess_grp[0].mouse_n, 
-                                    sess_grp[0].sess_n, sess_grp[1].sess_n))
+        print((f'Mouse {sess_grp[0].mouse_n}, sess {sess_grp[0].sess_n} vs '
+               f'{sess_grp[1].sess_n} corr:'))
         trace_info = quint_analys.trace_stats_by_qu_sess(sess_grp, analyspar, 
                                             stimpar, 1, [0], byroi=False, 
                                             bysurp=True, datatype=datatype)
@@ -605,7 +604,7 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
             # corr = float(np.correlate(grp_me[0, s], grp_me[1, s]))
             corr = st.pearsonr(grp_me[0, s], grp_me[1, s])
             grp_corrs.append(corr[0])
-            print('    {}: {:.4f} (p={:.2f})'.format(surp, corr[0], corr[1]))
+            print(f'    {surp}: {corr[0]:.4f} (p={corr[1]:.2f})')
         all_corrs.append(grp_corrs)
         all_me_tr.append(grp_me)
         
@@ -618,19 +617,18 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
             mouse_corrs = []
             for n_add, m2_sess_mes in enumerate(all_me_tr[n+1:]):
                 sess_corrs = []
-                print('Mouse {} vs {} corr:'.format(
-                      sessions[n][0].mouse_n, sessions[n+1+n_add][0].mouse_n))
+                print((f'Mouse {sessions[n][0].mouse_n} vs '
+                       f'{sessions[n+1+n_add][0].mouse_n} corr:'))
                 for se, m1_s1_me in enumerate(m1_sess_mes):
                     surp_corrs = []
-                    print('    sess {}:'.format(sessions[n][se].sess_n))
+                    print(f'    sess {sessions[n][se].sess_n}:')
                     for s, surp in enumerate(['reg', 'surp']):
                         # numpy corr
                         # corr = float(np.correlate(m1_s1_me[s], 
                         #                           m2_sess_mes[se][s]))
                         corr = st.pearsonr(m1_s1_me[s], m2_sess_mes[se][s])
                         surp_corrs.append(corr[0])
-                        print('\t{}: {:.4f} (p={:.2f})'.format(surp, corr[0], 
-                                                               corr[1]))
+                        print(f'\t{surp}: {corr[0]:.4f} (p={corr[1]:.2f})')
                     sess_corrs.append(corr)
                 mouse_corrs.append(sess_corrs)
             all_mouse_corrs.append(mouse_corrs)

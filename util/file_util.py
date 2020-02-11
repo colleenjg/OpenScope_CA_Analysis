@@ -14,6 +14,7 @@ Note: this code uses python 3.7.
 import os.path
 import sys
 
+import glob
 import json
 import pandas as pd
 import pickle
@@ -36,17 +37,17 @@ def add_ext(filename, filetype='pickle'):
     Optional args:
         - filetype (str): type of file (pickle, pkl, json, png, csv, svg, jpg).
                           Overridden if extension already in filename.
-                          Can include '.'
+                          Can include ''
                           default: 'pickle'
 
     Returns:
         - filename (str): file name, including extension
-        - ext (str)     : extension, including '.'
+        - ext (str)     : extension, including ''
     """
 
     _, ext = os.path.splitext(filename)
 
-    filetype = filetype.replace('.', '')
+    filetype = filetype.replace('', '')
 
     if ext == '':
         filetypes = ['pkl', 'pickle', 'json', 'csv', 'png', 'svg', 'jpg']
@@ -60,7 +61,7 @@ def add_ext(filename, filetype='pickle'):
 
 
 #############################################
-def loadfile(filename, fulldir='.', filetype='pickle', dtype=None):
+def loadfile(filename, fulldir='', filetype='pickle', dtype=None):
     """
     loadfile(filename)
 
@@ -73,7 +74,7 @@ def loadfile(filename, fulldir='.', filetype='pickle', dtype=None):
     
     Optional args:
         - fulldir (str) : directory in which file is saed
-                          default: '.'
+                          default: ''
         - filetype (str): type of file (pickle, pkl, json, csv)
                           default: 'pickle'
         - dtype (str)   : datatype for csv
@@ -107,7 +108,92 @@ def loadfile(filename, fulldir='.', filetype='pickle', dtype=None):
 
 
 #############################################
-def saveinfo(saveobj, savename='info', fulldir='.', save_as='pickle', 
+def rename_files(direc, pattern, replace='', depth=0, verbose=True, 
+                 dry_run=False):
+    """
+    rename_files(direc, pattern)
+
+    Renames all files in a directory containing the specified pattern by 
+    replacing the pattern. 
+ 
+    Required args:
+        - direc (str)  : name of the directory in which to search
+        - pattern (str): pattern to replace
+    
+    Optional args:
+        - replace (str) : string with which to replace pattern
+                          default: ''
+        - depth (int)   : depth at which to search for pattern
+                          default: 0
+        - verbose (bool): if True, print old and new names of each renamed file 
+                          default: True
+        - dry_run (bool : if True, runs a dry run printing old and new names
+                          default: False
+    """
+
+    direc_path = os.path.join(os.path.normpath(direc), *(['*'] * depth))
+    change_paths = glob.glob(f'{direc_path}*{pattern}*')
+
+
+    if len(change_paths) == 0:
+        print('No pattern matches found.')
+        return
+
+    if dry_run:
+        print('DRY RUN ONLY')
+
+    for change_path in change_paths:
+        new_path_name = change_path.replace(pattern, replace)
+        if verbose or dry_run:
+            print(f'\n{change_path} -> {new_path_name}')
+        if not dry_run:
+            os.rename(change_path, new_path_name)
+
+    return
+
+
+#############################################
+def get_unique_path(savename, fulldir='', ext=None):
+    """
+    get_unique_path(savename)
+
+    Returns a unique version of savename by adding numbers if a file by the 
+    same name already exists. 
+
+    Required args:
+        - savename (str): name under which to save info, can include the 
+                          whole directory name and extension
+   
+    Optional args:
+        - fulldir (str): directory to append savename to
+                         default: ''
+        - ext (str)    : extension to use which, if provided, overrides any
+                         extension in savename
+                         default: None
+    
+    Returns:
+        - fullname (str): savename with full directory and extension, modified 
+                          with a number if needed
+    """
+
+    if ext is None:
+        savename, ext = os.path.splitext(savename)
+    elif '.' not in ext:
+        ext = '.{}'.format(ext)
+
+    fullname = os.path.join(fulldir, '{}{}'.format(savename, ext))
+    if os.path.exists(fullname):
+        savename, _ = os.path.splitext(fullname) # get only savename
+        count = 1
+        fullname = '{}_{}{}'.format(savename, count, ext) 
+        while os.path.exists(os.path.join(fulldir, fullname)):
+            count += 1 
+            fullname = '{}_{}{}'.format(savename, count, ext)
+
+    return fullname
+
+#############################################
+def saveinfo(saveobj, savename='info', fulldir='', save_as='pickle', 
              sort=True, overwrite=False):
     """
     saveinfo(saveobj)
@@ -120,9 +206,9 @@ def saveinfo(saveobj, savename='info', fulldir='.', save_as='pickle',
         - saveobj (dict): object to save
     
     Optional args:
-        - fulldir (str)  : directory in which to save pickle
-                            default: '.'
-        - savename (str) : name under which to save info, can include the 
+        - fulldir (str)   : directory in which to save file
+                            default: ''
+        - savename (str)  : name under which to save info, can include the 
                             whole directory name and extension
                             default: 'info'
         - save_as (str)   : type of file to save as (pickle, pkl, json, csv).
@@ -131,7 +217,7 @@ def saveinfo(saveobj, savename='info', fulldir='.', save_as='pickle',
         - sort (bool)     : whether to sort keys alphabetically, if saving a 
                             dictionary as .json
                             default: True
-        - overwrite (bool): if True, file name is modified to prevent 
+        - overwrite (bool): if False, file name is modified if needed to prevent 
                             overwriting
     """
 
@@ -140,19 +226,12 @@ def saveinfo(saveobj, savename='info', fulldir='.', save_as='pickle',
     createdir(fulldir, print_dir=False)
     
     # get extension and savename
-    fullname, ext = add_ext(savename, save_as) 
+    savename, ext = add_ext(savename, save_as) 
+    fullname      = os.path.join(fulldir, savename)
 
     # check if file aready exists, and if so, add number at end
     if not overwrite:
-        if os.path.exists(os.path.join(fulldir, fullname)):     
-            savename, _ = os.path.splitext(fullname) # get only savename
-            count = 1
-            fullname = '{}_{}{}'.format(savename, count, ext) 
-            while os.path.exists(os.path.join(fulldir, fullname)):
-                count += 1 
-                fullname = '{}_{}{}'.format(savename, count, ext)
-
-    fullname = os.path.join(fulldir, fullname)
+        fullname = get_unique_path(fullname)
 
     if ext == '.pkl':
         with open(fullname, 'wb') as f:
@@ -230,7 +309,7 @@ def createdir(dirname, unique=False, print_dir=True):
 
 
 ###############################################################################
-def getfiles(dirname='.', filetype='all', criteria=None):
+def getfiles(dirname='', filetype='all', criteria=None):
     """
     getfiles()
 
@@ -238,7 +317,7 @@ def getfiles(dirname='.', filetype='all', criteria=None):
 
     Optional args:
         - dirname (str)         : directory
-                                  default: '.'
+                                  default: ''
         - filetype (str)        : type of file to return: 'all', 'subdirs' or 
                                   'files'
                                   default: 'all'

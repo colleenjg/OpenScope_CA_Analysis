@@ -68,8 +68,9 @@ def quint_segs(stim, stimpar, n_quints=4, qu_idx='all', surp='any',
     # get all seg values (for all gabor frames and orientations)
     try:
         all_segs = stim.get_segs_by_criteria(gabk=stimpar.gabk, 
-                                           bri_dir=stimpar.bri_dir,
-                                           bri_size=stimpar.bri_size, by='seg')
+                        bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, 
+                        by='seg')
+                        
     except ValueError as err:
         if empty_ok:
             all_segs = []
@@ -94,12 +95,9 @@ def quint_segs(stim, stimpar, n_quints=4, qu_idx='all', surp='any',
     # get all seg values
     try:
         all_segs = stim.get_segs_by_criteria(gabfr=stimpar.gabfr,
-                                              gabk=stimpar.gabk, 
-                                              gab_ori=stimpar.gab_ori,
-                                              bri_dir=stimpar.bri_dir,
-                                              bri_size=stimpar.bri_size,
-                                              surp=surp, by='seg', 
-                                              remconsec=remconsec)
+                        gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
+                        bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size,
+                        surp=surp, by='seg', remconsec=remconsec)
     except ValueError as err:
         if empty_ok:
             all_segs = []
@@ -254,7 +252,7 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
                                         remnans=analyspar.remnans, 
                                         stats=analyspar.stats, 
                                         error=analyspar.error,
-                                        integ=integ, ret_arr=ret_arr, 
+                                        integ=integ, ret_arr=ret_arr, #stand=True,
                                         baseline=baseline)
                 elif datatype == 'run':
                     stim_fr = stim.get_stim_fr_by_seg(segs, first=True)
@@ -262,7 +260,7 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
                                         remnans=analyspar.remnans,
                                         stats=analyspar.stats, 
                                         error=analyspar.error,
-                                        integ=integ, ret_arr=ret_arr, 
+                                        integ=integ, ret_arr=ret_arr, #stand=True,
                                         baseline=baseline)
                 else:
                     gen_util.accepted_values_error('datatype', datatype, 
@@ -363,6 +361,7 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
                                             (x frames if not integ)
     """
 
+    shift_gab_segs = False
     remconsec, sample = False, False
     surp_vals = ['any']
     if lock in ['surp', 'reg', 'both']:
@@ -372,12 +371,10 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
             surp_vals = [0]
         elif lock == 'surp':
             surp_vals = [1]
-        if stimpar.stimtype == 'gabors' and stimpar.gabfr != 'any':
-            stimpar = stimpar._asdict()
-            stimpar['gabfr'] = 'any'
-            stimpar = sess_ntuple_util.init_stimpar(**stimpar)
-            print(('If locking to surprise, regular onset or both, '
-                   'stimpar.gabfr is set to `any`.'))
+        if stimpar.stimtype == 'gabors' and stimpar.gabfr not in ['any', 'all']:
+            shift_gab_segs = True
+            orig_gabfr = stimpar.gabfr
+            stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, 'gabfr', 'any')
     elif lock == 'regsamp':
         remconsec, sample = False, True
         surp_vals = [0]
@@ -392,6 +389,8 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
             qu_segs, qu_counts = quint_segs(stim, stimpar, n_quints, qu_idx, 
                                             surp, empty_ok=nan_empty, 
                                             remconsec=remconsec)
+            if shift_gab_segs: # shift to requested gabor frame
+                qu_segs = [[s + orig_gabfr for s in segs] for segs in qu_segs]
             if sample:
                 pre_seg = stimpar.pre/stim.seg_len_s
                 post_seg = stimpar.post/stim.seg_len_s
@@ -485,12 +484,11 @@ def trace_stats_by_surp_len_sess(sessions, analyspar, stimpar, n_quints=4,
                                             (x frames if not integ)
     """
 
-    if stimpar.stimtype == 'gabors' and stimpar.gabfr != 'any':
-        stimpar = stimpar._asdict()
-        stimpar['gabfr'] = 'any'
-        stimpar = sess_ntuple_util.init_stimpar(**stimpar)
-        print(('If locking to surprise onset, stimpar.gabfr is set to '
-               '`any`.'))
+    shift_gab_segs = False
+    if stimpar.stimtype == 'gabors' and stimpar.gabfr not in ['any', 'all']:
+        shift_gab_segs = True
+        orig_gabfr = stimpar.gabfr
+        stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, 'gabfr', 'any')
 
     all_counts, all_stats, all_arrays, all_n_consec = [], [], [], []
     for sess in sessions:
@@ -499,6 +497,10 @@ def trace_stats_by_surp_len_sess(sessions, analyspar, stimpar, n_quints=4,
         qu_segs, _, qu_n_consec = quint_segs(stim, stimpar, n_quints, qu_idx, 
                                              1, empty_ok=nan_empty, 
                                              by_surp_len=True)
+
+        if shift_gab_segs: # shift to requested gabor frame
+            qu_segs = [[s + orig_gabfr for s in segs] for segs in qu_segs]
+
         n_consec_flat   = [n for sub_ns in qu_n_consec for n in sub_ns]
         all_n_consec.append(sorted(set(n_consec_flat)))
 
@@ -572,6 +574,10 @@ def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar,
         - threshs (list): list of thresholds (1 if 1-tailed analysis, 
                           2 if 2-tailed) for magnitude, L2
     """
+
+    if permpar.multcomp:
+        raise NotImplementedError(('NOTE: Multiple comparisons not implemented '
+                                   'for magnitude analysis.'))
 
     if len(all_data_perm) != 2 or len(n_regs) !=2:
         raise ValueError('all_data_perm and n_regs must have length of 2.')
@@ -704,8 +710,7 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats='mean', error='sem',
         raise ValueError(('Expected a length 2 surprise dim, '
                           'but found length {}.').format(len(surps)))
     
-    mags = {'mag_st': np.empty([n_sess, len(scales), 
-                                len(surps), stat_len]),
+    mags = {'mag_st': np.empty([n_sess, len(scales), len(surps), stat_len]),
             'L2'    : np.empty([n_sess, len(scales), len(surps)])
            }
     

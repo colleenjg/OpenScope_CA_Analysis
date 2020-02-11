@@ -20,7 +20,152 @@ import argparse
 from analysis import logreg
 from util import gen_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
-from plot_fcts import logreg_plots
+from plot_fcts import plot_from_dicts_tool as plot_dicts
+
+
+#############################################
+def get_comps(stimtype='gabors', q1v4=False, regvsurp=False):
+    """
+    get_comps()
+
+    Returns comparisons that fit the criteria.
+
+    Optional args:
+        - stimtype (str) : stimtype
+                           default: 'gabors'
+        - q1v4 (bool)    : if True, analysis is trained on first and tested on 
+                           last quintiles
+                           default: False
+        - regvsurp (bool): if True, analysis is trained on regular and tested 
+                           on regular sequences
+                           default: False
+    
+    Returns:
+        - comps (list): list of comparisons that fit the criteria
+    """
+
+    if stimtype == 'gabors':
+        if regvsurp:
+            raise ValueError('regvsurp can only be used with bricks.')
+        comps = ['surp', 'AvB', 'AvC', 'BvC', 'DvE', 'Aori', 'Bori', 'Cori', 
+                 'Dori', 'Eori']
+    elif stimtype == 'bricks':
+        comps = ['surp', 'dir_all', 'dir_surp', 'dir_reg', 'half_right', 
+                 'half_left', 'half_diff'] 
+        if regvsurp:
+            comps = gen_util.remove_if(comps, ['surp', 'dir_surp', 'dir_all', 
+                                       'half_right', 'half_left', 'half_diff'])
+        if q1v4:
+            comps = gen_util.remove_if(comps, ['half_left', 'half_right', 
+                                               'half_diff'])
+    else:
+        gen_util.accepted_values_error('stimtype', stimtype,
+                                       ['gabors', 'bricks'])
+
+    return comps
+
+
+#############################################
+def check_args(comp='surp', stimtype='gabors', q1v4=False, regvsurp=False):
+    """
+    check_args()
+
+    Verifies whether the comparison type is compatible with the stimulus type, 
+    q1v4 and regvsurp.
+
+    Optional args:
+        - comp (str)     : comparison type
+                           default: 'surp'
+        - stimtype (str) : stimtype
+                           default: 'gabors'
+        - q1v4 (bool)    : if True, analysis is trained on first and tested on 
+                           last quintiles
+                           default: False
+        - regvsurp (bool): if True, analysis is trained on regular and tested 
+                           on regular sequences
+                           default: False
+    """
+
+
+    poss_comps = get_comps(stimtype, q1v4, regvsurp)
+
+    if q1v4 and regvsurp:
+        raise ValueError('q1v4 and regvsurp cannot both be set to True.')
+
+    if comp not in poss_comps:
+        comps_str = ', '.join(poss_comps)
+        raise ValueError('With stimtype={}, q1v4={}, regvsurp={}, can '
+                         'only use the following comps:{}'.format(stimtype, 
+                          q1v4, regvsurp, comps_str))
+    return
+
+
+#############################################
+def set_ctrl(ctrl=False, comp='surp'):
+    """
+    set_ctrl()
+
+    Sets the control value (only modifies if it is True).
+
+    Optional args:
+        - ctrl (bool): whether the run is a control
+                       default: False
+        - comp (str) : comparison type
+                       default: 'surp'
+    
+    Returns:
+        - ctrl (bool): modified control value
+    """    
+
+    if comp in ['surp', 'DvE', 'Eori', 'dir_surp']:
+        ctrl = False
+    
+    if comp == 'all':
+        raise ValueError('Should not be used if comp is \'all\'.')
+    
+    return ctrl
+
+
+#############################################
+def format_output(output, runtype='prod', q1v4=False, bal=False, 
+                  regvsurp=False):
+    """
+    format_output(output)
+
+    Returns output modified based on the arguments.
+
+    Required args:
+        - output (str): base output path
+
+    Optional args:
+        - runtype (str)  : runtype
+                           default: 'prod'
+        - q1v4 (bool)    : if True, analysis is trained on first and tested on 
+                           last quintiles
+                           default: False
+        - bal (bool)     : if True, all classes are balanced
+                           default: False
+        - regvsurp (bool): if True, analysis is trained on regular and tested 
+                           on regular sequences
+                           default: False
+
+    Returns:
+        - output (str): modified output path
+    """
+
+    if runtype == 'pilot':
+       output = '{}_pilot'.format(output)
+
+    if q1v4:
+        output = '{}_q1v4'.format(output)
+
+    if bal:
+        output = '{}_bal'.format(output)
+
+    if regvsurp:
+        output = '{}_rvs'.format(output)
+
+    return output
 
 
 #############################################
@@ -33,9 +178,10 @@ def run_regr(args):
     
     Required args:
         - args (Argument parser): parser with analysis parameters as attributes:
+            alg (str)             : algorithm to use ('sklearn' or 'pytorch')
             bal (bool)            : if True, classes are balanced
             batchsize (int)       : nbr of samples dataloader will load per 
-                                    batch
+                                    batch (for 'pytorch' alg)
             bri_dir (str)         : brick direction to analyse
             bri_size (int or list): brick sizes to include
             comp (str)            : type of comparison
@@ -53,19 +199,20 @@ def run_regr(args):
                                     is 'surp'
             gabk (int or list)    : gabor kappas to include
             incl (str or list)    : sessions to include ('yes', 'no', 'all')
-            lr (num)              : model learning rate
+            lr (num)              : model learning rate (for 'pytorch' alg)
             mouse_n (int)         : mouse number
             n_epochs (int)        : number of epochs
             n_reg (int)           : number of regular runs
             n_shuff (int)         : number of shuffled runs
-            scale (str)           : type of scaling
+            scale (bool)          : if True, each ROI is scaled
             output (str)          : general directory in which to save 
                                     output
             parallel (bool)       : if True, runs are done in parallel
             plt_bkend (str)       : pyplot backend to use
-            q1v4 (bool)           : if True, analysis is separated across 
-                                    first and last quintiles
-            reg (str)             : regularization to use
+            q1v4 (bool)           : if True, analysis is trained on first and 
+                                    tested on last quintiles
+            regvsurp (bool)       : if True, analysis is trained on 
+                                    regular and tested on surprise sequences
             runtype (str)         : type of run ('prod' or 'pilot')
             seed (int)            : seed to seed random processes with
             sess_n (int)          : session number
@@ -74,6 +221,7 @@ def run_regr(args):
             train_p (list)        : proportion of dataset to allocate to 
                                     training
             uniqueid (str or int) : unique ID for analysis
+            wd (float)            : weight decay value (for 'pytorch' arg)
     """
 
     args = copy.deepcopy(args)
@@ -97,6 +245,7 @@ def run_regr(args):
     
     techpar = {'reseed'   : reseed,
                'device'   : args.device,
+               'alg'      : args.alg,
                'parallel' : args.parallel,
                'plt_bkend': args.plt_bkend,
                'fontdir'  : args.fontdir,
@@ -111,18 +260,19 @@ def run_regr(args):
     stimpar = logreg.get_stimpar(args.comp, args.stimtype, args.bri_dir, 
                                  args.bri_size, args.gabfr, args.gabk)
     analyspar = sess_ntuple_util.init_analyspar(args.fluor, stats=args.stats, 
-                                            error=args.error, scale=args.scale, 
-                                            dend='extr')  
+                                 error=args.error, scale=not(args.no_scale), 
+                                 dend=args.dend)  
     if args.q1v4:
         quintpar = sess_ntuple_util.init_quintpar(4, [0, -1])
     else:
         quintpar = sess_ntuple_util.init_quintpar(1)
-    logregpar = sess_ntuple_util.init_logregpar(args.comp, args.q1v4, 
-                                        args.n_epochs, args.batchsize, args.lr, 
-                                        args.train_p, args.wd, args.bal)
-    omit_sess, omit_mice = sess_gen_util.all_omit(stimpar.stimtype, args.runtype, 
-                                            stimpar.bri_dir, stimpar.bri_size, 
-                                            stimpar.gabk)
+    logregpar = sess_ntuple_util.init_logregpar(args.comp, not(args.not_ctrl), 
+                            args.q1v4, args.regvsurp, args.n_epochs, 
+                            args.batchsize, args.lr, args.train_p, args.wd, 
+                            args.bal, args.alg)
+    omit_sess, omit_mice = sess_gen_util.all_omit(stimpar.stimtype, 
+                                         args.runtype, stimpar.bri_dir, 
+                                         stimpar.bri_size, stimpar.gabk)
 
     sessids = sess_gen_util.get_sess_vals(mouse_df, 'sessid', args.mouse_n, 
                                           args.sess_n, args.runtype, 
@@ -169,7 +319,12 @@ if __name__ == "__main__":
 
         # logregpar
     parser.add_argument('--comp', default='surp', 
-                        help='surp, AvB, AvC, BvC, DvE, all')
+                        help='surp, AvB, AvC, BvC, DvE, Eori, dir_all, '
+                             'dir_reg, dir_surp, half_right, half_left, '
+                             'half_diff')
+    parser.add_argument('--not_ctrl', action='store_true', 
+                        help=('run comparisons not as controls for surp '
+                              '(ignored for surp)'))
     parser.add_argument('--n_epochs', default=1000, type=int)
     parser.add_argument('--batchsize', default=200, type=int)
     parser.add_argument('--lr', default=0.0001, type=float, 
@@ -180,14 +335,18 @@ if __name__ == "__main__":
                         help='weight decay to use')
     parser.add_argument('--q1v4', action='store_true', 
                         help='run on 1st quintile and test on last')
+    parser.add_argument('--regvsurp', action='store_true', 
+                        help='use with dir_reg to run on reg and test on surp')
     parser.add_argument('--bal', action='store_true', 
                         help='if True, classes are balanced')
+    parser.add_argument('--alg', default='sklearn', 
+                        help='use sklearn or pytorch log reg.')
 
         # sesspar
     parser.add_argument('--mouse_n', default=1, type=int)
     parser.add_argument('--runtype', default='prod', help='prod or pilot')
     parser.add_argument('--sess_n', default='all')
-    parser.add_argument('--incl', default='yes',
+    parser.add_argument('--incl', default='any',
                         help='include only `yes`, `no` or `any`')
         # stimpar
     parser.add_argument('--stimtype', default='gabors', help='gabors or bricks')
@@ -199,11 +358,12 @@ if __name__ == "__main__":
     parser.add_argument('--bri_size', default=128, help='brick size')
 
         # analyspar
-    parser.add_argument('--scale', default='roi', 
-                        help='scaling data: none, all or roi (by roi)')
+    parser.add_argument('--no_scale', action='store_true', 
+                        help='do not scale each roi')
     parser.add_argument('--fluor', default='dff', help='raw or dff')
     parser.add_argument('--stats', default='mean', help='mean or median')
     parser.add_argument('--error', default='sem', help='std or sem')
+    parser.add_argument('--dend', default='extr', help='aibs, extr')
 
         # extra parameters
     parser.add_argument('--seed', default=-1, type=int, 
@@ -216,8 +376,13 @@ if __name__ == "__main__":
     parser.add_argument('--CI', default=0.95, type=float, help='shuffled CI')
 
         # from dict
-    parser.add_argument('--dict_path', default=None, 
-                        help='path of directory to plot from')
+    parser.add_argument('--dict_path', default='', 
+                        help=('path to info dictionary directories from which '
+                              'to plot data.'))
+        # plot modif
+    parser.add_argument('--modif', action='store_true', 
+                        help=('run plot task using modified plots.'))
+
 
 
     args = parser.parse_args()
@@ -225,26 +390,29 @@ if __name__ == "__main__":
     args.device = gen_util.get_device(args.cuda)
     args.fontdir = os.path.join('..', 'tools', 'fonts')
 
-    if args.runtype == 'pilot':
-       args.output = '{}_pilot'.format(args.output)
-
-    if args.q1v4:
-        args.output = '{}_q1v4'.format(args.output)
-    if args.bal:
-        args.output = '{}_bal'.format(args.output)
 
     if args.comp == 'all':
-        comps = ['surp', 'AvB', 'AvC', 'BvC', 'DvE']
+        comps = get_comps(args.stimtype, args.q1v4, args.regvsurp)
     else:
+        check_args(args.comp, args.stimtype, args.q1v4, args.regvsurp)
         comps = gen_util.list_if_not(args.comp)
 
-    if args.dict_path is not None:
-        logreg_plots.plot_from_dict(args.dict_path, args.plt_bkend, 
-                                    args.fontdir)
+    args.output = format_output(args.output, args.runtype, args.q1v4, args.bal, 
+                                args.regvsurp)
+
+    args_orig = copy.deepcopy(args)
+
+    if args.dict_path != '':
+        plot_dicts.plot_from_dicts(args.dict_path, source='logreg', 
+                   plt_bkend=args.plt_bkend, fontdir=args.fontdir, 
+                   parallel=args.parallel)
 
     else:
         for comp in comps:
+            args = copy.deepcopy(args_orig)
             args.comp = comp
+            args.not_ctrl = not(set_ctrl(not(args.not_ctrl), comp=args.comp))
+
             print(('\nTask: {}\nStim: {} \nComparison: {}\n').format(args.task, 
                                                     args.stimtype, args.comp))
 
@@ -253,13 +421,16 @@ if __name__ == "__main__":
 
             # collates regression runs and analyses accuracy
             elif args.task == 'analyse':
+                print('Folder: {}'.format(args.output))
                 logreg.run_analysis(args.output, args.stimtype, args.comp, 
-                                    args.bri_dir, args.CI, args.parallel)
+                                    not(args.not_ctrl), args.CI, args.alg, 
+                                    args.parallel)
 
             elif args.task == 'plot':
                 logreg.run_plot(args.output, args.stimtype, args.comp, 
-                                args.bri_dir, args.fluor, args.scale, args.CI, 
-                                args.plt_bkend, args.fontdir)
+                                not(args.not_ctrl), args.bri_dir, args.fluor, 
+                                not(args.no_scale), args.CI, args.alg, 
+                                args.plt_bkend, args.fontdir, args.modif)
 
             else:
                 gen_util.accepted_values_error('args.task', args.task, 
