@@ -73,7 +73,7 @@ def reformat_args(args):
     """
     args = copy.deepcopy(args)
 
-    if args.layer == 'soma':
+    if args.plane == 'soma':
         args.dend = 'aibs'
 
     [args.bri_dir, args.bri_size, args.gabfr, 
@@ -134,7 +134,6 @@ def init_param_cont(args):
             keepnans (str)         : if True, ROIs with NaN/Inf values are 
                                      kept in the analyses.
             lag_s (num)            : lag for autocorrelation (in sec)
-            layer (str)            : layer ('soma', 'dend', 'any')
             line (str)             : 'L23', 'L5', 'any'
             method (str)           : latency calculation method (ratio or ttest)
             min_rois (int)         : min number of ROIs
@@ -149,6 +148,7 @@ def init_param_cont(args):
                                      is prevented by adding suffix numbers.
             pass_fail (str or list): pass/fail values of interest ('P', 'F')
             p_val_thr (float)      : p-value threshold for ttest latency method
+            plane (str)            : plane ('soma', 'dend', 'any')
             plt_bkend (str)        : mpl backend to use
             post (num)             : range of frames to include after each 
                                      reference frame (in s)
@@ -219,7 +219,7 @@ def init_param_cont(args):
 
     # session parameters
     sesspar = sess_ntuple_util.init_sesspar(args.sess_n, False, 
-                               args.layer, args.line, args.min_rois, 
+                               args.plane, args.line, args.min_rois, 
                                args.pass_fail, args.incl, args.runtype)
     
     # stimulus parameters
@@ -285,8 +285,8 @@ def init_mouse_sess(mouse_n, all_sess_ns, sesspar, mouse_df, datadir,
         if len(sessid) == 0:
             sess = [None]
         elif len(sessid) > 1:
-            raise ValueError(('Unexpected error. Should not give more '
-                                'than 1 session.'))
+            raise ValueError('Unexpected error. Should not give more '
+                             'than 1 session.')
         else:
             sess = sess_gen_util.init_sessions(sessid[0], datadir, mouse_df, 
                                  sesspar.runtype, fulldict=False,
@@ -407,9 +407,8 @@ def prep_analyses(sess_n, args, mouse_df, parallel=False):
     if len(sessions) == 0 or check_all == {None}:
         raise ValueError('No sessions meet the criteria.')
 
-    print(('\nAnalysis of {} responses to {} stimuli ({} data)'
-           '\nSessions: {}').format(sesspar.layer, stimpar.stimtype[:-1],
-                                  sesspar.runtype, args.sess_n))
+    print(f'\nAnalysis of {sesspar.plane} responses to {stimpar.stimtype[:-1]} '
+          f'stimuli ({sesspar.runtype} data)\nSessions: {args.sess_n}')
 
     return [sessions, analyspar, sesspar, stimpar, permpar, 
             basepar, latpar, figpar, seed]
@@ -507,8 +506,8 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, permpar, basepar,
 
 
     if set(all_analyses) != set(all_check):
-        raise ValueError(('all_analyses variable is missing some analysis '
-                          'letters!'))
+        raise ValueError('all_analyses variable is missing some analysis '
+                         'letters!')
 
 
 if __name__ == "__main__":
@@ -543,7 +542,7 @@ if __name__ == "__main__":
 
         # session parameters
     parser.add_argument('--runtype', default='prod', help='prod or pilot')
-    parser.add_argument('--layer', default='any', help='soma, dend, any')
+    parser.add_argument('--plane', default='any', help='soma, dend, any')
     parser.add_argument('--min_rois', default=5, type=int, 
                         help='min rois criterion')
         # stimulus parameters

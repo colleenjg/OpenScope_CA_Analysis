@@ -61,9 +61,9 @@ def get_class_pars(comp='surp', stimtype='gabors'):
             class_var = 'gab_ori'
             gab_lett = comp.strip('ori').capitalize()
             if len(gab_lett) != 1:
-                raise NotImplementedError('{} comparison not properly as E '
+                raise NotImplementedError(f'{comp} comparison not properly '
                       'implemented, as E orientations are shifted wrt '
-                      'others.'.format(comp))
+                      'others.')
             if gab_lett == 'E':
                 surps = 1
             elif gab_lett == 'D':
@@ -91,9 +91,9 @@ def get_class_pars(comp='surp', stimtype='gabors'):
             surps = 'any'
             class_var = comp
         else:
-            raise ValueError(('Only surp, dir_all, dir_reg, dir_surp, '
-                              'samehalf, diffhalf comparisons supported for '
-                              'Bricks.'))
+            raise ValueError('Only surp, dir_all, dir_reg, dir_surp, '
+                             'samehalf, diffhalf comparisons supported for '
+                             'Bricks.')
 
     return class_var, surps
 
@@ -145,13 +145,12 @@ def get_stimpar(comp='surp', stimtype='gabors', bri_dir='both', bri_size=128,
         elif 'ori' in comp:
             gab_lett = comp.strip('ori').capitalize()
             if len(gab_lett) != 1:
-                raise NotImplementedError('{} comparison not properly as E '
+                raise NotImplementedError(f'{comp} comparison not properly '
                       'implemented, as E orientations are shifted wrt '
-                      'others.'.format(comp))
+                      'others.')
             act_gabfr = sess_str_util.gabfr_nbrs(gab_lett)
             if act_gabfr != gabfr:
-                print('Setting gabfr to {} instead of {}.'.format(act_gabfr, 
-                      gabfr))
+                print(f'Setting gabfr to {act_gabfr} instead of {gabfr}.')
             stimpar = sess_ntuple_util.init_stimpar(stimtype, bri_dir, 
                                   bri_size, act_gabfr, gabk, gab_ori, 0, 0.45)         
         elif 'dir' in comp or 'half' in comp:
@@ -198,13 +197,13 @@ def get_rundir(run_val, uniqueid=None, alg='sklearn'):
 
     if uniqueid is None:
         if alg == 'sklearn':
-            rundir = '{}_runs'.format(run_val)
+            rundir = f'{run_val}_runs'
         elif alg == 'pytorch':
-            rundir = 'run_{}'.format(run_val)
+            rundir = f'run_{run_val}'
         else:
             gen_util.accepted_values_error('alg', alg, ['sklearn', 'pytorch'])
     else:
-        rundir = '{}_{}'.format(uniqueid, run_val)
+        rundir = f'{uniqueid}_{run_val}'
 
     return rundir
 
@@ -220,7 +219,7 @@ def get_compdir_dict(rundir):
     Required args:
         - rundir (str): path of subdirectory in which analysis is saved,
                         structured as 
-                        '.../m_s_layer_stim_fluor_scaled_comp_shuffled/
+                        '.../m_s_plane_stim_fluor_scaled_comp_shuffled/
                         uniqueid_run'
     
     Returns:
@@ -234,7 +233,7 @@ def get_compdir_dict(rundir):
             - fluor (str)           : fluorescence parameter ('raw' or 'dff')
             - gabk (int or list)    : Gabor kappa parameter (4, 16, [4, 16] or 
                                       'none')
-            - layer (str)           : layer ('soma' or 'dend')
+            - plane (str)           : plane ('soma' or 'dend')
             - mouse_n (int)         : mouse number
             - sess_n (int)          : session number
             - scale (bool)          : scaling parameter
@@ -296,12 +295,12 @@ def get_df_name(task='analyse', stimtype='gabors', comp='surp', ctrl=False,
 
     ctrl_str = sess_str_util.ctrl_par_str(ctrl)
 
-    sub_str = '{}_{}{}{}'.format(stimtype[0:3], comp, ctrl_str, alg_str)
+    sub_str = f'{stimtype[0:3]}_{comp}{ctrl_str}{alg_str}'
 
     if task == 'collate':
-        df_name = '{}_all_scores_df.csv'.format(sub_str)
+        df_name = f'{sub_str}_all_scores_df.csv'
     elif task == 'analyse':
-        df_name = '{}_score_stats_df.csv'.format(sub_str)
+        df_name = f'{sub_str}_score_stats_df.csv'
     
     return df_name
 
@@ -361,7 +360,7 @@ def info_dict(analyspar=None, sesspar=None, stimpar=None, extrapar=None,
 
         info = {'mouse_n' : sesspar.mouse_n,
                 'sess_n'  : sesspar.sess_n,
-                'layer'   : sesspar.layer,
+                'plane'   : sesspar.plane,
                 'line'    : sesspar.line,
                 'fluor'   : analyspar.fluor,
                 'scale'   : analyspar.scale,
@@ -382,7 +381,7 @@ def info_dict(analyspar=None, sesspar=None, stimpar=None, extrapar=None,
 
     # if no args are passed, just returns keys
     else:
-        info = ['mouse_n', 'sess_n', 'layer', 'line', 'fluor', 'scale', 
+        info = ['mouse_n', 'sess_n', 'plane', 'line', 'fluor', 'scale', 
                 'shuffle', 'stimtype', 'bri_dir', 'comp', 'uniqueid', 'run_n', 
                 'runtype', 'n_rois', 'epoch_n']
     return info
@@ -439,13 +438,13 @@ def get_classes(comp='surp'):
     if comp == 'surp':
         classes = ['Regular', 'Surprise']
     elif comp in ['AvB', 'AvC', 'BvC', 'DvE']:
-        classes = ['Gabor {}'.format(fr) for fr in [comp[0], comp[2]]]    
+        classes = [f'Gabor {fr}' for fr in [comp[0], comp[2]]]    
     elif 'ori' in comp:
         deg_vals = [0, 45, 90, 135]
         if 'E' in comp:
             deg_vals = [val + 90 for val in deg_vals]
         deg = u'\u00B0'
-        classes = ['{}{}'.format(val, deg) for val in deg_vals]
+        classes = [f'{val}{deg}' for val in deg_vals]
     elif 'dir' in comp :
         classes = ['Right', 'Left']
     elif 'half' in comp:
@@ -526,8 +525,8 @@ def get_sess_data(sess, analyspar, stimpar, quintpar, class_var='surps',
     if len(quintpar.qu_idx) == 2:
         surps = [surps, surps]
         if regvsurp:
-            raise ValueError(('Cannot set regvsurp to True if more than 1 '
-                              'quintile.'))
+            raise ValueError('Cannot set regvsurp to True if more than 1 '
+                             'quintile.')
         if 'part' in class_var:
             raise ValueError('Cannot do half comparisons with quintiles.')
     elif regvsurp:
@@ -582,16 +581,15 @@ def get_sess_data(sess, analyspar, stimpar, quintpar, class_var='surps',
         if surp_use == [0, 1] and not isinstance(stimpar.gabfr, list):
             surp_use = 'any'
         gabfr_lett = sess_str_util.gabfr_letters(stimpar.gabfr, surp=surp_use)
-        stim_info = '\nGab fr: {}\nGab K: {}'.format(gabfr_lett, stimpar.gabk)
+        stim_info = f'\nGab fr: {gabfr_lett}\nGab K: {stimpar.gabk}'
     elif stimpar.stimtype == 'bricks':
-        stim_info = '\nBri dir: {}\nBri size: {}'.format(stimpar.bri_dir, 
-                                                         stimpar.bri_size)
+        stim_info = (f'\nBri dir: {stimpar.bri_dir}\n'
+                     f'Bri size: {stimpar.bri_size}')
 
-    print('\nRuntype: {}\nMouse: {}\nSess: {}\nLayer: {}\nLine: {}\nFluor: {}'
-          '\nROIs: {}{}\nFrames per seg: {}'
-          '\nLogvar: {:.2f}'.format(sess.runtype, sess.mouse_n, sess.sess_n, 
-                                    sess.layer, sess.line, analyspar.fluor, 
-                                    nrois, stim_info, n_fr, log_var))
+    print(f'\nRuntype: {sess.runtype}\nMouse: {sess.mouse_n}\n'
+          f'Sess: {sess.sess_n}\nPlane: {sess.plane}\nLine: {sess.line}\n'
+          f'Fluor: {analyspar.fluor}\nROIs: {nrois}{stim_info}\n'
+          f'Frames per seg: {n_fr}\nLogvar: {log_var:.2f}')
 
     return roi_seqs, seq_classes, surp_ns
 
@@ -704,8 +702,8 @@ def save_tr_stats(plot_data, plot_targ, data_names, analyspar, stimpar, n_rois,
                                 stimpar.post, classes, analyspar.stats, 
                                 analyspar.error)
         tr_stats['xran'] = xran.tolist()
-        tr_stats['{}_class_stats'.format(name)] = class_stats.tolist()
-        tr_stats['{}_ns'.format(name)] = ns
+        tr_stats[f'{name}_class_stats'] = class_stats.tolist()
+        tr_stats[f'{ns}_ns'] = ns
 
     file_util.saveinfo(tr_stats, 'tr_stats.json', dirname)
 
@@ -763,12 +761,12 @@ def init_logreg_model_pt(roi_seqs, seq_classes, logregpar, extrapar,
     sc_dim = 'last' if scale else 'none'
 
     if np.unique(seq_classes[0]).tolist() != [0, 1]:
-        raise NotImplementedError(('This Pytorch logreg function is '
-                                   'implemented only for classes 0 and 1.'))
+        raise NotImplementedError('This Pytorch logreg function is '
+                                  'implemented only for classes 0 and 1.')
 
     if len(roi_seqs) > 2:
-        raise ValueError(('Must pass no more than 2 sets of data, but '
-                          'found {}.'.format(len(roi_seqs))))
+        raise ValueError('Must pass no more than 2 sets of data, but '
+                         f'found {len(roi_seqs)}.')
 
     dl_info = data_util.create_dls(roi_seqs[0], seq_classes[0], 
                         train_p=logregpar.train_p, sc_dim=sc_dim, 
@@ -985,7 +983,7 @@ def all_runs_sk(n_runs, analyspar, logregpar, quintpar, sesspar, stimpar,
     
     scale_str = sess_str_util.scale_par_str(analyspar.scale, 'print')
     shuff_str = sess_str_util.shuff_par_str(extrapar['shuffle'], 'labels')
-    print('\nRuns ({}): {}{}'.format(n_runs, scale_str, shuff_str))
+    print(f'\nRuns ({n_runs}): {scale_str}{shuff_str}')
 
     split_test = False
 
@@ -1028,7 +1026,7 @@ def all_runs_sk(n_runs, analyspar, logregpar, quintpar, sesspar, stimpar,
                           extra_name=extra_name, extra_cv=extra_cv)
 
     # Get and save best model
-    best_mod_idx = np.argmax(mod_cvs['{}_neg_log_loss'.format(set_names[-1])])
+    best_mod_idx = np.argmax(mod_cvs[f'{set_names[-1]}_neg_log_loss'])
     best_mod     = mod_cvs['estimator'][best_mod_idx]
 
     # Save data used for best model
@@ -1117,7 +1115,8 @@ def single_run_pt(run_n, analyspar, logregpar, quintpar, sesspar, stimpar,
     extrapar['run_n'] = run_n
     scale_str = sess_str_util.scale_par_str(analyspar.scale, 'print')
     shuff_str = sess_str_util.shuff_par_str(extrapar['shuffle'], 'labels')
-    print('\nRun: {}{}{}'.format(extrapar['run_n'], scale_str, shuff_str))
+    run_n = extrapar['run_n']
+    print(f'\nRun: {run_n}{scale_str}{shuff_str}')
 
     for i in range(len(roi_seqs)):
         if logregpar.ctrl: # select a random subsample
@@ -1223,7 +1222,7 @@ def run_regr(sess, analyspar, stimpar, logregpar, quintpar, extrapar, techpar):
     """
 
     techpar = copy.deepcopy(techpar)
-    sesspar = sess_ntuple_util.init_sesspar(sess.sess_n, False, sess.layer,
+    sesspar = sess_ntuple_util.init_sesspar(sess.sess_n, False, sess.plane,
                                             sess.line, runtype=sess.runtype, 
                                             mouse_n=sess.mouse_n)
 
@@ -1247,7 +1246,7 @@ def run_regr(sess, analyspar, stimpar, logregpar, quintpar, extrapar, techpar):
         extrapar['shuffle'] = shuffle
         techpar = copy.deepcopy(techpar)
         techpar['compdir'] = sess_gen_util.get_analysdir(sesspar.mouse_n, 
-                                        sesspar.sess_n, sesspar.layer, 
+                                        sesspar.sess_n, sesspar.plane, 
                                         analyspar.fluor, analyspar.scale, 
                                         stimpar.stimtype, stimpar.bri_dir, 
                                         stimpar.bri_size, stimpar.gabk, 
@@ -1391,7 +1390,7 @@ def run_collate(output, stimtype='gabors', comp='surp', ctrl=False,
         print('EMPTY DIRECTORIES:')
         for empty_dir in empty_dirs:
             run_dirs.remove(empty_dir)
-            print('    {}'.format(empty_dir))
+            print(f'    {empty_dir}')
 
     all_labels = info_dict() + \
                  logreg_util.get_sc_labs(True, ext_test_name=ext_test) + \
@@ -1409,7 +1408,7 @@ def run_collate(output, stimtype='gabors', comp='surp', ctrl=False,
             scores = collate_scores(run_dir, all_labels, alg)
             all_scores = all_scores.append(scores)
 
-    # sort df by mouse, session, layer, line, fluor, scale, shuffle, stimtype,
+    # sort df by mouse, session, plane, line, fluor, scale, shuffle, stimtype,
     # comp, uniqueid, run_n, runtype
     sorter = info_dict()[0:13]
         
@@ -1509,7 +1508,7 @@ def calc_stats(scores_summ, curr_lines, curr_idx, CI=0.95, ext_test=None,
                                    error='sem', nanpol='omit')])
 
             # plug in values
-            cols = ['{}_{}'.format(sc_lab, name) for name in cols]
+            cols = [f'{sc_lab}_{name}' for name in cols]
             gen_util.set_df_vals(scores_summ, curr_idx, cols, vals)
 
     return scores_summ

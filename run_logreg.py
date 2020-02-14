@@ -94,9 +94,9 @@ def check_args(comp='surp', stimtype='gabors', q1v4=False, regvsurp=False):
 
     if comp not in poss_comps:
         comps_str = ', '.join(poss_comps)
-        raise ValueError('With stimtype={}, q1v4={}, regvsurp={}, can '
-                         'only use the following comps:{}'.format(stimtype, 
-                          q1v4, regvsurp, comps_str))
+        raise ValueError(f'With stimtype={stimtype}, q1v4={q1v4}, '
+                         f'regvsurp={regvsurp}, can only use the following '
+                         f'comps:{comps_str}')
     return
 
 
@@ -154,16 +154,16 @@ def format_output(output, runtype='prod', q1v4=False, bal=False,
     """
 
     if runtype == 'pilot':
-       output = '{}_pilot'.format(output)
+       output = f'{output}_pilot'
 
     if q1v4:
-        output = '{}_q1v4'.format(output)
+        output = f'{output}_q1v4'
 
     if bal:
-        output = '{}_bal'.format(output)
+        output = f'{output}_bal'
 
     if regvsurp:
-        output = '{}_rvs'.format(output)
+        output = f'{output}_rvs'
 
     return output
 
@@ -280,8 +280,8 @@ def run_regr(args):
                                           omit_mice=omit_mice)
 
     if len(sessids) == 0:
-        print(('No sessions found (mouse: {}, sess: {}, '
-               'runtype: {})').format(args.mouse_n, args.sess_n, args.runtype))
+        print(f'No sessions found (mouse: {args.mouse_n}, sess: {args.sess_n}, '
+              f'runtype: {args.runtype})')
 
     for sessid in sessids:
         sess = sess_gen_util.init_sessions(sessid, args.datadir, mouse_df, 
@@ -413,15 +413,15 @@ if __name__ == "__main__":
             args.comp = comp
             args.not_ctrl = not(set_ctrl(not(args.not_ctrl), comp=args.comp))
 
-            print(('\nTask: {}\nStim: {} \nComparison: {}\n').format(args.task, 
-                                                    args.stimtype, args.comp))
+            print(f'\nTask: {args.task}\nStim: {args.stimtype} '
+                  f'\nComparison: {args.comp}\n')
 
             if args.task == 'run_regr':
                 run_regr(args)
 
             # collates regression runs and analyses accuracy
             elif args.task == 'analyse':
-                print('Folder: {}'.format(args.output))
+                print(f'Folder: {args.output}')
                 logreg.run_analysis(args.output, args.stimtype, args.comp, 
                                     not(args.not_ctrl), args.CI, args.alg, 
                                     args.parallel)

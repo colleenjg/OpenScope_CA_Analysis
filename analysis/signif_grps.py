@@ -307,11 +307,11 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
     """
 
     if len(qu_labs) != 2:
-        raise ValueError(('Identifying significant ROIs is only implemented '
-                          'for 2 quintiles.'))
+        raise ValueError('Identifying significant ROIs is only implemented '
+                         'for 2 quintiles.')
 
-    print(('\nIdentifying ROIs showing significant surprise in {} and/or '
-           '{}.'.format(qu_labs[0].capitalize(), qu_labs[1].capitalize())))
+    print('\nIdentifying ROIs showing significant surprise in '
+          f'{qu_labs[0].capitalize()} and/or {qu_labs[1].capitalize()}.')
 
     all_roi_grps = []
 
@@ -320,7 +320,7 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
         nperms_mult = []
 
     for sessid, sess_data in zip(sessids, integ_data):
-        print('\nSession {}'.format(sessid))
+        print(f'\nSession {sessid}')
         
         sess_rois = []
         # adjust p-value to number of comparisons
@@ -334,7 +334,7 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
             pvals_mult.append(pval_use)
             nperms_mult.append(nperms_use)
         for q, q_lab in enumerate(qu_labs):
-            print('    {}'.format(q_lab.capitalize()))
+            print(f'    {q_lab.capitalize()}')
             n_reg = sess_data[0][q].shape[1]
             # calculate real values (average across seqs)
             data = [math_util.mean_med(sess_data[0][q], stats, axis=1, 

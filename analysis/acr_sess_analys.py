@@ -18,7 +18,7 @@ from joblib import Parallel, delayed
 import numpy as np
 import scipy.stats as scist
 
-from analysis import pup_analys, ori_analys, quint_analys, signif_grps
+from . import pup_analys, ori_analys, quint_analys, signif_grps
 from util import file_util, gen_util, math_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
 from plot_fcts import acr_sess_analysis_plots as acr_sess_plots
@@ -26,32 +26,32 @@ from plot_fcts import acr_sess_analysis_plots as acr_sess_plots
 
 
 #############################################
-def split_by_linlay(sessions, rem_empty=False):
+def split_by_linpla(sessions, rem_empty=False):
     """
-    split_by_linlay(sessions)
+    split_by_linpla(sessions)
 
-    Returns nested list of sessions organized by line/layer.
+    Returns nested list of sessions organized by line/plane.
 
     Required args:
         - sessions (list): nested list of Session objects (mouse x sess)
 
     Optional args:
-        - rem_empty (bool): if True, line/layers with no sessions are omitted
+        - rem_empty (bool): if True, line/planes with no sessions are omitted
                             default: False
 
     Returns:
-        - linlay_sess (list) : nested list of Session objects 
-                               (linlay x mouse x sess) (None for missing 
+        - linpla_sess (list) : nested list of Session objects 
+                               (linpla x mouse x sess) (None for missing 
                                sessions)
-        - linlay_order (list): line x layer order
+        - linpla_order (list): line x plane order
     """
 
     lines   = ['L2/3', 'L5']
-    layers  = ['dendrites', 'soma']
-    linlay_order = [f'{lin} {lay[:4]}' for lay in layers for lin in lines]
-    linlay_strip = [s.replace('/', '') for s in linlay_order]
+    planes  = ['dendrites', 'soma']
+    linpla_order = [f'{lin} {pla[:4]}' for pla in planes for lin in lines]
+    linpla_strip = [s.replace('/', '') for s in linpla_order]
     
-    linlay_sess = [[] for _ in range(len(linlay_order))] # linlay x mice x sess
+    linpla_sess = [[] for _ in range(len(linpla_order))] # linpla x mice x sess
     for mouse_sess in sessions:
         line = list(set([sess.line for sess in mouse_sess if sess is not None]))
         if len(line) != 1:
@@ -59,30 +59,30 @@ def split_by_linlay(sessions, rem_empty=False):
         else:
             line = line[0][:3].strip('-')
         
-        lays = [sess.layer for sess in mouse_sess if sess is not None]
-        lay_vals = list(set(lays))
+        plas = [sess.plane for sess in mouse_sess if sess is not None]
+        pla_vals = list(set(plas))
 
-        for lay in lay_vals:
+        for pla in pla_vals:
             sesses = []
             for sess in mouse_sess:
-                if sess is None or sess.layer != lay:
+                if sess is None or sess.plane != pla:
                     sesses.append(None)
                 else:
                     sesses.append(sess)             
             if list(set(sesses)) != [None]: # only add if it's not all None
-                idx = linlay_strip.index(f'{line} {lay}')
-                linlay_sess[idx].append(sesses)
+                idx = linpla_strip.index(f'{line} {pla}')
+                linpla_sess[idx].append(sesses)
 
-    # check for empty lists in any lin/lay
+    # check for empty lists in any lin/pla
     if rem_empty:
         rem_idx = []
-        for l, sessions in enumerate(linlay_sess):
+        for l, sessions in enumerate(linpla_sess):
             if len(sessions) == 0:
                 rem_idx.append(l)
-        linlay_order = gen_util.remove_idx(linlay_order, rem_idx)
-        linlay_sess = gen_util.remove_idx(linlay_sess, rem_idx)
+        linpla_order = gen_util.remove_idx(linpla_order, rem_idx)
+        linpla_sess = gen_util.remove_idx(linpla_sess, rem_idx)
 
-    return linlay_sess, linlay_order
+    return linpla_sess, linpla_order
 
 
 #############################################
@@ -163,8 +163,8 @@ def surp_data_by_sess(sess, analyspar, stimpar, datatype='roi', surp='bysurp',
     """
 
     if surp in ['surplock', 'reglock'] and stimpar.pre != stimpar.post:
-        raise ValueError(('stimpar.pre must equal stimpar.post for '
-                          'this locked analysis.'))
+        raise ValueError('stimpar.pre must equal stimpar.post for '
+                         'this locked analysis.')
     locks = ['reglock', 'surplock'] # ordered in surp == [0, 1] order
 
     stim = sess.get_stim(stimpar.stimtype)
@@ -343,7 +343,7 @@ def surp_diff_by_sesses(sessions, analyspar, stimpar, permpar, datatype='roi',
             ['mouse_ns'] (list)   : mouse numbers
             ['sess_ns'] (list)    : session numbers  
             ['lines'] (list)      : mouse lines
-            ['layers'] (list)     : imaging layers
+            ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
             ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
             ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
@@ -356,8 +356,8 @@ def surp_diff_by_sesses(sessions, analyspar, stimpar, permpar, datatype='roi',
 
     n_sess = list(set([len(m_sess) for m_sess in sessions]))
     if len(n_sess) != 1:
-        raise ValueError(('There should be the same number of sessions for '
-                          'each mouse.'))
+        raise ValueError('There should be the same number of sessions for '
+                         'each mouse.')
     n_sess = n_sess[0]
 
     st_len = 2 + (analyspar.stats == 'median' and analyspar.error == 'std')
@@ -410,10 +410,10 @@ def surp_diff_by_sesses(sessions, analyspar, stimpar, permpar, datatype='roi',
 
 
 #############################################
-def surp_diff_by_linlay(sessions, analyspar, stimpar, permpar, datatype='roi', 
+def surp_diff_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi', 
                         surp='bysurp', baseline=0.1, parallel=False):
     """
-    surp_diff_by_linlay(sessions, analyspar, stimpar, permpar)
+    surp_diff_by_linpla(sessions, analyspar, stimpar, permpar)
     
     Returns dictionary containing difference between surprise and regular 
     sequence information, as well as lists of session information dictionaries.
@@ -442,26 +442,26 @@ def surp_diff_by_linlay(sessions, analyspar, stimpar, permpar, datatype='roi',
     Returns:
         - diff_info (dict)       : dictionary with difference info
             ['all_diff_stats'] (list)  : difference stats across mice, 
-                                         structured as layer/line x session 
+                                         structured as plane/line x session 
                                                                   x stats
             ['mouse_diff_stats'] (list): difference statistics across ROIs or 
                                          seqs, structured as 
-                                             layer/line x mouse x session 
+                                             plane/line x mouse x session 
                                                         x stats
             ['CI_vals'] (list)         : CIs values, structured as
-                                             layer/line x session 
+                                             plane/line x session 
                                                         x perc (med, lo, high)
             ['sign_sess'] (list)       : significant session indices, 
-                                         structured as layer/line (x tails)
-            ['linlay_ord'] (list)      : order list of layers/lines
+                                         structured as plane/line (x tails)
+            ['linpla_ord'] (list)      : order list of planes/lines
         - sess_info (nested list): nested list of dictionaries for each 
-                                   line/layer x mouse containing information 
+                                   line/plane x mouse containing information 
                                    from each session, with None for missing 
                                    sessions
             ['mouse_ns'] (list)   : mouse numbers
             ['sess_ns'] (list)    : session numbers  
             ['lines'] (list)      : mouse lines
-            ['layers'] (list)     : imaging layers
+            ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
             ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
             ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
@@ -470,23 +470,23 @@ def surp_diff_by_linlay(sessions, analyspar, stimpar, permpar, datatype='roi',
     """
 
     if permpar.multcomp:
-        raise ValueError(('Multiple comparisons not implemented for this '
-                          'analysis.'))
+        raise ValueError('Multiple comparisons not implemented for this '
+                         'analysis.')
     if surp in ['surplock', 'reglock'] and stimpar.pre != stimpar.post:
-        raise ValueError(('For surplock or reglock analysis, stimpar.pre and '
-                          'stimpar.post must be the same.'))
+        raise ValueError('For surplock or reglock analysis, stimpar.pre and '
+                         'stimpar.post must be the same.')
     
-    # get sessions organized by lin/lay x mouse x session
-    linlay_sess, linlay_order = split_by_linlay(sessions, rem_empty=True)
+    # get sessions organized by lin/pla x mouse x session
+    linpla_sess, linpla_order = split_by_linpla(sessions, rem_empty=True)
 
-    n_jobs = gen_util.get_n_jobs(len(linlay_sess), parallel=parallel)
+    n_jobs = gen_util.get_n_jobs(len(linpla_sess), parallel=parallel)
     if parallel:
         outs = Parallel(n_jobs=n_jobs)(delayed(surp_diff_by_sesses)(sessions, 
                         analyspar, stimpar, permpar, datatype, surp, baseline)
-                        for sessions in linlay_sess)
+                        for sessions in linpla_sess)
     else:
         outs = []
-        for sessions in linlay_sess:
+        for sessions in linpla_sess:
             outs.append(surp_diff_by_sesses(sessions, analyspar, stimpar, 
                                         permpar, datatype, surp, baseline))
     outs = [list(out) for out in zip(*outs)]
@@ -497,7 +497,7 @@ def surp_diff_by_linlay(sessions, analyspar, stimpar, permpar, datatype='roi',
                  'mouse_diff_stats': mouse_diff_st,
                  'CI_vals'         : all_CI_vals,
                  'sign_sess'       : all_sign_sess,
-                 'linlay_ord'      : linlay_order
+                 'linpla_ord'      : linpla_order
                  }
 
     return diff_info, sess_info
@@ -534,23 +534,23 @@ def run_surp_area_diff(sessions, analysis, analyspar, sesspar, stimpar, basepar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                                            sesspar.layer, stimpar.bri_dir, 
+                                            sesspar.plane, stimpar.bri_dir, 
                                             stimpar.bri_size, stimpar.gabk,
                                             'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                             datatype, 'print')
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    print((f'\nAnalysing and plotting surprise - regular locked {datastr} '
-           f'responses \n({sessstr_pr}{dendstr_pr}).'))
+    print(f'\nAnalysing and plotting surprise - regular locked {datastr} '
+          f'responses \n({sessstr_pr}{dendstr_pr}).')
 
     if permpar.multcomp:
-        print(('NOTE: Multiple comparisons not implemented for this analysis. '
-               'Setting to False.'))
+        print('NOTE: Multiple comparisons not implemented for this analysis. '
+              'Setting to False.')
         permpar = sess_ntuple_util.get_modif_ntuple(permpar, 'multcomp', False)
 
-    diff_info, sess_info = surp_diff_by_linlay(sessions, analyspar, stimpar, 
+    diff_info, sess_info = surp_diff_by_linpla(sessions, analyspar, stimpar, 
                                                permpar, datatype, surp='bysurp', 
                                                baseline=basepar.baseline, 
                                                parallel=parallel)
@@ -605,32 +605,32 @@ def run_lock_area_diff(sessions, analysis, analyspar, sesspar, stimpar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                                            sesspar.layer, stimpar.bri_dir, 
+                                            sesspar.plane, stimpar.bri_dir, 
                                             stimpar.bri_size, stimpar.gabk,
                                             'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                             datatype, 'print')
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    print((f'\nAnalysing and plotting surprise - regular {datastr} responses '
-           f' \n({sessstr_pr}{dendstr_pr}).'))
+    print(f'\nAnalysing and plotting surprise - regular {datastr} responses '
+          f' \n({sessstr_pr}{dendstr_pr}).')
 
     if permpar.multcomp:
-        print(('NOTE: Multiple comparisons not implemented for this analysis. '
-               'Setting to False.'))
+        print('NOTE: Multiple comparisons not implemented for this analysis. '
+              'Setting to False.')
         permpar = sess_ntuple_util.get_modif_ntuple(permpar, 'multcomp', False)
 
     if stimpar.pre != stimpar.post:
-        print((f'WARNING: stimpar.post {stimpar.post} will be used for '
-               'pre and post.'))
+        print(f'WARNING: stimpar.post {stimpar.post} will be used for '
+              'pre and post.')
         stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, 'pre', 
                                    stimpar.post)
     
     all_diff_info = []
     all_sess_info = []
     for lock in ['surplock', 'reglock']:
-        diff_info, sess_info = surp_diff_by_linlay(sessions, analyspar, stimpar, 
+        diff_info, sess_info = surp_diff_by_linpla(sessions, analyspar, stimpar, 
                                           permpar, datatype, surp=lock, 
                                           baseline=basepar.baseline, 
                                           parallel=parallel)
@@ -693,7 +693,7 @@ def surp_traces_by_sesses(sessions, analyspar, stimpar, datatype='roi',
             ['mouse_ns'] (list)   : mouse numbers
             ['sess_ns'] (list)    : session numbers  
             ['lines'] (list)      : mouse lines
-            ['layers'] (list)     : imaging layers
+            ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
             ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
             ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
@@ -706,8 +706,8 @@ def surp_traces_by_sesses(sessions, analyspar, stimpar, datatype='roi',
 
     n_sess = list(set([len(m_sess) for m_sess in sessions]))
     if len(n_sess) != 1:
-        raise ValueError(('There should be the same number of sessions for '
-                          'each mouse.'))
+        raise ValueError('There should be the same number of sessions for '
+                         'each mouse.')
     n_sess = n_sess[0]
 
     axes = [0] # to take mean/med
@@ -757,10 +757,10 @@ def surp_traces_by_sesses(sessions, analyspar, stimpar, datatype='roi',
 
 
 #############################################
-def surp_traces_by_linlay(sessions, analyspar, stimpar, datatype='roi', 
+def surp_traces_by_linpla(sessions, analyspar, stimpar, datatype='roi', 
                           surp='bysurp', baseline=0.1, parallel=False):
     """
-    surp_traces_by_linlay(sessions, analyspar, stimpar)
+    surp_traces_by_linpla(sessions, analyspar, stimpar)
     
     Returns dictionary containing difference between surprise and regular 
     sequence information, as well as lists of session information dictionaries.
@@ -787,20 +787,20 @@ def surp_traces_by_linlay(sessions, analyspar, stimpar, datatype='roi',
 
     Returns:
         - trace_info (dict)      : dictionary with difference info
-            ['linlay_ord'] (list) : order list of layers/lines            
+            ['linpla_ord'] (list) : order list of planes/lines            
             ['trace_stats'] (list): trace statistics, structured as
-                                    layer/line x session x reg/surp x frame 
+                                    plane/line x session x reg/surp x frame 
                                                x stats
                                     (or surp/reg if surp == 'reglock')
             ['xran'] (list)       : second values for each frame
         - sess_info (nested list): nested list of dictionaries for each 
-                                   line/layer x mouse containing information 
+                                   line/plane x mouse containing information 
                                    from each session, with None for missing 
                                    sessions
             ['mouse_ns'] (list)   : mouse numbers
             ['sess_ns'] (list)    : session numbers  
             ['lines'] (list)      : mouse lines
-            ['layers'] (list)     : imaging layers
+            ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
             ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
             ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
@@ -809,20 +809,20 @@ def surp_traces_by_linlay(sessions, analyspar, stimpar, datatype='roi',
     """
 
     if surp in ['surplock', 'reglock'] and stimpar.pre != stimpar.post:
-        raise ValueError(('For surplock or reglock analysis, stimpar.pre and '
-                          'stimpar.post must be the same.'))
+        raise ValueError('For surplock or reglock analysis, stimpar.pre and '
+                         'stimpar.post must be the same.')
 
-    # get sessions organized by lin/lay x mouse x session
-    linlay_sess, linlay_order = split_by_linlay(sessions, rem_empty=True)
+    # get sessions organized by lin/pla x mouse x session
+    linpla_sess, linpla_order = split_by_linpla(sessions, rem_empty=True)
 
-    n_jobs = gen_util.get_n_jobs(len(linlay_sess), parallel=parallel)
+    n_jobs = gen_util.get_n_jobs(len(linpla_sess), parallel=parallel)
     if parallel:
         outs = Parallel(n_jobs=n_jobs)(delayed(surp_traces_by_sesses)(sessions, 
                         analyspar, stimpar, datatype, surp, baseline)
-                        for sessions in linlay_sess)
+                        for sessions in linpla_sess)
     else:
         outs = []
-        for sessions in linlay_sess:
+        for sessions in linpla_sess:
             outs.append(surp_traces_by_sesses(sessions, analyspar, stimpar, 
                                               datatype, surp, baseline))
     outs = [list(out) for out in zip(*outs)]
@@ -831,7 +831,7 @@ def surp_traces_by_linlay(sessions, analyspar, stimpar, datatype='roi',
 
     trace_info = {'xran'       : xrans[0],
                   'trace_stats': all_trace_stats,
-                  'linlay_ord' : linlay_order
+                  'linpla_ord' : linpla_order
                   }
 
     return trace_info, sess_info
@@ -867,18 +867,18 @@ def run_surp_traces(sessions, analysis, analyspar, sesspar, stimpar, basepar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                                            sesspar.layer, stimpar.bri_dir, 
+                                            sesspar.plane, stimpar.bri_dir, 
                                             stimpar.bri_size, stimpar.gabk,
                                             'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                             datatype, 'print')
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    print((f'\nAnalysing and plotting surprise v regular {datastr} traces '
-           f' \n({sessstr_pr}{dendstr_pr}).'))
+    print(f'\nAnalysing and plotting surprise v regular {datastr} traces '
+          f' \n({sessstr_pr}{dendstr_pr}).')
 
-    trace_info, sess_info = surp_traces_by_linlay(sessions, analyspar, 
+    trace_info, sess_info = surp_traces_by_linpla(sessions, analyspar, 
                                 stimpar, datatype, surp='bysurp', 
                                 baseline=basepar.baseline, parallel=parallel)
 
@@ -931,27 +931,27 @@ def run_lock_traces(sessions, analysis, analyspar, sesspar, stimpar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                                            sesspar.layer, stimpar.bri_dir, 
+                                            sesspar.plane, stimpar.bri_dir, 
                                             stimpar.bri_size, stimpar.gabk,
                                             'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                             datatype, 'print')
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    print((f'\nAnalysing and plotting surprise v regular locked {datastr} '
-           f'traces \n({sessstr_pr}{dendstr_pr}).'))
+    print(f'\nAnalysing and plotting surprise v regular locked {datastr} '
+          f'traces \n({sessstr_pr}{dendstr_pr}).')
 
     if stimpar.pre != stimpar.post:
-        print((f'WARNING: stimpar.post {stimpar.post} will be used for '
-               'pre and post.'))
+        print(f'WARNING: stimpar.post {stimpar.post} will be used for '
+              'pre and post.')
         stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, 'pre', 
                                    stimpar.post)
 
     all_sess_info = []
     all_trace_info = []
     for lock in ['surplock', 'reglock']:
-        trace_info, sess_info = surp_traces_by_linlay(sessions, analyspar, 
+        trace_info, sess_info = surp_traces_by_linpla(sessions, analyspar, 
                                     stimpar, datatype, surp=lock, 
                                     baseline=basepar.baseline, 
                                     parallel=parallel)
@@ -1047,7 +1047,7 @@ def comp_lat_acr_sesses(lat_vals, normal=True):
     """
     comp_lat_acr_sesses(lat_vals)
 
-    Returns p values for comparisons across sessions with layers/lines.
+    Returns p values for comparisons across sessions with planes/lines.
 
     Required args:
         - lat_vals (list): latency values for each session 
@@ -1080,27 +1080,27 @@ def comp_lat_acr_sesses(lat_vals, normal=True):
 
 
 #############################################
-def comp_lat_acr_layers(linlay_ord, lat_vals):
+def comp_lat_acr_planes(linpla_ord, lat_vals):
     """
-    comp_lat_acr_layers(linlay_ord, lat_vals)
+    comp_lat_acr_planes(linpla_ord, lat_vals)
 
-    Returns p values for comparisons across layers within lines.
+    Returns p values for comparisons across planes within lines.
 
     Required args:
-        - linlay_ord (list): ordered list of layers/lines
+        - linpla_ord (list): ordered list of planes/lines
         - lat_vals (list)  : latency values, structured as 
-                             layers/lines x session 
+                             planes/lines x session 
 
     Returns:
         - p_vals (2D array): p values, structured as 
-                             layers/lines x session
+                             planes/lines x session
     """
 
     lines = ['L2/3', 'L5']
     n_sess = len(lat_vals[0])
     p_vals = np.full([len(lines), n_sess], np.nan)
     for li, line in enumerate(lines):
-        idx = [i for i in range(len(linlay_ord)) if line in linlay_ord[i]]
+        idx = [i for i in range(len(linpla_ord)) if line in linpla_ord[i]]
         # do comparison
         if len(idx) == 2:
             for s in range(n_sess):
@@ -1204,27 +1204,27 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                                            sesspar.layer, stimpar.bri_dir, 
+                                            sesspar.plane, stimpar.bri_dir, 
                                             stimpar.bri_size, stimpar.gabk,
                                             'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                             datatype, 'print')
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
     stat_len = 2 + (analyspar.error == 'std')
 
-    print((f'\nAnalysing and plotting surprise latency for {datastr} traces '
-           f' \n({sessstr_pr}{dendstr_pr}).'))
+    print(f'\nAnalysing and plotting surprise latency for {datastr} traces '
+          f' \n({sessstr_pr}{dendstr_pr}).')
 
-    # get sessions organized by lin/lay x mouse x session
-    linlay_sess, linlay_ord = split_by_linlay(sessions, rem_empty=True)
+    # get sessions organized by lin/pla x mouse x session
+    linpla_sess, linpla_ord = split_by_linpla(sessions, rem_empty=True)
 
     [all_lat_stats, all_lat_vals, 
      all_lat_p_vals, all_lat_vals_flat] = [], [], [], []
     all_sess_info = []
 
-    for l_sesses in linlay_sess:
+    for l_sesses in linpla_sess:
         # switch to sess x mouse
         l_sesses = [list(vals) for vals in zip(*l_sesses)]
         l_lat_vals, l_lat_vals_flat, l_sess_info = [], [], []
@@ -1266,15 +1266,15 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
         all_lat_vals.append(l_lat_vals)
         all_lat_p_vals.append(p_vals)
 
-    # compare across layers in a line
-    lin_p_vals = comp_lat_acr_layers(linlay_ord, all_lat_vals_flat)
+    # compare across planes in a line
+    lin_p_vals = comp_lat_acr_planes(linpla_ord, all_lat_vals_flat)
 
     p_vals = [p for all_ps in all_lat_p_vals for p in all_ps] + \
              [p for all_ps in lin_p_vals for p in all_ps]
 
     n_comps = np.count_nonzero(~np.isnan(p_vals))
 
-    lat_data = {'linlay_ord': linlay_ord,
+    lat_data = {'linpla_ord': linpla_ord,
                 'lat_stats' : all_lat_stats,
                 'lat_vals'  : all_lat_vals,
                 'lat_p_vals': all_lat_p_vals,
@@ -1330,11 +1330,11 @@ def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
 
 
 
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                datatype, 'print')
 
-    print(('\nAnalysing and plotting proportion of surprise responsive ROIs'
-           f'{dendstr_pr}.'))
+    print('\nAnalysing and plotting proportion of surprise responsive ROIs'
+          f'{dendstr_pr}.')
 
     if stimpar.stimtype != 'both':
         raise ValueError('stimpar.stimtype must be `both` for this analysis.')
@@ -1343,12 +1343,12 @@ def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
     comb_names = ['gabfrs', 'surps']
     combs      = [[0, 1] , [0, 2]]
 
-    # get sessions organized by lin/lay x mouse x session
-    linlay_sess, linlay_ord = split_by_linlay(sessions, rem_empty=True)
+    # get sessions organized by lin/pla x mouse x session
+    linpla_sess, linpla_ord = split_by_linpla(sessions, rem_empty=True)
 
     all_sess_info = []
     all_prop_stats = []
-    for l_sesses in linlay_sess:
+    for l_sesses in linpla_sess:
         # switch to sess x mouse
         l_sesses = [list(vals) for vals in zip(*l_sesses)]
         l_sess_info = []
@@ -1402,7 +1402,7 @@ def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
         all_prop_stats.append(l_prop_stats)
     all_sess_info.append(l_sess_info)
 
-    prop_data = {'linlay_ord': linlay_ord,
+    prop_data = {'linpla_ord': linpla_ord,
                  'prop_stats': all_prop_stats,
                  'comb_names': comb_names
                 }

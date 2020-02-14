@@ -63,7 +63,7 @@ def plot_from_dicts(direc, source='roi', plt_bkend=None, fontdir=None,
             dict_paths = glob.glob(os.path.join(direc, '*.json'))
         
         if len(dict_paths) == 0:
-            raise ValueError('No jsons found in directory: {}.'.format(direc))
+            raise ValueError(f'No jsons found in directory: {direc}.')
     else:
         dict_paths = [direc]
 

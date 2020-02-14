@@ -83,17 +83,16 @@ def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
     opstr_pr = sess_str_util.op_par_str(roigrppar.plot_vals, roigrppar.op, 
                                         str_type='print')
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
-                                    sesspar.layer, stimpar.bri_dir, 
+                                    sesspar.plane, stimpar.bri_dir, 
                                     stimpar.bri_size, stimpar.gabk, 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                     extrapar['datatype'], 'print')
     datastr = sess_str_util.datatype_par_str(extrapar['datatype'])
     if extrapar['datatype'] != 'roi':
         raise ValueError('Analysis only implemented for roi datatype.')
 
-    print(('\nAnalysing and plotting {} {} average responses by quintile '
-           '({}). \n{}{}.').format(opstr_pr, datastr, quintpar.n_quints, 
-                                   sessstr_pr, dendstr_pr))
+    print(f'\nAnalysing and plotting {opstr_pr} {datastr} average responses by '
+          f'quintile ({quintpar.n_quints}). \n{sessstr_pr}{dendstr_pr}.')
     
     # get full data for qu of interest: session x surp x [seq x ROI]
     integ_info = quint_analys.trace_stats_by_qu_sess(sessions, analyspar, 
@@ -200,24 +199,23 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
     opstr_pr = sess_str_util.op_par_str(roigrppar.plot_vals, 
                                         roigrppar.op, str_type='print')
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
-                                       sesspar.layer, stimpar.bri_dir,
+                                       sesspar.plane, stimpar.bri_dir,
                                        stimpar.bri_size, stimpar.gabk, 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                        extrapar['datatype'], 'print')
     opstr = sess_str_util.op_par_str(roigrppar.plot_vals, roigrppar.op)
     sessstr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
-                                         sesspar.layer, stimpar.bri_dir,
+                                         sesspar.plane, stimpar.bri_dir,
                                          stimpar.bri_size, stimpar.gabk, 'file')
-    dendstr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                          extrapar['datatype'])
      
     datastr = sess_str_util.datatype_par_str(extrapar['datatype'])
     if extrapar['datatype'] != 'roi':
         raise ValueError('Analysis only implemented for roi datatype.')
 
-    print(('\nAnalysing and plotting {} {} surp vs reg traces by quintile '
-           '({}). \n{}{}.').format(opstr_pr, datastr, quintpar.n_quints, 
-                                          sessstr_pr, dendstr_pr))
+    print(f'\nAnalysing and plotting {opstr_pr} {datastr} surp vs reg traces '
+          f'by quintile ({quintpar.n_quints}). \n{sessstr_pr}{dendstr_pr}.')
 
     # get sess x surp x quint x stats x ROIs x frames
     trace_info = quint_analys.trace_stats_by_qu_sess(sessions, analyspar, 
@@ -251,9 +249,8 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
     fulldir = roi_plots.plot_roi_traces_by_grp(figpar=figpar, **info)
 
     if savedict:
-        infoname = ('roi_tr_{}{}_grps_{}_{}quint_'
-                    '{}tail').format(sessstr, dendstr, opstr, 
-                                     quintpar.n_quints, permpar.tails)
+        infoname = (f'roi_tr_{sessstr}{dendstr}_grps_{opstr}_'
+                    f'{quintpar.n_quints}quint_{permpar.tails}tail')
 
         file_util.saveinfo(info, infoname, fulldir, 'json')
 
@@ -325,25 +322,25 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
     opstr_pr = sess_str_util.op_par_str(roigrppar.plot_vals, 
                                         roigrppar.op, str_type='print')
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
-                                       sesspar.layer, stimpar.bri_dir,
+                                       sesspar.plane, stimpar.bri_dir,
                                        stimpar.bri_size, stimpar.gabk, 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                        extrapar['datatype'], 'print')
    
     opstr = sess_str_util.op_par_str(roigrppar.plot_vals, roigrppar.op)
     sessstr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
-                                         sesspar.layer, stimpar.bri_dir,
+                                         sesspar.plane, stimpar.bri_dir,
                                          stimpar.bri_size, stimpar.gabk)
-    dendstr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                          extrapar['datatype'])
      
     datastr = sess_str_util.datatype_par_str(extrapar['datatype'])
     if extrapar['datatype'] != 'roi':
         raise ValueError('Analysis only implemented for roi datatype.')
 
-    print(('\nAnalysing and plotting {} {} surp vs reg average responses by '
-           'quintile ({}). \n{}{}.').format(opstr_pr, datastr, 
-                                    quintpar.n_quints, sessstr_pr, dendstr_pr))
+    print(f'\nAnalysing and plotting {opstr_pr} {datastr} surp vs reg average '
+          f'responses by quintile ({quintpar.n_quints}). \n{sessstr_pr}'
+          f'{dendstr_pr}.')
 
     # get full data for qu of interest: session x surp x [seq x ROI]
     integ_info = quint_analys.trace_stats_by_qu_sess(sessions, analyspar, 
@@ -361,7 +358,7 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
         grp_st, _ = signif_grps.grp_stats(all_me, roi_grps['all_roi_grps'], 
                                         roigrppar.plot_vals, roigrppar.op, 
                                         analyspar.stats, analyspar.error, scale)
-        roi_grps['area_stats{}'.format(scale_str)] = grp_st.tolist()
+        roi_grps[f'area_stats{scale_str}'] = grp_st.tolist()
 
     sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)
 
@@ -379,9 +376,8 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
     fulldir = roi_plots.plot_roi_areas_by_grp(figpar=figpar, **info)
 
     if savedict:
-        infoname = ('roi_area_{}{}_grps_{}_{}quint_'
-                       '{}tail').format(sessstr, dendstr, opstr, 
-                                        quintpar.n_quints, permpar.tails)
+        infoname = (f'roi_area_{sessstr}{dendstr}_grps_{opstr}_'
+                    f'{quintpar.n_quints}quint_{permpar.tails}tail')
         file_util.saveinfo(info, infoname, fulldir, 'json')
     
     return fulldir, roi_grps
@@ -420,9 +416,9 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
     opstr = sess_str_util.op_par_str(roigrppar.plot_vals, roigrppar.op)
     sessstr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
-                                         sesspar.layer, stimpar.bri_dir,
+                                         sesspar.plane, stimpar.bri_dir,
                                          stimpar.bri_size, stimpar.gabk)
-    dendstr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                          datatype)
     
     sessids = [sess.sessid for sess in sessions]
@@ -495,9 +491,8 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
             'roi_grps' : roi_grps
             }
      
-    infoname = ('roi_{}{}_grps_{}_{}q_'
-                    '{}tail').format(sessstr, dendstr, opstr, quintpar.n_quints, 
-                                     permpar.tails)
+    infoname = (f'roi_{sessstr}{dendstr}_grps_{opstr}_{quintpar.n_quints}q_'
+                f'{permpar.tails}tail')
 
     file_util.saveinfo(info, infoname, fulldir, 'json')
 
@@ -546,7 +541,7 @@ def run_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts,
 
     stimstr = sess_str_util.stim_par_str(stimpar.stimtype, stimpar.bri_dir, 
                                             stimpar.bri_size, stimpar.gabk)
-    dendstr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                             extrapar['datatype'])
        
     if extrapar['datatype'] != 'roi':
@@ -554,29 +549,27 @@ def run_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts,
 
     qu_str, qu_str_pr = quintpar.qu_lab[0], quintpar.qu_lab[0]
     if qu_str != '':
-        qu_str_pr = ', {}'.format(qu_str_pr.capitalize())
-        qu_str    = '_{}'.format(qu_str)
+        qu_str_pr = f', {qu_str_pr.capitalize()}'
+        qu_str    = f'_{qu_str}'
 
     if not analyspar.remnans:
         nanpol = 'omit'
     else:
         nanpol = None
 
-    print(('    Mouse {}, sess {}, {}, {}{}').format(sess.mouse_n, sess.sess_n, 
-                                    sess.line, sess.layer, qu_str_pr))
+    print(f'    Mouse {sess.mouse_n}, sess {sess.sess_n}, {sess.line}, '
+          f'{sess.plane}{qu_str_pr}')
     [n_seqs, roi_me, stats, 
         scale_vals, roi_sort] = [dict(), dict(), dict(), dict(), dict()]
     for o, od in enumerate(oridirs):
         for s, surp in enumerate(surps):
-            key = '{}_{}'.format(surp, od)
+            key = f'{surp}_{od}'
             me = mes[o][se][s] # me per ROI
             n_seqs[key] = counts[o][se][s]
             # sorting idx
             roi_sort[key] = np.argsort(np.argmax(me, axis=1)).tolist()
-            scale_vals['{}_max'.format(key)] = np.max(me, 
-                                                        axis=1).tolist()
-            scale_vals['{}_min'.format(key)] = np.min(me, 
-                                                        axis=1).tolist()
+            scale_vals[f'{key}_max'] = np.max(me, axis=1).tolist()
+            scale_vals[f'{key}_min'] = np.min(me, axis=1).tolist()
             roi_me[key] = me.tolist()
             # stats across ROIs
             stats[key]  = math_util.get_stats(me, analyspar.stats, 
@@ -605,9 +598,8 @@ def run_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts,
 
     fulldir = roi_plots.plot_oridir_traces(figpar=figpar, **info)
 
-    savename = ('roi_cm_tr_m{}_'
-                'sess{}{}_{}_{}{}').format(sess.mouse_n, sess.sess_n, 
-                                          qu_str, stimstr, sess.layer, dendstr)
+    savename = (f'roi_cm_tr_m{sess.mouse_n}_sess{sess.sess_n}{qu_str}_'
+                f'{stimstr}_{sess.plane}{dendstr}')
 
     file_util.saveinfo(info, savename, fulldir, 'json')
 
@@ -724,9 +716,9 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar,
     stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, keys, vals)            
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
-                                       sesspar.layer, stimpar.bri_dir, 
+                                       sesspar.plane, stimpar.bri_dir, 
                                        stimpar.bri_size, stimpar.gabk, 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                             datatype, 'print')
   
     # split quintiles apart and add a quint=1
@@ -738,8 +730,8 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar,
                                             qu_lab_pr)
         quintpars.append(qp)
 
-    print(('\nAnalysing and plotting colormaps and '
-           'traces ({}{}).').format(sessstr_pr, dendstr_pr))
+    print('\nAnalysing and plotting colormaps and '
+          f'traces ({sessstr_pr}{dendstr_pr}).')
 
     extrapar = {'analysis': analysis,
                 'datatype': datatype,
@@ -797,13 +789,13 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
         return
     
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
-                                       sesspar.layer, stimpar.bri_dir, 
+                                       sesspar.plane, stimpar.bri_dir, 
                                        stimpar.bri_size, stimpar.gabk, 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                             datatype, 'print')
   
-    print(('\nAnalysing and plotting ROI tuning curves for orientations '
-           '({}{}).').format(sessstr_pr, dendstr_pr))
+    print('\nAnalysing and plotting ROI tuning curves for orientations '
+          f'({sessstr_pr}{dendstr_pr}).')
 
     nrois = 'all'
     ngabs = 'all'
@@ -814,7 +806,7 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
         ngabs = 'all'
         comb_gabs_all = [True]
     
-    print('Number ROIs: {}\nNumber of gabors: {}'.format(nrois, ngabs))
+    print(f'Number ROIs: {nrois}\nNumber of gabors: {ngabs}')
 
     # modify parameters
     stimpar_tc = sess_ntuple_util.get_modif_ntuple(stimpar, ['gabfr', 'pre', 
@@ -974,20 +966,20 @@ def run_posori_resp(sessions, analysis, analyspar, sesspar, stimpar, figpar,
         return
     
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
-                                       sesspar.layer, stimpar.bri_dir, 
+                                       sesspar.plane, stimpar.bri_dir, 
                                        stimpar.bri_size, stimpar.gabk, 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                             datatype, 'print')
   
     datastr = sess_str_util.datatype_par_str(datatype)
     
-    print(('\nAnalysing and plotting {} location preferences '
-           '({}{}).').format(datastr, sessstr_pr, dendstr_pr))
+    print(f'\nAnalysing and plotting {datastr} location preferences '
+          f'({sessstr_pr}{dendstr_pr}).')
 
     nrois = 'all'
     nrois = 8
     
-    print('Number ROIs: {}'.format(nrois))
+    print(f'Number ROIs: {nrois}')
 
     # modify parameters
     stimpar_loc = sess_ntuple_util.get_modif_ntuple(stimpar, ['pre', 'post'], 

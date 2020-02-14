@@ -27,8 +27,8 @@ import scipy.signal as scsig
 
 from allensdk.brain_observatory import dff, roi_masks
 
-from sess_util import sess_data_util, sess_file_util, sess_pupil_util, \
-                      sess_sync_util
+from sess_util import sess_data_util, sess_file_util, sess_load_util, \
+                      sess_pupil_util, sess_sync_util
 from util import file_util, gen_util, math_util
 
 
@@ -46,7 +46,8 @@ class Session(object):
     pointers to the 2p data.
     """
     
-    def __init__(self, datadir, sessid, runtype='prod', droptol=0.0003):
+    def __init__(self, datadir, sessid, runtype='prod', droptol=0.0003, 
+                 verbose=False):
         """
         self.__init__(datadir, sessid)
 
@@ -68,13 +69,17 @@ class Session(object):
             - sessid (int) : the ID for this session.
 
         Optional args:
-            - runtype (str)   : the type of run, either 'pilot' or 'prod'
-                                default: 'prod'
-            - droptol (num)   : the tolerance for percentage stimulus frames 
-                                dropped, create a Warning if this condition 
-                                isn't met.
-                                default: 0.0003 
+            - runtype (str) : the type of run, either 'pilot' or 'prod'
+                              default: 'prod'
+            - droptol (num) : the tolerance for percentage stimulus frames 
+                              dropped, create a Warning if this condition 
+                              isn't met.
+                              default: 0.0003 
+            - verbose (bool): if True, will print instructions on next steps to 
+                              load all necessary data
+                              default: True
         """
+
 
         self.home   = datadir
         self.sessid = int(sessid)
@@ -84,7 +89,20 @@ class Session(object):
         self.runtype = runtype
         self.droptol = droptol
         self._init_directory()
-        
+
+        if verbose:
+            print('To load mouse database information into the session, run '
+                  '`sess.extract_sess_attribs()`.\nTo load stimulus, '
+                  'behaviour and ophys data, run `self.extract_info()`')
+
+
+    #############################################
+    def __repr__(self):
+        return f"{self.__class__.__name__}('{self.sessid}')"
+
+    def __str__(self):
+        return repr(self)
+
 
     #############################################
     def _init_directory(self):
@@ -96,7 +114,7 @@ class Session(object):
         
             - align_pkl (str)       : path name of the stimulus alignment pickle 
                                       file
-            - behav_h5 (str)        : path name of the behavior hdf5 file
+            - behav_h5_video (str)  : path name of the behavior hdf5 file
             - correct_data_h5 (str) : path name of the motion corrected 2p data 
                                       hdf5 file
             - date (str)            : session date (i.e., yyyymmdd)
@@ -104,8 +122,9 @@ class Session(object):
             - expdir (str)          : path name of experiment directory
             - expid (int)           : experiment ID (8 digits)
             - mouseid (int)         : mouse ID (6 digits)
+            - mouse_dir (bool)      : whether path includes a mouse directory
             - procdir (str)         : path name of the processed data directory
-            - pupilh5 (str)         : path name of the pupil hdf5 file
+            - pupil_h5_video (str)  : path name of the pupil hdf5 file
             - roi_trace_h5 (str)    : path name of the ROI raw fluorescence trace 
                                       hdf5 file
             - roi_trace_dff_h5 (str): path name of the ROI raw dF/F trace 
@@ -121,55 +140,29 @@ class Session(object):
         # check that the high-level home directory exists
         file_util.checkdir(self.home)
 
-        # set the session directory (full path)
-        wild_dir  = os.path.join(self.home, self.runtype, 'mouse_*', 
-                                 'ophys_session_{}'.format(self.sessid))
-        name_dir  = glob.glob(wild_dir)
-        self.mouse_dir = True
-        
-        # pilot data may not be in a 'mouse_' folder
-        if len(wild_dir) == 0:
-            wild_dir  = os.path.join(self.home, self.runtype,  
-                                     'ophys_session_{}'.format(self.sessid))
-            name_dir  = glob.glob(wild_dir)
-            self.mouse_dir = False
-        
-        if len(name_dir) == 0:
-            raise OSError(('Could not find directory for session {} in {}'
-                           ' subfolders').format(self.sessid, self.home))
-        self.dir = name_dir[0]
+        sessdir, mouse_dir = sess_file_util.get_sess_dir_path(self.home, 
+                                            self.runtype, self.sessid)
+        self.dir       = sessdir
+        self.mouse_dir = mouse_dir
 
-        # extract the mouse ID, and date from the stim pickle file
-        pklglob = glob.glob(os.path.join(self.dir, 
-                                         '{}*stim.pkl'.format(self.sessid)))
-        
-        if len(pklglob) == 0:
-            raise OSError('Could not find stim pkl file in {}'.format(self.dir))
-        else:
-            pklinfo = os.path.basename(pklglob[0]).split('_')
-        
-        self.mouseid = int(pklinfo[1]) # mouse 6 digit nbr
-        self.date    = pklinfo[2]
+        mouseid, date = sess_file_util.get_mouse_date(self.dir, self.sessid)
+        self.mouseid = mouseid
+        self.date    = date
 
-        # extract the experiment ID from the experiment directory name
-        expglob = glob.glob(os.path.join(self.dir,'ophys_experiment*'))
-        if len(expglob) == 0:
-            raise OSError(('Could not find experiment directory '
-                           'in {}').format(self.dir))
-        else:
-            expinfo = os.path.basename(expglob[0]).split('_')
-        self.expid = int(expinfo[2])
+        expid = sess_file_util.get_expid(self.dir)
+        self.expid = expid
 
-        # create the filenames
-        (self.expdir, self.procdir, filepaths) = \
+        (expdir, procdir, filepaths) = \
             sess_file_util.get_file_names(self.home, self.sessid, self.expid, 
                                           self.date, self.mouseid, 
                                           self.runtype, self.mouse_dir)  
+        self.expdir           = expdir
+        self.procdir          = procdir
         self.stim_pkl         = filepaths['stim_pkl']
         self.stim_sync_h5     = filepaths['stim_sync_h5']
         self.align_pkl        = filepaths['align_pkl']
-        self.behav_h5         = filepaths['behav_h5']
-        self.pupil_h5         = filepaths['pupil_h5']
+        self.behav_h5_video   = filepaths['behav_h5_video']
+        self.pupil_h5_video   = filepaths['pupil_h5_video']
         self.time_sync_h5     = filepaths['time_sync_h5']
         self.roi_trace_h5     = filepaths['roi_trace_h5']
         self.roi_trace_dff_h5 = filepaths['roi_trace_dff_h5']
@@ -177,114 +170,97 @@ class Session(object):
         # existence not checked in get_file_names()
         # self.zstack_h5 = filepaths['zstack_h5']
         # self.correct_data_h5 = filepaths['correct_data_h5']
-        
-
-    #############################################
-    def _create_small_stim_pkl(self, small_stim_pkl):
-        """
-        self._create_small_stim_pkl(small_stim_pkl)
-
-        Creates and saves a smaller stimulus dictionary from the stimulus  
-        pickle file in which 'posbyframe' for bricks stimuli is not included. 
-        Reduces the pickle size about 10 fold.
-
-        Required args:
-            - small_stim_pkl (str): full path name for the small stimulus
-                                    pickle file
-        """
     
-        print('    Creating smaller stimulus pickle.')
 
-        self.stim_dict = file_util.loadfile(self.stim_pkl)
+    #############################################
+    @property
+    def pup_data_h5(self):
+        """
+        self.pup_data_h5
 
-        if self.runtype == 'pilot':
-            stim_par_key = 'stimParams'
-        elif self.runtype == 'prod':
-            stim_par_key = 'stim_params'
+        Returns:
+            - _pup_data_h5 (list or str): single pupil data file path if one is 
+                                          found, a list if several are found 
+                                          and 'none' if none is found
+        """
+        
+        if not hasattr(self, '_pup_data_h5'):
+            self._pup_data_h5 = sess_load_util.get_pupil_data_h5_path(self.dir)
 
-        for i in range(len(self.stim_dict['stimuli'])):
-            stim_keys = self.stim_dict['stimuli'][i][stim_par_key].keys()
-            stim_par = self.stim_dict['stimuli'][i][stim_par_key]
-            if self.runtype == 'pilot' and 'posByFrame' in stim_keys:
-                _ = stim_par.pop('posByFrame')
-            elif self.runtype == 'prod' and 'square_params' in stim_keys:
-                _ = stim_par['session_params'].pop('posbyframe')
-                
-        file_util.saveinfo(self.stim_dict, small_stim_pkl)
+        return self._pup_data_h5
 
 
     #############################################
-    def _load_run_speed(self, diff_thr=100):
+    def _load_sync_h5_data(self):
         """
-        self._load_run_speed()
+        self._load_sync_h5s()
 
-        Loads run speed and replaces outliers with NaNs (for self.run) and
-        replaces outliers with interpolated values (for self.run_interp)
+        Loads the synchronisation hdf5 files for behavior and pupil.
 
-        Sets the following attribute:
-            - run (1D array)         : array of running speeds in cm/s for each 
-                                       recorded stimulus frames
-            - run_facts (list)       : stand. factors (IQR, median) for running
-            - run_interp (1D array)  : array of running speeds in cm/s for each
-                                       recorded stimulus frames, where NaNs are
-                                       reinterpolated
-            - run_interp_facts (list): stand. factors (IQR, median) for 
-                                       interpolated running
-            - tot_run_fr (1D array)  : number of running speed frames
-        
-        Optional args:
-            - diff_thr (int): threshold of difference in running speed to 
-                              identify outliers
-                              default: 100
+        Sets the following attributes:
+            - pup_fps (num)           : average pupil frame rate (frames per 
+                                        sec)
+            - pup_fr_interv (1D array): interval in sec between each pupil 
+                                        frame
+            - stim2twopfr2 (1D array) : 2p frame numbers for each stimulus 
+                                        frame, as well as the flanking
+                                        blank screen frames (second 
+                                        version, very similar to stim2twopfr 
+                                        with a few differences)
+            - tot_pup_fr (int)        : total number of pupil frames
+            - twop2bodyfr (1D array)  : body-tracking video (video-0) frame 
+                                        numbers for each 2p frame
+            - twop2pupfr (1D array)   : eye-tracking video (video-1) frame 
+                                        numbers for each 2p frame
         """
 
-        self.run = sess_sync_util.get_run_speed(stim_dict=self.stim_dict)
-        self.run_interp = copy.deepcopy(self.run)
+        [pup_fr_interv, twop2bodyfr, 
+         twop2pupfr, stim2twopfr2] = sess_load_util.load_sync_h5_data(
+                                         self.pup_data_h5, self.time_sync_h5)
+        self.pup_fr_interv = pup_fr_interv
+        self.twop2bodyfr   = twop2bodyfr
+        self.twop2pupfr    = twop2pupfr
+        self.stim2twopfr2  = stim2twopfr2
 
-        self.tot_run_fr = len(self.run)
+        self._pup_fps = 1/(np.mean(self.pup_fr_interv))
+        self._tot_pup_fr = len(self.pup_fr_interv + 1)
 
-        # identify outliers by identifying unusual changes in running speed
-        run_diff = np.diff(self.run)
-
-        out_idx = np.where((run_diff < -diff_thr) | (run_diff > diff_thr))[0]
-
-        if len(out_idx) > 0:
-            print(('    WARNING: {} running values were replaced with '
-                   'NaNs.').format(len(out_idx)))
-        
-        at_idx = -1
-        for idx in out_idx:
-            if idx > at_idx:
-                orig = idx
-                if idx == 0:
-                    # in case the first value is completely off
-                    comp_val = 0
-                    if np.absolute(self.run[0]) > diff_thr:
-                        self.run[0] = np.nan
-                        orig = -1
-                else:
-                    comp_val = self.run[idx]
-                while np.absolute(self.run[idx + 1] - comp_val) > diff_thr:
-                    self.run[idx + 1] = np.nan
-                    idx += 1
-                # linearly reinterpolate in the values
-                self.run_interp[orig+1:idx+1] = np.mean([comp_val, 
-                                                       self.run[idx + 1]])
-                if idx - orig > 5:
-                    print(('    WARNING: {} consecutive running values had '
-                           'to be dropped.'.format(idx - orig)))
-                at_idx = idx
-        
-        self.run_interp = math_util.lin_interp_nan(self.run)
-
-        self.run_facts = math_util.scale_facts(self.run, sc_type='stand_rob', 
-                                   extrem='reg', nanpol='omit')[0:2]
-        self.run_interp_facts = math_util.scale_facts(self.run_interp, 
-                                    sc_type='stand_rob', extrem='reg',
-                                    nanpol='omit')[0:2]
-
-
+    
     #############################################
+    def _load_align_df(self):
+        """
+        self._load_align_df()
+
+        Loads stimulus dataframe and alignment information.
+
+        Sets the following attributes:
+            - stim_df (pd DataFrame): stimlus alignment dataframe with columns:
+                                        'stimType', 'stimPar1', 'stimPar2', 
+                                        'surp', 'stimSeg', 'gabfr', 
+                                        'start2pfr', 'end2pfr', 'num2pfr'
+            - stim2twopfr (1D array): 2p frame numbers for each stimulus frame, 
+                                      as well as the flanking
+                                      blank screen frames 
+            - twop_fps (num)        : mean 2p frames per second
+            - twop_fr_stim (int)    : number of 2p frames recorded while stim
+                                      was playing
+            - twop2stimfr (1D array): stimulus frame numbers for the beginning
+                                      of each 2p frame (np.nan when no stimulus
+                                      appears)
+        """
+
+        [stim_df, stim2twopfr, 
+         twop_fps, twop_fr_stim] = sess_load_util.load_stim_df_info(
+                self.stim_pkl, self.align_pkl, self.stim_sync_h5, self.runtype)
+
+        self.stim_df      = stim_df
+        self.stim2twopfr  = stim2twopfr
+        self.twop_fps     = twop_fps
+        self.twop_fr_stim = twop_fr_stim
+        self.twop2stimfr  = sess_sync_util.get_twop2stimfr(stim2twopfr, len(twop2pupfr))
+
+
+ #############################################
     def _load_stim_dict(self, fulldict=True):
         """
         self._load_stim_dict()
@@ -300,6 +276,7 @@ class Session(object):
                                     stimulus end
             - pre_blank (num)     : number of blank screen seconds before the
                                     stimulus start 
+            - stim_dict (dict)    : stimulus dictionary
             - stim_fps (num)      : stimulus frames per second
             - tot_stim_fr (int)   : number of stimulus frames
 
@@ -314,15 +291,9 @@ class Session(object):
             self.stim_dict = file_util.loadfile(self.stim_pkl)
 
         else:
-            # load the smaller dict
-            small_stim_pkl = '{}_small.pkl'.format(self.stim_pkl[0:-4])
-            if not os.path.exists(small_stim_pkl):
-                self._create_small_stim_pkl(small_stim_pkl[0:-4])
-            else:
-                self.stim_dict = file_util.loadfile(small_stim_pkl)
-            print('    Using smaller stimulus pickle.')
-
-        # store some variables for easy access
+            self.stim_dict = sess_load_util.load_small_stim_pkl(self.stim_pkl, 
+                                            self.runtype)
+        
         self.stim_fps       = self.stim_dict['fps']
         self.tot_stim_fr    = self.stim_dict['total_frames']
         self.pre_blank      = self.stim_dict['pre_blank_sec']  # seconds
@@ -330,205 +301,108 @@ class Session(object):
         self.drop_stim_fr   = self.stim_dict['droppedframes']
         self.n_drop_stim_fr = len(self.drop_stim_fr[0])
 
-        # running speed per stimulus frame in cm/s
-        self._load_run_speed()
-
-        # check our drop tolerance
-        if np.float(self.n_drop_stim_fr)/self.tot_stim_fr > self.droptol:
-            print('    WARNING: {} dropped stimulus frames out of {}.'
-                  .format(self.n_drop_stim_fr, self.tot_stim_fr))
-        
-
-    #############################################
-    def _get_twop2stimfr(self):
-        """
-        self._get_twop2stimfr()
-
-        Creates the 2p to stimulus frame alignment list.
-        
-        Sets the following attribute:
-            - twop2stimfr (1D array): stimulus frame numbers for the beginning
-                                      of each 2p frame (np.nan when no stimulus
-                                      appears)
-        """
-
-        stim2twopfr_diff = np.append(1, np.diff(self.stim2twopfr))
-        stim_idx = np.where(stim2twopfr_diff)[0]
-
-        dropped = np.where(stim2twopfr_diff > 1)[0]
-        if len(dropped) > 0:
-            print(('    WARNING: {} dropped stimulus frames sequences '
-                   '(2nd align).'.format(len(dropped))))
-            # repeat stim idx when frame is dropped
-            for drop in dropped[-1:]:
-                loc = np.where(stim_idx == drop)[0][0]
-                add = [stim_idx[loc-1]] * (stim2twopfr_diff[drop] - 1)
-                stim_idx = np.insert(stim_idx, loc, add)
-        
-        self.twop2stimfr = np.full(len(self.twop2pupfr), np.nan) 
-        start = int(self.stim2twopfr[0])
-        end = int(self.stim2twopfr[-1]) + 1
-        try:
-            self.twop2stimfr[start:end] = stim_idx
-        except:
-            print('    WARNING: self._get_twop2stimf() not working for '
-                  'this session.')
+        sess_sync_util.check_drop_tolerance(self.n_drop_stim_fr, 
+                                            self.tot_stim_fr, self.droptol, 
+                                            raise_exc=False)
 
 
     #############################################
-    def _load_sync_h5s(self):
+    def load_run_data(self, diff_thr=100, interp=True, replace=False):
         """
-        self._load_sync_h5s()
+        self.load_run_data()
 
-        Loads the synchronisation hdf5 files for behavior and pupil, and
-        calls self._get_twopfr2stim().
+        Sets attribute with running with outliers replaced with NaNs.
+            - run (1D array)       : array of running velocities in cm/s for 
+                                     each recorded stimulus frames with outliers 
+                                     replaced with NaNs
+            - run_facts (list)     : stand. factors (IQR, median) for running
+            - tot_run_fr (1D array): number of running velocity frames
 
-        Sets the following attributes
-            - pup_fps (num)           : average pupil frame rate (frames per 
-                                        sec)
-            - pup_fr_interv (1D array): interval in sec between each pupil 
-                                        frame
-            - stim2twopfr2 (1D array) : 2p frame numbers for each stimulus 
-                                        frame, as well as the flanking
-                                        blank screen frames (second 
-                                        version, very similar to stim2twopfr 
-                                        with a few differences)
-            - twop2bodyfr (1D array)  : body-tracking video (video-0) frame 
-                                        numbers for each 2p frame
-            - twop2pupfr (1D array)   : eye-tracking video (video-1) frame 
-                                        numbers for each 2p frame
+            if interp:
+            - run_interp (1D array)  : array of running velocities in cm/s for 
+                                       each recorded stimulus frames, where 
+                                       NaNs are reinterpolated
+            - run_interp_facts (list): stand. factors (IQR, median) for 
+                                       interpolated running
+
+        Optional args:
+            - diff_thr (int): threshold of difference in running velocity to 
+                              identify outliers
+                              default: 100
+            - interp (bool) : if True, interpolated running data is also loaded
+                              default: True
+            - replace (bool): if True, running data is replaced
+                              default: False
         """
 
-        with h5py.File(self.pupil_h5, 'r') as f:
-            self.pup_fr_interv = f['frame_intervals'].value.astype('float64')
+        if hasattr(self, 'run') and replace:
+            print(f'Replacing running values using {diff_thr} difference '
+                   'threshold. All running attributes will also be reset.')
+            delattr(self, 'run')
 
-        with h5py.File(self.time_sync_h5, 'r') as f:
-            self.twop2bodyfr  = f['body_camera_alignment'].value.astype('int')
-            self.twop2pupfr   = f['eye_tracking_alignment'].value.astype('int')
-            self.stim2twopfr2 = f['stimulus_alignment'].value.astype('int')
+            if hasattr(self, 'run_interp'):
+                delattr(self, 'run_interp')
+                interp = True
 
-        self.pup_fps = 1/(np.mean(self.pup_fr_interv))
-        self.tot_pup_fr = len(self.pup_fr_interv + 1)
-        self._get_twop2stimfr()
+        if not hasattr(self, 'run'):
+            self.run        = sess_load_util.load_run_data(self.stim_dict, 
+                                             diff_thr)
+            self.run_facts  =  math_util.scale_facts(self.run, 
+                                         sc_type='stand_rob', extrem='reg',
+                                         nanpol='omit')[0:2]
+            self.tot_run_fr =  len(self.run)
+
+        if not hasattr(self, '_run_interp') and interp:
+            self.run_interp       = math_util.lin_interp_nan(self.run)
+            self.run_interp_facts =  math_util.scale_facts(self.run_interp, 
+                                            sc_type='stand_rob', extrem='reg',
+                                            nanpol='omit')[0:2]
 
 
     #############################################
-    def _load_stim_df(self):
+    def load_pup_data(self):
         """
-        self._load_stim_df()
-
-        Creates the alignment dataframe (stim_df) and stores it as a pickle
-        in the session directory, if it does not already exist. Loads
-        it if it exists, along with the stimulus to 2p frame alignment list 
-        (stim2twopfr).
-        Sets the following attributes:
-        
-            - stim_df (pd DataFrame): stimlus alignment dataframe with columns:
-                                        'stimType', 'stimPar1', 'stimPar2', 
-                                        'surp', 'stimSeg', 'gabfr', 
-                                        'start2pfr', 'end2pfr', 'num2pfr'
-            - stim2twopfr (1D array): 2p frame numbers for each stimulus frame, 
-                                      as well as the flanking
-                                      blank screen frames 
-            - twop_fps (num)        : mean 2p frames per second
-            - twop_fr_stim (int)    : number of 2p frames recorded while stim
-                                      was playing
-        """
-
-        # create stim_df if doesn't exist
-        if not os.path.exists(self.align_pkl):
-            sess_sync_util.get_stim_frames(self.stim_pkl, self.stim_sync_h5, 
-                                           self.align_pkl, self.runtype)
-            
-        else:
-            print('    NOTE: Stimulus alignment pickle already exists in {}'
-                  .format(self.dir))
-
-        align = file_util.loadfile(self.align_pkl)
-
-        self.stim_df = align['stim_df']
-        self.stim_df = self.stim_df.rename(columns={'GABORFRAME': 'gabfr', 
-                                                    'start_frame': 'start2pfr', 
-                                                    'end_frame': 'end2pfr', 
-                                                    'num_frames': 'num2pfr'})
-        self.stim2twopfr  = align['stim_align'].astype('int')
-        self.twop_fps     = sess_sync_util.get_frame_rate(self.stim_sync_h5)[0] 
-        self.twop_fr_stim = int(max(align['stim_align']))
-
-
-    #############################################
-    def _find_pup_data(self):
-        """
-        self._find_pup_data()
-
-        Looks for pupil tracking data, and if an h5 is found, saves 
-        location as an attribute (does not check whether there are many.) 
-
-        Sets the following attributes:
-            - pup_data_h5 (str): path to the pupil data h5, 'none' if none 
-                                 is found
-        """
-        
-        name_part = '*pupil_data_df.h5'
-        pupil_data_files = glob.glob(os.path.join(self.dir, name_part))
-
-        if len(pupil_data_files) > 0:
-            self.pup_data_h5 = pupil_data_files[0]
-        else:
-            self.pup_data_h5 = 'none'
-            
-
-    #############################################
-    def _load_pup_data(self):
-        """
-        self._load_pup_data()
+        self.load_pup_data()
 
         If it exists, loads the pupil tracking data. Extracts pupil diameter
         and position information in pixels.
 
         Sets the following attributes:
-            - pup_data_h5 (str)                : path to the pupil data csv
-
             where blinks and outlier values have been replaced with NaNs:
-            - pup_center_x (1D array)          : pupil center position for x at 
-                                                 each pupil frame in pixels
-            - pup_center_x_facts (list)        : stand. factors (std, mean) for 
-                                                 pupil center position for x
-            - pup_center_y (1D array)          : pupil center position for y at 
-                                                 each pupil frame in pixels
-            - pup_center_y_facts (list)        : stand. factors (std, mean) for 
-                                                 pupil center position for y
-            - pup_center_diff (1D array)       : change in pupil center between 
-                                                 each pupil frames in pixels
-            - pup_center_diff_facts (list)     : stand. factors (std, mean) for 
-                                                 change in pupil center between
-                                                 each pupil frames
-            - pup_diam (1D array)              : median pupil diameter in pixels
-            - pup_diam_facts (list)            : stand. factors (std, mean) for 
-                                                 pupil diameters
+            - pup_center_x (1D array)     : pupil center position for x at 
+                                            each pupil frame in pixels
+            - pup_center_x_facts (list)   : stand. factors (std, mean) for 
+                                            pupil center position for x
+            - pup_center_y (1D array)     : pupil center position for y at 
+                                            each pupil frame in pixels
+            - pup_center_y_facts (list)   : stand. factors (std, mean) for 
+                                            pupil center position for y
+            - pup_center_diff (1D array)  : change in pupil center between 
+                                            each pupil frames in pixels
+            - pup_center_diff_facts (list): stand. factors (std, mean) for 
+                                            change in pupil center between
+                                            each pupil frames
+            - pup_diam_facts (list)       : stand. factors (std, mean) for 
+                                            pupil diameters
 
             same, as above but with blinks and outlier values linearly 
             interpolated:            
-            - pup_center_x (1D array)
-            - pup_center_x_facts (list)
-            - pup_center_y (1D array)
-            - pup_center_y_facts (list)
-            - pup_center_diff (1D array)
-            - pup_center_diff_facts (list)
-            - pup_diam (1D array)
-            - pup_diam_facts (list)
+            - pup_center_x_interp (1D array)
+            - pup_center_x_interp_facts (list)
+            - pup_center_y_interp (1D array)
+            - pup_center_y_interp_facts (list)
+            - pup_center_diff_interp (1D array)
+            - pup_center_diff_interp_facts (list)
+            - pup_diam_interp (1D array)
+            - pup_diam_interp_facts (list)
         """
 
-        print('Loading pupil tracking information.')
+        if hasattr(self, 'pup_diam'):
+            return
+        
+        [self.pup_diam, self.pup_center_x, 
+            self.pup_center_y] = sess_load_util.load_pup_data(self.pup_data_h5)
 
-        if self.pup_data_h5 == 'none':
-            raise OSError('No pupil data file found.')
-        
-        pup_data = pd.read_hdf(self.pup_data_h5)
-        
-        self.pup_diam = pup_data['nan_diam'].to_numpy()
-        self.pup_center_x = pup_data['nan_center_x'].to_numpy()
-        self.pup_center_y = pup_data['nan_center_y'].to_numpy()
         self.pup_center_diff = sess_pupil_util.get_center_dist_diff(
                                     self.pup_center_x, self.pup_center_y)
 
@@ -583,8 +457,8 @@ class Session(object):
             gen_util.accepted_values_error('fluor', fluor, ['raw', 'dff'])
         
         if not os.path.exists(full_trace_file):
-            raise ValueError(('Specified ROI traces file does not exist: '
-                              '{}').format(full_trace_file))
+            raise ValueError('Specified ROI traces file does not exist: '
+                             f'{full_trace_file}')
         
         with h5py.File(full_trace_file, 'r') as f:
             traces = f['data'].value
@@ -650,15 +524,15 @@ class Session(object):
         """
 
         if not os.path.exists(self.roi_trace_dff_h5) or replace:
-            print(('    Creating dF/F files using {} basewin '
-                   'for session {}').format(basewin, self.sessid))
+            print(f'    Creating dF/F files using {basewin} basewin '
+                  f'for session {self.sessid}')
             # read the data points into the return array
             with h5py.File(self.roi_trace_h5,'r') as f:
                 try:
                     traces = f['data'].value
                 except:
                     pdb.set_trace()
-                    raise OSError('Could not read {}'.format(self.roi_trace_h5))
+                    raise OSError(f'Could not read {self.roi_trace_h5}')
             
             traces = dff.compute_dff(traces, mode_kernelsize=2*basewin, 
                                      mean_kernelsize=basewin)
@@ -704,7 +578,7 @@ class Session(object):
         """
         self.dend = 'aibs'
 
-        if self.layer == 'dend' and dend == 'extr':
+        if self.plane == 'dend' and dend == 'extr':
             act_names, prev_names = sess_file_util.get_dendritic_trace_paths(
                                                self.roi_trace_h5)
             
@@ -716,8 +590,8 @@ class Session(object):
                     self.roi_trace_dff_h5 = names[1]
                     break
                 elif n == 1: # neither name bears results
-                    print(('    No extr extracted dendrites found. AIBS '
-                           'extracted dendrites will be used instead.'))
+                    print('    No extr extracted dendrites found. AIBS '
+                          'extracted dendrites will be used instead.')
             
         self._create_dff(basewin=basewin)
 
@@ -742,8 +616,7 @@ class Session(object):
                                             extrem='perc', allow_0=True)[0:2])
     
         except:
-            raise OSError(('Could not open {} for '
-                        'reading').format(self.roi_trace_h5))
+            raise OSError(f'Could not open {self.roi_trace_h5} for reading.')
 
         # generate attribute listing ROIs with NaNs or Infs (for raw traces)
         self._set_nanrois('raw')
@@ -773,8 +646,8 @@ class Session(object):
             break_idx = np.where(num_fr != bri_num_fr)[0]
             n_br = len(break_idx)
             if n_br != 1:
-                raise ValueError(('Expected only one break in the bricks '
-                                  'stimulus, but found {}.'.format(n_br)))
+                raise ValueError('Expected only one break in the bricks '
+                                 f'stimulus, but found {n_br}.')
             
             # last start frame and seg for the first brick stim
             last_fr1 = bri_st_fr[break_idx[0]] 
@@ -790,81 +663,18 @@ class Session(object):
                                                  'stimSeg', new_idx)
 
             self._bri_segs_modified = True
-                
-
-    #############################################
-    def extract_sess_attribs(self, mouse_df='mouse_df.csv'):
-        """
-        self.extract_sess_attribs(mouse_df)
-
-        This function should be run immediately after creating a Session 
-        object. It loads the dataframe containing information on each session,
-        and sets the following attributes:
-
-            - all_files (bool) : if True, all files have been acquired for
-                                 the session
-            - any_files (bool) : if True, some files have been acquired for
-                                 the session
-            - depth (int)      : recording depth 
-            - layer (str)      : recording layer ('soma' or 'dend')
-            - line (str)       : mouse line (e.g., 'L5-Rbp4')
-            - mouse_n (int)    : mouse number (e.g., 1)
-            - notes (str)      : notes from the dataframe on the session
-            - pass_fail (str)  : whether session passed 'P' or failed 'F' 
-                                 quality control
-            - sess_gen (int)   : general session number (e.g., 1)
-            - sess_within (int): within session number (session number within
-                                 the sess_gen) (e.g., 1)
-            - sess_n (int)     : overall session number (e.g., 1)
-
-        Required args:
-        - mouse_df (str): path name of dataframe containing information on each 
-                          session. Dataframe should have the following columns:
-                              sessid, mouse_n, depth, layer, line, sess_gen, 
-                              sess_within, sess_n, pass_fail, all_files, 
-                              any_files, notes
-        """
-
-        if isinstance(mouse_df, str):
-            mouse_df = file_util.loadfile(mouse_df)
-
-        df_line = gen_util.get_df_vals(mouse_df, 'sessid', self.sessid)
-        self.mouse_n      = int(df_line['mouse_n'].tolist()[0])
-        self.depth        = df_line['depth'].tolist()[0]
-        self.layer        = df_line['layer'].tolist()[0]
-        self.line         = df_line['line'].tolist()[0]
-        self.sess_gen     = int(df_line['sess_gen'].tolist()[0])
-        self.sess_n       = int(df_line['sess_n'].tolist()[0])
-        self.sess_within  = int(df_line['sess_within'].tolist()[0])
-        self.pass_fail    = df_line['pass_fail'].tolist()[0]
-        self.all_files    = bool(int(df_line['all_files'].tolist()[0]))
-        self.any_files    = bool(int(df_line['any_files'].tolist()[0]))
-        self.notes        = df_line['notes'].tolist()[0]
 
 
     #############################################
-    def extract_info(self, fulldict=True, basewin=1000, dend='extr'):
+    def _load_stims(self):
         """
-        self.extract_info()
-
-        This function should be run immediately after creating a Session 
-        object and running self.extract_sess_attribs(). It creates the 
-        stimulus objects attached to the Session, and loads the ROI traces, 
-        running data, synchronization data, etc. If stimtypes have not been 
-        initialized, also initializes stimtypes.
-
-        Calls:
-            self._load_stim_df()
-            self._load_roi_trace_info()
-            self._load_stim_dict()
-            self._load_sync_h5s()
-            self._find_pup_data()
-
-        If the runtype is 'prod', calls self._modif_bri_segs().
-
+        self._load_stims()
+        
         Initializes the following attributes, including Stim objects (Gabors, 
         Bricks, Grayscr), if the stimtypes attribute has not already been
         initialized:
+
+        If the runtype is 'prod', calls self._modif_bri_segs().
 
             - bricks (list or Bricks object): session bricks object, if 
                                               runtype is 'pilot' or list
@@ -879,44 +689,7 @@ class Session(object):
                                               (i.e., 'gabors', 'bricks')
             - stims (list)                  : list of stimulus objects in the
                                               session
-
-
-        Optional args:
-            - fulldict (bool): if True, the full stim_dict is loaded,
-                               else the small stim_dict is loaded
-                               (which contains everything, except 'posbyframe' 
-                               for Bricks)
-                               default: True
-            - basewin (int)  : window length for calculating baseline 
-                               fluorescence
-                               default: 1000
-            - dend (str)     : dendritic traces to use ('aibs' for the 
-                               original extracted traces and 'extr' for the
-                               ones extracted with Hakan's EXTRACT code, if
-                               available)
-                               default: 'extr'
         """
-
-        if not hasattr(self, 'layer'):
-            raise ValueError(('Session attributes missing to extract info. '
-                              'Make sure to run self.extract_sess_attribs() '
-                              'first'))
-
-        # load the stimulus, running, alignment and trace information 
-        print('\nLoading stimulus dictionary...')
-        self._load_stim_dict(fulldict=fulldict)
-    
-        print('Loading alignment dataframe...')
-        self._load_stim_df()
-    
-        print('Loading ROI trace info...')
-        self._load_roi_trace_info(basewin=basewin, dend=dend)
-        
-        print('Loading sync h5 info...')
-        self._load_sync_h5s()
-
-        # Look for pupil data file
-        self._find_pup_data()
 
         if hasattr(self, 'stimtypes'):
             return
@@ -959,11 +732,127 @@ class Session(object):
                     self.stims.append(self.bricks)
                 
             else:
-                print(('    {} stimulus type not recognized. No Stim object ' 
-                      'created for this stimulus. \n').format(stimtype))
+                print(f'    {stimtype} stimulus type not recognized. No Stim ' 
+                      'object created for this stimulus. \n')
 
         # initialize a Grayscr object
         self.grayscr = Grayscr(self)
+
+    
+    #############################################
+    def extract_sess_attribs(self, mouse_df='mouse_df.csv'):
+        """
+        self.extract_sess_attribs(mouse_df)
+
+        This function should be run immediately after creating a Session 
+        object. It loads the dataframe containing information on each session,
+        and sets the following attributes:
+
+            - all_files (bool) : if True, all files have been acquired for
+                                 the session
+            - any_files (bool) : if True, some files have been acquired for
+                                 the session
+            - depth (int)      : recording depth 
+            - plane (str)      : recording plane ('soma' or 'dend')
+            - line (str)       : mouse line (e.g., 'L5-Rbp4')
+            - mouse_n (int)    : mouse number (e.g., 1)
+            - notes (str)      : notes from the dataframe on the session
+            - pass_fail (str)  : whether session passed 'P' or failed 'F' 
+                                 quality control
+            - sess_gen (int)   : general session number (e.g., 1)
+            - sess_within (int): within session number (session number within
+                                 the sess_gen) (e.g., 1)
+            - sess_n (int)     : overall session number (e.g., 1)
+
+        Required args:
+        - mouse_df (str): path name of dataframe containing information on each 
+                          session.
+        """
+
+        df_data = sess_load_util.load_info_from_mouse_df(mouse_df)
+
+        self.mouse_n      = df_data['mouse_n']
+        self.depth        = df_data['depth']
+        self.plane        = df_data['plane']
+        self.line         = df_data['line']
+        self.sess_gen     = df_data['sess_gen']
+        self.sess_n       = df_data['sess_n']
+        self.sess_within  = df_data['sess_within']
+        self.pass_fail    = df_data['pass_fail']
+        self.all_files    = df_data['all_files']
+        self.any_files    = df_data['any_files']
+        self.notes        = df_data['notes']
+
+
+    #############################################
+    def extract_info(self, fulldict=True, basewin=1000, dend='extr', run=False, 
+                     pupil=False):
+        """
+        self.extract_info()
+
+        This function should be run immediately after creating a Session 
+        object and running self.extract_sess_attribs(). It creates the 
+        stimulus objects attached to the Session, and loads the ROI traces, 
+        running data, synchronization data, etc. If stimtypes have not been 
+        initialized, also initializes stimtypes.
+
+        Calls:
+            self._load_stim_df()
+            self._load_roi_trace_info()
+            self._load_stim_dict()
+            self._load_run_attribs()
+            self._load_sync_h5s()
+            self._find_pup_data()
+            self._load_stim_info()
+
+        Optional args:
+            - fulldict (bool): if True, the full stim_dict is loaded,
+                               else the small stim_dict is loaded
+                               (which contains everything, except 'posbyframe' 
+                               for Bricks)
+                               default: True
+            - basewin (int)  : window length for calculating baseline 
+                               fluorescence
+                               default: 1000
+            - dend (str)     : dendritic traces to use ('aibs' for the 
+                               original extracted traces and 'extr' for the
+                               ones extracted with Hakan's EXTRACT code, if
+                               available)
+                               default: 'extr'
+            - run (bool)     : if True, running data is loaded
+                               default: True
+            - pup (bool)     : if True, pupil data is loaded
+                               default: False
+        """
+
+        if not hasattr(self, 'plane'):
+            raise ValueError('Session attributes missing to extract info. '
+                             'Make sure to run self.extract_sess_attribs() '
+                             'first')
+
+        # load the stimulus, running, alignment and trace information 
+        print('\nLoading stimulus dictionary...')
+        self._load_stim_dict(fulldict=fulldict)
+    
+        print('Loading alignment dataframe...')
+        self._load_align_df()
+    
+        print('Loading ROI trace info...')
+        self._load_roi_trace_info(basewin=basewin, dend=dend)
+        
+        print('Loading sync h5 info...')
+        self._load_sync_h5_data()
+
+        print('Creating stimulus objects...')
+        self._load_stims()
+
+        if run:
+            print('Loading running info...')
+            self._load_run_attribs()
+
+        if pupil:
+            print('Loading pupil info...')
+            self._load_pup_info()
 
 
     ############################################
@@ -1003,9 +892,9 @@ class Session(object):
         extr_tr_file, extr_tr_dff_file = act_names
             
         # Raise error if not dendritic data
-        if self.layer != 'dend':
-            raise ValueError(('Extracting traces from masks is meant to be '
-                              'used with dendritic data, not somatic.'))
+        if self.plane != 'dend':
+            raise ValueError('Extracting traces from masks is meant to be '
+                             'used with dendritic data, not somatic.')
 
         # Retrieve masks generated with EXTRACT
         self.masks = sess_file_util.get_mask_path(self.home, self.sessid, 
@@ -1018,8 +907,8 @@ class Session(object):
         if h5_dir is not None:
             self.correct_data_h5 = h5_dir
         elif not hasattr(self, 'correct_data_h5'):
-            raise ValueError(('No path to full corrected twop data '
-                              '(self.correct_data_h5).'))
+            raise ValueError('No path to full corrected twop data '
+                             '(self.correct_data_h5).')
 
         with h5py.File(self.correct_data_h5, 'r') as f:
             _, wid, hei = f['data'].shape
@@ -1151,11 +1040,11 @@ class Session(object):
 
 
     #############################################
-    def get_run_speed(self, remnans=True, stand=False):
+    def get_run_velocity(self, remnans=True, stand=False):
         """
-        self.get_run_speed()
+        self.get_run_velocity()
 
-        Returns the correct full running speed array based on whether NaNs are
+        Returns the correct full running velocity array based on whether NaNs are
         to be removed or not. 
 
         Optional args:
@@ -1169,7 +1058,7 @@ class Session(object):
                               default: False
 
         Returns:
-            - run (nd array): full running speed array (in cm/s)
+            - run (nd array): full running velocity array (in cm/s)
         """
 
         if remnans:
@@ -1186,16 +1075,16 @@ class Session(object):
 
 
     #############################################
-    def get_run_speed_by_fr(self, fr, fr_type='stim', remnans=True, 
-                            stand=False):
+    def get_run_velocity_by_fr(self, fr, fr_type='stim', remnans=True, 
+                               stand=False):
         """
-        self.get_run_speed_by_fr(fr)
+        self.get_run_velocity_by_fr(fr)
 
-        Returns the running speed for the given frames, either stimulus frames
-        or two-photon imaging frames using linear interpolation.
+        Returns the running velocity for the given frames, either stimulus 
+        frames or two-photon imaging frames using linear interpolation.
 
         Required args:
-            - fr (array-like): set of frames for which to get running speed
+            - fr (array-like): set of frames for which to get running velocity
         
         Optional args:
             - fr_type (str) : type of frames passed ('stim' or 'twop' frames)
@@ -1207,8 +1096,8 @@ class Session(object):
                               full trace array
                               default: False
         Returns:
-            - speed (nd array): running speed (in cm/s), with same dimensions 
-                                as input array
+            - velocity (nd array): running velocity (in cm/s), with same 
+                                   dimensions as input array
         """
 
         fr = np.asarray(fr)
@@ -1222,17 +1111,17 @@ class Session(object):
                                            ['stim', 'twop'])
 
         if (fr >= max_val).any() or (fr < 0).any():
-                raise UserWarning(('Some of the specified frames are out of '
-                                   'range'))
+                raise UserWarning('Some of the specified frames are out of '
+                                  'range')
         
-        run = self.get_run_speed(remnans=remnans, stand=stand)
+        run = self.get_run_velocity(remnans=remnans, stand=stand)
 
         if fr_type == 'stim':
-            speed = run[fr]
+            velocity = run[fr]
         elif fr_type == 'twop':
-            speed = np.interp(fr, self.stim2twopfr, run)
+            velocity = np.interp(fr, self.stim2twopfr, run)
 
-        return speed
+        return velocity
 
 
     #############################################
@@ -1403,7 +1292,7 @@ class Session(object):
                 traces = f['data'].value[:,frames]
             except:
                 pdb.set_trace()
-                raise OSError('Could not read {}'.format(self.roi_trace_h5))
+                raise OSError(f'Could not read {self.roi_trace_h5}')
         
         if stand:
             facts = self._get_roi_facts(fluor)
@@ -1445,8 +1334,8 @@ class Session(object):
         xran   = np.linspace(-pre, post, int(np.diff(ran_fr)[0]))
 
         if len(twop_ref_fr) == 0:
-            raise ValueError(('No frames: frames list must include at least 1 '
-                              'frame.'))
+            raise ValueError('No frames: frames list must include at least 1 '
+                             'frame.')
 
         if isinstance(twop_ref_fr[0], (list, np.ndarray)):
             raise ValueError('Frames must be passed as a 1D list, not by block.')
@@ -1550,19 +1439,17 @@ class Session(object):
         # Warn about removed sequences and update pad_seql and twop_fr_seqs 
         # to remove these sequences
         if len(seq_rem) != 0 :
-            print(('\nSome of the specified frames for sequences {} are out of '
-                   'range so the sequence will not be '
-                   'included.').format(seq_rem))
+            print(f'\nSome of the specified frames for sequences {seq_rem} are '
+                  'out of range so the sequence will not be included.')
             pad_seql     = np.delete(pad_seql, seq_rem)
             twop_fr_seqs = np.delete(twop_fr_seqs, seq_rem).tolist()
 
         # sanity check that the list is as long as expected
         if last_idx != len(frames_flat):
             if last_idx != len(frames_flat) - sum(seq_rem_l):
-                raise ValueError(('Concatenated frame array is {} long '
-                                  'instead of expected {}.')
-                                  .format(last_idx, 
-                                          len(frames_flat - sum(seq_rem_l))))
+                raise ValueError(f'Concatenated frame array is {last_idx} long '
+                                 'instead of expected'
+                                 f' {len(frames_flat - sum(seq_rem_l))}.')
             else:
                 frames_flat = frames_flat[: last_idx]
 
@@ -1783,8 +1670,8 @@ class Stim(object):
             elif self.sess.runtype == 'prod':
                 self.exp_n_blocks = 2
         else:
-            raise ValueError(('{} stim type not recognized. Stim object cannot '
-                             'be initialized.').format(self.stimtype))
+            raise ValueError(f'{self.stimtype} stim type not recognized. Stim '
+                             'object cannot be initialized.')
         
         # blank period (i.e., 1 blank every _ segs)
         self.blank_per     = stim_info['blank_sweeps'] 
@@ -1841,8 +1728,8 @@ class Stim(object):
         
         stim_n = gen_util.list_if_not(self.stim_n)
         if len(stim_n) != 2:
-            raise ValueError(('Expected 2 stimulus numbers, '
-                              'but got {}'.format(len(stim_n))))
+            raise ValueError('Expected 2 stimulus numbers, '
+                             f'but got {len(stim_n)}')
         
         stim_dict_1 = self.sess.stim_dict['stimuli'][self.stim_n[0]]
         stim_dict_2 = self.sess.stim_dict['stimuli'][self.stim_n[1]]
@@ -1861,8 +1748,8 @@ class Stim(object):
 
         if error:
             diff_str = ', '.join(diff_dicts)
-            dict_str = ('\n- different values in the {} '
-                        '(under {}).'.format(diff_str, overall_dict))
+            dict_str = (f'\n- different values in the {diff_str} '
+                        f'(under {overall_dict}).')
         else:
             dict_str = ''
 
@@ -1883,9 +1770,8 @@ class Stim(object):
             sq_str = ''
 
         if error:
-            raise ValueError(('Cannot initialize production Brick stimuli '
-                              'together, due to:'
-                              '{}{}{}').format(dict_str, sweep_str, sq_str))
+            raise ValueError('Cannot initialize production Brick stimuli '
+                             f'together, due to:{dict_str}{sweep_str}{sq_str}')
 
 
     #############################################
@@ -1948,14 +1834,13 @@ class Stim(object):
         self.act_n_blocks = int(np.ceil(float(tot_disp)/block_len))
         self.extra_segs = 0
         if self.act_n_blocks != self.exp_n_blocks:
-            print(('    WARNING: {} {} blocks started instead of the expected '
-                   '{}.').format(self.act_n_blocks, self.stimtype, 
-                                 self.exp_n_blocks))            
+            print(f'    WARNING: {self.act_n_blocks} {self.stimtype} blocks '
+                  f'started instead of the expected {self.exp_n_blocks}.')
             if self.act_n_blocks > self.exp_n_blocks:
                 self.extra_segs = (float(tot_disp) - \
                                    self.exp_n_blocks*block_len)*self.seg_ps_wibl 
-                print(('    WARNING: In total, {} extra segments were shown, '
-                       'including blanks.').format(self.extra_segs))
+                print(f'    WARNING: In total, {self.extra_segs} extra segments '
+                       'were shown, including blanks.')
     
         # calculate uninterrupted segment ranges for each block and check for 
         # incomplete or split blocks
@@ -1985,26 +1870,26 @@ class Stim(object):
             
             if rem_seg == 1:
                 if i == len(self.disp_seq)-1:
-                    print(('    WARNING: During last sequence of {}, the last '
-                          'blank segment of the {}. block was omitted.')
-                          .format(self.stimtype, n_bl))
+                    print('    WARNING: During last sequence of '
+                          '{self.stimtype}, the last blank segment of the '
+                          f'{n_bl}. block was omitted.')
                 else:
-                    print(('    WARNING: During {}. sequence of {}, the last '
-                          'blank segment of the {}. block was pushed to the '
-                          'start of the next sequence.').format(i+1, 
-                                                        self.stimtype, n_bl))
+                    print('    WARNING: During {i+1}. sequence of '
+                          f'{self.stimtype}, the last blank segment of the '
+                          f'{n_bl}. block was pushed to the start of the next '
+                          'sequence.')
             elif rem_seg > 1:
 
                 if i == len(self.disp_seq)-1:
-                    print(('    WARNING: During last sequence of {}, {} '
-                           'segments (incl. blanks) from the {}. block were '
-                           'omitted.').format(self.stimtype, rem_seg, n_bl))
+                    print('    WARNING: During last sequence of '
+                          f'{self.stimtype}, {rem_seg} segments (incl. blanks) '
+                          f'from the {n_bl}. block were omitted.')
                 else:
-                    print(('    WARNING: During {}. sequence of {}, {} '
-                          'segments (incl. blanks) from the {}. block were '
-                          'pushed to the next sequence. These segments will '
-                          'be omitted from analysis.').format(i+1, 
-                                                self.stimtype, rem_seg, n_bl))
+                    print(f'    WARNING: During {i+1}. sequence of '
+                          f'{self.stimtype}, {rem_seg} segments (incl. blanks) '
+                          f'from the {n_bl}. block were pushed to the next '
+                          'sequence. These segments will be omitted from '
+                          'analysis.')
             # get the actual length in segments of each block
             self.block_len_seg = np.diff(self.block_ran_seg).squeeze(2).tolist()
 
@@ -2265,7 +2150,7 @@ class Stim(object):
 
         Returns an stimulus and behaviour dataframe for the specific stimulus 
         (gaborw or bricks) with grayscreen rows added in if requested and 
-        layer, line and sessid added in.
+        plane, line and sessid added in.
 
         Required args:
             - pre (num) : range of frames to include before each reference 
@@ -2298,7 +2183,7 @@ class Stim(object):
         Returns:
             - sub_df (pd DataFrame): extended stimulus dataframe containing
                                      grayscreen rows if requested, modified 
-                                     column names, layer, line and sessid info 
+                                     column names, plane, line and sessid info 
         """
 
         retain = ['stimPar1', 'stimPar2', 'surp', 'stimSeg', 
@@ -2333,12 +2218,12 @@ class Stim(object):
             sub_df = sub_df.rename(columns={'stimPar1': 'bri_size', 
                                             'stimPar2': 'bri_dir'})
         else:
-            raise NotImplementedError(('Extended stimulus subdataframe only '
-                                  'implemented for Gabor and Brick stimuli, '
-                                  'not `{}`.').format(self.stimtype))
+            raise NotImplementedError('Extended stimulus subdataframe only '
+                     'implemented for Gabor and Brick stimuli, '
+                     f'not `{self.stimtype}`.')
         
         sub_df = sub_df.reset_index(drop=True) # reset index
-        sub_df['layer'] = self.sess.layer
+        sub_df['plane'] = self.sess.plane
         sub_df['line']  = self.sess.line
         sub_df['sessid'] = self.sess.sessid
 
@@ -2359,7 +2244,7 @@ class Stim(object):
                         pre, post, remnans=True, fluor=fluor)[1]
         roi_data = math_util.mean_med(roi_data, stats=stats, 
                                       axis=-1, nanpol='omit')
-        cols = ['roi_data_{}'.format(i) for i in range(len(roi_data))]
+        cols = [f'roi_data_{i}' for i in range(len(roi_data))]
         all_roi = pd.DataFrame(columns=cols, data=roi_data.T)
         sub_df = sub_df.join(all_roi)
 
@@ -3252,7 +3137,7 @@ class Stim(object):
         
         fr_idx = gen_util.remove_idx(fr_idx, neg_idx + over_idx, axis=0)
 
-        data_array = self.sess.get_run_speed_by_fr(fr_idx, fr_type='stim', 
+        data_array = self.sess.get_run_velocity_by_fr(fr_idx, fr_type='stim', 
                                remnans=remnans, stand=stand)
 
         if remnans:
@@ -3562,7 +3447,7 @@ class Stim(object):
             - run (list): list of running values for stimulus blocks
         """
         
-        full_run = self.sess.get_run_speed(remnans=remnans, stand=stand)
+        full_run = self.sess.get_run_velocity(remnans=remnans, stand=stand)
         
         run = []
         for i in self.block_ran_fr:
@@ -3577,8 +3462,8 @@ class Stim(object):
             if by == 'frame':
                 run = [x for sub in run for x in sub]
         elif by != 'disp':
-            raise ValueError(('`by` can only take the values `disp`, '
-                             '`block` or `frame`.'))
+            raise ValueError('`by` can only take the values `disp`, '
+                             '`block` or `frame`.')
     
         return run
 
@@ -3606,7 +3491,7 @@ class Stim(object):
         if (twop_fr >= self.sess.tot_twop_fr).any() or (twop_fr < 0).any():
             raise UserWarning('Some of the specified frames are out of range')
 
-        # perform linear interpolation on the running speed
+        # perform linear interpolation on the running velocity
         segs = np.interp(twop_fr, self.sess.stim2twopfr, self.stim_seg_list)
 
         segs = segs.astype(int)
@@ -3768,11 +3653,9 @@ class Gabors(Stim):
 
                 if len(stimPar2) > 1:
                     block_n = i*len(self.block_ran_seg)+j+1
-                    raise ValueError(('Block {} of {} comprises segments with '
-                                      'different stimPar2 '
-                                      'values: {}').format(block_n, 
-                                                           self.stimtype, 
-                                                           stimPar2))
+                    raise ValueError(f'Block {block_n} of {self.stimtype} '
+                                     'comprises segments with different '
+                                     f'stimPar2 values: {stimPar2}')
                 block_par.append([stimPar2[0]])
             self.block_params.append(block_par)
 
@@ -3868,17 +3751,17 @@ class Gabors(Stim):
         max_seg = np.max(self.block_ran_seg)
 
         if min_seg != 0:
-            raise NotImplementedError(('Function not properly implemented if '
-                                       'the minimum segment is not 0.'))
+            raise NotImplementedError('Function not properly implemented if '
+                                      'the minimum segment is not 0.')
         if max_seg != self.oris_pr.shape[0]:
-            raise NotImplementedError(('Function not properly implemented if '
-                                    'the maximum segment is not the same '
-                                    'as the number of orientations recorded.'))
+            raise NotImplementedError('Function not properly implemented if '
+                                      'the maximum segment is not the same '
+                                      'as the number of orientations recorded.')
 
         # check that at least one parameter type is requested
         if not(pos or ori or size):
-            raise ValueError(('At least one of the following must be True: '
-                              'pos, ori, size.'))
+            raise ValueError('At least one of the following must be True: '
+                             'pos, ori, size.')
         
         segs = np.asarray(segs)
 
@@ -3896,7 +3779,7 @@ class Gabors(Stim):
             surps.append(-1)
 
             if len(gabfr) != segs_max + 1 or len(surps) != segs_max + 1:
-                raise ValueError(('Something went wrong.'))
+                raise ValueError('Something went wrong.')
 
             # change gabfr 3 to 4 if surprise sequence
             gabfr = np.asarray(gabfr)
@@ -3993,8 +3876,8 @@ class Gabors(Stim):
         if hasattr(self.sess, 'bricks'):
             bri_segs = self.sess.bricks.get_segs_by_twopfr(twopfr_seqs)
             if not (bri_segs == -1).all():
-                print(('    WARNING: some of the frames requested occur while '
-                       'Bricks are presented.'))
+                print('    WARNING: some of the frames requested occur while '
+                      'Bricks are presented.')
 
         # get seg numbers for each twopfr in each sequence
         seq_segs = self.get_segs_by_twopfr(twopfr_seqs)
@@ -4114,11 +3997,9 @@ class Bricks(Stim):
                     stimPar = segs[par_name].unique().tolist()
                     if len(stimPar) > 1:
                         block_n = i*len(self.block_ran_seg)+j+1
-                        raise ValueError('Block {} of {} comprises segments '
-                                        'with different {} '
-                                        'values: {}'.format(block_n, 
-                                                            self.stimtype, 
-                                                            par_name, stimPar))
+                        raise ValueError(f'Block {block_n} of {self.stimtype} '
+                                        'comprises segments with different '
+                                        f'{par_name} values: {stimPar}')
                     stimPars.append(stimPar[0])
                 
                 # add n_bricks info
@@ -4219,8 +4100,8 @@ class Grayscr():
             frames.append(np.asarray(self.sess.bricks.stim_seg_list))
         length = len(frames)
         if length == 0:
-            raise ValueError(('No frame lists were found for either stimulus '
-                             ' types (gabors, bricks.'))
+            raise ValueError('No frame lists were found for either stimulus '
+                             ' types (gabors, bricks).')
         elif length == 1:
             frames_sum = np.asarray(frames)
         else:
@@ -4228,8 +4109,8 @@ class Grayscr():
         grays = np.where(frames_sum==length*-1)[0].tolist()
 
         if len(grays) == 0:
-            raise ValueError(('No grayscreen frames were found outside of '
-                             'gabor stimulus sequences.'))
+            raise ValueError('No grayscreen frames were found outside of '
+                            'gabor stimulus sequences.')
 
         return grays
 
@@ -4310,14 +4191,14 @@ class Grayscr():
                 if by == 'frame':
                     gab_grays = [x for sub in gab_grays for x in sub]
             elif by != 'disp':
-                raise ValueError(('`by` can only take the values `disp`, '
-                                 '`block` or `frame`.'))
+                raise ValueError('`by` can only take the values `disp`, '
+                                 '`block` or `frame`.')
             
             return gab_grays
         else:
-            raise ValueError(('Session does not have a gabors attribute. Be '
-                              'sure to extract stim info and check that '
-                              'session contains a gabor stimulus.'))
+            raise ValueError('Session does not have a gabors attribute. Be '
+                             'sure to extract stim info and check that '
+                             'session contains a gabor stimulus.')
 
 
     #############################################    
@@ -4382,8 +4263,8 @@ class Grayscr():
                 first_gab_grays = [x for sub in first_gab_grays for x in sub]
                 n_gab_grays     = [x for sub in n_gab_grays for x in sub]
         elif by != 'disp':
-            raise ValueError(('`by` can only take the values `disp`, '
-                             '`block` or `frame`.'))
+            raise ValueError('`by` can only take the values `disp`, '
+                             '`block` or `frame`.')
 
         return first_gab_grays, n_gab_grays
 

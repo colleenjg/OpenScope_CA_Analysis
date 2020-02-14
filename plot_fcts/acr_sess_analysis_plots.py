@@ -44,7 +44,7 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False):
                            default: False
     """
 
-    print('\nPlotting from dictionary: {}'.format(dict_path))
+    print(f'\nPlotting from dictionary: {dict_path}')
     
     figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir)
     plot_util.manage_mpl(cmap=False, **figpar['mng'])
@@ -78,23 +78,23 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False):
         plot_surp_latency(figpar=figpar, savedir=savedir, **info)
 
     else:
-        print('    No plotting function for analysis {}'.format(analysis))
+        print(f'    No plotting function for analysis {analysis}')
 
 
 #############################################
-def get_linlay_idx(linlay_ord, line='L2/3', layer='soma', verbose=False, 
+def get_linpla_idx(linpla_ord, line='L2/3', plane='soma', verbose=False, 
                    newline=False):
     """
-    get_linlay_idx(linlay_ord)
+    get_linpla_idx(linpla_ord)
 
 
     Required args:
-        - linlay_ord (list): ordered list of line/layer combinations formatted 
+        - linpla_ord (list): ordered list of line/plane combinations formatted 
 
     Optional args:
         - line (str)    : line (e.g., L2/3, L5)
                           default: 'L2/3'
-        - layer (str)   : layer (e.g., soma, dend)
+        - plane (str)   : plane (e.g., soma, dend)
                           default: 'soma'
         - verbose (bool): if True and no data is found, this is printed to the 
                           console
@@ -103,20 +103,20 @@ def get_linlay_idx(linlay_ord, line='L2/3', layer='soma', verbose=False,
                           default: False
 
     Returns:
-        - l_idx (int or None): line/layer combination index in linlay_ord or 
+        - l_idx (int or None): line/plane combination index in linpla_ord or 
                                None if not found
     """
 
-    data_name = '{} {}'.format(line, layer[:4]) # get data name
-    if data_name not in linlay_ord:
+    data_name = f'{line} {plane[:4]}' # get data name
+    if data_name not in linpla_ord:
         add = ''
         if newline:
             add = '\n'
         if verbose:
-            print('{}No data for {}.'.format(add, data_name))
+            print(f'{add}No data for {data_name}.')
         l_idx = None
     else:
-        l_idx = linlay_ord.index(data_name)
+        l_idx = linpla_ord.index(data_name)
 
     return l_idx
 
@@ -139,7 +139,7 @@ def plot_area_diff_per_mouse(sub_ax, mouse_diff_st, sess_info, sess_ns=None,
             ['mouse_ns'] (list)   : mouse numbers
             ['sess_ns'] (list)    : session numbers  
             ['lines'] (list)      : mouse lines
-            ['layers'] (list)     : imaging layers
+            ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
             ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
             ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
@@ -174,9 +174,9 @@ def plot_area_diff_per_mouse(sub_ax, mouse_diff_st, sess_info, sess_ns=None,
         # extend label or create final version
         if use_lab:
             if m != len(sess_info) - 1:
-                lab = '{}{}, '.format(lab, mouse_n)
+                lab = f'{lab}{mouse_n}, '
             else: # if label to be included
-                lab_use = '{}{}'.format(lab, mouse_n)
+                lab_use = f'{lab}{mouse_n}'
 
         # get non NaNs
         keep_idx = np.where(np.isfinite(mouse_diff_st[m, :, 0]))[0]
@@ -227,13 +227,13 @@ def plot_area_diff_stats(sub_ax, all_diff_st, sess_ns=None, mouse_mes=None,
     # calculate number of mice for legend
     if mouse_mes is not None:
         if mouse_mes.shape[1] != len(sess_ns):
-            raise ValueError(('`mouse_mes` second dimension should be '
-                              'length {}.').format(len(sess_ns)))
+            raise ValueError('`mouse_mes` second dimension should be '
+                             f'length {len(sess_ns)}.')
         n_mice_per = np.sum(np.isfinite(mouse_mes[:, keep_idx]), axis=0)
         min_mice, max_mice = np.min(n_mice_per), np.max(n_mice_per)
-        lab = 'n={}'.format(min_mice)
+        lab = f'n={min_mice}'
         if min_mice != max_mice:
-            lab = '{}-{}'.format(lab, max_mice)
+            lab = f'{lab}-{max_mice}'
 
     plot_util.plot_errorbars(sub_ax, all_diff_st[keep_idx, 0], 
               all_diff_st[keep_idx, 1:].T, sess_ns[keep_idx], col=col, 
@@ -288,14 +288,14 @@ def plot_signif_from_mouse_diffs(sub_ax, signif_idx, st_data, signs,
 
 
 #############################################
-def plot_area_diff_per_linlay(sub_ax, sess_ns, mouse_diff_st, diff_st, CI_vals, 
+def plot_area_diff_per_linpla(sub_ax, sess_ns, mouse_diff_st, diff_st, CI_vals, 
                               sign_sess, sess_info, plot='tog', d='data', 
                               col='k', zero_line=False):
     """
-    plot_area_diff_per_linlay(sub_ax, sess_ns, mouse_diff_st, diff_st, CI_vals,
+    plot_area_diff_per_linpla(sub_ax, sess_ns, mouse_diff_st, diff_st, CI_vals,
                               sign_sess, sess_info)
 
-    Plots data or CIs for a specific layer/line combination.
+    Plots data or CIs for a specific plane/line combination.
 
     Required args:
         - sub_ax (plt Axis subplot): subplot
@@ -315,7 +315,7 @@ def plot_area_diff_per_linlay(sub_ax, sess_ns, mouse_diff_st, diff_st, CI_vals,
             ['mouse_ns'] (list)   : mouse numbers
             ['sess_ns'] (list)    : session numbers  
             ['lines'] (list)      : mouse lines
-            ['layers'] (list)     : imaging layers
+            ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
             ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
             ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
@@ -397,26 +397,26 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
             ['datatype'] (str): datatype (e.g., 'run', 'roi')
         - diff_info (dict)       : dictionary with difference info
             ['all_diff_stats'] (list)  : difference stats across mice, 
-                                         structured as layer/line x session 
+                                         structured as plane/line x session 
                                                                   x stats
             ['mouse_diff_stats'] (list): difference statistics across ROIs or 
                                          seqs, structured as 
-                                             layer/line x mouse x session 
+                                             plane/line x mouse x session 
                                                         x stats
             ['CI_vals'] (list)         : CIs values, structured as
-                                             layer/line x session 
+                                             plane/line x session 
                                                         x perc (med, lo, high)
             ['sign_sess'] (list)       : significant session indices, 
-                                         structured as layer/line (x tails)
-            ['linlay_ord'] (list)      : order list of layers/lines
+                                         structured as plane/line (x tails)
+            ['linpla_ord'] (list)      : order list of planes/lines
         - sess_info (nested list): nested list of dictionaries for each 
-                                   line/layer x mouse containing information 
+                                   line/plane x mouse containing information 
                                    from each session, with None for missing 
                                    sessions
             ['mouse_ns'] (list)   : mouse numbers
             ['sess_ns'] (list)    : session numbers  
             ['lines'] (list)      : mouse lines
-            ['layers'] (list)     : imaging layers
+            ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
             ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
             ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
@@ -450,13 +450,13 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
     if plot == 'tog':
         dimstr = ' across mice'
     elif datatype == 'roi':
-        dimstr = ' across {}'.format(sess_str_util.datatype_dim_str(datatype))
+        dimstr = f' across {sess_str_util.datatype_dim_str(datatype)}'
 
     stimstr_pr = sess_str_util.stim_par_str(stimpar['stimtype'], 
                                     stimpar['bri_dir'], stimpar['bri_size'],
                                     stimpar['gabk'], 'print')
     statstr_pr = sess_str_util.stat_par_str(analyspar['stats'], error, 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
                                             extrapar['datatype'], 'print')
     
     sess_ns = np.asarray(sesspar['sess_n'])
@@ -464,11 +464,11 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
         sess_ns = np.arange(len(sess_info[0][0]['sess_ns'])) + 1
     sess_ns_str = gen_util.intlist_to_str(sess_ns.tolist())
 
-    [lines, layers, linlay_iter, 
-            lay_cols, _, n_plots] = sess_plot_util.fig_linlay_pars( 
-                                        n_grps=len(diff_info['linlay_ord']))
-    linlay_iter = [[d, ll] for d in ['data', 'CIs'] for ll in linlay_iter]
-    figpar = sess_plot_util.fig_init_linlay(figpar)
+    [lines, planes, linpla_iter, 
+            pla_cols, _, n_plots] = sess_plot_util.fig_linpla_pars( 
+                                        n_grps=len(diff_info['linpla_ord']))
+    linpla_iter = [[d, ll] for d in ['data', 'CIs'] for ll in linpla_iter]
+    figpar = sess_plot_util.fig_init_linpla(figpar)
 
     subtitle = 'Surp - reg activity'
     if lock:
@@ -478,35 +478,34 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
         elif lock == 'reglock':
             subtitle = 'Reg - surp activity locked to regular onset'
         else:
-            raise ValueError(('If lock is not False, it must be `reglock` or \
-                              `surplock`.'))
+            raise ValueError('If lock is not False, it must be `reglock` or \
+                             `surplock`.')
     else:
         prepost_str = sess_str_util.prepost_par_str(stimpar['pre'], 
                                     stimpar['post'], str_type='print')
-    title = '{} ({} seqs)\nfor {} - {}{}\n(sess {}{})'.format(subtitle, 
-            prepost_str, stimstr_pr, statstr_pr, dimstr, sess_ns_str, 
-            dendstr_pr)
+    title = (f'{subtitle} ({prepost_str} seqs)\nfor {stimstr_pr} - {statstr_pr}'
+             f'{dimstr}\n(sess {sess_ns_str}{dendstr_pr})')
 
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
     fig.suptitle(title)
-    for i, (d, [line, lay]) in enumerate(linlay_iter):
+    for i, (d, [line, pla]) in enumerate(linpla_iter):
         li = lines.index(line)
-        la = layers.index(lay)
-        l_idx = get_linlay_idx(diff_info['linlay_ord'], line, lay, 
+        la = planes.index(pla)
+        l_idx = get_linpla_idx(diff_info['linpla_ord'], line, pla, 
                                verbose=(d==0), newline=(i==0))
         if l_idx is None:
             continue
 
-        plot_area_diff_per_linlay(ax[la, li], sess_ns, 
+        plot_area_diff_per_linpla(ax[la, li], sess_ns, 
                       diff_info['mouse_diff_stats'][l_idx], 
                       diff_info['all_diff_stats'][l_idx], 
                       diff_info['CI_vals'][l_idx],
                       diff_info['sign_sess'][l_idx], sess_info[l_idx],
-                      plot=plot, d=d, col=lay_cols[la], zero_line=False)
+                      plot=plot, d=d, col=pla_cols[la], zero_line=False)
  
-    # Add layer, line info to plots
-    sess_plot_util.format_linlay_subaxes(ax, fluor=analyspar['fluor'], 
-                   area=True, datatype=datatype, lines=lines, layers=layers, 
+    # Add plane, line info to plots
+    sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar['fluor'], 
+                   area=True, datatype=datatype, lines=lines, planes=planes, 
                    xticks=sess_ns)
 
     return fig
@@ -539,7 +538,7 @@ def plot_surp_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
             ['mouse_ns'] (list)   : mouse numbers
             ['sess_ns'] (list)    : session numbers  
             ['lines'] (list)      : mouse lines
-            ['layers'] (list)     : imaging layers
+            ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
             ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
             ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
@@ -547,18 +546,18 @@ def plot_surp_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
                                     exists
         - diff_info (dict): dictionary containing difference information
             ['all_diff_stats'] (list)  : difference stats across mice, 
-                                         structured as layer/line x session 
+                                         structured as plane/line x session 
                                                                   x stats
             ['mouse_diff_stats'] (list): difference statistics across ROIs or 
                                          seqs, structured as 
-                                             layer/line x mouse x session 
+                                             plane/line x mouse x session 
                                                         x stats
             ['CI_vals'] (list)         : CIs values, structured as
-                                             layer/line x session 
+                                             plane/line x session 
                                                         x perc (med, lo, high)
             ['sign_sess'] (list)       : significant session indices, 
-                                         structured as layer/line (x tails)
-            ['linlay_ord'] (list)      : order list of layers/lines
+                                         structured as plane/line (x tails)
+            ['linpla_ord'] (list)      : order list of planes/lines
                 
     Optional args:
         - figpar (dict): dictionary containing the following figure parameter 
@@ -578,9 +577,9 @@ def plot_surp_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
     """
     
     sessstr = sess_str_util.sess_par_str(sesspar['sess_n'], stimpar['stimtype'],
-                                         sesspar['layer'], stimpar['bri_dir'], 
+                                         sesspar['plane'], stimpar['bri_dir'], 
                                          stimpar['bri_size'], stimpar['gabk'])
-    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
                                          extrapar['datatype'])
     datatype = extrapar['datatype']
 
@@ -596,7 +595,7 @@ def plot_surp_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
         savedir = os.path.join(figpar['dirs'][datatype], 
                                figpar['dirs']['acr_sess'], base_str)
 
-    gen_savename = '{}_surp_diff_{}{}'.format(datatype, sessstr, dendstr)
+    gen_savename = f'{datatype}_surp_diff_{sessstr}{dendstr}'
     part = 'surp_diff'
     add_idx = gen_savename.find(part) + len(part)
 
@@ -606,8 +605,7 @@ def plot_surp_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
                                     lock=False, plot=plot)
 
 
-        savename = '{}_{}{}'.format(gen_savename[:add_idx], plot, 
-                                    gen_savename[add_idx:])
+        savename = f'{gen_savename[:add_idx]}_{plot}{gen_savename[add_idx:]}'
         fulldir = plot_util.savefig(fig, savename, savedir, print_dir=(plot==0), 
                                     **figpar['save'])
 
@@ -643,7 +641,7 @@ def plot_lock_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
             ['mouse_ns'] (list)   : mouse numbers
             ['sess_ns'] (list)    : session numbers  
             ['lines'] (list)      : mouse lines
-            ['layers'] (list)     : imaging layers
+            ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
             ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
             ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
@@ -652,18 +650,18 @@ def plot_lock_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
         - diff_info (list): list of dictionaries containing difference 
                             information, structured as [surp-locked, reg-locked]
             ['all_diff_stats'] (list)  : difference stats across mice, 
-                                         structured as layer/line x session 
+                                         structured as plane/line x session 
                                                                   x stats
             ['mouse_diff_stats'] (list): difference statistics across ROIs or 
                                          seqs, structured as 
-                                             layer/line x mouse x session 
+                                             plane/line x mouse x session 
                                                         x stats
             ['CI_vals'] (list)         : CIs values, structured as
-                                             layer/line x session 
+                                             plane/line x session 
                                                         x perc (med, lo, high)
             ['sign_sess'] (list)       : significant session indices, 
-                                         structured as layer/line (x tails)
-            ['linlay_ord'] (list)      : order list of layers/lines
+                                         structured as plane/line (x tails)
+            ['linpla_ord'] (list)      : order list of planes/lines
                 
     Optional args:
         - figpar (dict): dictionary containing the following figure parameter 
@@ -683,9 +681,9 @@ def plot_lock_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
     """
  
     sessstr = sess_str_util.sess_par_str(sesspar['sess_n'], stimpar['stimtype'],
-                                         sesspar['layer'], stimpar['bri_dir'], 
+                                         sesspar['plane'], stimpar['bri_dir'], 
                                          stimpar['bri_size'], stimpar['gabk'])
-    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
                                          extrapar['datatype'])
     datatype = extrapar['datatype']
 
@@ -701,7 +699,7 @@ def plot_lock_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
         savedir = os.path.join(figpar['dirs'][datatype], 
                                figpar['dirs']['acr_sess'], base_str)
 
-    gen_savename = '{}_lock_diff_{}{}'.format(datatype, sessstr, dendstr)
+    gen_savename = f'{datatype}_lock_diff_{sessstr}{dendstr}'
 
     for l, lock in enumerate(['surplock', 'reglock']):
         part = 'lock_diff'
@@ -713,8 +711,8 @@ def plot_lock_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
                                       sess_info[l], diff_info[l], figpar=figpar, 
                                       lock=lock, plot=plot)
 
-            savename = '{}_{}{}'.format(lock_savename[:add_idx], plot, 
-                                        lock_savename[add_idx:])
+            savename = (f'{lock_savename[:add_idx]}_{plot}'
+                        f'{lock_savename[add_idx:]}')
             fulldir = plot_util.savefig(fig, savename, savedir, 
                                 print_dir=(plot==0), **figpar['save'])
 
@@ -807,22 +805,22 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
             ['analysis'] (str): analysis type (e.g., 't')
             ['datatype'] (str): datatype (e.g., 'run', 'roi')
         - sess_info (nested list): nested list of dictionaries for each 
-                                   line/layer x mouse containing information 
+                                   line/plane x mouse containing information 
                                    from each session, with None for missing 
                                    sessions
             ['mouse_ns'] (list)   : mouse numbers
             ['sess_ns'] (list)    : session numbers  
             ['lines'] (list)      : mouse lines
-            ['layers'] (list)     : imaging layers
+            ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
             ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
             ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
                                     for sessions for which this attribute 
                                     exists
         - trace_info (dict)      : dictionary with difference info
-            ['linlay_ord'] (list) : order list of layers/lines
+            ['linpla_ord'] (list) : order list of planes/lines
             ['trace_stats'] (list): trace statistics, structured as
-                                    layer/line x session x reg/surp x frame 
+                                    plane/line x session x reg/surp x frame 
                                                x stats
             ['xran'] (list)       : second values for each frame
 
@@ -847,7 +845,7 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
                                     stimpar['gabk'], 'print')
     statstr_pr = sess_str_util.stat_par_str(analyspar['stats'], 
                                             analyspar['error'], 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
                                             extrapar['datatype'], 'print')
     
     sess_ns = np.asarray(sesspar['sess_n'])
@@ -856,10 +854,10 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
     sess_ns_str = gen_util.intlist_to_str(sess_ns.tolist())
     n_sess = len(sess_ns)
 
-    [lines, layers, linlay_iter, 
-          lay_cols, _, n_plots] = sess_plot_util.fig_linlay_pars(traces=n_sess, 
-                                        n_grps=len(trace_info['linlay_ord']))
-    figpar = sess_plot_util.fig_init_linlay(figpar, traces=n_sess)
+    [lines, planes, linpla_iter, 
+          pla_cols, _, n_plots] = sess_plot_util.fig_linpla_pars(traces=n_sess, 
+                                        n_grps=len(trace_info['linpla_ord']))
+    figpar = sess_plot_util.fig_init_linpla(figpar, traces=n_sess)
 
     subtitle = 'Surp v reg activity'
     if lock:
@@ -869,22 +867,21 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
         elif lock == 'reglock':
             subtitle = 'Reg v surp activity locked to regular onset'
         else:
-            raise ValueError(('If lock is not False, it must be `reglock` or \
-                              `surplock`.'))
+            raise ValueError('If lock is not False, it must be `reglock` or \
+                             `surplock`.')
     else:
         prepost_str = sess_str_util.prepost_par_str(stimpar['pre'], 
                                     stimpar['post'], str_type='print')
-    title = ('{} ({} seqs)\nfor {} - {} across mice\n'
-            '(sess {}{})').format(subtitle, prepost_str, stimstr_pr, 
-                                  statstr_pr, sess_ns_str, dendstr_pr)
+    title = (f'{subtitle} ({prepost_str} seqs)\nfor {stimstr_pr} - '
+             f'{statstr_pr} across mice\n(sess {sess_ns_str}{dendstr_pr})')
 
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
     fig.suptitle(title)
-    for i, (line, lay) in enumerate(linlay_iter):
+    for i, (line, pla) in enumerate(linpla_iter):
         li = lines.index(line)
-        la = layers.index(lay)
+        la = planes.index(pla)
         
-        l_idx = get_linlay_idx(trace_info['linlay_ord'], line, lay, 
+        l_idx = get_linpla_idx(trace_info['linpla_ord'], line, pla, 
                                verbose=True, newline=(i==0))
         if l_idx is None:
             continue
@@ -895,12 +892,12 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
             lab = (li == 1 and s == 0)
             plot_mouse_traces(sub_ax, trace_info['xran'], 
                               trace_info['trace_stats'][l_idx][s], lock, 
-                              lay_cols[la], lab, stimpar['stimtype'], 
+                              pla_cols[la], lab, stimpar['stimtype'], 
                               stimpar['gabfr'])
         
-    # Add layer, line info to plots
-    sess_plot_util.format_linlay_subaxes(ax, fluor=analyspar['fluor'], 
-                   area=False, datatype=datatype, lines=lines, layers=layers, 
+    # Add plane, line info to plots
+    sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar['fluor'], 
+                   area=False, datatype=datatype, lines=lines, planes=planes, 
                    sess_ns=sess_ns)
 
     return fig
@@ -928,22 +925,22 @@ def plot_surp_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
             ['analysis'] (str): analysis type (e.g., 't')
             ['datatype'] (str): datatype (e.g., 'run', 'roi')
         - sess_info (nested list): nested list of dictionaries for each 
-                                   line/layer x mouse containing information 
+                                   line/plane x mouse containing information 
                                    from each session, with None for missing 
                                    sessions
             ['mouse_ns'] (list)   : mouse numbers
             ['sess_ns'] (list)    : session numbers  
             ['lines'] (list)      : mouse lines
-            ['layers'] (list)     : imaging layers
+            ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
             ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
             ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
                                     for sessions for which this attribute 
                                     exists
         - trace_info (dict)      : dictionary with difference info
-            ['linlay_ord'] (list) : order list of layers/lines            
+            ['linpla_ord'] (list) : order list of planes/lines            
             ['trace_stats'] (list): trace statistics, structured as
-                                    layer/line x session x reg/surp x frame 
+                                    plane/line x session x reg/surp x frame 
                                                x stats
             ['xran'] (list)       : second values for each frame
 
@@ -965,9 +962,9 @@ def plot_surp_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
     """
     
     sessstr = sess_str_util.sess_par_str(sesspar['sess_n'], stimpar['stimtype'],
-                                         sesspar['layer'], stimpar['bri_dir'], 
+                                         sesspar['plane'], stimpar['bri_dir'], 
                                          stimpar['bri_size'], stimpar['gabk'])
-    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
                                          extrapar['datatype'])
     datatype = extrapar['datatype']
 
@@ -987,7 +984,7 @@ def plot_surp_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
         savedir = os.path.join(figpar['dirs'][datatype], 
                             figpar['dirs']['acr_sess'], base_str)
 
-    savename = '{}_surp_tr_{}{}'.format(datatype, sessstr, dendstr)
+    savename = f'{datatype}_surp_tr_{sessstr}{dendstr}'
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
 
     return fulldir, savename
@@ -1016,22 +1013,22 @@ def plot_lock_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
             ['analysis'] (str)        : analysis type (e.g., 't')
             ['datatype'] (str)        : datatype (e.g., 'run', 'roi')
         - sess_info (nested list): nested list of dictionaries for each 
-                                   line/layer x mouse containing information 
+                                   line/plane x mouse containing information 
                                    from each session, with None for missing 
                                    sessions
             ['mouse_ns'] (list)   : mouse numbers
             ['sess_ns'] (list)    : session numbers  
             ['lines'] (list)      : mouse lines
-            ['layers'] (list)     : imaging layers
+            ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
             ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
             ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
                                     for sessions for which this attribute 
                                     exists
         - trace_info (dict)      : dictionary with difference info
-            ['linlay_ord'] (list) : order list of layers/lines            
+            ['linpla_ord'] (list) : order list of planes/lines            
             ['trace_stats'] (list): trace statistics, structured as
-                                    layer/line x session x reg/surp x frame 
+                                    plane/line x session x reg/surp x frame 
                                                x stats
             ['xran'] (list)       : second values for each frame
 
@@ -1053,9 +1050,9 @@ def plot_lock_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
     """
  
     sessstr = sess_str_util.sess_par_str(sesspar['sess_n'], stimpar['stimtype'],
-                                         sesspar['layer'], stimpar['bri_dir'], 
+                                         sesspar['plane'], stimpar['bri_dir'], 
                                          stimpar['bri_size'], stimpar['gabk'])
-    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
                                          extrapar['datatype'])
     datatype = extrapar['datatype']
 
@@ -1066,7 +1063,7 @@ def plot_lock_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
     if figpar['save']['use_dt'] is None:
         figpar['save']['use_dt'] = gen_util.create_time_str()
 
-    gen_savename = '{}_lock_tr_{}{}'.format(datatype, sessstr, dendstr)
+    gen_savename = f'{datatype}_lock_tr_{sessstr}{dendstr}'
     
     for l, lock in enumerate(['surplock', 'reglock']):
         fig = plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, 
@@ -1104,7 +1101,7 @@ def plot_lat_clouds(sub_ax, sess_ns, lat_data, sess_info, datatype='roi',
             ['mouse_ns'] (list)   : mouse numbers
             ['sess_ns'] (list)    : session numbers  
             ['lines'] (list)      : mouse lines
-            ['layers'] (list)     : imaging layers
+            ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
             ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
             ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
@@ -1143,13 +1140,13 @@ def plot_lat_clouds(sub_ax, sess_ns, lat_data, sess_info, datatype='roi',
             if len(labels[m]) == 0:
                 add = 'M#'
                 if datatype == 'roi':
-                    add = '{} ({}'.format(add, nrois)
+                    add = f'{add} ({nrois}'
             else:
                 if datatype == 'roi':
-                    add = '/{}'.format(nrois)
+                    add = f'/{nrois}'
                 else:
                     add = ''
-            labels[m] = '{}{}'.format(labels[m], add)
+            labels[m] = f'{labels[m]}{add}'
             if nrois == 0:
                 continue
             elif '#' in labels[m]:
@@ -1162,7 +1159,7 @@ def plot_lat_clouds(sub_ax, sess_ns, lat_data, sess_info, datatype='roi',
                                     col=m_cols[m], alpha=alpha_spec, zorder=-11)
             maxes[s] = np.nanmax([maxes[s], np.nanmax(lat_data[s][m])])
     if datatype == 'roi':
-        labels = ['{} ROIs)'.format(label) for label in labels]
+        labels = [f'{label} ROIs)' for label in labels]
     sub_ax.legend(clouds, labels, fontsize='large')
 
     return maxes
@@ -1175,7 +1172,7 @@ def plot_lat_data_signif(ax, sess_ns, sig_comps, lin_p_vals, maxes,
     plot_lat_data_signif(ax, sess_ns, sig_comps, lin_p_vals, maxes)
 
     Plot significance markers for significant session comparisons within and 
-    across lines/layer combinations.
+    across lines/plane combinations.
 
     Required args:
         - ax (plt Axis)         : axis
@@ -1186,9 +1183,9 @@ def plot_lat_data_signif(ax, sess_ns, sig_comps, lin_p_vals, maxes,
                                   1-2, including None sessions)
         - lin_p_vals            : p-values for each line comparison, 
                                   structured as line x session (np.nan for 
-                                  sessions  missing in either layer)
+                                  sessions  missing in either plane)
         - maxes                 : max values used to adjust ylims, structured 
-                                  as layer/line x session
+                                  as plane/line x session
 
     Optional args:
         - p_val_thr (float): p value threshold
@@ -1198,7 +1195,7 @@ def plot_lat_data_signif(ax, sess_ns, sig_comps, lin_p_vals, maxes,
                              default: 1
     """
 
-    lines, layers, linlay_iter, _, _ , _ = sess_plot_util.fig_linlay_pars()
+    lines, planes, linpla_iter, _, _ , _ = sess_plot_util.fig_linpla_pars()
 
     p_val_thr = 0.05
     if n_comps == 0:
@@ -1215,9 +1212,9 @@ def plot_lat_data_signif(ax, sess_ns, sig_comps, lin_p_vals, maxes,
     n = 0
     # comparison number: first session start pts
     st_s1 = [sum(list(reversed(range(n_sess)))[:v]) for v in range(n_sess-1)]  
-    for i, (line, lay) in enumerate(linlay_iter):
+    for i, (line, pla) in enumerate(linpla_iter):
         li = lines.index(line)
-        la = layers.index(lay)
+        la = planes.index(pla)
         sub_ax = ax[la, li]
         if not(sig_comps[i] is None or len(sig_comps[i]) == 0):
             n = 0
@@ -1258,32 +1255,32 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
             ['analysis'] (str): analysis type (e.g., 't')
             ['datatype'] (str): datatype (e.g., 'run', 'roi')
         - sess_info (nested list): nested list of dictionaries for each 
-                                   line/layer x session containing information 
+                                   line/plane x session containing information 
                                    from each mouse, with None for missing 
                                    sessions
             ['mouse_ns'] (list)   : mouse numbers
             ['sess_ns'] (list)    : session numbers  
             ['lines'] (list)      : mouse lines
-            ['layers'] (list)     : imaging layers
+            ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
             ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
             ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
                                     for sessions for which this attribute 
                                     exists
         - lat_data (dict)        : dictionary with latency info
-            ['linlay_ord'] (list): ordered list of layers/lines            
+            ['linpla_ord'] (list): ordered list of planes/lines            
             ['lat_stats'] (list) : latency statistics, structured as
-                                       layer/line x session x stats
+                                       plane/line x session x stats
             ['lat_vals'] (list)  : latency values for each ROI, structured as
-                                       layer/line x session x mouse
+                                       plane/line x session x mouse
             ['lat_p_vals'] (list): p-values for each latency comparison within 
                                    session pairs, (where the second session is 
                                    cycled in the inner loop, e.g., 0-1, 0-2, 
                                    1-2, including None sessions)
-                                   structured as layer/line x comp
+                                   structured as plane/line x comp
             ['lin_p_vals'] (list): p-values for each line comparison, 
                                    structured as line x session (np.nan for 
-                                   sessions  missing in either layer)
+                                   sessions  missing in either plane)
             ['n_comps'] (int)    : number of comparisons
 
     Optional args:
@@ -1304,9 +1301,9 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
     """
  
     sessstr = sess_str_util.sess_par_str(sesspar['sess_n'], stimpar['stimtype'],
-                                         sesspar['layer'], stimpar['bri_dir'], 
+                                         sesspar['plane'], stimpar['bri_dir'], 
                                          stimpar['bri_size'], stimpar['gabk'])
-    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
                                          extrapar['datatype'])
     latstr = sess_str_util.lat_par_str(latpar['method'], latpar['p_val_thr'], 
                                        latpar['rel_std'])
@@ -1316,7 +1313,7 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
                                     stimpar['gabk'], 'print')
     statstr_pr = sess_str_util.stat_par_str(analyspar['stats'], 
                                             analyspar['error'], 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
                                             extrapar['datatype'], 'print')
     latstr_pr = sess_str_util.lat_par_str(latpar['method'], latpar['p_val_thr'], 
                                           latpar['rel_std'], 'print')
@@ -1334,30 +1331,30 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
     if lat_data['n_comps'] != 0:
         p_val_thr_corr = p_val_thr/lat_data['n_comps']
 
-    [lines, layers, linlay_iter, 
-     lay_cols, lay_col_names, n_plots] = sess_plot_util.fig_linlay_pars( 
-                                        n_grps=len(lat_data['linlay_ord']))
-    figpar = sess_plot_util.fig_init_linlay(figpar)
+    [lines, planes, linpla_iter, 
+     pla_cols, pla_col_names, n_plots] = sess_plot_util.fig_linpla_pars( 
+                                        n_grps=len(lat_data['linpla_ord']))
+    figpar = sess_plot_util.fig_init_linpla(figpar)
 
     if figpar['save']['use_dt'] is None:
         figpar['save']['use_dt'] = gen_util.create_time_str()
 
     prepost_str = sess_str_util.prepost_par_str(stimpar['pre'], 
                                 stimpar['post'], str_type='print')
-    title = ('Surprise latencies ({} seqs, {})\nfor {} - {} pooled across mice'
-            '\n ROIs (sess {}{})').format(prepost_str, latstr_pr, stimstr_pr, 
-                                   statstr_pr, sess_ns_str, dendstr_pr)
+    title = (f'Surprise latencies ({prepost_str} seqs, {latstr_pr})\nfor '
+             f'{stimstr_pr} - {statstr_pr} pooled across mice'
+             f'\n ROIs (sess {sess_ns_str}{dendstr_pr})')
 
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
     fig.suptitle(title)
-    maxes = np.full([len(linlay_iter), n_sess], np.nan)
-    sig_comps = [[] for _ in range(len(linlay_iter))]
-    for i, (line, lay) in enumerate(linlay_iter):
+    maxes = np.full([len(linpla_iter), n_sess], np.nan)
+    sig_comps = [[] for _ in range(len(linpla_iter))]
+    for i, (line, pla) in enumerate(linpla_iter):
         li = lines.index(line)
-        la = layers.index(lay)
+        la = planes.index(pla)
         sub_ax = ax[la, li]
 
-        l_idx = get_linlay_idx(lat_data['linlay_ord'], line, lay, verbose=True, 
+        l_idx = get_linpla_idx(lat_data['linpla_ord'], line, pla, verbose=True, 
                                newline=(i==0))
         if l_idx is None:
             continue
@@ -1365,11 +1362,11 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
         lat_st = np.asarray(lat_data['lat_stats'][l_idx])
 
         plot_util.plot_errorbars(sub_ax, lat_st[0], lat_st[1:], sess_ns, 
-                                 col=lay_cols[la])
+                                 col=pla_cols[la])
         # plot ROI cloud
         maxes[i] = plot_lat_clouds(sub_ax, sess_ns, lat_data['lat_vals'][l_idx], 
                                    sess_info[l_idx], datatype=datatype, 
-                                   col=lay_col_names[la])
+                                   col=pla_col_names[la])
 
         # check p_val signif
         all_p_vals = lat_data['lat_p_vals'][l_idx]
@@ -1381,9 +1378,9 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
     plot_lat_data_signif(ax, sess_ns, sig_comps, lat_data['lin_p_vals'], 
                          maxes, p_val_thr=0.05, n_comps=lat_data['n_comps'])
 
-    # Add layer, line info to plots
-    sess_plot_util.format_linlay_subaxes(ax, fluor=analyspar['fluor'], 
-                   datatype=datatype, lines=lines, layers=layers, 
+    # Add plane, line info to plots
+    sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar['fluor'], 
+                   datatype=datatype, lines=lines, planes=planes, 
                    xticks=sess_ns, y_ax='Latency (s)')
 
 
@@ -1392,7 +1389,7 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
                                figpar['dirs']['acr_sess'], 
                                figpar['dirs']['lat'], latpar['method'])
 
-    savename = '{}_surp_lat_{}{}_{}'.format(datatype, sessstr, dendstr, latstr)
+    savename = f'{datatype}_surp_lat_{sessstr}{dendstr}_{latstr}'
     
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
 
@@ -1421,22 +1418,22 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
             ['analysis'] (str): analysis type (e.g., 't')
             ['datatype'] (str): datatype (e.g., 'run', 'roi')
         - sess_info (nested list): nested list of dictionaries for each 
-                                   line/layer x session containing information 
+                                   line/plane x session containing information 
                                    from each mouse, with None for missing 
                                    sessions
             ['mouse_ns'] (list)   : mouse numbers
             ['sess_ns'] (list)    : session numbers  
             ['lines'] (list)      : mouse lines
-            ['layers'] (list)     : imaging layers
+            ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
             ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
             ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
                                     for sessions for which this attribute 
                                     exists
         - prop_data (dict)        : dictionary with responsive proportion info
-            ['linlay_ord'] (list): ordered list of layers/lines            
+            ['linpla_ord'] (list): ordered list of planes/lines            
             ['prop_stats'] (list): proportion statistics, structured as
-                                       layer/line x session x comb x stats
+                                       plane/line x session x comb x stats
             ['comb_names'] (int) : names of combinations for with proportions 
                                    were calculated
 
@@ -1457,14 +1454,14 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
         - savename (str): name under which the figure is saved
     """
  
-    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
                                          extrapar['datatype'])
     latstr = sess_str_util.lat_par_str(latpar['method'], latpar['p_val_thr'], 
                                        latpar['rel_std'])
 
     statstr_pr = sess_str_util.stat_par_str(analyspar['stats'], 
                                             analyspar['error'], 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
                                             extrapar['datatype'], 'print')
     latstr_pr = sess_str_util.lat_par_str(latpar['method'], latpar['p_val_thr'], 
                                           latpar['rel_std'], 'print')
@@ -1480,42 +1477,42 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
     ctrl_idx, surp_idx = [prop_data['comb_names'].index(comb) 
                           for comb in ['gabfrs', 'surps']]
 
-    [lines, layers, linlay_iter, 
-     lay_cols, _, n_plots] = sess_plot_util.fig_linlay_pars( 
-                                  n_grps=len(prop_data['linlay_ord']))
-    figpar = sess_plot_util.fig_init_linlay(figpar)
+    [lines, planes, linpla_iter, 
+     pla_cols, _, n_plots] = sess_plot_util.fig_linpla_pars( 
+                                  n_grps=len(prop_data['linpla_ord']))
+    figpar = sess_plot_util.fig_init_linpla(figpar)
 
     if figpar['save']['use_dt'] is None:
         figpar['save']['use_dt'] = gen_util.create_time_str()
 
     prepost_str = sess_str_util.prepost_par_str(stimpar['pre'], 
                                 stimpar['post'], str_type='print')
-    title = ('Proportion surprise responsive ROIs ({} seqs, {})\n'
-             '{} across mice\n (sess {}{})').format(prepost_str, latstr_pr, 
-                                        statstr_pr, sess_ns_str, dendstr_pr)
+    title = (f'Proportion surprise responsive ROIs ({prepost_str} seqs, '
+             f'{latstr_pr})\n{statstr_pr} across mice\n (sess '
+             f'{sess_ns_str}{dendstr_pr})')
 
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
     fig.suptitle(title)
-    for i, (line, lay) in enumerate(linlay_iter):
+    for i, (line, pla) in enumerate(linpla_iter):
         li = lines.index(line)
-        la = layers.index(lay)
+        la = planes.index(pla)
         sub_ax = ax[la, li]
 
-        l_idx = get_linlay_idx(prop_data['linlay_ord'], line, lay, verbose=True, 
+        l_idx = get_linpla_idx(prop_data['linpla_ord'], line, pla, verbose=True, 
                                newline=(i==0))
         if l_idx is None:
             continue
         
-        for idx, col in zip([surp_idx, ctrl_idx], [lay_cols[la], 'gray']):
+        for idx, col in zip([surp_idx, ctrl_idx], [pla_cols[la], 'gray']):
             # retrieve proportion (* 100)
             prop_st = np.asarray([sess_vals[idx] for sess_vals 
                                   in prop_data['prop_stats'][l_idx]]) * 100
             plot_util.plot_errorbars(sub_ax, prop_st[:, 0], prop_st[:, 1:], 
                                      sess_ns, col=col)
 
-    # Add layer, line info to plots
-    sess_plot_util.format_linlay_subaxes(ax, fluor=analyspar['fluor'], 
-                   datatype=datatype, lines=lines, layers=layers, 
+    # Add plane, line info to plots
+    sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar['fluor'], 
+                   datatype=datatype, lines=lines, planes=planes, 
                    xticks=sess_ns, y_ax='Prop (%)')
 
     if savedir is None:
@@ -1523,8 +1520,7 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
                                figpar['dirs']['acr_sess'], 
                                figpar['dirs']['prop'], latpar['method'])
 
-    savename = '{}_prop_resp_sess{}{}_{}'.format(datatype, sess_ns_str, 
-                                                 dendstr, latstr)
+    savename = f'{datatype}_prop_resp_sess{sess_ns_str}{dendstr}_{latstr}'
     
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
 

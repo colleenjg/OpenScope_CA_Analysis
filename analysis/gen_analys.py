@@ -48,16 +48,16 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
         - datatype (str): type of data (e.g., 'roi', 'run')
     """
 
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                             datatype, 'print')
     
     sessstr_pr = (f'session: {sesspar.sess_n}, '
-                  f'layer: {sesspar.layer}{dendstr_pr}')
+                  f'plane: {sesspar.plane}{dendstr_pr}')
 
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    print((f'\nPlotting {datastr} traces across an entire '
-           f'session\n({sessstr_pr}).'))
+    print(f'\nPlotting {datastr} traces across an entire '
+          f'session\n({sessstr_pr}).')
 
     figpar = copy.deepcopy(figpar)
     if figpar['save']['use_dt'] is None:
@@ -80,9 +80,9 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
             params = [pars for d_pars in stim.block_params for pars in d_pars]
             par_desc = []
             for pars in params:
-                pars = [str(par) for par in pars]
-                par_desc.append(sess_str_util.pars_to_desc('{}\n{}'.format(
-                            stim.stimtype.capitalize(), ', '.join(pars[0:2]))))
+                pars_str = ', '.join([str(par) for par in pars][0:2])
+                par_desc.append(sess_str_util.pars_to_desc(
+                                f'{stim.stimtype.capitalize()}\n{pars_str}'))
             par_descs.extend(par_desc)
         if datatype == 'roi':
             nanpol = None
@@ -95,7 +95,7 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
                                           nanpol=nanpol).tolist()
             roi_tr.append(all_rois.tolist())
         elif datatype == 'run':
-            full_tr = sess.get_run_speed(remnans=analyspar.remnans).tolist()
+            full_tr = sess.get_run_velocity(remnans=analyspar.remnans).tolist()
             roi_tr = None
         all_tr.append(full_tr)
         all_edges.append(edge_fr)
@@ -154,17 +154,17 @@ def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                                            sesspar.layer, stimpar.bri_dir, 
+                                            sesspar.plane, stimpar.bri_dir, 
                                             stimpar.bri_size, stimpar.gabk,
                                             'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                             datatype, 'print')
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    print((f'\nAnalysing and plotting surprise vs non surprise {datastr} '
-           f'traces by quintile ({quintpar.n_quints}) \n({sessstr_pr}'
-           f'{dendstr_pr}).'))
+    print(f'\nAnalysing and plotting surprise vs non surprise {datastr} '
+          f'traces by quintile ({quintpar.n_quints}) \n({sessstr_pr}'
+          f'{dendstr_pr}).')
 
     # modify quintpar to retain all quintiles
     quintpar_one  = sess_ntuple_util.init_quintpar(1, 0, '', '')
@@ -242,17 +242,17 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                                            sesspar.layer, stimpar.bri_dir, 
+                                            sesspar.plane, stimpar.bri_dir, 
                                             stimpar.bri_size, stimpar.gabk,
                                             'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                             datatype, 'print')
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    print((f'\nAnalysing and plotting surprise vs non surprise {datastr} '
-           f'traces locked to surprise onset by quintile ({quintpar.n_quints}) '
-           f'\n({sessstr_pr}{dendstr_pr}).'))
+    print(f'\nAnalysing and plotting surprise vs non surprise {datastr} '
+          f'traces locked to surprise onset by quintile ({quintpar.n_quints}) '
+          f'\n({sessstr_pr}{dendstr_pr}).')
 
     seed = gen_util.seed_all(seed, 'cpu', print_seed=False)
 
@@ -276,7 +276,7 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
                 locks.append('surp_split')
             # get the stats (all) separating by session and quintiles
             for lock in locks:
-                print(f'\n{quitnpar.n_quints} quint, {lock} lock{basestr_pr}')
+                print(f'\n{quintpar.n_quints} quint, {lock} lock{basestr_pr}')
                 if lock == 'surp_split':
                     trace_info = quint_analys.trace_stats_by_surp_len_sess(
                                             sessions, analyspar, stimpar, 
@@ -364,20 +364,20 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
-                                       sesspar.layer, stimpar.bri_dir,
+                                       sesspar.plane, stimpar.bri_dir,
                                        stimpar.bri_size, stimpar.gabk, 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                             datatype, 'print')
   
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    print((f'\nCalculating and plotting the magnitude changes in {datastr} '
-           f'activity across quintiles \n({sessstr_pr}{dendstr_pr})'))
+    print(f'\nCalculating and plotting the magnitude changes in {datastr} '
+          f'activity across quintiles \n({sessstr_pr}{dendstr_pr})')
 
     
     if permpar.multcomp:
-        print(('NOTE: Multiple comparisons not implemented for magnitude '
-               'analysis. Setting to False.'))
+        print('NOTE: Multiple comparisons not implemented for magnitude '
+              'analysis. Setting to False.')
         permpar = sess_ntuple_util.get_modif_ntuple(permpar, 'multcomp', False)
 
     # get full data: session x surp x quints of interest x [ROI x seq]
@@ -455,15 +455,15 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
-                                       sesspar.layer, stimpar.bri_dir,
+                                       sesspar.plane, stimpar.bri_dir,
                                        stimpar.bri_size, stimpar.gabk, 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                             datatype, 'print')
   
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    print((f'\nAnalysing and plotting {datastr} autocorrelations ' 
-           f'({sessstr_pr}{dendstr_pr}).'))
+    print(f'\nAnalysing and plotting {datastr} autocorrelations ' 
+          f'({sessstr_pr}{dendstr_pr}).')
 
     xrans = []
     stats = []
@@ -479,8 +479,8 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
             segs = sorted(segs)
             # check that segs are contiguous
             if max(np.diff(segs)) > 1:
-                raise NotImplementedError(('Segments used for autocorrelation '
-                                           'must be contiguous within blocks.'))
+                raise NotImplementedError('Segments used for autocorrelation '
+                                          'must be contiguous within blocks.')
             if datatype == 'roi':
                 frame_edges = stim.get_twop_fr_by_seg([min(segs), max(segs)])
                 fr = list(range(min(frame_edges[0]), max(frame_edges[1])+1))
@@ -488,12 +488,12 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
                                              remnans=analyspar.remnans)
             elif datatype == 'run':
                 if autocorrpar.byitem != False:
-                    raise ValueError(('autocorrpar.byitem must be False for '
-                                      'running data.'))
+                    raise ValueError('autocorrpar.byitem must be False for '
+                                     'running data.')
                 frame_edges = stim.get_stim_fr_by_seg([min(segs), max(segs)])
                 fr = list(range(min(frame_edges[0]), max(frame_edges[1])+1))
                 
-                traces = sess.get_run_speed_by_fr(fr, fr_type='stim', 
+                traces = sess.get_run_velocity_by_fr(fr, fr_type='stim', 
                             remnans=analyspar.remnans)[np.newaxis, :]
                 
             sess_traces.append(traces)
@@ -508,8 +508,8 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
                                                 error=analyspar.error)
             downsamp = range(0, ac_st_10x.shape[-1], 10)
             if len(downsamp) != ac_st.shape[-1]:
-                raise ValueError(('Failed to downsample correctly. '
-                                  'Check implementation.'))
+                raise ValueError('Failed to downsample correctly. '
+                                 'Check implementation.')
             ac_st = np.stack([ac_st, ac_st_10x[:, downsamp]], axis=1)
         xrans.append(xran)
         stats.append(ac_st)
@@ -563,19 +563,19 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                                            sesspar.layer, stimpar.bri_dir, 
+                                            sesspar.plane, stimpar.bri_dir, 
                                             stimpar.bri_size, stimpar.gabk,
                                             'print')
-    # dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    # dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
     #                                         datatype, 'print')
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    if sesspar.layer in ['any', 'all'] and sesspar.runtype == 'pilot':
-        print('WARNING: Layers may not match between sessions for a mouse!')
+    if sesspar.plane in ['any', 'all'] and sesspar.runtype == 'pilot':
+        print('WARNING: Planes may not match between sessions for a mouse!')
 
-    print(('\nAnalysing and plotting correlations between surprise vs non '
-           f'surprise {datastr} traces between sessions ({sessstr_pr}).'))
+    print('\nAnalysing and plotting correlations between surprise vs non '
+          f'surprise {datastr} traces between sessions ({sessstr_pr}).')
 
     figpar = copy.deepcopy(figpar)
     if figpar['save']['use_dt'] is None:
@@ -588,8 +588,8 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
     all_corrs = []
     print('\nIntramouse correlations')
     for sess_grp in sessions:
-        print((f'Mouse {sess_grp[0].mouse_n}, sess {sess_grp[0].sess_n} vs '
-               f'{sess_grp[1].sess_n} corr:'))
+        print(f'Mouse {sess_grp[0].mouse_n}, sess {sess_grp[0].sess_n} vs '
+              f'{sess_grp[1].sess_n} corr:')
         trace_info = quint_analys.trace_stats_by_qu_sess(sess_grp, analyspar, 
                                             stimpar, 1, [0], byroi=False, 
                                             bysurp=True, datatype=datatype)
@@ -617,8 +617,8 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
             mouse_corrs = []
             for n_add, m2_sess_mes in enumerate(all_me_tr[n+1:]):
                 sess_corrs = []
-                print((f'Mouse {sessions[n][0].mouse_n} vs '
-                       f'{sessions[n+1+n_add][0].mouse_n} corr:'))
+                print(f'Mouse {sessions[n][0].mouse_n} vs '
+                      f'{sessions[n+1+n_add][0].mouse_n} corr:')
                 for se, m1_s1_me in enumerate(m1_sess_mes):
                     surp_corrs = []
                     print(f'    sess {sessions[n][se].sess_n}:')

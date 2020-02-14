@@ -69,8 +69,8 @@ def get_ran_s(ran_s=None, datatype='both'):
     if isinstance(ran_s, dict):
         missing = [key for key in keys if key not in ran_s.keys()]
         if len(missing) > 0:
-            raise ValueError(('`ran_s` is missing keys: '
-                              '{}').format((', ').join(missing)))
+            raise ValueError('`ran_s` is missing keys: '
+                             '{}'.format(', '.join(missing)))
     else:
         if ran_s is None:
             vals = 3.5
@@ -212,8 +212,8 @@ def peristim_data(sess, stimpar, ran_s=None, datatype='both',
     if returns in ['diff', 'both']:
         for key in ran_s.keys():
             if 'pre' in key and ran_s[key] == 0:
-                raise ValueError(('Cannot set pre to 0 if returns is '
-                                  '`diff` or `both`.'))
+                raise ValueError('Cannot set pre to 0 if returns is '
+                                 '`diff` or `both`.')
         # get avg for first and second halves
         diffs = []
         for dataset, name in zip(datasets, datanames):
@@ -222,8 +222,8 @@ def peristim_data(sess, stimpar, ran_s=None, datatype='both',
             else:
                 nanpol = nanpolgen
             n_fr = dataset.shape[1]
-            pre_s  = ran_s['{}_pre'.format(name)]
-            post_s = ran_s['{}_post'.format(name)]
+            pre_s  = ran_s[f'{name}_pre']
+            post_s = ran_s[f'{name}_post']
             split = int(np.round(pre_s/(pre_s + post_s) * n_fr)) # find 0 mark
             pre  = math_util.mean_med(dataset[:, :split], stats, 1, nanpol)
             post = math_util.mean_med(dataset[:, split:], stats, 1, nanpol)
@@ -265,17 +265,17 @@ def run_pupil_diff_corr(sessions, analysis, analyspar, sesspar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                                            sesspar.layer, stimpar.bri_dir, 
+                                            sesspar.plane, stimpar.bri_dir, 
                                             stimpar.bri_size, stimpar.gabk,
                                             'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                             datatype, 'print')
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    print(('\nAnalysing and plotting correlations between surprise vs non '
-           'surprise {} traces between sessions ({}{}).').format(datastr, 
-                                                    sessstr_pr, dendstr_pr))
+    print('\nAnalysing and plotting correlations between surprise vs non '
+          f'surprise {datastr} traces between sessions ({sessstr_pr} '
+          f'{dendstr_pr}).')
 
     sess_diffs = []
     sess_corr = []
@@ -355,15 +355,15 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
     stimtypes = ['gabors', 'bricks']
     if stimpar.stimtype != 'both':
         non_stimtype = stimtypes[1 - stimtypes.index(stimpar.stimtype)]
-        print(('stimpar.stimtype will be set to `both`, but non default '
-               '{} parameters are lost.').format(non_stimtype))
+        print('stimpar.stimtype will be set to `both`, but non default '
+              f'{non_stimtype} parameters are lost.')
         stimpar_dict = stimpar._asdict()
         for key in list(stimpar_dict.keys()): # remove any 'none's
             if stimpar_dict[key] == 'none':
                 stimpar_dict.pop(key)
 
-    sessstr_pr = 'session: {}, layer: {}'.format(sesspar.sess_n, sesspar.layer)
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    sessstr_pr = f'session: {sesspar.sess_n}, plane: {sesspar.plane}'
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                             datatype, 'print')
     stimstr_pr = []
     stimpars = []
@@ -376,9 +376,8 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
     stimpar_dict = stimpars[0]._asdict()
     stimpar_dict['stimtype'] = 'both'
 
-    print(('\nAnalysing and plotting correlations between surprise vs non '
-           'surprise ROI traces between sessions ({}{}).').format(sessstr_pr, 
-                                                                  dendstr_pr))
+    print('\nAnalysing and plotting correlations between surprise vs non '
+          f'surprise ROI traces between sessions ({sessstr_pr}{dendstr_pr}).')
     sess_corrs = []
     sess_roi_corrs = []
     for sess in sessions:
@@ -482,9 +481,9 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
 #         else:
 #             min_v = np.nanmin(np.asarray([vals[0] for vals in scale_vals]), axis=0)
 #             max_v = np.nanmax(np.asarray([vals[1] for vals in scale_vals]), axis=0)
-#             if fig_type == 'by{}'.format(dil):
+#             if fig_type == f'by{dil}':
 #                 sort_arg = sort_args[d]
-#             elif fig_type == 'by{}'.format(dils[1-d]):
+#             elif fig_type == 'by{dils[1-d]}':
 #                 sort_arg = sort_args[1-d]
 
 #         me_scaled = ((me.T - min_v)/(max_v - min_v))[:, sort_arg]
@@ -498,17 +497,17 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
 #                         phtsec=3.5):
 
 #     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-#                                             sesspar.layer, stimpar.bri_dir, 
+#                                             sesspar.plane, stimpar.bri_dir, 
 #                                             stimpar.bri_size, stimpar.gabk,
 #                                             'print')
-#     dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+#     dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
 #                                             datatype, 'print')
        
 #     datastr = sess_str_util.datatype_par_str(datatype)
 
-#     print(('\nAnalysing and plotting correlations between surprise vs non '
-#            'surprise {} traces between sessions ({}{}).').format(datastr, 
-#                                                     sessstr_pr, dendstr_pr))
+    # print('\nAnalysing and plotting correlations between surprise vs non '
+    #       f'surprise {datastr} traces between sessions ({sessstr_pr}'
+    #       f'{dendstr_pr}).')
 
 #     sess_diffs = []
 #     sess_corr = []
@@ -522,8 +521,8 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
 
 
 #         n_fr = dataset.shape[1]
-#         pre_s  = ran_s['{}_pre'.format(name)]
-#         post_s = ran_s['{}_post'.format(name)]
+#         pre_s  = ran_s[f'{name}_pre']
+#         post_s = ran_s[f'{name}_post']
 #         ratio = stimpar.pre/(stimpar.pre + stimpar.post)
 #         pup_split = int(np.round( * pup_data.shape[1])) # find 0 mark
 
@@ -605,9 +604,9 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
 
 #     cmap = plot_util.manage_mpl(cmap=True, nbins=100)
 
-#     gentitle = (('Mouse {}, {} {}, sess {}, {}\nSurprise responses during '
-#                  'high vs low pupil dilation').format(sess.mouse_n, sess.line, 
-#                   sess.layer, sess.sess_n, stimtype))
+#     gentitle = (f'Mouse {sess.mouse_n}, {sess.line} {sess.plane}, '
+#                 f'sess {sess.sess_n}, {stimtype}\nSurprise responses during '
+#                  'high vs low pupil dilation')
 #     dils = ['dil', 'undil']
 #     nrois = roi_data.shape[-1]
 #     yticks_ev = int(10 * np.max([1, np.ceil(nrois/100)])) # to avoid more than 10 ticks
@@ -618,15 +617,15 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
 
 #         if fig_type in ['bydil', 'byundil']:
 #             peak_sort = ' across plots'
-#             scale_type = ' by {}ated data'.format(fig_type[2:])
+#             scale_type = f' by {fig_type[2:]}ated data'
 #             sharey = True
 #         else:
 #             peak_sort = ''
 #             scale_type = ' within plot'
 #             sharey = False
 
-#         subtitle = ('ROIs sorted by peak activity{} and '
-#                     'scaled{}').format(peak_sort, scale_type)
+#         subtitle = (f'ROIs sorted by peak activity{peak_sort} and '
+#                     f'scaled{scale_type}')
 #         fig, ax = plt.subplots(ncols=2, figsize=[30, 15], sharey=sharey)
         
 #         for d, dil in enumerate(dils):    
@@ -652,9 +651,9 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
 #                             t_heis=t_hei)
 
 #         plot_util.add_colorbar(fig, im, len(dils))
-#         fig.suptitle('{}\n{}'.format(gentitle, subtitle))
-#         fig.savefig('results/latest2/m{}_s{}_{}_cm_ext_{}_{}.png'.format(sess.mouse_n, 
-#                                    sess.sess_n, sess.layer, stimtype, fig_type))
+#         fig.suptitle(f'{gentitle}\n{subtitle}')
+#         fig.savefig(f'results/latest2/m{sess.mouse_n}_s{sess.sess_n}_'
+#                     f'{sess.plane}_cm_ext_{stimtype}_{fig_type}.png')
 #         plt.close(fig)
 
 

@@ -50,10 +50,10 @@ def plot_from_dict(direc, plt_bkend=None, fontdir=None):
 
 
 #############################################
-def plot_title(mouse_n, sess_n, line, layer, comp, stimtype, bri_dir='right',
+def plot_title(mouse_n, sess_n, line, plane, comp, stimtype, bri_dir='right',
                bri_size=128, gabk=16):
     """
-    plot_title(mouse_n, sess_n, line, layer)
+    plot_title(mouse_n, sess_n, line, plane)
 
     Creates plot title from session information.
     
@@ -61,7 +61,7 @@ def plot_title(mouse_n, sess_n, line, layer, comp, stimtype, bri_dir='right',
         - mouse_n (int) : mouse number
         - sess_n (int)  : session number
         - line (str)    : transgenic line name
-        - layer (str)   : layer name
+        - plane (str)   : plane name
         - comp (str)    : comparison name
         - stimtype (str): stimulus type
     
@@ -97,9 +97,8 @@ def plot_title(mouse_n, sess_n, line, layer, comp, stimtype, bri_dir='right',
     stim_str = sess_str_util.stim_par_str(stimtype, bri_dir, bri_size, gabk, 
                                           'print')
 
-    return 'Mouse {}, sess {}, {} {}\n{}, {}'.format(mouse_n, sess_n, line, 
-                                                 layer, stim_str.capitalize(), 
-                                                 comp_str)
+    return (f'Mouse {mouse_n}, sess {sess_n}, {line} {plane}\n'
+            f'{stim_str.capitalize()}, {comp_str}')
 
 
 #############################################
@@ -164,7 +163,7 @@ def plot_class_traces(analyspar, sesspar, stimpar, logregpar, tr_stats,
     if len(ext_label) == 1:
         st_name = ext_label[0]
         test_lab = st_name.replace('_class_stats', '')
-        n_name    = '{}_ns'.format(test_lab)
+        n_name    = f'{test_lab}_ns'
         ext_str = sess_str_util.ext_test_str(logregpar['q1v4'], 
                                 logregpar['regvsurp'], 'label')
         if len(classes) == 2:
@@ -196,12 +195,13 @@ def plot_class_traces(analyspar, sesspar, stimpar, logregpar, tr_stats,
     ax_tr.set_ylabel(u'{}{}'.format(fluor_str, scale_str))
 
     fig_title = plot_title(sesspar['mouse_n'], sesspar['sess_n'], 
-                           sesspar['line'], sesspar['layer'], logregpar['comp'], 
+                           sesspar['line'], sesspar['plane'], logregpar['comp'], 
                            stimpar['stimtype'], stimpar['bri_dir'], 
                            stimpar['bri_size'], stimpar['gabk'])
 
-    ax_tr.set_title(u'{}{}, {} across ROIs (n={})\n{}'.format(fig_title, 
-          ext_str, stat_str, tr_stats['n_rois'], shuff_str))
+    ax_tr.set_title(f'{fig_title}{ext_str}, ' + u'{} '.format(stat_str) +
+                    'across ROIs (n={})'.format(tr_stats['n_rois']) +
+                    f'\n{shuff_str}')
     ax_tr.legend()
 
     save_name = os.path.join(savedir, 'train_traces')
@@ -236,15 +236,15 @@ def plot_scores(analyspar, sesspar, stimpar, logregpar, extrapar, scores,
     scale_str = sess_str_util.scale_par_str(analyspar['scale'], 'print')
     shuff_str = sess_str_util.shuff_par_str(extrapar['shuffle'], 'labels')
     fig_title = plot_title(sesspar['mouse_n'], sesspar['sess_n'], 
-                           sesspar['line'], sesspar['layer'], logregpar['comp'], 
+                           sesspar['line'], sesspar['plane'], logregpar['comp'], 
                            stimpar['stimtype'], stimpar['bri_dir'], 
                            stimpar['bri_size'], stimpar['gabk'])
 
     ext_str = sess_str_util.ext_test_str(logregpar['q1v4'], 
                             logregpar['regvsurp'], 'print')
 
-    gen_title = u'{}{}, {}{}{}'.format(fig_title, ext_str, fluor_str, 
-                                       scale_str, shuff_str)
+    gen_title = (f'{fig_title}{ext_str}' + u'{}'.format(fluor_str) +
+                 f'{scale_str}{shuff_str}')
 
     logreg_util.plot_scores(scores, extrapar['classes'], logregpar['alg'],
                 extrapar['loss_name'], savedir, gen_title=gen_title)
@@ -393,17 +393,15 @@ def rois_x_label(sess_ns, arr, modif=False):
 
     arr = np.nan_to_num(arr) # convert NaNs to 0s
 
-    x_label = ['Session {}'.format(x+1) for x in range(arr.shape[1])]
+    x_label = [f'Session {x+1}' for x in range(arr.shape[1])]
     
     for sess_n in sess_ns:
         for m in range(arr.shape[0]):
             if m == 0:
-                n_rois_str = '{}'.format(int(arr[m, int(sess_n-1)]))
+                n_rois_str = f'{int(arr[m, int(sess_n-1)])}'
             if m > 0:
-                n_rois_str = '{}/{}'.format(n_rois_str, 
-                                              int(arr[m, int(sess_n-1)]))
-        x_label[sess_n-1] = 'Session {}\n({} rois)'.format(int(sess_n), 
-                                                           n_rois_str)
+                n_rois_str = f'{n_rois_str}/{int(arr[m, int(sess_n-1)])}'
+        x_label[sess_n-1] = f'Session {int(sess_n)}\n({n_rois_str} rois)'
 
     # break up string
     for i in range(len(x_label)):
@@ -414,7 +412,7 @@ def rois_x_label(sess_ns, arr, modif=False):
             if spt_pt == -1:
                 break
             sub = spt_pt + j + 1
-            x_label[i] = '{}\n{}'.format(x_label[i][:sub], x_label[i][sub:])
+            x_label[i] = f'{x_label[i][:sub]}\n{x_label[i][sub:]}'
             j = sub + 1
 
     return x_label
@@ -454,24 +452,24 @@ def mouse_runs_leg(arr, mouse_n=None, shuffle=False, CI=0.95):
 
     for s in range(arr.shape[1]):
         if s == 0:
-            n_runs_str = '{}'.format(int(np.sum(arr[:, s])))
+            n_runs_str = f'{int(np.sum(arr[:, s]))}'
         if s > 0:
-            n_runs_str = '{}/{}'.format(n_runs_str, int(np.sum(arr[:, s])))
+            n_runs_str = f'{n_runs_str}/{int(np.sum(arr[:, s]))}'
     
     if shuffle:
         if CI is not None:
             CI_pr = CI*100
             if CI_pr%1 == 0:
                 CI_pr = int(CI_pr)
-            leg = 'shuffled ({}% CI)\n({} runs)'.format(CI_pr, n_runs_str)
+            leg = f'shuffled ({CI_pr}% CI)\n({n_runs_str} runs)'
         else:
-            leg = 'shuffled\n({} runs)'.format(n_runs_str)
+            leg = f'shuffled\n({n_runs_str} runs)'
 
     else:
         if mouse_n is None:
             raise IOError('If `shuffle` is False, Must specify `mouse_n.')
         
-        leg = 'mouse {}\n({} runs)'.format(int(mouse_n), n_runs_str)
+        leg = f'mouse {int(mouse_n)}\n({n_runs_str} runs)'
     
     return leg
 
@@ -519,13 +517,13 @@ def plot_CI(ax, x_label, arr, sess_ns, CI=0.95, ext_data=False, modif=False):
 
 
 #############################################
-def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, layer, 
+def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane, 
                  title, stat='mean', error='sem', CI=0.95, q1v4=False, 
                  rvs=False, label=True, modif=False):
     """
-    summ_subplot(ax, arr, data_title, mouse_ns, sess_ns, line, layer, title)
+    summ_subplot(ax, arr, data_title, mouse_ns, sess_ns, line, plane, title)
 
-    Plots summary data in the specific subplot for a line and layer.
+    Plots summary data in the specific subplot for a line and plane.
 
     Required args:
         - ax (plt Axis subplot): subplot
@@ -543,7 +541,7 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, layer,
         - mouse_ns (int)       : mouse numbers (-1 for shuffled data)
         - sess_ns (int)        : session numbers
         - line (str)           : transgenic line name
-        - layer (str)          : layer name
+        - plane (str)          : plane name
         - title (str)          : general plot titles (must contain 'data')
     
     Optional args:
@@ -618,7 +616,7 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, layer,
     
     # plot non shuffle data
     main_col = 'blue'
-    if layer == 'dend':
+    if plane == 'dend':
         main_col = 'green'
 
     if line == 'L23':
@@ -630,7 +628,7 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, layer,
             leg = mouse_runs_leg(arr[m, :, -1], mouse_n, False)
             for i, m_i in enumerate(mean_ids):
                 leg_i = leg.index('\n')
-                leg_m = '{}{}{}'.format(leg[: leg_i], add_leg[i], leg[leg_i :])
+                leg_m = f'{leg[: leg_i]}{add_leg[i]}{leg[leg_i :]}'
                 ax.errorbar(x_label, arr[m, :, m_i], yerr=arr[m, :, m_i + 1], 
                             fmt='-o', markersize=12, capthick=4, label=leg_m, 
                             alpha=alphas[i], lw=3, color=cols[m])
@@ -643,8 +641,9 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, layer,
                     med_th = 0.0075*(y_lim[1]-y_lim[0])
                     ax.bar(x_label[i], height=med_th, bottom=med - med_th/2., 
                         color='black', width=0.5, alpha=alphas[m])
-        title = '{}{} {} {}'.format(title[: title.index('data')], line, layer, 
-                                title[title.index('data') :])
+        title_pre = title[: title.index('data')]
+        title_post = title[title.index('data') :] 
+        title = f'{title_pre}{line} {plane} {title_post}'
 
     # add a mean line
     else:
@@ -662,7 +661,7 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, layer,
                 if label:
                     ax.set_xlabel('Sessions')
         
-        title = '{} {}'.format(line, layer)
+        title = f'{line} {plane}'
     
     ax.set_title(title)
     if not modif:
@@ -675,7 +674,7 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
     """
     plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename)
 
-    Plots summary data for a specific comparison, for each line and layer and 
+    Plots summary data for a specific comparison, for each line and plane and 
     saves figure.
 
     Required args:
@@ -731,35 +730,35 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
         ext_test = sess_str_util.ext_test_str(q1v4, rvs)
         n_vals = 8 # (extra mean/med, sem/2.5p, sem/97.5p for Q4) 
         if data == 'test_acc': 
-            data_types = ['test_acc', '{}_acc'.format(ext_test)]
+            data_types = ['test_acc', f'{ext_test}_acc']
         elif data == 'test_acc_bal':   
-            data_types = ['test_acc_bal', '{}_acc_bal'.format(ext_test)]
+            data_types = ['test_acc_bal', f'{ext_test}_acc_bal']
         else:
             gen_util.accepted_values_error('data', data, 
                                            ['test_acc', 'test_acc_bal'])
 
     label = True
-    for i, [line, layer] in enumerate(celltypes):
+    for i, [line, plane] in enumerate(celltypes):
         sub_ax = plot_util.get_subax(ax, i)
         if not modif:
             sub_ax.set_xlim(-0.5, max_sess - 0.5)
         else:
             label = (i == 2)
         # get the right rows in dataframe
-        cols       = ['layer']
-        cri        = [layer]
-        curr_lines = gen_util.get_df_vals(plot_lines.loc[plot_lines['line'].str.contains(line)], cols, cri)
-        cri_str = ['{}: {}'.format(col, crit) for col, crit in zip(cols, cri)]
+        cols       = ['plane']
+        cri        = [plane]
+        curr_lines = gen_util.get_df_vals(plot_lines.loc[
+                            plot_lines['line'].str.contains(line)], cols, cri)
+        cri_str = ', '.join([f'{col}: {crit}' for col, crit in zip(cols, cri)])
         if len(curr_lines) == 0: # no data
-            print('No data found for {} {}, {}'.format(line, layer,
-                                                       ', '.join(cri_str)))
+            print(f'No data found for {line} {plane}, {cri_str}')
             continue
         else: # shuffle or non shuffle missing
             skip = False
             for shuff in [False, True]:
                 if shuff not in curr_lines['shuffle'].tolist():
-                    print('No shuffle={} data found for {} {}, {}'.format(
-                          shuff, line, layer, ', '.join(cri_str)))
+                    print(f'No shuffle={shuff} data found for {line} {plane}, '
+                          f'{cri_str}')
                     skip = True
             if skip:
                 continue
@@ -793,13 +792,13 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
                     for st, stat in enumerate(stat_types):
                         for d, dat in enumerate(data_types):
                             i = d * 3 + st
-                            arr[m, int(sess_n-1), i] = curr_line['{}_{}'.format(dat, stat)]
+                            arr[m, int(sess_n-1), i] = curr_line[f'{dat}_{stat}']
                     if mouse_n != -1:
                         arr[m, int(sess_n-1), -2] = curr_line['n_rois']
                     arr[m, int(sess_n-1), -1] = curr_line['runs_total'] - curr_line['runs_nan']
         
         summ_subplot(sub_ax, data_arr, shuff_arr, title, mouse_ns, sess_ns, 
-                     line, layer, title, stats[0], stats[1], CI, q1v4, rvs, 
+                     line, plane, title, stats[0], stats[1], CI, q1v4, rvs, 
                      label, modif)
     
     fig.savefig(savename)
@@ -853,7 +852,7 @@ def plot_summ(output, savename, stimtype='gabors', comp='surp', ctrl=False,
     if os.path.exists(summ_scores_file):
         summ_scores = file_util.loadfile(summ_scores_file)
     else:
-        print('{} not found.'.format(summ_scores_file))
+        print(f'{summ_scores_file} not found.')
         return
 
     data_types  = ['epoch_n', 'test_acc', 'test_acc_bal']
@@ -888,39 +887,41 @@ def plot_summ(output, savename, stimtype='gabors', comp='surp', ctrl=False,
     ctrl_str_pr = sess_str_util.ctrl_par_str(ctrl, str_type='print')
     modif_str = '_modif' if modif else ''
 
-    save_dir = os.path.join(output, 'figures_{}'.format(fluor))
+    save_dir = os.path.join(output, f'figures_{fluor}')
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
     
     cols = ['scale', 'fluor', 'bri_dir', 'runtype']
     cri  = [scale, fluor, bri_dir, runtype]
     plot_lines = gen_util.get_df_vals(summ_scores, cols, cri)
-    cri_str = ['{}: {}'.format(col, crit) for col, crit in zip(cols, cri)]
+    cri_str = ', '.join([f'{col}: {crit}' for col, crit in zip(cols, cri)])
     if len(plot_lines) == 0: # no data
-        print('No data found for {}'.format(', '.join(cri_str)))
+        print(f'No data found for {cri_str}')
         return
     else: # shuffle or non shuffle missing
         skip = False
         for shuff in [False, True]:
             if shuff not in plot_lines['shuffle'].tolist():
-                print('No shuffle={} data found for {}'.format(shuff, 
-                      ', '.join(cri_str)))
+                print(f'No shuffle={shuff} data found for {cri_str}')
                 skip = True
         if skip:
             return
 
     for data, data_title in zip(data_types, data_titles):
         if not modif:
-            title = ('{} {}{} - {} for log regr on'
-                     '\n{} {} data ({})').format(stim_str_pr.capitalize(), comp, 
-                     ctrl_str_pr, data_title, scale_str_pr, fluor, runtype)
+            title = (f'{stim_str_pr.capitalize()} {comp}{ctrl_str_pr} - '
+                     f'{data_title} for log regr on\n' + 
+                     u'{} {} '.format(scale_str_pr, fluor) + 
+                     f'data ({runtype})')
         else:
-            title = '{} {}{} - {}'.format(stim_str_pr.capitalize(), comp, 
-                    ctrl_str_pr, data_title)
-        savename = os.path.join(save_dir, '{}_{}_{}{}{}{}.svg'.format(data, 
-                                stim_str, comp, ctrl_str, scale_str, modif_str))
-        plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename, 
-                       CI, q1v4, rvs, modif)
+            title = (f'{stim_str_pr.capitalize()} {comp}{ctrl_str_pr} - '
+                     f'{data_title}')
+        
+        savename = (f'{data}_{stim_str}_{comp}{ctrl_str}{scale_str}'
+                    f'{modif_str}.svg')
+        full_savename = os.path.join(save_dir, savename)
+        plot_data_summ(plot_lines, data, stats, shuff_stats, title, 
+                       full_savename, CI, q1v4, rvs, modif)
 
     plt.close('all')
 

@@ -39,9 +39,9 @@ def accepted_values_error(varname, wrong_val, accept_vals):
         - accept_vals (list): list of accepted values for the variable
     """
 
-    val_str = ', '.join(['`{}`'.format(x) for x in accept_vals])
-    error_message = ('`{}` value `{}` unsupported. Must be in '
-                     '{}.').format(varname, wrong_val, val_str)
+    val_str = ', '.join([f'`{x}`' for x in accept_vals])
+    error_message = (f'`{varname}` value `{wrong_val}` unsupported. Must be in '
+                     f'{val_str}.')
     raise ValueError(error_message)
 
 
@@ -60,9 +60,8 @@ def create_time_str():
     """
 
     now = datetime.datetime.now()
-    dirname = ('{:02d}{:02d}{:02d}_'
-               '{:02d}{:02d}{:02d}').format(now.year, now.month, now.day, 
-                                            now.hour, now.minute, now.second)
+    dirname = (f'{now.year:02d}{now.month:02d}{now.day:02d}_'
+               f'{now.hour:02d}{now.minute:02d}{now.second:02d}')
     return dirname
     
     
@@ -184,8 +183,8 @@ def slice_idx(axis, pos):
         sl_idx = tuple([slice(None)])
 
     elif axis < 0:
-        raise ValueError(('Do not pass -1 axis value as this will always '
-                          'be equivalent to axis 0.'))
+        raise ValueError('Do not pass -1 axis value as this will always '
+                         'be equivalent to axis 0.')
 
     else:
         sl_idx = tuple([slice(None)] * axis + [pos])
@@ -350,7 +349,7 @@ def intlist_to_str(intlist):
     if isinstance(intlist, list):
         extr = [min(intlist), max(intlist) + 1]
         if set(intlist) == set(range(*extr)):
-            intstr = '{}-{}'.format(extr[0], extr[1] - 1)
+            intstr = f'{extr[0]}-{extr[1]-1}'
         else:
             intstr = '-'.join([str(i) for i in sorted(intlist)])
     else:
@@ -416,10 +415,10 @@ def seed_all(seed=None, device='cpu', print_seed=True, seed_now=True):
     if seed in [None, -1]:
         seed = random.randint(1, 10000)
         if print_seed:
-            print('Random seed: {}'.format(seed))
+            print(f'Random seed: {seed}')
     else:
         if print_seed:
-            print('Preset seed: {}'.format(seed))
+            print(f'Preset seed: {seed}')
     
     if seed_now:
         random.seed(seed)
@@ -578,15 +577,15 @@ def get_df_vals(df, cols=[], criteria=[], label=None, unique=True, dtype=None,
             vals = conv_types(vals, dtype)
         if single:
             if len(vals) != 1:
-                raise ValueError(('Expected to find 1 value, but '
-                                  'found {}.').format(len(vals)))
+                raise ValueError('Expected to find 1 value, but '
+                                 f'found {len(vals)}.')
             else:
                 vals = vals[0]
         return vals
     else: 
         if single and len(df) != 1:
-            raise ValueError(('Expected to find 1 dataframe line, but '
-                              'found {}.').format(len(df)))
+            raise ValueError('Expected to find 1 dataframe line, but '
+                             f'found {len(df)}.')
         return df
 
 
@@ -813,8 +812,8 @@ def hierarch_argsort(data, sorter='fwd', axis=0, dtypes=None):
     if dtypes is None:
         dtypes = [None] * len(sorter)
     elif len(dtypes) != len(sorter):
-        raise ValueError(('If `dtypes` are provided, must pass one per '
-                          'sorting position.'))
+        raise ValueError('If `dtypes` are provided, must pass one per '
+                         'sorting position.')
 
     overall_sort = np.asarray(range(data.shape[rem_axis]))
 
@@ -886,7 +885,7 @@ def num_to_str(num, n_dec=2, dec_sep='-'):
 
     num_res = np.round(num % 1, n_dec)
     if num_res != 0:
-        num_str = '{}{}{}'.format(num_str, dec_sep, str(num_res)[2:])
+        num_str = f'{num_str}{dec_sep}{str(num_res)[2:]}'
 
     return num_str
 

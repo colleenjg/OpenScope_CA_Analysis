@@ -125,8 +125,8 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7.5,
     figdir = os.path.join(output, 'results', 'figures')
 
     fig_dirs = {'figdir'   : figdir,
-                'roi'      : os.path.join(figdir, '{}_roi'.format(runtype)),
-                'run'      : os.path.join(figdir, '{}_run'.format(runtype)),
+                'roi'      : os.path.join(figdir, f'{runtype}_roi'),
+                'run'      : os.path.join(figdir, f'{runtype}_run'),
                 'acr_sess' : 'acr_sess',
                 'autocorr' : 'autocorr',
                 'full'     : 'full',
@@ -152,12 +152,12 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7.5,
 
 
 #############################################
-def fig_init_linlay(figpar=None, traces=False):
+def fig_init_linpla(figpar=None, traces=False):
     """
-    fig_init_linlay()
+    fig_init_linpla()
 
     Returns figpar dictionary with initialization parameters modified for
-    graphs across sessions divided by line/layer combinations.
+    graphs across sessions divided by line/plane combinations.
 
     Optional args:
         - figpar (dict)       : dictionary containing figure parameters 
@@ -167,7 +167,7 @@ def fig_init_linlay(figpar=None, traces=False):
                            ncols, sharex, sharey, subplot_hei, subplot_wid
                                 default: None
         - traces (bool or int): if not False, provides number of traces per 
-                                line/layer combination to use in dividing 
+                                line/plane combination to use in dividing 
                                 subplot height
                                 default: False
 
@@ -203,15 +203,15 @@ def fig_init_linlay(figpar=None, traces=False):
 
 
 #############################################
-def fig_linlay_pars(traces=False, n_grps=None):
+def fig_linpla_pars(traces=False, n_grps=None):
     """
-    fig_linlay_pars()
+    fig_linpla_pars()
 
-    Returns parameters for a line/layer combination graph.
+    Returns parameters for a line/plane combination graph.
 
     Optional args:
         - traces (bool or int): if not False, provides number of traces per 
-                                line/layer combination to use in multiplying
+                                line/plane combination to use in multiplying
                                 number of plots
                                 default: False
         - n_grps (int or None): if not None, the number of groups in the data 
@@ -221,30 +221,30 @@ def fig_linlay_pars(traces=False, n_grps=None):
 
     Returns:
         - lines (list)      : ordered list of lines
-        - layers (list)     : ordered list of layers
-        - linlay_iter (list): ordered list of lines and layers, structured as 
-                              grp x [lin, lay]
-        - lay_cols (list)   : colors for each layer
-        - lay_cols (list)   : color names for each layer
+        - planes (list)     : ordered list of planes
+        - linpla_iter (list): ordered list of lines and planes, structured as 
+                              grp x [lin, pla]
+        - pla_cols (list)   : colors for each plane
+        - pla_cols (list)   : color names for each plane
         - n_plots (int)     : total number of plots
     """
 
-    lines, layers = ['L2/3', 'L5'], ['dendrites', 'soma']
-    linlay_iter = [[lin, lay] for lin in lines for lay in layers]
-    lay_col_names = ['green', 'blue']
-    lay_cols = [plot_util.get_color(c, ret='single') for c in lay_col_names]
+    lines, planes = ['L2/3', 'L5'], ['dendrites', 'soma']
+    linpla_iter = [[lin, pla] for lin in lines for pla in planes]
+    pla_col_names = ['green', 'blue']
+    pla_cols = [plot_util.get_color(c, ret='single') for c in pla_col_names]
     
     if traces:
         mult = traces
     else:
         mult = 1
-    n_plots = len(lines) * len(layers) * mult
+    n_plots = len(lines) * len(planes) * mult
 
     if n_grps is not None and n_grps > n_plots/mult:
-        raise ValueError(('Expected up to {} line x layer '
-                          'combinations, not {}.').format(n_plots, n_grps))
+        raise ValueError(f'Expected up to {n_plots} line x plane '
+                         f'combinations, not {n_grps}.')
 
-    return lines, layers, linlay_iter, lay_cols, lay_col_names, n_plots
+    return lines, planes, linpla_iter, pla_cols, pla_col_names, n_plots
 
 
 #############################################
@@ -325,7 +325,7 @@ def add_axislabels(sub_ax, fluor='dff', area=False, scale=False, datatype='roi',
         if datatype == 'roi':
             y_str = sess_str_util.fluor_par_str(fluor, str_type='print')
         elif datatype == 'run':
-            y_str = 'Running speed (cm/s)'
+            y_str = 'Running velocity (cm/s)'
         else:
             gen_util.accepted_values_error('datatype', datatype, ['roi', 'run'])
     else:
@@ -526,20 +526,20 @@ def plot_gabfr_pattern(sub_ax, x_ran, alpha=0.1, offset=0, bars_omit=[]):
 
 
 #############################################
-def format_linlay_subaxes(ax, fluor='dff', area=False, datatype='roi', 
-                          lines=None, layers=None, xlab=None, 
+def format_linpla_subaxes(ax, fluor='dff', area=False, datatype='roi', 
+                          lines=None, planes=None, xlab=None, 
                           xticks=None, sess_ns=None, y_ax=None):
     """
-    format_linlay_subaxes(ax)
+    format_linpla_subaxes(ax)
 
     Formats axis labels and grids for a square of subplots, structured as 
-    layers (2 or more rows) x lines (2 columns). 
+    planes (2 or more rows) x lines (2 columns). 
     
     Specifically:
     - Removes bottom lines and ticks for top plots
     - Adds line names to top plots
     - Adds y labels on left plots (midde of top and bottom half)
-    - Adds layer information on right plots (midde of top and bottom half)
+    - Adds plane information on right plots (midde of top and bottom half)
     - Adds x labels to bottom plots
     - Adds session numbers if provided
 
@@ -556,7 +556,7 @@ def format_linlay_subaxes(ax, fluor='dff', area=False, datatype='roi',
                             default: 'roi'
         - lines (list)  : ordered lines (2)
                             default: None
-        - layers (list) : ordered layers (2)
+        - planes (list) : ordered planes (2)
                             default: None
         - xlab (str)    : x label
                           default: None
@@ -581,35 +581,35 @@ def format_linlay_subaxes(ax, fluor='dff', area=False, datatype='roi',
 
     if lines is None:
         lines = ['L2/3', 'L5']
-    if layers is None:
-        layers = ['dendrites', 'soma']
+    if planes is None:
+        planes = ['dendrites', 'soma']
     
-    for l, name in zip([lines, layers], ['lines', 'layers']):
+    for l, name in zip([lines, planes], ['lines', 'planes']):
         if len(l) != 2:
-            raise ValueError('2 {} expected.'.format(name))
+            raise ValueError(f'2 {name} expected.')
 
 
     for r in range(ax.shape[0]):
         for c in range(ax.shape[1]):
             if xticks is not None:
                 ax[r, c].set_xticks(xticks)
-            if c == 0 and r in rs_mid: # LEFT MID LAYER
+            if c == 0 and r in rs_mid: # LEFT MID plane
                 add_axislabels(ax[r, c], fluor=fluor, area=area, 
                                 datatype=datatype, x_ax='', y_ax=y_ax)
             if c != 0: # RIGHT
                 right_lab = ''
                 if sess_ns is not None:
                     sess_n = sess_ns[r%len(sess_ns)]
-                    right_lab = '{}\n'.format(sess_n)
+                    right_lab = f'{sess_n}\n'
                     if sess_n == sess_ns[-1]:
-                        right_lab = 'sess {}'.format(right_lab)
-                if r in rs_mid: # RIGHT MID LAYER
+                        right_lab = f'sess {right_lab}'
+                if r in rs_mid: # RIGHT MID plane
                     r_idx = rs_mid.index(r)
-                    right_lab = '{}{}\n'.format(right_lab, layers[r_idx])
+                    right_lab = f'{right_lab}{planes[r_idx]}\n'
                 ax[r, c].set_ylabel(right_lab[:-1])
                 ax[r, c].yaxis.set_label_position('right')
             if r == 0: # TOP
-                ax[r, c].set_title('{} neurons'.format(lines[c]))            
+                ax[r, c].set_title(f'{lines[c]} neurons')            
             if r != n_rows-1: # NOT BOTTOM
                 ax[r, c].tick_params(axis='x', which='both', bottom=False) 
                 ax[r, c].spines['bottom'].set_visible(False)

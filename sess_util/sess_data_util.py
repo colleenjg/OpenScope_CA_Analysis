@@ -73,7 +73,7 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
         - stim_wins (3D array): array of stimulus data, structured as:
                                 seq wins x frames x pars, where the pars are:
                                     - for each gabor: x_pos, y_pos, size, ori 
-                                    - run speed
+                                    - run velocity
         if run and run_mean or run_std is None:
         - (list):
             - run_mean (num)  : mean of retrieved running values
@@ -98,20 +98,20 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
 
     if run:
         twop_fr_seqs = sess.get_twop_fr_ran(twopfr, pre, post)[0]
-        run_speed = sess.get_run_speed(twop_fr_seqs)
+        run_velocity = sess.get_run_velocity(twop_fr_seqs)
         
         # scale running array to mean 0 with std 1
         ret_run_stats = False
         if run_mean is None or run_std is None:
             ret_run_stats = True
-            run_mean = np.mean(run_speed)
-            run_std  = np.std(run_speed)
-        run_speed = 2. * (run_speed - run_mean)/run_std - 1.
+            run_mean = np.mean(run_velocity)
+            run_std  = np.std(run_velocity)
+        run_velocity = 2. * (run_velocity - run_mean)/run_std - 1.
 
     # stim params: seq x frame x flat (gab x pars)
     all_pars = pars.reshape([pars.shape[0], pars.shape[1], -1])
     if run:
-        all_pars = np.concatenate([all_pars, run_speed[:, :, np.newaxis]], 
+        all_pars = np.concatenate([all_pars, run_velocity[:, :, np.newaxis]], 
                                    axis=2)
     
     win_leng = int(np.floor(win_leng_s * sess.twop_fps))
@@ -246,13 +246,13 @@ def convert_to_binary_cols(df, col, vals, targ_vals):
 
     uniq_vals = df[col].unique().tolist()    
     if not set(uniq_vals).issubset(set(vals)):
-        raise ValueError('Unexpected values for {}.'.format(col))
+        raise ValueError(f'Unexpected values for {col}.')
     
     mapping = dict()
     for val in vals:
         mapping[val] = 0
     for val, targ in zip(vals, targ_vals):    
-        col_name = '{}${}'.format(col, targ)
+        col_name = f'{col}${targ}'
         this_mapping = copy.deepcopy(mapping)
         this_mapping[val] = 1
         df[col_name] = df[col].copy().replace(this_mapping)
@@ -289,17 +289,16 @@ def get_mapping(par, act_vals=None):
         vals = ['right', 'left']
     elif par == 'line':
         vals = ['L23-Cux2', 'L5-Rbp4']
-    elif par == 'layer':
+    elif par == 'plane':
         vals = ['soma', 'dend']
     else:
         gen_util.accepted_values_error('par', par, ['gabk', 'bri_size', 
-                                       'bri_dir', 'line', 'layer'])
+                                       'bri_dir', 'line', 'plane'])
     
     if act_vals is not None:
         if not set(act_vals).issubset(set(vals)):
             vals_str = ', '.join(list(set(act_vals) - set(vals)))
-            raise ValueError('Unexpected value(s) for {}: {}'.format(par, 
-                             vals_str))
+            raise ValueError(f'Unexpected value(s) for {par}: {vals_str}')
 
     mapping = dict()
     for i, val in enumerate(vals):
@@ -338,7 +337,7 @@ def add_categ_stim_cols(df):
             vals = ['gray', 0, 1, 2, 3]
             targ_vals = ['gray', 'A', 'B', 'C', 'D']
             df = convert_to_binary_cols(df, col, vals, targ_vals)
-        elif col in ['gabk', 'bri_size', 'bri_dir', 'layer', 'line']:
+        elif col in ['gabk', 'bri_size', 'bri_dir', 'plane', 'line']:
             uniq_vals = df[col].unique().tolist()
             mapping = get_mapping(col, uniq_vals)
             df = df.replace({col: mapping})
@@ -370,8 +369,8 @@ def add_grayscreen_rows_gabors(df):
     """
 
     if 'gabfr' not in df.columns:
-        raise ValueError(('Should only be used with dataframes containing '
-                          'gabor frame information'))
+        raise ValueError('Should only be used with dataframes containing '
+                         'gabor frame information')
 
     # add in lines for grayscreen with parameters of previous segment
     # except gabfr and start/end frames          

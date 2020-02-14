@@ -1,4 +1,4 @@
-sessid,mouse_n,mouseid,date,depth,layer,line,runtype,nrois,sess_gen,sess_within,sess_n,pass_fail,all_files,any_files,incl,notes
+sessid,mouse_n,mouseid,date,depth,plane,line,runtype,nrois,sess_gen,sess_within,sess_n,pass_fail,all_files,any_files,incl,notes
 718921993,1,392960,20180711,175,soma,L23-Cux2,pilot,60,1,1,1,F,1,1,yes,half stimuli
 720115420,1,392960,20180712,75,dend,L23-Cux2,pilot,23,2,1,2,F,1,1,yes,half stimuli
 720519615,1,392960,20180716,175,soma,L23-Cux2,pilot,31,1,2,3,P,1,1,yes,half stimuli

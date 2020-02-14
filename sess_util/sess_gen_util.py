@@ -24,20 +24,20 @@ from util import file_util, gen_util
 
 
 #############################################
-def depth_vals(layer, line):
+def depth_vals(plane, line):
     """
-    depth_vals(layer, line)
+    depth_vals(plane, line)
 
-    Returns depth values corresponding to a specified layer.
+    Returns depth values corresponding to a specified plane.
 
     Required args:
-        - layer (str): layer (e.g., 'dend', 'soma', 'any')
+        - plane (str): plane (e.g., 'dend', 'soma', 'any')
         - line (str) : line (e.g., 'L23', 'L5', 'any')
     Returns:
-        - depths (str or list): depths corresponding to layer and line or 'any'
+        - depths (str or list): depths corresponding to plane and line or 'any'
     """
 
-    if layer == 'any' and line == 'any':
+    if plane == 'any' and line == 'any':
         return 'any'
     
     depth_dict = {'L23_dend': [50, 75],
@@ -46,11 +46,11 @@ def depth_vals(layer, line):
                   'L5_soma' : [375]
                  }
 
-    all_layers = ['dend', 'soma']
-    if layer == 'any':
-        layers = all_layers
+    all_planes = ['dend', 'soma']
+    if plane == 'any':
+        planes = all_planes
     else:
-        layers = gen_util.list_if_not(layer)
+        planes = gen_util.list_if_not(plane)
     
     all_lines = ['L23', 'L5']
     if line == 'any':
@@ -59,13 +59,13 @@ def depth_vals(layer, line):
         lines = gen_util.list_if_not(line)
     
     depths = []
-    for layer in layers:
-        if layer not in all_layers:
-            gen_util.accepted_values_error('layer', layer, all_layers)
+    for plane in planes:
+        if plane not in all_planes:
+            gen_util.accepted_values_error('plane', plane, all_planes)
         for line in lines:
-            if layer not in all_layers:
+            if plane not in all_planes:
                 gen_util.accepted_values_error('line', line, all_lines)
-            depths.extend(depth_dict['{}_{}'.format(line, layer)])
+            depths.extend(depth_dict[f'{line}_{plane}'])
 
     return depths
 
@@ -136,8 +136,8 @@ def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth,
 
     returnlab = gen_util.list_if_not(returnlab)
     if len(returnlab) != 1 and (sort or unique):
-        print(('WARNING: Sorted and unique will be set to False as multiple '
-               'labels are requested.'))
+        print('WARNING: Sorted and unique will be set to False as multiple '
+              'labels are requested.')
         sort   = False
         unique = False
     
@@ -157,7 +157,7 @@ def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth,
 
 #############################################
 def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any', 
-                  runtype='any', layer='any', line='any', pass_fail='P', 
+                  runtype='any', plane='any', line='any', pass_fail='P', 
                   incl='all', all_files=1, any_files=1, min_rois=1, 
                   omit_sess=[], omit_mice=[], unique=True, sort=False):
     """
@@ -179,7 +179,7 @@ def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any',
         - runtype (str or list)       : runtype value(s) of interest
                                         ('pilot', 'prod')
                                         default: 'any'
-        - layer (str or list)         : layer value(s) of interest
+        - plane (str or list)         : plane value(s) of interest
                                         ('soma', 'dend', 'any')
                                         default: 'any'
         - line (str or list)          : line value(s) of interest
@@ -216,8 +216,8 @@ def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any',
     if isinstance(mouse_df, str):
         mouse_df = file_util.loadfile(mouse_df)
 
-    # get depth values corresponding to the layer
-    depth = depth_vals(layer, line)
+    # get depth values corresponding to the plane
+    depth = depth_vals(plane, line)
 
     sessid      = 'any'
     params      = [mouse_n, sessid, sess_n, runtype, depth,  
@@ -247,7 +247,7 @@ def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any',
 
 #############################################
 def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod', 
-                   layer='any', line='any', pass_fail='P', incl='yes',
+                   plane='any', line='any', pass_fail='P', incl='yes',
                    all_files=1, any_files=1, min_rois=1, closest=False, 
                    omit_sess=[], omit_mice=[]):
     """
@@ -269,7 +269,7 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
         - runtype (str or list)  : runtype value(s) of interest
                                    ('pilot', 'prod')
                                    default: 'prod'
-        - layer (str or list)    : layer value(s) of interest
+        - plane (str or list)    : plane value(s) of interest
                                    ('soma', 'dend', 'any')
                                    default: 'any'
         - line (str or list)     : line value(s) of interest
@@ -307,19 +307,19 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
         sess_n = gen_util.get_df_label_vals(mouse_df, 'sess_n', 'any')
     
     if runtype == 'any':
-        raise ValueError(('Must specify runtype (cannot be any), as there is '
-                          'overlap in mouse numbers.'))
+        raise ValueError('Must specify runtype (cannot be any), as there is '
+                         'overlap in mouse numbers.')
 
     # get list of mice that fit the criteria
     mouse_ns = get_sess_vals(mouse_df, 'mouse_n', mouse_n, sess_n, runtype,  
-                             layer, line, pass_fail, incl, all_files, 
+                             plane, line, pass_fail, incl, all_files, 
                              any_files, min_rois, omit_sess, omit_mice, 
                              unique=True, sort=True)
 
     # get session ID each mouse based on criteria 
     sessids = []
     for i in sorted(mouse_ns):
-        sess_ns = get_sess_vals(mouse_df, 'sess_n', i, sess_n, runtype, layer, 
+        sess_ns = get_sess_vals(mouse_df, 'sess_n', i, sess_n, runtype, plane, 
                                 line, pass_fail, incl, all_files, any_files, 
                                 min_rois, omit_sess, omit_mice, sort=True)
         # skip mouse if no sessions meet criteria
@@ -334,7 +334,7 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
         else:
             n = sess_ns[np.argmin(np.absolute([x - orig_sess_n 
                                               for x in sess_ns]))]
-        sessid = get_sess_vals(mouse_df, 'sessid', i, n, runtype, layer, 
+        sessid = get_sess_vals(mouse_df, 'sessid', i, n, runtype, plane, 
                                line, pass_fail, incl, all_files, any_files, 
                                min_rois, omit_sess, omit_mice)[0]
         sessids.append(sessid)
@@ -347,7 +347,7 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
 
 #############################################
 def sess_comp_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod', 
-                        layer='any', line='any', pass_fail='P', incl='yes', 
+                        plane='any', line='any', pass_fail='P', incl='yes', 
                         all_files=1, any_files=1, min_rois=1, closest=False, 
                         omit_sess=[], omit_mice=[]):
     """
@@ -368,7 +368,7 @@ def sess_comp_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
         - runtype (str or list)  : runtype value(s) of interest
                                    ('pilot', 'prod')
                                    default: 'prod'
-        - layer (str or list)    : layer value(s) of interest
+        - plane (str or list)    : plane value(s) of interest
                                    ('soma', 'dend', 'any')
                                    default: 'any'
         - line (str or list)     : line value(s) of interest
@@ -400,8 +400,8 @@ def sess_comp_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
     """
 
     if closest:
-        print(('Session comparisons not implemented using the `closest` '
-               'parameter. Setting to False.'))
+        print('Session comparisons not implemented using the `closest` '
+              'parameter. Setting to False.')
         closest = False
 
     if 'v' not in str(sess_n):
@@ -413,8 +413,8 @@ def sess_comp_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
             sess_n[i] = int(sess_n[i])
 
     if runtype == 'any':
-        raise ValueError(('Must specify runtype (cannot be any), as there is '
-                          'overlap in mouse numbers.'))
+        raise ValueError('Must specify runtype (cannot be any), as there is '
+                         'overlap in mouse numbers.')
 
     # get list of mice that fit the criteria
     mouse_ns = []
@@ -422,7 +422,7 @@ def sess_comp_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
         if str(n) in ['last', '-1']:
             n = 'any'
         ns = get_sess_vals(mouse_df, 'mouse_n', mouse_n, n, runtype,  
-                           layer, line, pass_fail, incl, all_files, any_files, 
+                           plane, line, pass_fail, incl, all_files, any_files, 
                            min_rois, omit_sess, omit_mice, unique=True, 
                            sort=True)
         mouse_ns.append(ns)
@@ -436,7 +436,7 @@ def sess_comp_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
         for j, n in enumerate(sess_n):
             if str(n) in ['first', 'last', '-1']:
                 ns = get_sess_vals(mouse_df, 'sess_n', i, 'any', runtype, 
-                                   layer, line, pass_fail, incl, all_files, 
+                                   plane, line, pass_fail, incl, all_files, 
                                    any_files, min_rois, omit_sess, 
                                    omit_mice, sort=True)[-1]
                 if len(ns) == 0 or ns[-1] == sess_n[1-j]:
@@ -446,7 +446,7 @@ def sess_comp_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
                 else:
                     n = ns[-1]
             sessid = get_sess_vals(mouse_df, 'sessid', i, n, runtype, 
-                                   layer, line, pass_fail, incl, all_files, 
+                                   plane, line, pass_fail, incl, all_files, 
                                    any_files, min_rois, omit_sess, omit_mice)[0]
             mouse_sessids.append(sessid)
         sessids.append(mouse_sessids)
@@ -492,20 +492,20 @@ def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True,
     sessions = []
     sessids = gen_util.list_if_not(sessids)
     for sessid in sessids:
-        print('\nCreating session {}...'.format(sessid))
+        print(f'\nCreating session {sessid}...')
         # creates a session object to work with
         sess = session.Session(datadir, sessid, runtype=runtype) 
         # extracts necessary info for analysis
         sess.extract_sess_attribs(mouse_df)
         sess.extract_info(fulldict=fulldict, dend=dend)
-        if omit and sess.layer == 'dend' and sess.dend != dend:
-            print(('Omitting session {} ({} dendrites not '
-                   'found).').format(sessid, dend))
+        if omit and sess.plane == 'dend' and sess.dend != dend:
+            print(f'Omitting session {sessid} ({dend} dendrites not '
+                   'found).')
         elif pupil and sess.pup_data_h5 == 'none':
-            print(('Omitting session {} as no pupil data h5 was '
-                   'found.').format(sessid))
+            print(f'Omitting session {sessid} as no pupil data h5 was '
+                  'found.')
         else:
-            print('Finished session {}.'.format(sessid))
+            print(f'Finished session {sessid}.')
             sessions.append(sess)
 
     return sessions
@@ -577,7 +577,7 @@ def get_sess_info(sessions, fluor='dff', add_none=False):
                 ['sess_ns'] (list)    : session numbers
                 ['sessids'] (list)    : session ids  
                 ['lines'] (list)      : mouse lines
-                ['layers'] (list)     : imaging layers
+                ['planes'] (list)     : imaging planes
                 ['nrois'] (list)      : number of ROIs in session
                 ['twop_fps'] (list)   : 2p frames per second
                 ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw
@@ -591,7 +591,7 @@ def get_sess_info(sessions, fluor='dff', add_none=False):
         print('All None value sessions.')
 
     sess_info = dict()
-    keys = ['mouse_ns', 'mouseids', 'sess_ns', 'sessids', 'lines', 'layers', 
+    keys = ['mouse_ns', 'mouseids', 'sess_ns', 'sessids', 'lines', 'planes', 
             'nrois', 'twop_fps', 'nanrois', 'nanrois_dff']
 
     for key in keys:
@@ -612,7 +612,7 @@ def get_sess_info(sessions, fluor='dff', add_none=False):
             sess_info['sess_ns'].append(sess.sess_n)
             sess_info['sessids'].append(sess.sessid)
             sess_info['lines'].append(sess.line)
-            sess_info['layers'].append(sess.layer)
+            sess_info['planes'].append(sess.plane)
             sess_info['nrois'].append(sess.nrois)
             sess_info['twop_fps'].append(sess.twop_fps)
             sess_info['nanrois'].append(sess.nanrois)
@@ -620,9 +620,9 @@ def get_sess_info(sessions, fluor='dff', add_none=False):
             if hasattr(sess, 'nanrois_dff'):
                 sess_info['nanrois_dff'].append(sess.nanrois_dff)
             elif fluor == 'dff':
-                raise ValueError(('dF/F nanrois cannot be added to sess_info, '
+                raise ValueError('dF/F nanrois cannot be added to sess_info, '
                                 'as dF/F traces have not been loaded for '
-                                'session {}'.format(sess.sessid)))
+                                f'session {sess.sessid}')
             else:
                 sess_info['nanrois_dff'].append(None)
             
@@ -791,13 +791,13 @@ def all_omit(stimtype='gabors', runtype='prod', bri_dir='both', bri_size=128,
         omit_sess = [828754259] # stim pickle not saved correctly
         if stimtype == 'gabors': 
             if 16 not in gen_util.list_if_not(gabk):
-                print(('The production data only includes gabor '
-                       'stimuli with kappa=16'))
+                print('The production data only includes gabor '
+                      'stimuli with kappa=16')
                 omit_mice = list(range(1, 9)) # all
         elif stimtype == 'bricks':
             if 128 not in gen_util.list_if_not(bri_size):
-                print(('The production data only includes bricks stimuli with '
-                       'size=128'))
+                print('The production data only includes bricks stimuli with '
+                      'size=128')
                 omit_mice = list(range(1, 9)) # all
 
     return omit_sess, omit_mice
@@ -847,9 +847,8 @@ def create_sess_dicts(mouse_df, datadir, runtype='prod', output=''):
     sessions = init_sessions(all_sessids, datadir, mouse_df, runtype, 
                              fulldict=False)
     for sess in sessions:
-        name = 'sess_dict_m{}_s{}_{}'.format(sess.mouse_n, sess.sess_n, 
-                                             sess.layer)
-        print('\nCreating stimulus dictionary: {}'.format(name))
+        name = f'sess_dict_m{sess.mouse_n}_s{sess.sess_n}_{sess.plane}'
+        print(f'\nCreating stimulus dictionary: {name}')
 
         # get ROI traces path
         full_trs = [sess.roi_traces, sess.roi_traces_dff]
@@ -865,7 +864,7 @@ def create_sess_dicts(mouse_df, datadir, runtype='prod', output=''):
                      'sess_n'        : sess.sess_n,
                      'sessid'        : sess.sessid,
                      'line'          : sess.line,
-                     'layer'         : sess.layer,
+                     'plane'         : sess.plane,
                      'nrois'         : sess.nrois,
                      'twop_fps'      : sess.twop_fps,
                      'nanrois'       : sess.nanrois,
@@ -882,11 +881,11 @@ def create_sess_dicts(mouse_df, datadir, runtype='prod', output=''):
                 key  = 'gab'
                 sep  = ''
             elif stimtype == 'bricks':
-                key = 'bri_{}'.format(direc)
+                key = f'bri_{direc}'
                 sep = ' '
             if sess.sessid not in stim_sessids:
-                print(('    {}{}{} surprise indices and frames '
-                       'omitted.').format(stimtype, sep, direc))
+                print(f'    {stimtype}{sep}{direc} surprise indices and frames '
+                       'omitted.')
                 continue
             
             stim = sess.get_stim(stimtype)
@@ -901,8 +900,8 @@ def create_sess_dicts(mouse_df, datadir, runtype='prod', output=''):
                                                   by='seg')
             surp_idx = [segs.index(surp_seg) for surp_seg in surp_segs]
 
-            frames_key   = '{}_frames'.format(key)
-            surp_idx_key = '{}_surp_idx'.format(key)
+            frames_key   = f'{key}_frames'
+            surp_idx_key = f'{key}_surp_idx'
             sess_dict[frames_key]   = frames.tolist()
             sess_dict[surp_idx_key] = surp_idx
 
@@ -911,11 +910,11 @@ def create_sess_dicts(mouse_df, datadir, runtype='prod', output=''):
 
 
 #############################################
-def get_analysdir(mouse_n, sess_n, layer, fluor='dff', scale=True, 
+def get_analysdir(mouse_n, sess_n, plane, fluor='dff', scale=True, 
                   stimtype='gabors', bri_dir='right', bri_size=128, gabk=16, 
                   comp='surp', ctrl=False, shuffle=False):
     """
-    get_analysdir(mouse_n, sess_n, layer)
+    get_analysdir(mouse_n, sess_n, plane)
 
     Generates the name of the general directory in which an analysis type is
     saved, based on analysis parameters.
@@ -923,7 +922,7 @@ def get_analysdir(mouse_n, sess_n, layer, fluor='dff', scale=True,
     Required arguments:
         - mouse_n (int): mouse number
         - sess_n (int) : session number
-        - layer (str)  : layer name
+        - plane (str)  : plane name
 
     Optional arguments:
         - fluor (str)           : fluorescence trace type
@@ -948,7 +947,7 @@ def get_analysdir(mouse_n, sess_n, layer, fluor='dff', scale=True,
 
     Returns:
         - analysdir (str): name of directory to save analysis in, of the form:
-                           'm{}_s{}_layer_stimtype_fluor_scaled_comp_shuffled'
+                           'm{}_s{}_plane_stimtype_fluor_scaled_comp_shuffled'
     """
 
     stim_str = sess_str_util.stim_par_str(stimtype, bri_dir, bri_size, gabk, 
@@ -960,11 +959,10 @@ def get_analysdir(mouse_n, sess_n, layer, fluor='dff', scale=True,
     if comp is None:
         comp_str = ''
     else:
-        comp_str = '_{}'.format(comp)
+        comp_str = f'_{comp}'
 
-    analysdir = 'm{}_s{}_{}_{}_{}{}{}{}{}'.format(mouse_n, sess_n, layer, 
-                            stim_str, fluor, scale_str, comp_str, ctrl_str, 
-                            shuff_str)
+    analysdir = (f'm{mouse_n}_s{sess_n}_{plane}_{stim_str}_{fluor}{scale_str}'
+                 f'{comp_str}{ctrl_str}{shuff_str}')
 
     return analysdir
 
@@ -978,8 +976,8 @@ def get_params_from_str(param_str):
 
     Required args:
         - param_str (str): String containing parameter information, of the form
-                           'm{}_s{}_layer_stimtype_fluor_scaled_comp_shuffled',
-                           though the order can be different as of layer
+                           'm{}_s{}_plane_stimtype_fluor_scaled_comp_shuffled',
+                           though the order can be different as of plane
     
     Returns:
         - params (dict): parameter dictionary
@@ -992,7 +990,7 @@ def get_params_from_str(param_str):
             - fluor (str)           : fluorescence parameter ('raw' or 'dff')
             - gabk (int or list)    : Gabor kappa parameter (4, 16, [4, 16] or 
                                       'none')
-            - layer (str)           : layer ('soma' or 'dend')
+            - plane (str)           : plane ('soma' or 'dend')
             - mouse_n (int)         : mouse number
             - sess_n (int)          : session number
             - scale (bool)          : scaling parameter
@@ -1030,11 +1028,11 @@ def get_params_from_str(param_str):
         raise ValueError('Stimtype not identified.')
 
     if 'soma' in param_str:
-        params['layer'] = 'soma'
+        params['plane'] = 'soma'
     elif 'dend' in param_str:
-        params['layer'] = 'dend'
+        params['plane'] = 'dend'
     else:
-        raise ValueError('Layer not identified.')
+        raise ValueError('plane not identified.')
 
     if 'dff' in param_str:
         params['fluor'] = 'dff'

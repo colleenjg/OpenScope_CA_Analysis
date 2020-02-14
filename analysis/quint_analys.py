@@ -158,8 +158,8 @@ def samp_quint_segs(qu_segs, seg_pre=0, seg_post=0):
     qu_segs_flat = [seg for segs in qu_segs for seg in segs]
 
     if min(np.diff(qu_segs_flat)) not in [1, 4]:
-        raise ValueError(('No consecutive segments (1 or 4 interval) found in '
-                          ' qu_segs.'))
+        raise ValueError('No consecutive segments (1 or 4 interval) found in '
+                         ' qu_segs.')
 
     all_segs, n_consec = gen_util.consec(qu_segs_flat, smallest=True)
 
@@ -576,8 +576,8 @@ def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar,
     """
 
     if permpar.multcomp:
-        raise NotImplementedError(('NOTE: Multiple comparisons not implemented '
-                                   'for magnitude analysis.'))
+        raise NotImplementedError('NOTE: Multiple comparisons not implemented '
+                                  'for magnitude analysis.')
 
     if len(all_data_perm) != 2 or len(n_regs) !=2:
         raise ValueError('all_data_perm and n_regs must have length of 2.')
@@ -705,10 +705,10 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats='mean', error='sem',
     tail_len = 1 + (str(permpar.tails) == '2')
 
     if n_qu != 2:
-        raise ValueError('Expected 2 quintiles, but found {}.'.format(n_qu))
+        raise ValueError(f'Expected 2 quintiles, but found {n_qu}.')
     if len(surps) != 2:
-        raise ValueError(('Expected a length 2 surprise dim, '
-                          'but found length {}.').format(len(surps)))
+        raise ValueError('Expected a length 2 surprise dim, '
+                         f'but found length {len(surps)}.')
     
     mags = {'mag_st': np.empty([n_sess, len(scales), len(surps), stat_len]),
             'L2'    : np.empty([n_sess, len(scales), len(surps)])
@@ -721,7 +721,7 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats='mean', error='sem',
 
     all_data = copy.deepcopy(all_data)
     for i in range(n_sess):
-        print('\nMouse {}, {}:'.format(mouse_ns[i], lines[i]))
+        print(f'\nMouse {mouse_ns[i]}, {lines[i]}:')
         sess_data_me = []
         # number of regular sequences
         n_regs = [all_data[i][0][q].shape[-1] for q in range(n_qu)]
@@ -776,11 +776,10 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats='mean', error='sem',
                     sig_symb[si] = '*'
 
             vals = [mags['mag_st'][i, 0, :, 0], mags['L2'][i, 0, :]]
-            names = ['{} mag'.format(stats).capitalize(), 'L2']
+            names = [f'{stats} mag'.capitalize(), 'L2']
             for v, (val, name) in enumerate(zip(vals, names)):
                 for s, surp in zip([0, 1], ['(reg) ', '(surp)']):
-                    print('    {} {}: {:.4f}{}'.format(name, surp, val[s], 
-                                                       sig_symb[v]))
+                    print(f'    {name} {surp}: {val[s]:.4f}{sig_symb[v]}')
         
     return mags
 

@@ -105,7 +105,7 @@ def linclab_plt_defaults(font='Liberation Sans', fontdir=None,
         print('Available fonts:')
         sorted_fonts = sorted(all_fonts)
         for font in sorted_fonts:
-            print('    {}'.format(font))
+            print(f'    {font}')
     
     # check whether requested font is available, otherwise warn that
     # default will be used.
@@ -118,9 +118,9 @@ def linclab_plt_defaults(font='Liberation Sans', fontdir=None,
             set_font = False
         elif f == len(font) - 1:
             font_fam = plt.rcParams['font.family'][0]
-            def_font = plt.rcParams['font.{}'.format(font_fam)][0]
-            print('Warning: Desired font ({}) not found, so default ({}) will '
-                  'be used instead.\n'.format(font, def_font))
+            def_font = plt.rcParams[f'font.{font_fam}'][0]
+            print(f'Warning: Desired font ({font}) not found, so default '
+                  f'({def_font}) will be used instead.\n')
         f = f+1
 
     # update pyplot parameters
@@ -412,8 +412,8 @@ def share_lims(ax, dim='row'):
     """
 
     if len(ax.shape) != 2:
-        raise NotImplementedError(('Function only implemented for 2D axis '
-                                   'arrays.'))
+        raise NotImplementedError('Function only implemented for 2D axis '
+                                  'arrays.')
     
     if dim == 'row':
         for r in range(ax.shape[0]):
@@ -462,11 +462,11 @@ def set_axis_digits(sub_ax, xaxis=None, yaxis=None):
     """
 
     if xaxis is not None:
-        n_dig_str = '%.{}f'.format(int(xaxis))
+        n_dig_str = f'%.{int(xaxis)}f'
         sub_ax.xaxis.set_major_formatter(FormatStrFormatter(n_dig_str))
 
     if yaxis is not None:
-        n_dig_str = '%.{}f'.format(int(yaxis))
+        n_dig_str = f'%.{int(yaxis)}f'
         sub_ax.yaxis.set_major_formatter(FormatStrFormatter(n_dig_str))
 
 
@@ -634,7 +634,7 @@ def savefig(fig, savename, fulldir='', datetime=True, use_dt=None,
         fig.savefig(os.path.join(fulldir, fullname), dpi=dpi)
         
         if print_dir:
-            print('\nFigures saved under {}.'.format(fulldir))
+            print(f'\nFigures saved under {fulldir}.')
             
     return fulldir
 
@@ -692,8 +692,8 @@ def add_labels(sub_ax, labels, xpos, t_hei=0.9, col='k'):
     xpos = gen_util.list_if_not(xpos)
 
     if len(labels) != len(xpos):
-        raise ValueError(('Arguments `labels` and `xpos` must be of '
-                          'the same length.'))
+        raise ValueError('Arguments `labels` and `xpos` must be of '
+                         'the same length.')
 
     ymin, ymax = sub_ax.get_ylim()
     ypos = (ymax-ymin)*t_hei+ymin
@@ -1078,8 +1078,8 @@ def plot_btw_traces(sub_ax, y1, y2, x=None, col='k', alpha=0.5):
         x = np.asarray(x).squeeze()
 
     if len(y1) != len(y2) or len(x) != len(y1):
-        raise ValueError(('y1 and y2, and x if provided, must have the same '
-                          'length.'))
+        raise ValueError('y1 and y2, and x if provided, must have the same '
+                         'length.')
 
     comp_arr = np.concatenate([y1[:, np.newaxis], y2[:, np.newaxis]], axis=1)
     maxes = np.max(comp_arr, axis=1)
@@ -1604,8 +1604,8 @@ def plot_CI(sub_ax, extr, med=None, x=None, width=0.4, label=None,
     if x is None:
         x = range(len(extr.shape[1]))
     if len(x) != extr.shape[1]:
-        raise ValueError(('`x` and `extr` must have the same last '
-                          'dimension length.'))
+        raise ValueError('`x` and `extr` must have the same last '
+                         'dimension length.')
 
     # plot CI
     sub_ax.bar(x, height=extr[1]-extr[0], bottom=extr[0], color=color, 
@@ -1618,8 +1618,8 @@ def plot_CI(sub_ax, extr, med=None, x=None, width=0.4, label=None,
     if med is not None:
         med = np.asarray(med)
         if len(x) != len(med):
-            raise ValueError(('`x` and `med` must have the same last '
-                            'dimension length.'))
+            raise ValueError('`x` and `med` must have the same last '
+                             'dimension length.')
         
         plot_lines(sub_ax, med, x, med_rat, col=med_col, width=width, 
                   zorder=zorder)

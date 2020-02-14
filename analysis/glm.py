@@ -42,8 +42,8 @@ def build_stim_beh_df(sessions, analyspar, sesspar, stimpar, each_roi=False):
     - (Segments (A, B, C, D))
     - Surprise status (only 1 for E and the following grayscreen)
     - Pupil dilation
-    - Running speed
-    - Layer
+    - Running velocity
+    - Plane
     - Line
     - SessID
 
@@ -53,7 +53,7 @@ def build_stim_beh_df(sessions, analyspar, sesspar, stimpar, each_roi=False):
     
     sessions = gen_util.list_if_not(sessions)
     for sess in sessions:
-        print('\nBuilding dataframe for session {}'.format(sess.sessid))
+        print(f'\nBuilding dataframe for session {sess.sessid}')
         stim = sess.get_stim(stimpar.stimtype)
         sub_df = stim.get_stim_beh_sub_df(stimpar.pre, stimpar.post, 
                       analyspar.stats, analyspar.fluor, stimpar.gabfr, 
@@ -71,14 +71,15 @@ def build_stim_beh_df(sessions, analyspar, sesspar, stimpar, each_roi=False):
 #############################################
 def print_sklearn_results(model, analyspar, name='bayes_ridge', var_names=None):
 
+    
     print('\n{} regression'.format(name.replace('_', ' ').upper()))
     if var_names is None:
-        var_names = ['coef {}'.format(i) for i in range(len(model.coef_))] 
+        var_names = [f'coef {i}' for i in range(len(model.coef_))] 
 
-    print('\n'.join(['{}: {:.5f}'.format(varn, coef) for varn, coef 
+    print('\n'.join([f'{varn}: {coef:.5f}' for varn, coef 
                      in zip(var_names, model.coef_)]))
-    print('intercept: {:.5f}'.format(model.intercept_))
-    print('\nalpha: {:.5f}'.format(model.alpha_))
+    print(f'intercept: {model.intercept_:.5f}')
+    print(f'\nalpha: {model.alpha_:.5f}')
     if name == 'ridge_cv':
         alpha_idx = np.where(model.alphas == model.alpha_)[0]
         score_data = model.cv_values_[:, alpha_idx]
@@ -91,7 +92,7 @@ def print_sklearn_results(model, analyspar, name='bayes_ridge', var_names=None):
                                        ['ridge_cv', 'bayes_ridge'])
     stats = math_util.get_stats(score_data, stats=analyspar.stats, 
                                 error=analyspar.error)
-    math_util.print_stats(stats, '{}'.format(score_name))
+    math_util.print_stats(stats, f'{score_name}')
 
 
 #############################################
@@ -390,13 +391,13 @@ def run_glms(sesses, analysis, seed, analyspar, sesspar, stimpar, glmpar,
     seed = gen_util.seed_all(seed, 'cpu', print_seed=False)
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
-                                    sesspar.layer, stimpar.bri_dir, 
+                                    sesspar.plane, stimpar.bri_dir, 
                                     stimpar.bri_size, stimpar.gabk, 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.layer, 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                             'roi', 'print')
 
-    print(('\nAnalysing and plotting explained variance in ROI activity '
-           '({}{}).').format(sessstr_pr, dendstr_pr))
+    print('\nAnalysing and plotting explained variance in ROI activity '
+           f'({sessstr_pr}{dendstr_pr}).')
 
     if glmpar.each_roi: # must do each session separately
         glm_type = 'per_ROI_per_sess'
@@ -405,7 +406,7 @@ def run_glms(sesses, analysis, seed, analyspar, sesspar, stimpar, glmpar,
     else:
         glm_type = 'across_sess'
         sess_batches = [sesses]
-        print('Across ROIs, {} sessions together.'.format(len(sesses)))
+        print(f'Across ROIs, {len(sesses)} sessions together.')
 
     if parallel and not(glmpar.each_roi) and len(sess_batches) != 1:
         n_jobs = gen_util.get_n_jobs(len(sess_batches))
