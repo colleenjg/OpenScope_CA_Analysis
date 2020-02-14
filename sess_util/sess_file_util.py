@@ -12,16 +12,17 @@ Note: this code uses python 3.7.
 
 """
 
-import os.path
+import os
 
+import glob
 import json
 import pandas as pd
 import pickle
 
-from util import file_util
+from util import file_util, gen_util
 
 
-###############################################################################
+#############################################
 def get_sess_dirs(masterdir, sessid, expid, mouseid, runtype='prod',
                   mouse_dir=True):
     """
@@ -54,26 +55,25 @@ def get_sess_dirs(masterdir, sessid, expid, mouseid, runtype='prod',
     
     # get the name of the session and experiment data directories
     if mouse_dir:
-        sessdir = os.path.join(masterdir, runtype, 'mouse_{}'.format(mouseid), 
-                               'ophys_session_{}'.format(sessid))
+        sessdir = os.path.join(masterdir, runtype, f'mouse_{mouseid}', 
+                               f'ophys_session_{sessid}')
     else:
-        sessdir = os.path.join(masterdir, runtype, 
-                               'ophys_session_{}'.format(sessid))
+        sessdir = os.path.join(masterdir, runtype, f'ophys_session_{sessid}')
 
-    expdir = os.path.join(sessdir, 'ophys_experiment_{}'.format(expid))
+    expdir = os.path.join(sessdir, f'ophys_experiment_{expid}')
     procdir = os.path.join(expdir, 'processed')
 
     # check that directory exists 
     try:
         file_util.checkdir(sessdir)
     except OSError:
-        raise OSError(('{} does not conform to expected AIBS '
-                       'structure').format(sessdir))
+        raise OSError(f'{sessdir} does not conform to expected AIBS '
+                      'structure')
 
     return sessdir, expdir, procdir
 
 
-###############################################################################
+#############################################
 def get_file_names(masterdir, sessid, expid, date, mouseid, runtype='prod',
                    mouse_dir=True):
     """
@@ -104,13 +104,13 @@ def get_file_names(masterdir, sessid, expid, date, mouseid, runtype='prod',
         - procdir (str)   : full path name of the processed 
                             data directory
         - filepaths (dict): dictionary of file paths
-            ['behav_h5'] (str)         : full path name of the behavioral hdf5
-                                         file
+            ['behav_h5_video'] (str)   : full path name of the behavioral hdf5
+                                         video file
             ['align_pkl'] (str)        : full path name of the stimulus
                                          alignment pickle file
             ['corrected_data_h5'] (str): full path name of the motion
                                          corrected 2p data hdf5 file
-            ['pupil_h5'] (str)         : full path name of the pupil hdf5
+            ['pupil_h5_video'] (str)   : full path name of the pupil hdf5 video
                                          file
             ['roi_trace_h5'] (str)     : full path name of the ROI raw 
                                          fluorescence trace hdf5 file
@@ -130,28 +130,27 @@ def get_file_names(masterdir, sessid, expid, date, mouseid, runtype='prod',
                                              mouseid, runtype, mouse_dir)
 
     # set the file names
-    sess_m_d = '{}_{}_{}'.format(sessid, mouseid, date) 
+    sess_m_d = f'{sessid}_{mouseid}_{date}' 
 
     filepaths = {'align_pkl'        : os.path.join(sessdir, 
-                                      '{}_df.pkl'.format(sess_m_d)),
-                 'behav_h5'         : os.path.join(sessdir, 
-                                      '{}_video-0.h5'.format(sess_m_d)),
+                                      f'{sess_m_d}_df.pkl'),
+                 'behav_h5_video'   : os.path.join(sessdir, 
+                                      f'{sess_m_d}_video-0.h5'),
                  'correct_data_h5'  : os.path.join(procdir, 'concat_31Hz_0.h5'),
-                 'pupil_h5'         : os.path.join(sessdir, 
-                                      '{}_video-1.h5'.format(sess_m_d)),
+                 'pupil_h5_video'   : os.path.join(sessdir, 
+                                      f'{sess_m_d}_video-1.h5'),
                  'roi_trace_h5'     : os.path.join(procdir, 'roi_traces.h5'),
                  'roi_trace_dff_h5' : os.path.join(procdir, 
                                       'roi_traces_dff.h5'),
                  'stim_pkl'         : os.path.join(sessdir, 
-                                      '{}_stim.pkl'.format(sess_m_d)),
+                                      f'{sess_m_d}_stim.pkl'),
                  'stim_sync_h5'     : os.path.join(sessdir, 
-                                      '{}_sync.h5'.format(sess_m_d)),
+                                      f'{sess_m_d}_sync.h5'),
                  
                  'time_sync_h5'     : os.path.join(expdir, 
-                                      '{}_time_synchronization.h5'.format(
-                                      expid)),
+                                      f'{expid}_time_synchronization.h5'),
                  'zstack_h5'        : os.path.join(sessdir, 
-                                      '{}_zstack_column.h5'.format(sessid)),
+                                      f'{sessid}_zstack_column.h5'),
                 }
     
     # files not to check for (will be created if needed or 
@@ -160,12 +159,114 @@ def get_file_names(masterdir, sessid, expid, date, mouseid, runtype='prod',
 
     for key in filepaths.keys():
         if key not in no_check and not os.path.isfile(filepaths[key]):
-            raise OSError('{} does not exist'.format(filepaths[key]))
+            raise OSError(f'{filepaths[key]} does not exist')
 
     return [expdir, procdir, filepaths]
 
 
-###############################################################################
+#############################################
+def get_sess_dir_path(masterdir, runtype, sessid):
+    """
+    get_sess_dir_path(masterdir, runtype, sessid)
+
+    Returns the path to the session directory, and whether a mouse directory 
+    is included in the path.
+
+    Required args:
+        - masterdir (str): master directory
+        - runtype (str)  : runtype ('prod' or 'pilot')
+        - sessid (int)   : session ID
+
+    Returns:
+        - sess_dir (str)  : path to the session directory
+        - mouse_dir (bool): if True, path includes a mouse directory. 
+    """
+
+    if runtype not in ['pilot', 'prod']:
+        gen_util.accepted_values_error('runtype', runtype, ['prod', 'pilot'])
+
+    # set the session directory (full path)
+    wild_dir  = os.path.join(masterdir, runtype, 'mouse_*', 
+                             f'ophys_session_{sessid}')
+    name_dir  = glob.glob(wild_dir)
+    
+    # pilot data may not be in a 'mouse_' folder
+    if len(name_dir) == 0:
+        wild_dir  = os.path.join(masterdir, runtype,  
+                                 f'ophys_session_{sessid}')
+        name_dir  = glob.glob(wild_dir)
+        mouse_dir = False
+    else:
+        mouse_dir = True
+
+    if len(name_dir) == 0:
+        raise OSError(f'Could not find directory for session {sessid} '
+                      f'in {masterdir} subfolders')
+    elif len(name_dir) > 1:
+        raise OSError(f'Found {len(name_dir)} matching session folders in '
+                      f'{masterdir} instead of 1.')
+
+    sess_dir = name_dir[0]
+
+    return sess_dir, mouse_dir
+
+
+#############################################
+def get_mouse_date(sessdir, sessid):
+    """
+    get_mouse_date(sessdir, runtype, sessid)
+
+    Returns the date and mouse ID associated with a session.
+
+    Required args:
+        - sessdir (str): session directory
+        - sessid (int) : session ID
+
+    Returns:
+        - date (str)     : session date (i.e., yyyymmdd)
+        - mouse_dir (int): mouse ID (6 digits)
+    """
+
+    pklglob = glob.glob(os.path.join(sessdir, f'{sessid}*stim.pkl'))
+    
+    if len(pklglob) == 0:
+        raise OSError(f'Could not find stim pkl file in {sessdir}')
+    else:
+        pklinfo = os.path.basename(pklglob[0]).split('_')
+    
+    mouseid = int(pklinfo[1]) # mouse 6 digit nbr
+    date    = pklinfo[2]
+
+    return mouseid, date
+
+
+#############################################
+def get_expid(sessdir):
+    """
+    get_expid(sessdir)
+
+    Returns the experiment ID associated with a session.
+
+    Required args:
+        - sessdir (str): session directory
+
+    Returns:
+        - expid (int): experiment ID (8 digits)
+
+    """
+
+    expglob = glob.glob(os.path.join(sessdir,'ophys_experiment*'))
+    if len(expglob) == 0:
+        raise OSError('Could not find experiment directory '
+                      f'in {sessdir}')
+    else:
+        expinfo = os.path.basename(expglob[0]).split('_')
+    expid = int(expinfo[2])
+
+    return expid
+
+
+#############################################
 def get_mask_path(masterdir, sessid, expid, mouseid, runtype='prod', 
                   mouse_dir=True):
     """
@@ -213,7 +314,7 @@ def get_mask_path(masterdir, sessid, expid, mouseid, runtype='prod',
         raise OSError(f'No dendritic masks found under \'{file_str}\'')
 
 
-###############################################################################
+#############################################
 def get_dendritic_trace_paths(trace_file):
     """
     get_dendritic_trace_paths(trace_file)
@@ -254,4 +355,31 @@ def get_dendritic_trace_paths(trace_file):
 
     return [dend_tr_file, dend_tr_dff_file], \
            [prev_dend_tr_file, prev_dend_tr_dff_file]
+
+
+#############################################
+def get_pupil_data_h5_path(masterdir):
+    """
+    get_pupil_data_h5_path(masterdir)
+
+    Returns path to pupil data h5 file.
+
+    Required args:
+        - masterdir (str): name of the master data directory
+
+    Returns:
+        - pup_data_h5 (str): if full path name of the pupil h5 file
+    """
+
+    name_part = '*pupil_data_df.h5'
+    pupil_data_files = glob.glob(os.path.join(masterdir, name_part))
+
+    if len(pupil_data_files) == 1:
+        pup_data_h5 = pupil_data_files[0]
+    elif len(pupil_data_files) > 1:
+        pup_data_h5 = pupil_data_files
+    else:
+        pup_data_h5 = 'none'
+
+    return pup_data_h5
 

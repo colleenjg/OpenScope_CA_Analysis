@@ -9,6 +9,7 @@ Authors: Colleen Gillon
 Date: October, 2018
 
 Note: this code uses python 3.7.
+
 """
 
 from collections import namedtuple
@@ -52,7 +53,7 @@ def init_analyspar(fluor='dff', remnans=True, stats='mean', error='sem',
 
 
 #############################################
-def init_sesspar(sess_n, closest=False, layer='soma', line='any', min_rois=1, 
+def init_sesspar(sess_n, closest=False, plane='soma', line='any', min_rois=1, 
                  pass_fail='P', incl='yes', runtype='prod', mouse_n='any'):
     """
     Returns a SessPar namedtuple with the inputs arguments as named 
@@ -65,7 +66,7 @@ def init_sesspar(sess_n, closest=False, layer='soma', line='any', min_rois=1,
         - closest (bool)            : if False, only exact session number is 
                                       retained, otherwise the closest.
                                       default: False
-        - layer (str)               : layer ('soma', 'dend', 'L23_soma',  
+        - plane (str)               : plane ('soma', 'dend', 'L23_soma',  
                                       'L5_soma', 'L23_dend', 'L5_dend', 
                                       'L23_all', 'L5_all')
                                       default: 'soma'
@@ -88,9 +89,9 @@ def init_sesspar(sess_n, closest=False, layer='soma', line='any', min_rois=1,
                                         attributes
     """
 
-    sess_pars = [sess_n, closest, layer, line, min_rois, pass_fail, incl, 
+    sess_pars = [sess_n, closest, plane, line, min_rois, pass_fail, incl, 
                  runtype, mouse_n]
-    sess_keys = ['sess_n', 'closest', 'layer', 'line', 'min_rois', 'pass_fail', 
+    sess_keys = ['sess_n', 'closest', 'plane', 'line', 'min_rois', 'pass_fail', 
                  'incl', 'runtype', 'mouse_n']
     SessPar   = namedtuple('SessPar', sess_keys)
     sesspar   = SessPar(*sess_pars)
@@ -222,13 +223,13 @@ def init_quintpar(n_quints=4, qu_idx='all', qu_lab=None, qu_lab_pr=None):
 
     # Quintile labels
     if qu_lab is None:
-        qu_lab = ['q{}'.format(list(range(n_quints))[q]+1) for q in qu_idx]
+        qu_lab = [f'q{list(range(n_quints))[q]+1}' for q in qu_idx]
     else:
         qu_lab = gen_util.list_if_not(qu_lab)
 
     if qu_lab_pr is None:
-        qu_lab_pr = ['qu {}/{}'.format(list(range(n_quints))[q]+1, n_quints) 
-                                                       for q in qu_idx]
+        qu_lab_pr = [f'qu {list(range(n_quints))[q]+1}/{n_quints}' 
+                     for q in qu_idx]
     else:
         qu_lab_pr = gen_util.list_if_not(qu_lab_pr)
 
@@ -468,7 +469,7 @@ def get_modif_ntuple(ntuple, keys, key_vals):
 
     for key, val in zip(keys, key_vals):
         if key not in ntuple_dict.keys():
-            raise ValueError('{} not in ntuple dictionary keys.'.format(key))
+            raise ValueError(f'{key} not in ntuple dictionary keys.')
         ntuple_dict[key] = val
 
     if ntuple_name in ntuple_types:
@@ -476,8 +477,7 @@ def get_modif_ntuple(ntuple, keys, key_vals):
         fct = init_fcts[type_idx]
         ntuple_new = fct(**ntuple_dict)
     else:
-        raise ValueError(('ntuple of type {} not recognized.').format(
-                            ntuple_name))
+        raise ValueError(f'ntuple of type {ntuple_name} not recognized.')
 
     return ntuple_new
 

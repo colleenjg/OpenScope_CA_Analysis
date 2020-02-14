@@ -115,7 +115,6 @@ def init_param_cont(args):
                                      used instead of the one where NaNs
                                      are interpolated.
             lag_s (num)            : lag for autocorrelation (in sec)
-            layer (str)            : layer ('soma', 'dend', 'any')
             line (str)             : line ('L23', 'L5', 'any')
             min_rois (int)         : min number of ROIs
             n_perms (int)          : nbr of permutations to run
@@ -127,6 +126,7 @@ def init_param_cont(args):
             overwrite (bool)       : if False, overwriting existing figures 
                                      is prevented by adding suffix numbers.
             pass_fail (str or list): pass/fail values of interest ('P', 'F')
+            plane (str)            : plane ('soma', 'dend', 'any')
             plt_bkend (str)        : mpl backend to use
             post (num)             : range of frames to include after each 
                                      reference frame (in s)
@@ -194,7 +194,7 @@ def init_param_cont(args):
 
     # session parameters
     sesspar = sess_ntuple_util.init_sesspar(args.sess_n, args.closest, 
-                               args.layer, args.line, args.min_rois, 
+                               args.plane, args.line, args.min_rois, 
                                args.pass_fail, args.incl, args.runtype)
 
     # stimulus parameters
@@ -311,9 +311,8 @@ def prep_analyses(sess_n, args, mouse_df):
     sessions = sess_gen_util.init_sessions(sessids, args.datadir, mouse_df, 
                                             sesspar.runtype, fulldict=False)
 
-    print(('\nAnalysis of {} responses to {} stimuli ({} data)'
-           '\nSession {}').format(sesspar.layer, stimpar.stimtype[:-1],
-                                  sesspar.runtype, sesspar.sess_n))
+    print(f'\nAnalysis of {sesspar.plane} responses to {stimpar.stimtype[:-1]} '
+          f'stimuli ({sesspar.runtype} data)\nSession {sesspar.sess_n}')
 
     return [sessions, analyspar, sesspar, stimpar, autocorrpar, permpar, 
             quintpar, figpar, seed]
@@ -413,8 +412,8 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
 
 
     if set(all_analyses) != set(all_check):
-        raise ValueError(('all_analyses variable is missing some analysis '
-                          'letters!'))
+        raise ValueError('all_analyses variable is missing some analysis '
+                         'letters!')
 
     return skipped
 
@@ -448,7 +447,7 @@ if __name__ == "__main__":
 
         # session parameters
     parser.add_argument('--runtype', default='prod', help='prod or pilot')
-    parser.add_argument('--layer', default='soma', help='soma, dend')
+    parser.add_argument('--plane', default='soma', help='soma, dend')
     parser.add_argument('--min_rois', default=5, type=int, 
                         help='min rois criterion')
         # stimulus parameters
@@ -528,7 +527,7 @@ if __name__ == "__main__":
         # get numbers of sessions to analyse
         if args.sess_n == 'all':
             all_sess_ns = sess_gen_util.get_sess_vals(mouse_df, 'sess_n', 
-                            runtype=args.runtype, layer=args.layer, 
+                            runtype=args.runtype, plane=args.plane, 
                             line=args.line, min_rois=args.min_rois, 
                             pass_fail=args.pass_fail, incl=args.incl, 
                             omit_sess=args.omit_sess, omit_mice=args.omit_mice)

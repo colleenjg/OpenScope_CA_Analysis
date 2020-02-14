@@ -41,6 +41,35 @@ MAX_BOUND = .04
 
 
 #############################################
+def check_drop_tolerance(n_drop_stim_fr, tot_stim_fr, droptol=0.0003, 
+                         raise_exc=False):
+    """
+    check_drop_tolerance(n_drop_stim_fr, tot_stim_fr)
+
+    Prints a warning or raises an exception if dropped stimulus frames 
+    tolerance is passed.
+
+    Required args:
+        - n_drop_stim_fr (int): number of dropped stimulus frames
+        - tot_stim_fr (int)   : total number of stimulus frames
+
+    Optional args:
+        - droptol (float) : threshold proportion of dropped stimulus frames at 
+                            which to print warning or raise an exception. 
+        - raise_exc (bool): if True, an exception is raised if threshold is 
+                            passed. Otherwise, a warning is printed.
+    """
+
+    if np.float(n_drop_stim_fr)/tot_stim_fr > droptol:
+        warn_str = (f'{n_drop_stim_fr} dropped stimulus '
+                    f'frames out of {tot_stim_fr}.')
+        if raise_exc:
+            raise OSError(warn_str)
+        else:    
+            print(f'    WARNING: {warn_str}')
+
+
+#############################################
 def calculate_stimulus_alignment(stim_time, valid_twop_vsync_fall):
     """
     calculate_stimulus_alignment(stim_time, valid_twop_vsync_fall)
@@ -76,8 +105,8 @@ def calculate_valid_twop_vsync_fall(sync_data, sample_frequency):
     twop_vsync_fall = sync_data.get_falling_edges('2p_vsync') / sample_frequency
 
     if len(twop_vsync_fall) == 0:
-        raise ValueError(('Error: twop_vsync_fall length is 0, possible '
-                          'invalid, missing, and/or bad data'))
+        raise ValueError('Error: twop_vsync_fall length is 0, possible '
+                         'invalid, missing, and/or bad data')
 
     ophys_start = twop_vsync_fall[0]
 
@@ -272,8 +301,8 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
     elif runtype == 'prod':
         num_stimtypes = 3 # 2 bricks and 1 set of Gabors
     if len(pkl['stimuli']) != num_stimtypes:
-        raise ValueError('{} stimuli types expected, but {} found'
-                         .format(num_stimtypes, len(pkl['stimuli'])))
+        raise ValueError(f'{num_stimtypes} stimuli types expected, but '
+                         '{} found.'.format(len(pkl['stimuli'])))
         
     # create a Dataset object with the sync file
     sync_data = dataset.Dataset(syn_file_name)
@@ -333,15 +362,15 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
             # to exclude grey seg
             segs_exp.extend([int(60.*np.sum(np.diff(pkl['stimuli'][i]['display_sequence']))/frames_per_seg[i]*4./5)]) 
         else:
-            raise ValueError('{} stimulus type not recognized.'.format(name))
+            raise ValueError(f'{name} stimulus type not recognized.')
         
         
         # check whether the actual number of frames is within a small range of 
         # expected about two frames per sequence?
         n_seq = pkl['stimuli'][0]['display_sequence'].shape[0] * 2
         if np.abs(segs[i] - segs_exp[i]) > n_seq:
-            raise ValueError('Expected {} frames for stimulus {}, but found {}.'
-                             .format(segs_exp[i], i, segs[i]))
+            raise ValueError(f'Expected {segs_exp[i]} frames for stimulus {i}, '
+                             f'but found {segs[i]}.')
     
     total_stimsegs = np.sum(segs)
     
@@ -365,7 +394,7 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
     zz += 1
 
     for stype_n in range(num_stimtypes):
-        print('    stimtype: {}'.format(stim_types[stype_n]))
+        print(f'    stimtype: {stim_types[stype_n]}')
         movie_segs = pkl['stimuli'][stype_n]['frame_list']
 
         for segment in range(segs[stype_n]):
@@ -398,8 +427,7 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
     try:
         file_util.saveinfo(stim_dict, df_pkl_name, overwrite=True)
     except:
-        raise OSError(('Could not save stimulus '
-                       'pickle file {}').format(df_pkl_name))  
+        raise OSError(f'Could not save stimulus pickle file {df_pkl_name}')  
 
 
 #############################################
@@ -449,43 +477,42 @@ def get_seg_params(stim_types, stype_n, stim_df, zz, pkl, segment,
 
 
 #############################################
-def get_run_speed(pkl_file_name='', stim_dict=None):
+def get_run_velocity(pkl_file_name='', stim_dict=None):
     """
-    get_run_speed(pkl_file_name)
+    get_run_velocity(pkl_file_name)
 
-    Returns the running speed information as a numpy array. Takes as input 
+    Returns the running velocity information as a numpy array. Takes as input 
     the stim pickle file containing the information (provided either as a path 
     or the actual dictionary). 
     
     NOTE: the length of the array is equivalent to the array returned by 
-    get_stimulus_frames. The running speed provided corresponds to the speed at 
-    each stimulus frame. Thus, aligning to the 2p data can be done using the 
-    stimulus_alignment array.
+    get_stimulus_frames. The running velocity provided corresponds to the 
+    velocity at each stimulus frame. Thus, aligning to the 2p data can be done 
+    using the stimulus_alignment array.
 
     Optional args:
         - pkl_file_name (str): full path name of the experiment stim 
                                pickle file
                                default: ''
         - stim_dict (dict)   : stimulus dictionary, with keys 'fps' and 
-                               'items', from which running speed is extracted.
+                               'items', from which running velocity is extracted.
                                If not None, overrides pkl_file_name.
                                default: None
 
     Returns:
-        - running_speed (array): array of length equal to the number of 
-                                 stimulus frames, each element indicates 
-                                 running speed for that stimulus frame
-        - wheel_radius (num)   : wheel radius in cm
+        - running_velocity (array): array of length equal to the number of 
+                                    stimulus frames, each element indicates 
+                                    running velocity for that stimulus frame
     """
 
     if pkl_file_name == '' and stim_dict is None:
-        raise ValueError(('Must provide either the pickle file name or the '
-                          'stimulus dictionary.'))
+        raise ValueError('Must provide either the pickle file name or the '
+                         'stimulus dictionary.')
 
     if stim_dict is None:
         # check that the input file exists
         if not os.path.isfile(pkl_file_name):
-            raise OSError('{} does not exist'.format(pkl_file_name))
+            raise OSError(f'{pkl_file_name} does not exist')
 
         # read the input pickle file and call it 'pkl'
         stim_dict = file_util.loadfile(pkl_file_name)
@@ -502,10 +529,52 @@ def get_run_speed(pkl_file_name='', stim_dict=None):
     # wheel circumference in cm/degree
     cm_deg = 2.0 * np.pi * wheel_radius / 360.0
 
-    # calculate the running speed 
+    # calculate the running velocity 
     # (skip last element, since it is ignored in stimulus frames as well)
-    runspeed = dtheta[:SKIP_LAST_ELEMENT] * fps * cm_deg
+    run_velocity = dtheta[:SKIP_LAST_ELEMENT] * fps * cm_deg
 
-    return runspeed
+    return run_velocity
 
+
+#############################################
+def get_twop2stimfr(stim2twopfr, n_twop_fr):
+    """
+    get_twop2stimfr(stim2twopfr, n_twop_fr)
+
+    Returns the stimulus frame alignment for each 2p frame.
+        
+    Required args:
+        - stim2twopfr (1D array): 2p frame numbers for each stimulus frame, 
+                                    as well as the flanking
+                                    blank screen frames 
+        - n_twop_fr (int)       : total number of 2p frames
+
+    Returns:
+        - twop2stimfr (1D array): Stimulus frame numbers for the beginning
+                                  of each 2p frame (np.nan when no stimulus
+                                  appears)
+    """
+
+    stim2twopfr_diff = np.append(1, np.diff(stim2twopfr))
+    stim_idx = np.where(stim2twopfr_diff)[0]
+
+    dropped = np.where(stim2twopfr_diff > 1)[0]
+    if len(dropped) > 0:
+        print(f'    WARNING: {len(dropped)} dropped stimulus frames '
+            'sequences (2nd align).')
+        # repeat stim idx when frame is dropped
+        for drop in dropped[-1:]:
+            loc = np.where(stim_idx == drop)[0][0]
+            add = [stim_idx[loc-1]] * (stim2twopfr_diff[drop] - 1)
+            stim_idx = np.insert(stim_idx, loc, add)
+    
+    twop2stimfr = np.full(n_twop_fr, np.nan) 
+    start = int(stim2twopfr[0])
+    end = int(stim2twopfr[-1]) + 1
+    try:
+        twop2stimfr[start:end] = stim_idx
+    except:
+        print('    WARNING: get_twop2stimfr() not working for this session.')
+
+    return twop2stimfr
 

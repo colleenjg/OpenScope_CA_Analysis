@@ -55,7 +55,7 @@ def add_ext(filename, filetype='pickle'):
         if filetype not in filetypes:
             gen_util.accepted_values_error('filetype', filetype, filetypes)
         ext = file_exts[filetypes.index(filetype)]
-        filename = '{}{}'.format(filename, ext)
+        filename = f'{filename}{ext}'
     
     return filename, ext
 
@@ -102,7 +102,7 @@ def loadfile(filename, fulldir='', filetype='pickle', dtype=None):
         elif ext == '.csv':
             datafile = pd.read_csv(fullname, dtype=dtype)
     else:
-        raise ValueError('{} does not exist.'.format(fullname))
+        raise ValueError(f'{fullname} does not exist.')
 
     return datafile
 
@@ -179,16 +179,16 @@ def get_unique_path(savename, fulldir='', ext=None):
     if ext is None:
         savename, ext = os.path.splitext(savename)
     elif '.' not in ext:
-        ext = '.{}'.format(ext)
+        ext = f'.{ext}'
 
-    fullname = os.path.join(fulldir, '{}{}'.format(savename, ext))
+    fullname = os.path.join(fulldir, f'{savename}{ext}')
     if os.path.exists(fullname):
         savename, _ = os.path.splitext(fullname) # get only savename
         count = 1
-        fullname = '{}_{}{}'.format(savename, count, ext) 
+        fullname = f'{savename}_{count}{ext}' 
         while os.path.exists(os.path.join(fulldir, fullname)):
             count += 1 
-            fullname = '{}_{}{}'.format(savename, count, ext)
+            fullname = f'{savename}_{count}{ext}'
 
     return fullname
 
@@ -259,8 +259,8 @@ def checkdir(dirname):
 
     # check that the directory exists
     if not os.path.isdir(dirname):
-        raise OSError(('{} either does not exist or is not a '
-                       'directory').format(dirname))
+        raise OSError(f'{dirname} either does not exist or is not a '
+                       'directory')
 
 
 #############################################
@@ -291,9 +291,9 @@ def createdir(dirname, unique=False, print_dir=True):
 
     if unique and os.path.exists(dirname):
         i=1
-        while os.path.exists('{}_{}'.format(dirname, i)):
+        while os.path.exists(f'{dirname}_{i}'):
             i += 1
-        dirname = '{}_{}'.format(dirname, i)
+        dirname = f'{dirname}_{i}'
         os.makedirs(dirname)
     else:
         # included due to problems when running parallel scripts 
@@ -303,7 +303,7 @@ def createdir(dirname, unique=False, print_dir=True):
             pass
 
     if print_dir:
-        print('Directory: {}'.format(dirname))
+        print(f'Directory: {dirname}')
 
     return dirname
 

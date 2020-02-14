@@ -118,7 +118,7 @@ def run_sess_lstm(args, sessid):
     lr = 1. * 10**(-args.lr_ex)
     if args.conv:
         conv_str = '_conv'
-        outch_str = '_{}outch'.format(args.out_ch)
+        outch_str = f'_{args.out_ch}outch'
     else:
         conv_str = ''
         outch_str = ''
@@ -144,7 +144,7 @@ def run_sess_lstm(args, sessid):
                                        dend='extr')[0]
 
     analysdir = sess_gen_util.get_analysdir(sess.mouse_n, sess.sess_n, 
-                                    sess.layer, stimtype=args.stimtype, 
+                                    sess.plane, stimtype=args.stimtype, 
                                     comp=None)
     dirname = os.path.join(args.output, analysdir)
     file_util.createdir(dirname, print_dir=False)
@@ -176,9 +176,8 @@ def run_sess_lstm(args, sessid):
     n_pars = train_stim_wins.shape[-1] # n parameters (121)
     n_rois = train_roi_wins.shape[-1] # n ROIs
 
-    hyperstr = '{}hd_{}hl_{}lrex_{}bs{}{}'.format(args.hidden_dim, 
-                    args.num_layers, args.lr_ex, args.batchsize, outch_str, 
-                    conv_str)
+    hyperstr = (f'{args.hidden_dim}hd_{args.num_layers}hl_{args.lr_ex}lrex_'
+                f'{args.batchsize}bs{outch_str}{conv_str}')
 
     dls = data_util.create_dls(train_stim_wins, train_roi_wins, train_p=train_p, 
                             test_p=0, batchsize=args.batchsize, thresh_cl=0, 
@@ -207,7 +206,7 @@ def run_sess_lstm(args, sessid):
                            columns=['train', 'val'])
     min_val = np.inf
     for ep in range(args.n_epochs):
-        print('\n====> Epoch {}'.format(ep))
+        print(f'\n====> Epoch {ep}')
         if ep == 0:
             train_loss = run_dl(lstm, train_dl, args.device, train=False)    
         else:
@@ -220,8 +219,8 @@ def run_sess_lstm(args, sessid):
 
         # record model if training is lower than val, and val reaches a new low
         if ep == 0 or val_loss < min_val:
-            prev_model = glob.glob(os.path.join(dirname, '{}_ep*.pth'.format(hyperstr)))
-            prev_df = glob.glob(os.path.join(dirname, '{}.csv'.format(hyperstr)))
+            prev_model = glob.glob(os.path.join(dirname, f'{hyperstr}_ep*.pth'))
+            prev_df = glob.glob(os.path.join(dirname, f'{hyperstr}.csv'))
             min_val = val_loss
             saved_ep = ep
                 
@@ -229,11 +228,11 @@ def run_sess_lstm(args, sessid):
                 os.remove(prev_model[0])
                 os.remove(prev_df[0])
 
-            savename = '{}_ep{}'.format(hyperstr, ep)
-            savefile = os.path.join('{}'.format(dirname), savename)
+            savename = f'{hyperstr}_ep{ep}'
+            savefile = os.path.join(dirname, savename)
         
             torch.save({'net': lstm.state_dict(), 'opt': lstm.opt.state_dict()},
-                        '{}.pth'.format(savefile))
+                        f'{savefile}.pth')
         
             file_util.saveinfo(loss_df, hyperstr, dirname, 'csv')
 
@@ -243,10 +242,10 @@ def run_sess_lstm(args, sessid):
     fig, ax = plt.subplots(1)
     for dataset in ['train', 'val']:
         plot_util.plot_traces(ax, range(args.n_epochs), np.asarray(loss_df[dataset]), 
-                            label=dataset, title='Average loss (MSE) ({} ROIs)'.format(n_rois))
-    fig.savefig(os.path.join(dirname, '{}_loss'.format(hyperstr)))
+                  label=dataset, title=f'Average loss (MSE) ({n_rois} ROIs)')
+    fig.savefig(os.path.join(dirname, f'{hyperstr}_loss'))
 
-    savemod = os.path.join(dirname, '{}_ep{}.pth'.format(hyperstr, saved_ep))
+    savemod = os.path.join(dirname, f'{hyperstr}_ep{saved_ep}.pth')
     checkpoint = torch.load(savemod)
     lstm.load_state_dict(checkpoint['net']) 
 
@@ -276,8 +275,8 @@ def run_sess_lstm(args, sessid):
     sess_plot_util.plot_labels(ax, train_gabfr, plot_vals='reg', pre=roi_train_pre, 
                             post=train_post)
 
-    fig.suptitle('Target vs predicted validation traces ({} ROIs)'.format(n_rois))
-    fig.savefig(os.path.join(dirname, '{}_traces'.format(hyperstr)))
+    fig.suptitle(f'Target vs predicted validation traces ({n_rois} ROIs)')
+    fig.savefig(os.path.join(dirname, f'{hyperstr}_traces'))
 
 
 
@@ -315,7 +314,7 @@ if __name__ == "__main__":
     if args.datadir is None:
         args.datadir = '../data/AIBS'
     args.runtype = 'prod'
-    args.layer = 'soma'
+    args.plane = 'soma'
     args.stimtype = 'gabors'
 
 
@@ -325,7 +324,7 @@ if __name__ == "__main__":
     
     all_sessids = sess_gen_util.get_sess_vals(args.mouse_df, 'sessid', 
                             runtype=args.runtype, sess_n=[1, 2, 3], 
-                            layer=args.layer, min_rois=1, pass_fail='P', 
+                            plane=args.plane, min_rois=1, pass_fail='P', 
                             omit_sess=args.omit_sess, omit_mice=args.omit_mice)
 
 

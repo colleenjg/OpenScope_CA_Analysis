@@ -41,7 +41,7 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None):
                            default: None
     """
 
-    print('\nPlotting from dictionary: {}'.format(dict_path))
+    print(f'\nPlotting from dictionary: {dict_path}')
     
     figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir)
     plot_util.manage_mpl(cmap=False, **figpar['mng'])
@@ -57,7 +57,7 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None):
 
 
     else:
-        print('No plotting function for analysis {}'.format(analysis))
+        print(f'No plotting function for analysis {analysis}')
 
 
 #############################################
@@ -83,7 +83,7 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
             ['mouse_ns'] (list)   : mouse numbers
             ['sess_ns'] (list)    : session numbers  
             ['lines'] (list)      : mouse lines
-            ['layers'] (list)     : imaging layers
+            ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
             ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
             ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
@@ -121,18 +121,18 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
     stimstr_pr = sess_str_util.stim_par_str(stimpar['stimtype'], 
                                stimpar['bri_dir'], stimpar['bri_size'], 
                                stimpar['gabk'], 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
                                             'roi', 'print')
 
     sessstr = sess_str_util.sess_par_str(sesspar['sess_n'], stimpar['stimtype'], 
-                                         sesspar['layer'], stimpar['bri_dir'],
+                                         sesspar['plane'], stimpar['bri_dir'],
                                          stimpar['bri_size'], stimpar['gabk']) 
-    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['layer'], 
+    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
                                          'roi')
 
     # extract some info from sess_info
-    keys = ['mouse_ns', 'sess_ns', 'lines', 'layers', 'nrois']
-    [mouse_ns, sess_ns, lines, layers, nrois] = [sess_info[key] for key in keys]
+    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes', 'nrois']
+    [mouse_ns, sess_ns, lines, planes, nrois] = [sess_info[key] for key in keys]
 
     n_sess = len(mouse_ns)
     nanroi_vals = [sess_info['nanrois'], sess_info['nanrois_dff']]
@@ -149,8 +149,8 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
         xyzc_dims = ['surp', 'bri_dir', 'pup_diam_data', 'run_data']
         print_dims = xyzc_dims
 
-    print(('Plotting GLM full and unique explained variance for '
-           '{}.').format(', '.join(xyzc_dims)))
+    print('Plotting GLM full and unique explained variance for '
+          '{}.').format(', '.join(xyzc_dims))
 
     if n_sess > 0:
         if figpar is None:
@@ -189,10 +189,9 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
         sess_nrois = sess_gen_util.get_nrois(nrois[e], n_nan[e], n_nan_dff[e], 
                                    analyspar['remnans'], analyspar['fluor'])
 
-        title = (u'Mouse {} - {}\n(sess {}, {} {}{}, (n={}))').format(
-                  mouse_ns[i], stimstr_pr, sess_ns[i], lines[i], layers[i], 
-                  dendstr_pr, sess_nrois)
-        print(u'\n{}'.format(title))
+        title = (f'Mouse {mouse_ns[i]} - {stimstr_pr}\n(sess {sess_ns[i]}, '
+                 f'{lines[i]} {planes[i]}{dendstr_pr}, (n={sess_nrois}))')
+        print(f'\n{title}')
         
         math_util.print_stats(full_ev, stat_str='\nFull explained variance')
 
@@ -202,7 +201,7 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
                 sub_title = 'Explained variance per coefficient'
             elif var_type == 'coef_uni':
                 sub_title = 'Unique explained variance per coefficient'
-            print('\n{}'.format(sub_title))
+            print(f'\n{sub_title}')
 
             dims_all = []
             for key in print_dims:
@@ -217,7 +216,7 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
             [x, y, z, c] = dims_all
             
             if v == 0:
-                subpl_title = u'{}\n{}'.format(title, sub_title)
+                subpl_title = f'{title}\n{sub_title}'
             else:
                 subpl_title = sub_title
 
@@ -238,7 +237,7 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
     if savedir is None:
         savedir = os.path.join(figpar['dirs']['roi'],figpar['dirs']['glm'])
 
-    savename = ('{}_glm_ev_{}{}').format('roi', sessstr, dendstr)
+    savename = (f'roi_glm_ev_{sessstr}{dendstr}')
 
     if n_sess > 0:
         plot_util.add_colorbar(fig, im, n_sess, label=xyzc_dims[3])

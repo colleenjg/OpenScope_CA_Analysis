@@ -191,8 +191,8 @@ def get_stats(data, stats='mean', error='sem', axes=None, nanpol=None,
     axes = gen_util.pos_idx(axes, len(data.shape))
 
     if len(axes) > len(data.shape):
-        raise ValueError(('Must provide no more axes value than the number of '
-                          'data axes.'))
+        raise ValueError('Must provide no more axes value than the number of '
+                         'data axes.')
     
     if len(axes) > 1:
         # take the mean/median successively across axes
@@ -252,14 +252,14 @@ def print_stats(stats, stat_str=None, ret_str_only=False):
     me = stats[0]
     err = stats[1:]
     
-    err_str = '/'.join(['{:.3f}'.format(e) for e in err])
+    err_str = '/'.join([f'{e:.3f}' for e in err])
 
     plusmin = u'\u00B1'
 
     if stat_str is None:
         stat_str = ''
     else:
-        stat_str = '{}: '.format(stat_str)
+        stat_str = f'{stat_str}: '
 
     full_stat_str = u'{}{:.5f} {} {}'.format(stat_str, me, plusmin, err_str)
     if ret_str_only:
@@ -349,7 +349,7 @@ def calc_op(data, op='diff', dim=0, rev=False):
     """
     
     if data.shape[dim] != 2:
-        raise ValueError('Data should have length 2 along dim: {}'.format(dim))
+        raise ValueError(f'Data should have length 2 along dim: {dim}')
 
     if isinstance(op, int):
         data_idx = gen_util.slice_idx(dim, op)
@@ -573,8 +573,8 @@ def scale_data(data, axis=None, pos=None, sc_type='min_max', extrem='reg',
                             shift=shift, nanpol=nanpol)
         ret_facts = True
     elif len(facts) != 4:
-        raise ValueError(('If passing factors, must pass 4 items: '
-                        'sub, div, mult and shift.'))
+        raise ValueError('If passing factors, must pass 4 items: '
+                         'sub, div, mult and shift.')
     
     sub, div, mult, shift = np.asarray([fact for fact in facts])
 
@@ -728,8 +728,8 @@ def run_permute(all_data, n_perms=10000, lim_e6=350):
     """
 
     if len(all_data.shape) > 2:
-        raise NotImplementedError(('Permutation analysis only implemented for '
-                                   '2D data.'))
+        raise NotImplementedError('Permutation analysis only implemented for '
+                                  '2D data.')
 
     # checks final size of permutation array and throws an error if
     # it is bigger than accepted limit.
@@ -738,7 +738,7 @@ def run_permute(all_data, n_perms=10000, lim_e6=350):
         lim = int(lim_e6*1e6)
         fold = int(np.ceil(float(perm_size)/lim))
         permute_cri = ('\nPermutation array exceeds allowed size '
-                    '({} * 10^6) by {} fold.').format(lim_e6, fold)
+                       f'({lim_e6} * 10^6) by {fold} fold.')
         assert (perm_size < lim), permute_cri
 
     # (item x datapoints (all groups))
@@ -787,8 +787,8 @@ def permute_diff_ratio(all_data, div='half', n_perms=10000, stats='mean',
     """
 
     if len(all_data.shape) > 2:
-        raise NotImplementedError(('Significant difference/ratio analysis only '
-                                   'implemented for 2D data.'))
+        raise NotImplementedError('Significant difference/ratio analysis only '
+                                  'implemented for 2D data.')
     
     all_rand_res = []
     perm = True
@@ -856,18 +856,15 @@ def print_elem_list(elems, tail='up', act_vals=None):
     """
 
     if len(elems) == 0:
-        print('\tSignif {}: None'.format(tail))
+        print(f'\tSignif {tail}: None')
     else:
-        print('\tSignif {}: {}'.format(tail, ', '.join('{}'.format(x) 
-            for x in elems)))
+        print('\tSignif {}: {}'.format(tail, ', '.join(f'{x}' for x in elems)))
         if act_vals is not None:
             if len(act_vals) != len(elems):
-                raise ValueError(('`elems` and `act_vals` should be the '
-                                  'same length, but are of length {} and {} '
-                                  'respectively.').format(len(elems), 
-                                                          len(act_vals)))
-            print('\tVals: {}'.format(', '.join(['{:.2f}'.format(x) 
-                                                 for x in act_vals])))    
+                raise ValueError('`elems` and `act_vals` should be the '
+                           f'same length, but are of length {len(elems)} and '
+                           f'{len(act_vals)} respectively.')
+            print('\tVals: {}'.format(', '.join([f'{x:.2f}' for x in act_vals])))   
 
 
 #############################################
@@ -948,8 +945,8 @@ def id_elem(rand_vals, act_vals, tails='2', p_val=0.05, min_n=100,
     # check whether there are enough values for determining thresholds
     out_vals = int(rand_vals.shape[-1] * p_val)
     if out_vals < min_n:
-        raise ValueError(('Insufficient number of values ({}) outside the '
-                          'CI (< {}).'.format(out_vals, min_n)))
+        raise ValueError(f'Insufficient number of values ({out_vals}) outside '
+                         f'the CI (< {min_n}).')
 
     single = False
     if len(rand_vals.shape) == 1:
@@ -1029,7 +1026,7 @@ def get_percentiles(CI=0.95, tails=2):
     ps = [100.0 * p for p in ps]
     p_names = []
     for p in ps:
-        p_names.append('p{}'.format(gen_util.num_to_str(p)))
+        p_names.append(f'p{gen_util.num_to_str(p)}')
 
     return ps, p_names
 

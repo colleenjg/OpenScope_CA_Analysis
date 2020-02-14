@@ -38,10 +38,10 @@ def base_par_str(baseline=None, str_type='file'):
     if baseline is not None:
         if str_type == 'print':
             baseline = gen_util.num_to_str(baseline, n_dec=2, dec_sep='.')
-            base_str = ' ({}s baseline)'.format(baseline)    
+            base_str = f' ({baseline}s baseline)'    
         elif str_type == 'file':
             baseline = gen_util.num_to_str(baseline, n_dec=2, dec_sep='-')
-            base_str = '_b{}'.format(baseline)
+            base_str = f'_b{baseline}'
         else:
             gen_util.accepted_values_error('str_type', str_type, 
                                            ['print', 'file'])        
@@ -276,7 +276,7 @@ def op_par_str(plot_vals='both', op='diff', str_type='file'):
                                            ['print', 'file'])
     else:
         if str_type == 'print':
-            op_str = 'for {}'.format(plot_vals)
+            op_str = f'for {plot_vals}'
         elif str_type == 'file':
             op_str = plot_vals
         else:
@@ -320,10 +320,10 @@ def lat_par_str(method='ttest', p_val_thr=0.005, rel_std=0.5, str_type='file'):
 
     if str_type == 'print':
         val = gen_util.num_to_str(val, n_dec=5, dec_sep='.')
-        lat_str = '{} {}'.format(val, ext_str)
+        lat_str = f'{val} {ext_str}'
     elif str_type == 'file':
         val = gen_util.num_to_str(val, n_dec=5, dec_sep='-')
-        lat_str = '{}{}'.format(val, ext_str)
+        lat_str = f'{val}{ext_str}'
     else:
         gen_util.accepted_values_error('str_type', str_type, ['print', 'file'])
 
@@ -369,7 +369,7 @@ def prepost_par_str(pre, post, str_type='file'):
 
 
 #############################################
-def dend_par_str(dend='extr', layer='dend', datatype='roi', str_type='file'):
+def dend_par_str(dend='extr', plane='dend', datatype='roi', str_type='file'):
     """
     dend_par_str()
 
@@ -378,7 +378,7 @@ def dend_par_str(dend='extr', layer='dend', datatype='roi', str_type='file'):
     Optional args:
         - dend (str)     : type of dendrite ('aibs' or 'extr')
                            default: 'extr'
-        - layer (str)    : layer ('dend' or 'soma')
+        - plane (str)    : plane ('dend' or 'soma')
                            default: 'dend'
         - datatype (str) : type of data ('roi', 'run')
                            default: 'roi'
@@ -390,16 +390,16 @@ def dend_par_str(dend='extr', layer='dend', datatype='roi', str_type='file'):
         - dend_str (str): dendrite type string
     """
 
-    layers = ['dend', 'soma', 'any']
-    if layer not in layers:
-        gen_util.accepted_values_error('layer', layer, layers)
+    planes = ['dend', 'soma', 'any']
+    if plane not in planes:
+        gen_util.accepted_values_error('plane', plane, planes)
     
     datatypes = ['roi', 'run']
     if datatype not in datatypes:
         gen_util.accepted_values_error('datatype', datatype, datatypes)
     
     dend_str = ''
-    if layer in ['dend', 'any'] and datatype == 'roi' and dend == 'aibs':
+    if plane in ['dend', 'any'] and datatype == 'roi' and dend == 'aibs':
         if str_type == 'file':
             dend_str = '_aibs'
         elif str_type == 'print':
@@ -479,8 +479,8 @@ def gabfr_letters(gabfr, surp='any'):
         surp = surp * len(gabfr)    
     else:
         if len(gabfr) != len(surp):
-            raise ValueError(('If passing more than one surp value, must '
-                              'pass as many as gabfr.'))
+            raise ValueError('If passing more than one surp value, must '
+                             'pass as many as gabfr.')
 
     if min(gabfr) < 0 or max(gabfr) > 3:
         raise ValueError('Gabor frames are only between 0 and 3, inclusively.')
@@ -534,14 +534,14 @@ def gabk_par_str(gabk, str_type='file'):
     if 4 in gabk:
         if len(gabk) > 1:
             if str_type == 'file':
-                pars = '{}_both'.format(pars)
+                pars = f'{pars}_both'
             elif str_type == 'print':
-                pars = '{} (both)'.format(pars)
+                pars = f'{pars} (both)'
         else:
             if str_type == 'file':
-                pars = '{}{}'.format(pars, gabk[0])
+                pars = f'{pars}{gabk[0]}'
             elif str_type == 'print':
-                pars = '{} ({})'.format(pars, gabk[0])
+                pars = f'{pars} ({gabk[0]})'
 
     return pars
 
@@ -580,14 +580,14 @@ def size_par_str(size, str_type='file'):
     if 256 in size:
         if len(size) > 1:
             if str_type == 'file':
-                pars = '{}_both_siz'.format(pars)
+                pars = f'{pars}_both_siz'
             elif str_type == 'print':
-                pars = '{} (both sizes)'.format(pars)
+                pars = f'{pars} (both sizes)'
         else:
             if str_type == 'file':
-                pars = '{}{}'.format(pars, size[0])
+                pars = f'{pars}{size[0]}'
             elif str_type == 'print':
-                pars = '{} ({})'.format(pars, size[0])
+                pars = f'{pars} ({size[0]})'
 
     return pars
 
@@ -623,9 +623,9 @@ def dir_par_str(direc, str_type='file'):
     
     if len(direc) == 1:
         if str_type == 'file':
-            pars = '{}_{}'.format(pars, direc[0])
+            pars = f'{pars}_{direc[0]}'
         elif str_type == 'print':
-            pars = '{} ({})'.format(pars, direc[0])
+            pars = f'{pars} ({direc[0]})'
         
     return pars
 
@@ -654,8 +654,8 @@ def bri_par_str(direc, size, str_type='file'):
     """
     
     if size is None or direc is None:
-        raise ValueError(('Must pass value for brick size or direction '
-                          'parameter.'))
+        raise ValueError('Must pass value for brick size or direction '
+                         'parameter.')
 
     dirstr = dir_par_str(direc, str_type=str_type)
     sizestr = size_par_str(size, str_type=str_type)
@@ -671,7 +671,7 @@ def bri_par_str(direc, size, str_type='file'):
     elif str_type == 'file':
         if len(dirstr) > 3: # specified direction
             if len(sizestr) > 3:
-                pars = '{}_{}'.format(sizestr, dirstr[4:])
+                pars = f'{sizestr}_{dirstr[4:]}'
             else:
                 pars = dirstr
         else:
@@ -713,13 +713,13 @@ def stim_par_str(stimtype='gabors', bri_dir=None, bri_size=None, gabk=None,
     
     if stimtype == 'gabors':
         if gabk is None:
-            raise ValueError(('If stimulus is gabors, must pass gabk '
-                              'parameters.'))
+            raise ValueError('If stimulus is gabors, must pass gabk '
+                             'parameters.')
         pars = gabk_par_str(gabk, str_type)
     elif stimtype == 'bricks':
         if bri_size is None or bri_dir is None:
-            raise ValueError(('If stimulus is bricks, must pass direction and '
-                              'size parameters.'))
+            raise ValueError('If stimulus is bricks, must pass direction and '
+                             'size parameters.')
         pars = bri_par_str(bri_dir, bri_size, str_type=str_type)
     else:
         gen_util.accepted_values_error('stimtype', stimtype, 
@@ -762,8 +762,8 @@ def sess_par_str(sess_n, stimtype='gabors', layer='soma', bri_dir=None,
                            parameters
     """
     if gabk is None and (bri_size is None or bri_dir is None):
-        raise ValueError(('Must pass value for gabor k parameter or brick '
-                          'size and direction.'))
+        raise ValueError('Must pass value for gabor k parameter or brick '
+                         'size and direction.')
     elif gabk is None:
         stimtype = 'bricks'
     elif bri_size is None or bri_dir is None:
@@ -775,10 +775,10 @@ def sess_par_str(sess_n, stimtype='gabors', layer='soma', bri_dir=None,
         sess_n = gen_util.intlist_to_str(sess_n)
 
     if str_type == 'file':
-        sess_str = 'sess{}_{}_{}'.format(sess_n, stim_str, layer)
+        sess_str = f'sess{sess_n}_{stim_str}_{layer}'
     elif str_type == 'print':
         stim_str = stim_str.replace(' (', ': ').replace(')', '')
-        sess_str = '{}, session: {}, layer: {}'.format(stim_str, sess_n, layer)
+        sess_str = f'{stim_str}, session: {sess_n}, layer: {layer}'
     else:
         gen_util.accepted_values_error('str_type', str_type, ['file', 'print'])
     

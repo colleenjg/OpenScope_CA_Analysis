@@ -234,7 +234,7 @@ def get_sc_names(loss_name, classes):
         if sc_name.lower() == 'loss':
             sc_names[i] = loss_name
         for j, class_name in enumerate(classes):
-            generic = 'class{}'.format(j)
+            generic = f'class{j}'
             if generic in sc_name:
                 sc_names[i] = sc_name.replace(generic, class_name)
     
@@ -301,9 +301,9 @@ def get_sc_labs(test=True, by='flat', ext_test=False, ext_test_name=None):
     sets = get_set_labs(test, ext_test=ext_test, ext_test_name=ext_test_name)
     scores = get_sc_types()
     if by == 'flat':
-        sc_labs = ['{}_{}'.format(s, sc) for s in sets for sc in scores]
+        sc_labs = [f'{s}_{sc}' for s in sets for sc in scores]
     elif by == 'set':
-        sc_labs = [['{}_{}'.format(s, sc) for sc in scores] for s in sets]
+        sc_labs = [[f'{s}_{sc}' for sc in scores] for s in sets]
     else:
         gen_util.accepted_values_error('by', by, ['flat', 'set'])
 
@@ -375,8 +375,8 @@ def run_batches(mod, dl, device, train=True):
         if len(cl_accs) > 0:
             ep_sc['acc_bal'] = np.mean(cl_accs) 
         else:
-            raise ValueError(('No class accuracies. Cannot calculate '
-                              'balanced accuracy.'))
+            raise ValueError('No class accuracies. Cannot calculate '
+                             'balanced accuracy.')
     
     return ep_sc
 
@@ -435,7 +435,7 @@ def print_loss(s, loss, logger=None):
                            console.
     """
 
-    print_str = '    {} loss: {:.4f}'.format(s, loss)
+    print_str = f'    {s} loss: {loss:.4f}'
     if logger is None:
         print(print_str)
     else:
@@ -476,15 +476,15 @@ def save_model(info, ep, mod, scores, dirname='.', rectype=None):
         if len(prev_model) == 1 and len(prev_json) == 1:
             os.remove(prev_model[0])
             os.remove(prev_json[0])
-        savename = 'ep{}_best'.format(ep)
+        savename = f'ep{ep}_best'
 
     else:
-        savename = 'ep{}'.format(ep)
+        savename = f'ep{ep}'
 
-    savefile = os.path.join('{}'.format(dirname), savename)
+    savefile = os.path.join(dirname, savename)
     
     torch.save({'net': mod.state_dict(), 'opt': mod.opt.state_dict()},
-                '{}.pth'.format(savefile))
+                f'{savefile}.pth')
     
     info = copy.deepcopy(info)
     info['epoch_n'] = ep
@@ -562,7 +562,7 @@ def fit_model_pt(info, n_epochs, mod, dls, device, dirname='.', ep_freq=50,
                 train = True
             set_sc = run_dl(mod, dl, device, train=train)
             for sc in scs:
-                col = '{}_{}'.format(se, sc)
+                col = f'{se}_{sc}'
                 scores.loc[ep_loc, col] = set_sc[sc]
                 ep_sc[col] = set_sc[sc]
         
@@ -579,7 +579,7 @@ def fit_model_pt(info, n_epochs, mod, dls, device, dirname='.', ep_freq=50,
             rectype = None
         
         if ep % ep_freq == 0:
-            logger.info('Epoch {}'.format(ep))
+            logger.info(f'Epoch {ep}')
             print_loss('train', scores.loc[ep_loc, 'train_loss'].tolist()[0], 
                        logger)
             print_loss('val', scores.loc[ep_loc]['val_loss'].tolist()[0], 
@@ -612,13 +612,13 @@ def get_epoch_n_pt(dirname, model='best'):
     ext_str = ''
     if model == 'best':
         ext_str = '_best'
-    models = glob.glob(os.path.join(dirname, 'ep*{}.pth'.format(ext_str)))
+    models = glob.glob(os.path.join(dirname, f'ep*{ext_str}.pth'))
     
     if len(models) > 0:
         ep_ns = [int(re.findall(r'\d+', os.path.split(mod)[-1])[0]) 
                      for mod in models]
     else:
-        print('{} No models were recorded.'.format(warn_str))
+        print(f'{warn_str} No models were recorded.')
         ep = None
         return ep
     
@@ -686,7 +686,7 @@ def load_params(dirname, model='best', alg='sklearn'):
             return None
         else:
             models = glob.glob(os.path.join(dirname, 
-                                            'ep{}*{}.pth'.format(ep, ext_str)))[0]
+                                            f'ep{ep}*{ext_str}.pth'))[0]
             checkpoint = torch.load(models)
             weights = checkpoint['net']['lin.weight'].numpy()
             biases = checkpoint['net']['lin.bias'].numpy()
@@ -717,12 +717,12 @@ def load_checkpoint_pt(mod, filename):
     # updates their states.
     checkpt_name = os.path.split(filename)[-1]
     if os.path.isfile(filename):
-        print(('\nLoading checkpoint found at \'{}\''.format(checkpt_name)))
+        print(f'\nLoading checkpoint found at \'{checkpt_name}\'')
         checkpoint = torch.load(filename)
         mod.load_state_dict(checkpoint['net'])
         mod.opt.load_state_dict(checkpoint['opt'])
     else:
-        raise OSError('No checkpoint found at \'{}\''.format(checkpt_name))
+        raise OSError(f'No checkpoint found at \'{checkpt_name}\'')
 
     return mod
 
@@ -750,17 +750,17 @@ def plot_weights(ax, mod_params, xran, stats='mean', error='sem'):
     """
 
     if ax.shape != (2, 2):
-        raise ValueError(('Axis should be of shape (2, 2), '
-                          'but is of shape {}.').format(ax.shape))
+        raise ValueError('Axis should be of shape (2, 2), '
+                         f'but is of shape {ax.shape}.')
 
     weights = np.asarray(mod_params[1]).reshape(len(xran), -1)
 
     # plot weights by fr (bottom, left subplot)
     by_fr = ax[1, 0]
     fr_stats = math_util.get_stats(weights, stats, error, axes=1)
-    fr_title = 'Model weights (ep {})'.format(mod_params[0])
+    fr_title = f'Model weights (ep {mod_params[0]})'
     if len(mod_params) == 4:
-        fr_title = '{} (mod {})'.format(fr_title, mod_params[3])
+        fr_title = f'{fr_title} (mod {mod_params[3]})'
     plot_util.plot_traces(by_fr, xran, fr_stats[0], fr_stats[1:], fr_title, 
                             col='dimgrey', alpha=0.4)
     by_fr.axhline(y=0, ls='dashed', c='k', lw=1, alpha=0.5)
@@ -786,7 +786,7 @@ def plot_weights(ax, mod_params, xran, stats='mean', error='sem'):
     # write intercept (bottom, right subplot)
     bias_subax = ax[1, 1]
     bias_subax.axis('off')
-    bias_text = 'Bias\n{:.2f}'.format(mod_params[2][0])
+    bias_text = f'Bias\n{mod_params[2][0]:.2f}'
     bias_subax.text(0.5, 0.5, bias_text, fontsize='x-large', 
                fontweight='bold', ha='center', va='bottom')
 
@@ -920,13 +920,13 @@ def plot_tr_data(xran, class_stats, classes, ns, fig=None, ax_data=None,
         cols = [None] * len(classes)
 
     if data_type is not None:
-        data_str = ' ({})'.format(data_type)
+        data_str = f' ({data_type})'
     else:
         data_str = ''
 
     for i, class_name in enumerate(classes):
         cl_st = np.asarray(class_stats[i])
-        leg = '{}{} (n={})'.format(class_name, data_str, ns[i])
+        leg = f'{class_name}{data_str} (n={ns[i]})'
         plot_util.plot_traces(ax_data, xran, cl_st[0], cl_st[1:], 
                               alpha=0.8/len(classes), label=leg, col=cols[i])
         cols[i] = ax_data.lines[-1].get_color()
@@ -987,14 +987,14 @@ def plot_scores(scores, classes, alg='sklearn', loss_name='loss', dirname='.',
     set_labs, set_names = [], []
     for col_name in scores.keys():
         if sc_labs[0] in col_name:
-            set_labs.append(col_name.replace('_{}'.format(sc_labs[0]), ''))
-            set_names.append('{} set'.format(set_labs[-1]))
+            set_labs.append(col_name.replace(f'_{sc_labs[0]}', ''))
+            set_names.append(f'{set_labs[-1]} set')
 
     sc_titles = get_sc_names(loss_name, classes) # for title
     dash_test = 'test_out' in sc_labs
 
     for sc_title, sc_lab in zip(sc_titles, sc_labs):
-        if '{}_{}'.format(set_labs[0], sc_lab) not in scores.keys():
+        if f'{set_labs[0]}_{sc_lab}' not in scores.keys():
             continue
         fig, ax = plt.subplots(figsize=[20, 5])
         for set_lab in set_labs:
@@ -1003,7 +1003,7 @@ def plot_scores(scores, classes, alg='sklearn', loss_name='loss', dirname='.',
                 dashes = [3, 2]
             if set_lab == 'val' or (set_lab == 'test' and dash_test):
                 dashes = [6, 2]
-            sc = np.asarray(scores['{}_{}'.format(set_lab, sc_lab)])
+            sc = np.asarray(scores[f'{set_lab}_{sc_lab}'])
             ax.plot(x_vals, sc, label=set_lab ,lw=2.5, dashes=dashes)
             ax.set_title(u'{}\n{}'.format(gen_title, sc_title))
             ax.set_xlabel(x_lab)
@@ -1014,7 +1014,7 @@ def plot_scores(scores, classes, alg='sklearn', loss_name='loss', dirname='.',
             pad = (act_ylim[1] - act_ylim[0]) * 0.05
             ax.set_ylim(act_ylim[0] - pad, act_ylim[1] + pad)
         ax.legend()
-        fig.savefig(os.path.join(dirname, '{}'.format(sc_lab)))
+        fig.savefig(os.path.join(dirname, f'{sc_lab}'))
 
 
 #############################################
@@ -1045,29 +1045,27 @@ def check_scores_pt(scores_df, best_ep, hyperpars):
         # was recorded as having lowest validation loss
         ep_rec = scores_df.count(axis=0)
         if min(ep_rec) < hyperpars['logregpar']['n_epochs']:
-            print(('{} Only {} epochs were fully '
-                    'recorded.').format(warn_str, min(ep_rec)))
+            print(f'{warn_str} Only {min(ep_rec)} epochs were fully '
+                   'recorded.')
         if max(ep_rec) > hyperpars['logregpar']['n_epochs']:
-            print(('{} {} epochs were '
-                    'recorded.').format(warn_str, max(ep_rec)))
+            print(f'{warn_str} {max(ep_rec)} epochs were '
+                   'recorded.')
         if len(scores_df.loc[(scores_df['saved'] == 
                               1)]['epoch_n'].tolist()) == 0:
-            print(('{} No models were recorded in '
-                    'dataframe.').format(warn_str))
+            print(f'{warn_str} No models were recorded in dataframe.')
         else:
             ep_df = scores_df.loc[(scores_df['saved'] == 1)]['epoch_n'].tolist()
             best_val = np.min(scores_df['val_loss'].tolist())
             ep_best = scores_df.loc[(scores_df['val_loss'] == 
                                      best_val)]['epoch_n'].tolist()[0]
             if ep_best != best_ep:
-                print('Best recorded model is actually epoch '
-                       '{}, but actual best model is {} based on dataframe. '
-                       'Using dataframe one.').format(warn_str, ep_best, 
-                                                      ep_df)
+                print(f'{warn_str} Best recorded model is actually epoch '
+                      f'{ep_best}, but actual best model is {ep_df} based '
+                      'on dataframe. Using dataframe one.')
             ep_info = scores_df.loc[(scores_df['epoch_n'] == ep_best)]
             if len(ep_info) != 1:
-                print(('{} {} lines found in dataframe for epoch '
-                        '{}.').format(warn_str, len(ep_info), ep_best))
+                print(f'{warn_str} {len(ep_info)} lines found in dataframe '
+                      f'for epoch {ep_best}.')
 
     return ep_info
     
@@ -1107,11 +1105,11 @@ def get_scores(dirname='.', alg='sklearn'):
     if os.path.exists(df_path):
         scores_df = file_util.loadfile(df_path)
     else:
-        print('{} No scores were recorded.'.format(warn_str))
+        print(f'{warn_str} No scores were recorded.')
         scores_df = None
         if alg == 'pytorch' and best_ep is not None:
-            print(('{} Highest recorded model is for epoch {}, but no '
-                    'score is recorded.').format(warn_str, best_ep))
+            print(f'{warn_str} Highest recorded model is for epoch {best_ep}, '
+                    'but no score is recorded.')
 
     hyperpars = file_util.loadfile('hyperparameters.json', dirname)
 
@@ -1222,9 +1220,9 @@ class StratifiedShuffleSplitMod(StratifiedShuffleSplit):
                 ns = [n for _ in range(n_classes)]
                 samp_idx = range(n_classes)
             if min(ns) < n_classes:
-                raise ValueError('The smallest set sizes = {} should be '
-                                 'greater or equal to the number of '
-                                 'classes = {}'.format(min(ns), n_classes))
+                raise ValueError(f'The smallest set sizes = {min(ns)} should '
+                                 'be greater or equal to the number of '
+                                 f'classes = {n_classes}')
             sub_idx = []
             for i in range(n_classes):
                 if i in samp_idx:
@@ -1257,8 +1255,8 @@ class StratifiedShuffleSplitMod(StratifiedShuffleSplit):
         n_classes = len(classes)
         if min(class_counts)//2 < n_classes:
             raise ValueError('Cannot split test set into 2 as smallest set '
-                    'size = {} should be greater or equal to the number of '
-                    'classes = {}'.format(min(class_counts)//2, n_classes))
+                    f'size = {min(class_counts)//2} should be greater or equal '
+                    f'to the number of classes = {n_classes}')
         test, test_out = [], []
         for counts, idx in zip(class_counts, y_indices):
             test.extend(idx[:counts//2])
@@ -1583,8 +1581,8 @@ def run_logreg_cv_sk(input_data, targ_data, logregpar, extrapar,
             if n_jobs in [0, 1]:
                 n_jobs = None
         if n_jobs is None:
-            print(('OOM error possibly upcoming as input data '
-                   'size is {}.').format(np.prod(input_data.shape)))
+            print('OOM error possibly upcoming as input data '
+                  f'size is {np.prod(input_data.shape)}.')
 
     extrapar = copy.deepcopy(extrapar)
     extrapar['loss_name'] = 'Weighted BCE loss with L2 reg'
@@ -1615,7 +1613,7 @@ def run_logreg_cv_sk(input_data, targ_data, logregpar, extrapar,
     return mod_cvs, cv, extrapar
 
 
-#############################################
+############################################
 def test_logreg_cv_sk(mod_cvs, cv, scoring, main_data=None, extra_data=None, 
                       extra_name=None, extra_cv=None):
     """
@@ -1680,7 +1678,7 @@ def test_logreg_cv_sk(mod_cvs, cv, scoring, main_data=None, extra_data=None,
 
     for score in scoring:
         for test in all_tests:
-            mod_cvs['{}_{}'.format(test, score)] = \
+            mod_cvs[f'{test}_{score}'] = \
                 np.empty(len(mod_cvs['estimator'])) * np.nan
 
     for m, mod in enumerate(mod_cvs['estimator']):
@@ -1694,7 +1692,7 @@ def test_logreg_cv_sk(mod_cvs, cv, scoring, main_data=None, extra_data=None,
             all_data.append([extra_data[0][idx], extra_data[1][idx]])
         for score in scoring:
             for test, data in zip(all_tests, all_data):
-                key = '{}_{}'.format(test, score)
+                key = f'{test}_{score}'
                 sc = get_scorer(score)
                 mod_cvs[key][m] = sc(mod, data[0], data[1])
 
@@ -1770,8 +1768,8 @@ def create_score_df_sk(mod_cvs, saved_idx, set_names, scoring):
         sc_modif.append(sc_name)
         sc_sign.append(sign)
 
-    set_sc = ['{}_{}'.format(st_name, sc_name) for st_name in set_names 
-                                               for sc_name in sc_modif]
+    set_sc = [f'{st_name}_{sc_name}' for st_name in set_names 
+                                     for sc_name in sc_modif]
     scores = pd.DataFrame(columns=['run_n', 'epoch_n'] + set_sc)
 
     scores['run_n'] = range(len(mod_cvs['estimator']))
@@ -1779,12 +1777,12 @@ def create_score_df_sk(mod_cvs, saved_idx, set_names, scoring):
     scores.loc[saved_idx, 'saved'] = 1
     for set_name in set_names:
         for score, sc_mod, sign in zip(scoring, sc_modif, sc_sign):
-            key = '{}_{}'.format(set_name, score)
+            key = f'{set_name}_{score}'
             if key in mod_cvs.keys():
                 sc = mod_cvs[key]
-                scores['{}_{}'.format(set_name, sc_mod)] = sc * sign
+                scores[f'{set_name}_{sc_mod}'] = sc * sign
             else:
-                print('{} score missing.'.format(key))
+                print(f'{key} score missing.')
 
     for r in range(len(mod_cvs['estimator'])):
         epoch_n = mod_cvs['estimator'][r]['logisticregression'].n_iter_[0]

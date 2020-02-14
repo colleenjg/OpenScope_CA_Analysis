@@ -193,8 +193,8 @@ def data_indices(n, train_n, val_n, test_n=None, targets=None, thresh_cl=2,
             for s, set_n in enumerate(set_ns):
                 if [train_idx, val_idx, test_idx][s] != 0 and thresh_cl != 0:
                     if set_n < thresh_cl:
-                        raise ValueError(('Sets cannot meet the threshold '
-                                          'requirement.'))
+                        raise ValueError('Sets cannot meet the threshold '
+                                         'requirement.')
             train_idx.extend(cl_mixed_idx[0 : set_ns[0]])
             val_idx.extend(cl_mixed_idx[set_ns[0] : set_ns[0] + set_ns[1]])
             test_idx.extend(cl_mixed_idx[set_ns[0] + set_ns[1] : 
@@ -249,21 +249,18 @@ def checkprop(train_p, val_p=0, test_p=0):
 
     # raise error if proportions sum to > 1 or if a proportion is < 0.
     if sum_p != 1.0 or min_p < 0.0:
-        props = ['\n{}: {}'.format(y, x) for x, y in set_p]
+        props = [f'\n{y}: {x}' for x, y in set_p]
         prop_str = '{}\nsum_p: {}'.format(''.join(props), sum_p)
         
         if min_p < 0.0:
-            raise ValueError(('Proportions must not be '
-                              '< 0. {}').format(prop_str))
+            raise ValueError(f'Proportions must not be < 0. {prop_str}')
 
         elif sum_p > 1.0:
-            raise ValueError(('Proportions must not sum to '
-                              '> 1. {}').format(prop_str))
+            raise ValueError(f'Proportions must not sum to > 1. {prop_str}')
     
         elif len(set_p) == 3:
         # if all values are given and sum != 1.0
-            print(('WARNING: proportions given do not sum '
-                   'to 1. {}').format(prop_str))
+            print(f'WARNING: proportions given do not sum to 1. {prop_str}')
 
 
 #############################################
@@ -332,8 +329,8 @@ def split_idx(n, train_p=0.75, val_p=None, test_p=None, thresh_set=10,
                                   ['val n', 'test n']):
         if set_n < thresh_set:
             if set_p != 0:
-                raise ValueError(('{} is {} (below threshold '
-                                  'of {})').format(name, set_n, thresh_set))
+                raise ValueError(f'{name} is {set_n} (below threshold '
+                                 f'of {thresh_set})')
 
     train_idx, val_idx, test_idx = data_indices(n, train_n, val_n, test_n, 
                                                 targets, thresh_cl, strat_cl)
