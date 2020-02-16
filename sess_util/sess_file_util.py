@@ -104,13 +104,13 @@ def get_file_names(masterdir, sessid, expid, date, mouseid, runtype='prod',
         - procdir (str)   : full path name of the processed 
                             data directory
         - filepaths (dict): dictionary of file paths
-            ['behav_h5_video'] (str)   : full path name of the behavioral hdf5
+            ['behav_video_h5'] (str)   : full path name of the behavioral hdf5
                                          video file
             ['align_pkl'] (str)        : full path name of the stimulus
                                          alignment pickle file
             ['corrected_data_h5'] (str): full path name of the motion
                                          corrected 2p data hdf5 file
-            ['pupil_h5_video'] (str)   : full path name of the pupil hdf5 video
+            ['pupil_video_h5'] (str)   : full path name of the pupil hdf5 video
                                          file
             ['roi_trace_h5'] (str)     : full path name of the ROI raw 
                                          fluorescence trace hdf5 file
@@ -134,10 +134,10 @@ def get_file_names(masterdir, sessid, expid, date, mouseid, runtype='prod',
 
     filepaths = {'align_pkl'        : os.path.join(sessdir, 
                                       f'{sess_m_d}_df.pkl'),
-                 'behav_h5_video'   : os.path.join(sessdir, 
+                 'behav_video_h5'   : os.path.join(sessdir, 
                                       f'{sess_m_d}_video-0.h5'),
                  'correct_data_h5'  : os.path.join(procdir, 'concat_31Hz_0.h5'),
-                 'pupil_h5_video'   : os.path.join(sessdir, 
+                 'pupil_video_h5'   : os.path.join(sessdir, 
                                       f'{sess_m_d}_video-1.h5'),
                  'roi_trace_h5'     : os.path.join(procdir, 'roi_traces.h5'),
                  'roi_trace_dff_h5' : os.path.join(procdir, 
@@ -272,7 +272,8 @@ def get_mask_path(masterdir, sessid, expid, mouseid, runtype='prod',
     """
     get_mask_path(masterdir, sessid, expid, mouseid)
 
-    Returns path to mask file.
+    Returns path to mask file (checks for actual and previous version of names, 
+    but if both or neither are found, raises an error).
 
     Required args:
         - masterdir (str): name of the master data directory
@@ -291,7 +292,7 @@ def get_mask_path(masterdir, sessid, expid, mouseid, runtype='prod',
                             default: True
 
     Returns:
-        - (str): full path name of the extract masks hdf5 file
+        - maskfile (str): full path name of the extract masks hdf5 file
     """
 
     _, _, procdir = get_sess_dirs(masterdir, sessid, expid, mouseid, runtype, 
@@ -300,18 +301,25 @@ def get_mask_path(masterdir, sessid, expid, mouseid, runtype='prod',
 
     maskfile = os.path.join(procdir, f'{sessid}_dendritic_masks.h5')
 
+    found = 0
     if os.path.exists(maskfile):
-        return maskfile
+        found += 1
     
     # try previous mask file name
     prev_maskfile = os.path.join(procdir, f'{sessid}_extract_masks.h5')
 
     if os.path.exists(prev_maskfile):
-        return prev_maskfile
+        found +- 1
+        maskfile = prev_maskfile
 
+    if found == 1:
+        return maskfile
     else:
         file_str = ' or '.join([maskfile, prev_maskfile])
-        raise OSError(f'No dendritic masks found under \'{file_str}\'')
+        if found == 0:
+            raise OSError(f'No dendritic masks found under \'{file_str}\'')
+        else:
+            raise OSError(f'Multiple dendritic masks found under \'{file_str}\'')
 
 
 #############################################
@@ -319,24 +327,19 @@ def get_dendritic_trace_paths(trace_file):
     """
     get_dendritic_trace_paths(trace_file)
 
-    Returns modified path to traces for EXTRACT dendritic trace data (actual 
-    and previous version of names).
+    Returns path to traces for EXTRACT dendritic trace data (checks for actual 
+    and previous version of names, but if both are found or only dF/F is found, 
+    raises an error). 
+    Does not raise an error if none are found, but returns 'none' for each.
 
     Required args:
         - trace_file (str): path to ROI traces
 
     Returns:
-        (list):
-            - dend_tr_file (str)    : path to EXTRACT dendritic ROI traces
-            - dend_tr_dff_file (str): path to EXTRACT dendritic ROI dF/F 
-                                       traces
-        (list):
-            - prev_dend_tr_file (str)    : previous path to EXTRACT dendritic 
-                                           ROI traces
-            - prev_dend_tr_dff_file (str): previous path to EXTRACT dendritic 
-                                           ROI dF/F traces
-
-
+        - dend_tr_file (str)    : path to EXTRACT dendritic ROI traces ('none' 
+                                  if none found)
+        - dend_tr_dff_file (str): path to EXTRACT dendritic ROI dF/F 
+                                  traces ('none' if none found)
     """
 
     filepath, ext = os.path.splitext(trace_file)
@@ -347,14 +350,34 @@ def get_dendritic_trace_paths(trace_file):
     if dend_part in trace_file:
         filepath = trace_file.replace(dend_part, '')
 
-    dend_tr_file = f'{filepath}{dend_part}{ext}'
-    dend_tr_dff_file = f'{filepath}{dend_part}_dff{ext}'
+    act_dend_tr_file = f'{filepath}{dend_part}{ext}'
+    act_dend_tr_dff_file = f'{filepath}{dend_part}_dff{ext}'
 
     prev_dend_tr_file = f'{filepath}{prev_dend_part}{ext}'
     prev_dend_tr_dff_file = f'{filepath}_dff{prev_dend_part}{ext}'
 
-    return [dend_tr_file, dend_tr_dff_file], \
-           [prev_dend_tr_file, prev_dend_tr_dff_file]
+    dend_tr_file, dend_tr_dff_file = 'none', 'none'
+    found = 0
+    for dend_tr, dend_tr_dff in [[act_dend_tr_file, act_dend_tr_dff_file], 
+                                 [prev_dend_tr_file, prev_dend_tr_dff_file]]:
+        first = True
+        if os.path.exists(dend_tr_dff): # check for dF/F
+            first = False
+            found += 1
+        if os.path.exists(dend_tr):
+            dend_tr_file = dend_tr
+            dend_tr_dff_file = dend_tr_dff
+            if first:
+                found += 1
+
+    if found > 1:
+        raise ValueError('2 sets of EXTRACT dendritic ROI traces found '
+                         'with different naming patterns.')
+
+    if dend_tr_dff != 'none' and dend_tr_dff == 'none': 
+        raise ValueError('Found only dF/F traces, not raw.')
+
+    return dend_tr_file, dend_tr_dff_file
 
 
 #############################################

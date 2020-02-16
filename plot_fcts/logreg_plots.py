@@ -147,7 +147,7 @@ def plot_class_traces(analyspar, sesspar, stimpar, logregpar, tr_stats,
     cols = None
     if len(classes) != 2:
         cols = plot_util.get_color_range(len(classes), col='blue')
-
+    print(tr_stats.keys())
     fig, ax_tr, cols = logreg_util.plot_tr_data(tr_stats['xran'], 
                                    tr_stats['train_class_stats'], classes, 
                                    tr_stats['train_ns'], plot_wei=plot_wei, 

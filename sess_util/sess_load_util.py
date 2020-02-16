@@ -19,6 +19,7 @@ import h5py
 import numpy as np
 import pandas as pd
 import pickle
+from allensdk.brain_observatory import dff
 
 from util import file_util, gen_util
 from sess_util import sess_sync_util
@@ -158,6 +159,7 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, align_pkl, sessdir,
 
     Optional args:
         - runtype (str): runtype ('prod' or 'pilot')
+                         default: 'prod'
 
     Returns:
         - stim_df (pd DataFrame): stimlus alignment dataframe with columns:
@@ -191,6 +193,9 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, align_pkl, sessdir,
                                       'start_frame': 'start2pfr', 
                                       'end_frame': 'end2pfr', 
                                       'num_frames': 'num2pfr'})
+
+    stim_df = modify_bri_segs(stim_df, runtype)
+
     stim2twopfr  = align['stim_align'].astype('int')
     twop_fps     = sess_sync_util.get_frame_rate(stim_sync_h5)[0] 
     twop_fr_stim = int(max(align['stim_align']))
@@ -294,15 +299,15 @@ def load_pup_data(pup_data_h5):
 
 
 #############################################
-def load_sync_h5s(pup_data_h5, time_sync_h5):
+def load_sync_h5_data(pup_video_h5, time_sync_h5):
     """
-    load_sync_h5s(pup_data_h5, time_sync_h5)
+    load_sync_h5_data(pup_video_h5, time_sync_h5)
 
     Returns pupil and behaviour synchronization information.
 
     Required args:
-        - pup_data_h5 (str) : path to the pupil data h5 file
-        - time_sync_h5 (str): -ath to the time synchronization hdf5 file
+        - pup_video_h5 (str): path to the pupil video h5 file
+        - time_sync_h5 (str): path to the time synchronization hdf5 file
 
     Returns:
         - pup_fr_interv (1D array): interval in sec between each pupil 
@@ -318,13 +323,7 @@ def load_sync_h5s(pup_data_h5, time_sync_h5):
                                     with a few differences)
     """
 
-    if pup_data_h5 == 'none':
-        raise OSError('No pupil data file found.')
-    elif isinstance(pup_data_h5, list):
-        raise OSError('Many pupil data files found.')
-
-
-    with h5py.File(pup_data_h5, 'r') as f:
+    with h5py.File(pup_video_h5, 'r') as f:
         pup_fr_interv = f['frame_intervals'].value.astype('float64')
 
     with h5py.File(time_sync_h5, 'r') as f:
@@ -333,4 +332,97 @@ def load_sync_h5s(pup_data_h5, time_sync_h5):
         stim2twopfr2 = f['stimulus_alignment'].value.astype('int')
 
     return pup_fr_interv, twop2bodyfr, twop2pupfr, stim2twopfr2
+
+
+#############################################
+def modify_bri_segs(stim_df, runtype='prod'):
+    """
+    modify_bri_segs(stim_df)
+
+    Returns stim_df with brick segment numbers modified to ensure that
+    they are different for the two brick stimuli in the production data.
+
+    Required args:
+        - stim_df (pd DataFrame): stimlus alignment dataframe with columns:
+                                    'stimType', 'stimPar1', 'stimPar2', 
+                                    'surp', 'stimSeg', 'gabfr', 
+                                    'start2pfr', 'end2pfr', 'num2pfr'
+
+    Optional args:
+        - runtype (str): runtype
+
+    Returns:
+        - stim_df (pd DataFrame): modified dataframe
+    """
+
+    if runtype != 'prod':
+        return stim_df
+
+    stim_df = copy.deepcopy(stim_df)
+
+    bri_st_fr = gen_util.get_df_vals(stim_df, 'stimType', 'b', 
+                                        'start2pfr', unique=False)
+    bri_num_fr = np.diff(bri_st_fr)
+    num_fr = gen_util.get_df_vals(stim_df, 'stimType', 'b', 
+                                    'num2pfr', unique=False)[:-1]
+    break_idx = np.where(num_fr != bri_num_fr)[0]
+    n_br = len(break_idx)
+    if n_br != 1:
+        raise ValueError('Expected only one break in the bricks '
+                         f'stimulus, but found {n_br}.')
+    
+    # last start frame and seg for the first brick stim
+    last_fr1 = bri_st_fr[break_idx[0]] 
+    last_seg1 = gen_util.get_df_vals(stim_df, ['stimType', 'start2pfr'], 
+                                        ['b', last_fr1], 'stimSeg')[0]
+    
+    seg_idx = ((stim_df['stimType'] == 'b') & 
+                (stim_df['start2pfr'] > last_fr1))
+
+    new_idx = stim_df.loc[seg_idx]['stimSeg'] + last_seg1 + 1
+    stim_df = gen_util.set_df_vals(stim_df, seg_idx, 'stimSeg', new_idx)
+
+    return stim_df
+
+
+#############################################
+def create_dff(roi_trace_h5, roi_trace_dff_h5, sessid, replace=False, 
+               basewin=1000):
+    """
+    create_dff(roi_trace_h5, roi_trace_dff_h5, sessid)
+
+    If it doesn't exist, creates and saves dF/F trace file.
+
+    Required args:
+        - roi_trace_h5     (str): path to ROI traces
+        - roi_trace_dff_h5 (str): path to dF/F ROI traces
+        - sessid (int)          : session ID
+
+    Optional args:
+        - replace (bool): if True, replaces pre-existing dF/F traces. If
+                            False, no new dF/F traces are created if they
+                            already exist.
+                            default: False
+        - basewin (int) : basewin factor for compute_dff function
+                            default: 1000 
+    """
+
+    if os.path.exists(roi_trace_dff_h5) and not replace:
+        return
+
+    else:
+        print(f'    Creating dF/F files using {basewin} basewin '
+              f'for session {sessid}')
+        # read the data points into the return array
+        with h5py.File(roi_trace_h5,'r') as f:
+            try:
+                traces = f['data'].value
+            except:
+                raise OSError(f'Could not read {roi_trace_h5}')
+        
+        traces = dff.compute_dff(traces, mode_kernelsize=2*basewin, 
+                                  mean_kernelsize=basewin)
+            
+        with h5py.File(roi_trace_dff_h5, 'w') as hf:
+            hf.create_dataset('data',  data=traces)
 

@@ -263,6 +263,53 @@ def grp_traces_by_qu_surp_sess(trace_data, analyspar, roigrppar, all_roi_grps):
 
 
 #############################################
+def get_signif_rois(integ_data, permpar, stats='mean', op='diff', nanpol=None, 
+                    print_rois=True):
+    """
+    get_signif_rois(integ_data, permpar)
+
+    Identifies ROIs showing significant surprise in specified quintiles,
+    groups accordingly and retrieves statistics for each group.
+
+    Required args:
+        - integ_data (list): list of 2D array of ROI activity integrated 
+                             across frames.
+                                surp x array[ROI x sequences]
+        - permpar (PermPar): named tuple containing permutation parameters
+
+    Optional args:
+        - stats (str)      : statistic parameter, i.e. 'mean' or 'median'
+                             default: 'mean'
+        - op (str)         : operation to identify significant ROIs
+                             default: 'diff'
+        - nanpol (str)     : policy for NaNs, 'omit' or None when taking 
+                             statistics
+                             default: None
+        - print_rois (bool): if True, the indices of significant ROIs and
+                             their actual difference values are printed
+
+    Returns: 
+        - sign_rois (list): list of ROIs showing significant differences, or 
+                            list of lists if 2-tailed analysis [lo, up].
+    """
+    
+    n_reg = integ_data[0].shape[1]
+    # calculate real values (average across seqs)
+    data = [math_util.mean_med(integ_data[0], stats, axis=1, nanpol=nanpol), 
+            math_util.mean_med(integ_data[1], stats, axis=1, nanpol=nanpol)]
+    # ROI x seq
+    qu_data_res = math_util.calc_op(np.asarray(data), op, dim=0)
+    # concatenate surp and reg from quintile
+    qu_data_all = np.concatenate(integ_data, axis=1)
+    # run permutation to identify significant ROIs
+    all_rand_res = math_util.permute_diff_ratio(qu_data_all, n_reg, 
+                             permpar.n_perms, stats, nanpol, op)
+    sign_rois = math_util.id_elem(all_rand_res, qu_data_res, permpar.tails, 
+                                  permpar.p_val, print_elems=print_rois)
+    return sign_rois
+
+
+#############################################
 def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,  
                             qu_labs=['first quint', 'last quint'], 
                             stats='mean', nanpol=None):
@@ -321,38 +368,22 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
 
     for sessid, sess_data in zip(sessids, integ_data):
         print(f'\nSession {sessid}')
-        
         sess_rois = []
-        # adjust p-value to number of comparisons
         nrois   = sess_data[0][0].shape[0]
-        nperms_use = permpar.n_perms
-        pval_use  = permpar.pval
+        permpar_use = permpar
         if permpar.multcomp: # multiple comparisons correction
             n_comps = nrois * float(len(qu_labs)) # number of comp
             pval_use, nperms_use = math_util.calc_mult_comp(n_comps, 
                                              permpar.p_val, permpar.n_perms)
             pvals_mult.append(pval_use)
             nperms_mult.append(nperms_use)
+            permpar_use = sess_ntuple_util.init_permpar(nperms_use, pval_use, 
+                                           permpar.tails)
         for q, q_lab in enumerate(qu_labs):
             print(f'    {q_lab.capitalize()}')
-            n_reg = sess_data[0][q].shape[1]
-            # calculate real values (average across seqs)
-            data = [math_util.mean_med(sess_data[0][q], stats, axis=1, 
-                                       nanpol=nanpol), 
-                    math_util.mean_med(sess_data[1][q], stats, axis=1,
-                                       nanpol=nanpol)]
-            # ROI x seq
-            qu_data_res = math_util.calc_op(np.asarray(data), roigrppar.op, 
-                                            dim=0)
-            # concatenate surp and reg from quintile
-            qu_data_all = np.concatenate([sess_data[0][q], 
-                                          sess_data[1][q]], axis=1)
-            # run permutation to identify significant ROIs
-            all_rand_res = math_util.permute_diff_ratio(qu_data_all, n_reg, 
-                                     nperms_use, stats, nanpol, roigrppar.op)
-            sign_rois = math_util.id_elem(all_rand_res, qu_data_res, 
-                                          permpar.tails, pval_use, 
-                                          print_elems=True)
+            permpar_use
+            sign_rois = get_signif_rois([sess_data[0][q], sess_data[1][q]], 
+                                      stats, roigrppar.op, nanpol, permpar_use)
             sess_rois.append(sign_rois)
             
         grps = gen_util.list_if_not(roigrppar.grps)
@@ -383,5 +414,4 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
     
     else:
         return all_roi_grps, grp_names, permpar_mult
-
 

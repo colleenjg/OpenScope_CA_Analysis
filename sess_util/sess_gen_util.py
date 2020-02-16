@@ -459,7 +459,7 @@ def sess_comp_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
 
 #############################################
 def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True, 
-                  dend='extr', omit=False, pupil=False):
+                  dend='extr', omit=False, roi=True, run=False, pupil=False):
     """
     init_sessions(sessids, datadir)
 
@@ -472,18 +472,23 @@ def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True,
                                  on each session
 
     Optional args:
-        - runtype (str)  : the type of run, either 'pilot' or 'prod'
-                           default: 'prod'
-        - fulldict (bool): if True, the full stimulus dictionary is loaded 
-                           (with all the brick positions).
-                           default: True
-        - dend (str)     : type of dendrites to use ('aibs' or 'extr')
-                           default: 'extr'
-        - omit (bool)    : if True, dendritic sessions with the wrong type of 
-                           dendrite are omitted
-                           default: False
-        - pupil (bool)   : if True, only sessions with pupil data are included
-                           default: False
+        - runtype (str)    : the type of run, either 'pilot' or 'prod'
+                             default: 'prod'
+        - fulldict (bool)  : if True, the full stimulus dictionary is loaded 
+                             (with all the brick positions).
+                             default: True
+        - dend (str)       : type of dendrites to use ('aibs' or 'extr')
+                             default: 'extr'
+        - omit (bool)      : if True, dendritic sessions with the wrong type of 
+                             dendrite are omitted
+                             default: False
+        - roi (bool)       : if True, ROI data is loaded into sessions
+                             default: True
+        - run (bool)       : if True, running data is loaded into sessions
+                             default: False
+        - pupil (bool)     : if True, pupil data is loaded into session and 
+                             only sessions with pupil data are included
+                             default: False
 
     Returns:
         - sessions (list): list of Session objects
@@ -497,16 +502,19 @@ def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True,
         sess = session.Session(datadir, sessid, runtype=runtype) 
         # extracts necessary info for analysis
         sess.extract_sess_attribs(mouse_df)
-        sess.extract_info(fulldict=fulldict, dend=dend)
+        sess.extract_info(fulldict=fulldict, dend=dend, roi=roi, run=run)
         if omit and sess.plane == 'dend' and sess.dend != dend:
             print(f'Omitting session {sessid} ({dend} dendrites not '
                    'found).')
-        elif pupil and sess.pup_data_h5 == 'none':
+            continue
+        if pupil and sess.pup_data_h5 == 'none':
             print(f'Omitting session {sessid} as no pupil data h5 was '
                   'found.')
-        else:
-            print(f'Finished session {sessid}.')
-            sessions.append(sess)
+            continue
+        if pupil:
+            sess.load_pup_data()
+        print(f'Finished session {sessid}.')
+        sessions.append(sess)
 
     return sessions
 
@@ -551,7 +559,7 @@ def get_nrois(nrois, n_nanrois=0, n_nanrois_dff=0, remnans=True, fluor='dff'):
 
 
 #############################################
-def get_sess_info(sessions, fluor='dff', add_none=False):
+def get_sess_info(sessions, fluor='dff', add_none=False, incl_roi=True):
     """
     get_sess_info(sessions)
 
@@ -568,6 +576,9 @@ def get_sess_info(sessions, fluor='dff', add_none=False):
                            default: 'dff'
         - add_none (bool): if True, None sessions are allowed and all values 
                            are filled with None
+                           default: False
+        - incl_roi (bool): if True, ROI information is included
+                           default: True
 
     Returns:
         - sess_info (dict): dictionary containing information from each
@@ -578,21 +589,23 @@ def get_sess_info(sessions, fluor='dff', add_none=False):
                 ['sessids'] (list)    : session ids  
                 ['lines'] (list)      : mouse lines
                 ['planes'] (list)     : imaging planes
-                ['nrois'] (list)      : number of ROIs in session
-                ['twop_fps'] (list)   : 2p frames per second
-                ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw
-                                        trace
-                ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F
-                                        traces, for sessions for which this 
-                                        attribute exists
+                if datatype == 'roi':
+                    ['nrois'] (list)      : number of ROIs in session
+                    ['twop_fps'] (list)   : 2p frames per second
+                    ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw
+                                            trace
+                    ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F
+                                            traces, for sessions for which this 
+                                            attribute exists
     """
 
     if add_none and set(sessions) == {None}:
         print('All None value sessions.')
 
     sess_info = dict()
-    keys = ['mouse_ns', 'mouseids', 'sess_ns', 'sessids', 'lines', 'planes', 
-            'nrois', 'twop_fps', 'nanrois', 'nanrois_dff']
+    keys = ['mouse_ns', 'mouseids', 'sess_ns', 'sessids', 'lines', 'planes']
+    if incl_roi:
+        keys.extend(['nrois', 'twop_fps', 'nanrois', 'nanrois_dff'])
 
     for key in keys:
         sess_info[key] = []
@@ -613,9 +626,13 @@ def get_sess_info(sessions, fluor='dff', add_none=False):
             sess_info['sessids'].append(sess.sessid)
             sess_info['lines'].append(sess.line)
             sess_info['planes'].append(sess.plane)
+            if not incl_roi:
+                continue
+
             sess_info['nrois'].append(sess.nrois)
             sess_info['twop_fps'].append(sess.twop_fps)
             sess_info['nanrois'].append(sess.nanrois)
+
 
             if hasattr(sess, 'nanrois_dff'):
                 sess_info['nanrois_dff'].append(sess.nanrois_dff)

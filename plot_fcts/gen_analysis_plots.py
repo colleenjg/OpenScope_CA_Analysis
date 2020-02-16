@@ -150,13 +150,11 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
     datatype = extrapar['datatype']
 
     # extract some info from sess_info
-    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes', 'nrois']
-    [mouse_ns, sess_ns, lines, planes, nrois] = [sess_info[key] for key in keys]
-    
+    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
+    [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info, analyspar['remnans'], 
+                    fluor=analyspar['fluor'], empty=(datatype!='roi')) 
     n_sess = len(mouse_ns)
-    nanroi_vals = [sess_info['nanrois'], sess_info['nanrois_dff']]
-    [n_nan, n_nan_dff] = [[len(val[i]) for i in range(n_sess)] 
-                                       for val in nanroi_vals]
 
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
@@ -182,11 +180,8 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
     if datatype == 'roi':
         fig.subplots_adjust(top=0.92) # remove extra white space at top
     for i in range(n_sess):
-        remnans = analyspar['remnans'] * (datatype == 'roi')
-        sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i],
-                                             remnans, analyspar['fluor'])
         title = (f'Mouse {mouse_ns[i]} (sess {sess_ns[i]}, {lines[i]} '
-                 f'{planes[i]}{dendstr_pr}, n={sess_nrois})')
+                 f'{planes[i]}{dendstr_pr}{nroi_strs[i]})')
         sub_axs = ax[:, i]
         sub_axs[0].set_title(title)
         if datatype == 'roi':
@@ -256,6 +251,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
             ['sess_ns'] (list)    : session numbers  
             ['lines'] (list)      : mouse lines
             ['planes'] (list)     : imaging planes
+            if extrapar['datatype'] == 'roi':
             ['nrois'] (list)      : number of ROIs in session
             ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
             ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
@@ -306,13 +302,12 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
     dimstr = sess_str_util.datatype_dim_str(datatype)
 
     # extract some info from sess_info
-    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes', 'nrois']
-    [mouse_ns, sess_ns, lines, planes, nrois] = [sess_info[key] for key in keys]
-    
+    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
+    [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info, analyspar['remnans'], 
+                   fluor=analyspar['fluor'], empty=(datatype!='roi'))
+
     n_sess = len(mouse_ns)
-    nanroi_vals = [sess_info['nanrois'], sess_info['nanrois_dff']]
-    [n_nan, n_nan_dff] = [[len(val[i]) for i in range(n_sess)] 
-                                       for val in nanroi_vals]
 
     x_ran      = np.asarray(trace_stats['x_ran'])
     all_stats  = [np.asarray(sessst) for sessst in trace_stats['all_stats']]
@@ -331,18 +326,15 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
 
     fig, ax = plot_util.init_fig(n_sess, **figpar['init'])
     for i in range(n_sess):
-        remnans = analyspar['remnans'] * (datatype == 'roi')
-        sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i],
-                                             remnans, analyspar['fluor'])
         sub_ax = plot_util.get_subax(ax, i)
         for s, [col, leg_ext] in enumerate(zip(cols, surps)):
             for q, qu_lab in enumerate(quintpar['qu_lab']):
                 if qu_lab != '':
                     qu_lab = f'{qu_lab.capitalize()} '
-                title=(f'Mouse {mouse_ns} - {stimstr_pr}' 
-                       u'{}'.format(statstr_pr) + f'across {dimstr}\n(sess '
-                       f'{sess_ns[i]}, {lines[i]} {planes[i]}{dendstr_pr}, '
-                       f'n={sess_nrois})')
+                title=(f'Mouse {mouse_ns[i]} - {stimstr_pr} ' 
+                       u'{} '.format(statstr_pr) + f'across {dimstr}\n(sess '
+                       f'{sess_ns[i]}, {lines[i]} {planes[i]}{dendstr_pr}'
+                       f'{nroi_strs[i]})')
                 leg = f'{qu_lab}{leg_ext} ({all_counts[i][s][q]})'
                 plot_util.plot_traces(sub_ax, x_ran, all_stats[i][s, q, 0], 
                                       all_stats[i][s, q, 1:], title, 
@@ -398,6 +390,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             ['sess_ns'] (list)    : session numbers  
             ['lines'] (list)      : mouse lines
             ['planes'] (list)     : imaging planes
+            if datatype == 
             ['nrois'] (list)      : number of ROIs in session
             ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
             ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
@@ -467,13 +460,12 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
     dimstr = sess_str_util.datatype_dim_str(datatype)
 
     # extract some info from sess_info
-    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes', 'nrois']
-    [mouse_ns, sess_ns, lines, planes, nrois] = [sess_info[key] for key in keys]
-    
+    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
+    [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info, analyspar['remnans'], 
+                   fluor=analyspar['fluor'], empty=(datatype!='roi'))
+
     n_sess = len(mouse_ns)
-    nanroi_vals = [sess_info['nanrois'], sess_info['nanrois_dff']]
-    [n_nan, n_nan_dff] = [[len(val[i]) for i in range(n_sess)] 
-                                       for val in nanroi_vals]
 
     x_ran      = np.asarray(trace_stats['x_ran'])
     all_stats  = [np.asarray(sessst) for sessst in trace_stats['all_stats']]
@@ -510,13 +502,10 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
     reg_min, reg_max = np.inf, -np.inf
     for i, (stats, counts) in enumerate(zip(all_stats, all_counts)):
         sub_ax = plot_util.get_subax(ax, i)
-        remnans = analyspar['remnans'] * (datatype == 'roi')
-        sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i],
-                                             remnans, analyspar['fluor'])
         title=(f'Mouse {mouse_ns[i]} - {stimstr_pr} '
                u'{}'.format(statstr_pr) + f'{lock} locked across {dimstr}'
                f'{basestr_pr}\n(sess {sess_ns[i]}, {lines[i]} {planes[i]}'
-               f'{dendstr_pr}, n={sess_nrois})')
+               f'{dendstr_pr}{nroi_strs[i]})')
         sess_plot_util.add_axislabels(sub_ax, fluor=analyspar['fluor'], 
                                       datatype=datatype)
         plot_util.add_bars(sub_ax, hbars=0)
@@ -667,18 +656,13 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
     dimstr = sess_str_util.datatype_dim_str(datatype)
     
     # extract some info from sess_info
-    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes', 'nrois']
-    [mouse_ns, sess_ns, lines, planes, nrois] = [sess_info[key] for key in keys]
-    
-    n_sess = len(mouse_ns)
-    nanroi_vals = [sess_info['nanrois'], sess_info['nanrois_dff']]
-    [n_nan, n_nan_dff] = [[len(val[i]) for i in range(n_sess)] 
-                                       for val in nanroi_vals]
+    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
+    [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info, analyspar['remnans'], 
+                   fluor=analyspar['fluor'], empty=(datatype!='roi'),
+                   style='par')    
 
-    remnans = analyspar['remnans'] * (datatype == 'roi')
-    all_nrois = [sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i], 
-                                         remnans, analyspar['fluor']) 
-                                         for i in range(n_sess)]
+    n_sess = len(mouse_ns)
 
     qu_ns = [gen_util.pos_idx(q, quintpar['n_quints'])+1 for q in 
              quintpar['qu_idx']]
@@ -707,7 +691,7 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
              f'\nbetween Q{qu_ns[0]} and {qu_ns[1]} across {dimstr} '
              f'\n({sessstr_pr})')
     labels = [f'Mouse {mouse_ns[i]} sess {sess_ns[i]},\n {lines[i]} {planes[i]}'
-              f'{dendstr_pr} (n={all_nrois[i]})' for i in range(n_sess)]
+              f'{dendstr_pr}{nroi_strs[i]}' for i in range(n_sess)]
 
     figs, axs = [], []
     for sc, scale in enumerate(scales):
@@ -844,13 +828,12 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
         seq_bars = [-1.0, 1.0] # light lines
 
     # extract some info from sess_info
-    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes', 'nrois']
-    [mouse_ns, sess_ns, lines, planes, nrois] = [sess_info[key] for key in keys]
-    
+    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
+    [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info, analyspar['remnans'], 
+                   fluor=analyspar['fluor'], empty=(datatype!='roi'))
+
     n_sess = len(mouse_ns)
-    nanroi_vals = [sess_info['nanrois'], sess_info['nanrois_dff']]
-    [n_nan, n_nan_dff] = [[len(val[i]) for i in range(n_sess)] 
-                                       for val in nanroi_vals]
 
     xrans = autocorr_data['xrans']
     stats = [np.asarray(stat) for stat in autocorr_data['stats']]
@@ -869,13 +852,10 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
     fig, ax = plot_util.init_fig(n_sess, **figpar['init'])
     for i in range(n_sess):
         sub_ax = plot_util.get_subax(ax, i)
-        remnans = analyspar['remnans'] * (datatype == 'roi')
-        sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i], 
-                                             remnans, analyspar['fluor'])
         title = (f'Mouse {mouse_ns[i]} - {stimstr_pr} '
                  u'{} '.format(statstr_pr) + f'{title_str}\n(sess '
-                 f'{sess_ns[i]}, {lines[i]} {planes[i]}{dendstr_pr}, '
-                 f'(n={sess_nrois}))')
+                 f'{sess_ns[i]}, {lines[i]} {planes[i]}{dendstr_pr}'
+                 f'{nroi_strs[i]})')
         # transpose to ROI/lag x stats x series
         sess_stats = stats[i].transpose(1, 0, 2) 
         for s, sub_stats in enumerate(sess_stats):

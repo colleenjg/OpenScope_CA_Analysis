@@ -167,7 +167,7 @@ def init_autocorrpar(lag_s=4, byitem=True):
 
 
 #############################################
-def init_permpar(n_perms=10000, p_val=0.05, tails=2, multcomp=True):
+def init_permpar(n_perms=10000, p_val=0.05, tails=2, multcomp=False):
     """
     Returns a PermPar namedtuple with the inputs arguments as named attributes.
 
@@ -181,6 +181,7 @@ def init_permpar(n_perms=10000, p_val=0.05, tails=2, multcomp=True):
                               default: 2
         - multcomp (bool)   : if True, multiple comparison correction used to 
                               assess significance
+                              default: False
     
     Returns:
         - permpar (PermPar namedtuple): PermPar with input arguments as 
@@ -261,7 +262,7 @@ def init_roigrppar(grps, add_reg=True, op='diff', plot_vals='surp'):
                               significance in either is added to the groups 
                               returned
                               default: True
-        - op (str)          : operation on values, if plotvals if 'both' 
+        - op (str)          : operation on values, if plotvals is 'both' 
                               ('ratio' or 'diff') 
                               default: 'diff'
         - plot_vals (str)   : values to plot ('surp', 'reg', 'both')
@@ -393,7 +394,7 @@ def init_glmpar(each_roi=False, k=10, test=False):
 
 
 #############################################
-def init_latpar(method='ttest', p_val_thr=0.005, rel_std=0.5):
+def init_latpar(method='ttest', p_val_thr=0.005, rel_std=0.5, surp_resp=True):
     """
     Returns a latency namedtuple with the inputs arguments as named attributes.
 
@@ -405,12 +406,15 @@ def init_latpar(method='ttest', p_val_thr=0.005, rel_std=0.5):
         - rel_std (flot)   : relative standard deviation threshold for ratio 
                              method
                              default: 0.5
+        - surp_resp (bool) : if True, only surprise responsive ROIs are 
+                             retained for analysis
+                             default: True
     Returns:
         - latpar (LatPar namedtuple): LatPar with input arguments as attributes
     """
 
-    lat_pars = [method, p_val_thr, rel_std]
-    lat_keys = ['method', 'p_val_thr', 'rel_std']
+    lat_pars = [method, p_val_thr, rel_std, surp_resp]
+    lat_keys = ['method', 'p_val_thr', 'rel_std', 'surp_resp']
     LatPar   = namedtuple('LatPar', lat_keys)
     latpar   = LatPar(*lat_pars)
     return latpar
@@ -457,11 +461,12 @@ def get_modif_ntuple(ntuple, keys, key_vals):
     ntuple_name = type(ntuple).__name__
 
     ntuple_types = ['AnalysPar', 'SessPar', 'StimPar', 'AutocorrPar', 'PermPar', 
-                    'QuintPar', 'RoiGrpPar', 'TCurvPar', 'LogRegPar', 'GLMPar']
+                    'QuintPar', 'RoiGrpPar', 'TCurvPar', 'LogRegPar', 'GLMPar', 
+                    'LatPar', 'BasePar']
     
     init_fcts = [init_analyspar, init_sesspar, init_stimpar, init_autocorrpar, 
                  init_permpar, init_quintpar, init_roigrppar, init_tcurvpar, 
-                 init_logregpar, init_glmpar]
+                 init_logregpar, init_glmpar, init_latpar, init_basepar]
 
     if not isinstance(keys, list):
         keys = [keys]

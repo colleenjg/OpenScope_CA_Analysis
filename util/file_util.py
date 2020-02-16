@@ -101,6 +101,8 @@ def loadfile(filename, fulldir='', filetype='pickle', dtype=None):
                 datafile = json.load(f)
         elif ext == '.csv':
             datafile = pd.read_csv(fullname, dtype=dtype)
+        else:
+            raise ValueError('`ext` must be in `.pkl`, `.json`, `.csv`.')
     else:
         raise ValueError(f'{fullname} does not exist.')
 

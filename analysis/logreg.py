@@ -703,7 +703,7 @@ def save_tr_stats(plot_data, plot_targ, data_names, analyspar, stimpar, n_rois,
                                 analyspar.error)
         tr_stats['xran'] = xran.tolist()
         tr_stats[f'{name}_class_stats'] = class_stats.tolist()
-        tr_stats[f'{ns}_ns'] = ns
+        tr_stats[f'{name}_ns'] = ns
 
     file_util.saveinfo(tr_stats, 'tr_stats.json', dirname)
 
@@ -733,9 +733,8 @@ def init_logreg_model_pt(roi_seqs, seq_classes, logregpar, extrapar,
             ['shuffle'] (bool): if True, data is shuffled
     
     Optional args:
-        - scale (str)    : type of scaling to use 
-                           (e.g., 'roi', 'all', or 'none')
-                           default: 'roi'
+        - scale (bool)   : whether data is scaled by ROI
+                           default: True
         - device (str)   : device to use
                            default: 'cpu'
         - thresh_cl (int): size threshold for classes in each non empty set 
@@ -770,7 +769,7 @@ def init_logreg_model_pt(roi_seqs, seq_classes, logregpar, extrapar,
 
     dl_info = data_util.create_dls(roi_seqs[0], seq_classes[0], 
                         train_p=logregpar.train_p, sc_dim=sc_dim, 
-                        sc_type='min_max', extrem='perc', 
+                        sc_type='stand_rob', extrem='perc', 
                         shuffle=extrapar['shuffle'], 
                         batchsize=logregpar.batchsize, 
                         thresh_cl=thresh_cl)

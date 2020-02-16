@@ -309,7 +309,8 @@ def prep_analyses(sess_n, args, mouse_df):
     sessids = sess_gen_util.sess_per_mouse(mouse_df, omit_sess=args.omit_sess, 
                             omit_mice=args.omit_mice, **sesspar._asdict())
     sessions = sess_gen_util.init_sessions(sessids, args.datadir, mouse_df, 
-                                            sesspar.runtype, fulldict=False)
+                                            sesspar.runtype, roi=False, 
+                                            run=True, fulldict=False)
 
     print(f'\nAnalysis of {sesspar.plane} responses to {stimpar.stimtype[:-1]} '
           f'stimuli ({sesspar.runtype} data)\nSession {sesspar.sess_n}')

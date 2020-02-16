@@ -114,7 +114,7 @@ class Session(object):
         
             - align_pkl (str)       : path name of the stimulus alignment pickle 
                                       file
-            - behav_h5_video (str)  : path name of the behavior hdf5 file
+            - behav_video_h5 (str)  : path name of the behavior hdf5 file
             - correct_data_h5 (str) : path name of the motion corrected 2p data 
                                       hdf5 file
             - date (str)            : session date (i.e., yyyymmdd)
@@ -124,7 +124,7 @@ class Session(object):
             - mouseid (int)         : mouse ID (6 digits)
             - mouse_dir (bool)      : whether path includes a mouse directory
             - procdir (str)         : path name of the processed data directory
-            - pupil_h5_video (str)  : path name of the pupil hdf5 file
+            - pup_video_h5 (str)    : path name of the pupil hdf5 file
             - roi_trace_h5 (str)    : path name of the ROI raw fluorescence trace 
                                       hdf5 file
             - roi_trace_dff_h5 (str): path name of the ROI raw dF/F trace 
@@ -161,8 +161,8 @@ class Session(object):
         self.stim_pkl         = filepaths['stim_pkl']
         self.stim_sync_h5     = filepaths['stim_sync_h5']
         self.align_pkl        = filepaths['align_pkl']
-        self.behav_h5_video   = filepaths['behav_h5_video']
-        self.pupil_h5_video   = filepaths['pupil_h5_video']
+        self.behav_video_h5   = filepaths['behav_video_h5']
+        self.pup_video_h5     = filepaths['pupil_video_h5']
         self.time_sync_h5     = filepaths['time_sync_h5']
         self.roi_trace_h5     = filepaths['roi_trace_h5']
         self.roi_trace_dff_h5 = filepaths['roi_trace_dff_h5']
@@ -185,82 +185,12 @@ class Session(object):
         """
         
         if not hasattr(self, '_pup_data_h5'):
-            self._pup_data_h5 = sess_load_util.get_pupil_data_h5_path(self.dir)
+            self._pup_data_h5 = sess_file_util.get_pupil_data_h5_path(self.dir)
 
         return self._pup_data_h5
 
 
     #############################################
-    def _load_sync_h5_data(self):
-        """
-        self._load_sync_h5s()
-
-        Loads the synchronisation hdf5 files for behavior and pupil.
-
-        Sets the following attributes:
-            - pup_fps (num)           : average pupil frame rate (frames per 
-                                        sec)
-            - pup_fr_interv (1D array): interval in sec between each pupil 
-                                        frame
-            - stim2twopfr2 (1D array) : 2p frame numbers for each stimulus 
-                                        frame, as well as the flanking
-                                        blank screen frames (second 
-                                        version, very similar to stim2twopfr 
-                                        with a few differences)
-            - tot_pup_fr (int)        : total number of pupil frames
-            - twop2bodyfr (1D array)  : body-tracking video (video-0) frame 
-                                        numbers for each 2p frame
-            - twop2pupfr (1D array)   : eye-tracking video (video-1) frame 
-                                        numbers for each 2p frame
-        """
-
-        [pup_fr_interv, twop2bodyfr, 
-         twop2pupfr, stim2twopfr2] = sess_load_util.load_sync_h5_data(
-                                         self.pup_data_h5, self.time_sync_h5)
-        self.pup_fr_interv = pup_fr_interv
-        self.twop2bodyfr   = twop2bodyfr
-        self.twop2pupfr    = twop2pupfr
-        self.stim2twopfr2  = stim2twopfr2
-
-        self._pup_fps = 1/(np.mean(self.pup_fr_interv))
-        self._tot_pup_fr = len(self.pup_fr_interv + 1)
-
-    
-    #############################################
-    def _load_align_df(self):
-        """
-        self._load_align_df()
-
-        Loads stimulus dataframe and alignment information.
-
-        Sets the following attributes:
-            - stim_df (pd DataFrame): stimlus alignment dataframe with columns:
-                                        'stimType', 'stimPar1', 'stimPar2', 
-                                        'surp', 'stimSeg', 'gabfr', 
-                                        'start2pfr', 'end2pfr', 'num2pfr'
-            - stim2twopfr (1D array): 2p frame numbers for each stimulus frame, 
-                                      as well as the flanking
-                                      blank screen frames 
-            - twop_fps (num)        : mean 2p frames per second
-            - twop_fr_stim (int)    : number of 2p frames recorded while stim
-                                      was playing
-            - twop2stimfr (1D array): stimulus frame numbers for the beginning
-                                      of each 2p frame (np.nan when no stimulus
-                                      appears)
-        """
-
-        [stim_df, stim2twopfr, 
-         twop_fps, twop_fr_stim] = sess_load_util.load_stim_df_info(
-                self.stim_pkl, self.align_pkl, self.stim_sync_h5, self.runtype)
-
-        self.stim_df      = stim_df
-        self.stim2twopfr  = stim2twopfr
-        self.twop_fps     = twop_fps
-        self.twop_fr_stim = twop_fr_stim
-        self.twop2stimfr  = sess_sync_util.get_twop2stimfr(stim2twopfr, len(twop2pupfr))
-
-
- #############################################
     def _load_stim_dict(self, fulldict=True):
         """
         self._load_stim_dict()
@@ -305,7 +235,79 @@ class Session(object):
                                             self.tot_stim_fr, self.droptol, 
                                             raise_exc=False)
 
+    #############################################
+    def _load_align_df(self):
+        """
+        self._load_align_df()
 
+        Loads stimulus dataframe and alignment information.
+
+        Sets the following attributes:
+            - stim_df (pd DataFrame): stimlus alignment dataframe with columns:
+                                        'stimType', 'stimPar1', 'stimPar2', 
+                                        'surp', 'stimSeg', 'gabfr', 
+                                        'start2pfr', 'end2pfr', 'num2pfr'
+            - stim2twopfr (1D array): 2p frame numbers for each stimulus frame, 
+                                      as well as the flanking
+                                      blank screen frames 
+            - twop_fps (num)        : mean 2p frames per second
+            - twop_fr_stim (int)    : number of 2p frames recorded while stim
+                                      was playing
+        """
+
+        [stim_df, stim2twopfr, 
+         twop_fps, twop_fr_stim] = sess_load_util.load_stim_df_info(
+                self.stim_pkl, self.stim_sync_h5, self.align_pkl, self.dir, 
+                self.runtype)
+
+        self.stim_df      = stim_df
+        self.stim2twopfr  = stim2twopfr
+        self.twop_fps     = twop_fps
+        self.twop_fr_stim = twop_fr_stim
+
+
+    #############################################
+    def _load_sync_h5_data(self):
+        """
+        self._load_sync_h5_data()
+
+        Loads the synchronisation hdf5 files for behavior and pupil.
+
+        Sets the following attributes:
+            - pup_fps (num)           : average pupil frame rate (frames per 
+                                        sec)
+            - pup_fr_interv (1D array): interval in sec between each pupil 
+                                        frame
+            - stim2twopfr2 (1D array) : 2p frame numbers for each stimulus 
+                                        frame, as well as the flanking
+                                        blank screen frames (second 
+                                        version, very similar to stim2twopfr 
+                                        with a few differences)
+            - tot_pup_fr (int)        : total number of pupil frames
+            - twop2bodyfr (1D array)  : body-tracking video (video-0) frame 
+                                        numbers for each 2p frame
+            - twop2pupfr (1D array)   : eye-tracking video (video-1) frame 
+                                        numbers for each 2p frame
+            - twop2stimfr (1D array): stimulus frame numbers for the beginning
+                                      of each 2p frame (np.nan when no stimulus
+                                      appears)
+        """
+
+        [pup_fr_interv, twop2bodyfr, 
+         twop2pupfr, stim2twopfr2] = sess_load_util.load_sync_h5_data(
+                                         self.pup_video_h5, self.time_sync_h5)
+        self.pup_fr_interv = pup_fr_interv
+        self.twop2bodyfr   = twop2bodyfr
+        self.twop2pupfr    = twop2pupfr
+        self.stim2twopfr2  = stim2twopfr2
+        self.twop2stimfr   = sess_sync_util.get_twop2stimfr(self.stim2twopfr, 
+                                            len(self.twop2pupfr))
+
+
+        self.pup_fps = 1/(np.mean(self.pup_fr_interv))
+        self.tot_pup_fr = len(self.pup_fr_interv + 1)
+
+    
     #############################################
     def load_run_data(self, diff_thr=100, interp=True, replace=False):
         """
@@ -443,9 +445,9 @@ class Session(object):
 
 
         Optional args:
-        - fluor (str): if 'dff', a nanrois attribute is added for dF/F traces. 
-                       If 'raw, it is created for raw traces.
-                       default: 'dff'
+            - fluor (str): if 'dff', a nanrois attribute is added for dF/F 
+                           traces. If 'raw, it is created for raw traces.
+                           default: 'dff'
         """
         
         # generate attribute listing ROIs with NaNs or Infs (for dff traces)
@@ -501,12 +503,11 @@ class Session(object):
 
 
     ############################################
-    def _create_dff(self, replace=False, basewin=1000):
+    def _load_dff(self, replace=False, basewin=1000):
         """
-        self._create_dff()
+        self._load_dff()
 
-        Creates and saves the dF/F traces (ROIs x frames), sets the attributes 
-        below.
+        Loads the dF/F trace information, and sets the attributes below.
 
         Also calls self._set_nanrois().
 
@@ -523,23 +524,9 @@ class Session(object):
         
         """
 
-        if not os.path.exists(self.roi_trace_dff_h5) or replace:
-            print(f'    Creating dF/F files using {basewin} basewin '
-                  f'for session {self.sessid}')
-            # read the data points into the return array
-            with h5py.File(self.roi_trace_h5,'r') as f:
-                try:
-                    traces = f['data'].value
-                except:
-                    pdb.set_trace()
-                    raise OSError(f'Could not read {self.roi_trace_h5}')
-            
-            traces = dff.compute_dff(traces, mode_kernelsize=2*basewin, 
-                                     mean_kernelsize=basewin)
-                
-            with h5py.File(self.roi_trace_dff_h5, 'w') as hf:
-                hf.create_dataset('data',  data=traces)
-        
+        sess_load_util.create_dff(self.roi_trace_h5, self.roi_trace_dff_h5, 
+                       self.sessid, replace=replace, basewin=basewin)
+
         # get standardization facts (factor x ROI)
         with h5py.File(self.roi_trace_dff_h5, 'r') as f:
             self.roi_dff_facts = np.asarray(math_util.scale_facts(f['data'][()], 
@@ -579,21 +566,19 @@ class Session(object):
         self.dend = 'aibs'
 
         if self.plane == 'dend' and dend == 'extr':
-            act_names, prev_names = sess_file_util.get_dendritic_trace_paths(
-                                               self.roi_trace_h5)
+            [roi_trace_h5, 
+             roi_trace_h5_dff] = sess_file_util.get_dendritic_trace_paths(
+                                                self.roi_trace_h5)
             
-            for n, names in enumerate([act_names, prev_names]):
-                if os.path.exists(names[0]):
-                    print('    Using EXTRACT extracted dendrites.')
-                    self.dend = 'extr'
-                    self.roi_trace_h5 = names[0]
-                    self.roi_trace_dff_h5 = names[1]
-                    break
-                elif n == 1: # neither name bears results
-                    print('    No extr extracted dendrites found. AIBS '
+            if roi_trace_h5 == 'none':
+                print('    No extr extracted dendrites found. AIBS '
                           'extracted dendrites will be used instead.')
-            
-        self._create_dff(basewin=basewin)
+            else:
+                self.dend = 'extr'
+                [self.roi_trace_h5, 
+                 self.roi_trace_dff_h5] = roi_trace_h5, roi_trace_h5_dff
+
+        self._load_dff(basewin=basewin)
 
         try:
             # open the roi file and get the info
@@ -623,59 +608,12 @@ class Session(object):
 
 
     #############################################
-    def _modif_bri_segs(self):
-        """
-        self._modif_bri_segs()
-
-        Modifies brick segment numbers in stim_df attribute to ensure that
-        they are different for the two brick stimuli in the production data.
-
-        Also updates the block segment ranges and both brick stim segment lists 
-        to contain all brick segment numbers, including updated segment numbers.
-        """
-        
-        if hasattr(self, '_bri_segs_modified'):
-            return
-
-        elif self.runtype == 'prod':
-            bri_st_fr = gen_util.get_df_vals(self.stim_df, 'stimType', 'b', 
-                                             'start2pfr', unique=False)
-            bri_num_fr = np.diff(bri_st_fr)
-            num_fr = gen_util.get_df_vals(self.stim_df, 'stimType', 'b', 
-                                          'num2pfr', unique=False)[:-1]
-            break_idx = np.where(num_fr != bri_num_fr)[0]
-            n_br = len(break_idx)
-            if n_br != 1:
-                raise ValueError('Expected only one break in the bricks '
-                                 f'stimulus, but found {n_br}.')
-            
-            # last start frame and seg for the first brick stim
-            last_fr1 = bri_st_fr[break_idx[0]] 
-            last_seg1 = gen_util.get_df_vals(self.stim_df, 
-                                             ['stimType', 'start2pfr'], 
-                                             ['b', last_fr1], 'stimSeg')[0]
-            
-            seg_idx = ((self.stim_df['stimType'] == 'b') & 
-                       (self.stim_df['start2pfr'] > last_fr1))
-
-            new_idx = self.stim_df.loc[seg_idx]['stimSeg'] + last_seg1 + 1
-            self.stim_df = gen_util.set_df_vals(self.stim_df, seg_idx, 
-                                                 'stimSeg', new_idx)
-
-            self._bri_segs_modified = True
-
-
-    #############################################
     def _load_stims(self):
         """
         self._load_stims()
         
         Initializes the following attributes, including Stim objects (Gabors, 
-        Bricks, Grayscr), if the stimtypes attribute has not already been
-        initialized:
-
-        If the runtype is 'prod', calls self._modif_bri_segs().
-
+        Bricks, Grayscr):
             - bricks (list or Bricks object): session bricks object, if 
                                               runtype is 'pilot' or list
                                               of session bricks objects if 
@@ -700,9 +638,6 @@ class Session(object):
         self.stims      = []
         if self.runtype == 'prod':
             n_bri = []
-            # modify segment numbers for second bricks block as they are 
-            # the same for both in production in the stim_df
-            self._modif_bri_segs()
         for i in range(self.n_stims):
             stim = self.stim_dict['stimuli'][i]
             if self.runtype == 'pilot':
@@ -769,7 +704,7 @@ class Session(object):
                           session.
         """
 
-        df_data = sess_load_util.load_info_from_mouse_df(mouse_df)
+        df_data = sess_load_util.load_info_from_mouse_df(self.sessid, mouse_df)
 
         self.mouse_n      = df_data['mouse_n']
         self.depth        = df_data['depth']
@@ -785,8 +720,8 @@ class Session(object):
 
 
     #############################################
-    def extract_info(self, fulldict=True, basewin=1000, dend='extr', run=False, 
-                     pupil=False):
+    def extract_info(self, fulldict=True, basewin=1000, dend='extr', roi=True, 
+                     run=False, pupil=False):
         """
         self.extract_info()
 
@@ -797,13 +732,15 @@ class Session(object):
         initialized, also initializes stimtypes.
 
         Calls:
-            self._load_stim_df()
-            self._load_roi_trace_info()
             self._load_stim_dict()
-            self._load_run_attribs()
+            self._load_align_df()
             self._load_sync_h5s()
-            self._find_pup_data()
-            self._load_stim_info()
+            self._load_stims()
+
+            optionally:
+            self._load_roi_trace_info()
+            self._load_run_data()
+            self._load_pup_data()
 
         Optional args:
             - fulldict (bool): if True, the full stim_dict is loaded,
@@ -819,8 +756,10 @@ class Session(object):
                                ones extracted with Hakan's EXTRACT code, if
                                available)
                                default: 'extr'
-            - run (bool)     : if True, running data is loaded
+            - run (bool)     : if True, ROI data is loaded
                                default: True
+            - run (bool)     : if True, running data is loaded
+                               default: False
             - pup (bool)     : if True, pupil data is loaded
                                default: False
         """
@@ -837,8 +776,9 @@ class Session(object):
         print('Loading alignment dataframe...')
         self._load_align_df()
     
-        print('Loading ROI trace info...')
-        self._load_roi_trace_info(basewin=basewin, dend=dend)
+        if roi:
+            print('Loading ROI trace info...')
+            self._load_roi_trace_info(basewin=basewin, dend=dend)
         
         print('Loading sync h5 info...')
         self._load_sync_h5_data()
@@ -848,11 +788,11 @@ class Session(object):
 
         if run:
             print('Loading running info...')
-            self._load_run_attribs()
+            self.load_run_data()
 
         if pupil:
             print('Loading pupil info...')
-            self._load_pup_info()
+            self.load_pup_data()
 
 
     ############################################
@@ -1291,7 +1231,6 @@ class Session(object):
             try:
                 traces = f['data'].value[:,frames]
             except:
-                pdb.set_trace()
                 raise OSError(f'Could not read {self.roi_trace_h5}')
         
         if stand:
@@ -1839,8 +1778,8 @@ class Stim(object):
             if self.act_n_blocks > self.exp_n_blocks:
                 self.extra_segs = (float(tot_disp) - \
                                    self.exp_n_blocks*block_len)*self.seg_ps_wibl 
-                print(f'    WARNING: In total, {self.extra_segs} extra segments '
-                       'were shown, including blanks.')
+                print(f'    WARNING: In total, {self.extra_segs} '
+                       'segments were shown, including blanks.')
     
         # calculate uninterrupted segment ranges for each block and check for 
         # incomplete or split blocks
@@ -1871,10 +1810,10 @@ class Stim(object):
             if rem_seg == 1:
                 if i == len(self.disp_seq)-1:
                     print('    WARNING: During last sequence of '
-                          '{self.stimtype}, the last blank segment of the '
+                          f'{self.stimtype}, the last blank segment of the '
                           f'{n_bl}. block was omitted.')
                 else:
-                    print('    WARNING: During {i+1}. sequence of '
+                    print(f'    WARNING: During {i+1}. sequence of '
                           f'{self.stimtype}, the last blank segment of the '
                           f'{n_bl}. block was pushed to the start of the next '
                           'sequence.')
@@ -1953,13 +1892,9 @@ class Stim(object):
             temp = []
             for j in i:
                 # get first occurrence of first segment
-                try:
-                    min_idx = self.stim_seg_list.index(j[0])
-                    max_idx = len(self.stim_seg_list)-1 - \
-                                self.stim_seg_list[::-1].index(j[1]-1) + 1 
-                                # 1 added as range end is excluded
-                except:
-                    pdb.set_trace()
+                min_idx = self.stim_seg_list.index(j[0])
+                max_idx = len(self.stim_seg_list)-1 - \
+                              self.stim_seg_list[::-1].index(j[1]-1) + 1 
                 temp.append([min_idx, max_idx])
             self.block_ran_fr.append(temp)
         
@@ -1988,11 +1923,16 @@ class Stim(object):
             temp = []
             for j in i:
                 # get first occurrence of first segment
-                min_idx = self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == self.stimtype[0]) &
-                                                (self.sess.stim_df['stimSeg'] == j[0])]['start2pfr'].tolist()[0]
-                max_idx = self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == self.stimtype[0]) &
-                                                (self.sess.stim_df['stimSeg'] == j[1]-1)]['end2pfr'].tolist()[0] + 1
+                try:
+                    min_idx = self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == self.stimtype[0]) &
+                                                    (self.sess.stim_df['stimSeg'] == j[0])]['start2pfr'].tolist()[0]
+                    max_idx = self.sess.stim_df.loc[(self.sess.stim_df['stimType'] == self.stimtype[0]) &
+                                                    (self.sess.stim_df['stimSeg'] == j[1]-1)]['end2pfr'].tolist()[0] + 1
+                except Exception as err:
+                    print(err)
+                    pdb.set_trace()
                 # 1 added as range end is excluded
+                
                 temp.append([min_idx, max_idx])
             self.block_ran_twop_fr.append(temp)
         
@@ -2149,7 +2089,7 @@ class Stim(object):
         self.get_stim_beh_sub_df()
 
         Returns an stimulus and behaviour dataframe for the specific stimulus 
-        (gaborw or bricks) with grayscreen rows added in if requested and 
+        (gabors or bricks) with grayscreen rows added in if requested and 
         plane, line and sessid added in.
 
         Required args:
@@ -3559,7 +3499,7 @@ class Gabors(Stim):
                                 sess.stim_dict['stimuli'][x]
         """
 
-        Stim.__init__(self, sess, stim_n, stimtype='gabors')
+        super().__init__(sess, stim_n, stimtype='gabors')
 
         stim_info = self.sess.stim_dict['stimuli'][self.stim_n]
         
@@ -3928,7 +3868,7 @@ class Bricks(Stim):
                                 sess.stim_dict['stimuli'][x]
         """
 
-        Stim.__init__(self, sess, stim_n, stimtype='bricks')
+        super().__init__(sess, stim_n, stimtype='bricks')
             
         stim_info = self.sess.stim_dict['stimuli'][self.stim_n]
 

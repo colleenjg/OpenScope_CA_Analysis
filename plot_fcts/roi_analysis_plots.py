@@ -198,13 +198,12 @@ def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar,
     dimstr = sess_str_util.datatype_dim_str(datatype)
 
     # extract some info from sess_info
-    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes', 'nrois']
-    [mouse_ns, sess_ns, lines, planes, nrois] = [sess_info[key] for key in keys]
-    
+    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
+    [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info, analyspar['remnans'], 
+                   fluor=analyspar['fluor'])
+
     n_sess = len(mouse_ns)
-    nanroi_vals = [sess_info['nanrois'], sess_info['nanrois_dff']]
-    [n_nan, n_nan_dff] = [[len(val[i]) for i in range(n_sess)] 
-                                       for val in nanroi_vals]
 
     grp_st = np.asarray(roi_grps['grp_st'])
     grp_ns = np.asarray(roi_grps['grp_ns'])
@@ -215,8 +214,6 @@ def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar,
     fig, ax = plot_util.init_fig(n_sess, **figpar['init'])
     for i, sess_st in enumerate(grp_st):
         sub_ax = plot_util.get_subax(ax, i)
-        sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i], 
-                                   analyspar['remnans'], analyspar['fluor'])
         for g, g_n in enumerate(grp_ns[i]):
             leg = '{} ({})'.format(roi_grps['grp_names'][g], g_n)
             plot_util.plot_errorbars(sub_ax, y=sess_st[:, g, 0], 
@@ -226,7 +223,7 @@ def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar,
                u'{} '.format(statstr_pr) + f'across {dimstr}\nfor {opstr_pr} '
                f'seqs \n(sess {sess_ns[i]}, {lines[i]} {planes[i]}'
                f'{dendstr_pr}, ' + 
-               u'{} tail (n={}))'.format(permpar['tails'], sess_nrois))
+               u'{} tail{})'.format(permpar['tails'], nroi_strs[i]))
         
         sess_plot_util.add_axislabels(sub_ax, fluor=analyspar['fluor'], 
                                       area=True, x_ax='Quintiles', 
@@ -340,13 +337,12 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
     dimstr = sess_str_util.datatype_dim_str(datatype)
 
     # extract some info from sess_info
-    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes', 'nrois']
-    [mouse_ns, sess_ns, lines, planes, nrois] = [sess_info[key] for key in keys]
-    
+    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
+    [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info, analyspar['remnans'], 
+                   fluor=analyspar['fluor'])
+
     n_sess = len(mouse_ns)
-    nanroi_vals = [sess_info['nanrois'], sess_info['nanrois_dff']]
-    [n_nan, n_nan_dff] = [[len(val[i]) for i in range(n_sess)] 
-                                       for val in nanroi_vals]
 
     xran        = np.asarray(roi_grps['xran'])
     trace_stats = np.asarray(roi_grps['trace_stats'])
@@ -370,8 +366,6 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
             print_dir = True
         n_grps = len(roi_grps['all_roi_grps'][i])
         fig, ax = plot_util.init_fig(n_grps, **figpar['init'])
-        sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i], 
-                                    analyspar['remnans'], analyspar['fluor'])
         for g, [grp_nam, grp_rois] in enumerate(zip(roi_grps['grp_names'], 
                                                  roi_grps['all_roi_grps'][i])):
             title = f'{grp_nam} group (n={len(grp_rois)})'
@@ -394,7 +388,7 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
                      u'{} '.format(statstr_pr) + f'across {dimstr} for '
                      f'{opstr_pr} seqs \n(sess {sess_ns[i]}, {lines[i]} '
                      f'{planes[i]}{dendstr_pr}, ' + 
-                     '{} tail (n={}))'.format(permpar['tails'], sess_nrois))
+                     '{} tail{})'.format(permpar['tails'], nroi_strs[i]))
 
         savename = (f'{datatype}_tr_m{mouse_ns[i]}_{sessstr}{dendstr}_'
                     f'grps_{opstr}_' + 
@@ -505,13 +499,12 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
     dimstr = sess_str_util.datatype_dim_str(datatype)
 
     # extract some info from sess_info
-    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes', 'nrois']
-    [mouse_ns, sess_ns, lines, planes, nrois] = [sess_info[key] for key in keys]
-    
+    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
+    [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info, analyspar['remnans'], 
+                   fluor=analyspar['fluor'], style='par')
+
     n_sess = len(mouse_ns)
-    nanroi_vals = [sess_info['nanrois'], sess_info['nanrois_dff']]
-    [n_nan, n_nan_dff] = [[len(val[i]) for i in range(n_sess)] 
-                                       for val in nanroi_vals]
 
     # scaling strings for printing and filenames
     scales = [False, True]
@@ -535,8 +528,6 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
         if i == n_sess - 1:
             print_dir = True
         n_grps = len(roi_grps['all_roi_grps'][i])
-        sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i], 
-                                    analyspar['remnans'], analyspar['fluor'])
         figs = []
         for scale in scales:
             sc_str    = sess_str_util.scale_par_str(scale)
@@ -562,7 +553,7 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
                     u'{}'.format(statstr_pr) + f'across {dimstr} for ' +
                     f'{opstr_pr} seqs\n(sess {sess_ns[i]}, {lines[i]} ' +
                     f'{planes[i]}{dendstr_pr}, ' + 
-                    '{} tail '.format(permpar['tails']) + f'(n={sess_nrois}))')
+                    '{} tail{})'.format(permpar['tails'], nroi_strs[i]))
 
         savename = (f'{datatype}_area_m{mouse_ns[i]}_{sessstr}{dendstr}_grps_'
                     '{}_{}q_{}tail').format(opstr, quintpar['n_quints'], 
@@ -791,13 +782,10 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
         savedir = os.path.join(figpar['dirs'][datatype], figpar['dirs']['oridir'])
 
     # extract some info from dictionaries
-    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes', 'nrois']
-    [mouse_n, sess_n, line, plane, nrois] = [sess_info[key][0] for key in keys]
-
-    nanroi_vals = [sess_info['nanrois'], sess_info['nanrois_dff']]
-    [n_nan, n_nan_dff] = [len(val[0]) for val in nanroi_vals]
-    sess_nrois = sess_gen_util.get_nrois(nrois, n_nan, n_nan_dff, 
-                                    analyspar['remnans'], analyspar['fluor'])
+    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
+    [mouse_n, sess_n, line, plane] = [sess_info[key][0] for key in keys]
+    nroi_str = sess_str_util.get_nroi_strs(sess_info, analyspar['remnans'], 
+                   fluor=analyspar['fluor'])[0]
 
     xran_ends = [-stimpar['pre'], stimpar['post']]
     
@@ -815,7 +803,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
 
     qu_str, qu_str_pr = quintpar['qu_lab'][0], quintpar['qu_lab_pr'][0]
     if qu_str != '':
-        qu_str    = f'_{qu_str}'      
+        qu_str    = f'_{qu_str}'
     if qu_str_pr != '':
         qu_str_pr = f' - {qu_str_pr.capitalize()}'
 
@@ -827,7 +815,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
     
     suptitle = (f'Mouse {mouse_n} - {stimstr_pr} ' + '{} '.format(statstr_pr) + 
                 f'across {dimstr}{qu_str_pr}\n(sess {sess_n}, {line} ' +
-                f'{plane}{dendstr_pr}, n={sess_nrois})')
+                f'{plane}{dendstr_pr}{nroi_str}')
     savename = (f'{datatype}_tr_m{mouse_n}_sess{sess_n}{qu_str}_{stimstr}_' + 
                 f'{plane}{dendstr}')
     
@@ -1981,11 +1969,6 @@ def plot_posori_resp(analyspar, sesspar, stimpar, extrapar, sess_info,
     keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
     [mouse_n, sess_n, line, plane] = [sess_info[key][0] for key in keys]
     
-    # n_rois info not included
-    # n_rois = sess_info['n_rois'][0]
-    # n_nan, n_nan_dff = [len(sess_info[key][0]) for key in 
-    #                             ['nanrois', 'nanrois_dff']]
-
     title = (f'Mouse {mouse_n} - {stimstr_pr} ' + u'{} '.format(statstr_pr) + 
              'location and orientation responses across seqs\n'
              f'(sess {sess_n}, {line} {plane}{dendstr_pr})')

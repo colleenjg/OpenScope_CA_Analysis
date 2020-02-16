@@ -533,18 +533,19 @@ def scale_data(data, axis=None, pos=None, sc_type='min_max', extrem='reg',
                          entire data array is collapsed)   
         - pos (int)    : position along axis to retain when calculating scaling 
                          values (if None, each position is scaled separately)
-        - sc_type (str): type of scaling to use
-                         'min_max'  : (data - min)/(max - min)
-                         'scale'    : (data - 0.0)/std
-                         'stand'    : (data - mean)/std
-                         'stand_rob': (data - median)/IQR (75-25)
-                         'center'   : (data - mean)/1.0
-                         'unit'     : (data - 0.0)/abs(mean)
-                         default: 'min_max'
-        - extrem (str) : only needed if min_max scaling is used. 
-                         'reg': the minimum and maximum of the data are used 
-                         'perc': the 5th and 95th percentiles are used as min
-                                 and max respectively (robust to outliers)
+        - sc_type (str) : type of scaling to use
+                          'min_max'  : (data - min)/(max - min)
+                          'scale'    : (data - 0.0)/std
+                          'stand'    : (data - mean)/std
+                          'stand_rob': (data - median)/IQR (75-25)
+                          'center'   : (data - mean)/1.0
+                          'unit'     : (data - 0.0)/abs(mean)
+                          default: 'min_max'
+        - extrem (str)  : only needed if min_max  or stand_rob scaling is used. 
+                          'reg': the minimum and maximum (min_max) or 25-75 IQR 
+                                 of the data are used 
+                          'perc': the 5th and 95th percentiles are used as min
+                                  and max respectively (robust to outliers)
         - mult (num)   : value by which to multiply scaled data
                          default: 1.0
         - shift (num)  : value by which to shift scaled data (applied after
@@ -622,14 +623,14 @@ def calc_mag_change(data, change_dim, item_dim, order=1, op='diff',
                            None, entire data array is used)     
         - pos (int)      : position along axis along which to calculate scaling 
                            values (if None, each position is scaled separately)
-        - sc_type (str)  : type of scaling to use
-                           'min_max'  : (data - min)/(max - min)
-                           'scale'    : (data - 0.0)/std
-                           'stand'    : (data - mean)/std
-                           'stand_rob': (data - median)/IQR (75-25)
-                           'center'   : (data - mean)/1.0
-                           'unit'     : (data - 0.0)/abs(mean)
-                           default: 'min_max'
+        - sc_type (str) : type of scaling to use
+                          'min_max'  : (data - min)/(max - min)
+                          'scale'    : (data - 0.0)/std
+                          'stand'    : (data - mean)/std
+                          'stand_rob': (data - median)/IQR (75-25)
+                          'center'   : (data - mean)/1.0
+                          'unit'     : (data - 0.0)/abs(mean)
+                          default: 'min_max'
 
     Returns:
         if order == 'stats:
