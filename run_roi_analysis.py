@@ -140,9 +140,6 @@ def init_param_cont(args):
                                      the groups returned
             no_datetime (bool)     : if True, figures are not saved in a 
                                      subfolder named based on the date and time.
-            no_multcomp (bool)     : if True, multiple comparison corrections
-                                     not used to assess significance in 
-                                     permutation analysis
             not_byitem (bool)      : if True, autocorrelation statistics are
                                      taken across items (e.g., ROIs)
             op (str)               : operation on values, if plotvals if 'both' 
@@ -253,8 +250,7 @@ def init_param_cont(args):
                                    not(args.not_byitem))
     
     # permutation parameters
-    permpar = sess_ntuple_util.init_permpar(args.n_perms, 0.05, args.tails, 
-                                            not(args.no_multcomp))
+    permpar = sess_ntuple_util.init_permpar(args.n_perms, 0.05, args.tails)
     
     # quintile parameters
     quintpar = sess_ntuple_util.init_quintpar(args.n_quints, [0, -1])
@@ -632,8 +628,6 @@ if __name__ == "__main__":
                         help='nbr of permutations')
     parser.add_argument('--tails', default='2', 
                         help='nbr tails for perm analysis (2, lo, up)')
-    parser.add_argument('--no_multcomp', action='store_true', 
-                        help='no multiple comparisons correction')
         # quintile parameters
     parser.add_argument('--n_quints', default=4, type=int, 
                         help='nbr of quintiles')

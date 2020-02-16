@@ -1235,7 +1235,7 @@ def plot_lat_data_signif(ax, sess_ns, sig_comps, lin_p_vals, maxes,
 
 #############################################
 def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info, 
-                      lat_data, figpar=None, savedir=None):
+                      lat_data, permpar=None, figpar=None, savedir=None):
     """
     plot_surp_latency(analyspar, sesspar, stimpar, extrapar, sess_info,
                       lat_data)
@@ -1249,7 +1249,7 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
         - analyspar (dict)       : dictionary with keys of AnalysPar namedtuple
         - sesspar (dict)         : dictionary with keys of SessPar namedtuple
         - stimpar (dict)         : dictionary with keys of StimPar namedtuple
-        - latpar (LatPar)        : named tuple of latency parameters
+        - latpar (LatPar)        : dictionary with keys of LatPar namedtuple
         - extrapar (dict)        : dictionary containing additional analysis 
                                    parameters
             ['analysis'] (str): analysis type (e.g., 't')
@@ -1282,16 +1282,20 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
                                    structured as line x session (np.nan for 
                                    sessions  missing in either plane)
             ['n_comps'] (int)    : number of comparisons
+            ['n_sign_rois] (list): number of significant ROIs, structured as 
+                                   plane/line x session
 
     Optional args:
-        - figpar (dict): dictionary containing the following figure parameter 
-                         dictionaries
-                         default: None
+        - permpar (PermPar): dictionary with keys of PermPar namedtuple
+                             default: None
+        - figpar (dict)    : dictionary containing the following figure parameter 
+                             dictionaries
+                             default: None
             ['init'] (dict): dictionary with figure initialization parameters
             ['save'] (dict): dictionary with figure saving parameters
             ['dirs'] (dict): dictionary with additional figure parameters
-        - savedir (str): path of directory in which to save plots.
-                         default: None    
+        - savedir (str)    : path of directory in which to save plots.
+                             default: None    
     
     Returns:
         - fulldir (str) : final name of the directory in which the figure 
@@ -1412,7 +1416,7 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
         - analyspar (dict)       : dictionary with keys of AnalysPar namedtuple
         - sesspar (dict)         : dictionary with keys of SessPar namedtuple
         - stimpar (dict)         : dictionary with keys of StimPar namedtuple
-        - latpar (LatPar)        : named tuple of latency parameters
+        - latpar (LatPar)        : dictionary with keys of LatPar parameters
         - extrapar (dict)        : dictionary containing additional analysis 
                                    parameters
             ['analysis'] (str): analysis type (e.g., 't')
@@ -1436,16 +1440,20 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
                                        plane/line x session x comb x stats
             ['comb_names'] (int) : names of combinations for with proportions 
                                    were calculated
+            ['n_sign_rois] (list): number of significant ROIs, structured as 
+                                   plane/line x session
 
     Optional args:
-        - figpar (dict): dictionary containing the following figure parameter 
-                         dictionaries
-                         default: None
+        - permpar (PermPar): dictionary with keys of PermPar namedtuple
+                             default: None
+        - figpar (dict)    : dictionary containing the following figure 
+                             parameter dictionaries
+                             default: None
             ['init'] (dict): dictionary with figure initialization parameters
             ['save'] (dict): dictionary with figure saving parameters
             ['dirs'] (dict): dictionary with additional figure parameters
-        - savedir (str): path of directory in which to save plots.
-                         default: None    
+        - savedir (str)    : path of directory in which to save plots.
+                             default: None    
     
     Returns:
         - fulldir (str) : final name of the directory in which the figure 
@@ -1525,3 +1533,4 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
 
     return fulldir, savename
+

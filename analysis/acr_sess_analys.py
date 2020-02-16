@@ -1114,8 +1114,8 @@ def comp_lat_acr_planes(linpla_ord, lat_vals):
 
 
 #############################################
-def get_sess_latencies(sess, analyspar, stimpar, datatype='roi', 
-                       method='ttest', p_val_thr=0.005, rel_std=0.5):
+def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None, 
+                       datatype='roi'):
     """
     get_sess_latencies(sess, analyspar, stimpar)
 
@@ -1125,41 +1125,79 @@ def get_sess_latencies(sess, analyspar, stimpar, datatype='roi',
         - sess (Session object): session object (can be None)
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
+        - latpar (LatPar)      : named tuple containing latency parameters
     
     Optional args:
+        - permpar (PermPar): named tuple containing permutation parameters. 
+                             Required only if latpar.surp_resp is True.
+                             default: None
         - datatype (str)   : type of data (e.g., 'roi', 'run')
                              default: 'roi'
-        - method (str)     : method for determining peak latency
-                             default: 'ttest' 
-        - p_val_thr (float): threshold p value to use for t-test method
-                             default: 0.005 
-        - rel_std (float)  : threshold standard deviation ratio to use to for 
-                             ratio method
-                             default: 0.5
 
     Returns:
-        - lat_vals (list): latency values for the session or None if no session 
-        - roi_ns (list)  : numbers of ROIs that reached threshold
-
+        - lat_vals (list)   : latency values for the session or None if no 
+                              session (None if no session)
+        - roi_ns (list)     : numbers of ROIs that reached threshold (None if 
+                              no session)
+        if latpar.surp_resp:
+        - signif_rois (list): numbers of ROIs that showed significant surprise 
+                              responses (None if no session)
     """
 
+    if datatype == 'run' and latpar.surp_resp:
+        raise ValueError('cannot set latpar.surp_resp to True if running data.')
+
     if sess is None:
-        return None
+        return [None, None] + [None] * latpar.surp_resp
     stim = sess.get_stim(stimpar.stimtype)
     remconsec = (stimpar.stimtype == 'bricks')
-    segs = stim.get_segs_by_criteria(gabfr=stimpar.gabfr, gabk=stimpar.gabk, 
-                gab_ori=stimpar.gab_ori, bri_dir=stimpar.bri_dir, 
-                bri_size=stimpar.bri_size, surp=1, by='seg', 
-                remconsec=remconsec)
+    surps = [1]
+    if latpar.surp_resp:
+        if stimpar.stimtype == 'bricks':
+            surps = [1] * 2
+            pre_posts = [[1.0, 0], [0, 1.0]]    
+        elif stimpar.stimtype == 'gabors':
+            surps = [0, 1]
+            pre_posts = [[0, 0.45]] * 2
+        else:
+            gen_util.accepted_values_error('stimpar.stimtype', 
+                     stimpar.stimtype, ['bricks', 'gabors'])
+
+    all_segs = [stim.get_segs_by_criteria(gabfr=stimpar.gabfr, 
+                gabk=stimpar.gabk, gab_ori=stimpar.gab_ori, 
+                bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, 
+                surp=surp, by='seg', remconsec=remconsec) for surp in surps]
+
+    if analyspar.remnans:
+        nanpol = None
+    else:
+        nanpol = 'omit'
+
     if datatype == 'roi':
-        twop_fr = stim.get_twop_fr_by_seg(segs, first=True)
+        twop_frs = [stim.get_twop_fr_by_seg(segs, first=True) 
+                                         for segs in all_segs]
         # array: ROI x sequences x frames
-        xran, data_arr = stim.get_roi_trace_array(twop_fr, stimpar.pre, 
+        xran, data_arr = stim.get_roi_trace_array(twop_frs[-1], stimpar.pre, 
                               stimpar.post, fluor=analyspar.fluor, 
-                              remnans=analyspar.remnans, stand=False, smooth=3)         
+                              remnans=analyspar.remnans, stand=False, smooth=3)
+        # identify surprise responsive ROIs
+        if latpar.surp_resp:
+            if permpar is None:
+                raise ValueError('Must pass a `permpar` if latpar.surp_resp.')
+            elif permpar.tails:
+                raise ValueError('permpar.tails must be `up`.')
+            # full_arr: 'surp x ROI x sequences'
+            integ_data = [stim.get_roi_trace_array(twop_fr, pre=pre, 
+                          post=post, fluor=analyspar.fluor, integ=True,
+                          remnans=analyspar.remnans, stand=False)[1] 
+                          for twop_fr, [pre, post] in zip(twop_frs, pre_posts)]   
+            signif_rois = signif_grps.get_signif_rois(integ_data, permpar, 
+                                      stats=analyspar.stats, op='diff', 
+                                      nanpol=nanpol, print_rois=False)
+            data_arr = data_arr[signif_rois]
     elif datatype == 'run':
         # array: 1 x sequences x frames
-        stim_fr = stim.get_stim_fr_by_seg(segs, first=True)
+        stim_fr = stim.get_stim_fr_by_seg(all_segs[-1], first=True)
         xran, data_arr = stim.get_run_array(stim_fr, stimpar.pre, 
                               stimpar.post, remnans=analyspar.remnans, 
                               stand=False)
@@ -1167,16 +1205,20 @@ def get_sess_latencies(sess, analyspar, stimpar, datatype='roi',
     else:
         gen_util.accepted_values_error('datatype', datatype, ['run', 'roi'])
 
-    lat_vals, roi_ns = get_rise_latency(data_arr, xran, method=method, 
-                                p_val_thr=p_val_thr, stats=analyspar.stats, 
-                                rel_std=rel_std)
-
-    return lat_vals, roi_ns
+    lat_vals, roi_ns = get_rise_latency(data_arr, xran, method=latpar.method, 
+                            p_val_thr=latpar.p_val_thr, stats=analyspar.stats, 
+                            rel_std=latpar.rel_std)
+    if latpar.surp_resp:
+        # retrieve original roi_ns based on signif_rois
+        roi_ns = list(np.asarray(signif_rois)[roi_ns])
+        return lat_vals, roi_ns, signif_rois
+    else:
+        return lat_vals, roi_ns
 
 
 #############################################
 def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
-                     figpar, datatype='roi', parallel=False):
+                     figpar, permpar=None, datatype='roi', parallel=False):
     """
     run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, 
                      figpar)
@@ -1196,6 +1238,9 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
         - figpar (dict)        : dictionary containing figure parameters
     
     Optional args:
+        - permpar (PermPar): named tuple containing permutation parameters. 
+                             Required only if latpar.surp_resp is True.
+                             default: None
         - datatype (str) : type of data (e.g., 'roi', 'run')
                            default: 'roi'
         - parallel (bool): if True, sessions are initialized in parallel 
@@ -1203,12 +1248,22 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
                            default: False
     """
 
+    if latpar.surp_resp:
+        if datatype == 'run':
+            print('Setting latpar.surp_resp to False as datatype is run.')
+            latpar = sess_ntuple_util.get_modif_ntuple(latpar, 'surp_resp', 
+                                                       False)
+        elif permpar is None:
+            raise ValueError('Must pass a `permpar` if latpar.surp_resp.')
+        elif permpar.tails != 'up':
+            print('Setting permpar.tails to `up`.')
+            permpar = sess_ntuple_util.get_modif_ntuple(permpar, 'tails', 'up')
+
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                                            sesspar.plane, stimpar.bri_dir, 
-                                            stimpar.bri_size, stimpar.gabk,
-                                            'print')
+                               sesspar.plane, stimpar.bri_dir, stimpar.bri_size, 
+                               stimpar.gabk, 'print')
     dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
-                                            datatype, 'print')
+                               datatype, 'print')
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
@@ -1224,11 +1279,13 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
      all_lat_p_vals, all_lat_vals_flat] = [], [], [], []
     all_sess_info = []
 
+    all_n_sign_rois = []
     for l_sesses in linpla_sess:
         # switch to sess x mouse
         l_sesses = [list(vals) for vals in zip(*l_sesses)]
         l_lat_vals, l_lat_vals_flat, l_sess_info = [], [], []
         l_lat_stats = np.full([stat_len, len(l_sesses)], np.nan)
+        l_n_sign_rois = []
         for s, sesses in enumerate(l_sesses): # across sessions
             l_sess_info.append(sess_gen_util.get_sess_info(sesses, 
                                              analyspar.fluor, add_none=True))
@@ -1237,17 +1294,20 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
             if parallel:
                 sess_vals = Parallel(n_jobs=n_jobs)(delayed(
                                      get_sess_latencies)(sess, analyspar, 
-                                     stimpar, datatype, latpar.method, 
-                                     latpar.p_val_thr, latpar.rel_std) 
+                                     stimpar, latpar, permpar, datatype) 
                                      for sess in sesses)
                 sess_lat_vals = [vals[0] for vals in sess_vals]
+                if latpar.surp_resp:
+                    sess_n_sign_rois = [len(vals[2]) for vals in sess_vals]
             else:
                 sess_lat_vals = []
+                sess_n_sign_rois = []
                 for sess in sesses:
-                    sess_lat_vals.append(get_sess_latencies(sess, analyspar, 
-                                         stimpar, datatype, latpar.method, 
-                                         latpar.p_val_thr, latpar.rel_std)[0])
-
+                    vals = get_sess_latencies(sess, analyspar, stimpar, latpar, 
+                                              permpar, datatype)
+                    sess_lat_vals.append(vals[0])
+                    if latpar.surp_resp:
+                        sess_n_sign_rois.append(vals[2])
             # all values across mice for the session
             lat_vals_flat = np.asarray([val for sub_vals in sess_lat_vals 
                                             if sub_vals is not None
@@ -1257,6 +1317,8 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
                                           nanpol='omit')
             l_lat_vals_flat.append(lat_vals_flat)
             l_lat_vals.append(sess_lat_vals)
+            if latpar.surp_rois:
+                l_n_sign_rois.append(sess_n_sign_rois)
 
         p_vals = comp_lat_acr_sesses(l_lat_vals_flat, normal=True).tolist()
 
@@ -1265,6 +1327,9 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
         all_lat_vals_flat.append(l_lat_vals_flat)
         all_lat_vals.append(l_lat_vals)
         all_lat_p_vals.append(p_vals)
+        if latpar.surp_rois:
+            all_n_sign_rois.append(l_n_sign_rois)
+
 
     # compare across planes in a line
     lin_p_vals = comp_lat_acr_planes(linpla_ord, all_lat_vals_flat)
@@ -1282,6 +1347,9 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
                 'n_comps'   : n_comps,
                 }
 
+    if latpar.surp_resp:
+        lat_data['n_sign_rois'] = all_n_sign_rois
+
     extrapar = {'analysis': analysis,
                 'datatype': datatype,
                 }
@@ -1294,6 +1362,9 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
             'sess_info': all_sess_info,
             'lat_data' : lat_data
             }
+    
+    if latpar.surp_resp:
+        info['permpar'] = permpar
 
     fulldir, savename = acr_sess_plots.plot_surp_latency(figpar=figpar, **info)
     file_util.saveinfo(info, savename, fulldir, 'json')
@@ -1301,7 +1372,7 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
 
 #############################################
 def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
-                  figpar, datatype='roi', parallel=False):
+                  figpar, permpar=None, datatype='roi', parallel=False):
     """
     run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
                   figpar)
@@ -1321,6 +1392,9 @@ def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
         - figpar (dict)        : dictionary containing figure parameters
     
     Optional args:
+        - permpar (PermPar): named tuple containing permutation parameters. 
+                             Required only if latpar.surp_resp is True.
+                             default: None
         - datatype (str) : type of data (e.g., 'roi', 'run')
                            default: 'roi'
         - parallel (bool): if True, sessions are initialized in parallel 
@@ -1328,7 +1402,16 @@ def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
                            default: False
     """
 
-
+    if latpar.surp_resp:
+        if datatype == 'run':
+            print('Setting latpar.surp_resp to False as datatype is run.')
+            latpar = sess_ntuple_util.get_modif_ntuple(latpar, 'surp_resp', 
+                                                       False)
+        elif permpar is None:
+            raise ValueError('Must pass a `permpar` if latpar.surp_resp.')
+        elif permpar.tails != 'up':
+            print('Setting permpar.tails to `up`.')
+            permpar = sess_ntuple_util.get_modif_ntuple(permpar, 'tails', 'up')
 
     dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
                                datatype, 'print')
@@ -1348,11 +1431,13 @@ def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
 
     all_sess_info = []
     all_prop_stats = []
+    all_n_sign_rois = []
     for l_sesses in linpla_sess:
         # switch to sess x mouse
         l_sesses = [list(vals) for vals in zip(*l_sesses)]
         l_sess_info = []
         l_prop_stats = []
+        l_n_sign_rois = []
         for s, sesses in enumerate(l_sesses): # across sessions
             l_sess_info.append(sess_gen_util.get_sess_info(sesses, 
                                              analyspar.fluor, add_none=True))
@@ -1370,17 +1455,21 @@ def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
                 if parallel:
                     sess_vals = Parallel(n_jobs=n_jobs)(delayed(
                                          get_sess_latencies)(sess, analyspar, 
-                                         stimpar_spec, datatype, latpar.method, 
-                                         latpar.p_val_thr, latpar.rel_std) 
-                                         for sess in sesses)
+                                         stimpar_spec, latpar, permpar, 
+                                         datatype) for sess in sesses)
                     sess_roi_ns = [vals[1] for vals in sess_vals]
-
+                    if latpar.surp_resp:
+                        sess_n_sign_rois = [len(vals[2]) for vals in 
+                                              sess_vals]             
                 else:
                     sess_roi_ns = []
+                    sess_n_sign_rois = []
                     for sess in sesses:
-                        sess_roi_ns.append(get_sess_latencies(sess, analyspar, 
-                                        stimpar_spec, datatype, latpar.method, 
-                                        latpar.p_val_thr, latpar.rel_std)[1])
+                        vals = get_sess_latencies(sess, analyspar, stimpar, 
+                                                  latpar, permpar, datatype)
+                        sess_roi_ns.append(vals[1])
+                        if latpar.surp_resp:
+                            sess_n_sign_rois.append(vals[2])
                 for r, roi_ns in enumerate(sess_roi_ns):
                     if len(roi_ns) > 0:
                         resp_arrs[r][s, np.asarray(roi_ns)] = 1
@@ -1398,14 +1487,21 @@ def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
                                          stats=analyspar.stats, 
                                          error=analyspar.error, nanpol='omit')
                 resp_prop_stats.append([resp_prop_me, resp_prop_de])
-            l_prop_stats.append(resp_prop_stats)
+                l_prop_stats.append(resp_prop_stats)
+                if latpar.surp_rois:
+                    l_n_sign_rois.append(sess_n_sign_rois)
         all_prop_stats.append(l_prop_stats)
-    all_sess_info.append(l_sess_info)
+        all_sess_info.append(l_sess_info)
+        if latpar.surp_rois:
+            all_n_sign_rois.append(l_n_sign_rois)
 
     prop_data = {'linpla_ord': linpla_ord,
                  'prop_stats': all_prop_stats,
                  'comb_names': comb_names
                 }
+
+    if latpar.surp_resp:
+        prop_data['n_sign_rois'] = all_n_sign_rois
 
     extrapar = {'analysis': analysis,
                 'datatype': datatype,
@@ -1420,5 +1516,9 @@ def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
             'prop_data' : prop_data
             }
 
+    if latpar.surp_resp:
+        info['permpar'] = permpar
+
     fulldir, savename = acr_sess_plots.plot_resp_prop(figpar=figpar, **info)
     file_util.saveinfo(info, savename, fulldir, 'json')
+

@@ -143,6 +143,8 @@ def init_param_cont(args):
             no_datetime (bool)     : if True, figures are not saved in a 
                                      subfolder named based on the date and time.
             no_scale (bool)        : if True, data is not scaled
+            not_surp_rois (bool)   : if False, only surprise responsive ROIs 
+                                      are used for latency analysis
             output (str)           : general directory in which to save output
             overwrite (bool)       : if False, overwriting existing figures 
                                      is prevented by adding suffix numbers.
@@ -236,7 +238,7 @@ def init_param_cont(args):
     basepar = sess_ntuple_util.init_basepar(args.base)
 
     latpar = sess_ntuple_util.init_latpar(args.method, args.p_val_thr, 
-                                          args.rel_std)
+                                          args.rel_std, not(args.not_surp_resp))
 
 
     # figure parameters
@@ -491,13 +493,15 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, permpar, basepar,
     # 4. Plots the surprise latencies across sessions
     if 'u' in analyses:
         acr_sess_analys.run_surp_latency(sessions, 'u', analyspar, 
-                        sesspar, stimpar, latpar, figpar, parallel=parallel)
+                        sesspar, stimpar, latpar, figpar, permpar, 
+                        parallel=parallel)
     all_check += 'u'
 
     # 5. Plots proportion of ROIs responses to both surprise types
     if 'p' in analyses:
         acr_sess_analys.run_resp_prop(sessions, 'c', analyspar, 
-                        sesspar, stimpar, latpar, figpar, parallel=parallel)
+                        sesspar, stimpar, latpar, figpar, permpar, 
+                        parallel=parallel)
     all_check += 'p'
 
 
@@ -601,6 +605,8 @@ if __name__ == "__main__":
                         help='p-value threshold for ttest method')
     parser.add_argument('--rel_std', default='0.5', type=float,
                         help='relative st. dev. threshold for ratio method')
+    parser.add_argument('--not_surp_resp', action='store_true', 
+                        help='don\'t use only surprise responsive ROIs')
 
         # figure parameters
     parser.add_argument('--ncols', default=4, help='number of columns')

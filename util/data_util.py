@@ -428,15 +428,17 @@ def scale_datasets(set_data, sc_dim='all', sc_type='min_max', extrem='reg',
                             data ('last', 'all')
                             default: 'all'
         - sc_type (str)   : type of scaling to use
-                            'min_max': (data - min)/(max - min)
-                            'scale'  : (data - 0.0)/std
-                            'stand'  : (data - mean)/std
-                            'center' : (data - mean)/1.0
-                            'unit'   : (data - 0.0)/abs(mean)
+                            'min_max'  : (data - min)/(max - min)
+                            'scale'    : (data - 0.0)/std
+                            'stand'    : (data - mean)/std
+                            'stand_rob': (data - median)/IQR (75-25)
+                            'center'   : (data - mean)/1.0
+                            'unit'     : (data - 0.0)/abs(mean)
                             default: 'min_max'
-        - extrem (str)    : only needed if min_max scaling is used. 
-                            'reg': the minimum and maximum of the data 
-                                   are used 
+        - extrem (str)    : only needed if min_max  or stand_rob scaling is 
+                            used. 
+                            'reg': the minimum and maximum (min_max) or 
+                                   25-75 IQR of the data are used 
                             'perc': the 5th and 95th percentiles are used as 
                                     min and max respectively (robust to 
                                     outliers)
@@ -474,8 +476,8 @@ def scale_datasets(set_data, sc_dim='all', sc_type='min_max', extrem='reg',
             data_flat = set_data[0].reshape([-1, set_data[0].shape[-1]]).numpy()
         else:
             gen_util.accepted_values_error('sc_dim', sc_dim, ['all', 'last'])
-        sc_facts = math_util.scale_facts(data_flat, 0, sc_type='min_max', 
-                                         extrem='perc', mult=mult, shift=shift)
+        sc_facts = math_util.scale_facts(data_flat, 0, sc_type=sc_type, 
+                                         extrem=extrem, mult=mult, shift=shift)
 
     for i in range(len(set_data)):
         sc_data = math_util.scale_data(set_data[i].numpy(), 0, facts=sc_facts)
@@ -532,15 +534,17 @@ def create_dls(data, targets=None, train_p=0.75, val_p=None, test_p=None,
                               data ('last', 'all')
                               default: 'all'
         - sc_type (str)     : type of scaling to use
-                              'min_max': (data - min)/(max - min)
-                              'scale'  : (data - 0.0)/std
-                              'stand'  : (data - mean)/std
-                              'center' : (data - mean)/1.0
-                              'unit'   : (data - 0.0)/abs(mean)
+                              'min_max'  : (data - min)/(max - min)
+                              'scale'    : (data - 0.0)/std
+                              'stand'    : (data - mean)/std
+                              'stand_rob': (data - median)/IQR (75-25)
+                              'center'   : (data - mean)/1.0
+                              'unit'     : (data - 0.0)/abs(mean)
                               default: 'min_max'
-        - extrem (str)      : only needed if min_max scaling is used. 
-                              'reg': the minimum and maximum of the data 
-                                     are used 
+        - extrem (str)      : only needed if min_max  or stand_rob scaling is 
+                              used. 
+                              'reg': the minimum and maximum (min_max) or 
+                                     25-75 IQR of the data are used 
                               'perc': the 5th and 95th percentiles are used as 
                                       min and max respectively (robust to 
                                       outliers)

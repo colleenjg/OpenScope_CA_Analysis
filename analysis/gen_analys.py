@@ -110,7 +110,8 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
                   'all_pars' : all_pars
                   }
 
-    sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)
+    sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor, 
+                              incl_roi=(datatype=='roi'))
 
     info = {'analyspar' : analyspar._asdict(),
             'sesspar'   : sesspar._asdict(),
@@ -193,7 +194,8 @@ def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar,
                        'all_counts': trace_info[2]
                       }
 
-        sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)
+        sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor, 
+                                  incl_roi=(datatype=='roi'))
 
         info = {'analyspar'  : analyspar._asdict(),
                 'sesspar'    : sesspar._asdict(),
@@ -319,7 +321,8 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
                     trace_stats['surp_lens'] = trace_info[3]
 
                 sess_info = sess_gen_util.get_sess_info(sessions, 
-                                                        analyspar.fluor)
+                                          analyspar.fluor, 
+                                          incl_roi=(datatype=='roi'))
 
                 info = {'analyspar'  : analyspar._asdict(),
                         'sesspar'    : sesspar._asdict(),
@@ -409,7 +412,8 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
     for key in ['mag_st', 'L2', 'mag_rel_th', 'L2_rel_th']:
         mags[key] = mags[key].tolist()
 
-    sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)
+    sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor, 
+                              incl_roi=(datatype=='roi'))
     extrapar  = {'analysis': analysis,
                  'datatype': datatype,
                  'seed'    : seed
@@ -518,7 +522,8 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
                      'stats': [stat.tolist() for stat in stats]
                      }
 
-    sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)
+    sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor, 
+                              incl_roi=(datatype=='roi'))
     extrapar  = {'analysis': analysis,
                  'datatype': datatype,
                  }
@@ -645,7 +650,8 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
     
     # sess_info = []
     # for sess_grp in sessions:
-    #     sess_info.append(sess_gen_util.get_sess_info(sess_grp, analyspar.fluor))
+    #     sess_info.append(sess_gen_util.get_sess_info(sess_grp, analyspar.fluor, 
+    #                                    incl_roi=(datatype=='roi')))
 
     # info = {'analyspar': analyspar._asdict(),
     #         'sesspar'  : sesspar._asdict(),

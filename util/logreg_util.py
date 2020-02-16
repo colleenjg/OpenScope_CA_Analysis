@@ -1305,30 +1305,34 @@ class ModData(TransformerMixin):
         using RobustScaler/MinMaxScaler and optionally shuffle input data.
 
         Sets attributes:
-            - _orig_shape (tuple)    : original shape, as (frames, channels), 
-                                       though set to None
-            - _scaler (scaler)       : scaler to use (None if none)
-            - _extrem (bool)         : if True, 5/95th percentiles are used to 
-                                       MinMax scale data
-            - _shuffle (bool)        : shuffle boolean
+            - _orig_shape (tuple): original shape, as (frames, channels), 
+                                   though set to None
+            - _scaler (scaler)   : scaler to use (None if none)
+            - _extrem (str)      : if True, extrema are used
+            - _shuffle (bool)    : shuffle boolean
 
         Optional args:
-            - scale (bool)  : if True, data is scaled by channel
-            - extrem (bool) : if True, 5/95th percentiles are used to 
-                              MinMax scale data
+            - scale (bool)  : if True, data is scaled by channel using 
+                              robust scaling (using 5-95th percentiles)
+                              default: True
+            - extrem (bool) : if True, 5/95th percentiles are used for scaling
+                              default: False
             - shuffle (bool): if True, X is shuffled
+                              default: False
         """
         if scale:
-            # self._scaler = MinMaxScaler(copy=True, **kwargs)
-            # self._extrem = extrem
+            self._extrem = extrem
+            if self._extrem:
+                qu = (5.0, 95.0)
+            else:
+                qu = (25.0, 75.0)
 
-            # using different quantile range
-            self._scaler = RobustScaler(copy=True, quantile_range=(5.0, 95.0), 
-                                        **kwargs)
-            self._extrem = False # do not use with RobustScaler
+            # self._scaler = MinMaxScaler(copy=True, **kwargs)
+            self._scaler = RobustScaler(copy=True, quantile_range=qu, **kwargs)
         else:
             self._scaler = None
             self._extrem = False
+
         self._shuffle = shuffle
         self._orig_shape = None
     
@@ -1358,8 +1362,8 @@ class ModData(TransformerMixin):
             self._orig_shape = X.shape[1:]
         if self._scaler is not None:
             X = self._flatten(X, across='tr')
-            if self._extrem:
-                X = math_util.extrem_to_med(X, ext_p=[5, 95])
+            if isinstance(self._scaler, MinMaxScaler) and self._extrem:
+                X = math_util.extrem_to_med(X, ext_p=[5.0, 95.0])
             self._scaler.fit(X, **kwargs)
         return self
 

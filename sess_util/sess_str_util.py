@@ -909,3 +909,64 @@ def ext_test_str(q1v4=False, rvs=False, str_type='file'):
     return ext_str
 
 
+#############################################
+def get_nroi_strs(sess_info, remnans=True, fluor='dff', empty=False, 
+                  style='comma'):
+    """
+    get_nroi_strs(sess_info)
+
+    Returns strings with number of ROIs for each session.
+
+    Required args:
+        - sess_info (dict): dictionary containing information from each
+                            session 
+            ['mouse_ns'] (list)   : mouse numbers
+            if not empty:
+            ['nrois'] (list)      : number of ROIs in session
+            if remnans:
+            ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
+            if remnans and fluor:
+            ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
+                                    for sessions for which this attribute 
+                                    exists
+        - remnans (bool)  : if True, the number of ROIs with NaN/Infs is  
+                            removed from the total
+                            default: True
+        - fluor (str)     : if 'raw', number of ROIs is calculated with 
+                            n_nanrois. If 'dff', it is calculated with 
+                            n_nanrois_dff  
+                            default: 'dff'
+        - empty (bool)    : if True, empty strings are returned for each session
+                            default: False
+        - style (str)     : style to use (following a comma ('comma') or in 
+                            parentheses ('par'))
+
+    Returns:
+        - nroi_strs (list): list of strings containing number of ROIs for each 
+                            session
+    """
+
+    if empty:
+        nroi_strs = [''] * len(sess_info['mouse_ns'])
+
+    else:
+        nrois = sess_info['nrois']
+        if remnans:
+            if fluor == 'raw':
+                sub_rois = sess_info['nanrois']
+            elif fluor == 'dff':
+                sub_rois = sess_info['nanrois_dff']
+            else:
+                gen_util.accepted_values_error('fluor', fluor, ['dff', 'raw'])
+            sub_vals = [len(rois) for rois in sub_rois]
+            nrois = [nrois[i] - sub_vals[i] for i in range(len(nrois))]
+        
+        if style == 'comma':
+            nroi_strs = [f', n={nroi}' for nroi in nrois]
+        elif style == 'par':
+            nroi_strs = [f' (n={nroi})' for nroi in nrois]
+        else:
+            gen_util.accepted_values_error('style', style, ['comma', 'par'])
+    
+    return nroi_strs
+
