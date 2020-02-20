@@ -954,14 +954,10 @@ def id_elem(rand_vals, act_vals, tails='2', p_val=0.05, min_n=100,
     nan_act_vals  = np.isnan(act_vals).any()
     nan_rand_vals = np.isnan(rand_vals).any()
 
-    try:
-        if nan_act_vals > 0:
-            raise ValueError('NaNs encountered in actual values.')
-        if nan_rand_vals > 0:
-            raise ValueError('NaNs encountered in random values.')
-    except:
-        import pdb
-        pdb.set_trace()
+    if nan_act_vals > 0:
+        raise ValueError('NaNs encountered in actual values.')
+    if nan_rand_vals > 0:
+        raise ValueError('NaNs encountered in random values.')
 
     # check whether there are enough values for determining thresholds
     out_vals = int(rand_vals.shape[-1] * p_val)
