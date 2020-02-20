@@ -3181,7 +3181,7 @@ class Stim(object):
     def get_roi_trace_array(self, twop_ref_fr, pre, post, fluor='dff', 
                             integ=False, remnans=True, baseline=None, 
                             stats='mean', transients=False, stand=False, 
-                            smooth=False):
+                            pad=(0, 0), smooth=False):
         """
         self.get_roi_trace_array(twop_ref_fr, pre, post)
 
@@ -3217,6 +3217,9 @@ class Stim(object):
             - stand (bool)        : if True, each ROI is standardized based on 
                                     full trace array
                                     default: False 
+            - pad (tuple)         : number of frame to use as padding 
+                                    (before, after)
+                                    default: (0, 0)
             - smooth (bool or int): if not False, specifies the window length 
                                     to use in smoothing 
                                     default: False
@@ -3229,15 +3232,15 @@ class Stim(object):
         
         fr_idx, xran = self.sess.get_twop_fr_ran(twop_ref_fr, pre, post)
 
+        use_pad = pad
         if smooth:
-            pad = np.ceil(smooth/2.0).astype(int)
-        else:
-            pad = 0
+            add_pad = np.ceil(smooth/2.0).astype(int)
+            use_pad = [sub + add_pad for sub in use_pad]
 
         # get dF/F: ROI x seq x fr
         data_array = self.sess.get_roi_seqs(fr_idx, fluor=fluor, 
                                             remnans=remnans, stand=stand, 
-                                            padding=(pad, pad))
+                                            padding=use_pad)
         
         if remnans:
             nanpol = None
@@ -3259,9 +3262,9 @@ class Stim(object):
             data_array = data_array[keep_rois]
 
         if smooth:
-            data_array = math_util.rolling_mean(data_array, win=pad)
+            data_array = math_util.rolling_mean(data_array, win=add_pad)
             # cut down based on pad
-            data_array = data_array[:, :, pad:-pad]
+            data_array = data_array[:, :, add_pad:-add_pad]
 
         if integ:
             data_array = math_util.integ(data_array, 1./self.sess.twop_fps, 
