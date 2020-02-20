@@ -586,8 +586,7 @@ def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar,
     # for each quintile
     for q, perm_data in enumerate(all_data_perm):
         qu_vals = math_util.permute_diff_ratio(perm_data, n_regs[q], 
-                                             permpar.n_perms, stats, 
-                                             nanpol=nanpol, op='none')
+                            permpar.n_perms, stats, nanpol=nanpol, op='none')
         all_rand_vals.append(qu_vals)
 
     all_rand_vals = np.asarray(all_rand_vals)

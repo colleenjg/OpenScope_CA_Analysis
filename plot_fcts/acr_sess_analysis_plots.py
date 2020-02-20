@@ -207,8 +207,8 @@ def plot_area_diff_stats(sub_ax, all_diff_st, sess_ns=None, mouse_mes=None,
     Optional args:
         - sess_ns (array-like)  : session numbers for each session
                                   default: None
-        - mouse_mes (array-like): mouse mean/median data, structured as 
-                                  mouse x session
+        - mouse_mes (array-like): mouse mean/median data (for legend), 
+                                  structured as mouse x session
                                   default: None
         - col (str)             : plotting color
                                   default: None
@@ -343,7 +343,7 @@ def plot_area_diff_per_linpla(sub_ax, sess_ns, mouse_diff_st, diff_st, CI_vals,
         if plot == 'sep':
             plot_area_diff_per_mouse(sub_ax, mouse_st, sess_info, sess_ns, 
                                      col, use_lab=True)
-        elif plot == 'tog':
+        elif plot in ['tog', 'grped']:
             plot_area_diff_stats(sub_ax, diff_st, sess_ns, mouse_st[:, :, 0], 
                                  col)
         else:
@@ -409,6 +409,16 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
             ['sign_sess'] (list)       : significant session indices, 
                                          structured as plane/line (x tails)
             ['linpla_ord'] (list)      : order list of planes/lines
+            if extrapar['datatype'] == 'roi':
+                ['all_diff_st_grped'] (list): difference stats across ROIs 
+                                              (grouped across mice), structured 
+                                              as plane/line x session x stats
+                - CI_vals_grped (list)      : CIs values across ROIs, 
+                                              structured as 
+                                              plane/line x session 
+                                                         x perc (med, lo, high)
+                - sign_sess_grped (list)    : significant session indices, 
+                                              structured as plane/line (x tails)
         - sess_info (nested list): nested list of dictionaries for each 
                                    line/plane x mouse containing information 
                                    from each session, with None for missing 
@@ -443,15 +453,23 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
  
     datatype = extrapar['datatype']
     error = analyspar['error']
-    if datatype == 'run' and plot == 'sep':
-        error = 'None'
+    if datatype == 'run':
+        if plot == 'sep':
+            error = 'None'
+        elif plot == 'grped':
+            raise ValueError('grped plot types only supported for ROI datatype.')
     
     dimstr = ''
     if plot == 'tog':
         dimstr = ' across mice'
-    elif datatype == 'roi':
+    elif datatype == 'roi' and plot in ['sep', 'grped']:
         dimstr = f' across {sess_str_util.datatype_dim_str(datatype)}'
-
+    
+    grp_str, grp_str_pr = '', ''
+    if plot == 'grped':
+        grp_str = '_grped'
+        grp_str_pr = ' (grouped)'
+        
     stimstr_pr = sess_str_util.stim_par_str(stimpar['stimtype'], 
                                     stimpar['bri_dir'], stimpar['bri_size'],
                                     stimpar['gabk'], 'print')
@@ -484,7 +502,7 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
         prepost_str = sess_str_util.prepost_par_str(stimpar['pre'], 
                                     stimpar['post'], str_type='print')
     title = (f'{subtitle} ({prepost_str} seqs)\nfor {stimstr_pr} - {statstr_pr}'
-             f'{dimstr}\n(sess {sess_ns_str}{dendstr_pr})')
+             f'{dimstr}{grp_str_pr}\n(sess {sess_ns_str}{dendstr_pr})')
 
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
     fig.suptitle(title)
@@ -498,9 +516,9 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
 
         plot_area_diff_per_linpla(ax[la, li], sess_ns, 
                       diff_info['mouse_diff_stats'][l_idx], 
-                      diff_info['all_diff_stats'][l_idx], 
-                      diff_info['CI_vals'][l_idx],
-                      diff_info['sign_sess'][l_idx], sess_info[l_idx],
+                      diff_info[f'all_diff_stats{grp_str}'][l_idx], 
+                      diff_info[f'CI_vals{grp_str}'][l_idx],
+                      diff_info[f'sign_sess{grp_str}'][l_idx], sess_info[l_idx],
                       plot=plot, d=d, col=pla_cols[la], zero_line=False)
  
     # Add plane, line info to plots
@@ -558,6 +576,16 @@ def plot_surp_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
             ['sign_sess'] (list)       : significant session indices, 
                                          structured as plane/line (x tails)
             ['linpla_ord'] (list)      : order list of planes/lines
+            if extrapar['datatype'] == 'roi':
+                ['all_diff_st_grped'] (list): difference stats across ROIs 
+                                              (grouped across mice), structured 
+                                              as plane/line x session x stats
+                - CI_vals_grped (list)      : CIs values across ROIs, 
+                                              structured as 
+                                              plane/line x session 
+                                                         x perc (med, lo, high)
+                - sign_sess_grped (list)    : significant session indices, 
+                                              structured as plane/line (x tails)
                 
     Optional args:
         - figpar (dict): dictionary containing the following figure parameter 
@@ -599,14 +627,16 @@ def plot_surp_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
     part = 'surp_diff'
     add_idx = gen_savename.find(part) + len(part)
 
-    for plot in ['sep', 'tog']:
+    for p, plot in enumerate(['sep', 'tog', 'grped']):
+        if plot == 'grped' and datatype == 'run':
+            continue
         fig = plot_area_diff_acr_sess(analyspar, sesspar, stimpar, extrapar, 
-                                    sess_info, diff_info, figpar=figpar, 
-                                    lock=False, plot=plot)
+                                     sess_info, diff_info, figpar=figpar, 
+                                     lock=False, plot=plot)
 
 
         savename = f'{gen_savename[:add_idx]}_{plot}{gen_savename[add_idx:]}'
-        fulldir = plot_util.savefig(fig, savename, savedir, print_dir=(plot==0), 
+        fulldir = plot_util.savefig(fig, savename, savedir, print_dir=(p==0), 
                                     **figpar['save'])
 
     return fulldir, gen_savename
@@ -662,7 +692,17 @@ def plot_lock_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
             ['sign_sess'] (list)       : significant session indices, 
                                          structured as plane/line (x tails)
             ['linpla_ord'] (list)      : order list of planes/lines
-                
+            if extrapar['datatype'] == 'roi':
+                ['all_diff_st_grped'] (list): difference stats across ROIs 
+                                              (grouped across mice), structured 
+                                              as plane/line x session x stats
+                - CI_vals_grped (list)      : CIs values across ROIs, 
+                                              structured as 
+                                              plane/line x session 
+                                                         x perc (med, lo, high)
+                - sign_sess_grped (list)    : significant session indices, 
+                                              structured as plane/line (x tails)
+
     Optional args:
         - figpar (dict): dictionary containing the following figure parameter 
                          dictionaries
@@ -706,7 +746,9 @@ def plot_lock_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
         lock_savename = gen_savename.replace('lock', lock)
         add_idx = lock_savename.find(part) + len(part)
 
-        for plot in ['sep', 'tog']:
+        for p, plot in enumerate(['sep', 'tog', 'grped']):
+            if plot == 'grped' and datatype == 'run':
+                continue
             fig = plot_area_diff_acr_sess(analyspar, sesspar, stimpar, extrapar, 
                                       sess_info[l], diff_info[l], figpar=figpar, 
                                       lock=lock, plot=plot)
@@ -714,7 +756,7 @@ def plot_lock_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
             savename = (f'{lock_savename[:add_idx]}_{plot}'
                         f'{lock_savename[add_idx:]}')
             fulldir = plot_util.savefig(fig, savename, savedir, 
-                                print_dir=(plot==0), **figpar['save'])
+                                print_dir=(p==0), **figpar['save'])
 
     return fulldir, gen_savename
 
@@ -786,7 +828,7 @@ def plot_mouse_traces(sub_ax, xran, trace_st, lock=False, col='k', lab=True,
 
 #############################################
 def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info, 
-                         trace_info, figpar=None, lock=False):
+                         trace_info, figpar=None, lock=False, grp='mice'):
     """
     plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info, 
                          trace_info)
@@ -823,6 +865,12 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
                                     plane/line x session x reg/surp x frame 
                                                x stats
             ['xran'] (list)       : second values for each frame
+            if datatype == 'roi':
+                ['trace_st_acr_rois'] (list): trace statistics across ROIs, 
+                                              grouped across mice, structured 
+                                              as session x reg/surp 
+                                                         x frame x stats
+                                              (or surp/reg if surp == 'reglock')
 
     Optional args:
         - figpar (dict)     : dictionary containing the following figure 
@@ -834,7 +882,9 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
         - lock (bool or str): if 'surplock' or 'reglock', differences being
                               plotted are surp or reg-locked, correspondingly. 
                               default: False     
-
+        - grp (str)         : if 'mice', data is grouped per mouse, if 'roi', 
+                              data is grouped across mice
+                              default: 'mice'
     Returns:
         - fig (plt Figure) : pyplot figure
     """
@@ -872,8 +922,17 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
     else:
         prepost_str = sess_str_util.prepost_par_str(stimpar['pre'], 
                                     stimpar['post'], str_type='print')
+    
+    dim_str = 'mice'
+    grp_str = ''
+    if grp == 'rois':
+        if datatype == 'run':
+            raise ValueError(f'Grouping (`grp`) only across ROIs for ROI '
+                              'datatype.')
+        dim_str = 'ROIs (grouped)'
+        grp_str = '_grped'
     title = (f'{subtitle} ({prepost_str} seqs)\nfor {stimstr_pr} - '
-             f'{statstr_pr} across mice\n(sess {sess_ns_str}{dendstr_pr})')
+             f'{statstr_pr} across {dim_str}\n(sess {sess_ns_str}{dendstr_pr})')
 
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
     fig.suptitle(title)
@@ -891,8 +950,8 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
             sub_ax = ax[s + la * n_sess, li]
             lab = (li == 1 and s == 0)
             plot_mouse_traces(sub_ax, trace_info['xran'], 
-                              trace_info['trace_stats'][l_idx][s], lock, 
-                              pla_cols[la], lab, stimpar['stimtype'], 
+                              trace_info[f'trace_stats{grp_str}'][l_idx][s], 
+                              lock, pla_cols[la], lab, stimpar['stimtype'], 
                               stimpar['gabfr'])
         
     # Add plane, line info to plots
@@ -913,7 +972,7 @@ def plot_surp_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
     From dictionaries, plots traces across ROIs or mice of difference 
     for regular and surprise averaged across sequences.
     
-    Returns figure name and save directory path.
+    Returns general figure name and save directory path.
     
     Required args:
         - analyspar (dict)       : dictionary with keys of AnalysPar namedtuple
@@ -942,6 +1001,12 @@ def plot_surp_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
             ['trace_stats'] (list): trace statistics, structured as
                                     plane/line x session x reg/surp x frame 
                                                x stats
+            if datatype == 'roi':
+                ['trace_st_acr_rois'] (list): trace statistics across ROIs, 
+                                              grouped across mice, structured 
+                                              as session x reg/surp 
+                                                         x frame x stats
+                                              (or surp/reg if surp == 'reglock')
             ['xran'] (list)       : second values for each frame
 
     Optional args:
@@ -955,10 +1020,10 @@ def plot_surp_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
                          default: None    
     
     Returns:
-        - fulldir (str) : final name of the directory in which the figure 
-                          is saved (may differ from input savedir, if 
-                          datetime subfolder is added.)
-        - savename (str): name under which the figure is saved
+        - fulldir (str)     : final name of the directory in which the figure 
+                              is saved (may differ from input savedir, if 
+                              datetime subfolder is added.)
+        - gen_savename (str): general name under which the figures are saved
     """
     
     sessstr = sess_str_util.sess_par_str(sesspar['sess_n'], stimpar['stimtype'],
@@ -975,19 +1040,26 @@ def plot_surp_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
     if figpar['save']['use_dt'] is None:
         figpar['save']['use_dt'] = gen_util.create_time_str()
 
-    fig = plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, 
-                                sess_info, trace_info, figpar=figpar, 
-                                lock=False)
-
     base_str = sess_str_util.base_par_str(basepar['baseline'])[1:]
     if savedir is None:
         savedir = os.path.join(figpar['dirs'][datatype], 
                             figpar['dirs']['acr_sess'], base_str)
+    gen_savename = f'{datatype}_surp_tr_{sessstr}{dendstr}'
 
-    savename = f'{datatype}_surp_tr_{sessstr}{dendstr}'
-    fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
+    for grp in ['mice', 'rois']:
+        if grp == 'rois' and datatype == 'run':
+            continue
+        fig = plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, 
+                                   sess_info, trace_info, figpar=figpar, 
+                                   lock=False, grp=grp)
+        
+        savename = gen_savename
+        if grp == 'rois':
+            savename = f'{gen_savename}_grped'
+    
+        fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
 
-    return fulldir, savename
+    return fulldir, gen_savename
 
 
 #############################################
@@ -1001,7 +1073,7 @@ def plot_lock_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
     surprise sequences, locked to transitions from regular to surprise, then
     from surprise to regular.
     
-    Returns figure name and save directory path.
+    Returns general figure name and save directory path.
     
     Required args:
         - analyspar (dict)       : dictionary with keys of AnalysPar namedtuple
@@ -1030,6 +1102,12 @@ def plot_lock_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
             ['trace_stats'] (list): trace statistics, structured as
                                     plane/line x session x reg/surp x frame 
                                                x stats
+            if datatype == 'roi':
+                ['trace_st_grped'] (list): trace statistics across ROIs, 
+                                           grouped across mice, structured 
+                                           as session x reg/surp 
+                                                      x frame x stats
+                                           (or surp/reg if surp == 'reglock')
             ['xran'] (list)       : second values for each frame
 
     Optional args:
@@ -1066,18 +1144,23 @@ def plot_lock_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
     gen_savename = f'{datatype}_lock_tr_{sessstr}{dendstr}'
     
     for l, lock in enumerate(['surplock', 'reglock']):
-        fig = plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, 
-                                   sess_info[l], trace_info[l], figpar=figpar, 
-                                   lock=lock)
+        for grp in ['mice', 'rois']:
+            if grp == 'rois' and datatype == 'run':
+                continue
+            fig = plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, 
+                                  sess_info[l], trace_info[l], figpar=figpar, 
+                                  lock=lock, grp=grp)
 
-        base_str = sess_str_util.base_par_str(basepar['baseline'])[1:]
-        if savedir is None:
-            savedir = os.path.join(figpar['dirs'][datatype], 
-                                figpar['dirs']['acr_sess'], base_str)
+            base_str = sess_str_util.base_par_str(basepar['baseline'])[1:]
+            if savedir is None:
+                savedir = os.path.join(figpar['dirs'][datatype], 
+                                       figpar['dirs']['acr_sess'], base_str)
 
-        savename = gen_savename.replace('lock', lock)
-    
-        fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
+            savename = gen_savename.replace('lock', lock)
+            if grp == 'rois':
+                savename = f'{savename}_grped'
+        
+            fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
 
     return fulldir, gen_savename
 
@@ -1321,7 +1404,10 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
                                             extrapar['datatype'], 'print')
     latstr_pr = sess_str_util.lat_par_str(latpar['method'], latpar['p_val_thr'], 
                                           latpar['rel_std'], 'print')
-
+    surp_resp_str = ''
+    if latpar['surp_resp']:
+        surp_resp_str = '_surp_resp'
+    
     datatype = extrapar['datatype']
 
     sess_ns = np.asarray(sesspar['sess_n'])
@@ -1393,7 +1479,7 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
                                figpar['dirs']['acr_sess'], 
                                figpar['dirs']['lat'], latpar['method'])
 
-    savename = f'{datatype}_surp_lat_{sessstr}{dendstr}_{latstr}'
+    savename = f'{datatype}_surp_lat_{sessstr}{dendstr}_{latstr}{surp_resp_str}'
     
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
 
@@ -1402,7 +1488,7 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
 
 #############################################
 def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info, 
-                   prop_data, figpar=None, savedir=None):
+                   prop_data, permpar=None, figpar=None, savedir=None):
     """
     plot_resp_prop(analyspar, sesspar, stimpar, extrapar, sess_info,
                    prop_data)
@@ -1473,6 +1559,9 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
                                             extrapar['datatype'], 'print')
     latstr_pr = sess_str_util.lat_par_str(latpar['method'], latpar['p_val_thr'], 
                                           latpar['rel_std'], 'print')
+    surp_resp_str = ''
+    if latpar['surp_resp']:
+        surp_resp_str = '_surp_resp'
 
     datatype = extrapar['datatype']
 
@@ -1528,7 +1617,8 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
                                figpar['dirs']['acr_sess'], 
                                figpar['dirs']['prop'], latpar['method'])
 
-    savename = f'{datatype}_prop_resp_sess{sess_ns_str}{dendstr}_{latstr}'
+    savename = (f'{datatype}_prop_resp_sess{sess_ns_str}{dendstr}_{latstr}'
+                f'{surp_resp_str}')
     
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
 

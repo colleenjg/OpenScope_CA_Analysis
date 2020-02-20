@@ -380,7 +380,7 @@ def prep_analyses(sess_n, args, mouse_df, parallel=False):
                   basepar, latpar, figpar] = init_param_cont(args)
     
     sesspar_dict = sesspar._asdict()
-    sesspar_dict.pop('closest')
+    _ = sesspar_dict.pop('closest')
 
     [all_mouse_ns, all_sess_ns] = sess_gen_util.get_sess_vals(mouse_df, 
                             ['mouse_n', 'sess_n'], omit_sess=args.omit_sess, 

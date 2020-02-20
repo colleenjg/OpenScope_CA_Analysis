@@ -274,7 +274,7 @@ def get_signif_rois(integ_data, permpar, stats='mean', op='diff', nanpol=None,
     Required args:
         - integ_data (list): list of 2D array of ROI activity integrated 
                              across frames.
-                                surp x array[ROI x sequences]
+                                surp (0, 1) x array[ROI x sequences]
         - permpar (PermPar): named tuple containing permutation parameters
 
     Optional args:
@@ -293,7 +293,7 @@ def get_signif_rois(integ_data, permpar, stats='mean', op='diff', nanpol=None,
                             list of lists if 2-tailed analysis [lo, up].
     """
     
-    n_reg = integ_data[0].shape[1]
+    n_reg = integ_data[1].shape[1]
     # calculate real values (average across seqs)
     data = [math_util.mean_med(integ_data[0], stats, axis=1, nanpol=nanpol), 
             math_util.mean_med(integ_data[1], stats, axis=1, nanpol=nanpol)]
@@ -324,7 +324,7 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
         - integ_data (list)    : list of 2D array of ROI activity integrated 
                                  across frames. Should only include quintiles
                                  retained for analysis:
-                                    sess x surp x quintiles x 
+                                    sess x surp (0, 1) x quintiles x 
                                     array[ROI x sequences]
         - permpar (PermPar)    : named tuple containing permutation parameters
         - roigrppar (RoiGrpPar): named tuple containing roi grouping parameters
