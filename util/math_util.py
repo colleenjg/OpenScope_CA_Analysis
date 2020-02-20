@@ -11,6 +11,7 @@ Note: this code uses python 3.7.
 
 """
 
+import copy
 import re
 
 import numpy as np
@@ -339,10 +340,13 @@ def calc_op(data, op='diff', dim=0, rev=False):
                            dim.
 
     Optional args:
-        - op (str) : 'diff': index 1 - 0, or 'ratio': index 1/0.
-                     If int, the corresponding data index is returned.
-                     default: 'diff'
-        - dim (int): dimension along which to do operation
+        - op (str)  : 'diff': index 1 - 0, or 'ratio': index 1/0.
+                      If int, the corresponding data index is returned.
+                      default: 'diff'
+        - dim (int) : dimension along which to do operation
+                      default: 0
+        - rev (bool): if True, indices 1 and 0 are reversed
+                      default: False
     
     Returns:
         - data (nd array): data on which operation has been applied
@@ -777,7 +781,7 @@ def permute_diff_ratio(all_data, div='half', n_perms=10000, stats='mean',
                               statistics
                               default: None
         - op (str)          : operation to use to compare groups, 
-                              i.e. 'diff': grp1-grp2, or 'ratio': grp1/grp2
+                              i.e. 'diff': grp2-grp1, or 'ratio': grp2/grp1
                               or 'none'
                               default: 'diff'
 
@@ -813,7 +817,7 @@ def permute_diff_ratio(all_data, div='half', n_perms=10000, stats='mean',
             
             if op == 'none':
                 rand_res = rand
-            # calculate grp1-grp2 or grp1/grp2 -> elem x perms
+            # calculate grp2-grp1 or grp2/grp1 -> elem x perms
             else:
                 rand_res = calc_op(rand, op, dim=0)
             
@@ -895,7 +899,7 @@ def lin_interp_nan(data_arr):
 
 #############################################    
 def id_elem(rand_vals, act_vals, tails='2', p_val=0.05, min_n=100, 
-            print_elems=False, ret_th=False):
+            print_elems=False, ret_th=False, nanpol='omit'):
     """
     id_elem(rand_vals, act_vals)
 
@@ -921,8 +925,13 @@ def id_elem(rand_vals, act_vals, tails='2', p_val=0.05, min_n=100,
                               default: 100
         - print_elems (bool): if True, the indices of significant elements and
                               their actual values are printed
+                              default: False
         - ret_th (bool)     : if True, thresholds are returned for each element
-
+                              default: False
+        - nanpol (str)      : if 'omit', NaNs in act_vals are allowed, and
+                              prevented from leading to positive significance
+                              evaluation
+                              default: False
     Returns:
         - elems (list): list of elements showing significant differences, or 
                         list of lists if 2-tailed analysis [lo, up].
@@ -935,13 +944,24 @@ def id_elem(rand_vals, act_vals, tails='2', p_val=0.05, min_n=100,
     act_vals  = np.asarray(act_vals)
     rand_vals = np.asarray(rand_vals)
 
+    if nanpol == 'omit':
+        act_vals = copy.deepcopy(act_vals)
+        rand_vals = copy.deepcopy(rand_vals)
+        nan_idx = np.where(~np.isfinite(act_vals))[0]
+        act_vals[nan_idx]  = 1 # to prevent positive signif evaluation
+        rand_vals[nan_idx] = 1 
+
     nan_act_vals  = np.isnan(act_vals).any()
     nan_rand_vals = np.isnan(rand_vals).any()
-    
-    if nan_act_vals > 0:
-        raise ValueError('NaNs encountered in actual values.')
-    if nan_rand_vals > 0:
-        raise ValueError('NaNs encountered in random values.')
+
+    try:
+        if nan_act_vals > 0:
+            raise ValueError('NaNs encountered in actual values.')
+        if nan_rand_vals > 0:
+            raise ValueError('NaNs encountered in random values.')
+    except:
+        import pdb
+        pdb.set_trace()
 
     # check whether there are enough values for determining thresholds
     out_vals = int(rand_vals.shape[-1] * p_val)

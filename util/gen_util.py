@@ -172,8 +172,8 @@ def slice_idx(axis, pos):
     axis.
 
     Required args:
-        - axis (int): axis number (non negative)
-        - post (int): position on axis
+        - axis (int)            : axis number (non negative)
+        - pos (int, list, slice): position(s) on axis
 
     Returns:
         - sl_idx (slice): slice corresponding to axis and position passed.
