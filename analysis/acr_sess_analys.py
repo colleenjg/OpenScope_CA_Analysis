@@ -128,6 +128,108 @@ def define_baseline(stimtype='bricks', gabfr=3, baseline=0.1, pre=1.5,
 
 
 #############################################
+def comp_vals_acr_planes(linpla_ord, vals, n_perms=None, normal=True, 
+                         stats='mean'):
+    """
+    comp_vals_acr_planes(linpla_ord, vals)
+
+    Returns p values for comparisons across planes within lines.
+
+    Required args:
+        - linpla_ord (list): ordered list of planes/lines
+        - vals (list)      : values, structured as 
+                             planes/lines x session 
+
+    Optional args:
+        - n_perms (int): number of permutations to do if doing a permutation 
+                         test. If None, a different test is used
+                         default: None
+        - stats (str)  : stats to use for permutation test
+                         default: 'mean'
+        - normal (bool): whether data is expected to be normal or not 
+                         (determines whether a t-test or Mann Whitney test 
+                         will be done. Ignored if n_perms is not None.)
+                         default: True
+
+    Returns:
+        - p_vals (2D array): p values, structured as 
+                             planes/lines x session
+    """
+
+    lines = ['L2/3', 'L5']
+    n_sess = len(vals[0])
+    p_vals = np.full([len(lines), n_sess], np.nan)
+    for li, line in enumerate(lines):
+        idx = [i for i in range(len(linpla_ord)) if line in linpla_ord[i]]
+        # do comparison
+        if len(idx) == 2:
+            for s in range(n_sess):
+                # check for nans or None
+                data = [vals[i][s] for i in idx]
+                
+                skip = False
+                for d in data:
+                    if d is None or len(d) == 0:
+                        skip = True
+                if skip:
+                    continue
+                
+                if n_perms is not None:
+                        p_vals[li, s] = math_util.get_diff_p_val(data, 
+                                            n_perms, stats=stats, op='diff')
+                elif normal:
+                    p_vals[li, s] = scist.ttest_ind(data[0], data[1], 
+                                                axis=None)[1]
+                else:
+                    p_vals[li, s] = scist.mannwhitneyu(data[0], data[1])[1]
+
+    return p_vals
+    
+
+#############################################
+def get_n_comps(all_p_vals, n_sess, lin_p_vals=None):
+    """
+    get_n_comps(all_p_vals, n_sess)
+
+    Returns number of comparisons done for all lines and planes, as well
+    as the theoretical max number of comparisons each dataset is included in.
+
+    Required args:
+        - all_p_vals (list): list of p-values, structured as 
+                             line/plane x comparison
+        - n_sess (int)     : number of sessions in each line/plane (incl. None)
+
+    Optional args:
+        - lin_p_vals (list): list of p-values, structured as 
+                             line x comparison
+
+    Returns:
+        - tot_n_comps (int)  : total number of comparisons for all lines and 
+                               planes
+        - max_comps_per (int): maximum number of comparisons for each dataset 
+                               (theoretical - based on number of sessions)
+    """
+
+    theor_tot = np.sum(range(n_sess)[1:])
+    if theor_tot != len(all_p_vals[0]):
+        raise ValueError('Theoretical number of comparisons within '
+                         f'layer/planes is expected to be {theor_tot}, '
+                         f'but is {len(p_vals[0])}.')
+
+    p_vals = [p for all_ps in all_p_vals for p in all_ps] 
+    
+    if lin_p_vals is not None:
+        p_vals = p_vals + [p for all_ps in lin_p_vals for p in all_ps]
+
+    tot_n_comps = np.count_nonzero(~np.isnan(p_vals))
+
+    # max number of comparisons each dataset is involved in
+    max_comps_per = n_sess - 1 + (lin_p_vals is not None)
+
+    return tot_n_comps, max_comps_per
+    
+
+#############################################
 def surp_data_by_sess(sess, analyspar, stimpar, datatype='roi', surp='bysurp', 
                       stats='mean', integ=False, baseline=0.1):
     """
@@ -319,12 +421,17 @@ def get_grped_roi_stats(all_roi_vals, analyspar, permpar):
         - permpar (PermPar)    : named tuple containing permutation parameters  
 
     Returns:
-        - all_diff_st (list): difference stats across ROIs (grouped across 
-                              mice), structured as session x stats
-        - CI_vals (list)    : CIs values across ROIs, structured as 
-                              session x perc (med, lo, high)
-        - sign_sess (list)  : significant session indices, optionally 
-                              structured by tail
+        - all_diff_st (list) : difference stats across ROIs (grouped across 
+                               mice), structured as session x stats
+        - CI_vals (list)     : CIs values across ROIs, structured as 
+                               session x perc (med, lo, high)
+        - sign_sess (list)   : significant session indices, optionally 
+                               structured by tail
+        - all_diffs (list)   : differences, structured as session x ROI
+        - p_vals_grped (list): p values for each comparison, organized by 
+                               session pairs (where the second session is cycled 
+                               in the inner loop, e.g., 0-1, 0-2, 1-2, including 
+                               empty groups)
     """
 
     # join ROIs across mice
@@ -338,6 +445,7 @@ def get_grped_roi_stats(all_roi_vals, analyspar, permpar):
     n_sess = len(all_roi_vals)
     all_diff_st = np.empty([n_sess, st_len]) * np.nan
     all_rand = np.empty([n_sess, permpar.n_perms]) * np.nan
+    all_diffs = []
     for s, sess_roi_vals in enumerate(all_roi_vals):
         # mice x (reg, surp) x ROIs x seqs
         sess_mean_meds = []
@@ -354,19 +462,25 @@ def get_grped_roi_stats(all_roi_vals, analyspar, permpar):
                             nanpol=nanpol, op='diff'))
 
         if len(sess_mean_meds) == 0:
+            all_diffs.append(None)
             continue
 
-        # take mean/median across sequences
-        sess_mean_meds = np.concatenate(sess_mean_meds, axis=1)
-
-        all_diff_st[s] = math_util.get_stats((sess_mean_meds[1] - sess_mean_meds[0]), 
+        # take mean/median across sequences, then diff between surp and reg
+        sess_mean_med_diffs = np.subtract(*np.concatenate(sess_mean_meds, 
+                                          axis=1)) * -1
+        # take stats across ROIs
+        all_diff_st[s] = math_util.get_stats(sess_mean_med_diffs, 
                             stats=analyspar.stats, error=analyspar.error, 
                             nanpol=nanpol)
         # sess_rands: mouse x ROI x perm
-
         all_rand[s] = math_util.mean_med(np.concatenate(sess_rands, axis=0),
                                          axis=0, stats=analyspar.stats)
+        all_diffs.append(sess_mean_med_diffs.tolist())
 
+    # get p-values for comparisons between sessions
+    p_vals_grped = math_util.comp_vals_acr_groups(all_diffs, permpar.n_perms, 
+                                stats=analyspar.stats).tolist()
+    
     # get CI (sess x percs)
     CI_vals = np.asarray([np.percentile(all_rand, p, axis=-1) 
                         for p in percs]).T.tolist()
@@ -376,7 +490,7 @@ def get_grped_roi_stats(all_roi_vals, analyspar, permpar):
                             tails=permpar.tails, p_val=permpar.p_val, 
                             min_n=25, nanpol='omit')
 
-    return all_diff_st.tolist(), CI_vals, sign_sess
+    return all_diff_st.tolist(), CI_vals, sign_sess, all_diffs, p_vals_grped
 
 
 #############################################
@@ -472,6 +586,14 @@ def surp_diff_by_sesses(sessions, analyspar, stimpar, permpar, datatype='roi',
                                          session x perc (med, lo, high)
             - sign_sess_grped (list)   : significant session indices, 
                                          optionally structured by tail
+            - all_diffs   (list)       : differences, structured as 
+                                         session x ROI
+            - p_vals_grped (list)      : p values for each comparison, 
+                                         organized by session pairs (where the 
+                                         second session is cycled in the inner 
+                                         loop, e.g., 0-1, 0-2, 1-2, including 
+                                         empty groups)
+
         - sess_info (nested list): nested list of dictionaries for each 
                                    mouse containing information from each 
                                    session, with None for missing sessions
@@ -520,13 +642,16 @@ def surp_diff_by_sesses(sessions, analyspar, stimpar, permpar, datatype='roi',
 
     [all_diff_st, CI_vals, sign_sess] = get_mouse_stats(mouse_diff_st, all_rand, 
                                                         analyspar, permpar)
+    
     if datatype == 'roi':
-        [all_diff_st_grped, CI_vals_grped, 
-         sign_sess_grped] = get_grped_roi_stats(all_roi_vals, analyspar, 
-                                                permpar)
-        
+        [all_diff_st_grped, CI_vals_grped, sign_sess_grped, 
+         all_diffs_grped, p_vals_grped] = get_grped_roi_stats(all_roi_vals, 
+                                                analyspar, permpar)    
+    
+
         return [mouse_diff_st.tolist(), all_diff_st, CI_vals, sign_sess, 
-                all_diff_st_grped, CI_vals_grped, sign_sess_grped, sess_info]
+                all_diff_st_grped, CI_vals_grped, sign_sess_grped, 
+                all_diffs_grped, p_vals_grped, sess_info]
 
     elif datatype == 'run':
         return [mouse_diff_st.tolist(), all_diff_st, CI_vals, sign_sess, 
@@ -582,11 +707,22 @@ def surp_diff_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi',
             ['all_diff_st_grped'] (list): difference stats across ROIs (grouped 
                                           across mice), structured as 
                                           plane/line x session x stats
-            - CI_vals_grped (list)      : CIs values across ROIs, structured as 
+            ['CI_vals_grped'] (list)    : CIs values across ROIs, structured as 
                                           plane/line x session 
                                                      x perc (med, lo, high)
-            - sign_sess_grped (list)    : significant session indices, 
+            ['lin_p_vals'] (list)       : p-values for each line comparison, 
+                                          structured as line x session (np.nan 
+                                          for sessions  missing in either plane)
+            ['max_comps_per'] (int)     : total number of comparisons
+            ['p_vals_grped'] (list)     : p values for each comparison, 
+                                          organized by session pairs (where the 
+                                          second session is cycled in the inner 
+                                          loop, e.g., 0-1, 0-2, 1-2, including 
+                                          empty groups)
+            ['sign_sess_grped'] (list)  : significant session indices, 
                                           structured as plane/line (x tails)
+            ['tot_n_comps'] (int)       : total number of comparisons
+
         - sess_info (nested list): nested list of dictionaries for each 
                                    line/plane x mouse containing information 
                                    from each session, with None for missing 
@@ -628,10 +764,21 @@ def surp_diff_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi',
     if datatype == 'roi':
         [mouse_diff_st, all_diff_st, all_CI_vals, all_sign_sess, 
          all_diff_st_grped, all_CI_vals_grped, all_sign_sess_grped, 
-         sess_info] = outs
+         all_diffs_grped, all_p_vals_grped, sess_info] = outs
         diff_info['all_diff_stats_grped'] = all_diff_st_grped
         diff_info['CI_vals_grped']    = all_CI_vals_grped
         diff_info['sign_sess_grped']  = all_sign_sess_grped
+        diff_info['p_vals_grped']     = all_p_vals_grped
+        
+        # compare across planes in a line
+        lin_p_vals = comp_vals_acr_planes(linpla_order, all_diffs_grped, 
+                                      permpar.n_perms, stats=analyspar.stats)
+        n_sess = len(all_diffs_grped[0])
+        tot_n_comps, max_comps_per = get_n_comps(all_p_vals_grped, n_sess, 
+                                                 lin_p_vals)
+        diff_info['lin_p_vals']    = lin_p_vals.tolist()
+        diff_info['tot_n_comps']   = tot_n_comps
+        diff_info['max_comps_per'] = max_comps_per
 
     elif datatype == 'run':
         [mouse_diff_st, all_diff_st, all_CI_vals, 
@@ -1248,77 +1395,6 @@ def get_rise_latency(data_arr, xran, method='ttest', p_val_thr=0.005,
 
 
 #############################################
-def comp_lat_acr_sesses(lat_vals, normal=True):
-    """
-    comp_lat_acr_sesses(lat_vals)
-
-    Returns p values for comparisons across sessions with planes/lines.
-
-    Required args:
-        - lat_vals (list): latency values for each session 
-
-    Optional args:
-        - normal (bool): whether data is expected to be normal or not
-                         default: True
-
-    Returns:
-        - p_vals (1D array): p values for each comparison, organized by 
-                             session pairs (where the second session is cycled 
-                             in the inner loop, e.g., 0-1, 0-2, 1-2, including 
-                             None sessions) 
-    """
-
-    n_comp = sum(range(len(lat_vals)))
-    p_vals = np.full(n_comp, np.nan)
-    i = 0
-    for s, s_vals in enumerate(lat_vals):
-        for v_vals in lat_vals[s + 1:]:
-            if s_vals is not None and v_vals is not None:
-                if normal:
-                    p_vals[i] = scist.ttest_ind(s_vals, v_vals, 
-                                                axis=None)[1]
-                else:
-                    p_vals[i] = scist.mannwhitneyu(s_vals, v_vals,)[1]
-            i += 1
-    
-    return p_vals
-
-
-#############################################
-def comp_lat_acr_planes(linpla_ord, lat_vals):
-    """
-    comp_lat_acr_planes(linpla_ord, lat_vals)
-
-    Returns p values for comparisons across planes within lines.
-
-    Required args:
-        - linpla_ord (list): ordered list of planes/lines
-        - lat_vals (list)  : latency values, structured as 
-                             planes/lines x session 
-
-    Returns:
-        - p_vals (2D array): p values, structured as 
-                             planes/lines x session
-    """
-
-    lines = ['L2/3', 'L5']
-    n_sess = len(lat_vals[0])
-    p_vals = np.full([len(lines), n_sess], np.nan)
-    for li, line in enumerate(lines):
-        idx = [i for i in range(len(linpla_ord)) if line in linpla_ord[i]]
-        # do comparison
-        if len(idx) == 2:
-            for s in range(n_sess):
-                # check for nans:
-                data = [lat_vals[i][s] for i in idx]
-                if np.min(len(d) for d in data) != 0:
-                    p_vals[li, s] = scist.ttest_ind(data[0], data[1], 
-                                                    axis=None)[1]
-
-    return p_vals
-
-
-#############################################
 def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None, 
                        datatype='roi'):
     """
@@ -1342,18 +1418,17 @@ def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None,
     Returns:
         - lat_vals (list)   : latency values for the session or None if no 
                               session (None if no session)
-        - roi_ns (list)     : numbers of ROIs that reached threshold (None if 
-                              no session)
+        - roi_ns (list)     : numbers of ROIs that reached threshold
         if latpar.surp_resp:
         - signif_rois (list): numbers of ROIs that showed significant surprise 
-                              responses (None if no session)
+                              responses
     """
 
     if datatype == 'run' and latpar.surp_resp:
         raise ValueError('cannot set latpar.surp_resp to True if running data.')
 
     if sess is None:
-        return [None, None] + [None] * latpar.surp_resp
+        return [None, []] + [[]] * latpar.surp_resp
     stim = sess.get_stim(stimpar.stimtype)
     remconsec = (stimpar.stimtype == 'bricks')
     surps = [1]
@@ -1493,9 +1568,6 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
     for l_sesses in linpla_sess:
         # switch to sess x mouse
         l_sesses = [list(vals) for vals in zip(*l_sesses)]
-      
-
-
         l_lat_vals, l_lat_vals_flat, l_sess_info = [], [], []
         l_lat_stats = np.full([stat_len, len(l_sesses)], np.nan)
         l_n_sign_rois = []
@@ -1533,7 +1605,9 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
             if latpar.surp_resp:
                 l_n_sign_rois.append(sess_n_sign_rois)
 
-        p_vals = comp_lat_acr_sesses(l_lat_vals_flat, normal=True).tolist()
+        p_vals = math_util.comp_vals_acr_groups(l_lat_vals_flat, 
+                           n_perms=permpar.n_perms, 
+                           stats=analyspar.stats).tolist()
 
         all_sess_info.append(l_sess_info)
         all_lat_stats.append(l_lat_stats.tolist())
@@ -1545,19 +1619,20 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
 
 
     # compare across planes in a line
-    lin_p_vals = comp_lat_acr_planes(linpla_ord, all_lat_vals_flat)
+    lin_p_vals = comp_vals_acr_planes(linpla_ord, all_lat_vals_flat, 
+                                      permpar.n_perms, stats=analyspar.stats)
 
-    p_vals = [p for all_ps in all_lat_p_vals for p in all_ps] + \
-             [p for all_ps in lin_p_vals for p in all_ps]
 
-    n_comps = np.count_nonzero(~np.isnan(p_vals))
-
-    lat_data = {'linpla_ord': linpla_ord,
-                'lat_stats' : all_lat_stats,
-                'lat_vals'  : all_lat_vals,
-                'lat_p_vals': all_lat_p_vals,
-                'lin_p_vals': lin_p_vals.tolist(),
-                'n_comps'   : n_comps,
+    n_sess = len(all_lat_vals_flat[0])
+    tot_n_comps, max_comps_per = get_n_comps(all_lat_p_vals, n_sess, lin_p_vals)
+    
+    lat_data = {'linpla_ord'   : linpla_ord,
+                'lat_stats'    : all_lat_stats,
+                'lat_vals'     : all_lat_vals,
+                'lat_p_vals'   : all_lat_p_vals,
+                'lin_p_vals'   : lin_p_vals.tolist(),
+                'tot_n_comps'  : tot_n_comps,
+                'max_comps_per': max_comps_per
                 }
 
     if latpar.surp_resp:
