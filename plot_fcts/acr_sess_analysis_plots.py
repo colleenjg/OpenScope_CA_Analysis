@@ -122,6 +122,83 @@ def get_linpla_idx(linpla_ord, line='L2/3', plane='soma', verbose=False,
 
 
 #############################################
+def plot_data_signif(ax, sess_ns, sig_comps, lin_p_vals, maxes, 
+                     p_val_thr=0.05, n_comps=1):
+    """
+    plot_data_signif(ax, sess_ns, sig_comps, lin_p_vals, maxes)
+
+    Plot significance markers for significant session comparisons within and 
+    across lines/plane combinations.
+
+    Required args:
+        - ax (plt Axis)         : axis
+        - sess_ns (array-like)  : session numbers
+        - sig_comps (array_like): list of session pair comparisons that are 
+                                  significant (where the second session is 
+                                  cycled in the inner loop, e.g., 0-1, 0-2, 
+                                  1-2, including None sessions)
+        - lin_p_vals            : p-values for each line comparison, 
+                                  structured as line x session (np.nan for 
+                                  sessions  missing in either plane)
+        - maxes                 : max values used to adjust ylims, structured 
+                                  as plane/line x session
+
+    Optional args:
+        - p_val_thr (float): p value threshold
+                             default: 0.05
+        - n_comps (int)    : total number of comparisons (used to modify p 
+                             value threshold using Bonferroni correction)
+                             default: 1
+    """
+
+    lines, planes, linpla_iter, _, _ , _ = sess_plot_util.fig_linpla_pars()
+
+    p_val_thr = 0.05
+    if n_comps == 0:
+        return
+    else:
+        p_val_thr_corr = p_val_thr/n_comps
+
+    all_max = np.nanmax(np.asarray(maxes))
+    if not np.isnan(all_max):
+        ylims = ax[0, 0].get_ylim()
+        ax[0, 0].set_ylim([ylims[0], np.max([ylims[1], all_max * 1.20])])
+
+    ylims = ax[0, 0].get_ylim()
+    pos = ylims[0] - (ylims[1] - ylims[0])/12.0 # star position (btw plots)
+    prop = (ylims[1] - ylims[0])/20.0 # star position above data
+
+    n_sess = len(sess_ns)
+    n = 0
+    # comparison number: first session start pts
+    st_s1 = [sum(list(reversed(range(n_sess)))[:v]) for v in range(n_sess-1)]  
+    for i, (line, pla) in enumerate(linpla_iter):
+        li = lines.index(line)
+        la = planes.index(pla)
+        sub_ax = ax[la, li]
+        if not(sig_comps[i] is None or len(sig_comps[i]) == 0):
+            n = 0
+            for p in sig_comps[i]:
+                n += 1
+                # get corresponding session numbers
+                s1 = np.where(np.asarray(st_s1) <= p)[0][-1] 
+                s2 = s1 + p - st_s1[s1] + 1
+                y_pos = np.nanmax([maxes[i]]) + n * prop
+                plot_util.plot_barplot_signif(sub_ax, [sess_ns[s1], 
+                          sess_ns[s2]], [y_pos], rel_y=0.02)
+    
+    for i, (line, pla) in enumerate(linpla_iter):
+        li = lines.index(line)
+        la = planes.index(pla)
+        sub_ax = ax[la, li]
+        if la == 1:
+            for s, p in enumerate(lin_p_vals[li]):
+                if not np.isnan(p) and p < p_val_thr_corr:
+                    # between subplots
+                    plot_util.add_signif_mark(sub_ax, sess_ns[s], pos, rel_y=1.1)
+
+
+#############################################
 def plot_area_diff_per_mouse(sub_ax, mouse_diff_st, sess_info, sess_ns=None, 
                              col=None, use_lab=True):
     """
@@ -295,7 +372,8 @@ def plot_area_diff_per_linpla(sub_ax, sess_ns, mouse_diff_st, diff_st, CI_vals,
     plot_area_diff_per_linpla(sub_ax, sess_ns, mouse_diff_st, diff_st, CI_vals,
                               sign_sess, sess_info)
 
-    Plots data or CIs for a specific plane/line combination.
+    Plots data or CIs for a specific plane/line combination, and returns
+    max y values for each session
 
     Required args:
         - sub_ax (plt Axis subplot): subplot
@@ -332,6 +410,10 @@ def plot_area_diff_per_linpla(sub_ax, sess_ns, mouse_diff_st, diff_st, CI_vals,
                             default: 'k'
         - zero_line (bool): if True, a horizontal line is plotted at 0 for data
                             default: False
+
+    Returns:
+        if d == 'data':
+        - maxes (1D array): max values y value for each session
     """
 
     sess_ns = np.asarray(sess_ns)
@@ -340,6 +422,9 @@ def plot_area_diff_per_linpla(sub_ax, sess_ns, mouse_diff_st, diff_st, CI_vals,
     # plot the mouse lines
     if d == 'data':
         mouse_st = np.asarray(mouse_diff_st)
+        # get max y position
+        maxes = np.nanmax(np.sum([mouse_st[:, :, 0], mouse_st[:, :, 1]], axis=0))
+
         if plot == 'sep':
             plot_area_diff_per_mouse(sub_ax, mouse_st, sess_info, sess_ns, 
                                      col, use_lab=True)
@@ -348,6 +433,8 @@ def plot_area_diff_per_linpla(sub_ax, sess_ns, mouse_diff_st, diff_st, CI_vals,
                                  col)
         else:
             gen_util.accepted_values_error('plot', plot, ['sep', 'tog'])
+        
+        return maxes
     
     elif d == 'CIs':
         if zero_line:
@@ -370,7 +457,6 @@ def plot_area_diff_per_linpla(sub_ax, sess_ns, mouse_diff_st, diff_st, CI_vals,
         signs = np.sign(diff_st[:, 0] - CI_vals[:, 0]).astype(int)
         plot_signif_from_mouse_diffs(sub_ax, sign_sess, ypos_data, signs, 
                                      sess_ns, col)
-
     else:
         gen_util.accepted_values_error('d', d, ['data', 'CIs'])
 
@@ -411,14 +497,27 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
             ['linpla_ord'] (list)      : order list of planes/lines
             if extrapar['datatype'] == 'roi':
                 ['all_diff_st_grped'] (list): difference stats across ROIs 
-                                              (grouped across mice), structured 
-                                              as plane/line x session x stats
-                - CI_vals_grped (list)      : CIs values across ROIs, 
+                                              (grouped across mice), 
                                               structured as 
-                                              plane/line x session 
-                                                         x perc (med, lo, high)
-                - sign_sess_grped (list)    : significant session indices, 
+                                                plane/line x session x stats
+                ['CI_vals_grped'] (list)    : CIs values across ROIs, 
+                                              structured as 
+                                                plane/line x session 
+                                                    x perc (med, lo, high)
+                ['lin_p_vals'] (list)       : p-values for each line comparison, 
+                                              structured as line x session 
+                                              (np.nan for sessions  missing in 
+                                              either plane)
+                ['max_comps_per'] (int)     : total number of comparisons
+                ['p_vals_grped'] (list)     : p values for each comparison, 
+                                              organized by session pairs (where 
+                                              the second session is cycled in 
+                                              the inner loop, e.g., 0-1, 0-2, 
+                                              1-2, including empty groups)
+                ['sign_sess_grped'] (list)  : significant session indices, 
                                               structured as plane/line (x tails)
+                ['tot_n_comps'] (int)       : total number of comparisons
+
         - sess_info (nested list): nested list of dictionaries for each 
                                    line/plane x mouse containing information 
                                    from each session, with None for missing 
@@ -488,6 +587,16 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
     linpla_iter = [[d, ll] for d in ['data', 'CIs'] for ll in linpla_iter]
     figpar = sess_plot_util.fig_init_linpla(figpar)
 
+    # correct p-value (Bonferroni)
+    if plot == 'grped':
+        p_val_thr = 0.05
+        if diff_info['max_comps_per'] != 0:
+            p_val_thr_corr = p_val_thr/diff_info['max_comps_per']
+        else:
+            p_val_thr_corr = p_val_thr
+        sig_comps = [[] for _ in range(len(linpla_iter))]
+        maxes = np.full([len(linpla_iter), len(sess_ns)], np.nan)
+
     subtitle = 'Surp - reg activity'
     if lock:
         prepost_str = '{}s pre v post'.format(stimpar['post'])
@@ -514,13 +623,27 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
         if l_idx is None:
             continue
 
-        plot_area_diff_per_linpla(ax[la, li], sess_ns, 
+        ypos = plot_area_diff_per_linpla(ax[la, li], sess_ns, 
                       diff_info['mouse_diff_stats'][l_idx], 
                       diff_info[f'all_diff_stats{grp_str}'][l_idx], 
                       diff_info[f'CI_vals{grp_str}'][l_idx],
                       diff_info[f'sign_sess{grp_str}'][l_idx], sess_info[l_idx],
                       plot=plot, d=d, col=pla_cols[la], zero_line=False)
  
+        # check p_val signif
+        if d == 'data' and plot == 'grped':
+            maxes[i] = ypos
+            all_p_vals = diff_info['p_vals_grped'][l_idx]
+            for p, p_val in enumerate(all_p_vals):
+                if not np.isnan(p_val) and p_val < p_val_thr_corr:
+                    sig_comps[i].append(p)
+
+    if plot == 'grped':
+        plot_data_signif(ax, sess_ns, sig_comps, diff_info['lin_p_vals'], 
+                         maxes, p_val_thr=0.05, 
+                         n_comps=diff_info['max_comps_per'])
+
+
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar['fluor'], 
                    area=True, datatype=datatype, lines=lines, planes=planes, 
@@ -578,15 +701,27 @@ def plot_surp_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
             ['linpla_ord'] (list)      : order list of planes/lines
             if extrapar['datatype'] == 'roi':
                 ['all_diff_st_grped'] (list): difference stats across ROIs 
-                                              (grouped across mice), structured 
-                                              as plane/line x session x stats
-                - CI_vals_grped (list)      : CIs values across ROIs, 
+                                              (grouped across mice), 
                                               structured as 
-                                              plane/line x session 
-                                                         x perc (med, lo, high)
-                - sign_sess_grped (list)    : significant session indices, 
+                                                plane/line x session x stats
+                ['CI_vals_grped'] (list)    : CIs values across ROIs, 
+                                              structured as 
+                                                plane/line x session 
+                                                    x perc (med, lo, high)
+                ['lin_p_vals'] (list)       : p-values for each line comparison, 
+                                              structured as line x session 
+                                              (np.nan for sessions  missing in 
+                                              either plane)
+                ['max_comps_per'] (int)     : total number of comparisons
+                ['p_vals_grped'] (list)     : p values for each comparison, 
+                                              organized by session pairs (where 
+                                              the second session is cycled in 
+                                              the inner loop, e.g., 0-1, 0-2, 
+                                              1-2, including empty groups)
+                ['sign_sess_grped'] (list)  : significant session indices, 
                                               structured as plane/line (x tails)
-                
+                ['tot_n_comps'] (int)       : total number of comparisons
+
     Optional args:
         - figpar (dict): dictionary containing the following figure parameter 
                          dictionaries
@@ -694,14 +829,26 @@ def plot_lock_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
             ['linpla_ord'] (list)      : order list of planes/lines
             if extrapar['datatype'] == 'roi':
                 ['all_diff_st_grped'] (list): difference stats across ROIs 
-                                              (grouped across mice), structured 
-                                              as plane/line x session x stats
-                - CI_vals_grped (list)      : CIs values across ROIs, 
+                                              (grouped across mice), 
                                               structured as 
-                                              plane/line x session 
-                                                         x perc (med, lo, high)
-                - sign_sess_grped (list)    : significant session indices, 
+                                                plane/line x session x stats
+                ['CI_vals_grped'] (list)    : CIs values across ROIs, 
+                                              structured as 
+                                                plane/line x session 
+                                                    x perc (med, lo, high)
+                ['lin_p_vals'] (list)       : p-values for each line comparison, 
+                                              structured as line x session 
+                                              (np.nan for sessions  missing in 
+                                              either plane)
+                ['max_comps_per'] (int)     : total number of comparisons
+                ['p_vals_grped'] (list)     : p values for each comparison, 
+                                              organized by session pairs (where 
+                                              the second session is cycled in 
+                                              the inner loop, e.g., 0-1, 0-2, 
+                                              1-2, including empty groups)
+                ['sign_sess_grped'] (list)  : significant session indices, 
                                               structured as plane/line (x tails)
+                ['tot_n_comps'] (int)       : total number of comparisons
 
     Optional args:
         - figpar (dict): dictionary containing the following figure parameter 
@@ -1249,74 +1396,6 @@ def plot_lat_clouds(sub_ax, sess_ns, lat_data, sess_info, datatype='roi',
 
 
 #############################################
-def plot_lat_data_signif(ax, sess_ns, sig_comps, lin_p_vals, maxes, 
-                         p_val_thr=0.05, n_comps=1):
-    """
-    plot_lat_data_signif(ax, sess_ns, sig_comps, lin_p_vals, maxes)
-
-    Plot significance markers for significant session comparisons within and 
-    across lines/plane combinations.
-
-    Required args:
-        - ax (plt Axis)         : axis
-        - sess_ns (array-like)  : session numbers
-        - sig_comps (array_like): list of session pair comparisons that are 
-                                  significant (where the second session is 
-                                  cycled in the inner loop, e.g., 0-1, 0-2, 
-                                  1-2, including None sessions)
-        - lin_p_vals            : p-values for each line comparison, 
-                                  structured as line x session (np.nan for 
-                                  sessions  missing in either plane)
-        - maxes                 : max values used to adjust ylims, structured 
-                                  as plane/line x session
-
-    Optional args:
-        - p_val_thr (float): p value threshold
-                             default: 0.05
-        - n_comps (int)    : total number of comparisons (used to modify p 
-                             value threshold using Bonferroni correction)
-                             default: 1
-    """
-
-    lines, planes, linpla_iter, _, _ , _ = sess_plot_util.fig_linpla_pars()
-
-    p_val_thr = 0.05
-    if n_comps == 0:
-        return
-    else:
-        p_val_thr_corr = p_val_thr/n_comps
-
-    all_max = np.nanmax(np.asarray(maxes))
-    if not np.isnan(all_max):
-        ylims = ax[0, 0].get_ylim()
-        ax[0, 0].set_ylim([ylims[0], np.max([ylims[1], all_max * 1.20])])
-
-    n_sess = len(sess_ns)
-    n = 0
-    # comparison number: first session start pts
-    st_s1 = [sum(list(reversed(range(n_sess)))[:v]) for v in range(n_sess-1)]  
-    for i, (line, pla) in enumerate(linpla_iter):
-        li = lines.index(line)
-        la = planes.index(pla)
-        sub_ax = ax[la, li]
-        if not(sig_comps[i] is None or len(sig_comps[i]) == 0):
-            n = 0
-            for p in sig_comps[i]:
-                n += 1
-                # get corresponding session numbers
-                s1 = np.where(np.asarray(st_s1) <= p)[0][-1] 
-                s2 = s1 + p - st_s1[s1] + 1
-                y_pos = np.nanmax([maxes[i]]) + n * 0.03
-                plot_util.plot_barplot_signif(sub_ax, [sess_ns[s1], 
-                          sess_ns[s2]], [y_pos], rel_y=0.02)
-        if la == 1:
-            for s, p in enumerate(lin_p_vals[li]):
-                if not np.isnan(p) and p < p_val_thr_corr:
-                    # between subplots
-                    plot_util.add_signif_mark(sub_ax, sess_ns[s], 0, rel_y=1.1)
-
-
-#############################################
 def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info, 
                       lat_data, permpar=None, figpar=None, savedir=None):
     """
@@ -1351,23 +1430,24 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
                                     for sessions for which this attribute 
                                     exists
         - lat_data (dict)        : dictionary with latency info
-            ['linpla_ord'] (list): ordered list of planes/lines            
-            ['lat_stats'] (list) : latency statistics, structured as
-                                       plane/line x session x stats
-            ['lat_vals'] (list)  : latency values for each ROI, structured as
-                                       plane/line x session x mouse
-            ['lat_p_vals'] (list): p-values for each latency comparison within 
-                                   session pairs, (where the second session is 
-                                   cycled in the inner loop, e.g., 0-1, 0-2, 
-                                   1-2, including None sessions)
-                                   structured as plane/line x comp
-            ['lin_p_vals'] (list): p-values for each line comparison, 
-                                   structured as line x session (np.nan for 
-                                   sessions  missing in either plane)
-            ['n_comps'] (int)    : number of comparisons
-            ['n_sign_rois] (list): number of significant ROIs, structured as 
-                                   plane/line x session
-
+            ['linpla_ord'] (list)  : ordered list of planes/lines            
+            ['lat_stats'] (list)   : latency statistics, structured as
+                                         plane/line x session x stats
+            ['lat_vals'] (list)    : latency values for each ROI, structured as
+                                         plane/line x session x mouse
+            ['lat_p_vals'] (list)  : p-values for each latency comparison within 
+                                     session pairs, (where the second session is 
+                                     cycled in the inner loop, e.g., 0-1, 0-2, 
+                                     1-2, including None sessions)
+                                     structured as plane/line x comp
+            ['lin_p_vals'] (list)  : p-values for each line comparison, 
+                                     structured as line x session (np.nan for 
+                                     sessions  missing in either plane)
+            ['max_comps_per'] (int): total number of comparisons
+            ['n_sign_rois] (list)  : number of significant ROIs, structured as 
+                                     plane/line x session
+            ['tot_n_comps'] (int)  : total number of comparisons
+            
     Optional args:
         - permpar (PermPar): dictionary with keys of PermPar namedtuple
                              default: None
@@ -1416,14 +1496,19 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
     sess_ns_str = gen_util.intlist_to_str(sess_ns.tolist())
     n_sess = len(sess_ns)
 
-    # correct p-value (Bonferroni)
-    p_val_thr = 0.05
-    if lat_data['n_comps'] != 0:
-        p_val_thr_corr = p_val_thr/lat_data['n_comps']
-
     [lines, planes, linpla_iter, 
      pla_cols, pla_col_names, n_plots] = sess_plot_util.fig_linpla_pars( 
                                         n_grps=len(lat_data['linpla_ord']))
+
+    # correct p-value (Bonferroni)
+    p_val_thr = 0.05
+    if lat_data['max_comps_per'] != 0:
+        p_val_thr_corr = p_val_thr/lat_data['max_comps_per']
+    else:
+        p_val_thr_corr = p_val_thr
+    sig_comps = [[] for _ in range(len(linpla_iter))]
+    maxes = np.full([len(linpla_iter), n_sess], np.nan)
+
     figpar = sess_plot_util.fig_init_linpla(figpar)
 
     if figpar['save']['use_dt'] is None:
@@ -1437,8 +1522,6 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
 
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
     fig.suptitle(title)
-    maxes = np.full([len(linpla_iter), n_sess], np.nan)
-    sig_comps = [[] for _ in range(len(linpla_iter))]
     for i, (line, pla) in enumerate(linpla_iter):
         li = lines.index(line)
         la = planes.index(pla)
@@ -1450,7 +1533,6 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
             continue
 
         lat_st = np.asarray(lat_data['lat_stats'][l_idx])
-
         plot_util.plot_errorbars(sub_ax, lat_st[0], lat_st[1:], sess_ns, 
                                  col=pla_cols[la])
         # plot ROI cloud
@@ -1464,9 +1546,9 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
             if not np.isnan(p_val) and p_val < p_val_thr_corr:
                 sig_comps[i].append(p)
 
-
-    plot_lat_data_signif(ax, sess_ns, sig_comps, lat_data['lin_p_vals'], 
-                         maxes, p_val_thr=0.05, n_comps=lat_data['n_comps'])
+    plot_data_signif(ax, sess_ns, sig_comps, lat_data['lin_p_vals'], 
+                     maxes, p_val_thr=0.05, 
+                     n_comps=lat_data['max_comps_per'])
 
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar['fluor'], 
@@ -1606,7 +1688,6 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
                                   in prop_data['prop_stats'][l_idx]]) * 100
             plot_util.plot_errorbars(sub_ax, prop_st[:, 0], prop_st[:, 1:], 
                                      sess_ns, col=col)
-
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar['fluor'], 
                    datatype=datatype, lines=lines, planes=planes, 

@@ -16,7 +16,7 @@ import re
 
 import numpy as np
 import scipy.ndimage as scn
-import scipy.stats as st
+import scipy.stats as scist
 from sklearn import svm
 from sklearn.model_selection import cross_val_score
 import torch
@@ -102,9 +102,9 @@ def error_stat(data, stats='mean', error='sem', axis=None, nanpol=None,
             error = np.nanstd(data, axis=axis)
     elif stats == 'mean' and error == 'sem':
         if nanpol is None:
-            error = st.sem(data, axis=axis)
+            error = scist.sem(data, axis=axis)
         elif nanpol == 'omit':
-            error = st.sem(data, axis=axis, nan_policy='omit')
+            error = scist.sem(data, axis=axis, nan_policy='omit')
     elif stats == 'median' and error == 'std':
         if nanpol is None:
             error = [np.percentile(data, qu[0], axis=axis), 
@@ -1007,6 +1007,97 @@ def id_elem(rand_vals, act_vals, tails='2', p_val=0.05, min_n=100,
         return elems, threshs
 
     return elems
+
+
+#############################################
+def get_diff_p_val(act_data, n_perms=10000, stats='mean', op='diff'):
+    """
+    get_diff_p_val(act_data)
+
+
+    Required args:
+        - act_data (list): stats to use for permutation test
+    
+    Optional args:
+        - n_perms (int): number of permutations
+                         default: 10000
+        - stats (str)  : stats to use for permutation test
+                         default: 'mean'
+        - op (str)     : operation to use to compare the groups
+                         default: 'mean'
+
+    Returns:
+        - p_val (float): p-value calculated from a randomly generated 
+                         distribution
+    """
+    
+    if len(act_data) != 2:
+        raise ValueError('Expected `act_data` to comprise 2 groups.')
+
+    grp1, grp2 = act_data
+
+    real_diff = mean_med(grp2, stats=stats) - mean_med(grp1, stats=stats)
+
+    concat = np.concatenate([grp1, grp2], axis=0).reshape(1, -1)
+    rand_diffs = np.squeeze(permute_diff_ratio(concat, div=len(grp1), 
+                            n_perms=n_perms, stats=stats, op=op))
+    
+    loc = np.where(np.sort(rand_diffs) > real_diff)[0]
+    if len(loc) == 0:
+        p_val = 0
+    else:
+        p_val = loc[0]/float(n_perms)
+    if p_val > 0.5:
+        p_val = 1.0 - p_val
+    
+    return p_val
+
+
+#############################################
+def comp_vals_acr_groups(vals, n_perms=None, normal=True, stats='mean'):
+    """
+    comp_vals_acr_groups(vals)
+
+    Returns p values for comparisons across groups (unpaired).
+
+    Required args:
+        - vals (list): values for each groups 
+
+    Optional args:
+        - n_perms (int): number of permutations to do if doing a permutation 
+                         test. If None, a different test is used
+                         default: None
+        - stats (str)  : stats to use for permutation test
+                         default: 'mean'
+        - normal (bool): whether data is expected to be normal or not 
+                         (determines whether a t-test or Mann Whitney test 
+                         will be done. Ignored if n_perms is not None.)
+                         default: True
+    Returns:
+        - p_vals (1D array): p values for each comparison, organized by 
+                             group pairs (where the second group is cycled 
+                             in the inner loop, e.g., 0-1, 0-2, 1-2, including 
+                             None groups)
+    """
+
+    n_comp = sum(range(len(vals)))
+    p_vals = np.full(n_comp, np.nan)
+    i = 0
+    for s, s_vals in enumerate(vals):
+        for v_vals in vals[s + 1:]:
+            if s_vals is not None and v_vals is not None and \
+               len(s_vals) != 0 and len(v_vals) != 0:
+                if n_perms is not None:
+                    p_vals[i] = get_diff_p_val([s_vals, v_vals], n_perms, 
+                                               stats=stats, op='diff')
+                elif normal:
+                    p_vals[i] = scist.ttest_ind(s_vals, v_vals, 
+                                                axis=None)[1]
+                else:
+                    p_vals[i] = scist.mannwhitneyu(s_vals, v_vals,)[1]
+            i += 1
+    
+    return p_vals
 
 
 #############################################

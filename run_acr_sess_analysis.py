@@ -639,6 +639,7 @@ if __name__ == "__main__":
         args = reformat_args(args)
 
         analys_pars = prep_analyses(args.sess_n, args, mouse_df, args.parallel)
+        
         run_analyses(*analys_pars, analyses=args.analyses, 
                      parallel=args.parallel)
 
