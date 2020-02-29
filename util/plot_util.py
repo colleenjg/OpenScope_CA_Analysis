@@ -1241,7 +1241,7 @@ def add_signif_mark(sub_ax, xpos, yval, yerr=None, rel_y=0.01, col='k'):
     ylims = sub_ax.get_ylim()
 
     # y text position (will appear higher than line)
-    star_space = 0.015 # to lower star
+    star_space = 0.02 # to lower star
     ytext = yval + (rel_y - star_space) * (ylims[1] - ylims[0])
 
     sub_ax.text(xpos, ytext, "*", color=col, fontsize='xx-large', 

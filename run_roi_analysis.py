@@ -443,7 +443,7 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
         - skipped (str): any analyses skipped
     """
 
-    all_analyses = 'ftlmagocpr'
+    all_analyses = 'ftlmagocprv'
     all_check = ''
 
     if 'all' in analyses:
@@ -523,14 +523,20 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, autocorrpar,
                                    plot_tc)
     all_check += 'c'
 
-    # 8. Analyses and plots ROI responses for positions and mean gabor 
+    # 8. Plots trials as trajectories in 2 principal components
+    if 'v' in analyses: # PCs
+        roi_analys.run_trial_pc_traj(sessions, 'v', analyspar, sesspar, stimpar, 
+                                     figpar)
+    all_check += 'v'
+
+    # 9. Analyses and plots ROI responses for positions and mean gabor 
     # orientations
     if 'p' in analyses and not comp: # position orientation resp
         roi_analys.run_posori_resp(sessions, 'p', analyspar, sesspar, stimpar, 
                                    figpar, parallel)
     all_check += 'p'
 
-    # 9. Analyses and plots ROI responses for positions and mean gabor 
+    # 10. Analyses and plots ROI responses for positions and mean gabor 
     # orientations
     if 'r' in analyses and comp: # correlation
         gen_analys.run_trace_corr_acr_sess(sessions, 'r', analyspar, sesspar, 
