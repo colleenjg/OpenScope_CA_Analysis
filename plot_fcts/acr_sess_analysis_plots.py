@@ -165,13 +165,13 @@ def plot_data_signif(ax, sess_ns, sig_comps, lin_p_vals, maxes,
         ax[0, 0].set_ylim([ylims[0], np.max([ylims[1], all_max * 1.20])])
 
     ylims = ax[0, 0].get_ylim()
-    pos = ylims[0] - (ylims[1] - ylims[0])/12.0 # star position (btw plots)
     prop = (ylims[1] - ylims[0])/20.0 # star position above data
 
     n_sess = len(sess_ns)
     n = 0
     # comparison number: first session start pts
-    st_s1 = [sum(list(reversed(range(n_sess)))[:v]) for v in range(n_sess-1)]  
+    st_s1 = [sum(list(reversed(range(n_sess)))[:v]) for v in range(n_sess-1)] 
+    highest = 0 
     for i, (line, pla) in enumerate(linpla_iter):
         li = lines.index(line)
         la = planes.index(pla)
@@ -184,18 +184,28 @@ def plot_data_signif(ax, sess_ns, sig_comps, lin_p_vals, maxes,
                 s1 = np.where(np.asarray(st_s1) <= p)[0][-1] 
                 s2 = s1 + p - st_s1[s1] + 1
                 y_pos = np.nanmax([maxes[i]]) + n * prop
+                highest = np.max([highest, y_pos])
                 plot_util.plot_barplot_signif(sub_ax, [sess_ns[s1], 
                           sess_ns[s2]], [y_pos], rel_y=0.02)
+
+    # adjust for number of significance lines plotted
+    ylims = ax[0, 0].get_ylim()
+    ax[0, 0].set_ylim(ylims[0], np.max([ylims[1], highest * 1.2]))
+
+    ylims = ax[0, 0].get_ylim()
+    pos = ylims[0] - (ylims[1] - ylims[0])/12.0 # star position (btw plots)
     
+
     for i, (line, pla) in enumerate(linpla_iter):
         li = lines.index(line)
         la = planes.index(pla)
-        sub_ax = ax[la, li]
         if la == 1:
+            sub_ax = ax[la, li]
             for s, p in enumerate(lin_p_vals[li]):
                 if not np.isnan(p) and p < p_val_thr_corr:
                     # between subplots
-                    plot_util.add_signif_mark(sub_ax, sess_ns[s], pos, rel_y=1.1)
+                    plot_util.add_signif_mark(sub_ax, sess_ns[s], pos, 
+                                              rel_y=1.1, col='gray')
 
 
 #############################################
@@ -423,8 +433,7 @@ def plot_area_diff_per_linpla(sub_ax, sess_ns, mouse_diff_st, diff_st, CI_vals,
     if d == 'data':
         mouse_st = np.asarray(mouse_diff_st)
         # get max y position
-        maxes = np.nanmax(np.sum([mouse_st[:, :, 0], mouse_st[:, :, 1]], axis=0))
-
+        maxes = np.nanmax(np.sum([diff_st[:, 0], diff_st[:, 1]], axis=0))
         if plot == 'sep':
             plot_area_diff_per_mouse(sub_ax, mouse_st, sess_info, sess_ns, 
                                      col, use_lab=True)
@@ -1517,8 +1526,8 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
     prepost_str = sess_str_util.prepost_par_str(stimpar['pre'], 
                                 stimpar['post'], str_type='print')
     title = (f'Surprise latencies ({prepost_str} seqs, {latstr_pr})\nfor '
-             f'{stimstr_pr} - {statstr_pr} pooled across mice'
-             f'\n ROIs (sess {sess_ns_str}{dendstr_pr})')
+             f'{stimstr_pr} - {statstr_pr} pooled across '
+             f'\nROIs (grouped) (sess {sess_ns_str}{dendstr_pr})')
 
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
     fig.suptitle(title)

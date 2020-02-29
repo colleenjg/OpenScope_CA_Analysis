@@ -94,7 +94,12 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
         plot_tune_curves(figpar=figpar, savedir=savedir, parallel=parallel, 
                          plot_tc=plot_tc, **info)
 
-    # 8. Plots ROI responses for positions and mean gabor orientations
+    # 8. Plots trial trajectories in 2 principal components
+    elif analysis == 'v': # PCs
+        plot_trial_pc_traj(figpar=figpar, savedir=savedir, **info)
+
+    
+    # 9. Plots ROI responses for positions and mean gabor orientations
     elif analysis == 'p': # position orientation resp
         plot_posori_resp(figpar=figpar, savedir=savedir, **info)
 
@@ -2032,3 +2037,59 @@ def plot_posori_resp(analyspar, sesspar, stimpar, extrapar, sess_info,
 
     return fulldir, savename
 
+
+#############################################
+def plot_trial_pc_traj(analyspar, sesspar, stimpar, extrapar, sess_info, 
+                       pc_traj_data, figpar=None, savedir=None):
+    """
+    plot_trial_pc_traj(analyspar, sesspar, stimpar, extrapar, sess_info, 
+                       pc_traj_data)
+
+    Plots responses according to position and orientation for a specific 
+    session.
+
+    Required args:
+        - analyspar (dict)  : dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict)    : dictionary with keys of SessPar namedtuple 
+        - stimpar (dict)    : dictionary with keys of StimPar namedtuple
+        - extrapar (dict)   : dictionary containing additional analysis 
+                              parameters
+            ['analysis'] (str): analysis type (e.g., 'o')
+            ['datatype'] (str): datatype (e.g., 'roi')
+        - sess_info (dict) : dictionary containing information from each
+                             session (one first session used) 
+            ['mouse_ns'] (list)   : mouse numbers
+            ['sess_ns'] (list)    : session numbers  
+            ['lines'] (list)      : mouse lines
+            ['planes'] (list)     : imaging planes
+            ['nrois'] (list)      : number of ROIs in session
+            ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
+            ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
+                                    for sessions for which this attribute 
+                                    exists
+        - pc_traj_data (dict): trial PC trajectories
+
+
+
+
+
+    Optional args:
+        - figpar (dict)  : dictionary containing the following figure parameter 
+                           dictionaries
+                           default: None
+            ['init'] (dict): dictionary with figure initialization parameters
+            ['save'] (dict): dictionary with figure saving parameters
+            ['dirs'] (dict): dictionary with additional figure parameters
+            ['mng']  (dict): dictionary with parameters to manage matplotlib
+        - savedir (str)  : path of directory in which to save plots.
+                           default: None
+
+    Returns:
+        - fulldir (str) : final name of the directory in which the figure is 
+                          saved (may differ from input savedir, if datetime 
+                          subfolder is added.)
+        - savename (str): name under which the figure is saved
+    """
+
+
+    return

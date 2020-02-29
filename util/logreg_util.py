@@ -749,46 +749,59 @@ def plot_weights(ax, mod_params, xran, stats='mean', error='sem'):
                        default: 'std'
     """
 
-    if ax.shape != (2, 2):
-        raise ValueError('Axis should be of shape (2, 2), '
+    n_plts = mod_params[1].shape[0] + 1
+
+    if ax.shape != (n_plts, n_plts):
+        raise ValueError(f'Axis should be of shape ({n_plts}, {n_plts}), '
                          f'but is of shape {ax.shape}.')
 
-    weights = np.asarray(mod_params[1]).reshape(len(xran), -1)
+    for n in range(n_plts-1):
+        weights = np.asarray(mod_params[1][n]).reshape(len(xran), -1)
 
-    # plot weights by fr (bottom, left subplot)
-    by_fr = ax[1, 0]
-    fr_stats = math_util.get_stats(weights, stats, error, axes=1)
-    fr_title = f'Model weights (ep {mod_params[0]})'
-    if len(mod_params) == 4:
-        fr_title = f'{fr_title} (mod {mod_params[3]})'
-    plot_util.plot_traces(by_fr, xran, fr_stats[0], fr_stats[1:], fr_title, 
-                            col='dimgrey', alpha=0.4)
-    by_fr.axhline(y=0, ls='dashed', c='k', lw=1, alpha=0.5)
-    orig_tick_max = np.max(np.absolute(by_fr.get_yticks()))
-    by_fr.set_yticks([-orig_tick_max, 0, orig_tick_max])
+        # plot weights by fr (bottom, left subplot)
+        by_fr = ax[n+1, 0]
+        fr_stats = math_util.get_stats(weights, stats, error, axes=1)
+        if n == 0:
+            fr_title = f'Model weights (ep {mod_params[0]})'
+            if len(mod_params) == 4:
+                fr_title = f'{fr_title} (mod {mod_params[3]})'
+        else:
+            fr_title = None
+        plot_util.plot_traces(by_fr, xran, fr_stats[0], fr_stats[1:], fr_title, 
+                                col='dimgrey', alpha=0.4)
+        by_fr.axhline(y=0, ls='dashed', c='k', lw=1, alpha=0.5)
+        orig_tick_max = np.max(np.absolute(by_fr.get_yticks()))
+        by_fr.set_yticks([-orig_tick_max, 0, orig_tick_max])
 
-    # plot weights by ROI, sorted (top, right subplot)
-    by_roi = ax[0, 1]
-    roi_stats = math_util.get_stats(weights, stats, error, axes=0)
-    xran_rois = range(roi_stats.shape[1])
-    sorter = np.argsort(roi_stats[0])[::-1] # reverse sort
-    plot_util.plot_traces(by_roi, roi_stats[0][sorter], xran_rois,
-              roi_stats[1:][:, sorter], 'ROI wei', col='dimgrey', 
-              alpha=0.4, errx=True)
-    by_roi.axvline(x=0, ls='dashed', c='k', lw=1, alpha=0.5)
-    orig_tick_max = np.max(np.absolute(by_roi.get_xticks()))
-    if orig_tick_max == 0:
-        tick_max = np.round(np.max(by_roi.get_xlim()), 2)
-        plot_util.set_ticks(by_roi, 'x', -tick_max, tick_max, 3, pad_p=0.1)
-    else:
-        by_roi.set_xticks([-orig_tick_max, 0, orig_tick_max])
+        # plot weights by ROI, sorted (top, right subplot)
+        by_roi = ax[0, n+1]
+        if n == n_plts//2 - 1:
+            roi_title = 'ROI weights'
+        else:
+            roi_title = None
+        
+        roi_stats = math_util.get_stats(weights, stats, error, axes=0)
+        xran_rois = range(roi_stats.shape[1])
+        sorter = np.argsort(roi_stats[0])[::-1] # reverse sort
+        plot_util.plot_traces(by_roi, roi_stats[0][sorter], xran_rois,
+                roi_stats[1:][:, sorter], roi_title, col='dimgrey', 
+                alpha=0.4, errx=True)
+        by_roi.axvline(x=0, ls='dashed', c='k', lw=1, alpha=0.5)
+        orig_tick_max = np.max(np.absolute(by_roi.get_xticks()))
+        if orig_tick_max == 0:
+            tick_max = np.round(np.max(by_roi.get_xlim()), 2)
+            plot_util.set_ticks(by_roi, 'x', -tick_max, tick_max, 3, pad_p=0.1)
+        else:
+            by_roi.set_xticks([-orig_tick_max, 0, orig_tick_max])
 
-    # write intercept (bottom, right subplot)
-    bias_subax = ax[1, 1]
-    bias_subax.axis('off')
-    bias_text = f'Bias\n{mod_params[2][0]:.2f}'
-    bias_subax.text(0.5, 0.5, bias_text, fontsize='x-large', 
-               fontweight='bold', ha='center', va='bottom')
+        for m in range(n_plts-1):
+            # write intercept (bottom, right subplot)
+            bias_subax = ax[n+1, m+1]
+            bias_subax.axis('off')
+            if m == n:
+                bias_text = f'Bias\n{mod_params[2][n]:.2f}'
+                bias_subax.text(0.5, 0.5, bias_text, fontsize='x-large', 
+                        fontweight='bold', ha='center', va='bottom')
 
 
 #############################################
@@ -906,9 +919,13 @@ def plot_tr_data(xran, class_stats, classes, ns, fig=None, ax_data=None,
         # training data: trials x frames x units
         mod_params = load_params(modeldir, model, alg)
         if plot_wei and mod_params is not None:
-            fig, ax = plt.subplots(2, 2, figsize=(10, 8), 
-                                   gridspec_kw = {'height_ratios':[3, 1], 
-                                                  'width_ratios':[4, 1]})
+            n_plts = mod_params[1].shape[0] + 1
+            hei_rat = [3] + [1] * (n_plts - 1)
+            wid_rat = [4] + [1] * (n_plts - 1)
+            fig, ax = plt.subplots(n_plts, n_plts, 
+                                   figsize=(2*sum(wid_rat), 2*sum(hei_rat)), 
+                                   gridspec_kw = {'height_ratios': hei_rat, 
+                                                  'width_ratios': wid_rat})
             ax_data = ax[0, 0]
         else:
             fig, ax_data = plt.subplots()

@@ -1015,3 +1015,110 @@ def run_posori_resp(sessions, analysis, analyspar, sesspar, stimpar, figpar,
         file_util.saveinfo(info, savename, fulldir, 'json')
 
 
+#############################################
+def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar, 
+                      parallel=False):
+    """
+    run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar)
+
+    Calculates and plots trial trajectories in the first 2 PCs.
+
+    Required args:
+        - sessions (list)      : list of Session objects
+        - analysis (str)       : analysis type (e.g., 'c')
+        - analyspar (AnalysPar): named tuple containing analysis parameters
+        - sesspar (SessPar)    : named tuple containing session parameters
+        - stimpar (StimPar)    : named tuple containing stimulus parameters
+        - figpar (dict)        : dictionary containing figure parameters
+
+    Optional args:
+        - parallel (bool): if True, some of the analysis is parallelized across 
+                           CPU cores 
+    """
+
+    sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
+                                            sesspar.plane, stimpar.bri_dir, 
+                                            stimpar.bri_size, stimpar.gabk,
+                                            'print')
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
+                                            datatype, 'print')
+       
+    datastr = sess_str_util.datatype_par_str(datatype)
+
+    print(f'\nAnalysing and plotting trial trajectories in 2 principal '
+          f'components \n({sessstr_pr}{dendstr_pr}).')
+
+    figpar = copy.deepcopy(figpar)
+    if figpar['save']['use_dt'] is None:
+        figpar['save']['use_dt'] = gen_util.create_time_str()
+    
+    print('Updating stimpar to appropriate values.')
+    if stimpar.stimtype == 'gabors':
+        stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, 
+                                   ['gabfr', 'pre', 'post'], [0, 0, 1.5])
+        surps = [0, 1]
+    elif stimpar.stimtype == 'bricks':
+        stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, 
+                                   ['pre', 'post'], [4, 8])
+        surps = [1]
+    else:
+        gen_util.accepted_values_error('stimpar.stimtype', stimpar.stimtype, 
+                                       ['gabors', 'bricks'])
+
+    for sess in sessions:
+        stim = sess.get_stim(stimpar.stimtype)
+        if stimpar.stimtype == 'gabors':
+            surps = 
+            all_traces = []
+            for surp in [0, 1]:        
+                all_segs = stim.get_segs_by_criteria(gabfr=stimpar.gabfr,
+                        gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
+                        bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size,
+                        surp=surp, by='seg')
+                if stimpar.stimtype == 'bricks':
+                    all_segs, n_consec = gen_util.consec(all_segs)
+                twop_fr = stim.get_twop_fr_by_seg(segs, first=True)
+                # ROI x sequences (x frames)
+                traces = stim.get_roi_trace_array(twop_fr, stimpar.pre, 
+                              stimpar.post, fluor=analyspar.fluor, 
+                              remnans=analyspar.remnans)[1]
+                all_traces.append(traces)
+        if stimpar.stimtype == 'gabors':
+            n_reg = len(all_traces[0])
+            all_traces = np.concatenate(all_traces, axis=1)
+        if stimpar.stimtype == 'bricks':
+            all_traces = all_traces[0]
+
+        ################
+        # NOW GET THE PCS!
+
+
+        extrapar = {'analysis': analysis,
+                    'datatype': datatype,
+                    }
+
+        all_stats = [sessst.tolist() for sessst in trace_info[1]]
+        trace_stats = {'x_ran'     : trace_info[0].tolist(),
+                       'all_stats' : all_stats,
+                       'all_counts': trace_info[2]
+                      }
+
+        sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor, 
+                                  incl_roi=(datatype=='roi'))
+
+        info = {'analyspar'  : analyspar._asdict(),
+                'sesspar'    : sesspar._asdict(),
+                'stimpar'    : stimpar._asdict(),
+                'quintpar'   : quintpar._asdict(),
+                'extrapar'   : extrapar,
+                'sess_info'  : sess_info,
+                'trace_stats': trace_stats
+                }
+
+        fulldir, savename = gen_plots.plot_traces_by_qu_surp_sess(figpar=figpar, 
+                                                                  **info)
+        file_util.saveinfo(info, savename, fulldir, 'json')
+
+      
+
+
