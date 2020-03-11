@@ -756,7 +756,7 @@ class Session(object):
                                ones extracted with Hakan's EXTRACT code, if
                                available)
                                default: 'extr'
-            - run (bool)     : if True, ROI data is loaded
+            - roi (bool)     : if True, ROI data is loaded
                                default: True
             - run (bool)     : if True, running data is loaded
                                default: False
@@ -2221,7 +2221,7 @@ class Stim(object):
                                         numbers for each segment, structured
                                         as [first, last]
             if first or last is True, but not both:
-                - frames (list)       : a list of first or last stim frames 
+                - frames (array-like) : a list of first or last stim frames 
                                         numbers for each segment
             else:
                 - frames (list of int arrays): a list (one entry per segment) 
@@ -2247,7 +2247,8 @@ class Stim(object):
             frames.append([fr[-1] for fr in all_fr])
 
         if first or last:
-            frames = gen_util.delist_if_not(frames)
+            if not (first and last):
+                frames = np.asarray(frames[0])
         else:
             frames = all_fr
 
@@ -2283,7 +2284,7 @@ class Stim(object):
                                         numbers for each segment, structured
                                         as [first, last]
             if first or last is True, but not both:
-                - frames (list)       : a list of first or last 2p frames 
+                - frames (array-like) : a list of first or last 2p frames 
                                         numbers for each segment
             else:
                 - frames (list of int arrays): a list (one entry per segment) 
@@ -2857,7 +2858,7 @@ class Stim(object):
 
     #############################################
     def get_pup_diam_array(self, pup_ref_fr, pre, post, integ=False, 
-                           remnans=True, baseline=None, stats='mean', 
+                           remnans=False, baseline=None, stats='mean', 
                            stand=False):
         """
         self.get_pup_diam_array(pup_ref_fr, pre, post)
@@ -2882,7 +2883,7 @@ class Stim(object):
                                 interpolation. If False, NaN values (but
                                 not Inf values) are omitted in calculating the 
                                 data statistics.
-                                default: True
+                                default: False
             - baseline (num)  : number of seconds to use as baseline. If None,
                                 data is not baselined.
                                 default: None
@@ -2945,7 +2946,7 @@ class Stim(object):
 
     #############################################
     def get_pup_diam_stats(self, pup_ref_fr, pre, post, integ=False, 
-                           remnans=True, ret_arr=False, stats='mean', 
+                           remnans=False, ret_arr=False, stats='mean', 
                            error='std', baseline=None, stand=False):
         """
         self.get_pup_diam_stats(pup_ref_fr, pre, post)
@@ -2970,7 +2971,7 @@ class Stim(object):
                                 interpolation. If False, NaN values (but
                                 not Inf values) are omitted in calculating the 
                                 data statistics.
-                                default: True
+                                default: False
             - ret_arr (bool)  : also return running data array, not just  
                                 statistics
                                 default: False 
