@@ -495,7 +495,8 @@ def get_run_velocity(pkl_file_name='', stim_dict=None):
                                pickle file
                                default: ''
         - stim_dict (dict)   : stimulus dictionary, with keys 'fps' and 
-                               'items', from which running velocity is extracted.
+                               'items', from which running velocity is 
+                               extracted.
                                If not None, overrides pkl_file_name.
                                default: None
 

@@ -758,7 +758,7 @@ def sess_par_str(sess_n, stimtype='gabors', layer='soma', bri_dir=None,
                                   ('print')
                                   default: 'file'
     Returns:
-        - sess_str (list): string containing info on session and gabor kappa 
+        - sess_str (list): string containing info on session and stimulus  
                            parameters
     """
     if gabk is None and (bri_size is None or bri_dir is None):
