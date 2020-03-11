@@ -502,7 +502,12 @@ def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True,
         sess = session.Session(datadir, sessid, runtype=runtype) 
         # extracts necessary info for analysis
         sess.extract_sess_attribs(mouse_df)
-        sess.extract_info(fulldict=fulldict, dend=dend, roi=roi, run=run)
+        try:
+            sess.extract_info(fulldict=fulldict, dend=dend, roi=roi, run=run)
+        except Exception as err:
+            if 'truncated' in str(err):
+                print(f'\nWARNING for session {sessid}: SKIPPING DUE TO corrupted dff file.')
+                continue
         if omit and sess.plane == 'dend' and sess.dend != dend:
             print(f'Omitting session {sessid} ({dend} dendrites not '
                    'found).')

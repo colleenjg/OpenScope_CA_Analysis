@@ -601,9 +601,9 @@ def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar,
 
     # check significance (returns list although only one result tested)
     mag_sign, mag_th = math_util.id_elem(rand_mag_rel, act_mag_me_rel, 
-                                    permpar.tails, permpar.p_val, ret_th=True)
+                                 permpar.tails, permpar.p_val, ret_th=True)
     L2_sign, L2_th   = math_util.id_elem(rand_L2_rel, act_L2_rel, permpar.tails, 
-                                    permpar.p_val, ret_th=True)
+                                 permpar.p_val, ret_th=True)
     
     mag_signif, L2_signif = ['no', 'no']
     if str(permpar.tails) == '2':

@@ -1036,6 +1036,8 @@ def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar,
                            CPU cores 
     """
 
+    datatype = 'roi'
+
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
                                             sesspar.plane, stimpar.bri_dir, 
                                             stimpar.bri_size, stimpar.gabk,
@@ -1067,22 +1069,20 @@ def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar,
 
     for sess in sessions:
         stim = sess.get_stim(stimpar.stimtype)
-        if stimpar.stimtype == 'gabors':
-            surps = 
-            all_traces = []
-            for surp in [0, 1]:        
-                all_segs = stim.get_segs_by_criteria(gabfr=stimpar.gabfr,
-                        gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
-                        bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size,
-                        surp=surp, by='seg')
-                if stimpar.stimtype == 'bricks':
-                    all_segs, n_consec = gen_util.consec(all_segs)
-                twop_fr = stim.get_twop_fr_by_seg(segs, first=True)
-                # ROI x sequences (x frames)
-                traces = stim.get_roi_trace_array(twop_fr, stimpar.pre, 
-                              stimpar.post, fluor=analyspar.fluor, 
-                              remnans=analyspar.remnans)[1]
-                all_traces.append(traces)
+        all_traces = []
+        for surp in surps:        
+            all_segs = stim.get_segs_by_criteria(gabfr=stimpar.gabfr,
+                    gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
+                    bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size,
+                    surp=surp, by='seg')
+            if stimpar.stimtype == 'bricks':
+                all_segs, n_consec = gen_util.consec(all_segs)
+            twop_fr = stim.get_twop_fr_by_seg(all_segs, first=True)
+            # ROI x sequences (x frames)
+            traces = stim.get_roi_trace_array(twop_fr, stimpar.pre, 
+                            stimpar.post, fluor=analyspar.fluor, 
+                            remnans=analyspar.remnans)[1]
+            all_traces.append(traces)
         if stimpar.stimtype == 'gabors':
             n_reg = len(all_traces[0])
             all_traces = np.concatenate(all_traces, axis=1)
@@ -1093,31 +1093,31 @@ def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar,
         # NOW GET THE PCS!
 
 
-        extrapar = {'analysis': analysis,
-                    'datatype': datatype,
-                    }
+        # extrapar = {'analysis': analysis,
+        #             'datatype': datatype,
+        #             }
 
-        all_stats = [sessst.tolist() for sessst in trace_info[1]]
-        trace_stats = {'x_ran'     : trace_info[0].tolist(),
-                       'all_stats' : all_stats,
-                       'all_counts': trace_info[2]
-                      }
+        # all_stats = [sessst.tolist() for sessst in trace_info[1]]
+        # trace_stats = {'x_ran'     : trace_info[0].tolist(),
+        #                'all_stats' : all_stats,
+        #                'all_counts': trace_info[2]
+        #               }
 
-        sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor, 
-                                  incl_roi=(datatype=='roi'))
+        # sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor, 
+        #                           incl_roi=(datatype=='roi'))
 
-        info = {'analyspar'  : analyspar._asdict(),
-                'sesspar'    : sesspar._asdict(),
-                'stimpar'    : stimpar._asdict(),
-                'quintpar'   : quintpar._asdict(),
-                'extrapar'   : extrapar,
-                'sess_info'  : sess_info,
-                'trace_stats': trace_stats
-                }
+        # info = {'analyspar'  : analyspar._asdict(),
+        #         'sesspar'    : sesspar._asdict(),
+        #         'stimpar'    : stimpar._asdict(),
+        #         'quintpar'   : quintpar._asdict(),
+        #         'extrapar'   : extrapar,
+        #         'sess_info'  : sess_info,
+        #         'trace_stats': trace_stats
+        #         }
 
-        fulldir, savename = gen_plots.plot_traces_by_qu_surp_sess(figpar=figpar, 
-                                                                  **info)
-        file_util.saveinfo(info, savename, fulldir, 'json')
+        # fulldir, savename = gen_plots.plot_traces_by_qu_surp_sess(figpar=figpar, 
+        #                                                           **info)
+        # file_util.saveinfo(info, savename, fulldir, 'json')
 
       
 

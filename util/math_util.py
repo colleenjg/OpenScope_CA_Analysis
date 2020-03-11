@@ -944,12 +944,21 @@ def id_elem(rand_vals, act_vals, tails='2', p_val=0.05, min_n=100,
     act_vals  = np.asarray(act_vals)
     rand_vals = np.asarray(rand_vals)
 
+    single = False
+    if len(rand_vals.shape) == 1:
+        single = True
+
     if nanpol == 'omit':
         act_vals = copy.deepcopy(act_vals)
         rand_vals = copy.deepcopy(rand_vals)
         nan_idx = np.where(~np.isfinite(act_vals))[0]
-        act_vals[nan_idx]  = 1 # to prevent positive signif evaluation
-        rand_vals[nan_idx] = 1 
+        if len(nan_idx) != 0:
+            if single:
+                act_vals  = np.asarray(np.nan)
+                rand_vals = np.full(len(rand_vals), np.nan)
+            else:
+                act_vals[nan_idx]  = 1 # to prevent positive signif evaluation
+                rand_vals[nan_idx] = 1
 
     nan_act_vals  = np.isnan(act_vals).any()
     nan_rand_vals = np.isnan(rand_vals).any()
@@ -964,10 +973,6 @@ def id_elem(rand_vals, act_vals, tails='2', p_val=0.05, min_n=100,
     if out_vals < min_n:
         raise ValueError(f'Insufficient number of values ({out_vals}) outside '
                          f'the CI (< {min_n}).')
-
-    single = False
-    if len(rand_vals.shape) == 1:
-        single = True
 
     if tails == 'lo':
         threshs = np.percentile(rand_vals, p_val*100, axis=-1)
