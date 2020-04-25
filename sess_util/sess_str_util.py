@@ -835,9 +835,9 @@ def datatype_dim_str(datatype='roi'):
     
 
 #############################################
-def pars_to_desc(par_str):
+def pars_to_descr(par_str):
     """
-    pars_to_desc()
+    pars_to_descr()
 
     Converts numeric parameters in a string to parameter descriptions.
 
@@ -924,11 +924,8 @@ def get_nroi_strs(sess_info, remnans=True, fluor='dff', empty=False,
             if not empty:
             ['nrois'] (list)      : number of ROIs in session
             if remnans:
-            ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
-            if remnans and fluor:
-            ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
+            ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in traces 
+                                    ('raw' or 'dff')
         - remnans (bool)  : if True, the number of ROIs with NaN/Infs is  
                             removed from the total
                             default: True
@@ -952,12 +949,7 @@ def get_nroi_strs(sess_info, remnans=True, fluor='dff', empty=False,
     else:
         nrois = sess_info['nrois']
         if remnans:
-            if fluor == 'raw':
-                sub_rois = sess_info['nanrois']
-            elif fluor == 'dff':
-                sub_rois = sess_info['nanrois_dff']
-            else:
-                gen_util.accepted_values_error('fluor', fluor, ['dff', 'raw'])
+            sub_rois = sess_info['nanrois_{}'.format(fluor)]
             sub_vals = [len(rois) for rois in sub_rois]
             nrois = [nrois[i] - sub_vals[i] for i in range(len(nrois))]
         
@@ -969,4 +961,30 @@ def get_nroi_strs(sess_info, remnans=True, fluor='dff', empty=False,
             gen_util.accepted_values_error('style', style, ['comma', 'par'])
     
     return nroi_strs
+
+
+#############################################
+def get_stimdir(stimtype='gabors', gabfr=0):
+    """
+    get_stimdir()
+
+    Returns directory with stimulus parameter name and gabor frame, if 
+    applicable.
+
+    Optional args:
+        - stimtype (str): stimulus type
+                          default: 'gabors'
+        - gabfr (int)   : gabor frame number
+                          default: 0
+    
+    Returns:
+        - stimdir (str): stimulus directory
+    """
+
+    stimdir = stimtype[:3]
+    if stimtype == 'gabors':
+        gab_lett = gabfr_letters(gabfr)
+        stimdir = f'{stimdir}{gab_lett}'
+
+    return stimdir
 

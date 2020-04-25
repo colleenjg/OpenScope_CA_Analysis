@@ -42,8 +42,9 @@ def plot_from_dict(direc, plt_bkend=None, fontdir=None):
     """
     
     plot_util.manage_mpl(plt_bkend, fontdir=fontdir)
-
     hyperpars = file_util.loadfile('hyperparameters.json', fulldir=direc)
+
+    print(f'\nPlotting from hyperparameters in: {direc}')
 
     if 'logregpar' in hyperpars.keys():
         plot_traces_scores(hyperpars, savedir=direc)
@@ -147,17 +148,15 @@ def plot_class_traces(analyspar, sesspar, stimpar, logregpar, tr_stats,
     cols = None
     if len(classes) != 2:
         cols = plot_util.get_color_range(len(classes), col='blue')
-    fig, ax_tr, cols = logreg_util.plot_tr_data(tr_stats['xran'], 
-                                   tr_stats['train_class_stats'], classes, 
-                                   tr_stats['train_ns'], plot_wei=plot_wei, 
-                                   alg=logregpar['alg'], modeldir=modeldir, 
-                                   stats=analyspar['stats'], 
-                                   error=analyspar['error'], xlabel='Time (s)', 
-                                   cols=cols)
+    fig, ax_tr, cols = logreg_util.plot_tr_data(
+        tr_stats['xran'], tr_stats['train_class_stats'], classes, 
+        tr_stats['train_ns'], plot_wei=plot_wei, alg=logregpar['alg'], 
+        modeldir=modeldir, stats=analyspar['stats'], error=analyspar['error'], 
+        xlabel='Time (s)', cols=cols)
     
 
-    ext_label =  [key for key in tr_stats.keys() if ('_class_stats' in key and 
-                                                   key != 'train_class_stats')]
+    ext_label =  [key for key in tr_stats.keys() 
+        if ('_class_stats' in key and key != 'train_class_stats')]
     ext_str = ''        
     if len(ext_label) == 1:
         st_name = ext_label[0]
@@ -169,10 +168,10 @@ def plot_class_traces(analyspar, sesspar, stimpar, logregpar, tr_stats,
             ext_cols = ['cornflowerblue', 'salmon']
         else:
             ext_cols = plot_util.get_color_range(len(classes), col='red')
-        _ = logreg_util.plot_tr_data(tr_stats['xran'], tr_stats[st_name],  
-                        classes, tr_stats[n_name], fig, ax_tr, False, 
-                        alg=logregpar['alg'], cols=ext_cols, 
-                        data_type=test_lab.replace('_', ' '))
+        _ = logreg_util.plot_tr_data(
+            tr_stats['xran'], tr_stats[st_name], classes, tr_stats[n_name], 
+            fig, ax_tr, False, alg=logregpar['alg'], cols=ext_cols, 
+            data_type=test_lab.replace('_', ' '))
     elif len(ext_label) > 1:
         raise ValueError('Did not expect more than 1 extra dataset to plot.')
     
@@ -193,14 +192,14 @@ def plot_class_traces(analyspar, sesspar, stimpar, logregpar, tr_stats,
     
     ax_tr.set_ylabel(u'{}{}'.format(fluor_str, scale_str))
 
-    fig_title = plot_title(sesspar['mouse_n'], sesspar['sess_n'], 
-                           sesspar['line'], sesspar['plane'], logregpar['comp'], 
-                           stimpar['stimtype'], stimpar['bri_dir'], 
-                           stimpar['bri_size'], stimpar['gabk'])
+    fig_title = plot_title(
+        sesspar['mouse_n'], sesspar['sess_n'], sesspar['line'], 
+        sesspar['plane'], logregpar['comp'], stimpar['stimtype'], 
+        stimpar['bri_dir'], stimpar['bri_size'], stimpar['gabk'])
 
-    ax_tr.set_title(f'{fig_title}{ext_str}, ' + u'{} '.format(stat_str) +
-                    'across ROIs (n={})'.format(tr_stats['n_rois']) +
-                    f'\n{shuff_str}')
+    ax_tr.set_title(
+        f'{fig_title}{ext_str}, ' + u'{} '.format(stat_str) +
+        'across ROIs (n={})'.format(tr_stats['n_rois']) + f'\n{shuff_str}')
     ax_tr.legend()
 
     save_name = os.path.join(savedir, 'train_traces')
@@ -242,7 +241,7 @@ def plot_scores(analyspar, sesspar, stimpar, logregpar, extrapar, scores,
     ext_str = sess_str_util.ext_test_str(logregpar['q1v4'], 
                             logregpar['regvsurp'], 'print')
 
-    gen_title = (f'{fig_title}{ext_str}' + u'{}'.format(fluor_str) +
+    gen_title = (f'{fig_title}{ext_str}' + u' {}'.format(fluor_str) +
                  f'{scale_str}{shuff_str}')
 
     logreg_util.plot_scores(scores, extrapar['classes'], logregpar['alg'],
@@ -362,7 +361,7 @@ def init_res_fig(n_subplots, max_sess=None, modif=False):
 
     if modif:
         subplot_hei /= 2
-        subplot_wid /= 4
+        subplot_wid /= 3.5
 
     fig, ax = plot_util.init_fig(n_subplots, 2, sharey=True, 
                                  subplot_hei=subplot_hei, 
@@ -711,7 +710,7 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
     fig, ax = init_res_fig(len(celltypes), max_sess, modif)
     
     if modif:
-        fig.suptitle(title)
+        fig.suptitle(title, y=1.04)
 
     n_vals = 5 # (mean/med, sem/2.5p, sem/97.5p, n_rois, n_runs)
     

@@ -2,6 +2,7 @@ import os
 import argparse
 import glob
 import multiprocessing
+import sys
 
 from matplotlib import pyplot as plt
 import torch
@@ -9,11 +10,16 @@ import pandas as pd
 import numpy as np
 from joblib import Parallel, delayed
 
+sys.path.extend(['.', '../'])
 from sess_util import sess_data_util, sess_plot_util, sess_gen_util, \
                       sess_str_util
 from util import data_util, file_util, gen_util, logreg_util, math_util, \
                  plot_util
 
+
+DEFAULT_DATADIR = os.path.join('..', 'data', 'AIBS')
+DEFAULT_MOUSE_DF_PATH = 'mouse_df.csv'
+DEFAULT_FONTDIR = os.path.join('..', 'tools', 'fonts')
 
 
 class PredLSTM(torch.nn.Module):
@@ -107,7 +113,7 @@ def run_dl(mod, dl, device='cpu', train=True):
     return loss
 
 
-def run_sess_lstm(args, sessid):
+def run_sess_lstm(sessid, args):
 
     if args.parallel and args.plt_bkend is not None:
         plt.switch_backend(args.plt_bkend) # needs to be repeated within joblib
@@ -139,33 +145,40 @@ def run_sess_lstm(args, sessid):
     roi_test_pre = 0 # from D/E
     stim_test_pre   = 0.3 # from preceeding C
 
-    sess = sess_gen_util.init_sessions(sessid, args.datadir, args.mouse_df, 
-                                       args.runtype, fulldict=False, 
-                                       dend='extr')[0]
+    sess = sess_gen_util.init_sessions(
+        sessid, args.datadir, args.mouse_df, args.runtype, fulldict=False, 
+        dend='extr', run=True)[0]
 
-    analysdir = sess_gen_util.get_analysdir(sess.mouse_n, sess.sess_n, 
-                                    sess.plane, stimtype=args.stimtype, 
-                                    comp=None)
+    analysdir = sess_gen_util.get_analysdir(
+        sess.mouse_n, sess.sess_n, sess.plane, stimtype=args.stimtype, 
+        comp=None)
     dirname = os.path.join(args.output, analysdir)
     file_util.createdir(dirname, print_dir=False)
 
-    # ARG cannot scale ROIs or running BEFOREHAND. Must do after
+    # Must not scale ROIs or running BEFOREHAND. Must do after to use only 
+    # network available data.
 
     # seq x frame x gabor x par
-    train_stim_wins, run_stats = sess_data_util.get_stim_data(sess, 
-                          args.stimtype, n_stim_s, train_gabfr, stim_train_pre, 
-                          train_post, gabk=16)
+    print('\nPreparing stimulus parameter dataframe')
+    train_stim_wins, run_stats = sess_data_util.get_stim_data(
+        sess, args.stimtype, n_stim_s, train_gabfr, stim_train_pre, 
+        train_post, gabk=16, run=True)
 
-    xran, train_roi_wins, roi_stats = sess_data_util.get_roi_data(sess, 
-                          args.stimtype, n_roi_s, train_gabfr, roi_train_pre, 
-                          train_post, gabk=16)
+    print('Adding ROI data')
+    xran, train_roi_wins, roi_stats = sess_data_util.get_roi_data(
+        sess, args.stimtype, n_roi_s, train_gabfr, roi_train_pre, train_post, 
+        gabk=16)
 
+    print('Preparing windowed datasets (too slow - to be improved)')
+    raise NotImplementedError('Not implemented properly - some error leads '
+        'to far excessive memory requests.')
     test_stim_wins = []
     test_roi_wins  = []
     for surp in [0, 1]:
-        stim_wins = sess_data_util.get_stim_data(sess, args.stimtype, n_stim_s, 
-                           test_gabfr, stim_test_pre, test_post, surp, gabk=16, 
-                           run_mean=run_stats[0], run_std=run_stats[1])
+        stim_wins = sess_data_util.get_stim_data(
+            sess, args.stimtype, n_stim_s, test_gabfr, stim_test_pre, 
+            test_post, surp, gabk=16, run_mean=run_stats[0], 
+            run_std=run_stats[1])
         test_stim_wins.append(stim_wins)
         
         roi_wins = sess_data_util.get_roi_data(sess, args.stimtype, n_roi_s,  
@@ -185,12 +198,13 @@ def run_sess_lstm(args, sessid):
     train_dl, val_dl, _ = dls
 
     test_dls = []
+    
     for s in [0, 1]:
         dl = data_util.init_dl(test_stim_wins[s], test_roi_wins[s], 
                             batchsize=args.batchsize)
         test_dls.append(dl)
 
-
+    print('Running LSTM')
     if args.conv:
         lstm = ConvPredROILSTM(args.hidden_dim, n_rois, out_ch=args.out_ch, 
                             num_layers=args.num_layers, dropout=args.dropout)
@@ -202,8 +216,8 @@ def run_sess_lstm(args, sessid):
     lstm.loss_fn = torch.nn.MSELoss(size_average=False)
     lstm.opt = torch.optim.Adam(lstm.parameters(), lr=lr)
 
-    loss_df = pd.DataFrame(np.nan, index=range(args.n_epochs), 
-                           columns=['train', 'val'])
+    loss_df = pd.DataFrame(
+        np.nan, index=range(args.n_epochs), columns=['train', 'val'])
     min_val = np.inf
     for ep in range(args.n_epochs):
         print(f'\n====> Epoch {ep}')
@@ -236,9 +250,8 @@ def run_sess_lstm(args, sessid):
         
             file_util.saveinfo(loss_df, hyperstr, dirname, 'csv')
 
-
     plot_util.linclab_plt_defaults(font=['Arial', 'Liberation Sans'], 
-                                   fontdir='../tools/fonts')
+                                   fontdir=DEFAULT_FONTDIR)
     fig, ax = plt.subplots(1)
     for dataset in ['train', 'val']:
         plot_util.plot_traces(ax, range(args.n_epochs), np.asarray(loss_df[dataset]), 
@@ -294,7 +307,8 @@ if __name__ == "__main__":
                         help='switch mpl backend when running on server')
     parser.add_argument('--parallel', action='store_true', 
                         help='do sess_n\'s in parallel.')
-    parser.add_argument('--seed', default=-1, type=int, help='random seed (-1 for None)')
+    parser.add_argument('--seed', default=-1, type=int, 
+                        help='random seed (-1 for None)')
 
     parser.add_argument('--n_epochs', default=100, type=int)
 
@@ -310,9 +324,8 @@ if __name__ == "__main__":
 
     args.device = 'cpu'
 
-    args.mouse_df = 'mouse_df.csv'
-    if args.datadir is None:
-        args.datadir = '../data/AIBS'
+    if args.datadir is None: args.datadir = DEFAULT_DATADIR
+    args.mouse_df = DEFAULT_MOUSE_DF_PATH
     args.runtype = 'prod'
     args.plane = 'soma'
     args.stimtype = 'gabors'
@@ -322,10 +335,10 @@ if __name__ == "__main__":
                                                             args.runtype)
 
     
-    all_sessids = sess_gen_util.get_sess_vals(args.mouse_df, 'sessid', 
-                            runtype=args.runtype, sess_n=[1, 2, 3], 
-                            plane=args.plane, min_rois=1, pass_fail='P', 
-                            omit_sess=args.omit_sess, omit_mice=args.omit_mice)
+    all_sessids = sess_gen_util.get_sess_vals(
+        args.mouse_df, 'sessid', runtype=args.runtype, sess_n=[1, 2, 3], 
+        plane=args.plane, min_rois=1, pass_fail='P', omit_sess=args.omit_sess, 
+        omit_mice=args.omit_mice)
 
 
     # bsizes =[1, 15, 30] #3
@@ -336,11 +349,6 @@ if __name__ == "__main__":
     # convs = [True, False]
     # args.n_epochs = 0
 
-    if args.parallel:
-        n_jobs = gen_util.get_n_jobs(len(all_sessids))
-        Parallel(n_jobs=n_jobs)(delayed(run_sess_lstm)
-                (args, sessid) for sessid in all_sessids)
-    else:
-        for sessid in all_sessids:
-            run_sess_lstm(args, sessid)
+    gen_util.parallel_wrap(
+        run_sess_lstm, all_sessids, args_list=[args], parallel=args.parallel)
 

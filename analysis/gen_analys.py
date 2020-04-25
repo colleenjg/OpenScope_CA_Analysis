@@ -18,6 +18,7 @@ import os
 
 from joblib import Parallel, delayed
 import numpy as np
+import pandas as pd
 import scipy.stats as st
 
 from analysis import pup_analys, ori_analys, quint_analys, signif_grps
@@ -63,43 +64,49 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
     if figpar['save']['use_dt'] is None:
         figpar['save']['use_dt'] = gen_util.create_time_str()
     
+    param_names = ['kappa', 'direction', 'size', 'number']
     all_tr, roi_tr, all_edges, all_pars = [], [], [], []
     for sess in sessions:
         # get the block edges and parameters
-        edge_fr, par_descs = [], []
+        edge_fr, par_descrs = [], []
         for stim in sess.stims:
             if datatype == 'roi':
-                edges = [fr for d_fr in stim.block_ran_twop_fr for fr in d_fr]
+                fr_type = 'twop_fr'
             elif datatype == 'run':
-                edges = [fr for d_fr in stim.block_ran_fr for fr in d_fr]
+                fr_type = 'stim_fr'
             else:
-                gen_util.accepted_values_error('datatype', datatype, 
-                                               ['roi', 'run'])
-            edge_fr.extend(edges)
-            # collect parameters for each block
-            params = [pars for d_pars in stim.block_params for pars in d_pars]
-            par_desc = []
-            for pars in params:
-                pars_str = ', '.join([str(par) for par in pars][0:2])
-                par_desc.append(sess_str_util.pars_to_desc(
-                                f'{stim.stimtype.capitalize()}\n{pars_str}'))
-            par_descs.extend(par_desc)
+                gen_util.accepted_values_error(
+                    'datatype', datatype, ['roi', 'run'])
+            for b in stim.block_params.index.unique('block_n'):
+                row = stim.block_params.loc[pd.IndexSlice[:, b], ]
+                edge_fr.append([row[f'start_{fr_type}', ].tolist()[0], 
+                    row[f'end_{fr_type}', ].tolist()[0]])
+                params = filter(lambda par: 
+                    par in stim.block_params.columns.unique('parameters'), 
+                    param_names)
+                par_vals = [row[param, ].values[0] for param in params]
+                pars_str = ', '.join([str(par) for par in par_vals][0:2])
+                par_descrs.append(sess_str_util.pars_to_descr(
+                    f'{stim.stimtype.capitalize()}\n{pars_str}'))
+            
         if datatype == 'roi':
             nanpol = None
             if not analyspar.remnans:
                 nanpol = 'omit'
-            all_rois = sess.get_roi_traces(None, analyspar.fluor, 
-                                           analyspar.remnans)
-            full_tr = math_util.get_stats(all_rois, analyspar.stats, 
-                                          analyspar.error, axes=0, 
-                                          nanpol=nanpol).tolist()
+            all_rois = sess.get_roi_traces(
+                None, analyspar.fluor, analyspar.remnans
+                )['roi_traces'].unstack().to_numpy()
+            full_tr = math_util.get_stats(
+                all_rois, analyspar.stats, analyspar.error, axes=0, 
+                nanpol=nanpol).tolist()
             roi_tr.append(all_rois.tolist())
         elif datatype == 'run':
-            full_tr = sess.get_run_velocity(remnans=analyspar.remnans).tolist()
+            full_tr = sess.get_run_velocity(
+                remnans=analyspar.remnans).to_numpy().squeeze()
             roi_tr = None
         all_tr.append(full_tr)
         all_edges.append(edge_fr)
-        all_pars.append(par_descs)
+        all_pars.append(par_descrs)
 
     extrapar = {'analysis': analysis,
                 'datatype': datatype,
@@ -120,8 +127,8 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
             'trace_info': trace_info
             }
 
-    fulldir, savename = gen_plots.plot_full_traces(roi_tr=roi_tr, 
-                                                    figpar=figpar, **info)
+    fulldir, savename = gen_plots.plot_full_traces(
+        roi_tr=roi_tr, figpar=figpar, **info)
     file_util.saveinfo(info, savename, fulldir, 'json')
     
 
@@ -166,7 +173,7 @@ def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar,
     print(f'\nAnalysing and plotting surprise vs non surprise {datastr} '
           f'traces by quintile ({quintpar.n_quints}) \n({sessstr_pr}'
           f'{dendstr_pr}).')
-
+    
     # modify quintpar to retain all quintiles
     quintpar_one  = sess_ntuple_util.init_quintpar(1, 0, '', '')
     n_quints      = quintpar.n_quints
@@ -585,7 +592,10 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
     figpar = copy.deepcopy(figpar)
     if figpar['save']['use_dt'] is None:
         figpar['save']['use_dt'] = gen_util.create_time_str()
-    
+
+    # correlation method (numpy or scipy stats)
+    st_corr = True
+
     # correlate average traces between sessions for each mouse and each surprise
     # value   
     all_counts = []
@@ -605,14 +615,17 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
         grp_me = grp_stats[:, :, 0]
         grp_corrs = []
         for s, surp in enumerate(['reg', 'surp']):
-            # numpy corr
-            # corr = float(np.correlate(grp_me[0, s], grp_me[1, s]))
-            corr = st.pearsonr(grp_me[0, s], grp_me[1, s])
-            grp_corrs.append(corr[0])
-            print(f'    {surp}: {corr[0]:.4f} (p={corr[1]:.2f})')
+            if st_corr:
+                corr = st.pearsonr(grp_me[0, s], grp_me[1, s])
+                print(f'    {surp}: {corr[0]:.4f} (p={corr[1]:.2f})')
+                corr = corr[0]
+            else:
+                corr = float(np.correlate(grp_me[0, s], grp_me[1, s]))
+                print(f'    {surp}: {corr:.4f}')
+            grp_corrs.append(corr)
         all_corrs.append(grp_corrs)
         all_me_tr.append(grp_me)
-        
+
     # mice x sess x surp x frame
     all_me_tr = np.asarray(all_me_tr)
     print('\nIntermouse correlations')
@@ -628,13 +641,16 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
                     surp_corrs = []
                     print(f'    sess {sessions[n][se].sess_n}:')
                     for s, surp in enumerate(['reg', 'surp']):
-                        # numpy corr
-                        # corr = float(np.correlate(m1_s1_me[s], 
-                        #                           m2_sess_mes[se][s]))
-                        corr = st.pearsonr(m1_s1_me[s], m2_sess_mes[se][s])
-                        surp_corrs.append(corr[0])
-                        print(f'\t{surp}: {corr[0]:.4f} (p={corr[1]:.2f})')
-                    sess_corrs.append(corr)
+                        if st_corr:
+                            corr = st.pearsonr(m1_s1_me[s], m2_sess_mes[se][s])
+                            print(f'\t{surp}: {corr[0]:.4f} (p={corr[1]:.2f})')
+                            corr = corr[0]
+                        else:
+                            corr = float(np.correlate
+                                (m1_s1_me[s], m2_sess_mes[se][s]))
+                            print(f'\t{surp}: {corr:.4f}')
+                        surp_corrs.append(corr)
+                    sess_corrs.append(surp_corrs)
                 mouse_corrs.append(sess_corrs)
             all_mouse_corrs.append(mouse_corrs)
 

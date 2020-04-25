@@ -80,32 +80,33 @@ def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
                                          session x grp
     """
 
-    opstr_pr = sess_str_util.op_par_str(roigrppar.plot_vals, roigrppar.op, 
-                                        str_type='print')
-    sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
-                                    sesspar.plane, stimpar.bri_dir, 
-                                    stimpar.bri_size, stimpar.gabk, 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
-                                    extrapar['datatype'], 'print')
+    opstr_pr = sess_str_util.op_par_str(
+        roigrppar.plot_vals, roigrppar.op, str_type='print')
+    sessstr_pr = sess_str_util.sess_par_str(
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 
+        stimpar.bri_size, stimpar.gabk, 'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar.dend, sesspar.plane, extrapar['datatype'], 'print')
     datastr = sess_str_util.datatype_par_str(extrapar['datatype'])
+    
     if extrapar['datatype'] != 'roi':
         raise ValueError('Analysis only implemented for roi datatype.')
 
     print(f'\nAnalysing and plotting {opstr_pr} {datastr} average responses by '
-          f'quintile ({quintpar.n_quints}). \n{sessstr_pr}{dendstr_pr}.')
+        f'quintile ({quintpar.n_quints}). \n{sessstr_pr}{dendstr_pr}.')
     
     # get full data for qu of interest: session x surp x [seq x ROI]
-    integ_info = quint_analys.trace_stats_by_qu_sess(sessions, analyspar, 
-                              stimpar, quintpar.n_quints, 'all', bysurp=True, 
-                              integ=True)     
+    integ_info = quint_analys.trace_stats_by_qu_sess(
+        sessions, analyspar, stimpar, quintpar.n_quints, 'all', bysurp=True, 
+        integ=True)     
 
     # retrieve only mean/medians per ROI
     all_me = [sess_stats[:, :, 0] for sess_stats in integ_info[1]]
 
     # get statistics per group and number of ROIs per group
-    grp_st, grp_ns = signif_grps.grp_stats(all_me, roi_grps['all_roi_grps'], 
-                                 roigrppar.plot_vals, roigrppar.op, 
-                                 analyspar.stats, analyspar.error)
+    grp_st, grp_ns = signif_grps.grp_stats(
+        all_me, roi_grps['all_roi_grps'], roigrppar.plot_vals, roigrppar.op, 
+        analyspar.stats, analyspar.error)
 
     roi_grps = copy.deepcopy(roi_grps)
     roi_grps['grp_st'] = grp_st.tolist()
@@ -113,16 +114,17 @@ def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
 
     sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)
     
-    info = {'analyspar': analyspar._asdict(),
-            'sesspar'  : sesspar._asdict(),
-            'stimpar'  : stimpar._asdict(),
-            'extrapar' : extrapar,
-            'quintpar' : quintpar._asdict(),
-            'permpar'  : permpar._asdict(),
-            'roigrppar': roigrppar._asdict(),
-            'sess_info': sess_info,
-            'roi_grps' : roi_grps
-            }
+    info = {
+        'analyspar': analyspar._asdict(),
+        'sesspar'  : sesspar._asdict(),
+        'stimpar'  : stimpar._asdict(),
+        'extrapar' : extrapar,
+        'quintpar' : quintpar._asdict(),
+        'permpar'  : permpar._asdict(),
+        'roigrppar': roigrppar._asdict(),
+        'sess_info': sess_info,
+        'roi_grps' : roi_grps
+        }
     
     # plot
     fulldir, savename = roi_plots.plot_roi_areas_by_grp_qu(figpar=figpar, 
@@ -893,9 +895,7 @@ def posori_resp(sess, analyspar, stimpar, nrois='all'):
 
     stim = sess.get_stim(stimpar.stimtype)
     oris = stim.oris
-    nrois_tot = sess_gen_util.get_nrois(sess.nrois, len(sess.nanrois), 
-                                        len(sess.nanrois_dff), 
-                                        analyspar.remnans, analyspar.fluor)
+    nrois_tot = sess.get_nrois(analyspar.remnans, analyspar.fluor)
     if nrois == 'all':
         sess_nrois = nrois_tot
     else:

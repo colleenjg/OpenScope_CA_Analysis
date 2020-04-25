@@ -246,8 +246,9 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
         for _ in range(2): # allows retrying if nan_empty is True
             try:
                 if datatype == 'roi':
-                    twop_fr = stim.get_twop_fr_by_seg(segs, first=True)
-                    trace_info = stim.get_roi_trace_stats(twop_fr, pre, post, 
+                    twop_fr = stim.get_twop_fr_by_seg(
+                        segs, first=True)['first_twop_fr']
+                    trace_df = stim.get_roi_stats_df(twop_fr, pre, post, 
                                         byroi=byroi, fluor=analyspar.fluor, 
                                         remnans=analyspar.remnans, 
                                         stats=analyspar.stats, 
@@ -255,8 +256,9 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
                                         integ=integ, ret_arr=ret_arr, #stand=True,
                                         baseline=baseline)
                 elif datatype == 'run':
-                    stim_fr = stim.get_stim_fr_by_seg(segs, first=True)
-                    trace_info = stim.get_run_array_stats(stim_fr, pre, post, 
+                    stim_fr = stim.get_stim_fr_by_seg(
+                        segs, first=True)['first_stim_fr']
+                    trace_df = stim.get_run_stats_df(stim_fr, pre, post, 
                                         remnans=analyspar.remnans,
                                         stats=analyspar.stats, 
                                         error=analyspar.error,
@@ -273,14 +275,18 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
                 else:
                     raise err
 
-        xran = trace_info[0]
+        xran = trace_df.index.unique('time_values').to_numpy()
         # array: stats [me, err] (x ROI) (x frames)
-        trace_stats = trace_info[1]
+        trace_stats = gen_util.reshape_df_data(
+            trace_df.loc['stats', ], squeeze_cols=True)
+        if not byroi:
+            trace_stats = trace_stats.squeeze(0)
         if rep_nan: # replace dummy values with NaNs
             trace_stats = np.full_like(trace_stats, np.nan)
         qu_stats.append(trace_stats)
         if ret_arr:
-            trace_array = trace_info[2]
+            trace_array = gen_util.reshape_df_data(
+                trace_df.loc['data', ], squeeze_cols=True)
             if rep_nan: # replace dummy values with NaNs
                 trace_array = np.full_like(trace_array, np.nan)
             qu_array.append(trace_array)

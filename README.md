@@ -7,7 +7,7 @@ of the first Allen Institute for Brain Science OpenScope program run.
 ## 2. Installation
 The code itself can be obtained by cloning the github repo at:
 
-https://github.com/joelzy/AIBS_Analysis.git
+https://github.com/colleenjg/AIBS_Analysis.git
 
 However, to run the code, you should install Anaconda or Miniconda:
 
@@ -37,15 +37,16 @@ All of the appropriate libraries should then be loaded, and the modules can
 be imported for use in ipython, python scripts, or jupyter notebooks.
 
 **Scripts and modules**:
-* example_code.py: run and plot an example analysis (heavily commented)
 * run\_roi_analysis.py: run and plot specific analyses on ROI data
 * run\_running_analysis.py: run and plot specific analyses on running data
+* run\_pupil_analysis.py: run and plot specific analyses on pupil data
 * run_logreg.py: run, analyse and plot logistic regressions on the ROI data
 * **analysis**: Session object as well as session data analysis module
 * **plot_fcts**: module with functions to plot analysis results from saved dictionaries or dataframes 
 * **sess_util**: session specific utilities module
-* **util**: general utilities module
-* **ipynb**: iPython notebooks (not currently maintained)
+* **examples**: heavily commented example code 
+* **scripts_under_dev**: analysis scripts under development
+* **prev_scripts**: iPython notebooks (not currently maintained)
 
 ## 4. Authors
 This code was written by:

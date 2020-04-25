@@ -12,11 +12,12 @@ Note: this code uses python 3.7.
 """
 
 import glob
+import inspect
 import os
 
 from joblib import Parallel, delayed
 
-from util import gen_util
+from util import file_util, gen_util
 from plot_fcts import roi_analysis_plots as roi_plots
 from plot_fcts import gen_analysis_plots as gen_plots
 from plot_fcts import pup_analysis_plots as pup_plots
@@ -52,12 +53,14 @@ def plot_from_dicts(direc, source='roi', plt_bkend=None, fontdir=None,
                            CPU cores
                            default: False
     """
+    
+    file_util.checkexists(direc)
 
     if os.path.isdir(direc):
         if source == 'logreg': 
             fn = 'hyperparameters.json'
             all_paths = glob.glob(os.path.join(direc, fn)) + \
-                        glob.glob(os.path.join(direc, '*', fn))
+                glob.glob(os.path.join(direc, '*', fn))
             dict_paths = [os.path.dirname(dp) for dp in all_paths]
         else:
             dict_paths = glob.glob(os.path.join(direc, '*.json'))
@@ -69,36 +72,33 @@ def plot_from_dicts(direc, source='roi', plt_bkend=None, fontdir=None,
 
     sub_parallel = parallel * (len(dict_paths) == 1)
 
+    args_dict = {
+        'plt_bkend': plt_bkend, 
+        'fontdir'  : fontdir,
+        'plot_tc'  : plot_tc,
+        'parallel' : sub_parallel
+        }
+
     sources = ['roi', 'run', 'gen', 'modif', 'pup', 'logreg', 'glm', 'acr_sess']
-    args = [plt_bkend, fontdir]
     if source == 'roi':
         fct = roi_plots.plot_from_dict
-        args.extend([plot_tc, sub_parallel])
     elif source in ['run', 'gen']:
         fct = gen_plots.plot_from_dict
-        args.extend([sub_parallel])
     elif source in ['pup', 'pupil']:
         fct = pup_plots.plot_from_dict
-        args.extend([sub_parallel])
     elif source == 'modif':
         fct = mod_plots.plot_from_dict
-        args.extend([plot_tc, sub_parallel])
     elif source == 'logreg':
         fct = logreg_plots.plot_from_dict
     elif source == 'glm':
         fct = glm_plots.plot_from_dict
     elif source == 'acr_sess':
         fct = acr_sess_plots.plot_from_dict
-        args.extend([sub_parallel])
     else:
         gen_util.accepted_values_error('source', source, sources)
 
-    if parallel and len(dict_paths) > 1:
-        n_jobs = gen_util.get_n_jobs(len(dict_paths))
-        Parallel(n_jobs=n_jobs)(delayed(fct)(dict_path, *args) 
-                                for dict_path in dict_paths)
-    else:
-        for dict_path in dict_paths:
-            fct(dict_path, *args)
-
+    args_dict = gen_util.keep_dict_keys(
+        args_dict, inspect.getfullargspec(fct).args)
+    gen_util.parallel_wrap(
+        fct, dict_paths, args_dict=args_dict, parallel=parallel)
 

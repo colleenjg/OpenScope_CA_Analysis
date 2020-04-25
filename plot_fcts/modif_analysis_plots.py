@@ -66,7 +66,7 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
         plot_full_traces(figpar=figpar, savedir=savedir, **info)
 
     # 1. Plot average traces by quintile x surprise for each session 
-    if analysis == 't': # traces
+    elif analysis == 't': # traces
         plot_traces_by_qu_surp_sess(figpar=figpar, savedir=savedir, **info)
 
     # 2. Plot average traces by quintile, locked to surprise for each session 
@@ -77,7 +77,7 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
     elif analysis == 'a': # autocorr
         plot_autocorr(figpar=figpar, savedir=savedir, **info)
 
-  # 6. Plot colormaps and traces for orientations/directions
+    # 6. Plot colormaps and traces for orientations/directions
     elif analysis == 'o': # colormaps
         plot_oridirs(figpar=figpar, savedir=savedir, parallel=parallel, **info)
 
@@ -110,10 +110,8 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
             ['lines'] (list)      : mouse lines
             ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
-            ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
+            ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
+                                    traces ('raw', 'dff')
         - trace_info (dict): dictionary containing trace information
             ['all_tr'] (nested list): trace values structured as
                                           sess x 
@@ -157,13 +155,13 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
     datatype = extrapar['datatype']
 
     # extract some info from sess_info
-    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes', 'nrois']
-    [mouse_ns, sess_ns, lines, planes, nrois] = [sess_info[key] for key in keys]
+    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
+    [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
     
     n_sess = len(mouse_ns)
-    nanroi_vals = [sess_info['nanrois'], sess_info['nanrois_dff']]
-    [n_nan, n_nan_dff] = [[len(val[i]) for i in range(n_sess)] 
-                                       for val in nanroi_vals]
+    nroi_strs = sess_str_util.get_nroi_strs(
+        sess_info, analyspar['remnans'], analyspar['fluor'], 
+        empty=(datatype!='roi'))
 
     n_rows = 1
     if datatype == 'roi':
@@ -179,11 +177,8 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
     
     fig, ax = plot_util.init_fig(n_sess*n_rows, n_sess, **figpar['init'])
     for i in range(n_sess):
-        remnans = analyspar['remnans'] * (datatype == 'roi')
-        sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i],
-                                             remnans, analyspar['fluor'])
         title = (f'Mouse {mouse_ns[i]} (sess {sess_ns[i]}, {lines[i]} '
-                 f'{planes[i]}{dendstr_pr}, n={sess_nrois})')
+            f'{planes[i]}{dendstr_pr}{nroi_strs[i]})')
 
         sub_axs = ax[:, i]
         sub_axs[0].set_title(title)
@@ -192,14 +187,14 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
             av_tr = np.asarray(trace_info['all_tr'][i][1])
             x_ran = range(roi_tr_sep.shape[1])
             subtitle = 'u{} across ROIs'.format(statstr_pr)
-            plot_util.plot_traces(sub_axs[1], x_ran, av_tr[0], av_tr[1:], 
-                                  title=subtitle)
+            plot_util.plot_traces(
+                sub_axs[1], x_ran, av_tr[0], av_tr[1:], title=subtitle)
             
             # each ROI trace
             roi_tr = np.asarray(trace_info['all_tr'][i][0])
             # values to add to each ROI to split them apart
-            add = np.linspace(0, roi_tr.shape[0] * 1.5 + 1, 
-                              roi_tr.shape[0])[:, np.newaxis]
+            add = np.linspace(
+                0, roi_tr.shape[0] * 1.5 + 1, roi_tr.shape[0])[:, np.newaxis]
             roi_tr_sep = roi_tr + add
             sub_axs[0].plot(roi_tr_sep.T)
         else:
@@ -208,14 +203,15 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
 
         for b, block in enumerate(trace_info['all_edges']):
             # all block labels to the lower plot
-            plot_util.add_labels(sub_axs[-1], trace_info['all_pars'][b], 
-                                 np.mean(block), 0.85, 'k')
+            plot_util.add_labels(
+                sub_axs[-1], trace_info['all_pars'][b], np.mean(block), 0.85, 
+                'k')
             # add lines to both plots
             for r in range(n_rows):
                 plot_util.add_bars(sub_axs[r], hbars=block)
-                sess_plot_util.add_axislabels(sub_axs[r], 
-                                              fluor=analyspar['fluor'], 
-                                              datatype=datatype, x_ax='')
+                sess_plot_util.add_axislabels(
+                    sub_axs[r], fluor=analyspar['fluor'], datatype=datatype, 
+                    x_ax='')
                 
     if savedir is None:
         savedir = os.path.join(figpar['dirs'][datatype])
@@ -255,10 +251,8 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
             ['lines'] (list)      : mouse lines
             ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
-            ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
+            ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
+                                    traces ('raw', 'dff')
         - trace_stats (dict): dictionary containing trace stats information
             ['x_ran'] (array-like)     : time values for the 2p frames
             ['all_stats'] (list)       : list of 4D arrays or lists of trace 
@@ -304,13 +298,13 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
     dimstr = sess_str_util.datatype_dim_str(datatype)
 
     # extract some info from sess_info
-    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes', 'nrois']
-    [mouse_ns, sess_ns, lines, planes, nrois] = [sess_info[key] for key in keys]
+    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
+    [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
     
     n_sess = len(mouse_ns)
-    nanroi_vals = [sess_info['nanrois'], sess_info['nanrois_dff']]
-    [n_nan, n_nan_dff] = [[len(val[i]) for i in range(n_sess)] 
-                                       for val in nanroi_vals]
+    nroi_strs = sess_str_util.get_nroi_strs(
+        sess_info, analyspar['remnans'], analyspar['fluor'], 
+        empty=(datatype!='roi'), style='par')
 
     x_ran      = np.asarray(trace_stats['x_ran'])
     all_stats  = [np.asarray(sessst) for sessst in trace_stats['all_stats']]
@@ -329,8 +323,6 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
 
     fig, ax = plot_util.init_fig(n_sess, **figpar['init'])
     for i in range(n_sess):
-        # sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i],
-        #                             analyspar['remnans'], analyspar['fluor'])
         sub_ax = plot_util.get_subax(ax, i)
         for s, [col, leg_ext] in enumerate(zip(cols, surps)):
             for q, qu_lab in enumerate(quintpar['qu_lab']):
@@ -344,8 +336,8 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
                 title=(f'M{mouse_ns[i]} - layer {line} {plane}{dendstr_pr}')
                 # title=(f'Mouse {mouse_ns[i]} - {stimstr_pr} ' + 
                 #        u'{} '.format(statstr_pr) + f'across {dimstr}\n'
-                #        f'(sess {sess_ns[i]}, {lines[i]} {planes[i]}, '
-                #        f'n={sess_nrois})')
+                #        f'(sess {sess_ns[i]}, {lines[i]} {planes[i]},'
+                #        f'{nroi_strs[i]}')
                 leg = None
                 y_ax = ''
                 if i == 0:
@@ -358,6 +350,8 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
                                       n_xticks=n)
                 sess_plot_util.add_axislabels(sub_ax, fluor=analyspar['fluor'], 
                                               datatype=datatype, y_ax=y_ax)
+
+    plot_util.turn_off_extra(ax, n_sess)
 
     if stimpar['stimtype'] == 'gabors': 
         sess_plot_util.plot_labels(ax, stimpar['gabfr'], 'both', 
@@ -407,10 +401,8 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             ['lines'] (list)      : mouse lines
             ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
-            ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
+            ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
+                                    traces ('raw', 'dff')
         - trace_stats (dict): dictionary containing trace stats information
             ['x_ran'] (array-like)     : time values for the 2p frames
             ['all_stats'] (list)       : list of 4D arrays or lists of trace 
@@ -454,34 +446,34 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         - savename (str): name under which the figure is saved
     """
 
-    stimstr_pr = sess_str_util.stim_par_str(stimpar['stimtype'], 
-                                    stimpar['bri_dir'], stimpar['bri_size'],
-                                    stimpar['gabk'], 'print')
-    statstr_pr = sess_str_util.stat_par_str(analyspar['stats'], 
-                                            analyspar['error'], 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
-                                            extrapar['datatype'], 'print')
+    stimstr_pr = sess_str_util.stim_par_str(
+        stimpar['stimtype'], stimpar['bri_dir'], stimpar['bri_size'],
+        stimpar['gabk'], 'print')
+    statstr_pr = sess_str_util.stat_par_str(
+        analyspar['stats'], analyspar['error'], 'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], extrapar['datatype'], 'print')
 
-    sessstr = sess_str_util.sess_par_str(sesspar['sess_n'], stimpar['stimtype'],
-                                         sesspar['plane'], stimpar['bri_dir'], 
-                                         stimpar['bri_size'], stimpar['gabk'])
+    sessstr = sess_str_util.sess_par_str(
+        sesspar['sess_n'], stimpar['stimtype'], sesspar['plane'], 
+        stimpar['bri_dir'], stimpar['bri_size'], stimpar['gabk'])
     basestr = sess_str_util.base_par_str(trace_stats['baseline'])
     basestr_pr = sess_str_util.base_par_str(trace_stats['baseline'], 'print')
 
-    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
-                                         extrapar['datatype'])
+    dendstr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], extrapar['datatype'])
     
     datatype = extrapar['datatype']
     dimstr = sess_str_util.datatype_dim_str(datatype)
 
     # extract some info from sess_info
-    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes', 'nrois']
-    [mouse_ns, sess_ns, lines, planes, nrois] = [sess_info[key] for key in keys]
+    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
+    [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
     
     n_sess = len(mouse_ns)
-    nanroi_vals = [sess_info['nanrois'], sess_info['nanrois_dff']]
-    [n_nan, n_nan_dff] = [[len(val[i]) for i in range(n_sess)] 
-                                       for val in nanroi_vals]
+    nroi_strs = sess_str_util.get_nroi_strs(
+        sess_info, analyspar['remnans'], analyspar['fluor'], 
+        empty=(datatype!='roi'), style='par')
 
     x_ran      = np.asarray(trace_stats['x_ran'])
     all_stats  = [np.asarray(sessst) for sessst in trace_stats['all_stats']]
@@ -517,8 +509,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
     fig, ax = plot_util.init_fig(n_sess, **figpar['init'])
     for i, (stats, counts) in enumerate(zip(all_stats, all_counts)):
         sub_ax = plot_util.get_subax(ax, i)
-        # sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i],
-        #                              analyspar['remnans'], analyspar['fluor'])
+
         line, plane = '5', 'dendrites'
         if '23' in lines[i]:
             line = '2/3'
@@ -527,25 +518,24 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
 
         title = f'M{mouse_ns[i]} - layer {line} {plane}{dendstr_pr}'
         # title=(f'Mouse {mouse_ns[i]} - {stimstr_pr} ' + 
-        #        u'{statstr_pr} ' + f'{lock} locked across {dimstr}{basestr_pr}'
-        #        f'\n(sess {sess_ns[i]}, {lines[i]} {planes[i]}, '
-        #        f'n={sess_nrois})')
+        #     u'{statstr_pr} ' + f'{lock} locked across {dimstr}{basestr_pr}'
+        #     f'\n(sess {sess_ns[i]}, {lines[i]} {planes[i]}, {nroi_strs[i]}')
         y_ax = ''
         if i == 0:
             y_ax = None
 
-        sess_plot_util.add_axislabels(sub_ax, fluor=analyspar['fluor'], 
-                                      datatype=datatype, y_ax=y_ax)
+        sess_plot_util.add_axislabels(
+            sub_ax, fluor=analyspar['fluor'], datatype=datatype, y_ax=y_ax)
         plot_util.add_bars(sub_ax, hbars=0)
         n_lines = quintpar['n_quints'] * len(surp_lens[i])
         try: 
             cols = sess_plot_util.get_quint_cols(n_lines)[0][col_idx]
         except:
             cols = [None] * n_lines
-        alpha      = np.min([0.4, 0.8/n_lines])
+        alpha = np.min([0.4, 0.8/n_lines])
         if stimpar['stimtype'] == 'gabors':
-            sess_plot_util.plot_gabfr_pattern(sub_ax, x_ran[st:end], 
-                                              bars_omit=[0] + surp_lens[i])
+            sess_plot_util.plot_gabfr_pattern(
+                sub_ax, x_ran[st:end], bars_omit=[0] + surp_lens[i])
         # plot regular data
         if reg_stats[i].shape[0] != 1:
             raise ValueError('Expected only one quintile for reg_stats.')
@@ -555,9 +545,10 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             leg = 'reg'
         plot_util.add_vshade(sub_ax, 0, 4, col=cols[-1])
         # leg = f'reg (no lock) ({reg_counts[i][0]})'
-        plot_util.plot_traces(sub_ax, x_ran[st:end], reg_stats[i][0][0, st:end], 
-                              reg_stats[i][0][1:, st:end], alpha=alpha, 
-                              label=leg, alpha_line=0.8, col='darkgray')
+        plot_util.plot_traces(
+            sub_ax, x_ran[st:end], reg_stats[i][0][0, st:end], 
+            reg_stats[i][0][1:, st:end], alpha=alpha, label=leg, 
+            alpha_line=0.8, col='darkgray')
         n = 0 # count lines plotted
         for s, surp_len in enumerate(surp_lens[i]):
             if surp_len is not None:
@@ -576,27 +567,28 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                 leg = None
                 if i == 0:
                     leg = lab
-                plot_util.plot_traces(sub_ax, x_ran[st:end], 
-                                      stats[q][0, st:end], stats[q][1:, st:end], 
-                                      title, alpha=alpha, label=leg, 
-                                      n_xticks=n, alpha_line=0.8, 
-                                      col=cols[n])
+                plot_util.plot_traces(
+                    sub_ax, x_ran[st:end], stats[q][0, st:end], 
+                    stats[q][1:, st:end], title, alpha=alpha, label=leg, 
+                    n_xticks=n, alpha_line=0.8, col=cols[n])
                 n += 1
             if surp_len is not None:
                 plot_util.add_bars(sub_ax, hbars=surp_len, 
                                    col=sub_ax.lines[-1].get_color(), alpha=1)
     
+    plot_util.turn_off_extra(ax, n_sess)
+
     if savedir is None:
-        savedir = os.path.join(figpar['dirs'][datatype], 
-                               figpar['dirs']['surp_qu'], 
-                               f'{lock}_lock', basestr.replace('_', ''))
+        savedir = os.path.join(
+            figpar['dirs'][datatype], figpar['dirs']['surp_qu'], 
+            f'{lock}_lock', basestr.replace('_', ''))
 
     qu_str = '_{}q'.format(quintpar['n_quints'])
     if quintpar['n_quints'] == 1:
         qu_str = ''
  
     savename = (f'{datatype}_av_{lock}lock{len_ext}{basestr}_{sessstr}'
-                f'{dendstr}{qu_str}')
+        f'{dendstr}{qu_str}')
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
 
     return fulldir, savename
@@ -627,10 +619,8 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
             ['lines'] (list)      : mouse lines
             ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
-            ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
+            ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
+                                    traces ('raw', 'dff')
         - autocorr_data (dict): dictionary containing data to plot:
             ['xrans'] (list): list of lag values in seconds for each session
             ['stats'] (list): list of 3D arrays (or nested lists) of
@@ -689,13 +679,13 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
         seq_bars = [-1.0, 1.0] # light lines
 
     # extract some info from sess_info
-    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes', 'nrois']
-    [mouse_ns, sess_ns, lines, planes, nrois] = [sess_info[key] for key in keys]
+    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
+    [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
     
     n_sess = len(mouse_ns)
-    nanroi_vals = [sess_info['nanrois'], sess_info['nanrois_dff']]
-    [n_nan, n_nan_dff] = [[len(val[i]) for i in range(n_sess)] 
-                                       for val in nanroi_vals]
+    nroi_strs = sess_str_util.get_nroi_strs(
+        sess_info, analyspar['remnans'], analyspar['fluor'], 
+        empty=(datatype!='roi'), style='par')
 
     xrans = autocorr_data['xrans']
     stats = [np.asarray(stat) for stat in autocorr_data['stats']]
@@ -714,8 +704,6 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
     fig, ax = plot_util.init_fig(n_sess, **figpar['init'])
     for i in range(n_sess):
         sub_ax = plot_util.get_subax(ax, i)
-        # sess_nrois = sess_gen_util.get_nrois(nrois[i], n_nan[i], n_nan_dff[i], 
-        #                             analyspar['remnans'], analyspar['fluor'])
         line, plane = '5', 'dendrites'
         if '23' in lines[i]:
             line = '2/3'
@@ -724,8 +712,8 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
         title=f'M{mouse_ns[i]} - layer {line} {plane}{dendstr_pr}'
         # title = (f'Mouse {mouse_ns[i]} - {stimstr_pr}' + 
         #          u'{}'.format(statstr_pr) + 
-        #          f'{title_str}\n(sess {sess_ns[i]}, {lines[i]} {planes[i]}, '
-        #          f'(n={sess_nrois}))')
+        #          f'{title_str}\n(sess {sess_ns[i]}, {lines[i]} {planes[i]},'
+        #          f'{nroi_strs[i]})')
         # transpose to ROI/lag x stats x series
         sess_stats = stats[i].transpose(1, 0, 2) 
         for s, sub_stats in enumerate(sess_stats):
@@ -740,6 +728,8 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
         sub_ax.set_ylim([0, 1])
         sub_ax.set_title(title)
         sub_ax.set_xlabel('Lag (s)')
+
+    plot_util.turn_off_extra(ax, n_sess)
 
     if savedir is None:
         savedir = os.path.join(figpar['dirs'][datatype], 
@@ -779,10 +769,8 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
             ['lines'] (list)      : mouse lines
             ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
-            ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
+            ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
+                                    traces ('raw', 'dff')
         - tr_data (dict)   : dictionary containing information to plot colormap.
                              Surprise x ori/dir keys are formatted as 
                              [{s}_{od}] for surp in ['reg', 'surp']
@@ -839,13 +827,11 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
         savedir = os.path.join(figpar['dirs'][datatype], figpar['dirs']['oridir'])
 
     # extract some info from dictionaries
-    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes', 'nrois']
-    [mouse_n, sess_n, line, plane, nrois] = [sess_info[key][0] for key in keys]
+    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
+    [mouse_n, sess_n, line, plane] = [sess_info[key][0] for key in keys]
 
-    nanroi_vals = [sess_info['nanrois'], sess_info['nanrois_dff']]
-    [n_nan, n_nan_dff] = [len(val[0]) for val in nanroi_vals]
-    sess_nrois = sess_gen_util.get_nrois(nrois, n_nan, n_nan_dff, 
-                                    analyspar['remnans'], analyspar['fluor'])
+    nroi_str = sess_str_util.get_nroi_strs(
+        sess_info, analyspar['remnans'], analyspar['fluor'], style='par')[0]
 
     xran_ends = [-stimpar['pre'], stimpar['post']]
 
@@ -875,7 +861,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
     
     # suptitle = (f'Mouse {mouse_n} - {stimstr_pr}' + 
     #             u'{} '.format(statstr_pr) + f'across {dimstr}{qu_str_pr}\n'
-    #             f'(sess {sess_n}, {line} {plane}, n={sess_nrois})')
+    #             f'(sess {sess_n}, {line} {plane},{nroi_str}')
     line_str, plane_str = '5', 'dendrites'
     if '23' in line:
         line_str = '2/3'
@@ -903,12 +889,13 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
                                   n_xticks=n)
             cols.append(sub_ax.lines[-1].get_color())
     
+    
     if stimpar['stimtype'] == 'gabors':
         sess_plot_util.plot_labels(ax, stimpar['gabfr'], cols=cols,
                                    pre=stimpar['pre'], post=stimpar['post'], 
                                    sharey=figpar['init']['sharey'])
 
-    fig.suptitle(suptitle)
+    fig.suptitle(suptitle, y=1.08)
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
 
     return fulldir
@@ -938,10 +925,8 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
             ['lines'] (list)      : mouse lines
             ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
-            ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
+            ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
+                                    traces ('raw', 'dff')
         - tr_data (dict)   : dictionary containing information to plot colormap.
                              Surprise x ori/dir keys are formatted as 
                              [{s}_{od}] for surp in ['reg', 'surp']
@@ -1131,7 +1116,7 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
                             sharey=figpar['init']['sharey'], t_heis=-0.05)
     
     plot_util.add_colorbar(fig, im, len(oridirs), cm_prop=0.06)
-    fig.suptitle(suptitle, fontsize='xx-large')
+    fig.suptitle(suptitle, fontsize='xx-large', y=1.08)
     savename = f'{gen_savename}_{fig_type}'
     fulldir = plot_util.savefig(fig, savename, savedir, print_dir=print_dir, 
                                 **figpar['save'])
@@ -1169,10 +1154,8 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
             ['lines'] (list)      : mouse lines
             ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
-            ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
+            ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
+                                    traces ('raw', 'dff')
         - tr_data (dict)   : dictionary containing information to plot colormap.
                              Surprise x ori/dir keys are formatted as 
                              [{s}_{od}] for surp in ['reg', 'surp']
@@ -1290,10 +1273,8 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar,
             ['lines'] (list)      : mouse lines
             ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
-            ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
+            ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
+                                    traces ('raw', 'dff')
         - tr_data (dict)   : dictionary containing information to plot colormap.
                              Surprise x ori/dir keys are formatted as 
                              [{s}_{od}] for surp in ['reg', 'surp']

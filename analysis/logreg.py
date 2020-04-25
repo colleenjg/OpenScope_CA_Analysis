@@ -988,10 +988,9 @@ def all_runs_sk(n_runs, analyspar, logregpar, quintpar, sesspar, stimpar,
 
     set_prob = False # problem with sets
     try:
-        [mod_cvs, cv, 
-         extrapar] = logreg_util.run_logreg_cv_sk(main_data[0], main_data[1], 
-                                 logregpar, extrapar, analyspar.scale, 
-                                 samples[0], split_test, techpar['parallel'])
+        [mod_cvs, cv, extrapar] = logreg_util.run_logreg_cv_sk(
+            main_data[0], main_data[1], logregpar, extrapar, analyspar.scale, 
+            samples[0], split_test, techpar['parallel'])
     except ValueError as err:
         catch_phr = ['threshold', 'true labels', 'size', 'populated class']
         catch = sum(phr in str(err) for phr in catch_phr)
@@ -1014,15 +1013,16 @@ def all_runs_sk(n_runs, analyspar, logregpar, quintpar, sesspar, stimpar,
         set_names.append('test_out')
     if len(roi_seqs) == 2:
         extra_data = [roi_seqs[1], seq_classes[1]]
-        extra_cv = logreg_util.StratifiedShuffleSplitMod(n_splits=cv.n_splits, 
-                         train_p=0.5, sample=samples[1], bal=logregpar.bal)
+        extra_cv = logreg_util.StratifiedShuffleSplitMod(
+            n_splits=cv.n_splits, train_p=0.5, sample=samples[1], 
+            bal=logregpar.bal)
         if extra_name is None:
             raise ValueError('Extra test dataset not labelled.')
         set_names.append(extra_name)
 
-    mod_cvs = logreg_util.test_logreg_cv_sk(mod_cvs, cv, extrapar['scoring'], 
-                          main_data=main_data, extra_data=extra_data, 
-                          extra_name=extra_name, extra_cv=extra_cv)
+    mod_cvs = logreg_util.test_logreg_cv_sk(
+        mod_cvs, cv, extrapar['scoring'], main_data=main_data, 
+        extra_data=extra_data, extra_name=extra_name, extra_cv=extra_cv)
 
     # Get and save best model
     best_mod_idx = np.argmax(mod_cvs[f'{set_names[-1]}_neg_log_loss'])
