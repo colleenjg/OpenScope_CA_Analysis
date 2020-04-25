@@ -15,6 +15,8 @@ Note: this code uses python 3.7.
 import copy
 import os
 
+import itertools
+from matplotlib import colors as mplcol
 import numpy as np
 
 from util import gen_util, plot_util
@@ -22,8 +24,8 @@ from sess_util import sess_str_util
 
 
 #############################################
-def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7.5, 
-                subplot_wid=7.5, datetime=True, use_dt=None, fig_ext='svg', 
+def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7, 
+                subplot_wid=7, datetime=True, use_dt=None, fig_ext='svg', 
                 overwrite=False, runtype='prod', output='', plt_bkend=None, 
                 linclab=True, fontdir=None):
     
@@ -40,9 +42,9 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7.5,
         - sharey (bool)    : if True, y axis lims are shared across subplots
                              default: True
         - subplot_hei (num): height of each subplot (inches)
-                             default: 7.5
+                             default: 7
         - subplot_wid (num): width of each subplot (inches)
-                             default: 7.5
+                             default: 7
         - datetime (bool)  : if True, figures are saved in a subfolder named 
                              based on the date and time.
         - use_dt (str)     : datetime folder to use
@@ -88,7 +90,7 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7.5,
                 ['mags'] (str)     : subdirectory name for magnitude analyses
                 ['posori'] (str)   : subdirectory name for position and 
                                      orientation plots
-                ['prop_resp'] (str): subdirectory name for proportion 
+                ['prop'] (str)     : subdirectory name for proportion 
                                      responsive ROI analyses
                 ['pupil'] (str)    : subdirectory for pupil analyses
                 ['oridir'] (str)   : subdirectory name for 
@@ -133,9 +135,9 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7.5,
                 'glm'      : 'glm',
                 'grped'    : 'grped',
                 'lat'      : 'latencies',
-                'prop'     : 'prop_resp',
                 'mags'     : 'mags',
                 'posori'   : 'posori',
+                'prop'     : 'prop_resp',
                 'pupil'    : 'pupil',
                 'oridir'   : 'oridir',
                 'surp_qu'  : 'surp_qu',
@@ -186,11 +188,12 @@ def fig_init_linpla(figpar=None, traces=False):
         raise ValueError('figpar should have `init` subdictionary.')
 
     if traces:
-        wid = 5
-        hei = wid/traces
+        wid = 4.5
+        hei = np.max([wid/traces, 1.0])
     else:
-        wid = 3
-        hei = wid * 2
+        wid = 3.2
+        hei = wid * 1.8
+        figpar['init']['gs'] = {'hspace': 0.2, 'wspace': 0.4}
 
 
     figpar['init']['ncols'] = 2
@@ -278,7 +281,7 @@ def get_quint_cols(n_quints=4):
 
 #############################################
 def add_axislabels(sub_ax, fluor='dff', area=False, scale=False, datatype='roi', 
-                   x_ax=None, y_ax=None):
+                   x_ax=None, y_ax=None, first_col=True, last_row=True):
     """
     add_axislabels(sub_ax)
 
@@ -292,21 +295,27 @@ def add_axislabels(sub_ax, fluor='dff', area=False, scale=False, datatype='roi',
         - sub_ax (plt Axis subplot): subplot
 
     Optional args:
-        - fluor (str)   : if y_ax is None, whether 'raw' or processed 
-                          fluorescence traces 'dff' are plotted. 
-                          default: 'dff'
-        - area (bool)   : if True, 'area' is added after the y_ax label
-                          default: False
-        - scale (bool)  : if True, '(scaled)' is added after the y_ax label
-                          default: False
-        - datatype (str): type of data, either 'run' or 'roi'
-                          default: 'roi'
-        - x_ax (str)    : label to use for x axis.
-                          default: None
-        - y_ax (str)    : label to use for y axis.
-                          default: None
+        - fluor (str)     : if y_ax is None, whether 'raw' or processed 
+                            fluorescence traces 'dff' are plotted. 
+                            default: 'dff'
+        - area (bool)     : if True, 'area' is added after the y_ax label
+                            default: False
+        - scale (bool)    : if True, '(scaled)' is added after the y_ax label
+                            default: False
+        - datatype (str)  : type of data, either 'run' or 'roi'
+                            default: 'roi'
+        - x_ax (str)      : label to use for x axis.
+                            default: None
+        - y_ax (str)      : label to use for y axis.
+                            default: None
+        - first_col (bool): if True, only add an y axis label to subplots in 
+                            first column
+                            default: True
+        - last_row (bool) : if True, only add an x axis label to subplots in 
+                            last row
+                            default: True
     """
-    
+
     area_str = ''
     if area:
         area_str = ' area'
@@ -319,7 +328,9 @@ def add_axislabels(sub_ax, fluor='dff', area=False, scale=False, datatype='roi',
         x_str = 'Time (s)'
     else:
         x_str = x_ax
-    sub_ax.set_xlabel(x_str)
+
+    if not(last_row) or sub_ax.is_last_row():
+        sub_ax.set_xlabel(x_str)
 
     if y_ax is None:
         if datatype == 'roi':
@@ -330,7 +341,9 @@ def add_axislabels(sub_ax, fluor='dff', area=False, scale=False, datatype='roi',
             gen_util.accepted_values_error('datatype', datatype, ['roi', 'run'])
     else:
         y_str = y_ax
-    sub_ax.set_ylabel(u'{}{}{}'.format(y_str, area_str, scale_str))
+    
+    if not(first_col) or sub_ax.is_first_col():
+        sub_ax.set_ylabel(u'{}{}{}'.format(y_str, area_str, scale_str))
 
 
 #############################################
@@ -435,7 +448,8 @@ def get_seg_comp(gabfr=0, plot_vals='both', op='diff', pre=0, post=1.5):
 
 #############################################
 def plot_labels(ax, gabfr=0, plot_vals='both', op='none', pre=0, post=1.5, 
-                cols=None, sharey=True, t_heis=[0.85, 0.75], incr=True):
+                cols=None, sharey=True, t_heis=[0.85, 0.75], incr=True, 
+                omit_empty=True):
     """
     plot_labels(ax)
 
@@ -445,26 +459,32 @@ def plot_labels(ax, gabfr=0, plot_vals='both', op='none', pre=0, post=1.5,
         - ax (plt Axis): axis
 
     Optional args:
-        - gabfr (int)    : gabor frame of reference
-                           default: 0
-        - plot_vals (str): values plotted ('surp', 'reg', 'comb', 'both')
-                           default: 'both'
-        - op (str)       : operation on the values, if both ('ratio' or 'diff')
-                           default: 'none'
-        - pre (num)      : range of frames to include before reference frame 
-                           (in s)
-                           default: 0 (only value implemented)
-        - post (num)     : range of frames to include after reference frame
-                           (in s)
-                           default: 1.5 (only value implemented)
-        - cols (str)     : colors to use for labels
-                           default: None
-        - sharey (bool)  : if True, y axes are shared
-                           default: True
-        - t_heis (list)  : height(s) at which to place labels. If t_hei 
-                           includes negative values, the ylims are not 
-                           modified.
-                           default: [0.85, 0.75]
+        - gabfr (int)      : gabor frame of reference
+                             default: 0
+        - plot_vals (str)  : values plotted ('surp', 'reg', 'comb', 'both')
+                             default: 'both'
+        - op (str)         : operation on the values, if both ('ratio' or 'diff')
+                             default: 'none'
+        - pre (num)        : range of frames to include before reference frame 
+                             (in s)
+                             default: 0 (only value implemented)
+        - post (num)       : range of frames to include after reference frame
+                             (in s)
+                             default: 1.5 (only value implemented)
+        - cols (str)       : colors to use for labels
+                             default: None
+        - sharey (bool)    : if True, y axes are shared
+                             default: True
+        - t_heis (list)    : height(s) at which to place labels. If t_hei 
+                             includes negative values, the ylims are not 
+                             modified.
+                             default: [0.85, 0.75]
+        - incr (bool)      : if True, y axis limits are increased to accomodate
+                             labels
+                             default: True
+        - omit_empty (bool): if True, no labels are added to subplots with no 
+                             lines plotted
+                             default: True 
     """
 
     t_heis = gen_util.list_if_not(t_heis)
@@ -484,9 +504,11 @@ def plot_labels(ax, gabfr=0, plot_vals='both', op='none', pre=0, post=1.5,
     n_ax = np.product(ax.shape)
     for i in range(n_ax):
         sub_ax = plot_util.get_subax(ax, i)
+        if omit_empty and len(sub_ax.lines) == 0:
+            continue
         for i, pv in enumerate(plot_vals):
-            [xpos, lab, h_bars, 
-                       seg_bars] = get_seg_comp(gabfr, pv, op, pre, post)
+            [xpos, lab, h_bars, seg_bars] = get_seg_comp(
+                gabfr, pv, op, pre, post)
             plot_util.add_labels(sub_ax, lab, xpos, t_heis[i], cols[i])
         plot_util.add_bars(sub_ax, hbars=h_bars, bars=seg_bars)
 
@@ -616,3 +638,140 @@ def format_linpla_subaxes(ax, fluor='dff', area=False, datatype='roi',
             elif xlab is not None: # BOTTOM
                 ax[r, c].set_xlabel(xlab)
                 
+
+#############################################
+def plot_ROIs(sub_ax, mask_bool, valid_mask=None, border=None):
+    """
+    plot_ROIs(sub_ax, mask_bool)
+
+    Plots whole ROIs contours from a boolean mask, and optionally non valid
+    ROIs in red.
+
+    Required args:
+        - sub_ax (plt Axis subplot): subplot
+        - mask_bool (3D array)     : boolean ROI masks, structured as
+                                     ROIs x hei x wid
+    
+    Optional args:
+        - valid_mask (int): mask of valid ROIs (length of mask_bool). If None,
+                            all ROIs plotted in white.
+                            default: None
+        - border (list)   : border values to plot in red [right, left, down, up]
+                            default: None
+    """
+
+    if len(mask_bool.shape) == 2:
+        mask_bool = np.expand_dims(mask_bool, 0)
+    if valid_mask is None:
+        valid_mask = np.ones(len(mask_bool))
+
+    color_list = ['black', 'white', 'red']
+    if valid_mask.all():
+        color_list = ['black', 'white']
+    cm = mplcol.LinearSegmentedColormap.from_list(
+        'roi_mask_cm', color_list, N=len(color_list))
+    
+    masks_plot = mask_bool.astype(int)
+    masks_plot[~valid_mask.astype(bool)] *= 2
+    masks_plot_proj = np.max(masks_plot, axis=0)
+    sub_ax.imshow(masks_plot_proj, cmap=cm, interpolation='none')
+    
+    if border is not None:
+        hei, wid = masks_plot_proj.shape
+        right, left, down, up = [border[i] for i in [0, 1, 2, 3]]
+        sub_ax.axvline(right, c='red', ls='dashed', lw=1)
+        sub_ax.axvline(wid-left, c='red', ls='dashed', lw=1)
+        sub_ax.axhline(hei-down, c='red', ls='dashed', lw=1)
+        sub_ax.axhline(up, c='red', ls='dashed', lw=1)
+
+
+#############################################
+def plot_ROI_contours(sub_ax, mask_bool, outlier=None, tight=True, 
+                      restrict=False, cw=1):
+    """
+    plot_ROI_contours(sub_ax, mask_bool)
+
+    Plots ROI contours from a boolean mask, and optionally an outlier in red.
+
+    Required args:
+        - sub_ax (plt Axis subplot): subplot
+        - mask_bool (3D array)     : boolean ROI masks, structured as
+                                     ROIs x hei x wid
+    Optional args:
+        - outlier (int)  : index of ROI, if any, for which to plot contour 
+                           in a red.
+                           default: None
+        - tight (bool)   : if True, plot is restricted to the ROIs in the mask,
+                           allowing for a 15% border, where possible
+                           default: True
+        - restrict (bool): if True, plot is restricted to the outlier ROI,
+                           allowing for a 150% border, where possible. Overrides
+                           right.
+                           default: True
+        - cw (int)       : contour width (in pixels) (always within the ROI)
+                           default: 1
+    """
+
+    color_list = ['black', 'white', 'red']
+    if outlier is None:
+        color_list = ['black', 'white']
+    cm = mplcol.LinearSegmentedColormap.from_list(
+        'roi_mask_cm', color_list, N=len(color_list))
+
+    if len(mask_bool.shape) == 2:
+        mask_bool = np.expand_dims(mask_bool, 0)
+    mask_int = np.ceil(mask_bool).astype(int)
+    _, h_orig, w_orig = mask_int.shape
+
+    if outlier is None and restrict:
+        raise ValueError('`restrict` requires providing an outlier.')
+
+    if tight:
+        dims     = h_orig, w_orig
+        if restrict:
+            border_p = 1.5
+            dim_vals = np.where(mask_int[outlier])
+            r_val = 1
+        else:
+            border_p = 0.15
+            dim_vals = np.where(mask_int.sum(axis=0))
+            r_val = 0
+        dim_mins = [val.min() for val in dim_vals]
+        dim_maxs = [val.max() for val in dim_vals]
+        borders    = [int(np.ceil(border_p*(dmax - dmin))) 
+            for dmin, dmax in zip(dim_mins, dim_maxs)]
+        h_min, w_min = [np.max([0, val - bord - r_val]) 
+            for val, bord in zip(dim_mins, borders)]
+        h_max, w_max = [np.min([d, val + bord + r_val]) 
+            for val, bord, d in zip(dim_maxs, borders, dims)]
+        mask_int = mask_int[:, h_min:h_max, w_min:w_max]
+
+    pad_zhw = [0, 0], [cw, cw], [cw, cw]
+    mask_smooth = np.pad(mask_int, pad_zhw, 'constant', constant_values=0)
+    shifts = range(-cw, cw + 1)
+    _, h, w = mask_int.shape
+    for h_sh, w_sh in itertools.product(shifts, repeat=2):
+        if h_sh == 0 and w_sh == 0:
+            continue
+        mask_smooth[:, cw+h_sh: h+cw+h_sh, cw+w_sh: w+cw+w_sh] += mask_int
+    
+    contour_broad = mask_smooth[:, cw:h+cw, cw:w+cw] != len(shifts)**2
+    contour_mask = contour_broad * mask_int
+
+    if restrict:
+        dim_vals = [h_min, h_max, w_min, w_max]
+        comps = [0, h_orig, 0, w_orig]
+        shifts = [0, 0, 0, 0]
+        for i, (val, comp) in enumerate(zip(dim_vals, comps)):
+            if val != comp:
+                shifts[i] = r_val
+        contour_mask = contour_mask[
+            :, shifts[0]:comps[1]-shifts[1], shifts[2]:comps[3]-shifts[3]]
+    
+    mult_mask = np.ones([len(contour_mask), 1, 1])
+    if outlier is not None:
+        mult_mask[outlier] = 2
+    contour_mask = np.max(contour_mask * mult_mask, axis=0)
+
+    sub_ax.imshow(contour_mask, cmap=cm, interpolation='none')
+

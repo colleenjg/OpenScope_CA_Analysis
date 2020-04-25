@@ -214,7 +214,7 @@ def get_n_comps(all_p_vals, n_sess, lin_p_vals=None):
     if theor_tot != len(all_p_vals[0]):
         raise ValueError('Theoretical number of comparisons within '
                          f'layer/planes is expected to be {theor_tot}, '
-                         f'but is {len(p_vals[0])}.')
+                         f'but is {len(all_p_vals[0])}.')
 
     p_vals = [p for all_ps in all_p_vals for p in all_ps] 
     
@@ -313,17 +313,22 @@ def surp_data_by_sess(sess, analyspar, stimpar, datatype='roi', surp='bysurp',
             # check flanks as pre and post are split up!
             ch_fl = [stimpar.pre, stimpar.post]
         if datatype == 'roi':
-            fr_ns = stim.get_twop_fr_by_seg(subsegs, first=True, ch_fl=ch_fl)
-            fct = stim.get_roi_trace_array
+            fr_ns = stim.get_twop_fr_by_seg(
+                subsegs, first=True, ch_fl=ch_fl)['first_twop_fr']
+            fct = stim.get_roi_data
+            col = 'run_velocity'
             args['fluor'] = analyspar.fluor
         elif datatype == 'run':
             # array: 1 x sequences
-            fr_ns = stim.get_stim_fr_by_seg(subsegs, first=True, ch_fl=ch_fl)
-            fct = stim.get_run_array
+            fr_ns = stim.get_stim_fr_by_seg(
+                subsegs, first=True, ch_fl=ch_fl)['first_stim_fr']
+            fct = stim.get_run_data
+            col = 'roi_traces'
         else:
             gen_util.accepted_values_error('datatype', datatype, ['run', 'roi'])
 
-        data_arr.append(fct(fr_ns, pre, post, **args)[1].tolist())
+        data_arr.append(gen_util.reshape_df_data(
+            fct(fr_ns, pre, post, **args)[col], squeeze_cols=True))
         
         if baseline:
             base_data = fct(fr_ns, base_pre, base_post, **args)[1]
@@ -1454,17 +1459,18 @@ def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None,
         nanpol = 'omit'
 
     if datatype == 'roi':
-        twop_frs = [stim.get_twop_fr_by_seg(segs, first=True) 
-                                         for segs in all_segs]
+        twop_frs = [stim.get_twop_fr_by_seg(segs, first=True)['first_twop_fr']
+            for segs in all_segs]
         # array: ROI x sequences x frames
         # pad with one frame before and after
         pad_win = 3
         pad = (pad_win//2, pad_win//2)
-        # xran is unpadded
-        xran, data_arr = stim.get_roi_trace_array(twop_frs[-1], stimpar.pre, 
-                              stimpar.post, fluor=analyspar.fluor, 
-                              remnans=analyspar.remnans, stand=False, 
-                              pad=pad) #, smooth=win_pad)
+        # get data for last surps value,  xran is padded
+        roi_data_df = stim.get_roi_data(
+            twop_frs[-1], stimpar.pre, stimpar.post, fluor=analyspar.fluor, 
+            remnans=analyspar.remnans, stand=False, pad=pad) #, smooth=win_pad)
+        xran = roi_data_df.index.unique('time_values').to_numpy() 
+        data_arr = gen_util.reshape_df_data(roi_data_df, squeeze_cols=True)  
         # identify surprise responsive ROIs
         if latpar.surp_resp:
             if permpar is None:
@@ -1472,27 +1478,31 @@ def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None,
             elif permpar.tails != 'up':
                 raise ValueError('permpar.tails must be `up`.')
             # full_arr: 'surp x ROI x sequences'
-            integ_data = [stim.get_roi_trace_array(twop_fr, pre=pre, 
-                          post=post, fluor=analyspar.fluor, integ=True,
-                          remnans=analyspar.remnans, stand=False)[1] 
-                          for twop_fr, [pre, post] in zip(twop_frs, pre_posts)]   
-            signif_rois = signif_grps.get_signif_rois(integ_data, permpar, 
-                                      stats=analyspar.stats, op='diff', 
-                                      nanpol=nanpol, print_rois=False)
+            integ_data = [gen_util.reshape_df_data(stim.get_roi_data(
+                twop_fr, pre=pre, post=post, fluor=analyspar.fluor, integ=True,
+                remnans=analyspar.remnans, stand=False)['roi_traces'], 
+                squeeze_cols=True)
+                for twop_fr, [pre, post] in zip(twop_frs, pre_posts)]   
+            signif_rois = signif_grps.get_signif_rois(
+                integ_data, permpar, stats=analyspar.stats, op='diff', 
+                nanpol=nanpol, print_rois=False)
             data_arr = data_arr[signif_rois]
+
     elif datatype == 'run':
         # array: 1 x sequences x frames
-        stim_fr = stim.get_stim_fr_by_seg(all_segs[-1], first=True)
-        xran, data_arr = stim.get_run_array(stim_fr, stimpar.pre, 
-                              stimpar.post, remnans=analyspar.remnans, 
-                              stand=False)
-        np.expand_dims(data_arr, 0)
+        stim_fr = stim.get_stim_fr_by_seg(
+            all_segs[-1], first=True)['first_stim_fr']
+        run_data_df = stim.get_run_array(
+            stim_fr, stimpar.pre, stimpar.post, remnans=analyspar.remnans, 
+            stand=False)['run_velocity']
+        xran = roi_data_df.index.unique('time_values').to_numpy()
+        np.expand_dims(roi_data_df.unstack().to_numpy(), 0)
     else:
         gen_util.accepted_values_error('datatype', datatype, ['run', 'roi'])
 
-    lat_vals, roi_ns = get_rise_latency(data_arr, xran, method=latpar.method, 
-                            p_val_thr=latpar.p_val_thr, stats=analyspar.stats, 
-                            rel_std=latpar.rel_std, pad_win=pad_win)
+    lat_vals, roi_ns = get_rise_latency(
+        data_arr, xran, method=latpar.method, p_val_thr=latpar.p_val_thr, 
+        stats=analyspar.stats, rel_std=latpar.rel_std, pad_win=pad_win)
     if latpar.surp_resp:
         # retrieve original roi_ns based on signif_rois
         roi_ns = list(np.asarray(signif_rois)[roi_ns])
@@ -1572,15 +1582,14 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
         l_lat_stats = np.full([stat_len, len(l_sesses)], np.nan)
         l_n_sign_rois = []
         for s, sesses in enumerate(l_sesses): # across sessions
-            l_sess_info.append(sess_gen_util.get_sess_info(sesses, 
-                                             analyspar.fluor, add_none=True))
+            l_sess_info.append(sess_gen_util.get_sess_info(
+                sesses, analyspar.fluor, add_none=True))
             # for each mouse
             n_jobs = gen_util.get_n_jobs(len(l_sesses), parallel=parallel)
             if parallel:
                 sess_vals = Parallel(n_jobs=n_jobs)(delayed(
-                                     get_sess_latencies)(sess, analyspar, 
-                                     stimpar, latpar, permpar, datatype) 
-                                     for sess in sesses)
+                    get_sess_latencies)(sess, analyspar, stimpar, latpar, 
+                    permpar, datatype) for sess in sesses)
                 sess_lat_vals = [vals[0] for vals in sess_vals]
                 if latpar.surp_resp:
                     sess_n_sign_rois = [len(vals[2]) for vals in sess_vals]
@@ -1588,18 +1597,17 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
                 sess_lat_vals = []
                 sess_n_sign_rois = []
                 for sess in sesses:
-                    vals = get_sess_latencies(sess, analyspar, stimpar, latpar, 
-                                              permpar, datatype)
+                    vals = get_sess_latencies(
+                        sess, analyspar, stimpar, latpar, permpar, datatype)
                     sess_lat_vals.append(vals[0])
                     if latpar.surp_resp:
                         sess_n_sign_rois.append(vals[2])
             # all values across mice for the session
-            lat_vals_flat = np.asarray([val for sub_vals in sess_lat_vals 
-                                            if sub_vals is not None
-                                            for val in sub_vals])
-            l_lat_stats[:, s] = math_util.get_stats(lat_vals_flat, 
-                                          analyspar.stats, analyspar.error, 
-                                          nanpol='omit')
+            lat_vals_flat = np.asarray(
+                [val for sub_vals in sess_lat_vals if sub_vals is not None
+                for val in sub_vals])
+            l_lat_stats[:, s] = math_util.get_stats(
+                lat_vals_flat, analyspar.stats, analyspar.error, nanpol='omit')
             l_lat_vals_flat.append(lat_vals_flat)
             l_lat_vals.append(sess_lat_vals)
             if latpar.surp_resp:

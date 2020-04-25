@@ -13,7 +13,8 @@ Note: this code uses python 3.7.
 """
 
 import pdb
-import os.path
+import os
+import warnings
 
 import h5py
 import json
@@ -286,11 +287,9 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
     """
 
     # check that the input files exist
-    if not os.path.isfile(pkl_file_name):
-        raise OSError('%s does not exist' %(pkl_file_name))
-    if not os.path.isfile(syn_file_name):
-        raise OSError('%s does not exist' %(syn_file_name))
-
+    file_util.checkfile(pkl_file_name)
+    file_util.checkfile(syn_file_name)
+    
     num_stimtypes = 2 #bricks and Gabors
 
     # read the pickle file and call it 'pkl'
@@ -327,8 +326,8 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
     stim_time = stim_vsync_fall + delay
 
     # find the alignment
-    stimulus_alignment = calculate_stimulus_alignment(stim_time, 
-                                                      valid_twop_vsync_fall)
+    stimulus_alignment = calculate_stimulus_alignment(
+        stim_time, valid_twop_vsync_fall)
     offset = int(pkl['pre_blank_sec'] * pkl['fps'])
     
     print('Creating the stim_df:')
@@ -355,12 +354,15 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
         if name == 'bricks':
             stim_types.extend(['b'])
             frames_per_seg.extend([fps])
-            segs_exp.extend([int(60.*np.sum(np.diff(pkl['stimuli'][i]['display_sequence']))/frames_per_seg[i])])
+            segs_exp.extend([int(60.*np.sum(np.diff(
+                pkl['stimuli'][i]['display_sequence']))/frames_per_seg[i])])
         elif name == 'gabors':
             stim_types.extend(['g'])
             frames_per_seg.extend([fps/1000.*300])
             # to exclude grey seg
-            segs_exp.extend([int(60.*np.sum(np.diff(pkl['stimuli'][i]['display_sequence']))/frames_per_seg[i]*4./5)]) 
+            segs_exp.extend([int(60.*np.sum(np.diff(
+                pkl['stimuli'][i]['display_sequence'])
+                )/frames_per_seg[i]*4./5)]) 
         else:
             raise ValueError(f'{name} stimulus type not recognized.')
         
@@ -512,8 +514,7 @@ def get_run_velocity(pkl_file_name='', stim_dict=None):
 
     if stim_dict is None:
         # check that the input file exists
-        if not os.path.isfile(pkl_file_name):
-            raise OSError(f'{pkl_file_name} does not exist')
+        file_util.checkfile(pkl_file_name)
 
         # read the input pickle file and call it 'pkl'
         stim_dict = file_util.loadfile(pkl_file_name)
@@ -575,7 +576,8 @@ def get_twop2stimfr(stim2twopfr, n_twop_fr):
     try:
         twop2stimfr[start:end] = stim_idx
     except:
-        print('    WARNING: get_twop2stimfr() not working for this session.')
+        warnings.warn(message='get_twop2stimfr() not working for this '
+            'session. twop2stimfr set to all NaNs.')
 
     return twop2stimfr
 

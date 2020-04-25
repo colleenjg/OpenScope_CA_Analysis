@@ -508,6 +508,8 @@ def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True,
             if 'truncated' in str(err):
                 print(f'\nWARNING for session {sessid}: SKIPPING DUE TO corrupted dff file.')
                 continue
+            else:
+                raise err
         if omit and sess.plane == 'dend' and sess.dend != dend:
             print(f'Omitting session {sessid} ({dend} dendrites not '
                    'found).')
@@ -575,9 +577,8 @@ def get_sess_info(sessions, fluor='dff', add_none=False, incl_roi=True):
         - sessions (list): ordered list of Session objects
     
     Optional args:
-        - fluor (str)    : if 'dff', an error is thrown if the list of ROIs 
-                           with NaNs/Infs in dF/F traces cannot be 
-                           extracted
+        - fluor (str)    : specifies which nanrois to include (for 'dff' or 
+                           'raw')
                            default: 'dff'
         - add_none (bool): if True, None sessions are allowed and all values 
                            are filled with None
@@ -597,11 +598,8 @@ def get_sess_info(sessions, fluor='dff', add_none=False, incl_roi=True):
                 if datatype == 'roi':
                     ['nrois'] (list)      : number of ROIs in session
                     ['twop_fps'] (list)   : 2p frames per second
-                    ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw
-                                            trace
-                    ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F
-                                            traces, for sessions for which this 
-                                            attribute exists
+                    ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in raw
+                                            or dff traces
     """
 
     if add_none and set(sessions) == {None}:
@@ -610,7 +608,7 @@ def get_sess_info(sessions, fluor='dff', add_none=False, incl_roi=True):
     sess_info = dict()
     keys = ['mouse_ns', 'mouseids', 'sess_ns', 'sessids', 'lines', 'planes']
     if incl_roi:
-        keys.extend(['nrois', 'twop_fps', 'nanrois', 'nanrois_dff'])
+        keys.extend(['nrois', 'twop_fps', f'nanrois_{fluor}'])
 
     for key in keys:
         sess_info[key] = []
@@ -636,18 +634,7 @@ def get_sess_info(sessions, fluor='dff', add_none=False, incl_roi=True):
 
             sess_info['nrois'].append(sess.nrois)
             sess_info['twop_fps'].append(sess.twop_fps)
-            sess_info['nanrois'].append(sess.nanrois)
-
-
-            if hasattr(sess, 'nanrois_dff'):
-                sess_info['nanrois_dff'].append(sess.nanrois_dff)
-            elif fluor == 'dff':
-                raise ValueError('dF/F nanrois cannot be added to sess_info, '
-                                'as dF/F traces have not been loaded for '
-                                f'session {sess.sessid}')
-            else:
-                sess_info['nanrois_dff'].append(None)
-            
+            sess_info[f'nanrois_{fluor}'].append(sess.get_nanrois(fluor))            
 
     return sess_info
 
@@ -823,112 +810,6 @@ def all_omit(stimtype='gabors', runtype='prod', bri_dir='both', bri_size=128,
                 omit_mice = list(range(1, 9)) # all
 
     return omit_sess, omit_mice
-
-
-#############################################
-def create_sess_dicts(mouse_df, datadir, runtype='prod', output=''):
-    """
-    create_sess_dicts(mouse_df, datadir)
-
-    Creates and saves dictionary containing information allowing basic session
-    analysis without a sessions object, e.g. for logistic regression on 
-    different gabor frames or surprise vs regular frames.
-
-    Currently set to use only specific gabfr=0, gabk=16 and bri_size=128 
-    values.
-
-    Required args:
-        - mouse_df (str): path name of dataframe containing information 
-                          on each session
-        - datadir (str) : directory where sessions are stored
-                        
-    Optional args:
-        - runtype (str): the type of run, either 'pilot' or 'prod'
-                         default: 'prod' 
-        - output (str) : output directory
-                         default: ''
-    """
-
-    bri_size = 128
-    gabk = 16
-    gabfr = 0
-    gabfr_let = sess_str_util.gabfr_letters(gabfr)
-    
-    # list of sessions that fit the parameter criteria for each stim type
-    stimtypes = ['gabors', 'bricks', 'bricks']
-    direcs    = ['', 'right', 'left']
-    sessids   = [[], [], []]
-
-    for stim, sublist, direc in zip(stimtypes, sessids, direcs):
-        omit_sess, omit_mice = all_omit(stim, runtype, direc, bri_size, gabk)
-        sublist.extend(get_sess_vals(mouse_df, 'sessid', runtype=runtype, 
-                                     omit_mice=omit_mice, omit_sess=omit_sess))
-
-    all_sessids = sorted(set([sessid for subl in sessids for sessid in subl]))
-    
-    sessions = init_sessions(all_sessids, datadir, mouse_df, runtype, 
-                             fulldict=False)
-    for sess in sessions:
-        name = f'sess_dict_m{sess.mouse_n}_s{sess.sess_n}_{sess.plane}'
-        print(f'\nCreating stimulus dictionary: {name}')
-
-        # get ROI traces path
-        full_trs = [sess.roi_traces, sess.roi_traces_dff]
-        for i in range(len(full_trs)):
-            if 'mouse' in full_trs[i]:
-                full_trs[i] = full_trs[i][full_trs[i].find('mouse'):]
-            else:
-                full_trs[i] = full_trs[i][full_trs[i].find('ophys_s'):]
-        roi_tr_dir, roi_dff_dir = full_trs
-
-        sess_dict = {'mouse_n'       : sess.mouse_n,
-                     'mouseid'       : sess.mouseid,
-                     'sess_n'        : sess.sess_n,
-                     'sessid'        : sess.sessid,
-                     'line'          : sess.line,
-                     'plane'         : sess.plane,
-                     'nrois'         : sess.nrois,
-                     'twop_fps'      : sess.twop_fps,
-                     'nanrois'       : sess.nanrois,
-                     'nanrois_dff'   : sess.nanrois_dff,
-                     'traces_dir'    : roi_tr_dir,
-                     'dff_traces_dir': roi_dff_dir,
-                     'gabk'          : gabk,
-                     'gab_fr'        : [gabfr, gabfr_let], # e.g., [0, A]
-                     'bri_size'      : bri_size
-                    }
-
-        for stimtype, direc, stim_sessids in zip(stimtypes, direcs, sessids):
-            if stimtype == 'gabors':
-                key  = 'gab'
-                sep  = ''
-            elif stimtype == 'bricks':
-                key = f'bri_{direc}'
-                sep = ' '
-            if sess.sessid not in stim_sessids:
-                print(f'    {stimtype}{sep}{direc} surprise indices and frames '
-                       'omitted.')
-                continue
-            
-            stim = sess.get_stim(stimtype)
-            segs = stim.get_segs_by_criteria(gabk=gabk, gabfr=gabfr, 
-                                             bri_dir=direc, bri_size=bri_size, 
-                                             by='seg')
-            frames = stim.get_twop_fr_by_seg(segs, first=True)
-
-            surp_segs = stim.get_segs_by_criteria(gabk=gabk, gabfr=gabfr, 
-                                                  bri_dir=direc, 
-                                                  bri_size=bri_size, surp=1, 
-                                                  by='seg')
-            surp_idx = [segs.index(surp_seg) for surp_seg in surp_segs]
-
-            frames_key   = f'{key}_frames'
-            surp_idx_key = f'{key}_surp_idx'
-            sess_dict[frames_key]   = frames.tolist()
-            sess_dict[surp_idx_key] = surp_idx
-
-        stim_dict_dir = os.path.join(output, 'session_dicts', runtype)
-        file_util.saveinfo(sess_dict, name, stim_dict_dir, 'json')
 
 
 #############################################

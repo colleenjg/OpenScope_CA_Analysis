@@ -1,10 +1,11 @@
 # ignore all subdirectories, except analysis, plot_fcts, util and sess_util
 /*/ 
-!/util/
 !/sess_util/
 !/analysis/
 !/plot_fcts/
-!/ipynb/
+!/examples/
+!/prev_scripts/
+!/scripts_under_dev/
 
 *.pyc
 *.ods

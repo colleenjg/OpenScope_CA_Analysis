@@ -320,9 +320,7 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois='all', ngabs='all',
         gen_util.accepted_values_error('grp2', grp2, ['surp', 'reg', 'rand'])
     
     stim = sess.get_stim(stimpar.stimtype)
-    nrois_tot = sess_gen_util.get_nrois(sess.nrois, len(sess.nanrois), 
-                                    len(sess.nanrois_dff), 
-                                    analyspar.remnans, analyspar.fluor)
+    nrois_tot = sess.get_nrois(analyspar.remnans, analyspar.fluor)
     ngabs_tot = stim.n_patches
     if nrois == 'all':
         sess_nrois = nrois_tot

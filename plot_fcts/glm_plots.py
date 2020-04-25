@@ -85,10 +85,8 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
             ['lines'] (list)      : mouse lines
             ['planes'] (list)     : imaging planes
             ['nrois'] (list)      : number of ROIs in session
-            ['nanrois'] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ['nanrois_dff'] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
+            ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
+                                    traces ('raw', 'dff')
         - all_expl_var (list) : list of dictionaries with explained variance 
                                 for each session set, with each glm 
                                 coefficient as a key:
@@ -131,15 +129,15 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
                                          'roi')
 
     # extract some info from sess_info
-    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes', 'nrois']
-    [mouse_ns, sess_ns, lines, planes, nrois] = [sess_info[key] for key in keys]
+    keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
+    [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
 
     n_sess = len(mouse_ns)
-    nanroi_vals = [sess_info['nanrois'], sess_info['nanrois_dff']]
-    [n_nan, n_nan_dff] = [[len(val[i]) for i in range(n_sess)] 
-                                       for val in nanroi_vals]
+    
+    nroi_strs = sess_str_util.get_nroi_strs(
+        sess_info, analyspar['remnans'], analyspar['fluor'], style='par')
 
-    plot_bools = [True for ev in all_expl_var if ev['rois'] != [-1]]
+    plot_bools = [ev['rois'] != [-1] for ev in all_expl_var]
     n_sess = sum(plot_bools)
 
     if stimpar['stimtype'] == 'gabors':
@@ -150,7 +148,7 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
         print_dims = xyzc_dims
 
     print('Plotting GLM full and unique explained variance for '
-          '{}.').format(', '.join(xyzc_dims))
+        '{}.'.format(', '.join(xyzc_dims)))
 
     if n_sess > 0:
         if figpar is None:
@@ -166,7 +164,7 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
         
         fig, ax = plot_util.init_fig(2 * n_sess, **figpar['init'], proj='3d')
 
-        fig.suptitle('Explained variance per ROI')
+        fig.suptitle('Explained variance per ROI', y=1.08)
     else:
         print('No plots, as only results across ROIs are included')
         fig = None
@@ -185,14 +183,10 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
             all_rs = all_rs[0]
             full_ev = expl_var['full'][all_rs]
 
-
-        sess_nrois = sess_gen_util.get_nrois(nrois[e], n_nan[e], n_nan_dff[e], 
-                                   analyspar['remnans'], analyspar['fluor'])
-
         title = (f'Mouse {mouse_ns[i]} - {stimstr_pr}\n(sess {sess_ns[i]}, '
-                 f'{lines[i]} {planes[i]}{dendstr_pr}, (n={sess_nrois}))')
+                f'{lines[i]} {planes[i]}{dendstr_pr},{nroi_strs[i]})')
         print(f'\n{title}')
-        
+
         math_util.print_stats(full_ev, stat_str='\nFull explained variance')
 
 
@@ -210,6 +204,7 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
                     dims_all.append(np.asarray(expl_var[var_type][key])[rs, 0])
                 math_util.print_stats(expl_var[var_type][key][all_rs], 
                                       stat_str=key)
+
             if not plot_bools[-1]:
                 continue
 

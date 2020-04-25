@@ -347,6 +347,7 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
                                           session x roi_grp
         - grp_names (list)      : list of names of the ROI groups in roi grp 
                                   lists (order preserved)
+        if permpar.multcomp:
         - permpar_mult (PermPar): named tuple containing new p-values and 
                                   number of permutations for each session, 
                                   recalculated to compensate for multiple 
@@ -380,10 +381,9 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
             permpar_use = sess_ntuple_util.init_permpar(nperms_use, pval_use, 
                                            permpar.tails)
         for q, q_lab in enumerate(qu_labs):
-            print(f'    {q_lab.capitalize()}')
-            permpar_use
+            print(f'    {q_lab.capitalize()}') 
             sign_rois = get_signif_rois([sess_data[0][q], sess_data[1][q]], 
-                                      stats, roigrppar.op, nanpol, permpar_use)
+                                      permpar_use, stats, roigrppar.op, nanpol)
             sess_rois.append(sign_rois)
             
         grps = gen_util.list_if_not(roigrppar.grps)
@@ -413,5 +413,5 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
         return all_roi_grps, grp_names, permpar_mult
     
     else:
-        return all_roi_grps, grp_names, permpar_mult
+        return all_roi_grps, grp_names
 

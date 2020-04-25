@@ -23,6 +23,10 @@ from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
 from plot_fcts import plot_from_dicts_tool as plot_dicts
 
 
+DEFAULT_DATADIR = os.path.join('..', 'data', 'AIBS')
+DEFAULT_MOUSE_DF_PATH = 'mouse_df.csv'
+DEFAULT_FONTDIR = os.path.join('..', 'tools', 'fonts')
+
 #############################################
 def get_comps(stimtype='gabors', q1v4=False, regvsurp=False):
     """
@@ -226,8 +230,7 @@ def run_regr(args):
 
     args = copy.deepcopy(args)
 
-    if args.datadir is None:
-        args.datadir = os.path.join('..', 'data', 'AIBS') 
+    if args.datadir is None: args.datadir = DEFAULT_DATADIR
 
     if args.uniqueid == 'datetime':
         args.uniqueid = gen_util.create_time_str()
@@ -255,7 +258,7 @@ def run_regr(args):
                'n_shuff'  : args.n_shuff,
                }
 
-    mouse_df = 'mouse_df.csv'
+    mouse_df = DEFAULT_MOUSE_DF_PATH
 
     stimpar = logreg.get_stimpar(args.comp, args.stimtype, args.bri_dir, 
                                  args.bri_size, args.gabfr, args.gabk)
@@ -388,7 +391,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     args.device = gen_util.get_device(args.cuda)
-    args.fontdir = os.path.join('..', 'tools', 'fonts')
+    args.fontdir = DEFAULT_FONTDIR
 
 
     if args.comp == 'all':

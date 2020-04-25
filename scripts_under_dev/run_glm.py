@@ -13,16 +13,18 @@ Note: this code uses python 3.7.
 
 """
 
-import os
-import copy
 import argparse
+import copy
+import inspect
+import os
+import sys
 
+sys.path.extend(['.', '../'])
 from analysis import glm
 from util import gen_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util, \
                       sess_plot_util
 from plot_fcts import plot_from_dicts_tool as plot_dicts
-
 
 
 """
@@ -43,6 +45,10 @@ Change regression criterion: Baysian information criterion or
 """
 
 
+DEFAULT_DATADIR = os.path.join('..', 'data', 'AIBS')
+DEFAULT_MOUSE_DF_PATH = 'mouse_df.csv'
+DEFAULT_FONTDIR = os.path.join('..', 'tools', 'fonts')
+
 #############################################
 def reformat_args(args):
     """
@@ -52,6 +58,8 @@ def reformat_args(args):
         - Sets stimulus parameters to 'none' if they are irrelevant to the 
           stimtype
         - Changes stimulus parameters from 'both' to actual values
+        - Sets seed, though doesn't seed
+        - Modifies analyses (if 'all' or 'all_' in parameter)
 
     Adds the following args:
         - dend (str)     : type of dendrites to use ('aibs', 'extr')
@@ -67,8 +75,10 @@ def reformat_args(args):
         - args (Argument parser): input parser, with the following attributes 
                                   added:
                                       bri_dir, bri_size, gabfr, gabk, gab_ori
-                                      omit_sess, omit_mice, dend
+                                      omit_sess, omit_mice, dend, analyses, 
+                                      seed
     """
+
     args = copy.deepcopy(args)
 
 
@@ -95,6 +105,21 @@ def reformat_args(args):
                                                     args.runtype, args.bri_dir, 
                                                     args.bri_size, args.gabk)
     
+    # chose a seed if none is provided (i.e., args.seed=-1), but seed later
+    args.seed = gen_util.seed_all(
+        args.seed, 'cpu', print_seed=False, seed_now=False)
+
+    # collect analysis letters
+    all_analyses = ''.join(get_analysis_fcts().keys())
+    if 'all' in args.analyses:
+        if '_' in args.analyses:
+            excl = args.analyses.split('_')[1]
+            args.analyses, _ = gen_util.remove_lett(all_analyses, excl)
+        else:
+            args.analyses = all_analyses
+    elif '_' in args.analyses:
+        raise ValueError('Use `_` in args.analyses only with `all`.')
+
     return args
 
 
@@ -115,8 +140,6 @@ def init_param_cont(args):
                                      ('right', 'left', ['right', 'left'])
             bri_size (int or list) : brick size values to include
                                      (128, 256 or [128, 256])
-            closest (bool)         : if False, only exact session number is 
-                                     retained, otherwise the closest.
             dend (str)             : type of dendrites to use ('aibs' or 'dend')
             error (str)            : error statistic parameter ('std' or 'sem')
             fontdir (str)          : path to directory containing additional 
@@ -151,80 +174,85 @@ def init_param_cont(args):
             stats (str)            : statistic parameter ('mean' or 'median')
 
     Returns:
-        - analyspar (AnalysPar): named tuple of analysis parameters
-        - sesspar (SessPar)    : named tuple of session parameters
-        - stimpar (StimPar)    : named tuple of stimulus parameters
-        - glmpar (GLMPar)      : named tuple of GLM parameters
-        - figpar (dict)        : dictionary containing following 
-                                        subdictionaries:
-            ['init']: dict with following inputs as attributes:
-                                'ncols', 'sharey', as well as
-                ['ncols'] (int)      : number of columns in the figures
-                ['sharex'] (bool)    : if True, x axis lims are shared across
-                                       subplots
-                ['sharey'] (bool)    : if True, y axis lims are shared across
-                                       subplots
-                ['subplot_hei'] (num): height of each subplot (inches)
-                ['subplot_wid'] (num): width of each subplot (inches)
+        - analysis_dict (dict): dictionary of analysis parameters
+            ['analyspar'] (AnalysPar): named tuple of analysis parameters
+            ['sesspar'] (SessPar)    : named tuple of session parameters
+            ['stimpar'] (StimPar)    : named tuple of stimulus parameters
+            ['glmpar'] (GLMPar)      : named tuple of GLM parameters
+            ['figpar'] (dict)        : dictionary containing following 
+                                       subdictionaries:
+                ['init']: dict with following inputs as attributes:
+                    ['ncols'] (int)      : number of columns in the figures
+                    ['sharex'] (bool)    : if True, x axis lims are shared 
+                                           across subplots
+                    ['sharey'] (bool)    : if True, y axis lims are shared 
+                                           across subplots
+                    ['subplot_hei'] (num): height of each subplot (inches)
+                    ['subplot_wid'] (num): width of each subplot (inches)
 
-            ['save']: dict with the following inputs as attributes:
-                                'overwrite', as well as
-                ['datetime'] (bool): if True, figures are saved in a subfolder 
-                                     named based on the date and time.
-                ['use_dt'] (str)   : datetime folder to use
-                ['fig_ext'] (str)  : figure extension
+                ['save']: dict with the following inputs as attributes:
+                    ['datetime'] (bool) : if True, figures are saved in a  
+                                          subfolder named based on the date and 
+                                          time.
+                    ['fig_ext'] (str)   : figure extension
+                    ['overwrite'] (bool): if True, existing figures can be 
+                                          overwritten
+                    ['use_dt'] (str)    : datetime folder to use
 
-            ['dirs']: dict with the following attributes:
-                ['figdir'] (str)   : main folder in which to save figures
-                ['roi'] (str)      : subdirectory name for ROI analyses
-                ['run'] (str)      : subdirectory name for running analyses
-                ['autocorr'] (str) : subdirectory name for autocorrelation 
-                                     analyses
-                ['glm'] (str)      : subdirectory name for glm analyses
-                ['locori'] (str)   : subdirectory name for location and 
-                                     orientation responses
-                ['oridir'] (str)   : subdirectory name for 
-                                     orientation/direction analyses
-                ['surp_qu'] (str)  : subdirectory name for surprise, quintile 
-                                     analyses
-                ['tune_curv'] (str): subdirectory name for tuning curves
-                ['grped'] (str)    : subdirectory name for ROI grps data
-                ['mags'] (str)     : subdirectory name for magnitude analyses
-            
-            ['mng']: dict with the following attributes:
-                ['plt_bkend'] (str): mpl backend to use
-                ['linclab'] (bool) : if True, Linclab mpl defaults are used
-                ['fontdir'] (str)  : path to directory containing additional 
-                                     fonts
+                ['dirs']: dict with the following attributes:
+                    ['figdir'] (str)   : main folder in which to save figures
+                    ['roi'] (str)      : subdirectory name for ROI analyses
+                    ['run'] (str)      : subdirectory name for running analyses
+                    ['autocorr'] (str) : subdirectory name for autocorrelation 
+                                         analyses
+                    ['locori'] (str)   : subdirectory name for location and 
+                                         orientation responses
+                    ['oridir'] (str)   : subdirectory name for 
+                                         orientation/direction analyses
+                    ['surp_qu'] (str)  : subdirectory name for surprise, 
+                                         quintile analyses
+                    ['tune_curv'] (str): subdirectory name for tuning curves
+                    ['grped'] (str)    : subdirectory name for ROI grps data
+                    ['mags'] (str)     : subdirectory name for magnitude 
+                                         analyses
+                
+                ['mng']: dict with the following attributes:
+                    ['plt_bkend'] (str): mpl backend to use
+                    ['linclab'] (bool) : if True, Linclab mpl defaults are used
+                    ['fontdir'] (str)  : path to directory containing 
+                                         additional fonts
     """
+
     args = copy.deepcopy(args)
 
+    analysis_dict = dict()
+
     # analysis parameters
-    analyspar = sess_ntuple_util.init_analyspar(args.fluor, True, 
-                                 args.stats, args.error, dend=args.dend)
+    analysis_dict['analyspar'] = sess_ntuple_util.init_analyspar(
+        args.fluor, True, args.stats, args.error, dend=args.dend)
 
     # session parameters
-    sesspar = sess_ntuple_util.init_sesspar(args.sess_n, args.closest, 
-                               args.plane, args.line, args.min_rois, 
-                               args.pass_fail, args.incl, args.runtype)
+    analysis_dict['sesspar'] = sess_ntuple_util.init_sesspar(
+        args.sess_n, False, args.plane, args.line, args.min_rois, 
+        args.pass_fail, args.incl, args.runtype)
 
     # stimulus parameters
-    stimpar = sess_ntuple_util.init_stimpar(args.stimtype, args.bri_dir, 
-                               args.bri_size, args.gabfr, args.gabk, 
-                               args.gab_ori, args.pre, args.post)
+    analysis_dict['stimpar'] = sess_ntuple_util.init_stimpar(
+        args.stimtype, args.bri_dir, args.bri_size, args.gabfr, args.gabk, 
+        args.gab_ori, args.pre, args.post)
 
     # SPECIFIC ANALYSES    
     # autocorrelation parameters
-    glmpar = sess_ntuple_util.init_glmpar(args.each_roi, args.k, args.test)
+    analysis_dict['glmpar'] = sess_ntuple_util.init_glmpar(
+        args.each_roi, args.k, args.test)
     
     # figure parameters
-    figpar = sess_plot_util.init_figpar(ncols=int(args.ncols),
-                            datetime=not(args.no_datetime), 
-                            overwrite=args.overwrite, runtype=args.runtype, 
-                            output=args.output, plt_bkend=args.plt_bkend, 
-                            fontdir=args.fontdir)
+    analysis_dict['figpar'] = sess_plot_util.init_figpar(
+        ncols=int(args.ncols), datetime=not(args.no_datetime), 
+        overwrite=args.overwrite, runtype=args.runtype, output=args.output, 
+        plt_bkend=args.plt_bkend, fontdir=args.fontdir)
 
-    return [analyspar, sesspar, stimpar, glmpar, figpar]
+    return analysis_dict
 
 
 #############################################
@@ -236,117 +264,79 @@ def prep_analyses(sess_n, args, mouse_df):
     arguments passed.
 
     Required args:
-        - sess_n (int)          : session number to run analyses on, or 
-                                  combination of session numbers to compare, 
-                                  e.g. '1v2'
+        - sess_n (int)          : session number to run analyses on
         - args (Argument parser): parser containing all parameters
         - mouse_df (pandas df)  : path name of dataframe containing information 
                                   on each session
 
     Returns:
-        - sessions (list)          : list of sessions, or nested list per mouse 
-                                     if sess_n is a combination
-        - analyspar (AnalysPar)    : named tuple containing analysis parameters
-        - sesspar (SessPar)        : named tuple containing session parameters
-        - stimpar (StimPar)        : named tuple containing stimulus parameters
-        - autocorrpar (AutocorrPar): named tuple containing autocorrelation 
-                                     parameters
-        - permpar (PermPar)        : named tuple containing permutation 
-                                     parameters
-        - quintpar (QuintPar)      : named tuple containing quintile 
-                                     parameters
-        - figpar (dict)            : dictionary containing following 
-                                     subdictionaries:
-            ['init']: dict with following inputs as attributes:
-                                'ncols', 'sharey', as well as
-                ['ncols'] (int)      : number of columns in the figures
-                ['sharex'] (bool)    : if True, x axis lims are shared across
-                                       subplots
-                ['sharey'] (bool)    : if True, y axis lims are shared across
-                                       subplots
-                ['subplot_hei'] (num): height of each subplot (inches)
-                ['subplot_wid'] (num): width of each subplot (inches)
-
-            ['save']: dict with the following inputs as attributes:
-                                'overwrite', as well as
-                ['datetime'] (bool): if True, figures are saved in a subfolder 
-                                     named based on the date and time.
-                ['use_dt'] (str)   : datetime folder to use
-                ['fig_ext'] (str)  : figure extension
-
-            ['dirs']: dict with the following attributes:
-                ['figdir'] (str)   : main folder in which to save figures
-                ['roi'] (str)      : subdirectory name for ROI analyses
-                ['run'] (str)      : subdirectory name for running analyses
-                ['autocorr'] (str) : subdirectory name for autocorrelation 
-                                     analyses
-                ['glm'] (str)      : subdirectory name for glm analyses
-                ['locori'] (str)   : subdirectory name for location and 
-                                     orientation responses
-                ['oridir'] (str)   : subdirectory name for 
-                                     orientation/direction analyses
-                ['surp_qu'] (str)  : subdirectory name for surprise, quintile 
-                                     analyses
-                ['tune_curv'] (str): subdirectory name for tuning curves
-                ['grped'] (str)    : subdirectory name for ROI grps data
-                ['mags'] (str)     : subdirectory name for magnitude analyses
-            
-            ['mng']: dict with the following attributes:
-                ['plt_bkend'] (str): mpl backend to use
-                ['linclab'] (bool) : if True, Linclab mpl defaults are used
-                ['fontdir'] (str)  : path to directory containing additional 
-                                     fonts
-        - seed (int)               : seed to use
+        - sessions (list)     : list of sessions, or nested list per mouse 
+                                if sess_n is a combination to compare
+        - analysis_dict (dict): dictionary of analysis parameters 
+                                (see init_param_cont())
     """
 
     args = copy.deepcopy(args)
 
-    # chose a seed if none is provided (i.e., args.seed=-1), but seed later
-    seed = gen_util.seed_all(args.seed, 'cpu', print_seed=False, 
-                             seed_now=False)
-
     args.sess_n = sess_n
 
-    [analyspar, sesspar, stimpar, glmpar, figpar] = init_param_cont(args)
+    analysis_dict = init_param_cont(args)
+    analyspar, sesspar, stimpar = [analysis_dict[key] for key in 
+        ['analyspar', 'sesspar', 'stimpar']]
     
     # get session IDs and create Sessions
-    sessids = sess_gen_util.get_sess_vals(mouse_df, 'sessid', sesspar.mouse_n, 
-                            sesspar.sess_n, sesspar.runtype, incl=args.incl, 
-                            omit_sess=args.omit_sess, omit_mice=args.omit_mice)
+    sesspar_dict = sesspar._asdict()
+    _ = sesspar_dict.pop('closest')
+    sessids = sess_gen_util.get_sess_vals(
+        mouse_df, 'sessid', omit_sess=args.omit_sess, omit_mice=args.omit_mice, 
+        **sesspar_dict)
 
-    sessions = sess_gen_util.init_sessions(sessids, args.datadir, mouse_df, 
-                           sesspar.runtype, fulldict=False, dend=analyspar.dend, 
-                           pupil=True)
+    sessions = sess_gen_util.init_sessions(
+        sessids, args.datadir, mouse_df, sesspar.runtype, fulldict=False, 
+        dend=analyspar.dend, pupil=True, run=True)
 
     print(f'\nAnalysis of {sesspar.plane} responses to {stimpar.stimtype[:-1]} '
           f'stimuli ({sesspar.runtype} data)\nSessions: {args.sess_n}')
 
-    return [sessions, analyspar, sesspar, stimpar, glmpar, figpar, seed]
-
+    return sessions, analysis_dict
 
 
 #############################################
-def run_analyses(sessions, analyspar, sesspar, stimpar, glmpar, figpar, 
-                 seed=None, analyses='all', parallel=False):
+def get_analysis_fcts():
     """
-    run_analyses(sessions, analyspar, sesspar, stimpar, glmpar, figpar)
+    get_analysis_fcts()
 
-    Run requested analyses on sessions using the named tuples passed.
+    Returns dictionary of analysis functions.
+
+    Returns:
+        - fct_dict (dict): dictionary where each key is an analysis letter, and
+                           records the corresponding function
+    """
+
+    fct_dict = dict()
+    # 0. Runs GLMs for the sessions
+    fct_dict['v'] = glm.run_glms
+
+
+    return fct_dict
+
+
+#############################################
+def run_analyses(sessions, analysis_dict, analyses, seed=None, parallel=False):
+    """
+    run_analyses(sessions, analysis_dict, analyses)
+
+    Runs requested analyses on sessions using the parameters passed.
 
     Required args:
-        - sessions (list)      : list of sessions
-        - analyspar (AnalysPar): named tuple containing analysis parameters
-        - sesspar (SessPar)    : named tuple containing session parameters
-        - stimpar (StimPar)    : named tuple containing stimulus parameters
-        - glmpar (GLMPar)      : named tuple containing autocorrelation 
-                                     parameters
-        - figpar (dict)        : dictionary containing figure parameters
+        - sessions (list)     : list of sessions, possibly nested
+        - analysis_dict (dict): analysis parameter dictionary 
+                                (see init_param_cont())
+        - analyses (str)      : analyses to run
     
     Optional args:
         - seed (int)     : seed to use
                            default: None
-        - analyses (str) : analyses to run
-                           default: 'all'
         - parallel (bool): if True, some analyses are parallelized 
                            across CPU cores 
                            default: False
@@ -356,25 +346,21 @@ def run_analyses(sessions, analyspar, sesspar, stimpar, glmpar, figpar,
         print('No sessions fit these criteria.')
         return
 
-    all_analyses = 'v'
-    all_check = ''
+    fct_dict = get_analysis_fcts()
 
+    args_dict = copy.deepcopy(analysis_dict)
+    for key, item in zip(['seed', 'parallel'], 
+        [seed, parallel]):
+        args_dict[key] = item
 
-    if 'all' in analyses:
-        if '_' in analyses:
-            excl = analyses.split('_')[1]
-            analyses, _ = gen_util.remove_lett(all_analyses, excl)
-        else:
-            analyses = all_analyses
-
-    if 'v' in analyses:
-        glm.run_glms(sessions, 'v', seed, analyspar, sesspar, stimpar, glmpar, 
-                    figpar, parallel=args.parallel)
-        all_check += 'v'
-
-    if set(all_analyses) != set(all_check):
-        raise ValueError('all_analyses variable is missing some analysis '
-                         'letters!')
+    # run through analyses
+    for analysis in analyses:
+        if analysis not in fct_dict.keys():
+            raise ValueError(f'{analysis} analysis not found.')
+        fct = fct_dict[analysis]
+        args_dict_use = gen_util.keep_dict_keys(
+            args_dict, inspect.getfullargspec(fct).args)
+        fct(sessions=sessions, analysis=analysis, **args_dict_use)
 
     return
 
@@ -435,9 +421,6 @@ if __name__ == "__main__":
         # session parameters
     parser.add_argument('--plane', default='any', help='soma, dend')
     parser.add_argument('--line', default='any', help='L23, L5')
-    parser.add_argument('--closest', action='store_true', 
-                        help=('if True, the closest session number is used. '
-                              'Otherwise, only exact.'))
     parser.add_argument('--pass_fail', default='P', 
                         help='P to take only passed sessions')
     parser.add_argument('--incl', default='any',
@@ -458,28 +441,25 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # args.device = gen_util.get_device(args.cuda)
-    args.fontdir = os.path.join('..', 'tools', 'fonts')
+    args.fontdir = DEFAULT_FONTDIR
 
     if args.dict_path != '':
         plot_dicts.plot_from_dicts(args.dict_path, source='glm', 
                    plt_bkend=args.plt_bkend, fontdir=args.fontdir, 
                    parallel=args.parallel)
     else:
-        if args.datadir is None:
-            args.datadir = os.path.join('..', 'data', 'AIBS') 
-
-        mouse_df = 'mouse_df.csv'
+        if args.datadir is None: args.datadir = DEFAULT_DATADIR
+        mouse_df = DEFAULT_MOUSE_DF_PATH
 
         args = reformat_args(args)
 
         # get numbers of sessions to analyse
         if args.sess_n == 'all':
-            all_sess_ns = sess_gen_util.get_sess_vals(mouse_df, 'sess_n', 
-                              mouse_n=args.mouse_n, runtype=args.runtype, 
-                              plane=args.plane, line=args.line, 
-                              min_rois=args.min_rois, pass_fail=args.pass_fail, 
-                              incl=args.incl, omit_sess=args.omit_sess, 
-                              omit_mice=args.omit_mice)
+            all_sess_ns = sess_gen_util.get_sess_vals(
+                mouse_df, 'sess_n', mouse_n=args.mouse_n, runtype=args.runtype, 
+                plane=args.plane, line=args.line, min_rois=args.min_rois, 
+                pass_fail=args.pass_fail, incl=args.incl, 
+                omit_sess=args.omit_sess, omit_mice=args.omit_mice)
         else:
             all_sess_ns = gen_util.list_if_not(args.sess_n)
 
