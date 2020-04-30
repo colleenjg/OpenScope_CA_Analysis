@@ -77,13 +77,10 @@ def reformat_args(args):
 
     [args.bri_dir, args.bri_size, args.gabfr, 
      args.gabk, args.gab_ori] = sess_gen_util.get_params(args.stimtype, 
-                                              args.bri_dir, args.bri_size, 
-                                              args.gabfr, args.gabk, 
-                                              args.gab_ori)
+        args.bri_dir, args.bri_size, args.gabfr, args.gabk, args.gab_ori)
 
     args.omit_sess, args.omit_mice = sess_gen_util.all_omit(args.stimtype, 
-                                                    args.runtype, args.bri_dir, 
-                                                    args.bri_size, args.gabk)
+        args.runtype, args.bri_dir, args.bri_size, args.gabk)
 
     # chose a seed if none is provided (i.e., args.seed=-1), but seed later
     args.seed = gen_util.seed_all(
@@ -279,15 +276,10 @@ def prep_analyses(sess_n, args, mouse_df):
 
     args = copy.deepcopy(args)
 
-    # chose a seed if none is provided (i.e., args.seed=-1), but seed later
-    seed = gen_util.seed_all(args.seed, 'cpu', print_seed=False, 
-                             seed_now=False)
-
     args.sess_n = sess_n
 
     analysis_dict = init_param_cont(args)
-    analyspar, sesspar, stimpar = [analysis_dict[key] for key in 
-        ['analyspar', 'sesspar', 'stimpar']]
+    sesspar, stimpar = [analysis_dict[key] for key in ['sesspar', 'stimpar']]
     
     # get session IDs and create Sessions
     sessids = sess_gen_util.sess_per_mouse(
@@ -362,6 +354,9 @@ def run_analyses(sessions, analysis_dict, analyses, seed=None, parallel=False):
     if len(sessions) == 0:
         print('No sessions fit these criteria.')
         return
+
+    # changes backend and defaults
+    plot_util.manage_mpl(cmap=False, **analysis_dict['figpar']['mng'])
 
     fct_dict = get_analysis_fcts()
 
@@ -476,7 +471,8 @@ if __name__ == "__main__":
         source = 'modif' if args.modif else 'run'
         plot_dicts.plot_from_dicts(
             args.dict_path, source=source, plt_bkend=args.plt_bkend, 
-            fontdir=args.fontdir, parallel=args.parallel)
+            fontdir=args.fontdir, parallel=args.parallel, 
+            datetime=not(args.no_datetime))
     else:
         args = reformat_args(args)
         if args.datadir is None: args.datadir = DEFAULT_DATADIR

@@ -338,27 +338,27 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois='all', ngabs='all',
 
     for i, (gf, s) in enumerate(zip(gabfrs, surps)):
         # get segments
-        segs = stim.get_segs_by_criteria(gabfr=gf, bri_dir=stimpar.bri_dir, 
-                                         bri_size=stimpar.bri_size, 
-                                         gabk=stimpar.gabk, surp=s, by='seg')
+        segs = stim.get_segs_by_criteria(
+            gabfr=gf, bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, 
+            gabk=stimpar.gabk, surp=s, by='seg')
         
         if grp2 == 'rand' and i == 1:
-            n_segs = len(stim.get_segs_by_criteria(gabfr=gf, 
-                                            bri_dir=stimpar.bri_dir, 
-                                            bri_size=stimpar.bri_size, 
-                                            gabk=stimpar.gabk, 
-                                            surp=1, by='seg'))
+            n_segs = len(stim.get_segs_by_criteria(
+                gabfr=gf, bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, 
+                gabk=stimpar.gabk, surp=1, by='seg'))
             np.random.shuffle(segs)
             segs = sorted(segs[: n_segs])
         tc_nseqs.append(len(segs))
-        twopfr = stim.get_twop_fr_by_seg(segs, first=True)
+        twopfr = stim.get_twop_fr_by_seg(segs, first=True)['first_twop_fr']
         # ROI x seq
-        roi_data = stim.get_roi_trace_array(twopfr, stimpar.pre, 
-                            stimpar.post, analyspar.fluor, integ=True, 
-                            remnans=analyspar.remnans)[1][:sess_nrois]
+        roi_data = stim.get_roi_data(
+            twopfr, stimpar.pre, stimpar.post, analyspar.fluor, integ=True, 
+            remnans=analyspar.remnans)['roi_traces'].unstack().to_numpy(
+            )[:sess_nrois]
+
         # gab x seq 
-        gab_oris = stim.get_stim_par_by_seg(segs, pos=False, ori=True, 
-                                            size=False)[0].T
+        gab_oris = gen_util.reshape_df_data(stim.get_stim_par_by_seg(
+            segs, pos=False, ori=True, size=False), squeeze_cols=True).T
         if collapse:
             gab_oris = collapse_dir(gab_oris)
 
@@ -372,9 +372,9 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois='all', ngabs='all',
 
         if prev: # PREVIOUS ESTIMATION METHOD
             [gab_tc_oris, gab_tc_data, gab_vm_pars, 
-            gab_vm_mean, gab_hist_pars] = tune_curv_estims(gab_oris, roi_data, 
-                                ngabs_tot, sess_nrois, sess_ngabs, comb_gabs, 
-                                collapse=False, parallel=parallel)
+            gab_vm_mean, gab_hist_pars] = tune_curv_estims(
+                gab_oris, roi_data, ngabs_tot, sess_nrois, sess_ngabs, 
+                comb_gabs, collapse=False, parallel=parallel)
             tc_oris[i] = gab_tc_oris
             tc_data[i] = gab_tc_data
             tc_vm_pars.append(gab_vm_pars)

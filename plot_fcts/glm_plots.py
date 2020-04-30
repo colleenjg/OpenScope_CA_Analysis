@@ -25,7 +25,7 @@ from util import file_util, gen_util, math_util, plot_util
 
 
 #############################################
-def plot_from_dict(dict_path, plt_bkend=None, fontdir=None):
+def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, datetime=True):
     """
     plot_from_dict(dict_path)
 
@@ -39,11 +39,15 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None):
                            default: None
         - fontdir (str)  : path to directory where additional fonts are stored
                            default: None
+        - datetime (bool): figpar['save'] datatime parameter (whether to 
+                           place figures in a datetime folder)
+                           default: True
     """
 
     print(f'\nPlotting from dictionary: {dict_path}')
     
-    figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir)
+    figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir, 
+        datetime=datetime)
     plot_util.manage_mpl(cmap=False, **figpar['mng'])
 
     info = file_util.loadfile(dict_path)
@@ -59,6 +63,7 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None):
     else:
         print(f'No plotting function for analysis {analysis}')
 
+    plt.close('all')
 
 #############################################
 def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,

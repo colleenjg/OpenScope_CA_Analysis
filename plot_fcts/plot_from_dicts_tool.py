@@ -16,6 +16,7 @@ import inspect
 import os
 
 from joblib import Parallel, delayed
+from matplotlib import pyplot as plt
 
 from util import file_util, gen_util
 from plot_fcts import roi_analysis_plots as roi_plots
@@ -29,7 +30,7 @@ from plot_fcts import logreg_plots, glm_plots
 
 #############################################
 def plot_from_dicts(direc, source='roi', plt_bkend=None, fontdir=None, 
-                    plot_tc=True, parallel=False):
+                    plot_tc=True, parallel=False, datetime=True):
     """
     plot_from_dicts(direc)
 
@@ -52,6 +53,9 @@ def plot_from_dicts(direc, source='roi', plt_bkend=None, fontdir=None,
         - parallel (bool): if True, some of the analysis is parallelized across 
                            CPU cores
                            default: False
+        - datetime (bool): figpar['save'] datatime parameter (whether to 
+                           place figures in a datetime folder)
+                           default: True
     """
     
     file_util.checkexists(direc)
@@ -76,6 +80,7 @@ def plot_from_dicts(direc, source='roi', plt_bkend=None, fontdir=None,
         'plt_bkend': plt_bkend, 
         'fontdir'  : fontdir,
         'plot_tc'  : plot_tc,
+        'datetime' : datetime,
         'parallel' : sub_parallel
         }
 
@@ -102,3 +107,4 @@ def plot_from_dicts(direc, source='roi', plt_bkend=None, fontdir=None,
     gen_util.parallel_wrap(
         fct, dict_paths, args_dict=args_dict, parallel=parallel)
 
+    plt.close('all')

@@ -27,7 +27,7 @@ from plot_fcts import roi_analysis_plots as roi_plots
 
 #############################################
 def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True, 
-                   parallel=False):
+                   parallel=False, datetime=True):
     """
     plot_from_dict(dict_path)
 
@@ -46,11 +46,15 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
         - parallel (bool): if True, some of the analysis is parallelized across 
                            CPU cores
                            default: False
+        - datetime (bool): figpar['save'] datatime parameter (whether to 
+                           place figures in a datetime folder)
+                           default: True
     """
 
     print(f'\nPlotting from dictionary: {dict_path}')
     
-    figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir)
+    figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir, 
+        datetime=datetime)
     plot_util.manage_mpl(cmap=False, **figpar['mng'])
 
     plt.rcParams['figure.titlesize'] = 'xx-large'
@@ -85,6 +89,7 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
     else:
         print(f'No modified plotting function for analysis {analysis}')
 
+    plt.close('all')
 
 #############################################
 def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info, 
@@ -489,22 +494,48 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
     
     surp_lab, len_ext = '', ''
     surp_lens = [[None]] * n_sess
+    offset = 0
+    surp_len_default = True # plot default surprise lengths
+    if (stimpar['stimtype'] == 'gabors' and 
+        stimpar['gabfr'] not in ['any', 'all']):
+        offset = stimpar['gabfr']
     if 'surp_lens' in trace_stats.keys():
         surp_lens = trace_stats['surp_lens']
         len_ext = '_bylen'
         if stimpar['stimtype'] == 'gabors':
-            surp_lens = [[sl * 1.5/4 for sl in sls] for sls in surp_lens]
+            offset = stimpar['gabfr']
+            surp_lens = [[sl * 1.5/4 - 0.3 * offset for sl in sls] 
+                                                    for sls in surp_lens]
+        surp_len_default = False
+
+    # plot surp_lens default values and RANGE TO PLOT
+    if stimpar['stimtype'] == 'gabors':
+        DEFAULT_SURP_LENS = [3.0, 4.5, 6.0]
+        end_val = 8.0
+    else:
+        DEFAULT_SURP_LENS = [2.0, 3.0, 4.0]
+        end_val = 6.0
+    if lock == 'surp':
+        st_val = -2.0
+        inv = 1
+    else:
+        st_val = -end_val + 2
+        end_val = end_val - 2
+        inv = -1
+    n_ticks = int((end_val - st_val)//2 + 1)
+
+    st, end = 0, len(x_ran)
+    st_vals = list(filter(lambda i: x_ran[i] <= st_val, range(len(x_ran))))
+    if len(st_vals) != 0:
+        st = st_vals[-1]
+    end_vals = list(filter(lambda i: x_ran[i] >= end_val, range(len(x_ran))))
+    if len(end_vals) != 0:
+        end = end_vals[0] + 1
     
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
     figpar = copy.deepcopy(figpar)
     figpar['init']['subplot_wid'] = 6.5
-    n = 21
-
-    # RANGE TO PLOT
-    st  = int(len(x_ran)*2.0/5)
-    end = int(len(x_ran)*4.0/5)
-    n = 9
 
     fig, ax = plot_util.init_fig(n_sess, **figpar['init'])
     for i, (stats, counts) in enumerate(zip(all_stats, all_counts)):
@@ -534,8 +565,8 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             cols = [None] * n_lines
         alpha = np.min([0.4, 0.8/n_lines])
         if stimpar['stimtype'] == 'gabors':
-            sess_plot_util.plot_gabfr_pattern(
-                sub_ax, x_ran[st:end], bars_omit=[0] + surp_lens[i])
+            sess_plot_util.plot_gabfr_pattern(sub_ax, x_ran[st:end], 
+                offset=offset, bars_omit=[0] + surp_lens[i])
         # plot regular data
         if reg_stats[i].shape[0] != 1:
             raise ValueError('Expected only one quintile for reg_stats.')
@@ -543,7 +574,10 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         leg = None
         if i == 0:
             leg = 'reg'
-        plot_util.add_vshade(sub_ax, 0, 4, col=cols[-1])
+        if surp_len_default:
+            for leng in DEFAULT_SURP_LENS:
+                plot_util.add_vshade(
+                    sub_ax, 0, leng * inv, col=cols[-1], alpha=0.1)
         # leg = f'reg (no lock) ({reg_counts[i][0]})'
         plot_util.plot_traces(
             sub_ax, x_ran[st:end], reg_stats[i][0][0, st:end], 
@@ -552,6 +586,8 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         n = 0 # count lines plotted
         for s, surp_len in enumerate(surp_lens[i]):
             if surp_len is not None:
+                plot_util.add_vshade(
+                    sub_ax, 0, surp_len * inv, col=cols[n], alpha=0.1)
                 counts, stats = all_counts[i][s], all_stats[i][s]                
                 surp_lab = f'surp len {surp_len}'
             else:
@@ -570,7 +606,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                 plot_util.plot_traces(
                     sub_ax, x_ran[st:end], stats[q][0, st:end], 
                     stats[q][1:, st:end], title, alpha=alpha, label=leg, 
-                    n_xticks=n, alpha_line=0.8, col=cols[n])
+                    n_xticks=n_ticks, alpha_line=0.8, col=cols[n])
                 n += 1
             if surp_len is not None:
                 plot_util.add_bars(sub_ax, hbars=surp_len, 

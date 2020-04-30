@@ -102,7 +102,7 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
             roi_tr.append(all_rois.tolist())
         elif datatype == 'run':
             full_tr = sess.get_run_velocity(
-                remnans=analyspar.remnans).to_numpy().squeeze()
+                remnans=analyspar.remnans).to_numpy().squeeze().tolist()
             roi_tr = None
         all_tr.append(full_tr)
         all_edges.append(edge_fr)
@@ -117,8 +117,8 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
                   'all_pars' : all_pars
                   }
 
-    sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor, 
-                              incl_roi=(datatype=='roi'))
+    sess_info = sess_gen_util.get_sess_info(
+        sessions, analyspar.fluor, incl_roi=(datatype=='roi'))
 
     info = {'analyspar' : analyspar._asdict(),
             'sesspar'   : sesspar._asdict(),
@@ -288,25 +288,20 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
                 print(f'\n{quintpar.n_quints} quint, {lock} lock{basestr_pr}')
                 if lock == 'surp_split':
                     trace_info = quint_analys.trace_stats_by_surp_len_sess(
-                                            sessions, analyspar, stimpar, 
-                                            quintpar.n_quints, quintpar.qu_idx, 
-                                            byroi=False, nan_empty=True, 
-                                            baseline=baseline, 
-                                            datatype=datatype)
+                        sessions, analyspar, stimpar, quintpar.n_quints, 
+                        quintpar.qu_idx, byroi=False, nan_empty=True, 
+                        baseline=baseline, datatype=datatype)
                 else:
-                    trace_info = quint_analys.trace_stats_by_qu_sess(sessions, 
-                                         analyspar, stimpar, quintpar.n_quints, 
-                                         quintpar.qu_idx, byroi=False, 
-                                         lock=lock, nan_empty=True, 
-                                         baseline=baseline, datatype=datatype)
+                    trace_info = quint_analys.trace_stats_by_qu_sess(
+                        sessions, analyspar, stimpar, quintpar.n_quints, 
+                        quintpar.qu_idx, byroi=False, lock=lock, nan_empty=True, 
+                        baseline=baseline, datatype=datatype)
 
                 # for comparison, locking to middle of regular sample (1 quint)
-                reg_samp = quint_analys.trace_stats_by_qu_sess(sessions, 
-                                         analyspar, stimpar, 
-                                         quintpar_one.n_quints, 
-                                         quintpar_one.qu_idx, byroi=False, 
-                                         lock='regsamp', nan_empty=True, 
-                                         baseline=baseline, datatype=datatype)
+                reg_samp = quint_analys.trace_stats_by_qu_sess(
+                    sessions, analyspar, stimpar, quintpar_one.n_quints, 
+                    quintpar_one.qu_idx, byroi=False, lock='regsamp', 
+                    nan_empty=True, baseline=baseline, datatype=datatype)
 
                 extrapar = {'analysis': analysis,
                             'datatype': datatype,
@@ -327,9 +322,8 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
                 if lock == 'surp_split':
                     trace_stats['surp_lens'] = trace_info[3]
 
-                sess_info = sess_gen_util.get_sess_info(sessions, 
-                                          analyspar.fluor, 
-                                          incl_roi=(datatype=='roi'))
+                sess_info = sess_gen_util.get_sess_info(
+                    sessions, analyspar.fluor, incl_roi=(datatype=='roi'))
 
                 info = {'analyspar'  : analyspar._asdict(),
                         'sesspar'    : sesspar._asdict(),
@@ -340,9 +334,8 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
                         'trace_stats': trace_stats
                         }
 
-                [fulldir, 
-                savename] = gen_plots.plot_traces_by_qu_lock_sess(
-                                                        figpar=figpar, **info)
+                fulldir, savename = gen_plots.plot_traces_by_qu_lock_sess(
+                    figpar=figpar, **info)
                 file_util.saveinfo(info, savename, fulldir, 'json')
 
       
@@ -496,7 +489,7 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
                 frame_edges = stim.get_twop_fr_by_seg([min(segs), max(segs)])
                 fr = list(range(min(frame_edges[0]), max(frame_edges[1])+1))
                 traces = sess.get_roi_traces(fr, fluor=analyspar.fluor, 
-                                             remnans=analyspar.remnans)
+                    remnans=analyspar.remnans).unstack().to_numpy()
             elif datatype == 'run':
                 if autocorrpar.byitem != False:
                     raise ValueError('autocorrpar.byitem must be False for '
@@ -505,7 +498,7 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
                 fr = list(range(min(frame_edges[0]), max(frame_edges[1])+1))
                 
                 traces = sess.get_run_velocity_by_fr(fr, fr_type='stim', 
-                            remnans=analyspar.remnans)[np.newaxis, :]
+                            remnans=analyspar.remnans).to_numpy().reshape(1, -1)
                 
             sess_traces.append(traces)
         xran, ac_st = math_util.autocorr_stats(sess_traces, autocorrpar.lag_s, 
@@ -606,8 +599,7 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
         print(f'Mouse {sess_grp[0].mouse_n}, sess {sess_grp[0].sess_n} vs '
               f'{sess_grp[1].sess_n} corr:')
         trace_info = quint_analys.trace_stats_by_qu_sess(sess_grp, analyspar, 
-                                            stimpar, 1, [0], byroi=False, 
-                                            bysurp=True, datatype=datatype)
+            stimpar, 1, [0], byroi=False, bysurp=True, datatype=datatype)
         # remove quint dim
         grp_stats = np.asarray(trace_info[1]).squeeze(2) 
         all_counts.append([[qu_c[0] for qu_c in c] for c in trace_info[2]])

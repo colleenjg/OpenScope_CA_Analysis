@@ -14,6 +14,7 @@ Note: this code uses python 3.7.
 
 import copy
 import os
+import warnings
 
 from joblib import Parallel, delayed
 from matplotlib import pyplot as plt
@@ -23,9 +24,12 @@ import scipy.stats as st
 from sess_util import sess_gen_util, sess_plot_util, sess_str_util
 from util import file_util, gen_util, math_util, plot_util
 
+# skip tight layout warning
+warnings.filterwarnings('ignore', message='This figure includes*')
 
 #############################################
-def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False):
+def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False, 
+                   datetime=True):
     """
     plot_from_dict(dict_path)
 
@@ -42,11 +46,15 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False):
         - parallel (bool): if True, some of the analysis is parallelized across 
                            CPU cores
                            default: False
+        - datetime (bool): figpar['save'] datatime parameter (whether to 
+                           place figures in a datetime folder)
+                           default: True
     """
 
     print(f'\nPlotting from dictionary: {dict_path}')
     
-    figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir)
+    figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir, 
+        datetime=datetime)
     plot_util.manage_mpl(cmap=False, **figpar['mng'])
 
     info = file_util.loadfile(dict_path)
@@ -66,6 +74,7 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False):
     else:
         print(f'No plotting function for analysis {analysis}')
 
+    plt.close('all')
 
 #############################################
 def plot_pup_diff_corr(analyspar, sesspar, stimpar, extrapar, 

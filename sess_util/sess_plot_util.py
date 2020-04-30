@@ -17,6 +17,7 @@ import os
 
 import itertools
 from matplotlib import colors as mplcol
+from matplotlib import pyplot as plt
 import numpy as np
 
 from util import gen_util, plot_util
@@ -537,11 +538,12 @@ def plot_gabfr_pattern(sub_ax, x_ran, alpha=0.1, offset=0, bars_omit=[]):
                             default: []
     """
 
-    offset_s = 0.3 * offset
+    offset_s = np.round(0.3 * offset, 10) # avoid periodic values
 
     bars = plot_util.get_repeated_bars(np.min(x_ran), np.max(x_ran), 1.5, 
-                                       offset=-offset_s)
-    shade_st = [bar - 0.6 for bar in bars if (bar - 0.6) > x_ran[0]]
+        offset=-offset_s) # sequence start/end
+    shade_st = plot_util.get_repeated_bars(np.min(x_ran), np.max(x_ran), 1.5, 
+        offset=-offset_s - 0.6) # surprise start
     bars = gen_util.remove_if(bars, bars_omit)
     plot_util.add_bars(sub_ax, bars=bars)
     plot_util.add_vshade(sub_ax, shade_st, width=0.3, alpha=0.1)
@@ -640,16 +642,16 @@ def format_linpla_subaxes(ax, fluor='dff', area=False, datatype='roi',
                 
 
 #############################################
-def plot_ROIs(sub_ax, mask_bool, valid_mask=None, border=None):
+def plot_ROIs(sub_ax, masks, valid_mask=None, border=None, savename=None):
     """
-    plot_ROIs(sub_ax, mask_bool)
+    plot_ROIs(sub_ax, masks)
 
     Plots whole ROIs contours from a boolean mask, and optionally non valid
     ROIs in red.
 
     Required args:
         - sub_ax (plt Axis subplot): subplot
-        - mask_bool (3D array)     : boolean ROI masks, structured as
+        - masks (3D array)         : boolean ROI masks, structured as
                                      ROIs x hei x wid
     
     Optional args:
@@ -658,44 +660,65 @@ def plot_ROIs(sub_ax, mask_bool, valid_mask=None, border=None):
                             default: None
         - border (list)   : border values to plot in red [right, left, down, up]
                             default: None
+        - savename (bool) : if provided, saves mask contours to file 
+                            (exact pixel size). '.png' best to avoid 
+                            anti-aliasing.
+                            default: False
+
+    Returns:
+        - masks_plot_proj (2D array): ROI image array: hei x wid
     """
 
-    if len(mask_bool.shape) == 2:
-        mask_bool = np.expand_dims(mask_bool, 0)
+    if len(masks.shape) == 2:
+        masks = np.expand_dims(masks, 0)
     if valid_mask is None:
-        valid_mask = np.ones(len(mask_bool))
+        valid_mask = np.ones(len(masks))
 
     color_list = ['black', 'white', 'red']
-    if valid_mask.all():
+    if valid_mask.all() and border is None:
         color_list = ['black', 'white']
     cm = mplcol.LinearSegmentedColormap.from_list(
         'roi_mask_cm', color_list, N=len(color_list))
     
-    masks_plot = mask_bool.astype(int)
-    masks_plot[~valid_mask.astype(bool)] *= 2
-    masks_plot_proj = np.max(masks_plot, axis=0)
-    sub_ax.imshow(masks_plot_proj, cmap=cm, interpolation='none')
+    masks = masks.astype(bool).astype(int)
+    masks[~valid_mask.astype(bool)] *= 2
+    masks_plot_proj = np.max(masks, axis=0)
     
     if border is not None:
         hei, wid = masks_plot_proj.shape
-        right, left, down, up = [border[i] for i in [0, 1, 2, 3]]
-        sub_ax.axvline(right, c='red', ls='dashed', lw=1)
-        sub_ax.axvline(wid-left, c='red', ls='dashed', lw=1)
-        sub_ax.axhline(hei-down, c='red', ls='dashed', lw=1)
-        sub_ax.axhline(up, c='red', ls='dashed', lw=1)
+        right, left, down, up = [
+            np.ceil(border[i]).astype(int) for i in [0, 1, 2, 3]]
+
+        # create dash patterns
+        dash_len = 3
+        hei_dash, wid_dash = [np.concatenate([np.arange(i, v, 
+            dash_len * 2) for i in range(dash_len)]) for v in [hei, wid]]
+
+        masks_plot_proj[hei_dash, right] = 2
+        masks_plot_proj[hei_dash, wid-left] = 2
+        masks_plot_proj[hei-down, wid_dash] = 2
+        masks_plot_proj[up, wid_dash] = 2
+
+    sub_ax.imshow(masks_plot_proj, cmap=cm, interpolation='none')
+
+    if savename:
+        plt.imsave(savename, masks_plot_proj, cmap=cm)
+
+    return masks_plot_proj
 
 
 #############################################
-def plot_ROI_contours(sub_ax, mask_bool, outlier=None, tight=True, 
-                      restrict=False, cw=1):
+def plot_ROI_contours(sub_ax, masks, outlier=None, tight=False, 
+                      restrict=False, cw=1, savename=False):
     """
     plot_ROI_contours(sub_ax, mask_bool)
 
-    Plots ROI contours from a boolean mask, and optionally an outlier in red.
+    Plots and returns ROI contours from a boolean mask, and optionally an 
+    outlier in red. Optionally saves ROI contours to file.
 
     Required args:
         - sub_ax (plt Axis subplot): subplot
-        - mask_bool (3D array)     : boolean ROI masks, structured as
+        - masks (3D array)         : boolean ROI masks, structured as
                                      ROIs x hei x wid
     Optional args:
         - outlier (int)  : index of ROI, if any, for which to plot contour 
@@ -703,13 +726,20 @@ def plot_ROI_contours(sub_ax, mask_bool, outlier=None, tight=True,
                            default: None
         - tight (bool)   : if True, plot is restricted to the ROIs in the mask,
                            allowing for a 15% border, where possible
-                           default: True
+                           default: False
         - restrict (bool): if True, plot is restricted to the outlier ROI,
                            allowing for a 150% border, where possible. Overrides
                            right.
                            default: True
         - cw (int)       : contour width (in pixels) (always within the ROI)
                            default: 1
+        - savename (bool): if provided, saves mask contours to file 
+                           (exact pixel size). '.png' best to avoid 
+                           anti-aliasing.
+                           default: False
+
+    Returns:
+        - contour_mask (2D array): ROI contour image array: hei x wid
     """
 
     color_list = ['black', 'white', 'red']
@@ -718,23 +748,23 @@ def plot_ROI_contours(sub_ax, mask_bool, outlier=None, tight=True,
     cm = mplcol.LinearSegmentedColormap.from_list(
         'roi_mask_cm', color_list, N=len(color_list))
 
-    if len(mask_bool.shape) == 2:
-        mask_bool = np.expand_dims(mask_bool, 0)
-    mask_int = np.ceil(mask_bool).astype(int)
-    _, h_orig, w_orig = mask_int.shape
+    if len(masks.shape) == 2:
+        masks = np.expand_dims(masks, 0)
+    masks = np.ceil(masks).astype(int)
+    _, h_orig, w_orig = masks.shape
 
     if outlier is None and restrict:
         raise ValueError('`restrict` requires providing an outlier.')
 
-    if tight:
+    if tight or restrict:
         dims     = h_orig, w_orig
         if restrict:
             border_p = 1.5
-            dim_vals = np.where(mask_int[outlier])
+            dim_vals = np.where(masks[outlier])
             r_val = 1
         else:
             border_p = 0.15
-            dim_vals = np.where(mask_int.sum(axis=0))
+            dim_vals = np.where(masks.sum(axis=0))
             r_val = 0
         dim_mins = [val.min() for val in dim_vals]
         dim_maxs = [val.max() for val in dim_vals]
@@ -744,19 +774,20 @@ def plot_ROI_contours(sub_ax, mask_bool, outlier=None, tight=True,
             for val, bord in zip(dim_mins, borders)]
         h_max, w_max = [np.min([d, val + bord + r_val]) 
             for val, bord, d in zip(dim_maxs, borders, dims)]
-        mask_int = mask_int[:, h_min:h_max, w_min:w_max]
+        masks = masks[:, h_min:h_max, w_min:w_max]
 
     pad_zhw = [0, 0], [cw, cw], [cw, cw]
-    mask_smooth = np.pad(mask_int, pad_zhw, 'constant', constant_values=0)
+    contour_mask = np.pad(masks, pad_zhw, 'constant', constant_values=0)
     shifts = range(-cw, cw + 1)
-    _, h, w = mask_int.shape
+    _, h, w = masks.shape
     for h_sh, w_sh in itertools.product(shifts, repeat=2):
         if h_sh == 0 and w_sh == 0:
             continue
-        mask_smooth[:, cw+h_sh: h+cw+h_sh, cw+w_sh: w+cw+w_sh] += mask_int
+        contour_mask[:, cw+h_sh: h+cw+h_sh, cw+w_sh: w+cw+w_sh] += masks
     
-    contour_broad = mask_smooth[:, cw:h+cw, cw:w+cw] != len(shifts)**2
-    contour_mask = contour_broad * mask_int
+    contour_mask = contour_mask[:, cw:h+cw, cw:w+cw] != len(shifts)**2
+    contour_mask = contour_mask * masks
+    del masks
 
     if restrict:
         dim_vals = [h_min, h_max, w_min, w_max]
@@ -774,4 +805,9 @@ def plot_ROI_contours(sub_ax, mask_bool, outlier=None, tight=True,
     contour_mask = np.max(contour_mask * mult_mask, axis=0)
 
     sub_ax.imshow(contour_mask, cmap=cm, interpolation='none')
+
+    if savename:
+        plt.imsave(savename, contour_mask, cmap=cm)
+
+    return contour_mask
 

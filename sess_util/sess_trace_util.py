@@ -176,7 +176,7 @@ def get_roi_metrics(roi_extract_dict, objectlist_txt):
 
 #############################################
 def get_roi_masks(mask_file=None, roi_extract_json=None, objectlist_txt=None, 
-                  min_n_pix=3, make_bool=True, mask_threshold=0.1):
+                  mask_threshold=0.1, min_n_pix=3, make_bool=True):
     """
     get_roi_masks()
 
@@ -192,13 +192,12 @@ def get_roi_masks(mask_file=None, roi_extract_json=None, objectlist_txt=None,
         - objectlist_txt (str)  : ROI object list txt (only needed if mask_file 
                                   is None)
                                   default: None
-        - min_n_pix (int)       : minimum number of pixels in an ROI (applies 
-                                  only if mask_file is not None)
-                                  default: 3
         - mask_threshold (float): minimum value in non-boolean mask to
-                                  retain a pixel in an ROI mask (applies only
-                                  if mask_file is not None)
+                                  retain a pixel in an ROI mask
                                   default: 0.1
+        - min_n_pix (int)       : minimum number of pixels in an ROI below 
+                                  which, ROI is set to be empty
+                                  default: 3
         - make_bool (bool)      : if True, ROIs are converted to boolean 
                                   before being returned
                                   default: True 
@@ -236,15 +235,17 @@ def get_roi_masks(mask_file=None, roi_extract_json=None, objectlist_txt=None,
     else:
         with h5py.File(mask_file, 'r') as f:
             roi_masks = f['data'][()]
-        roi_masks[roi_masks < mask_threshold] = 0
-            
-        ret_masks = np.sum(np.sum(roi_masks, axis=1), axis=1) >= min_n_pix
-        roi_masks = roi_masks[ret_masks]
 
         roi_ids = list(range(len(roi_masks)))
 
+    roi_masks[roi_masks < mask_threshold] = 0
+
+    set_empty = np.sum(np.sum(roi_masks, axis=1), axis=1) < min_n_pix
+    roi_masks[set_empty] = 0
+
     if make_bool:
         roi_masks = roi_masks.astype(bool)
+
 
     return roi_masks, roi_ids
 
@@ -624,7 +625,7 @@ def get_neuropil_subtracted_traces(roi_traces, neuropil_traces):
 ############################################
 def create_traces_from_masks(datadir, sessid, runtype='prod', h5dir=None,
                              savedir='trace_proc_dir', dendritic=False, 
-                             min_n_pix=3, mask_threshold=0.1, 
+                             mask_threshold=0.1, min_n_pix=3, 
                              compression=None):
     """
     create_traces_from_masks(datadir, sessid)
@@ -650,11 +651,11 @@ def create_traces_from_masks(datadir, sessid, runtype='prod', h5dir=None,
         - dendritic (bool)      : if True, paths are changed to EXTRACT 
                                   version dendritic
                                   default: False
-        - min_n_pix (int)       : minimum number of pixels in an ROI
-                                  default: 3
         - mask_threshold (float): minimum value in non-boolean mask to
                                   retain a pixel in an ROI mask
                                   default: 0.1 
+        - min_n_pix (int)       : minimum number of pixels in an ROI
+                                  default: 3
         - compression (str)     : type of compression to use when saving data 
                                   to h5 files (e.g., 'gzip')
                                   default: None
@@ -690,8 +691,8 @@ def create_traces_from_masks(datadir, sessid, runtype='prod', h5dir=None,
 
     print('Extracting ROI masks.')
     masks_bool, roi_ids = get_roi_masks(
-        mask_path, roi_extract_json, objectlist_path, min_n_pix=min_n_pix, 
-        make_bool=True, mask_threshold=mask_threshold)
+        mask_path, roi_extract_json, objectlist_path, 
+        mask_threshold=mask_threshold, min_n_pix=min_n_pix, make_bool=True, )
     motion_border = get_motion_border(roi_extract_json)
     all_mask_objs = create_mask_objects(masks_bool, motion_border, roi_ids, 
         union_threshold=0.7)

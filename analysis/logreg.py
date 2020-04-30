@@ -209,7 +209,7 @@ def get_rundir(run_val, uniqueid=None, alg='sklearn'):
 
 
 #############################################
-def get_compdir_dict(rundir):
+def get_compdir_dict(rundir, no_lists=False):
     """
     get_compdir_dict(rundir)
 
@@ -221,6 +221,11 @@ def get_compdir_dict(rundir):
                         structured as 
                         '.../m_s_plane_stim_fluor_scaled_comp_shuffled/
                         uniqueid_run'
+    
+    Optional args:
+        - no_lists (bool): if True, list parameters are replaced with a string, 
+                           e.g. 'both'
+                           False
     
     Returns:
         - compdir_dict (dict): parameter dictionary
@@ -248,7 +253,7 @@ def get_compdir_dict(rundir):
     param_str = parts[-2]
     run_str   = parts[-1]
 
-    compdir_dict = sess_gen_util.get_params_from_str(param_str)
+    compdir_dict = sess_gen_util.get_params_from_str(param_str, no_lists)
 
     if 'run' in run_str:
         compdir_dict['uniqueid'] = None
@@ -561,9 +566,10 @@ def get_sess_data(sess, analyspar, stimpar, quintpar, class_var='surps',
             surp_ns[d].append(quint_analys.quint_segs(stim, stimpar_sp, 
                             quintpar.n_quints, use_qu_i, surp=1)[1][0] * n)
             
-            twop_fr = stim.get_twop_fr_by_seg(segs, first=True)
-            roi_data = stim.get_roi_trace_array(twop_fr, stimpar_sp.pre, 
-                            stimpar_sp.post, analyspar.fluor)[1]
+            twop_fr = stim.get_twop_fr_by_seg(segs, first=True)['first_twop_fr']
+            roi_data = gen_util.reshape_df_data(
+                stim.get_roi_data(twop_fr, stimpar_sp.pre, stimpar_sp.post, 
+                analyspar.fluor), squeeze_cols=True)
             # transpose to seqs x frames x ROIs
             roi_seqs[d].append(np.transpose(roi_data, [1, 2, 0]))
             seq_classes[d].append(np.full(roi_data.shape[1], cl))
@@ -1244,30 +1250,28 @@ def run_regr(sess, analyspar, stimpar, logregpar, quintpar, extrapar, techpar):
         extrapar = copy.deepcopy(extrapar)
         extrapar['shuffle'] = shuffle
         techpar = copy.deepcopy(techpar)
-        techpar['compdir'] = sess_gen_util.get_analysdir(sesspar.mouse_n, 
-                                        sesspar.sess_n, sesspar.plane, 
-                                        analyspar.fluor, analyspar.scale, 
-                                        stimpar.stimtype, stimpar.bri_dir, 
-                                        stimpar.bri_size, stimpar.gabk, 
-                                        logregpar.comp, logregpar.ctrl, 
-                                        extrapar['shuffle'])
+        techpar['compdir'] = sess_gen_util.get_analysdir(
+            sesspar.mouse_n, sesspar.sess_n, sesspar.plane, analyspar.fluor, 
+            analyspar.scale, stimpar.stimtype, stimpar.bri_dir, 
+            stimpar.bri_size, stimpar.gabk, logregpar.comp, logregpar.ctrl, 
+            extrapar['shuffle'])
         if logregpar.alg == 'pytorch':
             techpar['compdir'] = '{}_pt'.format(techpar['compdir'])
             if techpar['parallel'] and n_runs != 0:
                 n_jobs = gen_util.get_n_jobs(n_runs)
                 Parallel(n_jobs=n_jobs)(delayed(single_run_pt)
-                        (run, analyspar, logregpar, quintpar, sesspar, stimpar, 
-                         extrapar, techpar, sess_data) for run in range(n_runs))
+                    (run, analyspar, logregpar, quintpar, sesspar, stimpar, 
+                    extrapar, techpar, sess_data) for run in range(n_runs))
             elif n_runs != 0:
                 for run in range(n_runs):
                     single_run_pt(run, analyspar, logregpar, quintpar, sesspar, 
-                                  stimpar, extrapar, techpar, sess_data)
+                        stimpar, extrapar, techpar, sess_data)
         elif logregpar.alg == 'sklearn':
             all_runs_sk(n_runs, analyspar, logregpar, quintpar, sesspar, 
-                        stimpar, extrapar, techpar, sess_data)
+                stimpar, extrapar, techpar, sess_data)
         else:
             gen_util.accepted_values_error('logregpar.alg', logregpar.alg, 
-                                           ['pytorch', 'sklearn'])
+                ['pytorch', 'sklearn'])
 
 
 #############################################
@@ -1298,7 +1302,7 @@ def collate_scores(direc, all_labels, alg='sklearn'):
 
     ep_info, hyperpars = logreg_util.get_scores(direc, alg)
     if ep_info is None:
-        comp_dict = get_compdir_dict(direc)
+        comp_dict = get_compdir_dict(direc, no_lists=True)
         comp_dict['scale'] = hyperpars['analyspar']['scale']
         comp_dict['runtype'] = hyperpars['sesspar']['runtype']
         comp_dict['line'] = hyperpars['sesspar']['line']
@@ -1357,8 +1361,8 @@ def run_collate(output, stimtype='gabors', comp='surp', ctrl=False,
         ext_test = None
 
     ctrl_str = sess_str_util.ctrl_par_str(ctrl)
-    gen_dirs = file_util.getfiles(output, 'subdirs', [stimtype[0:3], comp, 
-                         ctrl_str])
+    gen_dirs = file_util.getfiles(
+        output, 'subdirs', [stimtype[0:3], comp, ctrl_str])
                          
     if alg == 'sklearn':
         gen_dirs = [gen_dir for gen_dir in gen_dirs if '_pt' not in gen_dir]
@@ -1369,21 +1373,21 @@ def run_collate(output, stimtype='gabors', comp='surp', ctrl=False,
 
     if comp == 'surp':
         gen_dirs = [gen_dir for gen_dir in gen_dirs 
-                            if 'dir_surp' not in gen_dir]
+            if 'dir_surp' not in gen_dir]
     if not ctrl:
         gen_dirs = [gen_dir for gen_dir in gen_dirs 
-                            if 'ctrl' not in gen_dir]
+            if 'ctrl' not in gen_dir]
 
     if len(gen_dirs) == 0:
         print('No runs found.')
         return
 
     run_dirs = [run_dir for gen_dir in gen_dirs
-                for run_dir in file_util.getfiles(gen_dir, 'subdirs')]
+        for run_dir in file_util.getfiles(gen_dir, 'subdirs')]
 
     # identify, remove and flag empty directories     
     empty_dirs = [run_dir for run_dir in run_dirs 
-                          if len(os.listdir(run_dir)) == 0]
+        if len(os.listdir(run_dir)) == 0]
 
     if len(empty_dirs) != 0:
         print('EMPTY DIRECTORIES:')
@@ -1392,15 +1396,17 @@ def run_collate(output, stimtype='gabors', comp='surp', ctrl=False,
             print(f'    {empty_dir}')
 
     all_labels = info_dict() + \
-                 logreg_util.get_sc_labs(True, ext_test_name=ext_test) + \
-                 ['saved']
+        logreg_util.get_sc_labs(True, ext_test_name=ext_test) + ['saved']
 
     if parallel:
         n_jobs = gen_util.get_n_jobs(len(run_dirs))
         scores_list = Parallel(n_jobs=n_jobs)(delayed(collate_scores)
-                           (run_dir, all_labels, alg) for run_dir in run_dirs)
-        all_scores = pd.concat(scores_list)
-        all_scores = all_scores[all_labels] # reorder
+            (run_dir, all_labels, alg) for run_dir in run_dirs)
+        if len(scores_list) != 0:
+            all_scores = pd.concat(scores_list)
+            all_scores = all_scores[all_labels] # reorder
+        else:
+            all_scores = pd.DataFrame(columns=all_labels)
     else:
         all_scores = pd.DataFrame(columns=all_labels)
         for run_dir in run_dirs:
@@ -1410,7 +1416,7 @@ def run_collate(output, stimtype='gabors', comp='surp', ctrl=False,
     # sort df by mouse, session, plane, line, fluor, scale, shuffle, stimtype,
     # comp, uniqueid, run_n, runtype
     sorter = info_dict()[0:13]
-        
+    
     all_scores = all_scores.sort_values(by=sorter).reset_index(drop=True)
 
     savename = get_df_name('collate', stimtype, comp, ctrl, alg)
@@ -1456,8 +1462,11 @@ def calc_stats(scores_summ, curr_lines, curr_idx, CI=0.95, ext_test=None,
     scores_summ = copy.deepcopy(scores_summ)
 
     # score labels to perform statistics on
-    sc_labs = ['epoch_n'] + logreg_util.get_sc_labs(True, 
-                                        ext_test_name=ext_test)
+    sc_labs = ['epoch_n'] + logreg_util.get_sc_labs(
+        True, ext_test_name=ext_test)
+
+    # avoids accidental nuisance dropping by pandas
+    curr_lines['epoch_n'] = curr_lines['epoch_n'].astype(float)
 
     if shuffle: # group runs and take mean or median across
         scores_summ.loc[curr_idx, 'mouse_n'] = -1
@@ -1558,7 +1567,7 @@ def run_analysis(output, stimtype='gabors', comp='surp', ctrl=False,
 
     # common labels
     comm_labs = gen_util.remove_if(info_dict(), 
-                         ['uniqueid', 'run_n', 'epoch_n'])
+        ['uniqueid', 'run_n', 'epoch_n'])
 
     # get all unique comb of labels
     for acr_shuff in [False, True]:
@@ -1566,7 +1575,7 @@ def run_analysis(output, stimtype='gabors', comp='surp', ctrl=False,
             df_unique = all_scores_df[comm_labs].drop_duplicates()
         else:
             df_unique = all_scores_df[gen_util.remove_if(comm_labs, 
-                                     ['mouse_n', 'n_rois'])].drop_duplicates()
+                ['mouse_n', 'n_rois'])].drop_duplicates()
         for _, df_row in df_unique.iterrows():
             if acr_shuff and not df_row['shuffle']:
                 # second pass, only shuffle
@@ -1578,7 +1587,7 @@ def run_analysis(output, stimtype='gabors', comp='surp', ctrl=False,
             gen_util.set_df_vals(scores_summ, curr_idx, comm_labs, vals)
             # calculate stats
             scores_summ = calc_stats(scores_summ, curr_lines, curr_idx, CI, 
-                                     ext_test, stats=stats, shuffle=acr_shuff)
+                ext_test, stats=stats, shuffle=acr_shuff)
 
     savename = get_df_name('analyse', stimtype, comp, ctrl, alg)
     

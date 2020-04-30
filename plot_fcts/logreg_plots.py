@@ -49,6 +49,7 @@ def plot_from_dict(direc, plt_bkend=None, fontdir=None):
     if 'logregpar' in hyperpars.keys():
         plot_traces_scores(hyperpars, savedir=direc)
 
+    plt.close('all')
 
 #############################################
 def plot_title(mouse_n, sess_n, line, plane, comp, stimtype, bri_dir='right',
@@ -776,24 +777,29 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
             sess_mice = gen_util.get_df_vals(curr_lines, 'sess_n', sess_n, 
                                              'mouse_n', dtype=int)
             for m, mouse_n in enumerate(mouse_ns + [-1]):
-                if mouse_n in sess_mice:
-                    if mouse_n == -1:
-                        stat_types = shuff_stats
-                        arr = shuff_arr
-                        m = 0
-                    else:
-                        stat_types = stats
-                        arr = data_arr
-                    curr_line = gen_util.get_df_vals(curr_lines, 
-                                        ['sess_n', 'mouse_n', 'shuffle'], 
-                                        [sess_n, mouse_n, mouse_n==-1])
-                    for st, stat in enumerate(stat_types):
-                        for d, dat in enumerate(data_types):
-                            i = d * 3 + st
-                            arr[m, int(sess_n-1), i] = curr_line[f'{dat}_{stat}']
-                    if mouse_n != -1:
-                        arr[m, int(sess_n-1), -2] = curr_line['n_rois']
-                    arr[m, int(sess_n-1), -1] = curr_line['runs_total'] - curr_line['runs_nan']
+                if mouse_n not in sess_mice:
+                    continue
+                if mouse_n == -1:
+                    stat_types = shuff_stats
+                    arr = shuff_arr
+                    m = 0
+                else:
+                    stat_types = stats
+                    arr = data_arr
+                curr_line = gen_util.get_df_vals(curr_lines, 
+                                    ['sess_n', 'mouse_n', 'shuffle'], 
+                                    [sess_n, mouse_n, mouse_n==-1])
+                if len(curr_line) > 1:
+                    raise ValueError('Several lines correspond to criteria.')
+                elif len(curr_line) == 0:
+                    continue
+                for st, stat in enumerate(stat_types):
+                    for d, dat in enumerate(data_types):
+                        i = d * 3 + st
+                        arr[m, int(sess_n-1), i] = curr_line[f'{dat}_{stat}']
+                if mouse_n != -1:
+                    arr[m, int(sess_n-1), -2] = curr_line['n_rois']
+                arr[m, int(sess_n-1), -1] = curr_line['runs_total'] - curr_line['runs_nan']
         
         summ_subplot(sub_ax, data_arr, shuff_arr, title, mouse_ns, sess_ns, 
                      line, plane, title, stats[0], stats[1], CI, q1v4, rvs, 
@@ -852,6 +858,13 @@ def plot_summ(output, savename, stimtype='gabors', comp='surp', ctrl=False,
     else:
         print(f'{summ_scores_file} not found.')
         return
+
+    if len(summ_scores) == 0:
+        print(f'No data in {summ_scores_file}.')
+        return
+
+    # drop NaN lines
+    summ_scores = summ_scores.loc[~summ_scores['epoch_n_mean'].isna()]
 
     data_types  = ['epoch_n', 'test_acc', 'test_acc_bal']
     data_titles = ['epoch nbr', 'test accuracy', 'test accuracy (balanced)']

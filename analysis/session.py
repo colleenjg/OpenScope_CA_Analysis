@@ -205,17 +205,22 @@ class Session(object):
         """
         self.roi_masks()
 
+        Loads boolean ROI masks
+
         Returns:
             - _roi_masks (3D array): boolean ROI masks, structured as 
                                      ROI x height x width
         """
+
+        min_n_pix = 3 # value used in ROI extraction
+        mask_threshold = 0.1 # value used in ROI extraction
 
         if not hasattr(self, '_dend'):
             raise ValueError('Run `self.load_roi_info()` to set ROI '
                 'attributes correctly.')
 
         if not hasattr(self, '_roi_masks'):
-            self._roi_masks = sess_trace_util.get_roi_masks(
+            self._roi_masks, _ = sess_trace_util.get_roi_masks(
                 self.roi_mask_file, self.roi_extract_json, self.roi_objectlist, 
                 make_bool=True)
 
@@ -1415,6 +1420,8 @@ class Session(object):
             frames = np.arange(self.tot_twop_fr)
         elif max(frames) >= self.tot_twop_fr or min(frames) < 0:
             raise UserWarning('Some of the specified frames are out of range')
+        else:
+            frames = np.asarray(frames)
 
         remnans_str = 'yes' if remnans else 'no'
         stand_str = 'yes' if stand else 'no'
@@ -1457,9 +1464,8 @@ class Session(object):
             rem_rois = self.get_nanrois(fluor)
             # remove ROIs with NaNs or Infs in dataframe
             if len(rem_rois):
-                keep = np.asarray(sorted(set(ROI_ids) - set(rem_rois)))
-                traces = traces[keep]
-                ROI_ids = ROI_ids[keep]
+                ROI_ids = np.asarray(sorted(set(ROI_ids) - set(rem_rois)))
+                traces = traces[ROI_ids]
 
         # initialize the return dataframe
         index_cols = pd.MultiIndex.from_product(
@@ -1669,7 +1675,7 @@ class Session(object):
             [traces_flat.index.unique('ROIs').tolist(), 
             range(len(twop_fr_seqs)), range(max(pad_seql))], 
             names=['ROIs', 'sequences', 'frames'])
-
+        
         traces_df = pd.DataFrame(
             None, index=index_rows, columns=traces_flat.columns)
 
@@ -1701,7 +1707,7 @@ class Session(object):
                                to check for removal if out of bounds
 
         Optional args:
-            - fr_type (str) : time of frames ('twop', 'stim')
+            - fr_type (str) : time of frames ('twop', 'stim', 'pup')
                               default: 'twop'
             - ret_idx (bool): if True, indices of frames retained are also 
                               returned
@@ -1771,12 +1777,12 @@ class Session(object):
                                    frames
         """
  
-        if ch_fl is not None:
-            firsts = self.check_flanks(firsts, ch_fl, fr_type='pup').tolist()
-
         # delay of ~0.1s to display on screen
         delay = int(np.round(self.twop_fps * 0.1))
         pup_fr = self.twop2pupfr[list(twop_fr)] + delay
+
+        if ch_fl is not None:
+            pup_fr = self.check_flanks(pup_fr, ch_fl, fr_type='pup').tolist()
 
         return pup_fr
 
@@ -3058,13 +3064,17 @@ class Stim(object):
         data_stats = math_util.get_stats(
             data_array.astype(float), stats, error, axes=axes, nanpol=nanpol)
 
+        if rois and 'ROIs' not in dims:
+            # place ROI dimension first
+            data_stats = data_stats.transpose(
+                1, 0, *range(len(data_stats.shape))[2:])
+
         # retrieve the level values for the data statistics
         err_name = [f'error_{name}' for name in gen_util.list_if_not(
             math_util.error_stat_name(stats=stats, error=error))]
         stat_names = [f'stat_{stats}', *err_name]
 
         # prepare dataframe
-
         level_vals = [['stats']] + gen_util.get_df_unique_vals(
             sub_df, axis='index')
         stat_names_set = False
@@ -3079,6 +3089,7 @@ class Stim(object):
                     stat_names_set = True
                     continue
                 level_vals[l+1] = ['None']
+        
 
         # append stats
         row_index = pd.MultiIndex.from_product(level_vals, 
@@ -3174,7 +3185,7 @@ class Stim(object):
         fr_idx = gen_util.remove_idx(fr_idx, neg_idx + over_idx, axis=0)
 
         if len(fr_idx) == 0:
-            raise ValueError('Frame list is empty.')
+            raise ValueError('No frames in list.')
 
         pup_data = self.sess.get_pup_data(
             datatype=datatype, remnans=remnans, stand=stand)
@@ -3377,7 +3388,7 @@ class Stim(object):
         fr_idx = gen_util.remove_idx(fr_idx, neg_idx + over_idx, axis=0)
 
         if len(fr_idx) == 0:
-            raise ValueError('Frame list is empty.')
+            raise ValueError('No frames in list.')
 
         run_data = self.sess.get_run_velocity_by_fr(
             fr_idx, fr_type='stim', remnans=remnans, stand=stand)
@@ -3608,6 +3619,7 @@ class Stim(object):
 
         row_indices = [roi_data_df.index.unique('ROIs'), 
             range(data_array.shape[1])]
+        
         row_names = ['ROIs', 'sequences']
         baseline_str = 'no'
         if baseline is not None: # calculate baseline and subtract
@@ -3628,11 +3640,11 @@ class Stim(object):
                 data_array.astype(float), win=add_pad)
             # cut down based on pad
             data_array = data_array[:, :, add_pad:-add_pad]
-
+        
         if integ:
             integ_str = 'yes'
             data_array = math_util.integ(
-                data_array, 1./self.sess.twop_fps, axis=2, nanpol=nanpol)
+                data_array, 1./self.sess.twop_fps, axis=-1, nanpol=nanpol)
         else:
             integ_str = 'no'
             row_indices.append(frame_n_df.index.unique(
@@ -3652,7 +3664,6 @@ class Stim(object):
 
         roi_data_df = pd.DataFrame(
             data_array.reshape(-1), index=row_index, columns=col_index) 
-
 
         return roi_data_df
     
@@ -4102,6 +4113,8 @@ class Gabors(Stim):
                     - 'seg_n'     : segment number
                     - 'gabor_n'   : gabor number
         """
+
+        segs = np.asarray(segs)
 
         # a few checks that implementation is appropriate based on stimulus info        
         if self.block_params.loc[(0, 0), 'start_seg', ][0] != 0:

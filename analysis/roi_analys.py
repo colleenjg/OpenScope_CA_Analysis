@@ -13,6 +13,7 @@ Note: this code uses python 3.7.
 """
 
 import copy
+import warnings
 
 from joblib import Parallel, delayed
 import numpy as np
@@ -98,7 +99,7 @@ def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
     # get full data for qu of interest: session x surp x [seq x ROI]
     integ_info = quint_analys.trace_stats_by_qu_sess(
         sessions, analyspar, stimpar, quintpar.n_quints, 'all', bysurp=True, 
-        integ=True)     
+        integ=True)
 
     # retrieve only mean/medians per ROI
     all_me = [sess_stats[:, :, 0] for sess_stats in integ_info[1]]
@@ -424,12 +425,12 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
                                          datatype)
     
     sessids = [sess.sessid for sess in sessions]
-
+    
     # get full data for qu of interest: session x surp x [seq x ROI]
-    integ_info = quint_analys.trace_stats_by_qu_sess(sessions, analyspar, 
-                                                  stimpar, quintpar.n_quints, 
-                                                  quintpar.qu_idx, bysurp=True, 
-                                                  integ=True, ret_arr=True)
+    integ_info = quint_analys.trace_stats_by_qu_sess(
+        sessions, analyspar, stimpar, quintpar.n_quints, quintpar.qu_idx, 
+        bysurp=True, integ=True, ret_arr=True)
+
     _, _, _, qu_data = integ_info     
 
     if analyspar.remnans:
@@ -442,8 +443,7 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
     # identify significant ROIs 
     # (returns all_roi_grps, grp_names, and optionally permpar_mult)
     outs = signif_grps.signif_rois_by_grp_sess(sessids, qu_data, permpar, 
-                       roigrppar, quintpar.qu_lab, stats=analyspar.stats, 
-                       nanpol=nanpol)
+        roigrppar, quintpar.qu_lab, stats=analyspar.stats, nanpol=nanpol)
 
     roi_grps = {'all_roi_grps': outs[0],
                 'grp_names'   : outs[1],
@@ -461,18 +461,16 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
         figpar['save']['use_dt'] = gen_util.create_time_str()
 
     _, roi_grps_q = run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, 
-                                            stimpar, extrapar, permpar, 
-                                            quintpar, roigrppar, roi_grps, 
-                                            figpar, savedict=False)    
+        stimpar, extrapar, permpar, quintpar, roigrppar, roi_grps, 
+        figpar, savedict=False)    
 
     _, roi_grps_t = run_roi_traces_by_grp(sessions, analyspar, sesspar, 
-                                   stimpar, extrapar, permpar, quintpar, 
-                                   roigrppar, roi_grps, figpar, savedict=False)
+        stimpar, extrapar, permpar, quintpar, roigrppar, roi_grps, figpar, 
+        savedict=False)
 
     fulldir, roi_grps_a = run_roi_areas_by_grp(sessions, analyspar, sesspar, 
-                                               stimpar, extrapar, permpar, 
-                                               quintpar, roigrppar, roi_grps,
-                                               figpar, savedict=False)
+        stimpar, extrapar, permpar, quintpar, roigrppar, roi_grps,
+        figpar, savedict=False)
 
     # add roi_grps_t and roi_grps_a keys to roi_grps dictionary
     for roi_grps_dict in [roi_grps_q, roi_grps_t, roi_grps_a]:
@@ -790,14 +788,14 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
         print('Tuning curve analysis not implemented for bricks.')
         return
     
-    sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
-                                       sesspar.plane, stimpar.bri_dir, 
-                                       stimpar.bri_size, stimpar.gabk, 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
-                                            datatype, 'print')
+    sessstr_pr = sess_str_util.sess_par_str(
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 
+        stimpar.bri_size, stimpar.gabk, 'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar.dend, sesspar.plane, datatype, 'print')
   
     print('\nAnalysing and plotting ROI tuning curves for orientations '
-          f'({sessstr_pr}{dendstr_pr}).')
+        f'({sessstr_pr}{dendstr_pr}).')
 
     nrois = 'all'
     ngabs = 'all'
@@ -811,19 +809,23 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
     print(f'Number ROIs: {nrois}\nNumber of gabors: {ngabs}')
 
     # modify parameters
-    stimpar_tc = sess_ntuple_util.get_modif_ntuple(stimpar, ['gabfr', 'pre', 
-                        'post'], [tcurvpar.gabfr, tcurvpar.pre, tcurvpar.post])
+    stimpar_tc = sess_ntuple_util.get_modif_ntuple(
+        stimpar, ['gabfr', 'pre', 'post'], 
+        [tcurvpar.gabfr, tcurvpar.pre, tcurvpar.post])
 
     seed = gen_util.seed_all(seed, 'cpu', print_seed=False)
 
     if figpar['save']['use_dt'] is None:
         figpar['save']['use_dt'] = gen_util.create_time_str()
 
+    # skip astropy warning
+    warnings.filterwarnings('ignore', message='Configuration defaults*')
+
     for comb_gabs in comb_gabs_all:
         for sess in sessions:
-            returns = ori_analys.calc_tune_curvs(sess, analyspar, stimpar_tc, 
-                                nrois, ngabs, tcurvpar.grp2, comb_gabs, 
-                                tcurvpar.prev, collapse=True, parallel=parallel)
+            returns = ori_analys.calc_tune_curvs(
+                sess, analyspar, stimpar_tc, nrois, ngabs, tcurvpar.grp2, 
+                comb_gabs, tcurvpar.prev, collapse=True, parallel=parallel)
             if tcurvpar.prev:
                 [tc_oris, tc_data, tc_nseqs, tc_vm_pars, 
                                 tc_vm_mean, tc_hist_pars] = returns
@@ -836,14 +838,14 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
                           }
 
             if tcurvpar.prev: # PREVIOUS ESTIMATION METHOD
-                tcurv_data['vm_pars'] = np.transpose(np.asarray(tc_vm_pars), 
-                                                     [1, 0, 2, 3]).tolist()
-                tcurv_data['vm_mean'] = np.transpose(np.asarray(tc_vm_mean), 
-                                                     [1, 0, 2]).tolist()
-                tcurv_data['hist_pars'] = np.transpose(np.asarray(tc_hist_pars), 
-                                                       [1, 0, 2, 3]).tolist()
+                tcurv_data['vm_pars'] = np.transpose(
+                    np.asarray(tc_vm_pars), [1, 0, 2, 3]).tolist()
+                tcurv_data['vm_mean'] = np.transpose(
+                    np.asarray(tc_vm_mean), [1, 0, 2]).tolist()
+                tcurv_data['hist_pars'] = np.transpose(
+                    np.asarray(tc_hist_pars), [1, 0, 2, 3]).tolist()
                 tcurv_data['vm_regr'] = ori_analys.ori_pref_regr(
-                                                tcurv_data['vm_mean']).tolist()
+                    tcurv_data['vm_mean']).tolist()
 
             extrapar = {'analysis': analysis,
                         'datatype': datatype,
@@ -862,8 +864,8 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
                     'sess_info' : sess_info
                     }
 
-            fulldir, savename = roi_plots.plot_tune_curves(figpar=figpar, 
-                                   parallel=parallel, plot_tc=plot_tc, **info)
+            fulldir, savename = roi_plots.plot_tune_curves(
+                figpar=figpar, parallel=parallel, plot_tc=plot_tc, **info)
 
             file_util.saveinfo(info, savename, fulldir, 'json')
 
@@ -922,15 +924,13 @@ def posori_resp(sess, analyspar, stimpar, nrois='all'):
                                              gab_ori=ori, gabk=stimpar.gabk, 
                                              surp=s, by='seg')
             ori_nseqs.append(len(segs))
-            twopfr = stim.get_twop_fr_by_seg(segs, first=True)
+            twopfr = stim.get_twop_fr_by_seg(segs, first=True)['first_twop_fr']
             # stats x ROI
-            gf_stats = stim.get_roi_trace_stats(twopfr, stimpar.pre, 
-                            stimpar.post, byroi=True, 
-                            fluor=analyspar.fluor, integ=True, 
-                            remnans=analyspar.remnans, 
-                            stats=analyspar.stats, 
-                            error=analyspar.error)[1][:, :sess_nrois]
-            ori_stats.append(gf_stats.tolist())
+            gf_stats = gen_util.reshape_df_data(stim.get_roi_stats_df(twopfr, 
+                stimpar.pre, stimpar.post, byroi=True, fluor=analyspar.fluor, 
+                integ=True, remnans=analyspar.remnans, stats=analyspar.stats, 
+                error=analyspar.error).loc['stats'], squeeze_cols=True).T
+            ori_stats.append(gf_stats[:, :sess_nrois].tolist())
         roi_stats.append(ori_stats)
         nseqs.append(ori_nseqs)
     
@@ -1038,17 +1038,16 @@ def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar,
 
     datatype = 'roi'
 
-    sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                                            sesspar.plane, stimpar.bri_dir, 
-                                            stimpar.bri_size, stimpar.gabk,
-                                            'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
-                                            datatype, 'print')
+    sessstr_pr = sess_str_util.sess_par_str(
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 
+        stimpar.bri_size, stimpar.gabk, 'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar.dend, sesspar.plane, datatype, 'print')
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
     print(f'\nAnalysing and plotting trial trajectories in 2 principal '
-          f'components \n({sessstr_pr}{dendstr_pr}).')
+        f'components \n({sessstr_pr}{dendstr_pr}).')
 
     figpar = copy.deepcopy(figpar)
     if figpar['save']['use_dt'] is None:
@@ -1056,33 +1055,35 @@ def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar,
     
     print('Updating stimpar to appropriate values.')
     if stimpar.stimtype == 'gabors':
-        stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, 
-                                   ['gabfr', 'pre', 'post'], [0, 0, 1.5])
+        stimpar = sess_ntuple_util.get_modif_ntuple(
+            stimpar, ['gabfr', 'pre', 'post'], [0, 0, 1.5])
         surps = [0, 1]
     elif stimpar.stimtype == 'bricks':
-        stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, 
-                                   ['pre', 'post'], [4, 8])
+        stimpar = sess_ntuple_util.get_modif_ntuple(
+            stimpar, ['pre', 'post'], [4, 8])
         surps = [1]
     else:
-        gen_util.accepted_values_error('stimpar.stimtype', stimpar.stimtype, 
-                                       ['gabors', 'bricks'])
+        gen_util.accepted_values_error(
+            'stimpar.stimtype', stimpar.stimtype, ['gabors', 'bricks'])
 
     for sess in sessions:
         stim = sess.get_stim(stimpar.stimtype)
         all_traces = []
         for surp in surps:        
             all_segs = stim.get_segs_by_criteria(gabfr=stimpar.gabfr,
-                    gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
-                    bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size,
-                    surp=surp, by='seg')
+                gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
+                bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size,
+                surp=surp, by='seg')
             if stimpar.stimtype == 'bricks':
                 all_segs, n_consec = gen_util.consec(all_segs)
-            twop_fr = stim.get_twop_fr_by_seg(all_segs, first=True)
+            twop_fr = stim.get_twop_fr_by_seg(
+                all_segs, first=True)['first_twop_fr']
             # ROI x sequences (x frames)
-            traces = stim.get_roi_trace_array(twop_fr, stimpar.pre, 
-                            stimpar.post, fluor=analyspar.fluor, 
-                            remnans=analyspar.remnans)[1]
-            all_traces.append(traces)
+            traces_df = stim.get_roi_data(
+                twop_fr, stimpar.pre, stimpar.post, fluor=analyspar.fluor, 
+                remnans=analyspar.remnans)
+            all_traces.append(gen_util.reshape_df_data(
+                traces_df, squeeze_cols=True))
         if stimpar.stimtype == 'gabors':
             n_reg = len(all_traces[0])
             all_traces = np.concatenate(all_traces, axis=1)

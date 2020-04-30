@@ -37,6 +37,7 @@ All of the appropriate libraries should then be loaded, and the modules can
 be imported for use in ipython, python scripts, or jupyter notebooks.
 
 **Scripts and modules**:
+* run\_acr\_sess_analysis.py: run and plot specific analyses across sessions
 * run\_roi_analysis.py: run and plot specific analyses on ROI data
 * run\_running_analysis.py: run and plot specific analyses on running data
 * run\_pupil_analysis.py: run and plot specific analyses on pupil data
@@ -44,7 +45,7 @@ be imported for use in ipython, python scripts, or jupyter notebooks.
 * **analysis**: Session object as well as session data analysis module
 * **plot_fcts**: module with functions to plot analysis results from saved dictionaries or dataframes 
 * **sess_util**: session specific utilities module
-* **examples**: heavily commented example code 
+* **examples**: example notebook for using Session/Stim objects 
 * **scripts_under_dev**: analysis scripts under development
 * **prev_scripts**: iPython notebooks (not currently maintained)
 
