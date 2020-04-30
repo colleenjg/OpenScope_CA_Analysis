@@ -88,6 +88,11 @@ def reformat_args(args):
                                               args.gabfr, args.gabk, 
                                               args.gab_ori)
 
+    if args.datatype == 'run':
+        args.fluor = 'n/a'
+    if args.plane == 'soma':
+        args.dend = 'aibs'
+
     args.omit_sess, args.omit_mice = sess_gen_util.all_omit(args.stimtype, 
                                                     args.runtype, args.bri_dir, 
                                                     args.bri_size, args.gabk)
@@ -278,7 +283,8 @@ def init_param_cont(args):
 
 #############################################
 def init_mouse_sess(mouse_n, all_sess_ns, sesspar, mouse_df, datadir, 
-                    omit_sess=[], dend='extr'):
+                    omit_sess=[], dend='extr', roi=True, run=False, 
+                    pupil=False):
 
     """
     init_mouse_sess(mouse_n, all_sess_ns, sesspar, mouse_df, datadir)
@@ -296,6 +302,12 @@ def init_mouse_sess(mouse_n, all_sess_ns, sesspar, mouse_df, datadir,
     Optional args:
         - omit_sess (list): list of sessions to omit
         - dend (str)      : type of dendrites to use ('aibs' or 'dend')
+        - roi (bool)      : if True, ROI data is loaded
+                            default: True
+        - run (bool)      : if True, running data is loaded
+                            default: False
+        - pupil (bool)    : if True, pupil data is loaded
+                            default: False
 
     Returns:
         - mouse_sesses (list): list of Session objects for the specified mouse, 
@@ -318,8 +330,8 @@ def init_mouse_sess(mouse_n, all_sess_ns, sesspar, mouse_df, datadir,
                              'than 1 session.')
         else:
             sess = sess_gen_util.init_sessions(sessid[0], datadir, mouse_df, 
-                                 sesspar.runtype, fulldict=False,
-                                 dend=dend, omit=True)
+                sesspar.runtype, fulldict=False, dend=dend, omit=roi, roi=roi, 
+                run=run, pupil=pupil)
             if len(sess) == 0:
                 sess = [None]
         mouse_sesses.append(sess[0])
@@ -362,7 +374,10 @@ def prep_analyses(sess_n, args, mouse_df, parallel=False):
     analysis_dict = init_param_cont(args)
     analyspar, sesspar, stimpar = [analysis_dict[key] for key in 
         ['analyspar', 'sesspar', 'stimpar']]
-    
+
+    roi = (args.datatype == 'roi')
+    run = (args.datatype == 'run')
+
     sesspar_dict = sesspar._asdict()
     _ = sesspar_dict.pop('closest')
 
@@ -378,7 +393,7 @@ def prep_analyses(sess_n, args, mouse_df, parallel=False):
     # get session IDs and create Sessions
     all_mouse_ns = sorted(set(all_mouse_ns))
     args_list=[all_sess_ns, sesspar, mouse_df, args.datadir, args.omit_sess, 
-        analyspar.dend]
+        analyspar.dend, roi, run]
     sessions = gen_util.parallel_wrap(
         init_mouse_sess, all_mouse_ns, args_list=args_list, parallel=parallel)
 
@@ -386,7 +401,7 @@ def prep_analyses(sess_n, args, mouse_df, parallel=False):
     if len(sessions) == 0 or check_all == {None}:
         raise ValueError('No sessions meet the criteria.')
 
-    print(f'\nAnalysis of {sesspar.plane} responses to {stimpar.stimtype[:-1]} '
+    print(f'\nAnalysis of {sesspar.plane} responses to {stimpar.stimtype} '
           f'stimuli ({sesspar.runtype} data)\nSessions: {args.sess_n}')
 
     return sessions, analysis_dict
@@ -401,36 +416,38 @@ def get_analysis_fcts():
 
     Returns:
         - fct_dict (dict): dictionary where each key is an analysis letter, and
-                           records the corresponding function.
+                           records the corresponding function and list of
+                           acceptable `datatype` values
     """
 
     fct_dict = dict()
 
     # 0. Plots the difference between surprise and regular across sessions
-    fct_dict['s'] = acr_sess_analys.run_surp_area_diff
+    fct_dict['s'] = [acr_sess_analys.run_surp_area_diff, ['roi', 'run']]
 
     # 1. Plots the difference between surprise and regular locked to surprise
     # across sessions
-    fct_dict['l'] = acr_sess_analys.run_lock_area_diff
+    fct_dict['l'] = [acr_sess_analys.run_lock_area_diff, ['roi', 'run']]
 
     # 2. Plots the surprise and regular traces across sessions
-    fct_dict['t'] = acr_sess_analys.run_surp_traces
+    fct_dict['t'] = [acr_sess_analys.run_surp_traces, ['roi', 'run']]
 
     # 3. Plots the surprise and regular traces locked to surprise across 
     # sessions
-    fct_dict['r'] = acr_sess_analys.run_lock_traces
+    fct_dict['r'] = [acr_sess_analys.run_lock_traces, ['roi', 'run']]
 
     # 4. Plots the surprise latencies across sessions
-    fct_dict['u'] = acr_sess_analys.run_surp_latency
+    fct_dict['u'] = [acr_sess_analys.run_surp_latency, ['roi', 'run']]
 
     # 5. Plots proportion of ROIs responses to both surprise types
-    fct_dict['p'] = acr_sess_analys.run_resp_prop
+    fct_dict['p'] = [acr_sess_analys.run_resp_prop, ['roi']]
 
     return fct_dict
 
 
 #############################################
-def run_analyses(sessions, analysis_dict, analyses, seed=None, parallel=False):
+def run_analyses(sessions, analysis_dict, analyses, datatype='roi', seed=None, 
+                 parallel=False):
     """
     run_analyses(sessions, analysis_dict, analyses)
 
@@ -443,6 +460,8 @@ def run_analyses(sessions, analysis_dict, analyses, seed=None, parallel=False):
         - analyses (str)      : analyses to run
     
     Optional args:
+        - datatype (str) : datatype ('run', 'roi')
+                           default: 'roi'
         - seed (int)     : seed to use
                            default: None
         - parallel (bool): if True, some analyses are parallelized 
@@ -460,15 +479,17 @@ def run_analyses(sessions, analysis_dict, analyses, seed=None, parallel=False):
     fct_dict = get_analysis_fcts()
 
     args_dict = copy.deepcopy(analysis_dict)
-    for key, item in zip(['seed', 'parallel'], 
-        [seed, parallel]):
+    for key, item in zip(['seed', 'parallel', 'datatype'], 
+        [seed, parallel, datatype]):
         args_dict[key] = item
 
     # run through analyses
     for analysis in analyses:
         if analysis not in fct_dict.keys():
             raise ValueError(f'{analysis} analysis not found.')
-        fct = fct_dict[analysis]
+        fct, datatype_req = fct_dict[analysis]
+        if datatype not in datatype_req:
+            continue
         args_dict_use = gen_util.keep_dict_keys(
             args_dict, inspect.getfullargspec(fct).args)
         fct(sessions=sessions, analysis=analysis, **args_dict_use)
@@ -489,6 +510,8 @@ if __name__ == "__main__":
                               'autocorr (a), ori/dir (o), tuning curves (c) '
                               'or `all` or `all_m` to, for example, '
                               'run all analyses except m'))
+    parser.add_argument('--datatype', default='roi', 
+                        help='datatype to use (roi or run)')  
     parser.add_argument('--sess_n', default='1-3',
                         help='session range to include, where last value is '
                              'included, e.g. 1-3, all')
@@ -589,7 +612,7 @@ if __name__ == "__main__":
             source = 'modif'
         plot_dicts.plot_from_dicts(args.dict_path, source=source, 
                    plt_bkend=args.plt_bkend, fontdir=args.fontdir, 
-                   parallel=args.parallel)
+                   parallel=args.parallel, datetime=not(args.no_datetime))
 
     else:
         if args.datadir is None: args.datadir = DEFAULT_DATADIR
@@ -600,6 +623,6 @@ if __name__ == "__main__":
         analys_pars = prep_analyses(args.sess_n, args, mouse_df, args.parallel)
         
         run_analyses(*analys_pars, analyses=args.analyses, seed=args.seed,
-                     parallel=args.parallel)
+                     parallel=args.parallel, datatype=args.datatype)
 
                 

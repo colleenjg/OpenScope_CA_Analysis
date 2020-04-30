@@ -984,6 +984,8 @@ def get_stimdir(stimtype='gabors', gabfr=0):
     stimdir = stimtype[:3]
     if stimtype == 'gabors':
         gab_lett = gabfr_letters(gabfr)
+        if '/' in gab_lett:
+            gab_lett = gab_lett.replace('/', '')
         stimdir = f'{stimdir}{gab_lett}'
 
     return stimdir

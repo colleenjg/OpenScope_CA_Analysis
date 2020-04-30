@@ -446,7 +446,7 @@ if __name__ == "__main__":
     if args.dict_path != '':
         plot_dicts.plot_from_dicts(args.dict_path, source='glm', 
                    plt_bkend=args.plt_bkend, fontdir=args.fontdir, 
-                   parallel=args.parallel)
+                   parallel=args.parallel, datetime=not(args.no_datetime))
     else:
         if args.datadir is None: args.datadir = DEFAULT_DATADIR
         mouse_df = DEFAULT_MOUSE_DF_PATH
@@ -456,7 +456,7 @@ if __name__ == "__main__":
         # get numbers of sessions to analyse
         if args.sess_n == 'all':
             all_sess_ns = sess_gen_util.get_sess_vals(
-                mouse_df, 'sess_n', mouse_n=args.mouse_n, runtype=args.runtype, 
+                mouse_df, 'sess_n', runtype=args.runtype, 
                 plane=args.plane, line=args.line, min_rois=args.min_rois, 
                 pass_fail=args.pass_fail, incl=args.incl, 
                 omit_sess=args.omit_sess, omit_mice=args.omit_mice)

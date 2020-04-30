@@ -24,9 +24,12 @@ import scipy.stats as st
 from sess_util import sess_gen_util, sess_plot_util, sess_str_util
 from util import file_util, gen_util, math_util, plot_util
 
+# skip tight layout warning
+warnings.filterwarnings('ignore', message='This figure includes*')
 
 #############################################
-def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False):
+def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False, 
+                   datetime=True):
     """
     plot_from_dict(dict_path)
 
@@ -43,11 +46,15 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False):
         - parallel (bool): if True, some of the plotting is parallelized across 
                            CPU cores
                            default: False
+        - datetime (bool): figpar['save'] datatime parameter (whether to 
+                           place figures in a datetime folder)
+                           default: True
     """
 
     print(f'\nPlotting from dictionary: {dict_path}')
     
-    figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir)
+    figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir, 
+        datetime=datetime)
     plot_util.manage_mpl(cmap=False, **figpar['mng'])
 
     info = file_util.loadfile(dict_path)
@@ -79,6 +86,7 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False):
     else:
         print(f'    No plotting function for analysis {analysis}')
 
+    plt.close('all')
 
 #############################################
 def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info, 
@@ -220,9 +228,6 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
 
     y = 1.08 if datatype == 'run' else 1
     fig.suptitle('Full traces across sessions', fontsize='xx-large', y=y)
-
-    # skip tight layout warning
-    warnings.filterwarnings('ignore', message='This figure includes*')
 
     savename = f'{datatype}_tr_{sessstr}{dendstr}'
     fulldir = plot_util.savefig(
@@ -511,7 +516,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
     for i, (stats, counts) in enumerate(zip(all_stats, all_counts)):
         sub_ax = plot_util.get_subax(ax, i)
         title=(f'Mouse {mouse_ns[i]} - {stimstr_pr} '
-               u'{}'.format(statstr_pr) + f'{lock} locked across {dimstr}'
+               u'{} '.format(statstr_pr) + f'{lock} locked across {dimstr}'
                f'{basestr_pr}\n(sess {sess_ns[i]}, {lines[i]} {planes[i]}'
                f'{dendstr_pr}{nroi_strs[i]})')
         sess_plot_util.add_axislabels(sub_ax, fluor=analyspar['fluor'], 

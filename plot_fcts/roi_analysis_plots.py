@@ -26,10 +26,12 @@ from sess_util import sess_gen_util, sess_plot_util, sess_str_util
 from util import file_util, gen_util, plot_util
 from plot_fcts import gen_analysis_plots as gen_plots
 
+# skip tight layout warning
+warnings.filterwarnings('ignore', message='This figure includes*')
 
 #############################################
 def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True, 
-                   parallel=False):
+                   parallel=False, datetime=True):
     """
     plot_from_dict(dict_path)
 
@@ -48,11 +50,16 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
         - parallel (bool): if True, some of the analysis is parallelized across 
                            CPU cores
                            default: False
+        - datetime (bool): figpar['save'] datatime parameter (whether to 
+                           place figures in a datetime folder)
+                           default: True
     """
 
-    figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir)
+    figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir, 
+        datetime=datetime)
+    
     plot_util.manage_mpl(cmap=False, **figpar['mng'])
-
+    
     info = file_util.loadfile(dict_path)
     savedir = os.path.dirname(dict_path)
 
@@ -108,6 +115,7 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
     else:
         print('No plotting function for analysis {}'.format(analysis))
 
+    plt.close('all')
 
 #############################################
 def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar, 
@@ -382,7 +390,7 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
                                       alpha=0.8/len(quintpar['qu_lab']), 
                                       label=qu_lab.capitalize())
 
-        plot_util.turn_off_extra(ax, n_sess)
+        plot_util.turn_off_extra(ax, n_grps)
 
         if stimpar['stimtype'] == 'gabors': 
             sess_plot_util.plot_labels(ax, stimpar['gabfr'], 
@@ -538,13 +546,14 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
             sc_str    = sess_str_util.scale_par_str(scale)
             fig, ax = plot_util.init_fig(n_grps, **figpar['init'])
             figs.append(fig)
-            for g, [grp_nam, grp_rois] in enumerate(zip(roi_grps['grp_names'], 
-                                                roi_grps['all_roi_grps'][i])):
+            for g, [grp_nam, grp_rois] in enumerate(
+                zip(roi_grps['grp_names'], roi_grps['all_roi_grps'][i])):
                 title = f'{grp_nam} group (n={len(grp_rois)})'
                 sub_ax = plot_util.get_subax(ax, g)
                 sub_ax.tick_params(labelbottom=False)
-                sess_plot_util.add_axislabels(sub_ax, area=True, scale=scale, 
-                                              x_ax='', datatype=datatype)
+                sub_ax.spines['bottom'].set_visible(False)
+                sess_plot_util.add_axislabels(
+                    sub_ax, area=True, scale=scale, x_ax='', datatype=datatype)
                 for q, qu_lab in enumerate(quintpar['qu_lab']):
                     vals = roi_grps[f'area_stats{sc_str}']
                     vals = np.asarray(vals)[i, q, g]
@@ -553,7 +562,7 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
                                         xlims=xlims, label=qu_lab.capitalize(), 
                                         hline=0, width=barw)
 
-        plot_util.turn_off_extra(ax, n_sess)
+            plot_util.turn_off_extra(ax, n_grps)
 
         suptitle = (f'Mouse {mouse_ns[i]} - {stimstr_pr} ' + 
                     u'{}'.format(statstr_pr) + f' across {dimstr} ' +
@@ -817,7 +826,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
     
     suptitle = (f'Mouse {mouse_n} - {stimstr_pr} ' + '{} '.format(statstr_pr) + 
                 f'across {dimstr}{qu_str_pr}\n(sess {sess_n}, {line} ' +
-                f'{plane}{dendstr_pr}{nroi_str}')
+                f'{plane}{dendstr_pr}{nroi_str})')
     savename = (f'{datatype}_tr_m{mouse_n}_sess{sess_n}{qu_str}_{stimstr}_' + 
                 f'{plane}{dendstr}')
     
@@ -1167,9 +1176,6 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quintpar,
     plot_util.add_colorbar(fig, im, len(oridirs))
     fig.suptitle(suptitle, y=1.08)
 
-    # skip tight layout warning
-    warnings.filterwarnings('ignore', message='This figure includes*')
-
     savename = f'{gen_savename}_{fig_type}'
     fulldir = plot_util.savefig(
         fig, savename, savedir, print_dir=print_dir, **figpar['save'])
@@ -1397,7 +1403,7 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar,
                  'extrapar' : extrapar,
                  'quintpar' : quintpar,
                  'sess_info': sess_info,
-                 'tr_data' : tr_data,
+                 'tr_data'  : tr_data,
                  'figpar'   : figpar,
                  }
 
@@ -1693,7 +1699,7 @@ def plot_tune_curve_regr(vm_means, vm_regr, seq_info, gentitle='',
         ax.legend()
         savename = f'{gen_savename}_regr{kap_str}'
         fulldir = plot_util.savefig(fig, savename, savedir, print_dir=False, 
-                                    **figpar['save'])
+            **figpar['save'])
         plt.close(fig)
 
         return fulldir
@@ -1789,17 +1795,17 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
         - gen_savename (str): general name under which the figures are saved
     """
     
-    stimstr_pr = sess_str_util.stim_par_str(stimpar['stimtype'], 
-                                    stimpar['bri_dir'], stimpar['bri_size'], 
-                                    stimpar['gabk'], 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
-                                    extrapar['datatype'], 'print')
+    stimstr_pr = sess_str_util.stim_par_str(
+        stimpar['stimtype'], stimpar['bri_dir'], stimpar['bri_size'], 
+        stimpar['gabk'], 'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], extrapar['datatype'], 'print')
 
-    stimstr = sess_str_util.stim_par_str(stimpar['stimtype'], 
-                                       stimpar['bri_dir'], stimpar['bri_size'], 
-                                       stimpar['gabk'])
-    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
-                                       extrapar['datatype'])
+    stimstr = sess_str_util.stim_par_str(
+        stimpar['stimtype'], stimpar['bri_dir'], stimpar['bri_size'], 
+        stimpar['gabk'])
+    dendstr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], extrapar['datatype'])
 
     datatype = extrapar['datatype']
     if datatype != 'roi':
@@ -1854,10 +1860,10 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
 
     if tcurvpar['prev']: # plot regression
         plot_tune_curve_regr(tcurv_data['vm_mean'], tcurv_data['vm_regr'], 
-                             seq_info, gentitle, gen_savename, figpar, savedir)
+            seq_info, gentitle, gen_savename, figpar, savedir)
     else:
         fulldir = plot_util.savefig(None, None, fulldir=savedir, 
-                                    print_dir=False, **figpar['save'])
+            print_dir=False, **figpar['save'])
 
     if plot_tc:
         if not tcurvpar['prev']: # send None values if not using previous analysis

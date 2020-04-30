@@ -28,7 +28,8 @@ from util import file_util, gen_util, math_util, plot_util
 warnings.filterwarnings('ignore', message='This figure includes*')
 
 #############################################
-def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False):
+def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False, 
+                   datetime=True):
     """
     plot_from_dict(dict_path)
 
@@ -45,11 +46,15 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False):
         - parallel (bool): if True, some of the plotting is parallelized across 
                            CPU cores
                            default: False
+        - datetime (bool): figpar['save'] datatime parameter (whether to 
+                           place figures in a datetime folder)
+                           default: True
     """
 
     print(f'\nPlotting from dictionary: {dict_path}')
     
-    figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir)
+    figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir, 
+        datetime=datetime)
     plot_util.manage_mpl(cmap=False, **figpar['mng'])
 
     info = file_util.loadfile(dict_path)
@@ -83,6 +88,7 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False):
     else:
         print(f'    No plotting function for analysis {analysis}')
 
+    plt.close('all')
 
 #############################################
 def get_linpla_idx(linpla_ord, line='L2/3', plane='soma', verbose=False, 
@@ -193,7 +199,8 @@ def plot_data_signif(ax, sess_ns, sig_comps, lin_p_vals, maxes,
 
     # adjust for number of significance lines plotted
     ylims = ax[0, 0].get_ylim()
-    ax[0, 0].set_ylim(ylims[0], np.max([ylims[1], highest * 1.2]))
+    if not np.isnan(highest):
+        ax[0, 0].set_ylim(ylims[0], np.max([ylims[1], highest * 1.2]))
 
     ylims = ax[0, 0].get_ylim()
     pos = ylims[0] - (ylims[1] - ylims[0])/12.0 # star position (btw plots)
@@ -963,8 +970,8 @@ def plot_mouse_traces(sub_ax, xran, trace_st, lock=False, col='k', lab=True,
         full_xran = xran
 
     if stimtype == 'gabors':
-        sess_plot_util.plot_gabfr_pattern(sub_ax, full_xran, offset=gabfr, 
-                                          bars_omit=[0])
+        sess_plot_util.plot_gabfr_pattern(
+            sub_ax, full_xran, offset=gabfr, bars_omit=[0])
 
     trace_st = np.asarray(trace_st)
     for i, (col, name) in enumerate(zip(cols, names)):
@@ -978,7 +985,6 @@ def plot_mouse_traces(sub_ax, xran, trace_st, lock=False, col='k', lab=True,
         plot_util.plot_traces(sub_ax, xran_use, trace_st[i, :, 0], 
                               trace_st[i, :, 1:], label=label, alpha_line=0.8, 
                               col=col, xticks=xticks)
-
 
 
 #############################################
@@ -1542,9 +1548,12 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
         plot_util.plot_errorbars(
             sub_ax, lat_st[0], lat_st[1:], sess_ns, col=pla_cols[la])
         # plot ROI cloud
-        maxes[i] = plot_lat_clouds(
-            sub_ax, sess_ns, lat_data['lat_vals'][l_idx], sess_info[l_idx], 
-            datatype=datatype, col=pla_col_names[la])
+        if datatype == 'roi':
+            maxes[i] = plot_lat_clouds(
+                sub_ax, sess_ns, lat_data['lat_vals'][l_idx], sess_info[l_idx], 
+                datatype=datatype, col=pla_col_names[la])
+        else:
+            maxes[i] = np.max(lat_st[0])
 
         # check p_val signif
         all_p_vals = lat_data['lat_p_vals'][l_idx]

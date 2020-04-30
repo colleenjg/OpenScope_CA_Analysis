@@ -599,7 +599,7 @@ if __name__ == "__main__":
         plot_dicts.plot_from_dicts(
             args.dict_path, source=source, plt_bkend=args.plt_bkend, 
             fontdir=args.fontdir, plot_tc=not(args.no_plot_tc), 
-            parallel=args.parallel)
+            parallel=args.parallel, datetime=not(args.no_datetime))
 
     else:
         args = reformat_args(args)

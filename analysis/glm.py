@@ -423,7 +423,9 @@ def run_glms(sessions, analysis, seed, analyspar, sesspar, stimpar, glmpar,
                 parallel=parallel)
             all_expl_var.append(expl_var)
     
-    if not glmpar.each_roi:
+    if glmpar.each_roi:
+        sessions = sess_batches
+    else:
         sessions = sess_batches[0]
 
     sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)

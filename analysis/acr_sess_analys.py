@@ -274,24 +274,24 @@ def surp_data_by_sess(sess, analyspar, stimpar, datatype='roi', surp='bysurp',
 
     if surp == 'bysurp':
         segs = [stim.get_segs_by_criteria(gabfr=stimpar.gabfr,
-                     gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
-                     bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size,
-                     surp=s, by='seg') for s in [0, 1]]
+            gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
+            bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size,
+            surp=s, by='seg') for s in [0, 1]]
         pre_posts = [[stimpar.pre, stimpar.post]] * 2        
     elif surp in locks:
         surp_val = locks.index(surp)
         segs = stim.get_segs_by_criteria(gabfr='any',
-                    gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
-                    bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size,
-                    surp=surp_val, by='seg', remconsec=True)
+            gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
+            bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size,
+            surp=surp_val, by='seg', remconsec=True)
         # shift to correct gabor frame
         if stimpar.stimtype == 'gabors' and stimpar.gabfr not in ['any', 'all']:
             segs = [seg + stimpar.gabfr for seg in segs]
         segs = [segs] * 2
         pre_posts = [[stimpar.pre, 0], [0, stimpar.post]]
     else:
-        gen_util.accepted_values_error('surp', surp, ['bysurp', 'surplock', 
-                                       'reglock'])
+        gen_util.accepted_values_error(
+            'surp', surp, ['bysurp', 'surplock', 'reglock'])
     # get regular, then surprise
     args = {'remnans': analyspar.remnans,
             'stand'  : analyspar.scale}
@@ -306,8 +306,8 @@ def surp_data_by_sess(sess, analyspar, stimpar, datatype='roi', surp='bysurp',
         if baseline:
             # for surp in locks, takes different baselines for pre and post 
             # sequences
-            base_pre, base_post = define_baseline(stimpar.stimtype, 
-                                         stimpar.gabfr, baseline, pre, post)
+            base_pre, base_post = define_baseline(
+                stimpar.stimtype, stimpar.gabfr, baseline, pre, post)
             ch_fl = [np.max([pre, base_pre]), np.max([post, base_post])]
         elif surp in locks:
             # check flanks as pre and post are split up!
@@ -316,14 +316,14 @@ def surp_data_by_sess(sess, analyspar, stimpar, datatype='roi', surp='bysurp',
             fr_ns = stim.get_twop_fr_by_seg(
                 subsegs, first=True, ch_fl=ch_fl)['first_twop_fr']
             fct = stim.get_roi_data
-            col = 'run_velocity'
+            col = 'roi_traces'
             args['fluor'] = analyspar.fluor
         elif datatype == 'run':
             # array: 1 x sequences
             fr_ns = stim.get_stim_fr_by_seg(
                 subsegs, first=True, ch_fl=ch_fl)['first_stim_fr']
             fct = stim.get_run_data
-            col = 'roi_traces'
+            col = 'run_velocity'
         else:
             gen_util.accepted_values_error('datatype', datatype, ['run', 'roi'])
 
@@ -331,15 +331,16 @@ def surp_data_by_sess(sess, analyspar, stimpar, datatype='roi', surp='bysurp',
             fct(fr_ns, pre, post, **args)[col], squeeze_cols=True))
         
         if baseline:
-            base_data = fct(fr_ns, base_pre, base_post, **args)[1]
+            base_data = gen_util.reshape_df_data(
+                fct(fr_ns, base_pre, base_post, **args), squeeze_cols=True)
             end_shape = list(base_data.shape)[:-1] + [1]
             # (ROI x) sequences x frames
-            base_data = math_util.mean_med(base_data, stats=stats, axis=-1, 
-                                    nanpol=nanpol)
+            base_data = math_util.mean_med(
+                base_data, stats=stats, axis=-1, nanpol=nanpol)
             data_arr[-1] = data_arr[-1] - base_data.reshape(end_shape)
         if integ:
-            data_arr[-1] = math_util.integ(data_arr[-1], 1./sess.twop_fps, 
-                                     axis=-1, nanpol=nanpol)
+            data_arr[-1] = math_util.integ(
+                data_arr[-1], 1./sess.twop_fps, axis=-1, nanpol=nanpol)
 
     return data_arr
 
@@ -379,7 +380,7 @@ def surp_diff_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype='roi',
                                for surp == 'reglock') (me, err)
         - all_rand (1D array): random value obtained for each permutation
         - data_arr (list)    : list of data arrays, structured as 
-                               reg, surp [x ROIs] x seq [x frames]
+                               reg, surp [x ROIs] x seq
                                (or surp, reg if surp == 'reglock')
     """
 
@@ -388,23 +389,29 @@ def surp_diff_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype='roi',
         nanpol = None
 
     data_arr = surp_data_by_sess(sess, analyspar, stimpar, datatype=datatype, 
-                                 surp=surp, stats=analyspar.stats, integ=True, 
-                                 baseline=baseline)
+        surp=surp, stats=analyspar.stats, integ=True, baseline=baseline)
     
     # take mean/median across sequences
     mean_meds = [math_util.mean_med(data, stats=analyspar.stats, axis=-1, 
-                           nanpol=nanpol) for data in data_arr]
+        nanpol=nanpol) for data in data_arr]
+
+    last_dim = np.sum([sub.shape[-1] for sub in data_arr])
+    if datatype != 'roi':
+        mean_meds = np.asarray(mean_meds).reshape(2, 1)
+        targ = (1, last_dim)
+    else:
+        targ = (-1, last_dim)
+    
     diff_st = math_util.get_stats(mean_meds[1] - mean_meds[0], 
-                        stats=analyspar.stats, error=analyspar.error, 
-                        nanpol=nanpol)
+        stats=analyspar.stats, error=analyspar.error, nanpol=nanpol)
 
     # get CI
-    div = data_arr[0].shape[1] # length of reg
+    div = data_arr[0].shape[-1] # length of reg
     # perms
     all_rand = math_util.mean_med(math_util.permute_diff_ratio(
-                    np.concatenate(data_arr, axis=-1), div=div, n_perms=n_perms, 
-                    stats=analyspar.stats, nanpol=nanpol, op='diff'), 
-                    stats=analyspar.stats, axis=0, nanpol=nanpol)
+        np.concatenate(data_arr, axis=-1).reshape(targ), div=div, 
+        n_perms=n_perms, stats=analyspar.stats, nanpol=nanpol, op='diff'), 
+            stats=analyspar.stats, axis=0, nanpol=nanpol)
 
     return diff_st, all_rand, data_arr
 
@@ -457,43 +464,41 @@ def get_grped_roi_stats(all_roi_vals, analyspar, permpar):
         sess_rands = []
         for mouse_vals in sess_roi_vals: # for each mouse
             sess_mean_meds.append([math_util.mean_med(surp_vals, axis=-1, 
-                            stats=analyspar.stats) for surp_vals in mouse_vals])
+                stats=analyspar.stats) for surp_vals in mouse_vals])
             # get CI
             div = mouse_vals[0].shape[-1] # length of reg
             # perms
             sess_rands.append(math_util.permute_diff_ratio(
-                            np.concatenate(mouse_vals, axis=1), div=div, 
-                            n_perms=permpar.n_perms, stats=analyspar.stats, 
-                            nanpol=nanpol, op='diff'))
+                np.concatenate(mouse_vals, axis=1), div=div, 
+                n_perms=permpar.n_perms, stats=analyspar.stats, 
+                nanpol=nanpol, op='diff'))
 
         if len(sess_mean_meds) == 0:
             all_diffs.append(None)
             continue
 
         # take mean/median across sequences, then diff between surp and reg
-        sess_mean_med_diffs = np.subtract(*np.concatenate(sess_mean_meds, 
-                                          axis=1)) * -1
+        sess_mean_med_diffs = np.subtract(
+            *np.concatenate(sess_mean_meds, axis=1)) * -1
         # take stats across ROIs
         all_diff_st[s] = math_util.get_stats(sess_mean_med_diffs, 
-                            stats=analyspar.stats, error=analyspar.error, 
-                            nanpol=nanpol)
+            stats=analyspar.stats, error=analyspar.error, nanpol=nanpol)
         # sess_rands: mouse x ROI x perm
-        all_rand[s] = math_util.mean_med(np.concatenate(sess_rands, axis=0),
-                                         axis=0, stats=analyspar.stats)
+        all_rand[s] = math_util.mean_med(
+            np.concatenate(sess_rands, axis=0), axis=0, stats=analyspar.stats)
         all_diffs.append(sess_mean_med_diffs.tolist())
 
     # get p-values for comparisons between sessions
     p_vals_grped = math_util.comp_vals_acr_groups(all_diffs, permpar.n_perms, 
-                                stats=analyspar.stats).tolist()
+        stats=analyspar.stats).tolist()
     
     # get CI (sess x percs)
-    CI_vals = np.asarray([np.percentile(all_rand, p, axis=-1) 
-                        for p in percs]).T.tolist()
+    CI_vals = np.asarray([np.percentile(all_rand, p, axis=-1) for p in percs]
+        ).T.tolist()
 
     # get significant session numbers (optionally by tails)
     sign_sess = math_util.id_elem(all_rand, all_diff_st[:, 0], 
-                            tails=permpar.tails, p_val=permpar.p_val, 
-                            min_n=25, nanpol='omit')
+        tails=permpar.tails, p_val=permpar.p_val, min_n=25, nanpol='omit')
 
     return all_diff_st.tolist(), CI_vals, sign_sess, all_diffs, p_vals_grped
 
@@ -527,22 +532,22 @@ def get_mouse_stats(mouse_diff_st, all_rand, analyspar, permpar):
     # take stats across mice
     percs = [50.0] + math_util.get_percentiles(CI = (1.0 - permpar.p_val))[0]
 
+    # sess x stats
     all_diff_st = math_util.get_stats(mouse_diff_st[:, :, 0], 
-                        stats=analyspar.stats, error=analyspar.error, 
-                        axes=0, nanpol='omit').T # sess x stats
+        stats=analyspar.stats, error=analyspar.error, axes=0, nanpol='omit').T
 
     # take mean/median across mice (sess x perms)
-    all_rand = math_util.mean_med(all_rand, stats=analyspar.stats, 
-                                  axis=0, nanpol='omit')
+    all_rand = math_util.mean_med(
+        all_rand, stats=analyspar.stats, axis=0, nanpol='omit')
     
     # get CI (sess x percs)
-    CI_vals = np.asarray([np.percentile(all_rand, p, axis=-1) 
-                        for p in percs]).T.tolist()
+    CI_vals = np.asarray(
+        [np.percentile(all_rand, p, axis=-1) for p in percs]).T.tolist()
 
     # get significant session numbers (optionally by tails)
-    sign_sess = math_util.id_elem(all_rand, all_diff_st[:, 0], 
-                          tails=permpar.tails, p_val=permpar.p_val, 
-                          min_n=25, nanpol='omit')
+    sign_sess = math_util.id_elem(
+        all_rand, all_diff_st[:, 0], tails=permpar.tails, p_val=permpar.p_val, 
+        min_n=25, nanpol='omit')
     
     return all_diff_st.tolist(), CI_vals, sign_sess
 
@@ -619,7 +624,7 @@ def surp_diff_by_sesses(sessions, analyspar, stimpar, permpar, datatype='roi',
     n_sess = list(set([len(m_sess) for m_sess in sessions]))
     if len(n_sess) != 1:
         raise ValueError('There should be the same number of sessions for '
-                         'each mouse.')
+            'each mouse.')
     n_sess = n_sess[0]
 
     st_len = 2 + (analyspar.stats == 'median' and analyspar.error == 'std')
@@ -631,36 +636,35 @@ def surp_diff_by_sesses(sessions, analyspar, stimpar, permpar, datatype='roi',
     sess_info = []
     for m, m_sess in enumerate(sessions):
         # get the segments
-        m_sess_info = sess_gen_util.get_sess_info(m_sess, analyspar.fluor, 
-                                    add_none=True)
+        m_sess_info = sess_gen_util.get_sess_info(
+            m_sess, analyspar.fluor, add_none=True, incl_roi=(datatype=='roi'))
         for s, sess in enumerate(m_sess):
             if sess is None:
                 continue
-            [mouse_diff_st[m, s], 
-             all_rand[m, s], add_rois] = surp_diff_by_sess(sess, analyspar, 
-                                stimpar, n_perms=permpar.n_perms, 
-                                datatype=datatype, surp=surp, baseline=baseline)
+            [mouse_diff_st[m, s], all_rand[m, s], add_rois] = surp_diff_by_sess(
+                sess, analyspar, stimpar, n_perms=permpar.n_perms, 
+                datatype=datatype, surp=surp, baseline=baseline)
             if datatype == 'roi':
                 all_roi_vals[s].append(add_rois)
 
         sess_info.append(m_sess_info)
 
-    [all_diff_st, CI_vals, sign_sess] = get_mouse_stats(mouse_diff_st, all_rand, 
-                                                        analyspar, permpar)
+    [all_diff_st, CI_vals, sign_sess] = get_mouse_stats(
+        mouse_diff_st, all_rand, analyspar, permpar)
     
     if datatype == 'roi':
         [all_diff_st_grped, CI_vals_grped, sign_sess_grped, 
-         all_diffs_grped, p_vals_grped] = get_grped_roi_stats(all_roi_vals, 
-                                                analyspar, permpar)    
+         all_diffs_grped, p_vals_grped] = get_grped_roi_stats(
+             all_roi_vals, analyspar, permpar)    
     
 
         return [mouse_diff_st.tolist(), all_diff_st, CI_vals, sign_sess, 
-                all_diff_st_grped, CI_vals_grped, sign_sess_grped, 
-                all_diffs_grped, p_vals_grped, sess_info]
+            all_diff_st_grped, CI_vals_grped, sign_sess_grped, 
+            all_diffs_grped, p_vals_grped, sess_info]
 
     elif datatype == 'run':
         return [mouse_diff_st.tolist(), all_diff_st, CI_vals, sign_sess, 
-                sess_info]
+            sess_info]
     
 
 #############################################
@@ -745,24 +749,24 @@ def surp_diff_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi',
 
     if permpar.multcomp:
         raise ValueError('Multiple comparisons not implemented for this '
-                         'analysis.')
+            'analysis.')
     if surp in ['surplock', 'reglock'] and stimpar.pre != stimpar.post:
         raise ValueError('For surplock or reglock analysis, stimpar.pre and '
-                         'stimpar.post must be the same.')
+            'stimpar.post must be the same.')
     
     # get sessions organized by lin/pla x mouse x session
     linpla_sess, linpla_order = split_by_linpla(sessions, rem_empty=True)
 
     n_jobs = gen_util.get_n_jobs(len(linpla_sess), parallel=parallel)
     if parallel:
-        outs = Parallel(n_jobs=n_jobs)(delayed(surp_diff_by_sesses)(sessions, 
-                        analyspar, stimpar, permpar, datatype, surp, baseline)
-                        for sessions in linpla_sess)
+        outs = Parallel(n_jobs=n_jobs)(delayed(surp_diff_by_sesses)(
+            sessions, analyspar, stimpar, permpar, datatype, surp, baseline)
+            for sessions in linpla_sess)
     else:
         outs = []
         for sessions in linpla_sess:
             outs.append(surp_diff_by_sesses(sessions, analyspar, stimpar, 
-                                        permpar, datatype, surp, baseline))
+                permpar, datatype, surp, baseline))
     outs = [list(out) for out in zip(*outs)]
 
     diff_info = dict()
@@ -777,10 +781,10 @@ def surp_diff_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi',
         
         # compare across planes in a line
         lin_p_vals = comp_vals_acr_planes(linpla_order, all_diffs_grped, 
-                                      permpar.n_perms, stats=analyspar.stats)
+            permpar.n_perms, stats=analyspar.stats)
         n_sess = len(all_diffs_grped[0])
-        tot_n_comps, max_comps_per = get_n_comps(all_p_vals_grped, n_sess, 
-                                                 lin_p_vals)
+        tot_n_comps, max_comps_per = get_n_comps(
+            all_p_vals_grped, n_sess, lin_p_vals)
         diff_info['lin_p_vals']    = lin_p_vals.tolist()
         diff_info['tot_n_comps']   = tot_n_comps
         diff_info['max_comps_per'] = max_comps_per
@@ -831,26 +835,24 @@ def run_surp_area_diff(sessions, analysis, analyspar, sesspar, stimpar, basepar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                                            sesspar.plane, stimpar.bri_dir, 
-                                            stimpar.bri_size, stimpar.gabk,
-                                            'print')
+        sesspar.plane, stimpar.bri_dir, stimpar.bri_size, stimpar.gabk,
+        'print')
     dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
-                                            datatype, 'print')
+        datatype, 'print')
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
     print(f'\nAnalysing and plotting surprise - regular locked {datastr} '
-          f'responses \n({sessstr_pr}{dendstr_pr}).')
+        f'responses \n({sessstr_pr}{dendstr_pr}).')
 
     if permpar.multcomp:
         print('NOTE: Multiple comparisons not implemented for this analysis. '
               'Setting to False.')
         permpar = sess_ntuple_util.get_modif_ntuple(permpar, 'multcomp', False)
 
-    diff_info, sess_info = surp_diff_by_linpla(sessions, analyspar, stimpar, 
-                                               permpar, datatype, surp='bysurp', 
-                                               baseline=basepar.baseline, 
-                                               parallel=parallel)
+    diff_info, sess_info = surp_diff_by_linpla(
+        sessions, analyspar, stimpar, permpar, datatype, surp='bysurp', 
+        baseline=basepar.baseline, parallel=parallel)
 
     extrapar = {'analysis': analysis,
                 'datatype': datatype,
@@ -866,14 +868,15 @@ def run_surp_area_diff(sessions, analysis, analyspar, sesspar, stimpar, basepar,
             'diff_info': diff_info
             }
 
-    fulldir, savename = acr_sess_plots.plot_surp_area_diff(figpar=figpar, 
-                                                           **info)
+    fulldir, savename = acr_sess_plots.plot_surp_area_diff(
+        figpar=figpar, **info)
     file_util.saveinfo(info, savename, fulldir, 'json')
 
       
 #############################################
 def run_lock_area_diff(sessions, analysis, analyspar, sesspar, stimpar, 
-                       basepar, permpar, figpar, datatype='roi', parallel=False):
+                       basepar, permpar, figpar, datatype='roi', 
+                       parallel=False):
     """
     run_lock_area_diff(sessions, analysis, analyspar, sesspar, stimpar, 
                        basepar, permpar, figpar)
@@ -902,16 +905,15 @@ def run_lock_area_diff(sessions, analysis, analyspar, sesspar, stimpar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                                            sesspar.plane, stimpar.bri_dir, 
-                                            stimpar.bri_size, stimpar.gabk,
-                                            'print')
+        sesspar.plane, stimpar.bri_dir, stimpar.bri_size, stimpar.gabk,
+        'print')
     dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
-                                            datatype, 'print')
+        datatype, 'print')
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
     print(f'\nAnalysing and plotting surprise - regular {datastr} responses '
-          f' \n({sessstr_pr}{dendstr_pr}).')
+        f' \n({sessstr_pr}{dendstr_pr}).')
 
     if permpar.multcomp:
         print('NOTE: Multiple comparisons not implemented for this analysis. '
@@ -1009,7 +1011,7 @@ def surp_traces_by_sesses(sessions, analyspar, stimpar, datatype='roi',
     n_sess = list(set([len(m_sess) for m_sess in sessions]))
     if len(n_sess) != 1:
         raise ValueError('There should be the same number of sessions for '
-                         'each mouse.')
+            'each mouse.')
     n_sess = n_sess[0]
 
     sess_info = []
@@ -1018,7 +1020,7 @@ def surp_traces_by_sesses(sessions, analyspar, stimpar, datatype='roi',
     for m_sess in sessions:
         # get the segments
         m_sess_info = sess_gen_util.get_sess_info(m_sess, analyspar.fluor, 
-                                    add_none=True)
+            add_none=True, incl_roi=(datatype=='roi'))
         nan_idx = []
         mouse_traces = []
         for s, sess in enumerate(m_sess):
@@ -1027,14 +1029,14 @@ def surp_traces_by_sesses(sessions, analyspar, stimpar, datatype='roi',
                 continue
             # reg, surp [x ROI] x seq x frames
             data_arr = surp_data_by_sess(sess, analyspar, stimpar, 
-                                 datatype=datatype, stats=analyspar.stats, 
-                                 surp=surp, baseline=baseline)
+                datatype=datatype, stats=analyspar.stats, 
+                surp=surp, baseline=baseline)
             # get mean/median across seqs
             data_arr = [math_util.mean_med(sub_arr, stats=analyspar.stats, 
-                                           axis=-2) for sub_arr in data_arr]
+                axis=-2) for sub_arr in data_arr]
             if datatype == 'roi': # get mean/median across ROIs
                 mean_med = [math_util.mean_med(sub_arr, stats=analyspar.stats, 
-                                           axis=0) for sub_arr in data_arr]
+                    axis=0) for sub_arr in data_arr]
                 traces_acr_rois[s].append(data_arr)
             elif datatype == 'run':
                 mean_med = data_arr
@@ -1048,8 +1050,7 @@ def surp_traces_by_sesses(sessions, analyspar, stimpar, datatype='roi',
 
     # stats x sess x reg/surp x frames
     trace_st = math_util.get_stats(np.asarray(traces_acr_mice), 
-                            stats=analyspar.stats, error=analyspar.error, 
-                            axes=0, nanpol='omit')
+        stats=analyspar.stats, error=analyspar.error, axes=0, nanpol='omit')
     n_fr = trace_st.shape[-1]
     trace_st = np.transpose(trace_st, [1, 2, 3, 0]).tolist()
 
@@ -1070,12 +1071,12 @@ def surp_traces_by_sesses(sessions, analyspar, stimpar, datatype='roi',
             sess_traces = np.concatenate(sess_traces, axis=1)
             # reg/surp x frames x stats
             sess_sts = np.transpose(math_util.get_stats(sess_traces, 
-                            stats=analyspar.stats, error=analyspar.error, 
-                            axes=1, nanpol='omit'), [1, 2, 0])
+                stats=analyspar.stats, error=analyspar.error, 
+                axes=1, nanpol='omit'), [1, 2, 0])
             trace_st_acr_rois.append(sess_sts.tolist())
         for i in nan_idx:
             trace_st_acr_rois = np.insert(trace_st_acr_rois, i, np.nan, 
-                                          axis=0).tolist()
+                axis=0).tolist()
 
         return trace_st, trace_st_acr_rois, xran, sess_info
     
@@ -1144,21 +1145,21 @@ def surp_traces_by_linpla(sessions, analyspar, stimpar, datatype='roi',
 
     if surp in ['surplock', 'reglock'] and stimpar.pre != stimpar.post:
         raise ValueError('For surplock or reglock analysis, stimpar.pre and '
-                         'stimpar.post must be the same.')
+            'stimpar.post must be the same.')
 
     # get sessions organized by lin/pla x mouse x session
     linpla_sess, linpla_order = split_by_linpla(sessions, rem_empty=True)
 
     n_jobs = gen_util.get_n_jobs(len(linpla_sess), parallel=parallel)
     if parallel:
-        outs = Parallel(n_jobs=n_jobs)(delayed(surp_traces_by_sesses)(sessions, 
-                        analyspar, stimpar, datatype, surp, baseline)
-                        for sessions in linpla_sess)
+        outs = Parallel(n_jobs=n_jobs)(delayed(surp_traces_by_sesses)(
+            sessions, analyspar, stimpar, datatype, surp, baseline)
+            for sessions in linpla_sess)
     else:
         outs = []
         for sessions in linpla_sess:
-            outs.append(surp_traces_by_sesses(sessions, analyspar, stimpar, 
-                                              datatype, surp, baseline))
+            outs.append(surp_traces_by_sesses(
+                sessions, analyspar, stimpar, datatype, surp, baseline))
     outs = [list(out) for out in zip(*outs)]
 
     if datatype == 'run':
@@ -1209,20 +1210,19 @@ def run_surp_traces(sessions, analysis, analyspar, sesspar, stimpar, basepar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                                            sesspar.plane, stimpar.bri_dir, 
-                                            stimpar.bri_size, stimpar.gabk,
-                                            'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
-                                            datatype, 'print')
+        sesspar.plane, stimpar.bri_dir, stimpar.bri_size, stimpar.gabk,
+        'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar.dend, sesspar.plane, datatype, 'print')
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
     print(f'\nAnalysing and plotting surprise v regular {datastr} traces '
-          f' \n({sessstr_pr}{dendstr_pr}).')
+        f' \n({sessstr_pr}{dendstr_pr}).')
 
-    trace_info, sess_info = surp_traces_by_linpla(sessions, analyspar, 
-                                stimpar, datatype, surp='bysurp', 
-                                baseline=basepar.baseline, parallel=parallel)
+    trace_info, sess_info = surp_traces_by_linpla(
+        sessions, analyspar, stimpar, datatype, surp='bysurp', 
+        baseline=basepar.baseline, parallel=parallel)
 
     extrapar = {'analysis': analysis,
                 'datatype': datatype,
@@ -1272,30 +1272,28 @@ def run_lock_traces(sessions, analysis, analyspar, sesspar, stimpar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                                            sesspar.plane, stimpar.bri_dir, 
-                                            stimpar.bri_size, stimpar.gabk,
-                                            'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
-                                            datatype, 'print')
+        sesspar.plane, stimpar.bri_dir, stimpar.bri_size, stimpar.gabk,
+        'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar.dend, sesspar.plane, datatype, 'print')
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
     print(f'\nAnalysing and plotting surprise v regular locked {datastr} '
-          f'traces \n({sessstr_pr}{dendstr_pr}).')
+        f'traces \n({sessstr_pr}{dendstr_pr}).')
 
     if stimpar.pre != stimpar.post:
         print(f'WARNING: stimpar.post {stimpar.post} will be used for '
-              'pre and post.')
-        stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, 'pre', 
-                                   stimpar.post)
+            'pre and post.')
+        stimpar = sess_ntuple_util.get_modif_ntuple(
+            stimpar, 'pre', stimpar.post)
 
     all_sess_info = []
     all_trace_info = []
     for lock in ['surplock', 'reglock']:
-        trace_info, sess_info = surp_traces_by_linpla(sessions, analyspar, 
-                                    stimpar, datatype, surp=lock, 
-                                    baseline=basepar.baseline, 
-                                    parallel=parallel)
+        trace_info, sess_info = surp_traces_by_linpla(
+            sessions, analyspar, stimpar, datatype, surp=lock, 
+            baseline=basepar.baseline, parallel=parallel)
         all_sess_info.append(sess_info)
         all_trace_info.append(trace_info)
         
@@ -1330,7 +1328,7 @@ def get_rise_latency(data_arr, xran, method='ttest', p_val_thr=0.005,
                                item (e.g., ROI) x sequences x frames
                                (padded if pad_win != 0)
         - xran (list)        : latency values in seconds for each frame 
-                               (unpadded)
+                               (padded)
 
     Optional args:
         - method (str)     : method to use to determine latency
@@ -1347,6 +1345,9 @@ def get_rise_latency(data_arr, xran, method='ttest', p_val_thr=0.005,
         - rel_std (float)  : threshold standard deviation ratio to use to for 
                              ratio method
                              default: 0.5
+        - pad_win (int)    : number of padding frames used to smooth and 
+                             augment data
+                             default: 0
 
     Returns:
         - lat_vals (list): latency values (for all items that reach threshold 
@@ -1354,26 +1355,34 @@ def get_rise_latency(data_arr, xran, method='ttest', p_val_thr=0.005,
         - roi_ns (list)  : numbers of ROIs that reached threshold
     """
 
+
+    if len(data_arr.shape) != 3:
+        raise ValueError('Data array must be 3 dimensions.')
+    
+    fr_axis = len(data_arr.shape) - 1
+
     if pad_win:
         if pad_win%2 == 0:
             raise NotImplementedError('Using an even padding window may '
-                                      'not work as expected as it is not '
-                                      'symmetrical around each point.') 
+                'not work as expected as it is not symmetrical around '
+                'each point.') 
         # stack shifted array to combine 3 points for each point estimate
         pad_fr = pad_win//2
         n_fr = data_arr.shape[-1]
-        fr_axis = len(data_arr.shape) - 1
-        data_stack = [data_arr[gen_util.slice_idx(fr_axis, 
-                                        slice(i, n_fr +i-pad_win+1))] 
-                                        for i in range(pad_win)]
-        data_arr = np.concatenate(data_stack, axis=fr_axis-1)
+        data_stack = [data_arr[gen_util.slice_idx(
+            fr_axis, slice(i, n_fr + i - pad_win + 1))] for i in range(pad_win)]
+        # concatenate sequences to augment and smooth data
+        data_arr = np.concatenate(data_stack, axis=fr_axis - 1)
+        xran = xran[pad_fr : -pad_fr]
 
     if method == 'ratio':
-        data_st = math_util.get_stats(data_arr, stats=stats, 
-                            error='std', axes=1, nanpol='omit')
-        med = data_st[0 + pad_fr]
-        stat_dev = data_st[1, :, 0:1]
-        rat = (med - med[:, 0:1])/stat_dev # rel strength of signal                    
+        # stats (x ROI) x frame
+        data_st = math_util.get_stats(
+            data_arr, stats=stats, error='std', axes=1, nanpol='omit')
+        all_med = data_st[0]
+        med_st = data_st[0][gen_util.slice_idx(fr_axis - 1, 0)].reshape(-1, 1)
+        stat_dev = data_st[1][gen_util.slice_idx(fr_axis - 1, 0)].reshape(-1, 1)
+        rat = (all_med - med_st)/stat_dev # rel strength of signal                    
     
     roi_ns = []
     lat_vals = []
@@ -1383,8 +1392,8 @@ def get_rise_latency(data_arr, xran, method='ttest', p_val_thr=0.005,
         elif method == 'ttest':
             r_idx = 0 
             for p in range(1, data_arr.shape[-1]):
-                t_stat, p_val = scist.ttest_rel(data_arr[r, :, 0], 
-                                      data_arr[r, :, p], axis=None)
+                t_stat, p_val = scist.ttest_rel(
+                    data_arr[r, :, 0], data_arr[r, :, p], axis=None)
                 if t_stat > 0 and p_val < p_val_thr:
                     r_idx = p
                     break
@@ -1446,12 +1455,12 @@ def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None,
             pre_posts = [[0, 0.45]] * 2
         else:
             gen_util.accepted_values_error('stimpar.stimtype', 
-                     stimpar.stimtype, ['bricks', 'gabors'])
+                stimpar.stimtype, ['bricks', 'gabors'])
 
     all_segs = [stim.get_segs_by_criteria(gabfr=stimpar.gabfr, 
-                gabk=stimpar.gabk, gab_ori=stimpar.gab_ori, 
-                bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, 
-                surp=surp, by='seg', remconsec=remconsec) for surp in surps]
+        gabk=stimpar.gabk, gab_ori=stimpar.gab_ori, bri_dir=stimpar.bri_dir, 
+        bri_size=stimpar.bri_size, surp=surp, by='seg', remconsec=remconsec) 
+        for surp in surps]
 
     if analyspar.remnans:
         nanpol = None
@@ -1492,11 +1501,13 @@ def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None,
         # array: 1 x sequences x frames
         stim_fr = stim.get_stim_fr_by_seg(
             all_segs[-1], first=True)['first_stim_fr']
-        run_data_df = stim.get_run_array(
+        run_data_df = stim.get_run_data(
             stim_fr, stimpar.pre, stimpar.post, remnans=analyspar.remnans, 
             stand=False)['run_velocity']
-        xran = roi_data_df.index.unique('time_values').to_numpy()
-        np.expand_dims(roi_data_df.unstack().to_numpy(), 0)
+        # padding not implemented for running data
+        pad_win = 0
+        xran = run_data_df.index.unique('time_values').to_numpy()
+        data_arr = np.expand_dims(run_data_df.unstack().to_numpy(), 0)
     else:
         gen_util.accepted_values_error('datatype', datatype, ['run', 'roi'])
 
@@ -1546,8 +1557,8 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
     if latpar.surp_resp:
         if datatype == 'run':
             print('Setting latpar.surp_resp to False as datatype is run.')
-            latpar = sess_ntuple_util.get_modif_ntuple(latpar, 'surp_resp', 
-                                                       False)
+            latpar = sess_ntuple_util.get_modif_ntuple(
+                latpar, 'surp_resp', False)
         elif permpar is None:
             raise ValueError('Must pass a `permpar` if latpar.surp_resp.')
         elif permpar.tails != 'up':
@@ -1555,17 +1566,16 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
             permpar = sess_ntuple_util.get_modif_ntuple(permpar, 'tails', 'up')
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                               sesspar.plane, stimpar.bri_dir, stimpar.bri_size, 
-                               stimpar.gabk, 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
-                               datatype, 'print')
+        sesspar.plane, stimpar.bri_dir, stimpar.bri_size, stimpar.gabk, 'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar.dend, sesspar.plane, datatype, 'print')
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
     stat_len = 2 + (analyspar.error == 'std')
 
     print(f'\nAnalysing and plotting surprise latency for {datastr} traces '
-          f' \n({sessstr_pr}{dendstr_pr}).')
+        f' \n({sessstr_pr}{dendstr_pr}).')
 
     # get sessions organized by lin/pla x mouse x session
     linpla_sess, linpla_ord = split_by_linpla(sessions, rem_empty=True)
@@ -1583,7 +1593,8 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
         l_n_sign_rois = []
         for s, sesses in enumerate(l_sesses): # across sessions
             l_sess_info.append(sess_gen_util.get_sess_info(
-                sesses, analyspar.fluor, add_none=True))
+                sesses, analyspar.fluor, add_none=True, 
+                incl_roi=(datatype=='roi')))
             # for each mouse
             n_jobs = gen_util.get_n_jobs(len(l_sesses), parallel=parallel)
             if parallel:
@@ -1627,8 +1638,8 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
 
 
     # compare across planes in a line
-    lin_p_vals = comp_vals_acr_planes(linpla_ord, all_lat_vals_flat, 
-                                      permpar.n_perms, stats=analyspar.stats)
+    lin_p_vals = comp_vals_acr_planes(
+        linpla_ord, all_lat_vals_flat, permpar.n_perms, stats=analyspar.stats)
 
 
     n_sess = len(all_lat_vals_flat[0])
@@ -1668,7 +1679,7 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
 
 #############################################
 def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
-                  figpar, permpar=None, datatype='roi', parallel=False):
+                  figpar, permpar=None, parallel=False):
     """
     run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
                   figpar)
@@ -1698,27 +1709,25 @@ def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
                            default: False
     """
 
+    datatype = 'roi'
+
     if latpar.surp_resp:
-        if datatype == 'run':
-            print('Setting latpar.surp_resp to False as datatype is run.')
-            latpar = sess_ntuple_util.get_modif_ntuple(latpar, 'surp_resp', 
-                                                       False)
-        elif permpar is None:
+        if permpar is None:
             raise ValueError('Must pass a `permpar` if latpar.surp_resp.')
         elif permpar.tails != 'up':
             print('Setting permpar.tails to `up`.')
             permpar = sess_ntuple_util.get_modif_ntuple(permpar, 'tails', 'up')
 
     dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
-                               datatype, 'print')
+        'roi', 'print')
 
     print('\nAnalysing and plotting proportion of surprise responsive ROIs'
-          f'{dendstr_pr}.')
+        f'{dendstr_pr}.')
 
     if stimpar.stimtype != 'both':
         raise ValueError('stimpar.stimtype must be `both` for this analysis.')
-    stimtypes = ['gabors', 'gabors', 'bricks']
-    gabfrs    = [3, 1, 'none']
+    stimtypes  = ['gabors', 'gabors', 'bricks']
+    gabfrs     = [3, 1, 'none']
     comb_names = ['gabfrs', 'surps']
     combs      = [[0, 1] , [0, 2]]
 
@@ -1736,33 +1745,31 @@ def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
         l_n_sign_rois = []
         for s, sesses in enumerate(l_sesses): # across sessions
             l_sess_info.append(sess_gen_util.get_sess_info(sesses, 
-                                             analyspar.fluor, add_none=True))
+                analyspar.fluor, add_none=True, incl_roi=(datatype=='roi')))
             # keep only sessions with both stimuli
             sesses = sess_gen_util.check_both_stimuli(sesses)
             nrois = [sess.get_nrois(analyspar.remnans, analyspar.fluor) 
-                                                    for sess in sesses]
+                for sess in sesses]
             resp_arrs = [np.full([len(stimtypes), nroi], 0) for nroi in nrois]         
             for s, (stimtype, gabfr) in enumerate(zip(stimtypes, gabfrs)):
                 stimpar_spec = sess_ntuple_util.get_modif_ntuple(stimpar, 
-                                                ['stimtype', 'gabfr'], 
-                                                [stimtype, gabfr])
+                    ['stimtype', 'gabfr'], [stimtype, gabfr])
                 # for each mouse
                 n_jobs = gen_util.get_n_jobs(len(l_sesses), parallel=parallel)
                 if parallel:
                     sess_vals = Parallel(n_jobs=n_jobs)(delayed(
-                                         get_sess_latencies)(sess, analyspar, 
-                                         stimpar_spec, latpar, permpar, 
-                                         datatype) for sess in sesses)
+                        get_sess_latencies)(sess, analyspar, stimpar_spec, 
+                        latpar, permpar, datatype) for sess in sesses)
                     sess_roi_ns = [vals[1] for vals in sess_vals]
                     if latpar.surp_resp:
-                        sess_n_sign_rois = [len(vals[2]) for vals in 
-                                              sess_vals]             
+                        sess_n_sign_rois = \
+                            [len(vals[2]) for vals in sess_vals]             
                 else:
                     sess_roi_ns = []
                     sess_n_sign_rois = []
                     for sess in sesses:
-                        vals = get_sess_latencies(sess, analyspar, stimpar, 
-                                                  latpar, permpar, datatype)
+                        vals = get_sess_latencies(
+                            sess, analyspar, stimpar, latpar, permpar, datatype)
                         sess_roi_ns.append(vals[1])
                         if latpar.surp_resp:
                             sess_n_sign_rois.append(vals[2])
@@ -1777,11 +1784,11 @@ def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
                         continue
                     resp_same = resp_arr[comb[0]] == resp_arr[comb[1]]
                     comb_props.append(sum(resp_same)/float(nroi))
-                resp_prop_me = math_util.mean_med(comb_props, 
-                                         stats=analyspar.stats, nanpol='omit')
-                resp_prop_de = math_util.error_stat(comb_props, 
-                                         stats=analyspar.stats, 
-                                         error=analyspar.error, nanpol='omit')
+                resp_prop_me = math_util.mean_med(
+                    comb_props, stats=analyspar.stats, nanpol='omit')
+                resp_prop_de = math_util.error_stat(
+                    comb_props, stats=analyspar.stats, error=analyspar.error, 
+                    nanpol='omit')
                 resp_prop_stats.append([resp_prop_me, resp_prop_de])
                 l_prop_stats.append(resp_prop_stats)
                 if latpar.surp_resp:

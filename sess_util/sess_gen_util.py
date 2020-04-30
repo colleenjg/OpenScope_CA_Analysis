@@ -239,8 +239,8 @@ def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any',
     mouse_n = gen_util.remove_if(mouse_n, omit_mice)
 
     sess_vals = get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, 
-                            runtype, depth, pass_fail, incl, all_files, 
-                            any_files, min_rois, unique, sort)
+        runtype, depth, pass_fail, incl, all_files, 
+        any_files, min_rois, unique, sort)
 
     return sess_vals
 
@@ -502,14 +502,7 @@ def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True,
         sess = session.Session(datadir, sessid, runtype=runtype) 
         # extracts necessary info for analysis
         sess.extract_sess_attribs(mouse_df)
-        try:
-            sess.extract_info(fulldict=fulldict, dend=dend, roi=roi, run=run)
-        except Exception as err:
-            if 'truncated' in str(err):
-                print(f'\nWARNING for session {sessid}: SKIPPING DUE TO corrupted dff file.')
-                continue
-            else:
-                raise err
+        sess.extract_info(fulldict=fulldict, dend=dend, roi=roi, run=run)
         if omit and sess.plane == 'dend' and sess.dend != dend:
             print(f'Omitting session {sessid} ({dend} dendrites not '
                    'found).')
@@ -871,7 +864,7 @@ def get_analysdir(mouse_n, sess_n, plane, fluor='dff', scale=True,
 
 
 #############################################
-def get_params_from_str(param_str):
+def get_params_from_str(param_str, no_lists=False):
     """
     get_params_from_str(param_str)
 
@@ -882,6 +875,10 @@ def get_params_from_str(param_str):
                            'm{}_s{}_plane_stimtype_fluor_scaled_comp_shuffled',
                            though the order can be different as of plane
     
+    Optional args:
+        - no_lists (bool): if True, list parameters are replaced with a string, 
+                           e.g. 'both'
+                           False
     Returns:
         - params (dict): parameter dictionary
             - bri_dir (str or list) : Bricks direction parameter ('right', 
@@ -912,17 +909,27 @@ def get_params_from_str(param_str):
         params['stimtype'] = 'gabors'
         params['gabk'] = 16
         if 'both' in param_str:
-            params['gabk'] = [4, 16]
+            if no_lists:
+                params['gabk'] = 'both'
+            else:
+                params['gabk'] = [4, 16]
+
         elif 'gab4' in param_str:
             params['gabk'] = 4
     elif 'bri' in param_str:
         params['stimtype'] = 'bricks'
         params['bri_size'] = 128
         if 'both' in param_str:
-            params['bri_size'] = [128, 256]
+            if no_lists:
+                params['bri_size'] = 'both'
+            else:
+                params['bri_size'] = [128, 256]
         elif 'bri256' in param_str:
             params['bri_size'] = 256
-        params['bri_dir'] = ['right', 'left']
+        if no_lists:
+            params['bri_dir'] = 'both'
+        else:
+            params['bri_dir'] = ['right', 'left']
         if 'right' in param_str:
             params['bri_dir'] = 'right'
         elif 'left' in param_str:

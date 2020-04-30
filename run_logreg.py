@@ -417,7 +417,7 @@ if __name__ == "__main__":
             args.not_ctrl = not(set_ctrl(not(args.not_ctrl), comp=args.comp))
 
             print(f'\nTask: {args.task}\nStim: {args.stimtype} '
-                  f'\nComparison: {args.comp}\n')
+                f'\nComparison: {args.comp}\n')
 
             if args.task == 'run_regr':
                 run_regr(args)
@@ -425,17 +425,17 @@ if __name__ == "__main__":
             # collates regression runs and analyses accuracy
             elif args.task == 'analyse':
                 print(f'Folder: {args.output}')
-                logreg.run_analysis(args.output, args.stimtype, args.comp, 
-                                    not(args.not_ctrl), args.CI, args.alg, 
-                                    args.parallel)
+                logreg.run_analysis(
+                    args.output, args.stimtype, args.comp, not(args.not_ctrl), 
+                    args.CI, args.alg, args.parallel)
 
             elif args.task == 'plot':
-                logreg.run_plot(args.output, args.stimtype, args.comp, 
-                                not(args.not_ctrl), args.bri_dir, args.fluor, 
-                                not(args.no_scale), args.CI, args.alg, 
-                                args.plt_bkend, args.fontdir, args.modif)
+                logreg.run_plot(
+                    args.output, args.stimtype, args.comp, not(args.not_ctrl), 
+                    args.bri_dir, args.fluor, not(args.no_scale), args.CI, 
+                    args.alg, args.plt_bkend, args.fontdir, args.modif)
 
             else:
                 gen_util.accepted_values_error('args.task', args.task, 
-                                            ['run_regr', 'analyse', 'plot'])
+                    ['run_regr', 'analyse', 'plot'])
 

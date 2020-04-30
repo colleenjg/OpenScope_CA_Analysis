@@ -85,8 +85,8 @@ def reformat_args(args):
 
     if args.datatype == 'run':
         args.fluor = 'n/a'
-        if args.plane == 'soma':
-            args.dend = 'aibs'
+    if args.plane == 'soma':
+        args.dend = 'aibs'
 
     args.omit_sess, args.omit_mice = sess_gen_util.all_omit(args.stimtype, 
                                                     args.runtype, args.bri_dir, 
@@ -488,7 +488,8 @@ if __name__ == "__main__":
         source = 'modif' if args.modif else 'pup'
         plot_dicts.plot_from_dicts(
             args.dict_path, source=source, plt_bkend=args.plt_bkend, 
-            fontdir=args.fontdir, parallel=args.parallel)
+            fontdir=args.fontdir, parallel=args.parallel, 
+            datetime=not(args.no_datetime))
 
     else:
         args = reformat_args(args)
