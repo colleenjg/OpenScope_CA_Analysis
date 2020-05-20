@@ -34,6 +34,7 @@ DEFAULT_DATADIR = os.path.join('..', 'data', 'AIBS')
 DEFAULT_MOUSE_DF_PATH = 'mouse_df.csv'
 DEFAULT_FONTDIR = os.path.join('..', 'tools', 'fonts')
 
+
 #############################################
 def reformat_args(args):
     """
@@ -76,11 +77,12 @@ def reformat_args(args):
     args = copy.deepcopy(args)
 
     [args.bri_dir, args.bri_size, args.gabfr, 
-     args.gabk, args.gab_ori] = sess_gen_util.get_params(args.stimtype, 
-        args.bri_dir, args.bri_size, args.gabfr, args.gabk, args.gab_ori)
+        args.gabk, args.gab_ori] = sess_gen_util.get_params(
+            args.stimtype, args.bri_dir, args.bri_size, args.gabfr, args.gabk, 
+            args.gab_ori)
 
-    args.omit_sess, args.omit_mice = sess_gen_util.all_omit(args.stimtype, 
-        args.runtype, args.bri_dir, args.bri_size, args.gabk)
+    args.omit_sess, args.omit_mice = sess_gen_util.all_omit(
+        args.stimtype, args.runtype, args.bri_dir, args.bri_size, args.gabk)
 
     # chose a seed if none is provided (i.e., args.seed=-1), but seed later
     args.seed = gen_util.seed_all(
@@ -290,7 +292,7 @@ def prep_analyses(sess_n, args, mouse_df):
         fulldict=False)
 
     print(f'\nAnalysis of {sesspar.plane} responses to {stimpar.stimtype[:-1]} '
-          f'stimuli ({sesspar.runtype} data)\nSession {sesspar.sess_n}')
+        f'stimuli ({sesspar.runtype} data)\nSession {sesspar.sess_n}')
 
     return sessions, analysis_dict
 
@@ -381,88 +383,86 @@ if __name__ == "__main__":
 
         # general parameters
     parser.add_argument('--datadir', default=None, 
-                        help=('data directory (if None, uses a directory '
-                              'defined below'))
+        help=('data directory (if None, uses a directory defined below'))
     parser.add_argument('--output', default='', help='where to store output')
     parser.add_argument('--analyses', default='all', 
-                        help=('analyses to run: traces (t), locked traces (l), '
-                              'mag (m), autocorr (a) or `all` or `all_m` '
-                              'to, for example, run all analyses except m'))
+        help=('analyses to run: traces (t), locked traces (l), mag (m), '
+            'autocorr (a) or `all` or `all_m` to, for example, run all '
+            'analyses except m'))
     parser.add_argument('--sess_n', default='all',
-                        help='session to aim for, e.g. 1, 2, last, all')
+        help='session to aim for, e.g. 1, 2, last, all')
     parser.add_argument('--dict_path', default='', 
-                        help=('path to info dictionary from which to plot '
-                              'data.'))
+        help=('path to info dictionary from which to plot data.'))
 
         # technical parameters
     parser.add_argument('--plt_bkend', default=None, 
-                        help='switch mpl backend when running on server')
+        help='switch mpl backend when running on server')
     parser.add_argument('--parallel', action='store_true', 
-                        help='do runs in parallel.')
+        help='do runs in parallel.')
     parser.add_argument('--seed', default=-1, type=int, 
-                        help='random seed (-1 for None)')
+        help='random seed (-1 for None)')
 
         # session parameters
     parser.add_argument('--runtype', default='prod', help='prod or pilot')
     parser.add_argument('--plane', default='soma', help='soma, dend')
     parser.add_argument('--min_rois', default=5, type=int, 
-                        help='min rois criterion')
+        help='min rois criterion')
         # stimulus parameters
     parser.add_argument('--bri_dir', default='right', 
-                        help='brick dir (right, left, or both)') 
+        help='brick dir (right, left, or both)') 
     parser.add_argument('--gabfr', default=3, type=int, 
-                        help='gabor frame at which to start sequences')  
+        help='gabor frame at which to start sequences')  
     parser.add_argument('--post', default=1.5, type=float, 
-                        help='sec after reference frames')
+        help='sec after reference frames')
     parser.add_argument('--stimtype', default='gabors', 
-                        help='stimulus to analyse')   
+        help='stimulus to analyse')   
     
     # generally fixed 
         # analysis parameters
     parser.add_argument('--keepnans', action='store_true', 
-                        help=('use running array in which NaN values have not '
-                              'been interpolated.'))
+        help=('use running array in which NaN values have not been '
+            'interpolated.'))
     parser.add_argument('--stats', default='mean', help='plot mean or median')
     parser.add_argument('--error', default='sem', 
-                        help='sem for SEM/MAD, std for std/qu')    
+        help='sem for SEM/MAD, std for std/qu')    
         # session parameters
     parser.add_argument('--line', default='any', help='L23, L5')
     parser.add_argument('--closest', action='store_true', 
-                        help=('if True, the closest session number is used. '
-                              'Otherwise, only exact.'))
+        help=('if True, the closest session number is used. '
+            'Otherwise, only exact.'))
     parser.add_argument('--pass_fail', default='P', 
-                        help='P to take only passed sessions')
+        help='P to take only passed sessions')
     parser.add_argument('--incl', default='any',
-                        help='include only `yes`, `no` or `any`')
+        help='include only `yes`, `no` or `any`')
         # stimulus parameters
     parser.add_argument('--bri_size', default=128, 
-                        help='brick size (128, 256, or both)')
+        help='brick size (128, 256, or both)')
     parser.add_argument('--gabk', default=16,
-                        help='kappa value (4, 16, or both)')    
+        help='kappa value (4, 16, or both)')    
     parser.add_argument('--gab_ori', default='all',
-                        help='gabor orientation values (0, 45, 90, 135, all)')    
+        help='gabor orientation values (0, 45, 90, 135, all)')    
     parser.add_argument('--pre', default=0, type=float, help='sec before frame')
         # permutation parameters
     parser.add_argument('--n_perms', default=10000, type=int, 
-                        help='nbr of permutations')
+        help='nbr of permutations')
     parser.add_argument('--tails', default='2', 
-                        help='nbr tails for perm analysis (2, lo, up)')
+        help='nbr tails for perm analysis (2, lo, up)')
         # quintile parameters
     parser.add_argument('--n_quints', default=4, type=int, 
-                        help='nbr of quintiles')
+        help='nbr of quintiles')
         # autocorrelation parameters
     parser.add_argument('--lag_s', default=4, type=float,
-                        help='lag for autocorrelation (in sec)')
+        help='lag for autocorrelation (in sec)')
         # figure parameters
     parser.add_argument('--ncols', default=4, help='number of columns')
     parser.add_argument('--no_datetime', action='store_true',
-                        help='create a datetime folder')
+        help='create a datetime folder')
     parser.add_argument('--overwrite', action='store_true', 
-                        help='allow overwriting')
+        help='allow overwriting')
         # plot using modif_analys_plots (if plotting from dictionary)
     parser.add_argument('--modif', action='store_true', 
-                        help=('plot from dictionary using modified plot '
-                              'functions'))
+        help=('plot from dictionary using modified plot functions'))
+        
     args = parser.parse_args()
 
     args.fontdir = DEFAULT_FONTDIR

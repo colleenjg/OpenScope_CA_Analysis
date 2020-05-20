@@ -53,8 +53,8 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
 
     print(f'\nPlotting from dictionary: {dict_path}')
     
-    figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir, 
-        datetime=datetime)
+    figpar = sess_plot_util.init_figpar(
+        plt_bkend=plt_bkend, fontdir=fontdir, datetime=datetime)
     plot_util.manage_mpl(cmap=False, **figpar['mng'])
 
     plt.rcParams['figure.titlesize'] = 'xx-large'
@@ -84,7 +84,6 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
     # 6. Plot colormaps and traces for orientations/directions
     elif analysis == 'o': # colormaps
         plot_oridirs(figpar=figpar, savedir=savedir, parallel=parallel, **info)
-
 
     else:
         print(f'No modified plotting function for analysis {analysis}')
@@ -148,14 +147,14 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
         - savename (str): name under which the figure is saved
     """
  
-    statstr_pr = sess_str_util.stat_par_str(analyspar['stats'], 
-                                            analyspar['error'], 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
-                                            extrapar['datatype'], 'print')
+    statstr_pr = sess_str_util.stat_par_str(
+        analyspar['stats'], analyspar['error'], 'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], extrapar['datatype'], 'print')
     
     sessstr = 'sess{}_{}'.format(sesspar['sess_n'], sesspar['plane'])
-    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
-                                         extrapar['datatype'])
+    dendstr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], extrapar['datatype'])
     
     datatype = extrapar['datatype']
 
@@ -219,7 +218,8 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
                     x_ax='')
                 
     if savedir is None:
-        savedir = os.path.join(figpar['dirs'][datatype])
+        savedir = os.path.join(
+            figpar['dirs'][datatype])
 
     savename = f'{datatype}_tr_{sessstr}{dendstr}'
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
@@ -285,19 +285,19 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
         - savename (str): name under which the figure is saved
     """
  
-    stimstr_pr = sess_str_util.stim_par_str(stimpar['stimtype'], 
-                                    stimpar['bri_dir'], stimpar['bri_size'],
-                                    stimpar['gabk'], 'print')
-    statstr_pr = sess_str_util.stat_par_str(analyspar['stats'], 
-                                            analyspar['error'], 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
-                                            extrapar['datatype'], 'print')
+    stimstr_pr = sess_str_util.stim_par_str(
+        stimpar['stimtype'], stimpar['bri_dir'], stimpar['bri_size'],
+        stimpar['gabk'], 'print')
+    statstr_pr = sess_str_util.stat_par_str(
+        analyspar['stats'], analyspar['error'], 'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], extrapar['datatype'], 'print')
     
-    sessstr = sess_str_util.sess_par_str(sesspar['sess_n'], stimpar['stimtype'],
-                                         sesspar['plane'], stimpar['bri_dir'], 
-                                         stimpar['bri_size'], stimpar['gabk'])
-    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
-                                         extrapar['datatype'])
+    sessstr = sess_str_util.sess_par_str(
+        sesspar['sess_n'], stimpar['stimtype'], sesspar['plane'], 
+        stimpar['bri_dir'], stimpar['bri_size'], stimpar['gabk'])
+    dendstr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], extrapar['datatype'])
     
     datatype = extrapar['datatype']
     dimstr = sess_str_util.datatype_dim_str(datatype)
@@ -338,34 +338,37 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
                     line = '2/3'
                 if 'soma' in planes[i]:
                     plane = 'somata'
-                title=(f'M{mouse_ns[i]} - layer {line} {plane}{dendstr_pr}')
+                title = (f'M{mouse_ns[i]} - layer {line} {plane}{dendstr_pr}')
                 # title=(f'Mouse {mouse_ns[i]} - {stimstr_pr} ' + 
-                #        u'{} '.format(statstr_pr) + f'across {dimstr}\n'
-                #        f'(sess {sess_ns[i]}, {lines[i]} {planes[i]},'
-                #        f'{nroi_strs[i]}')
+                #     u'{} '.format(statstr_pr) + f'across {dimstr}\n'
+                #     f'(sess {sess_ns[i]}, {lines[i]} {planes[i]},'
+                #     f'{nroi_strs[i]}')
                 leg = None
                 y_ax = ''
                 if i == 0:
                     leg = f'{qu_lab}{leg_ext}'
                     y_ax = None
                 # leg = f'{qu_lab}{leg_ext} ({all_counts[i][s][q]})'
-                plot_util.plot_traces(sub_ax, x_ran, all_stats[i][s, q, 0], 
-                                      all_stats[i][s, q, 1:], title, 
-                                      col=col[q], alpha=alpha, label=leg, 
-                                      n_xticks=n)
-                sess_plot_util.add_axislabels(sub_ax, fluor=analyspar['fluor'], 
-                                              datatype=datatype, y_ax=y_ax)
+                plot_util.plot_traces(
+                    sub_ax, x_ran, all_stats[i][s, q, 0], 
+                    all_stats[i][s, q, 1:], title, col=col[q], alpha=alpha, 
+                    label=leg, n_xticks=n)
+                sess_plot_util.add_axislabels(
+                    sub_ax, fluor=analyspar['fluor'], datatype=datatype, 
+                    y_ax=y_ax)
 
     plot_util.turn_off_extra(ax, n_sess)
 
     if stimpar['stimtype'] == 'gabors': 
-        sess_plot_util.plot_labels(ax, stimpar['gabfr'], 'both', 
-                            pre=stimpar['pre'], post=stimpar['post'], 
-                            cols=lab_cols, sharey=figpar['init']['sharey'])
+        sess_plot_util.plot_labels(
+            ax, stimpar['gabfr'], 'both', pre=stimpar['pre'], 
+            post=stimpar['post'], cols=lab_cols, 
+            sharey=figpar['init']['sharey'])
     
     if savedir is None:
-        savedir = os.path.join(figpar['dirs'][datatype], 
-                               figpar['dirs']['surp_qu'])
+        savedir = os.path.join(
+            figpar['dirs'][datatype], 
+            figpar['dirs']['surp_qu'])
 
     qu_str = '_{}q'.format(quintpar['n_quints'])
     if quintpar['n_quints'] == 1:
@@ -505,7 +508,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         if stimpar['stimtype'] == 'gabors':
             offset = stimpar['gabfr']
             surp_lens = [[sl * 1.5/4 - 0.3 * offset for sl in sls] 
-                                                    for sls in surp_lens]
+                for sls in surp_lens]
         surp_len_default = False
 
     # plot surp_lens default values and RANGE TO PLOT
@@ -616,7 +619,8 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
 
     if savedir is None:
         savedir = os.path.join(
-            figpar['dirs'][datatype], figpar['dirs']['surp_qu'], 
+            figpar['dirs'][datatype], 
+            figpar['dirs']['surp_qu'], 
             f'{lock}_lock', basestr.replace('_', ''))
 
     qu_str = '_{}q'.format(quintpar['n_quints'])
@@ -683,25 +687,25 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
     """
 
 
-    statstr_pr = sess_str_util.stat_par_str(analyspar['stats'], 
-                                            analyspar['error'], 'print')
-    stimstr_pr = sess_str_util.stim_par_str(stimpar['stimtype'], 
-                                    stimpar['bri_dir'], stimpar['bri_size'], 
-                                    stimpar['gabk'], 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
-                                            extrapar['datatype'], 'print')
+    statstr_pr = sess_str_util.stat_par_str(
+        analyspar['stats'], analyspar['error'], 'print')
+    stimstr_pr = sess_str_util.stim_par_str(
+        stimpar['stimtype'], stimpar['bri_dir'], stimpar['bri_size'], 
+        stimpar['gabk'], 'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], extrapar['datatype'], 'print')
 
-    sessstr = sess_str_util.sess_par_str(sesspar['sess_n'], stimpar['stimtype'], 
-                                         sesspar['plane'], stimpar['bri_dir'],
-                                         stimpar['bri_size'], stimpar['gabk']) 
-    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
-                                         extrapar['datatype'])
+    sessstr = sess_str_util.sess_par_str(
+        sesspar['sess_n'], stimpar['stimtype'], sesspar['plane'], 
+        stimpar['bri_dir'],stimpar['bri_size'], stimpar['gabk']) 
+    dendstr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], extrapar['datatype'])
 
 
     datatype = extrapar['datatype']
     if datatype == 'roi':
-        fluorstr_pr = sess_str_util.fluor_par_str(analyspar['fluor'], 
-                                                 str_type='print')
+        fluorstr_pr = sess_str_util.fluor_par_str(
+            analyspar['fluor'], str_type='print')
         title_str = u'{} autocorrelation'.format(fluorstr_pr)
         if not autocorrpar['byitem']:
             title_str = f'{title_str} across ROIs' 
@@ -747,9 +751,9 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
             plane = 'somata'
         title=f'M{mouse_ns[i]} - layer {line} {plane}{dendstr_pr}'
         # title = (f'Mouse {mouse_ns[i]} - {stimstr_pr}' + 
-        #          u'{}'.format(statstr_pr) + 
-        #          f'{title_str}\n(sess {sess_ns[i]}, {lines[i]} {planes[i]},'
-        #          f'{nroi_strs[i]})')
+        #     u'{}'.format(statstr_pr) + 
+        #     f'{title_str}\n(sess {sess_ns[i]}, {lines[i]} {planes[i]},'
+        #     f'{nroi_strs[i]})')
         # transpose to ROI/lag x stats x series
         sess_stats = stats[i].transpose(1, 0, 2) 
         for s, sub_stats in enumerate(sess_stats):
@@ -757,9 +761,9 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
             if i == 0:
                 if not autocorrpar['byitem']:
                     lab = ['actual lag', '10x lag'][s]
-            plot_util.plot_traces(sub_ax, xrans[i], sub_stats[0], 
-                                  sub_stats[1:], xticks=xticks, yticks=yticks, 
-                                  alpha=0.2, label=lab)
+            plot_util.plot_traces(
+                sub_ax, xrans[i], sub_stats[0], sub_stats[1:], xticks=xticks, 
+                yticks=yticks, alpha=0.2, label=lab)
         plot_util.add_bars(sub_ax, hbars=seq_bars)
         sub_ax.set_ylim([0, 1])
         sub_ax.set_title(title)
@@ -768,8 +772,9 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
     plot_util.turn_off_extra(ax, n_sess)
 
     if savedir is None:
-        savedir = os.path.join(figpar['dirs'][datatype], 
-                               figpar['dirs']['autocorr'])
+        savedir = os.path.join(
+            figpar['dirs'][datatype], 
+            figpar['dirs']['autocorr'])
 
     savename = f'{datatype}_autocorr{byitemstr}_{sessstr}{dendstr}'
 
@@ -840,19 +845,19 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
         - savename (str): name under which the figure is saved
     """
 
-    statstr_pr = sess_str_util.stat_par_str(analyspar['stats'], 
-                                            analyspar['error'], 'print')
-    stimstr_pr = sess_str_util.stim_par_str(stimpar['stimtype'], 
-                                    stimpar['bri_dir'], stimpar['bri_size'], 
-                                    stimpar['gabk'], 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
-                                            extrapar['datatype'], 'print')
+    statstr_pr = sess_str_util.stat_par_str(
+        analyspar['stats'], analyspar['error'], 'print')
+    stimstr_pr = sess_str_util.stim_par_str(
+        stimpar['stimtype'], stimpar['bri_dir'], stimpar['bri_size'], 
+        stimpar['gabk'], 'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], extrapar['datatype'], 'print')
 
-    stimstr = sess_str_util.stim_par_str(stimpar['stimtype'], 
-                                       stimpar['bri_dir'], stimpar['bri_size'], 
-                                       stimpar['gabk'])
-    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
-                                         extrapar['datatype'])
+    stimstr = sess_str_util.stim_par_str(
+        stimpar['stimtype'], stimpar['bri_dir'], stimpar['bri_size'], 
+        stimpar['gabk'])
+    dendstr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], extrapar['datatype'])
 
     datatype = extrapar['datatype']
     if datatype != 'roi':
@@ -860,7 +865,9 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
     dimstr = sess_str_util.datatype_dim_str(datatype)
 
     if savedir is None:
-        savedir = os.path.join(figpar['dirs'][datatype], figpar['dirs']['oridir'])
+        savedir = os.path.join(
+            figpar['dirs'][datatype], 
+            figpar['dirs']['oridir'])
 
     # extract some info from dictionaries
     keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
@@ -896,8 +903,8 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
     figpar['init']['ncols'] = len(oridirs) 
     
     # suptitle = (f'Mouse {mouse_n} - {stimstr_pr}' + 
-    #             u'{} '.format(statstr_pr) + f'across {dimstr}{qu_str_pr}\n'
-    #             f'(sess {sess_n}, {line} {plane},{nroi_str}')
+    #     u'{} '.format(statstr_pr) + f'across {dimstr}{qu_str_pr}\n'
+    #     f'(sess {sess_n}, {line} {plane},{nroi_str}')
     line_str, plane_str = '5', 'dendrites'
     if '23' in line:
         line_str = '2/3'
@@ -906,7 +913,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
     suptitle = f'M{mouse_n} - layer {line_str} {plane_str}{dendstr_pr}'
 
     savename = (f'{datatype}_tr_m{mouse_n}_sess{sess_n}{qu_str}_{stimstr}_'
-                f'{plane}{dendstr}')
+        f'{plane}{dendstr}')
     
     fig, ax = plot_util.init_fig(len(oridirs), **figpar['init'])
     for o, od in enumerate(oridirs):
@@ -921,15 +928,15 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
             me  = np.asarray(tr_data['stats'][key][0])
             err = np.asarray(tr_data['stats'][key][1:])
             xran = np.linspace(xran_ends[0], xran_ends[1], me.shape[0])
-            plot_util.plot_traces(sub_ax, xran, me, err, title_tr, label=lab, 
-                                  n_xticks=n)
+            plot_util.plot_traces(
+                sub_ax, xran, me, err, title_tr, label=lab, n_xticks=n)
             cols.append(sub_ax.lines[-1].get_color())
     
     
     if stimpar['stimtype'] == 'gabors':
-        sess_plot_util.plot_labels(ax, stimpar['gabfr'], cols=cols,
-                                   pre=stimpar['pre'], post=stimpar['post'], 
-                                   sharey=figpar['init']['sharey'])
+        sess_plot_util.plot_labels(
+            ax, stimpar['gabfr'], cols=cols, pre=stimpar['pre'], 
+            post=stimpar['post'], sharey=figpar['init']['sharey'])
 
     fig.suptitle(suptitle, y=1.08)
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
@@ -1009,19 +1016,20 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
                           subfolder is added.)
     """
 
-    statstr_pr = sess_str_util.stat_par_str(analyspar['stats'], 
-                                            analyspar['error'], 'print')
-    stimstr_pr = sess_str_util.stim_par_str(stimpar['stimtype'], 
-                                    stimpar['bri_dir'], stimpar['bri_size'], 
-                                    stimpar['gabk'], 'print')
+    statstr_pr = sess_str_util.stat_par_str(
+        analyspar['stats'], analyspar['error'], 'print')
+    stimstr_pr = sess_str_util.stim_par_str(
+        stimpar['stimtype'], stimpar['bri_dir'], stimpar['bri_size'], 
+        stimpar['gabk'], 'print')
 
-    stimstr = sess_str_util.stim_par_str(stimpar['stimtype'], 
-                                       stimpar['bri_dir'], stimpar['bri_size'], 
-                                       stimpar['gabk'])
+    stimstr = sess_str_util.stim_par_str(
+        stimpar['stimtype'], stimpar['bri_dir'], stimpar['bri_size'], 
+        stimpar['gabk'])
 
     if savedir is None:
-        savedir = os.path.join(figpar['dirs']['roi'], 
-                               figpar['dirs']['oridir'])
+        savedir = os.path.join(
+            figpar['dirs']['roi'], 
+            figpar['dirs']['oridir'])
 
     cmap = plot_util.manage_mpl(cmap=True, nbins=100, **figpar['mng'])
 
@@ -1030,8 +1038,8 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
     [mouse_n, sess_n, line, plane] = [sess_info[key][0] for key in keys]
 
     dendstr = sess_str_util.dend_par_str(analyspar['dend'], plane, 'roi')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], plane, 
-                                            'roi', 'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar['dend'], plane, 'roi', 'print')
 
     surps = ['reg', 'surp']
     if stimpar['stimtype'] == 'gabors':
@@ -1063,8 +1071,8 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
     
     # plot colormaps
     # gentitle = (f'Mouse {mouse_n} - {stimstr_pr} ' + 
-    #             u'{} '.format(statstr_pr) + 'across seqs colormaps'
-    #             f'{qu_str_pr} \n(sess {sess_n}, {line} {plane})')
+    #     u'{} '.format(statstr_pr) + 'across seqs colormaps'
+    #     f'{qu_str_pr} \n(sess {sess_n}, {line} {plane})')
     line_str, plane_str = '5', 'dendrites'
     if '23' in line:
         line_str = '2/3'
@@ -1073,7 +1081,7 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
     gentitle = f'Mouse {mouse_n} - layer {line_str} {plane_str}{dendstr_pr}'
     
     gen_savename = (f'roi_cm_m{mouse_n}_sess{sess_n}{qu_str}_{stimstr}_'
-                    f'{plane}{dendstr}')
+        f'{plane}{dendstr}')
 
     gen_savename = f'colormap_m{mouse_n}s{sess_n}_{stimstr}_{plane}'
 
@@ -1098,7 +1106,7 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
         figpar['init']['sharey'] = True
     else:
         gen_util.accepted_values_error('fig_type', fig_type, 
-                 ['byplot', 'byreg', f'by{oridirs[0]}{deg}', 'byfir'])
+            ['byplot', 'byreg', f'by{oridirs[0]}{deg}', 'byfir'])
 
     subtitle = (f'ROIs sorted by peak activity{peak_sort} and scaled '
                 f'{scale_type}')
@@ -1107,8 +1115,8 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
     suptitle = gentitle
     
     # get scaled and sorted ROI mean/medians (ROI x frame)
-    scaled_sort_me = roi_plots.scale_sort_trace_data(tr_data, fig_type, surps, 
-                                                     oridirs)
+    scaled_sort_me = roi_plots.scale_sort_trace_data(
+        tr_data, fig_type, surps, oridirs)
     fig, ax = plot_util.init_fig(len(oridirs) * len(surps), **figpar['init'])
     
     nrois = scaled_sort_me[f'{surps[0]}_{oridirs[0]}'].shape[1]
@@ -1117,8 +1125,8 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
         for s, (surp, surp_lab) in enumerate(zip(surps, surp_labs)):    
             sub_ax = ax[s][o]
             key = f'{surp}_{od}'
-            title = u'{} seqs ({}{}) (n={})'.format(surp_lab.capitalize(), od, 
-                                                deg_pr, tr_data['n_seqs'][key])
+            title = u'{} seqs ({}{}) (n={})'.format(
+                surp_lab.capitalize(), od, deg_pr, tr_data['n_seqs'][key])
             if s == 0:
                 od_pr = od
                 if stimpar['stimtype'] == 'bricks':
@@ -1132,12 +1140,12 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
                 y_ax = ''
             if stimpar['stimtype'] == 'gabors':
                 x_ax = ''
-            sess_plot_util.add_axislabels(sub_ax, fluor=analyspar['fluor'], 
-                                       x_ax=x_ax, y_ax=y_ax, datatype='roi')
-            im = plot_util.plot_colormap(sub_ax, scaled_sort_me[key], 
-                           title=title, cmap=cmap, n_xticks=n,
-                           yticks_ev=yticks_ev, xran=[-stimpar['pre'], 
-                           stimpar['post']])
+            sess_plot_util.add_axislabels(
+                sub_ax, fluor=analyspar['fluor'], x_ax=x_ax, y_ax=y_ax, 
+                datatype='roi')
+            im = plot_util.plot_colormap(
+                sub_ax, scaled_sort_me[key], title=title, cmap=cmap, n_xticks=n,
+                yticks_ev=yticks_ev, xran=[-stimpar['pre'], stimpar['post']])
             
             if stimpar['stimtype'] == 'bricks':
                 plot_util.add_bars(sub_ax, 0)
@@ -1147,15 +1155,16 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
     for s, surp in enumerate(surps):
         sub_ax = ax[s:s+1]
         if stimpar['stimtype'] == 'gabors':
-            sess_plot_util.plot_labels(sub_ax, stimpar['gabfr'], surp, 
-                            pre=stimpar['pre'], post=stimpar['post'], 
-                            sharey=figpar['init']['sharey'], t_heis=-0.05)
+            sess_plot_util.plot_labels(
+                sub_ax, stimpar['gabfr'], surp, pre=stimpar['pre'], 
+                post=stimpar['post'], sharey=figpar['init']['sharey'], 
+                t_heis=-0.05)
     
     plot_util.add_colorbar(fig, im, len(oridirs), cm_prop=0.06)
     fig.suptitle(suptitle, fontsize='xx-large', y=1.08)
     savename = f'{gen_savename}_{fig_type}'
-    fulldir = plot_util.savefig(fig, savename, savedir, print_dir=print_dir, 
-                                **figpar['save'])
+    fulldir = plot_util.savefig(
+        fig, savename, savedir, print_dir=print_dir, **figpar['save'])
     
     plt.close(fig)
     
@@ -1267,16 +1276,16 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
     if parallel:
         n_jobs = gen_util.get_n_jobs(len(fig_types))
         fulldirs = Parallel(n_jobs=n_jobs)(delayed(plot_oridir_colormap)
-                         (fig_type, analyspar, stimpar, quintpar, tr_data,
-                          sess_info, figpar, savedir, (f == fig_last)) 
-                          for f, fig_type in enumerate(fig_types)) 
+            (fig_type, analyspar, stimpar, quintpar, tr_data, sess_info, 
+            figpar, savedir, (f == fig_last)) 
+            for f, fig_type in enumerate(fig_types)) 
         fulldir = fulldirs[-1]
     else:
         for f, fig_type in enumerate(fig_types):
             print_dir = (f == fig_last)
-            fulldir = plot_oridir_colormap(fig_type, analyspar, stimpar, 
-                                           quintpar, tr_data, sess_info, 
-                                           figpar, savedir, print_dir)
+            fulldir = plot_oridir_colormap(
+                fig_type, analyspar, stimpar, quintpar, tr_data, sess_info, 
+                figpar, savedir, print_dir)
 
     return fulldir
 
@@ -1384,8 +1393,8 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar,
                  }
 
     if 'roi_me' in tr_data.keys():
-        plot_oridir_colormaps(savedir=savedir, parallel=parallel, 
-                              **comm_info)
+        plot_oridir_colormaps(
+            savedir=savedir, parallel=parallel, **comm_info)
 
     # if 'stats' in tr_data.keys():
     #     plot_oridir_traces(savedir=savedir, **comm_info)

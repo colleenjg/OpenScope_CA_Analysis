@@ -64,7 +64,7 @@ def get_sess_dirs(masterdir, sessid, expid, segid, mouseid, runtype='prod',
     # get the name of the session and experiment data directories
     if mouse_dir:
         sessdir = os.path.join(masterdir, runtype, f'mouse_{mouseid}', 
-                               f'ophys_session_{sessid}')
+            f'ophys_session_{sessid}')
     else:
         sessdir = os.path.join(masterdir, runtype, f'ophys_session_{sessid}')
 
@@ -78,8 +78,8 @@ def get_sess_dirs(masterdir, sessid, expid, segid, mouseid, runtype='prod',
         try:
             file_util.checkdir(sessdir)
         except OSError:
-            raise OSError(f'{sessdir} does not conform to expected AIBS '
-                        'structure')
+            raise OSError(
+                f'{sessdir} does not conform to expected AIBS structure.')
 
     return sessdir, expdir, procdir, demixdir, segdir
 
@@ -267,14 +267,14 @@ def get_sess_dir_path(masterdir, sessid, runtype='prod'):
         gen_util.accepted_values_error('runtype', runtype, ['prod', 'pilot'])
 
     # set the session directory (full path)
-    wild_dir  = os.path.join(masterdir, runtype, 'mouse_*', 
-                             f'ophys_session_{sessid}')
+    wild_dir  = os.path.join(
+        masterdir, runtype, 'mouse_*', f'ophys_session_{sessid}')
     name_dir  = glob.glob(wild_dir)
     
     # pilot data may not be in a 'mouse_' folder
     if len(name_dir) == 0:
-        wild_dir  = os.path.join(masterdir, runtype,  
-                                 f'ophys_session_{sessid}')
+        wild_dir  = os.path.join(
+            masterdir, runtype,  f'ophys_session_{sessid}')
         name_dir  = glob.glob(wild_dir)
         mouse_dir = False
     else:
@@ -282,10 +282,10 @@ def get_sess_dir_path(masterdir, sessid, runtype='prod'):
 
     if len(name_dir) == 0:
         raise OSError(f'Could not find directory for session {sessid} '
-                      f'(runtype {runtype}) in {masterdir} subfolders.')
+            f'(runtype {runtype}) in {masterdir} subfolders.')
     elif len(name_dir) > 1:
         raise OSError(f'Found {len(name_dir)} matching session folders in '
-                      f'{masterdir} instead of 1.')
+            f'{masterdir} instead of 1.')
 
     sess_dir = name_dir[0]
 
@@ -402,8 +402,7 @@ def get_expid(sessdir):
 
     expglob = glob.glob(os.path.join(sessdir,'ophys_experiment*'))
     if len(expglob) == 0:
-        raise OSError('Could not find experiment directory '
-                      f'in {sessdir}')
+        raise OSError(f'Could not find experiment directory in {sessdir}.')
     else:
         expinfo = os.path.basename(expglob[0]).split('_')
     expid = int(expinfo[2])
@@ -429,8 +428,7 @@ def get_segid(sessdir):
     segglob = glob.glob(os.path.join(
         sessdir, '*', 'processed', 'ophys_cell_segmentation_run_*'))
     if len(segglob) == 0:
-        raise OSError('Could not find segmentation directory '
-                      f'in {sessdir}')
+        raise OSError(f'Could not find segmentation directory in {sessdir}')
     else:
         seginfo = os.path.basename(segglob[0]).split('_')
     segid = int(seginfo[-1])

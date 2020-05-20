@@ -122,8 +122,8 @@ def load_small_stim_pkl(stim_pkl, runtype='prod'):
         elif runtype == 'prod':
             stim_par_key = 'stim_params'
         else:
-            gen_util.accepted_values_error('runtype', runtype, 
-                                           ['prod', 'pilot'])
+            gen_util.accepted_values_error(
+                'runtype', runtype, ['prod', 'pilot'])
 
         for i in range(len(stim_dict['stimuli'])):
             stim_keys = stim_dict['stimuli'][i][stim_par_key].keys()
@@ -175,12 +175,12 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, align_pkl, sessdir,
 
     # create stim_df if doesn't exist
     if not os.path.exists(align_pkl):
-        sess_sync_util.get_stim_frames(stim_pkl, stim_sync_h5, align_pkl, 
-                                       runtype)
+        sess_sync_util.get_stim_frames(
+            stim_pkl, stim_sync_h5, align_pkl, runtype)
         
     else:
         print('    NOTE: Stimulus alignment pickle already exists in '
-                f'{sessdir}')
+            f'{sessdir}')
 
     align = file_util.loadfile(align_pkl)
 
@@ -229,13 +229,13 @@ def load_run_data(stim_dict, diff_thr=100):
         run = sess_sync_util.get_run_velocity(pkl_file_name=stim_dict)
     else:
         raise ValueError('`stim_dict` must be a dictionary or a path to a '
-                         'pickle.')
+            'pickle.')
                         
     run_diff = np.diff(run)
     out_idx = np.where((run_diff < -diff_thr) | (run_diff > diff_thr))[0]
     if len(out_idx) > 0:
-        print(f'    WARNING: {len(out_idx)} running values were '
-               'replaced with NaNs.')
+        print(f'    WARNING: {len(out_idx)} running values were replaced '
+            'with NaNs.')
     at_idx = -1
     for idx in out_idx:
         if idx > at_idx:
@@ -253,7 +253,7 @@ def load_run_data(stim_dict, diff_thr=100):
                 idx += 1
             if idx - orig > 5:
                 print(f'    WARNING: {idx-orig} consecutive running '
-                       'values had to be dropped.')
+                    'values had to be dropped.')
             at_idx = idx
 
     return run
@@ -290,7 +290,8 @@ def load_pup_data(pup_data_h5):
 
     columns = ['nan_diam', 'nan_center_x', 'nan_center_y']
     pup_data = pd.read_hdf(pup_data_h5).filter(items=columns).astype(float)
-    nan_pup = lambda name : name.replace('nan_', 'pup_') if 'nan' in name else name
+    nan_pup = (lambda name : name.replace('nan_', 'pup_') 
+        if 'nan' in name else name)
     pup_data = pup_data.rename(columns=nan_pup)
     pup_data.insert(0, 'frames', value=range(len(pup_data)))
 
@@ -359,24 +360,23 @@ def modify_bri_segs(stim_df, runtype='prod'):
 
     stim_df = copy.deepcopy(stim_df)
 
-    bri_st_fr = gen_util.get_df_vals(stim_df, 'stimType', 'b', 
-                                        'start2pfr', unique=False)
+    bri_st_fr = gen_util.get_df_vals(
+        stim_df, 'stimType', 'b', 'start2pfr', unique=False)
     bri_num_fr = np.diff(bri_st_fr)
-    num_fr = gen_util.get_df_vals(stim_df, 'stimType', 'b', 
-                                    'num2pfr', unique=False)[:-1]
+    num_fr = gen_util.get_df_vals(
+        stim_df, 'stimType', 'b', 'num2pfr', unique=False)[:-1]
     break_idx = np.where(num_fr != bri_num_fr)[0]
     n_br = len(break_idx)
     if n_br != 1:
         raise ValueError('Expected only one break in the bricks '
-                         f'stimulus, but found {n_br}.')
+            f'stimulus, but found {n_br}.')
     
     # last start frame and seg for the first brick stim
     last_fr1 = bri_st_fr[break_idx[0]] 
     last_seg1 = gen_util.get_df_vals(
         stim_df, ['stimType', 'start2pfr'], ['b', last_fr1], 'stimSeg')[0]
     
-    seg_idx = ((stim_df['stimType'] == 'b') & 
-                (stim_df['start2pfr'] > last_fr1))
+    seg_idx = ((stim_df['stimType'] == 'b') & (stim_df['start2pfr'] > last_fr1))
 
     new_idx = stim_df.loc[seg_idx]['stimSeg'] + last_seg1 + 1
     stim_df = gen_util.set_df_vals(stim_df, seg_idx, 'stimSeg', new_idx)

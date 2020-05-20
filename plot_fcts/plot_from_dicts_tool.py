@@ -67,8 +67,16 @@ def plot_from_dicts(direc, source='roi', plt_bkend=None, fontdir=None,
                 glob.glob(os.path.join(direc, '*', fn))
             dict_paths = [os.path.dirname(dp) for dp in all_paths]
         else:
-            dict_paths = glob.glob(os.path.join(direc, '*.json'))
-        
+            depth = 6 # depth to check for jsons
+            dict_paths = []
+            for d in range(depth + 1):
+                dict_paths.extend(
+                    glob.glob(os.path.join(direc, *(['*'] * d), '*.json')))
+            
+            # pattern to filter dictionaries
+            pattern = ''
+            dict_paths = list(filter(lambda x : pattern in x, dict_paths))
+
         if len(dict_paths) == 0:
             raise ValueError(f'No jsons found in directory: {direc}.')
     else:

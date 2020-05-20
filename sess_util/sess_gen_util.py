@@ -123,21 +123,22 @@ def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth,
     [mouse_n, sessid, sess_n, runtype, depth, 
         pass_fail, incl, all_files, any_files] = all_labs
 
-    df_rows = mouse_df.loc[(mouse_df['mouse_n'].isin(mouse_n)) & 
-                           (mouse_df['sessid'].isin(sessid)) &
-                           (mouse_df['sess_n'].isin(sess_n)) &
-                           (mouse_df['runtype'].isin(runtype)) &
-                           (mouse_df['depth'].isin(depth)) &
-                           (mouse_df['pass_fail'].isin(pass_fail)) &
-                           (mouse_df['incl'].isin(incl)) &
-                           (mouse_df['all_files'].isin(all_files)) &
-                           (mouse_df['any_files'].isin(any_files)) &
-                           (mouse_df['nrois'].astype(int) >= min_rois)]
+    df_rows = mouse_df.loc[
+        (mouse_df['mouse_n'].isin(mouse_n)) & 
+        (mouse_df['sessid'].isin(sessid)) &
+        (mouse_df['sess_n'].isin(sess_n)) &
+        (mouse_df['runtype'].isin(runtype)) &
+        (mouse_df['depth'].isin(depth)) &
+        (mouse_df['pass_fail'].isin(pass_fail)) &
+        (mouse_df['incl'].isin(incl)) &
+        (mouse_df['all_files'].isin(all_files)) &
+        (mouse_df['any_files'].isin(any_files)) &
+        (mouse_df['nrois'].astype(int) >= min_rois)]
 
     returnlab = gen_util.list_if_not(returnlab)
     if len(returnlab) != 1 and (sort or unique):
         print('WARNING: Sorted and unique will be set to False as multiple '
-              'labels are requested.')
+            'labels are requested.')
         sort   = False
         unique = False
     
@@ -220,17 +221,17 @@ def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any',
     depth = depth_vals(plane, line)
 
     sessid      = 'any'
-    params      = [mouse_n, sessid, sess_n, runtype, depth,  
-                   pass_fail, incl, all_files, any_files]
+    params      = [mouse_n, sessid, sess_n, runtype, depth, pass_fail, incl, 
+        all_files, any_files]
     param_names = ['mouse_n', 'sessid', 'sess_n', 'runtype', 'depth',
-                   'pass_fail', 'incl', 'all_files', 'any_files']
+        'pass_fail', 'incl', 'all_files', 'any_files']
     
     # for each label, collect values in a list
     for i in range(len(params)):
-        params[i] = gen_util.get_df_label_vals(mouse_df, param_names[i], 
-                                               params[i])   
+        params[i] = gen_util.get_df_label_vals(
+            mouse_df, param_names[i], params[i])   
     [mouse_n, sessid, sess_n, runtype, depth,  
-              pass_fail, incl, all_files, any_files] = params
+        pass_fail, incl, all_files, any_files] = params
 
     # remove omitted sessions from the session id list
     sessid = gen_util.remove_if(sessid, omit_sess)
@@ -308,20 +309,21 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
     
     if runtype == 'any':
         raise ValueError('Must specify runtype (cannot be any), as there is '
-                         'overlap in mouse numbers.')
+            'overlap in mouse numbers.')
 
     # get list of mice that fit the criteria
-    mouse_ns = get_sess_vals(mouse_df, 'mouse_n', mouse_n, sess_n, runtype,  
-                             plane, line, pass_fail, incl, all_files, 
-                             any_files, min_rois, omit_sess, omit_mice, 
-                             unique=True, sort=True)
+    mouse_ns = get_sess_vals(
+        mouse_df, 'mouse_n', mouse_n, sess_n, runtype,  plane, line, pass_fail, 
+        incl, all_files, any_files, min_rois, omit_sess, omit_mice, 
+        unique=True, sort=True)
 
     # get session ID each mouse based on criteria 
     sessids = []
     for i in sorted(mouse_ns):
-        sess_ns = get_sess_vals(mouse_df, 'sess_n', i, sess_n, runtype, plane, 
-                                line, pass_fail, incl, all_files, any_files, 
-                                min_rois, omit_sess, omit_mice, sort=True)
+        sess_ns = get_sess_vals(
+            mouse_df, 'sess_n', i, sess_n, runtype, plane, line, pass_fail, 
+            incl, all_files, any_files, min_rois, omit_sess, omit_mice, 
+            sort=True)
         # skip mouse if no sessions meet criteria
         if len(sess_ns) == 0:
             continue
@@ -332,11 +334,11 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
             n = sess_ns[-1]
         # find closest sess number among possible sessions
         else:
-            n = sess_ns[np.argmin(np.absolute([x - orig_sess_n 
-                                              for x in sess_ns]))]
-        sessid = get_sess_vals(mouse_df, 'sessid', i, n, runtype, plane, 
-                               line, pass_fail, incl, all_files, any_files, 
-                               min_rois, omit_sess, omit_mice)[0]
+            n = sess_ns[np.argmin(
+                np.absolute([x - orig_sess_n for x in sess_ns]))]
+        sessid = get_sess_vals(
+            mouse_df, 'sessid', i, n, runtype, plane, line, pass_fail, incl, 
+            all_files, any_files, min_rois, omit_sess, omit_mice)[0]
         sessids.append(sessid)
     
     if len(sessids) == 0:
@@ -401,7 +403,7 @@ def sess_comp_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
 
     if closest:
         print('Session comparisons not implemented using the `closest` '
-              'parameter. Setting to False.')
+            'parameter. Setting to False.')
         closest = False
 
     if 'v' not in str(sess_n):
@@ -414,17 +416,17 @@ def sess_comp_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
 
     if runtype == 'any':
         raise ValueError('Must specify runtype (cannot be any), as there is '
-                         'overlap in mouse numbers.')
+            'overlap in mouse numbers.')
 
     # get list of mice that fit the criteria
     mouse_ns = []
     for n in sess_n:
         if str(n) in ['last', '-1']:
             n = 'any'
-        ns = get_sess_vals(mouse_df, 'mouse_n', mouse_n, n, runtype,  
-                           plane, line, pass_fail, incl, all_files, any_files, 
-                           min_rois, omit_sess, omit_mice, unique=True, 
-                           sort=True)
+        ns = get_sess_vals(
+            mouse_df, 'mouse_n', mouse_n, n, runtype, plane, line, pass_fail, 
+            incl, all_files, any_files, min_rois, omit_sess, omit_mice, 
+            unique=True, sort=True)
         mouse_ns.append(ns)
     
     mouse_ns = set(mouse_ns[0]).intersection(set(mouse_ns[1]))
@@ -435,19 +437,19 @@ def sess_comp_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
         mouse_sessids = []
         for j, n in enumerate(sess_n):
             if str(n) in ['first', 'last', '-1']:
-                ns = get_sess_vals(mouse_df, 'sess_n', i, 'any', runtype, 
-                                   plane, line, pass_fail, incl, all_files, 
-                                   any_files, min_rois, omit_sess, 
-                                   omit_mice, sort=True)[-1]
+                ns = get_sess_vals(
+                    mouse_df, 'sess_n', i, 'any', runtype, plane, line, 
+                    pass_fail, incl, all_files, any_files, min_rois, omit_sess, 
+                    omit_mice, sort=True)[-1]
                 if len(ns) == 0 or ns[-1] == sess_n[1-j]:
                     break # mouse omitted
                 if n == 'first':
                     n = ns[0]
                 else:
                     n = ns[-1]
-            sessid = get_sess_vals(mouse_df, 'sessid', i, n, runtype, 
-                                   plane, line, pass_fail, incl, all_files, 
-                                   any_files, min_rois, omit_sess, omit_mice)[0]
+            sessid = get_sess_vals(
+                mouse_df, 'sessid', i, n, runtype, plane, line, pass_fail, 
+                incl, all_files, any_files, min_rois, omit_sess, omit_mice)[0]
             mouse_sessids.append(sessid)
         sessids.append(mouse_sessids)
     
@@ -504,12 +506,10 @@ def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True,
         sess.extract_sess_attribs(mouse_df)
         sess.extract_info(fulldict=fulldict, dend=dend, roi=roi, run=run)
         if omit and sess.plane == 'dend' and sess.dend != dend:
-            print(f'Omitting session {sessid} ({dend} dendrites not '
-                   'found).')
+            print(f'Omitting session {sessid} ({dend} dendrites not found).')
             continue
         if pupil and sess.pup_data_h5 == 'none':
-            print(f'Omitting session {sessid} as no pupil data h5 was '
-                  'found.')
+            print(f'Omitting session {sessid} as no pupil data h5 was found.')
             continue
         if pupil:
             sess.load_pup_data()
@@ -697,8 +697,8 @@ def get_params(stimtype='both', bri_dir='both', bri_size=128, gabfr=0,
         gabk = 'none'
         gab_ori = 'none'
     elif stimtype != 'both':
-        gen_util.accepted_values_error('stim argument', stimtype, 
-                                       ['gabors', 'bricks'])
+        gen_util.accepted_values_error(
+            'stim argument', stimtype, ['gabors', 'bricks'])
 
     return bri_dir, bri_size, gabfr, gabk, gab_ori
 
@@ -747,11 +747,14 @@ def pilot_bri_omit(bri_dir, bri_size):
     omit_mice = []
 
     if 'right' not in bri_dir:
-        omit_mice.extend([3]) # mouse 3 only got bri_dir='right'
+        # mouse 3 only got bri_dir='right'
+        omit_mice.extend([3]) 
         if 128 not in bri_size:
-            omit_mice.extend([1]) # mouse 1 only got bri_dir='left' with bri_size=128
+            # mouse 1 only got bri_dir='left' with bri_size=128
+            omit_mice.extend([1])
     elif 'left' not in bri_dir and 256 not in bri_size:
-        omit_mice.extend([1]) # mouse 1 only got bri_dir='right' with bri_size=256
+        # mouse 1 only got bri_dir='right' with bri_size=256
+        omit_mice.extend([1]) 
     return omit_mice
 
     
@@ -794,12 +797,12 @@ def all_omit(stimtype='gabors', runtype='prod', bri_dir='both', bri_size=128,
         if stimtype == 'gabors': 
             if 16 not in gen_util.list_if_not(gabk):
                 print('The production data only includes gabor '
-                      'stimuli with kappa=16')
+                    'stimuli with kappa=16')
                 omit_mice = list(range(1, 9)) # all
         elif stimtype == 'bricks':
             if 128 not in gen_util.list_if_not(bri_size):
                 print('The production data only includes bricks stimuli with '
-                      'size=128')
+                    'size=128')
                 omit_mice = list(range(1, 9)) # all
 
     return omit_sess, omit_mice
@@ -846,8 +849,8 @@ def get_analysdir(mouse_n, sess_n, plane, fluor='dff', scale=True,
                            'm{}_s{}_plane_stimtype_fluor_scaled_comp_shuffled'
     """
 
-    stim_str = sess_str_util.stim_par_str(stimtype, bri_dir, bri_size, gabk, 
-                                          'file')
+    stim_str = sess_str_util.stim_par_str(
+        stimtype, bri_dir, bri_size, gabk, 'file')
 
     scale_str = sess_str_util.scale_par_str(scale)
     shuff_str = sess_str_util.shuff_par_str(shuffle)
@@ -858,7 +861,7 @@ def get_analysdir(mouse_n, sess_n, plane, fluor='dff', scale=True,
         comp_str = f'_{comp}'
 
     analysdir = (f'm{mouse_n}_s{sess_n}_{plane}_{stim_str}_{fluor}{scale_str}'
-                 f'{comp_str}{ctrl_str}{shuff_str}')
+        f'{comp_str}{ctrl_str}{shuff_str}')
 
     return analysdir
 
@@ -903,8 +906,9 @@ def get_params_from_str(param_str, no_lists=False):
     params['mouse_n'] = int(param_str.split('_')[0][1:])
     params['sess_n']  = int(param_str.split('_')[1][1:])
 
-    [params['bri_dir'], params['bri_size'], 
-                             params['gabk']] = 'none', 'none', 'none'
+    [params['bri_dir'], params['bri_size'], params['gabk']] = \
+        'none', 'none', 'none'
+    
     if 'gab' in param_str:
         params['stimtype'] = 'gabors'
         params['gabk'] = 16
@@ -913,7 +917,6 @@ def get_params_from_str(param_str, no_lists=False):
                 params['gabk'] = 'both'
             else:
                 params['gabk'] = [4, 16]
-
         elif 'gab4' in param_str:
             params['gabk'] = 4
     elif 'bri' in param_str:

@@ -90,9 +90,9 @@ def init_sesspar(sess_n, closest=False, plane='soma', line='any', min_rois=1,
     """
 
     sess_pars = [sess_n, closest, plane, line, min_rois, pass_fail, incl, 
-                 runtype, mouse_n]
+        runtype, mouse_n]
     sess_keys = ['sess_n', 'closest', 'plane', 'line', 'min_rois', 'pass_fail', 
-                 'incl', 'runtype', 'mouse_n']
+        'incl', 'runtype', 'mouse_n']
     SessPar   = namedtuple('SessPar', sess_keys)
     sesspar   = SessPar(*sess_pars)
     return sesspar
@@ -136,7 +136,7 @@ def init_stimpar(stimtype='both', bri_dir=['right', 'left'], bri_size=128,
     """
 
     stim_keys = ['stimtype', 'bri_dir', 'bri_size', 'gabfr', 'gabk', 'gab_ori', 
-                 'pre', 'post']
+        'pre', 'post']
     stim_pars = [stimtype, bri_dir, bri_size, gabfr, gabk, gab_ori, pre, post]
     StimPar   = namedtuple('StimPar', stim_keys)
     stimpar   = StimPar(*stim_pars)
@@ -230,7 +230,7 @@ def init_quintpar(n_quints=4, qu_idx='all', qu_lab=None, qu_lab_pr=None):
 
     if qu_lab_pr is None:
         qu_lab_pr = [f'qu {list(range(n_quints))[q]+1}/{n_quints}' 
-                     for q in qu_idx]
+            for q in qu_idx]
     else:
         qu_lab_pr = gen_util.list_if_not(qu_lab_pr)
 
@@ -363,9 +363,9 @@ def init_logregpar(comp='surp', ctrl=False, q1v4=False, regvsurp=False,
     """
 
     logreg_pars = [comp, ctrl, q1v4, regvsurp, n_epochs, batchsize, lr, 
-                   train_p, wd, bal, alg]
+        train_p, wd, bal, alg]
     logreg_keys = ['comp', 'ctrl', 'q1v4', 'regvsurp', 'n_epochs', 'batchsize', 
-                   'lr', 'train_p', 'wd', 'bal', 'alg']
+        'lr', 'train_p', 'wd', 'bal', 'alg']
     LogRegPar   = namedtuple('LogRegPar', logreg_keys)
     logregpar   = LogRegPar(*logreg_pars)
     return logregpar
@@ -461,12 +461,12 @@ def get_modif_ntuple(ntuple, keys, key_vals):
     ntuple_name = type(ntuple).__name__
 
     ntuple_types = ['AnalysPar', 'SessPar', 'StimPar', 'AutocorrPar', 'PermPar', 
-                    'QuintPar', 'RoiGrpPar', 'TCurvPar', 'LogRegPar', 'GLMPar', 
-                    'LatPar', 'BasePar']
+        'QuintPar', 'RoiGrpPar', 'TCurvPar', 'LogRegPar', 'GLMPar', 'LatPar', 
+        'BasePar']
     
     init_fcts = [init_analyspar, init_sesspar, init_stimpar, init_autocorrpar, 
-                 init_permpar, init_quintpar, init_roigrppar, init_tcurvpar, 
-                 init_logregpar, init_glmpar, init_latpar, init_basepar]
+        init_permpar, init_quintpar, init_roigrppar, init_tcurvpar, 
+        init_logregpar, init_glmpar, init_latpar, init_basepar]
 
     if not isinstance(keys, list):
         keys = [keys]

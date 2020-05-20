@@ -63,7 +63,7 @@ def check_drop_tolerance(n_drop_stim_fr, tot_stim_fr, droptol=0.0003,
 
     if np.float(n_drop_stim_fr)/tot_stim_fr > droptol:
         warn_str = (f'{n_drop_stim_fr} dropped stimulus '
-                    f'frames out of {tot_stim_fr}.')
+            f'frames out of {tot_stim_fr}.')
         if raise_exc:
             raise OSError(warn_str)
         else:    
@@ -83,11 +83,11 @@ def calculate_stimulus_alignment(stim_time, valid_twop_vsync_fall):
     stimulus_alignment = np.empty(len(stim_time))
 
     for index in range(len(stim_time)):
-        crossings = np.nonzero(np.ediff1d(np.sign(valid_twop_vsync_fall - \
-                                                  stim_time[index])) > ZERO)
+        crossings = np.nonzero(np.ediff1d(np.sign(
+            valid_twop_vsync_fall - stim_time[index])) > ZERO)
         try:
-            stimulus_alignment[index] = int(crossings[FIRST_ELEMENT_INDEX]
-                                                     [FIRST_ELEMENT_INDEX])
+            stimulus_alignment[index] = int(
+                crossings[FIRST_ELEMENT_INDEX][FIRST_ELEMENT_INDEX])
         except:
             stimulus_alignment[index] = np.NaN
 
@@ -112,8 +112,8 @@ def calculate_valid_twop_vsync_fall(sync_data, sample_frequency):
     ophys_start = twop_vsync_fall[0]
 
     # only get data that is beyond the start of the experiment
-    valid_twop_vsync_fall = twop_vsync_fall[np.where(twop_vsync_fall > 
-                                            ophys_start)[FIRST_ELEMENT_INDEX]]
+    valid_twop_vsync_fall = twop_vsync_fall[
+        np.where(twop_vsync_fall > ophys_start)[FIRST_ELEMENT_INDEX]]
 
     # skip the first element to eliminate the DAQ pulse
     return valid_twop_vsync_fall
@@ -145,7 +145,8 @@ def calculate_delay(sync_data, stim_vsync_fall, sample_frequency):
 
     try:
         # photodiode transitions
-        photodiode_rise = (sync_data.get_rising_edges('stim_photodiode') / sample_frequency)
+        photodiode_rise = (
+            sync_data.get_rising_edges('stim_photodiode') / sample_frequency)
 
         ####Find start and stop of stimulus####
         # test and correct for photodiode transition errors
@@ -156,11 +157,14 @@ def calculate_delay(sync_data, stim_vsync_fall, sample_frequency):
         max_medium_photodiode_rise = 1.5
 
         # find the short and medium length photodiode rises
-        short_rise_indexes = np.where(np.logical_and(photodiode_rise_diff > min_short_photodiode_rise, \
-                                                     photodiode_rise_diff < max_short_photodiode_rise))[FIRST_ELEMENT_INDEX]
-        medium_rise_indexes = np.where(np.logical_and(photodiode_rise_diff > min_medium_photodiode_rise, \
-                                                      photodiode_rise_diff < max_medium_photodiode_rise))[
-            FIRST_ELEMENT_INDEX]
+        short_rise_indexes = np.where(np.logical_and(
+            photodiode_rise_diff > min_short_photodiode_rise, \
+            photodiode_rise_diff < max_short_photodiode_rise))[
+                FIRST_ELEMENT_INDEX]
+        medium_rise_indexes = np.where(np.logical_and(
+            photodiode_rise_diff > min_medium_photodiode_rise, \
+            photodiode_rise_diff < max_medium_photodiode_rise))[
+                FIRST_ELEMENT_INDEX]
 
         short_set = set(short_rise_indexes)
 
@@ -173,9 +177,13 @@ def calculate_delay(sync_data, stim_vsync_fall, sample_frequency):
         ptd_end = None
 
         for medium_rise_index in medium_rise_indexes:
-            if set(range(medium_rise_index - start_pattern_index, medium_rise_index)) <= short_set:
+            if set(range(
+                medium_rise_index - start_pattern_index, medium_rise_index
+                )) <= short_set:
                 ptd_start = medium_rise_index + next_frame
-            elif set(range(medium_rise_index + next_frame, medium_rise_index + end_pattern_index)) <= short_set:
+            elif set(range(
+                medium_rise_index + next_frame, medium_rise_index + \
+                    end_pattern_index)) <= short_set:
                 ptd_end = medium_rise_index
 
         # if the photodiode signal exists
@@ -253,8 +261,8 @@ def get_frame_rate(syn_file_name):
     sample_frequency = sync_data.meta_data['ni_daq']['counter_output_freq']
     
     # calculate the valid twop_vsync fall
-    valid_twop_vsync_fall = calculate_valid_twop_vsync_fall(sync_data, 
-                                                            sample_frequency)
+    valid_twop_vsync_fall = calculate_valid_twop_vsync_fall(
+        sync_data, sample_frequency)
     twop_diff = np.diff(valid_twop_vsync_fall)
     
     twop_rate_mean = np.mean(1./twop_diff)
@@ -300,8 +308,9 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
     elif runtype == 'prod':
         num_stimtypes = 3 # 2 bricks and 1 set of Gabors
     if len(pkl['stimuli']) != num_stimtypes:
-        raise ValueError(f'{num_stimtypes} stimuli types expected, but '
-                         '{} found.'.format(len(pkl['stimuli'])))
+        raise ValueError(
+            f'{num_stimtypes} stimuli types expected, but '
+            '{} found.'.format(len(pkl['stimuli'])))
         
     # create a Dataset object with the sync file
     sync_data = dataset.Dataset(syn_file_name)
@@ -312,8 +321,8 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
     sample_frequency = sync_data.meta_data['ni_daq']['counter_output_freq']
 
     # calculate the valid twop_vsync fall
-    valid_twop_vsync_fall = calculate_valid_twop_vsync_fall(sync_data, 
-                                                            sample_frequency)
+    valid_twop_vsync_fall = calculate_valid_twop_vsync_fall(
+        sync_data, sample_frequency)
 
     # get the stim_vsync_fall
     stim_vsync_fall = calculate_stim_vsync_fall(sync_data, sample_frequency)
@@ -372,14 +381,13 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
         n_seq = pkl['stimuli'][0]['display_sequence'].shape[0] * 2
         if np.abs(segs[i] - segs_exp[i]) > n_seq:
             raise ValueError(f'Expected {segs_exp[i]} frames for stimulus {i}, '
-                             f'but found {segs[i]}.')
+                f'but found {segs[i]}.')
     
     total_stimsegs = np.sum(segs)
     
     stim_df = pd.DataFrame(index=list(range(np.sum(total_stimsegs))), 
-                           columns=['stimType', 'stimPar1', 'stimPar2', 'surp', 
-                                    'stimSeg', 'GABORFRAME', 'start_frame', 
-                                    'end_frame', 'num_frames'])
+        columns=['stimType', 'stimPar1', 'stimPar2', 'surp', 'stimSeg', 
+        'GABORFRAME', 'start_frame', 'end_frame', 'num_frames'])
     
     zz = 0
     # For gray-screen pre_blank
@@ -391,8 +399,8 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
     stim_df.ix[zz, 'GABORFRAME'] = -1
     stim_df.ix[zz, 'start_frame'] = stimulus_alignment[0] # 2p start frame
     stim_df.ix[zz, 'end_frame'] = stimulus_alignment[offset] # 2p end frame
-    stim_df.ix[zz, 'num_frames'] = (stimulus_alignment[offset] - \
-                                    stimulus_alignment[0])
+    stim_df.ix[zz, 'num_frames'] = \
+        (stimulus_alignment[offset] - stimulus_alignment[0])
     zz += 1
 
     for stype_n in range(num_stimtypes):
@@ -402,7 +410,7 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
         for segment in range(segs[stype_n]):
             seg_inds = np.where(movie_segs == segment)[0]
             tup = (segment, int(stimulus_alignment[seg_inds[0] + offset]), \
-                   int(stimulus_alignment[seg_inds[-1] + 1 + offset]))
+                int(stimulus_alignment[seg_inds[-1] + 1 + offset]))
 
             stim_df.ix[zz, 'stimType'] = stim_types[stype_n]
             stim_df.ix[zz, 'stimSeg'] = segment
@@ -410,8 +418,8 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
             stim_df.ix[zz, 'end_frame'] = tup[2]
             stim_df.ix[zz, 'num_frames'] = tup[2] - tup[1]
 
-            get_seg_params(stim_types, stype_n, stim_df, zz, pkl, segment, 
-                           runtype)
+            get_seg_params(
+                stim_types, stype_n, stim_df, zz, pkl, segment, runtype)
 
             zz += 1
             
@@ -419,8 +427,8 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
     overlap = np.any((np.sort(stim_df['start_frame'])[1:] - 
                      np.sort(stim_df['end_frame'])[:-1]) < 0)
     if overlap:
-        raise ValueError('Some 2P frames associated with two stimulus \
-                         segments.')
+        raise ValueError('Some 2P frames associated with two stimulus '
+            'segments.')
 	
     # create a dictionary for pickling
     stim_dict = {'stim_df': stim_df, 'stim_align': stimulus_alignment}   
@@ -458,23 +466,50 @@ def get_seg_params(stim_types, stype_n, stim_df, zz, pkl, segment,
 
     if stim_types[stype_n] == 'b':
         if runtype == 'pilot':
-            stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['flipdirecarray'][segment][1] #big or small
-            stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['flipdirecarray'][segment][3] #left or right
-            stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['flipdirecarray'][segment][0] #SURP
+            #big or small
+            stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n][
+                'stimParams']['subj_params']['flipdirecarray'][segment][1]
+            #left or right
+            stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][stype_n][
+                'stimParams']['subj_params']['flipdirecarray'][segment][3] 
+            #SURP
+            stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n][
+                'stimParams']['subj_params']['flipdirecarray'][segment][0] 
         elif runtype == 'prod':
-            stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n]['stim_params']['elemParams']['sizes'] # small
-            stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][stype_n]['stim_params']['direc'] #L or R
-            stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n]['sweep_params']['Flip'][0][segment] #SURP
+            # small
+            stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n][
+                'stim_params']['elemParams']['sizes']
+            # L or R
+            stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][stype_n][
+                'stim_params']['direc']
+            #SURP
+            stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n][
+                'sweep_params']['Flip'][0][segment]
         stim_df.ix[zz, 'GABORFRAME'] = -1
     elif stim_types[stype_n] == 'g':
         if runtype == 'pilot':
-            stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['oriparsurps'][int(np.floor(segment/4.))][0] #angle
-            stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['oriparsurps'][int(np.floor(segment/4.))][1] #angular disp (kappa)
-            stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n]['stimParams']['subj_params']['oriparsurps'][int(np.floor(segment/4.))][2] #SURP
+            #angle
+            stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n][
+                'stimParams']['subj_params']['oriparsurps'][
+                    int(np.floor(segment/4.))][0] 
+            #angular disp (kappa)
+            stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][stype_n][
+                'stimParams']['subj_params']['oriparsurps'][
+                    int(np.floor(segment/4.))][1] 
+            #SURP
+            stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n][
+                'stimParams']['subj_params']['oriparsurps'][
+                    int(np.floor(segment/4.))][2] 
         elif runtype == 'prod':
-            stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n]['sweep_params']['OriSurp'][0][int(np.floor(segment/4.))][0] #angle
-            stim_df.ix[zz, 'stimPar2'] = (1./(pkl['stimuli'][stype_n]['stim_params']['gabor_params']['ori_std']))**2 #angular disp (kappa)
-            stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n]['sweep_params']['OriSurp'][0][int(np.floor(segment/4.))][1] #SURP
+            #angle
+            stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n][
+                'sweep_params']['OriSurp'][0][int(np.floor(segment/4.))][0] 
+            #angular disp (kappa)
+            stim_df.ix[zz, 'stimPar2'] = (1./(pkl['stimuli'][stype_n][
+                'stim_params']['gabor_params']['ori_std']))**2 
+            #SURP
+            stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n][
+                'sweep_params']['OriSurp'][0][int(np.floor(segment/4.))][1] 
         stim_df.ix[zz, 'GABORFRAME'] = np.mod(segment,4)
 
 

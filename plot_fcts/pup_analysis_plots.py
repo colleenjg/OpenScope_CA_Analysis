@@ -27,6 +27,7 @@ from util import file_util, gen_util, math_util, plot_util
 # skip tight layout warning
 warnings.filterwarnings('ignore', message='This figure includes*')
 
+
 #############################################
 def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False, 
                    datetime=True):
@@ -53,8 +54,8 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False,
 
     print(f'\nPlotting from dictionary: {dict_path}')
     
-    figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir, 
-        datetime=datetime)
+    figpar = sess_plot_util.init_figpar(
+        plt_bkend=plt_bkend, fontdir=fontdir, datetime=datetime)
     plot_util.manage_mpl(cmap=False, **figpar['mng'])
 
     info = file_util.loadfile(dict_path)
@@ -75,6 +76,7 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False,
         print(f'No plotting function for analysis {analysis}')
 
     plt.close('all')
+
 
 #############################################
 def plot_pup_diff_corr(analyspar, sesspar, stimpar, extrapar, 
@@ -125,28 +127,28 @@ def plot_pup_diff_corr(analyspar, sesspar, stimpar, extrapar,
                           subfolder is added.)
         - savename (str): name under which the figure is saved
     """
-    statstr_pr = sess_str_util.stat_par_str(analyspar['stats'], 
-                                            analyspar['error'], 'print')
-    stimstr_pr = sess_str_util.stim_par_str(stimpar['stimtype'], 
-                               stimpar['bri_dir'], stimpar['bri_size'], 
-                               stimpar['gabk'], 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
-                                            extrapar['datatype'], 'print')
+    statstr_pr = sess_str_util.stat_par_str(
+        analyspar['stats'], analyspar['error'], 'print')
+    stimstr_pr = sess_str_util.stim_par_str(
+        stimpar['stimtype'], stimpar['bri_dir'], stimpar['bri_size'], 
+        stimpar['gabk'], 'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], extrapar['datatype'], 'print')
 
-    sessstr = sess_str_util.sess_par_str(sesspar['sess_n'], stimpar['stimtype'], 
-                                         sesspar['plane'], stimpar['bri_dir'],
-                                         stimpar['bri_size'], stimpar['gabk']) 
-    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
-                                         extrapar['datatype'])
+    sessstr = sess_str_util.sess_par_str(
+        sesspar['sess_n'], stimpar['stimtype'], sesspar['plane'], 
+        stimpar['bri_dir'],stimpar['bri_size'], stimpar['gabk']) 
+    dendstr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], extrapar['datatype'])
     
     datatype = extrapar['datatype']
     datastr = sess_str_util.datatype_par_str(datatype)
 
     if datatype == 'roi':
-        label_str = sess_str_util.fluor_par_str(analyspar['fluor'], 
-                                                str_type='print')
-        full_label_str = u'{}, {} across ROIs'.format(label_str, 
-                                                      analyspar['stats'])
+        label_str = sess_str_util.fluor_par_str(
+            analyspar['fluor'], str_type='print')
+        full_label_str = u'{}, {} across ROIs'.format(
+            label_str, analyspar['stats'])
     elif datatype == 'run':
         label_str = datastr
         full_label_str = datastr
@@ -178,24 +180,25 @@ def plot_pup_diff_corr(analyspar, sesspar, stimpar, extrapar,
     figpar['init']['ncols'] = n_sess
     
     fig, ax = plot_util.init_fig(2 * n_sess, **figpar['init'])
-    suptitle = (f'Relationship between pupil diam and {datastr} changes locked '
-                 'to surprise')
+    suptitle = (f'Relationship between pupil diam and {datastr} changes '
+        'locked to surprise')
     
     for i, sess_diffs in enumerate(corr_data['diffs']):
         sub_axs = ax[:, i]
         title = (f'Mouse {mouse_ns[i]} - {stimstr_pr} ' + 
-                 u'{}'.format(statstr_pr) + f'\n(sess {sess_ns[i]}, {lines[i]} '
-                 f'{planes[i]}{dendstr_pr},{nroi_strs[i]})')
+            u'{}'.format(statstr_pr) + f'\n(sess {sess_ns[i]}, {lines[i]} '
+            f'{planes[i]}{dendstr_pr},{nroi_strs[i]})')
         
         # top plot: correlations
         corr = 'Corr = {:.2f}'.format(corr_data['corrs'][i])
-        sub_axs[0].plot(sess_diffs[0], sess_diffs[1], marker='.', 
-                        linestyle='None', label=corr)
+        sub_axs[0].plot(
+            sess_diffs[0], sess_diffs[1], marker='.', linestyle='None', 
+            label=corr)
         sub_axs[0].set_title(title)
         sub_axs[0].set_xlabel(u'{} pupil diam{}'.format(delta, lab_app))
         if i == 0:
-            sub_axs[0].set_ylabel(u'{} {}\n{}'.format(delta, full_label_str, 
-                                                      lab_app))
+            sub_axs[0].set_ylabel(u'{} {}\n{}'.format(
+                delta, full_label_str, lab_app))
         sub_axs[0].legend()
         
         # bottom plot: differences across occurrences
@@ -222,7 +225,9 @@ def plot_pup_diff_corr(analyspar, sesspar, stimpar, extrapar,
     fig.suptitle(suptitle, fontsize='xx-large', y=1.04)
 
     if savedir is None:
-        savedir = os.path.join(figpar['dirs'][datatype],figpar['dirs']['pupil'])
+        savedir = os.path.join(
+            figpar['dirs'][datatype],
+            figpar['dirs']['pupil'])
 
     savename = f'{datatype}_diff_corr_{sessstr}{dendstr}'
 
@@ -287,23 +292,23 @@ def plot_pup_roi_stim_corr(analyspar, sesspar, stimpar, extrapar,
 
     stimstr_prs = []
     for stimtype in corr_data['stim_order']:
-        stimstr_prs.append(sess_str_util.stim_par_str(stimtype, 
-                                    stimpar['bri_dir'], stimpar['bri_size'], 
-                                    stimpar['gabk'], 'print'))
-    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
-                                            extrapar['datatype'], 'print')
+        stimstr_prs.append(sess_str_util.stim_par_str(
+            stimtype, stimpar['bri_dir'], stimpar['bri_size'], 
+            stimpar['gabk'], 'print'))
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], extrapar['datatype'], 'print')
 
     sessstr = 'sess{}_{}'.format(sesspar['sess_n'], sesspar['plane']) 
-    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
-                                         extrapar['datatype'])
+    dendstr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], extrapar['datatype'])
 
-    label_str = sess_str_util.fluor_par_str(analyspar['fluor'], 
-                                            str_type='print')
-    lab_app = ' ({} over {}/{} sec)'.format(analyspar['stats'], stimpar['pre'], 
-                                            stimpar['post'])
+    label_str = sess_str_util.fluor_par_str(
+        analyspar['fluor'], str_type='print')
+    lab_app = ' ({} over {}/{} sec)'.format(
+        analyspar['stats'], stimpar['pre'], stimpar['post'])
 
     print('Plotting pupil-ROI difference correlations for '
-          '{} vs {}.'.format(*corr_data['stim_order']))
+        '{} vs {}.'.format(*corr_data['stim_order']))
 
     # extract some info from sess_info
     keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
@@ -324,18 +329,19 @@ def plot_pup_roi_stim_corr(analyspar, sesspar, stimpar, extrapar,
     
     fig, ax = plot_util.init_fig(n_sess, **figpar['init'])
     suptitle = (u'Relationship between pupil diam and {} changes locked to '
-                 'surprise{} for each ROI for {} vs '
-                 '{}'.format(label_str, lab_app, *corr_data['stim_order']))
+        'surprise{} for each ROI for {} vs {}'.format(
+            label_str, lab_app, *corr_data['stim_order']))
     
     for i, sess_roi_corrs in enumerate(corr_data['roi_corrs']):
         sub_ax = plot_util.get_subax(ax, i)
         title = (f'Mouse {mouse_ns[i]} (sess {sess_ns[i]}, {lines[i]} '
-                 f'{planes[i]}{dendstr_pr},{nroi_strs[i]})')
+            f'{planes[i]}{dendstr_pr},{nroi_strs[i]})')
         
         # top plot: correlations
         corr = 'Corr = {:.2f}'.format(corr_data['corrs'][i])
-        sub_ax.plot(sess_roi_corrs[0], sess_roi_corrs[1], marker='.', 
-                    linestyle='None', label=corr)
+        sub_ax.plot(
+            sess_roi_corrs[0], sess_roi_corrs[1], marker='.', linestyle='None', 
+            label=corr)
         sub_ax.set_title(title)
         if sub_ax.is_last_row():
             sub_ax.set_xlabel(f'{stimstr_prs[0]} correlations')
@@ -348,7 +354,9 @@ def plot_pup_roi_stim_corr(analyspar, sesspar, stimpar, extrapar,
     fig.suptitle(suptitle, fontsize='xx-large', y=1.04)
 
     if savedir is None:
-        savedir = os.path.join(figpar['dirs']['roi'],figpar['dirs']['pupil'])
+        savedir = os.path.join(
+            figpar['dirs']['roi'],
+            figpar['dirs']['pupil'])
 
     savename = f'roi_diff_corrbyroi_{sessstr}{dendstr}'
 

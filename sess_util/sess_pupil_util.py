@@ -135,14 +135,13 @@ def _eye_diam_center(df, thr=5):
         vals = coord_df.to_numpy('float')
 
         diffs = [['left', 'right'], ['top', 'bottom'], 
-                 ['lower-left', 'upper-right'], 
-                 ['upper-left', 'lower-right']]
+            ['lower-left', 'upper-right'], ['upper-left', 'lower-right']]
         diff_vals = np.empty([vals.shape[1], len(diffs)])
         
         # pairwise distances between points furthest apart (see diffs for pairs)
         for d, diff in enumerate(diffs):
-            diff_vals[:, d] = np.abs(vals[col.index(diff[0]), :] - \
-                                     vals[col.index(diff[1]), :])
+            diff_vals[:, d] = np.abs(
+                vals[col.index(diff[0]), :] - vals[col.index(diff[1]), :])
         ds[c] = diff_vals
         all_vals[c] = vals
 

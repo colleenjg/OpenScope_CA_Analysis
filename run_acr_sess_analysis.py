@@ -34,6 +34,7 @@ DEFAULT_DATADIR = os.path.join('..', 'data', 'AIBS')
 DEFAULT_MOUSE_DF_PATH = 'mouse_df.csv'
 DEFAULT_FONTDIR = os.path.join('..', 'tools', 'fonts')
 
+
 #############################################
 def reformat_args(args):
     """
@@ -83,19 +84,17 @@ def reformat_args(args):
         args.dend = 'aibs'
 
     [args.bri_dir, args.bri_size, args.gabfr, 
-     args.gabk, args.gab_ori] = sess_gen_util.get_params(args.stimtype, 
-                                              args.bri_dir, args.bri_size, 
-                                              args.gabfr, args.gabk, 
-                                              args.gab_ori)
+        args.gabk, args.gab_ori] = sess_gen_util.get_params(
+            args.stimtype, args.bri_dir, args.bri_size, args.gabfr, args.gabk, 
+            args.gab_ori)
 
     if args.datatype == 'run':
         args.fluor = 'n/a'
     if args.plane == 'soma':
         args.dend = 'aibs'
 
-    args.omit_sess, args.omit_mice = sess_gen_util.all_omit(args.stimtype, 
-                                                    args.runtype, args.bri_dir, 
-                                                    args.bri_size, args.gabk)
+    args.omit_sess, args.omit_mice = sess_gen_util.all_omit(
+        args.stimtype, args.runtype, args.bri_dir, args.bri_size, args.gabk)
     
     if '-' in str(args.sess_n):
         split = str(args.sess_n).find('-')
@@ -321,17 +320,17 @@ def init_mouse_sess(mouse_n, all_sess_ns, sesspar, mouse_df, datadir,
     for sess_n in all_sess_ns:
         sesspar_dict['sess_n'] = sess_n
         sesspar_dict['mouse_n'] = mouse_n
-        sessid = sess_gen_util.get_sess_vals(mouse_df, 'sessid', 
-                               omit_sess=omit_sess, **sesspar_dict)
+        sessid = sess_gen_util.get_sess_vals(
+            mouse_df, 'sessid', omit_sess=omit_sess, **sesspar_dict)
         if len(sessid) == 0:
             sess = [None]
         elif len(sessid) > 1:
             raise ValueError('Unexpected error. Should not give more '
-                             'than 1 session.')
+                'than 1 session.')
         else:
-            sess = sess_gen_util.init_sessions(sessid[0], datadir, mouse_df, 
-                sesspar.runtype, fulldict=False, dend=dend, omit=roi, roi=roi, 
-                run=run, pupil=pupil)
+            sess = sess_gen_util.init_sessions(
+                sessid[0], datadir, mouse_df, sesspar.runtype, fulldict=False, 
+                dend=dend, omit=roi, roi=roi, run=run, pupil=pupil)
             if len(sess) == 0:
                 sess = [None]
         mouse_sesses.append(sess[0])
@@ -381,9 +380,9 @@ def prep_analyses(sess_n, args, mouse_df, parallel=False):
     sesspar_dict = sesspar._asdict()
     _ = sesspar_dict.pop('closest')
 
-    [all_mouse_ns, all_sess_ns] = sess_gen_util.get_sess_vals(mouse_df, 
-                            ['mouse_n', 'sess_n'], omit_sess=args.omit_sess, 
-                            omit_mice=args.omit_mice, **sesspar_dict)
+    [all_mouse_ns, all_sess_ns] = sess_gen_util.get_sess_vals(
+        mouse_df, ['mouse_n', 'sess_n'], omit_sess=args.omit_sess, 
+        omit_mice=args.omit_mice, **sesspar_dict)
 
     if args.sess_n in ['any', 'all']:
         all_sess_ns = [n + 1 for n in range(max(all_sess_ns))]
@@ -392,7 +391,7 @@ def prep_analyses(sess_n, args, mouse_df, parallel=False):
 
     # get session IDs and create Sessions
     all_mouse_ns = sorted(set(all_mouse_ns))
-    args_list=[all_sess_ns, sesspar, mouse_df, args.datadir, args.omit_sess, 
+    args_list = [all_sess_ns, sesspar, mouse_df, args.datadir, args.omit_sess, 
         analyspar.dend, roi, run]
     sessions = gen_util.parallel_wrap(
         init_mouse_sess, all_mouse_ns, args_list=args_list, parallel=parallel)
@@ -402,7 +401,7 @@ def prep_analyses(sess_n, args, mouse_df, parallel=False):
         raise ValueError('No sessions meet the criteria.')
 
     print(f'\nAnalysis of {sesspar.plane} responses to {stimpar.stimtype} '
-          f'stimuli ({sesspar.runtype} data)\nSessions: {args.sess_n}')
+        f'stimuli ({sesspar.runtype} data)\nSessions: {args.sess_n}')
 
     return sessions, analysis_dict
 
@@ -436,11 +435,20 @@ def get_analysis_fcts():
     # sessions
     fct_dict['r'] = [acr_sess_analys.run_lock_traces, ['roi', 'run']]
 
-    # 4. Plots the surprise latencies across sessions
+    # 4. Plots progression of surprise or regular responses within and 
+    # across sessions
+    fct_dict['g'] = [acr_sess_analys.run_prog, ['roi', 'run']]
+
+    # 5. Plots surprise indices across sessions
+    fct_dict['i'] = [acr_sess_analys.run_surp_idx, ['roi', 'run']]
+
+    # 6. Plots the surprise latencies across sessions
     fct_dict['u'] = [acr_sess_analys.run_surp_latency, ['roi', 'run']]
 
-    # 5. Plots proportion of ROIs responses to both surprise types
+    # 7. Plots proportion of ROIs responses to both surprise types
     fct_dict['p'] = [acr_sess_analys.run_resp_prop, ['roi']]
+
+
 
     return fct_dict
 
@@ -475,6 +483,7 @@ def run_analyses(sessions, analysis_dict, analyses, datatype='roi', seed=None,
 
     # changes backend and defaults
     plot_util.manage_mpl(cmap=False, **analysis_dict['figpar']['mng'])
+    sess_plot_util.update_plt_linpla()
 
     fct_dict = get_analysis_fcts()
 
@@ -501,106 +510,103 @@ if __name__ == "__main__":
 
         # general parameters
     parser.add_argument('--datadir', default=None, 
-                        help=('data directory (if None, uses a directory '
-                              'defined below'))
+        help=('data directory (if None, uses a directory defined below'))
     parser.add_argument('--output', default='', help='where to store output')
     parser.add_argument('--analyses', default='all', 
-                        help=('analyses to run: traces (t), locked traces (l), '
-                              'roi_grps_qu (q), roi_grps_ch (c), mag (m), '
-                              'autocorr (a), ori/dir (o), tuning curves (c) '
-                              'or `all` or `all_m` to, for example, '
-                              'run all analyses except m'))
+        help=('analyses to run: traces (t), locked traces (l), '
+            'roi_grps_qu (q), roi_grps_ch (c), mag (m), autocorr (a), '
+            'ori/dir (o), tuning curves (c) or `all` or `all_m` to, '
+            'for example, run all analyses except m'))
     parser.add_argument('--datatype', default='roi', 
-                        help='datatype to use (roi or run)')  
+        help='datatype to use (roi or run)')  
     parser.add_argument('--sess_n', default='1-3',
-                        help='session range to include, where last value is '
-                             'included, e.g. 1-3, all')
+        help='session range to include, where last value is included, '
+            'e.g. 1-3, all')
     parser.add_argument('--dict_path', default='', 
-                        help=('path to info dictionary or directory of '
-                              'dictionaries from which to plot data.'))
+        help=('path to info dictionary or directory of dictionaries from '
+            'which to plot data.'))
 
         # technical parameters
     parser.add_argument('--plt_bkend', default=None, 
-                        help='switch mpl backend when running on server')
+        help='switch mpl backend when running on server')
     parser.add_argument('--parallel', action='store_true', 
-                        help='do runs in parallel.')
+        help='do runs in parallel.')
     parser.add_argument('--seed', default=-1, type=int, 
-                        help='random seed (-1 for None)')
+        help='random seed (-1 for None)')
 
         # session parameters
     parser.add_argument('--runtype', default='prod', help='prod or pilot')
     parser.add_argument('--plane', default='any', help='soma, dend, any')
     parser.add_argument('--min_rois', default=5, type=int, 
-                        help='min rois criterion')
+        help='min rois criterion')
         # stimulus parameters
     parser.add_argument('--bri_dir', default='both', 
-                        help='brick dir (right, left, or both)') 
+        help='brick dir (right, left, or both)') 
     parser.add_argument('--gabfr', default=3, type=int, 
-                        help='gabor frame at which to start sequences')  
+        help='gabor frame at which to start sequences')  
     parser.add_argument('--post', default=0.45, type=float, 
-                        help='sec after reference frames')
+        help='sec after reference frames')
     parser.add_argument('--stimtype', default='gabors', 
-                        help='stimulus to analyse')   
+        help='stimulus to analyse')   
         # roi group parameters
     parser.add_argument('--plot_vals', default='surp', 
-                        help='plot both (with op applied), surp or reg')
+        help='plot both (with op applied), surp or reg')
     
     # generally fixed 
         # analysis parameters
     parser.add_argument('--keepnans', action='store_true', 
-                        help='keep ROIs containing NaNs or Infs in session.')
+        help='keep ROIs containing NaNs or Infs in session.')
     parser.add_argument('--fluor', default='dff', help='raw or dff')
     parser.add_argument('--stats', default='mean', help='plot mean or median')
     parser.add_argument('--error', default='sem', 
-                        help='sem for SEM/MAD, std for std/qu')    
+        help='sem for SEM/MAD, std for std/qu')    
     parser.add_argument('--dend', default='extr', help='aibs, extr')
     parser.add_argument('--no_scale', action='store_true', help='scale ROIs')
         # session parameters
     parser.add_argument('--line', default='any', help='L23, L5')
     parser.add_argument('--closest', action='store_true', 
-                        help=('if True, the closest session number is used. '
-                              'Otherwise, only exact.'))
+        help=('if True, the closest session number is used. '
+            'Otherwise, only exact.'))
     parser.add_argument('--pass_fail', default='P', 
-                        help='P to take only passed sessions')
+        help='P to take only passed sessions')
     parser.add_argument('--incl', default='any',
-                        help='include only `yes`, `no` or `any`')
+        help='include only `yes`, `no` or `any`')
         # stimulus parameters
     parser.add_argument('--bri_size', default=128, 
-                        help='brick size (128, 256, or both)')
+        help='brick size (128, 256, or both)')
     parser.add_argument('--gabk', default=16,
-                        help='kappa value (4, 16, or both)')    
+        help='kappa value (4, 16, or both)')    
     parser.add_argument('--gab_ori', default='all',
-                        help='gabor orientation values (0, 45, 90, 135, all)')    
+        help='gabor orientation values (0, 45, 90, 135, all)')    
     parser.add_argument('--pre', default=0, type=float, help='sec before frame')
         # permutation parameters
     parser.add_argument('--n_perms', default=10000, type=int, 
-                        help='nbr of permutations')
+        help='nbr of permutations')
     parser.add_argument('--tails', default='2', 
-                        help='nbr tails for perm analysis (2, lo, up)')
+        help='nbr tails for perm analysis (2, lo, up)')
         # baseline parameter
     parser.add_argument('--base', default=0, type=float,
-                        help='baseline for surprise difference calculations.')
+        help='baseline for surprise difference calculations.')
  
         # latency parameters
     parser.add_argument('--method', default='ttest', 
-                        help='latency calculation method (`ratio` or `ttest`)')
+        help='latency calculation method (`ratio` or `ttest`)')
     parser.add_argument('--p_val_thr', default='0.005', type=float,
-                        help='p-value threshold for ttest method')
+        help='p-value threshold for ttest method')
     parser.add_argument('--rel_std', default='0.5', type=float,
-                        help='relative st. dev. threshold for ratio method')
+        help='relative st. dev. threshold for ratio method')
     parser.add_argument('--not_surp_resp', action='store_true', 
-                        help='don\'t use only surprise responsive ROIs')
+         help='don\'t use only surprise responsive ROIs')
 
         # figure parameters
     parser.add_argument('--ncols', default=4, help='number of columns')
     parser.add_argument('--no_datetime', action='store_true',
-                        help='create a datetime folder')
+        help='create a datetime folder')
     parser.add_argument('--overwrite', action='store_true', 
-                        help='allow overwriting')
+        help='allow overwriting')
         # plot using modif_analys_plots (only if plotting from dictionary)
     parser.add_argument('--modif', action='store_true', 
-                        help=('plot from dictionary using modified plot '
-                              'functions'))
+        help=('plot from dictionary using modified plot functions'))
 
     args = parser.parse_args()
 
@@ -610,9 +616,10 @@ if __name__ == "__main__":
         source = 'acr_sess'
         if args.modif:
             source = 'modif'
-        plot_dicts.plot_from_dicts(args.dict_path, source=source, 
-                   plt_bkend=args.plt_bkend, fontdir=args.fontdir, 
-                   parallel=args.parallel, datetime=not(args.no_datetime))
+        plot_dicts.plot_from_dicts(
+            args.dict_path, source=source, plt_bkend=args.plt_bkend, 
+            fontdir=args.fontdir, parallel=args.parallel, 
+            datetime=not(args.no_datetime))
 
     else:
         if args.datadir is None: args.datadir = DEFAULT_DATADIR
@@ -623,6 +630,7 @@ if __name__ == "__main__":
         analys_pars = prep_analyses(args.sess_n, args, mouse_df, args.parallel)
         
         run_analyses(*analys_pars, analyses=args.analyses, seed=args.seed,
-                     parallel=args.parallel, datatype=args.datatype)
+            parallel=args.parallel, datatype=args.datatype)
 
+                
                 

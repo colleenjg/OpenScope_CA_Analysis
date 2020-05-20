@@ -63,14 +63,14 @@ def get_ran_s(ran_s=None, datatype='both'):
     if datatype in ['both', 'run']:
         keys.extend(['run_pre', 'run_post'])
     elif datatype not in ['both', 'run', 'roi']:
-        gen_util.accepted_values_error('datatype', datatype, 
-                                        ['both', 'roi', 'run'])
+        gen_util.accepted_values_error(
+            'datatype', datatype, ['both', 'roi', 'run'])
 
     if isinstance(ran_s, dict):
         missing = [key for key in keys if key not in ran_s.keys()]
         if len(missing) > 0:
-            raise ValueError('`ran_s` is missing keys: '
-                             '{}'.format(', '.join(missing)))
+            raise ValueError(
+                '`ran_s` is missing keys: {}'.format(', '.join(missing)))
     else:
         if ran_s is None:
             vals = 3.5
@@ -179,8 +179,10 @@ def peristim_data(sess, stimpar, ran_s=None, datatype='both',
             gabk=stimpar.gabk, gabfr=stimpar.gabfr, surp=1, remconsec=False, 
             by='seg')
     
-    surp_twopfr = stim.get_twop_fr_by_seg(surp_segs, first=True)['first_twop_fr']
-    surp_stimfr = stim.get_stim_fr_by_seg(surp_segs, first=True)['first_stim_fr']
+    surp_twopfr = stim.get_twop_fr_by_seg(
+        surp_segs, first=True)['first_twop_fr']
+    surp_stimfr = stim.get_stim_fr_by_seg(
+        surp_segs, first=True)['first_stim_fr']
     surp_pupfr  = sess.get_pup_fr_by_twop_fr(surp_twopfr)
 
     # get data dataframes
@@ -265,18 +267,17 @@ def run_pupil_diff_corr(sessions, analysis, analyspar, sesspar,
         - datatype (str): type of data (e.g., 'roi', 'run')
     """
 
-    sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-                                            sesspar.plane, stimpar.bri_dir, 
-                                            stimpar.bri_size, stimpar.gabk,
-                                            'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
-                                            datatype, 'print')
+    sessstr_pr = sess_str_util.sess_par_str(
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 
+        stimpar.bri_size, stimpar.gabk, 'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar.dend, sesspar.plane, datatype, 'print')
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
     print('\nAnalysing and plotting correlations between surprise vs non '
-          f'surprise {datastr} traces between sessions ({sessstr_pr}'
-          f'{dendstr_pr}).')
+        f'surprise {datastr} traces between sessions ({sessstr_pr}'
+        f'{dendstr_pr}).')
 
     sess_diffs = []
     sess_corr = []
@@ -357,7 +358,7 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
     if stimpar.stimtype != 'both':
         non_stimtype = stimtypes[1 - stimtypes.index(stimpar.stimtype)]
         print('stimpar.stimtype will be set to `both`, but non default '
-              f'{non_stimtype} parameters are lost.')
+            f'{non_stimtype} parameters are lost.')
         stimpar_dict = stimpar._asdict()
         for key in list(stimpar_dict.keys()): # remove any 'none's
             if stimpar_dict[key] == 'none':
@@ -394,7 +395,7 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
             if parallel:
                 n_jobs = gen_util.get_n_jobs(nrois)
                 corrs = Parallel(n_jobs=n_jobs)(delayed(np.corrcoef)
-                (roi_diff[:, r], pup_diff) for r in range(nrois))
+                    (roi_diff[:, r], pup_diff) for r in range(nrois))
                 corrs = np.asarray([corr[0, 1] for corr in corrs])
             else:
                 corrs = np.empty(nrois)
@@ -428,275 +429,3 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
 
     file_util.saveinfo(info, savename, fulldir, 'json')
 
-
-########################
-# OTHER PLOTS
-
-
-
-# #############################################
-# def scale_sort_trace_data(tr_data, fig_type='byplot', dils=['dil', 'undil']):
-#     """
-#     scale_sort_trace_data(tr_data)
-
-#     Returns a dictionary ROI traces scaled and sorted as specified.
-
-#     Required args:        
-#         - tr_data (dict): dictionary containing information to plot colormap.
-#             ['n_seqs'] (list)    : ordered list of number of segs for each
-#                                    dilation value
-#             ['roi_me'] (dict)    : ordered list of trace mean/medians
-#                                    for each ROI as 2D arrays or nested lists, 
-#                                    structured as:
-#                                        ROIs x frames, 
-#                                    (NaN arrays for combinations with 0 seqs.)
-
-#     Optional args:
-#         - fig_type (str) : how to scale and sort ROIs, 
-#                            i.e. each plot separately ('byplot'), or by a
-#                                 dilation ('byundil', 'bydil')
-#                            default: 'byplot'
-#         - dils (list)    : dilation value names used in keys, ordered
-#                            default: ['undil', 'dil']
-    
-#     Returns:
-#         - scaled_sort_data_me (list): list sorted by dils of 2D arrays, 
-#                                       structured as: ROIs x frames
-#     """
-
-#     sorted_data = []
-
-#     scale_vals = []
-#     sort_args = []
-#     for data in tr_data['roi_me']:
-#         min_vals = np.nanmin(data, axis=1).tolist()
-#         max_vals = np.nanmax(data, axis=1).tolist()
-#         scale_vals.append([min_vals, max_vals])
-#         sort_args.append(np.argsort(np.argmax(data, axis=1)).tolist()) # sort order
-
-#     for d, dil in enumerate(dils):
-#         me = np.asarray(tr_data['roi_me'][d])
-#         if tr_data['n_seqs'][d] == 0:
-#             min_v, max_v = np.asarray(scale_vals[1-d])
-#             sort_arg = sort_args[1-d]
-#         elif fig_type == 'byplot':
-#             min_v, max_v = np.asarray(scale_vals[d])
-#             sort_arg = sort_args[d]
-#         else:
-#             min_v = np.nanmin(np.asarray([vals[0] for vals in scale_vals]), axis=0)
-#             max_v = np.nanmax(np.asarray([vals[1] for vals in scale_vals]), axis=0)
-#             if fig_type == f'by{dil}':
-#                 sort_arg = sort_args[d]
-#             elif fig_type == 'by{dils[1-d]}':
-#                 sort_arg = sort_args[1-d]
-
-#         me_scaled = ((me.T - min_v)/(max_v - min_v))[:, sort_arg]
-#         sorted_data.append(me_scaled)                
-    
-#     return sorted_data
-
-
-# #############################################
-# def split_2p_colorplots(data, sess, stimtype='bricks', eyesec=3.5, runsec=3.5, 
-#                         phtsec=3.5):
-
-#     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
-#                                             sesspar.plane, stimpar.bri_dir, 
-#                                             stimpar.bri_size, stimpar.gabk,
-#                                             'print')
-#     dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
-#                                             datatype, 'print')
-       
-#     datastr = sess_str_util.datatype_par_str(datatype)
-
-    # print('\nAnalysing and plotting correlations between surprise vs non '
-    #       f'surprise {datastr} traces between sessions ({sessstr_pr}'
-    #       f'{dendstr_pr}).')
-
-#     sess_diffs = []
-#     sess_corr = []
-    
-#     for sess in sessions:
-#         data = peristim_data(sess, stimpar, datatype=datatype, returns='data', 
-#                              first_surp=True)
-        
-#         [pup_data, data_data] = data 
-#         pup_overall_mean = np.nanmean(pup_data) # dilation threshold
-
-
-#         n_fr = dataset.shape[1]
-#         pre_s  = ran_s[f'{name}_pre']
-#         post_s = ran_s[f'{name}_post']
-#         ratio = stimpar.pre/(stimpar.pre + stimpar.post)
-#         pup_split = int(np.round( * pup_data.shape[1])) # find 0 mark
-
-
-
-#         # trials (x ROIs)
-#         if datatype == 'roi':
-#             if analyspar.remnans:
-#                 nanpol = None
-#             else:
-#                 nanpol = 'omit'
-#             data_diff = math_util.mean_med(data_diff, analyspar.stats, 
-#                                             axis=-1, nanpol=nanpol)
-#         elif datatype != 'run':
-#             gen_util.accepted_values_error('datatype', datatype, 
-#                                             ['roi', 'run'])
-    
-#         sess_corr.append(np.corrcoef(pup_diff, data_diff)[0, 1])
-#         sess_diffs.append([diff.tolist() for diff in [pup_diff, data_diff]])
-    
-#     extrapar = {'analysis': analysis,
-#                 'datatype': datatype,
-#                 }
-    
-#     corr_data = {'corrs': sess_corr,
-#                  'diffs': sess_diffs
-#                  }
-
-#     sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)
-    
-#     info = {'analyspar': analyspar._asdict(),
-#             'sesspar'  : sesspar._asdict(),
-#             'stimpar'  : stimpar._asdict(),
-#             'extrapar' : extrapar,
-#             'sess_info': sess_info,
-#             'corr_data': corr_data
-#             }
-
-#     fulldir, savename = pup_plots.plot_pup_diff_corr(figpar=figpar, **info)
-
-#     file_util.saveinfo(info, savename, fulldir, 'json')
-
-
-
-
-#     # trial x fr [x ROI]
-#     [roi_data, run_data, pup_data] = data
-
-#     if stimtype == 'bricks':
-#         start = 1/2
-#     else:
-#         start = 0
-#     pre = (1 - 2*start) * phtsec
-
-#     # I actually just want the second half of the data
-#     roi_data = roi_data[:, int(np.round(roi_data.shape[1]*start)):]
-#     run_data = run_data[:, int(np.round(run_data.shape[1]*start)):]
-#     pup_data = pup_data[:, int(np.round(pup_data.shape[1]*start)):]
-
-#     print(roi_data.shape)
-
-#     pup_overall_mean = np.nanmean(pup_data)
-#     pup_trial_means = np.nanmean(pup_data, axis=-1) 
-#     # pup_trial_mean = np.nanmean(pup_trial_means, axis=-1) # altern. threshold
-
-#     dilated_trials = np.where(pup_trial_means > pup_overall_mean)[0].tolist()
-#     undilated_trials = list(set(range(len(pup_data))) - set(dilated_trials))
-
-#     dil_roi_data = np.nanmean(roi_data[dilated_trials], axis=0).T
-#     undil_roi_data = np.nanmean(roi_data[undilated_trials], axis=0).T
-
-#     if len(dilated_trials) == 0:
-#         dil_roi_data = np.full_like(undil_roi_data, np.nan, dtype=np.double)
-#     elif len(undilated_trials) == 0:
-#         undil_roi_data = np.full_like(dil_roi_data, np.nan, dtype=np.double)
-
-#     tr_data = {'roi_me': [dil_roi_data, undil_roi_data],
-#                'n_seqs': [len(dilated_trials), len(undilated_trials)]}
-
-#     cmap = plot_util.manage_mpl(cmap=True, nbins=100)
-
-#     gentitle = (f'Mouse {sess.mouse_n}, {sess.line} {sess.plane}, '
-#                 f'sess {sess.sess_n}, {stimtype}\nSurprise responses during '
-#                  'high vs low pupil dilation')
-#     dils = ['dil', 'undil']
-#     nrois = roi_data.shape[-1]
-#     yticks_ev = int(10 * np.max([1, np.ceil(nrois/100)])) # to avoid more than 10 ticks
-#     print('Plotting colormaps\n')
-#     for fig_type in ['byplot', 'bydil', 'byundil']:
-#         tr_data['sorted_data'] = scale_sort_trace_data(tr_data, 
-#                                       fig_type=fig_type, dils=dils)    
-
-#         if fig_type in ['bydil', 'byundil']:
-#             peak_sort = ' across plots'
-#             scale_type = f' by {fig_type[2:]}ated data'
-#             sharey = True
-#         else:
-#             peak_sort = ''
-#             scale_type = ' within plot'
-#             sharey = False
-
-#         subtitle = (f'ROIs sorted by peak activity{peak_sort} and '
-#                     f'scaled{scale_type}')
-#         fig, ax = plt.subplots(ncols=2, figsize=[30, 15], sharey=sharey)
-        
-#         for d, dil in enumerate(dils):    
-#             sub_ax = ax[d]
-#             title = u'{}ated seqs (n={})'.format(dil.capitalize(), 
-#                                                  tr_data['n_seqs'][d])
-
-#             sess_plot_util.add_axislabels(sub_ax, fluor='dff', 
-#                                           y_ax='ROIs', datatype='roi')
-#             im = plot_util.plot_colormap(sub_ax, tr_data['sorted_data'][d], 
-#                                     title=title, cmap=cmap, 
-#                                     yticks_ev=yticks_ev,
-#                                     xran=[-pre, phtsec])
-#             plot_util.add_bars(sub_ax, 0)
-#         if stimtype == 'gabors':
-#             t_hei = -0.02
-#             gabfr = 3
-#             sess_plot_util.plot_labels(ax, gabfr=gabfr, plot_vals='reg', 
-#                             pre=pre, post=0, sharey=sharey, 
-#                             t_heis=t_hei)
-#             sess_plot_util.plot_labels(ax, gabfr=gabfr, plot_vals='surp', 
-#                             pre=0, post=phtsec, sharey=sharey, 
-#                             t_heis=t_hei)
-
-#         plot_util.add_colorbar(fig, im, len(dils))
-#         fig.suptitle(f'{gentitle}\n{subtitle}')
-#         fig.savefig(f'results/latest2/m{sess.mouse_n}_s{sess.sess_n}_'
-#                     f'{sess.plane}_cm_ext_{stimtype}_{fig_type}.png')
-#         plt.close(fig)
-
-
-# ############### CORRELATION BTW GABORS AND BRICKS
-
-
-# def quick_run(sessid, stimtype='bricks', runtype='prod', roi_s=3.5, run_s=2, 
-#               pup_s=3.5):
-
-#     sess = session.Session('../data/AIBS', sessid=sessid, runtype=runtype)
-#     sess.extract_sess_attribs()
-#     sess.extract_info(fulldict=False, dend='extr')
-
-#     diffs = peristim_beh(sess, stimtype=stimtype, roi_s=roi_s, run_s=run_s, 
-#                          pup_s=pup_s, datatype='diff', first_surp=True)
-
-#     pup_2p_plots(diffs, sess, stimtype, roi_s, run_s, pup_s)
-
-
-#     if stimtype == 'gabors': # to avoid doing it twice
-#         gab_diffs = peristim_beh(sess, stimtype='gabors', roi_s=roi_s, 
-#                                  run_s=run_s, pup_s=pup_s, datatype='diff', 
-#                                  first_surp=True, trans_all=True)
-#         bri_diffs = peristim_beh(sess, stimtype='bricks', roi_s=roi_s, 
-#                                  run_s=run_s, pup_s=pup_s, datatype='diff', 
-#                                  first_surp=True, trans_all=True)
-
-#         pup_2p_ROI_plots(gab_diffs, bri_diffs, sess, stimtype, roi_s, run_s, 
-#                          pup_s)
-
-#     first_surp = True
-#     roi_s, run_s, pup_s = [4, 4, 4]
-#     if stimtype == 'gabors':
-#         first_surp = True # also did False
-#         roi_s, run_s, pup_s = [1.5, 1.5, 1.5]
-
-#     data = peristim_beh(sess, stimtype=stimtype, roi_s=roi_s, run_s=run_s, 
-#                         pup_s=pup_s, datatype='data', first_surp=first_surp)
-
-#     split_2p_colorplots(data, sess, stimtype, roi_s, run_s, pup_s)
-
-    

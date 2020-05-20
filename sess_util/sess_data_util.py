@@ -115,15 +115,15 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
     # stim params: seq x frame x flat (gab x pars)
     all_pars = pars.reshape([pars.shape[0], pars.shape[1], -1])
     if run:
-        all_pars = np.concatenate([all_pars, run_velocity[:, :, np.newaxis]], 
-                                   axis=2)
+        all_pars = np.concatenate(
+            [all_pars, run_velocity[:, :, np.newaxis]], axis=2)
     
     win_leng = int(np.floor(win_leng_s * sess.twop_fps))
 
     stim_wins = []
     for seq_pars in all_pars:
-        stim_wins.append(data_util.window_2d(seq_pars, win_leng, 
-                                             step_size=step_size))
+        stim_wins.append(data_util.window_2d(
+            seq_pars, win_leng, step_size=step_size))
 
     stim_wins = np.concatenate(stim_wins, axis=0).transpose([0, 2, 1])
 
@@ -212,7 +212,7 @@ def get_roi_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
         roi_means = np.mean(traces.reshape(traces.shape[0], -1), axis=1)
         roi_stds  = np.std(traces.reshape(traces.shape[0], -1), axis=1)
     traces = 2. * (traces - roi_means.reshape([-1, 1, 1]))/ \
-                  roi_stds.reshape([-1, 1, 1]) - 1.
+        roi_stds.reshape([-1, 1, 1]) - 1.
     # traces: seq x frames x ROI
     traces = traces.transpose(1, 2, 0)
 
@@ -220,8 +220,8 @@ def get_roi_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
     win_leng = int(np.floor(sess.twop_fps * win_leng_s))
     for seq_traces in traces:
         # n_wins x n_ROIs x win_leng
-        trace_wins.append(data_util.window_2d(seq_traces, win_leng, 
-                                              step_size=step_size))
+        trace_wins.append(data_util.window_2d(
+            seq_traces, win_leng, step_size=step_size))
     # concatenate windows
     trace_wins = np.concatenate(trace_wins, axis=0).transpose([0, 2, 1])
 
@@ -298,8 +298,8 @@ def get_mapping(par, act_vals=None):
     elif par == 'plane':
         vals = ['soma', 'dend']
     else:
-        gen_util.accepted_values_error('par', par, ['gabk', 'bri_size', 
-                                       'bri_dir', 'line', 'plane'])
+        gen_util.accepted_values_error(
+            'par', par, ['gabk', 'bri_size', 'bri_dir', 'line', 'plane'])
     
     if act_vals is not None:
         if not set(act_vals).issubset(set(vals)):

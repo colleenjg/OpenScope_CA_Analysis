@@ -585,7 +585,7 @@ def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar,
 
     if permpar.multcomp:
         raise NotImplementedError('NOTE: Multiple comparisons not implemented '
-                                  'for magnitude analysis.')
+            'for magnitude analysis.')
 
     if len(all_data_perm) != 2 or len(n_regs) !=2:
         raise ValueError('all_data_perm and n_regs must have length of 2.')
@@ -593,14 +593,15 @@ def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar,
     all_rand_vals = [] # qu x grp x ROI x perms
     # for each quintile
     for q, perm_data in enumerate(all_data_perm):
-        qu_vals = math_util.permute_diff_ratio(perm_data, n_regs[q], 
-                            permpar.n_perms, stats, nanpol=nanpol, op='none')
+        qu_vals = math_util.permute_diff_ratio(
+            perm_data, n_regs[q], permpar.n_perms, stats, nanpol=nanpol, 
+            op='none')
         all_rand_vals.append(qu_vals)
 
     all_rand_vals = np.asarray(all_rand_vals)
     # get absolute change stats and retain mean/median only
-    rand_mag_me = math_util.calc_mag_change(all_rand_vals, 0, 2, order='stats', 
-                                            op=op_qu, stats=stats)[0]
+    rand_mag_me = math_util.calc_mag_change(
+        all_rand_vals, 0, 2, order='stats', op=op_qu, stats=stats)[0]
     rand_L2 = math_util.calc_mag_change(all_rand_vals, 0, 2, order=2, op=op_qu)
 
     # take diff/ratio between grps
@@ -608,10 +609,10 @@ def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar,
     rand_L2_rel  = math_util.calc_op(rand_L2, op_grp, dim=0)
 
     # check significance (returns list although only one result tested)
-    mag_sign, mag_th = math_util.id_elem(rand_mag_rel, act_mag_me_rel, 
-                                 permpar.tails, permpar.p_val, ret_th=True)
-    L2_sign, L2_th   = math_util.id_elem(rand_L2_rel, act_L2_rel, permpar.tails, 
-                                 permpar.p_val, ret_th=True)
+    mag_sign, mag_th = math_util.id_elem(
+        rand_mag_rel, act_mag_me_rel, permpar.tails, permpar.p_val, ret_th=True)
+    L2_sign, L2_th   = math_util.id_elem(
+        rand_L2_rel, act_L2_rel, permpar.tails, permpar.p_val, ret_th=True)
     
     mag_signif, L2_signif = ['no', 'no']
     if str(permpar.tails) == '2':
@@ -715,7 +716,7 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats='mean', error='sem',
         raise ValueError(f'Expected 2 quintiles, but found {n_qu}.')
     if len(surps) != 2:
         raise ValueError('Expected a length 2 surprise dim, '
-                         f'but found length {len(surps)}.')
+            f'but found length {len(surps)}.')
     
     mags = {'mag_st': np.empty([n_sess, len(scales), len(surps), stat_len]),
             'L2'    : np.empty([n_sess, len(scales), len(surps)])
@@ -734,41 +735,41 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats='mean', error='sem',
         n_regs = [all_data[i][0][q].shape[-1] for q in range(n_qu)]
         for s in range(len(surps)):
             # take the mean for each quintile
-            data_me = np.asarray([math_util.mean_med(all_data[i][s][q], stats, 
-                                                     axis=-1, nanpol=nanpol) 
-                                                     for q in range(n_qu)])
+            data_me = np.asarray(
+                [math_util.mean_med(all_data[i][s][q], stats, axis=-1, 
+                nanpol=nanpol) for q in range(n_qu)])
             if len(data_me.shape) == 1:
                 # add dummy ROI-like axis, e.g. for run data
                 data_me = data_me[:, np.newaxis]
-                all_data[i][s] = [qu_data[np.newaxis, :] 
-                                  for qu_data in all_data[i][s]]
-            mags['mag_st'][i, 0, s] = math_util.calc_mag_change(data_me, 0, 1, 
-                                                    order='stats', op=op_qu, 
-                                                    stats=stats, error=error)
-            mags['L2'][i, 0, s] = math_util.calc_mag_change(data_me, 0, 1, 
-                                                            order=2, op=op_qu)
+                all_data[i][s] = \
+                    [qu_data[np.newaxis, :] for qu_data in all_data[i][s]]
+            mags['mag_st'][i, 0, s] = math_util.calc_mag_change(
+                data_me, 0, 1, order='stats', op=op_qu, stats=stats, 
+                error=error)
+            mags['L2'][i, 0, s] = math_util.calc_mag_change(
+                data_me, 0, 1, order=2, op=op_qu)
             sess_data_me.append(data_me)
         # scale
         sess_data_me = np.asarray(sess_data_me)
-        mags['mag_st'][i, 1] = math_util.calc_mag_change(sess_data_me, 1, 2, 
-                                        order='stats', op=op_qu, stats=stats, 
-                                        error=error, scale=True, axis=0, pos=0, 
-                                        sc_type='unit').T
-        mags['L2'][i, 1] = math_util.calc_mag_change(sess_data_me, 1, 2, 
-                                    order=2, op=op_qu, stats=stats, scale=True, 
-                                    axis=0, pos=0, sc_type='unit').T
+        mags['mag_st'][i, 1] = math_util.calc_mag_change(
+            sess_data_me, 1, 2, order='stats', op=op_qu, stats=stats, 
+            error=error, scale=True, axis=0, pos=0, sc_type='unit').T
+        mags['L2'][i, 1] = math_util.calc_mag_change(
+            sess_data_me, 1, 2, order=2, op=op_qu, stats=stats, scale=True, 
+            axis=0, pos=0, sc_type='unit').T
         
         # diff/ratio for permutation test
         act_mag_rel = math_util.calc_op(mags['mag_st'][i, 0, :, 0], op=op_surp)
         act_L2_rel  = math_util.calc_op(mags['L2'][i, 0, :], op=op_surp)
 
         # concatenate regular and surprise sequences for each quintile
-        all_data_perm = [np.concatenate([all_data[i][0][q], all_data[i][1][q]], 
-                                        axis=1) for q in range(n_qu)]
+        all_data_perm = [np.concatenate(
+            [all_data[i][0][q], all_data[i][1][q]], axis=1) 
+                for q in range(n_qu)]
         
-        signif, ths = run_mag_permute(all_data_perm, act_mag_rel, act_L2_rel, 
-                                      n_regs, permpar, op_qu, op_surp, stats, 
-                                      nanpol)
+        signif, ths = run_mag_permute(
+            all_data_perm, act_mag_rel, act_L2_rel, n_regs, permpar, op_qu, 
+            op_surp, stats, nanpol)
         
         mags['mag_sig'].append(signif[0])
         mags['L2_sig'].append(signif[1])
