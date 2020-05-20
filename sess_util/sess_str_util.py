@@ -43,8 +43,8 @@ def base_par_str(baseline=None, str_type='file'):
             baseline = gen_util.num_to_str(baseline, n_dec=2, dec_sep='-')
             base_str = f'_b{baseline}'
         else:
-            gen_util.accepted_values_error('str_type', str_type, 
-                                           ['print', 'file'])        
+            gen_util.accepted_values_error(
+                'str_type', str_type, ['print', 'file'])        
     else:
         base_str = ''
 
@@ -76,8 +76,8 @@ def shuff_par_str(shuffle=True, str_type='file'):
         elif str_type == 'labels':
             shuff_str = ' (shuffled labels)'
         else:
-            gen_util.accepted_values_error('str_type', str_type, 
-                                           ['labels', 'print', 'file'])
+            gen_util.accepted_values_error(
+                'str_type', str_type, ['labels', 'print', 'file'])
     else:
         shuff_str = ''
 
@@ -107,8 +107,8 @@ def ctrl_par_str(ctrl=False, str_type='file'):
         elif str_type == 'file':
             ctrl_str = '_ctrl'
         else:
-            gen_util.accepted_values_error('str_type', str_type, 
-                                           ['print', 'file'])
+            gen_util.accepted_values_error(
+                'str_type', str_type, ['print', 'file'])
     else:
         ctrl_str = ''
 
@@ -140,8 +140,8 @@ def scale_par_str(scale=True, str_type='file'):
         elif str_type == 'file':
             scale_str = '_scaled'
         else:
-            gen_util.accepted_values_error('str_type', str_type, 
-                                           ['print', 'file'])
+            gen_util.accepted_values_error(
+                'str_type', str_type, ['print', 'file'])
     else:
         scale_str = ''
 
@@ -174,8 +174,8 @@ def fluor_par_str(fluor='dff', str_type='file'):
         elif str_type == 'file':
             fluor_str = 'raw'
         else:
-            gen_util.accepted_values_error('str_type', str_type, 
-                                           ['print', 'file'])
+            gen_util.accepted_values_error(
+                'str_type', str_type, ['print', 'file'])
     elif fluor == 'dff':
         if str_type == 'print':
             delta = u'\u0394'
@@ -183,8 +183,8 @@ def fluor_par_str(fluor='dff', str_type='file'):
         elif str_type == 'file':
             fluor_str = 'dff'
         else:
-            gen_util.accepted_values_error('str_type', str_type, 
-                                           ['print', 'file'])
+            gen_util.accepted_values_error(
+                'str_type', str_type, ['print', 'file'])
     else:
         gen_util.accepted_values_error('fluor', fluor, ['raw', 'dff'])
 
@@ -220,8 +220,8 @@ def stat_par_str(stats='mean', error='sem', str_type='file'):
         elif str_type == 'file':
             sep = '_'
         else:
-            gen_util.accepted_values_error('str_type', str_type, 
-                                           ['print', 'file'])
+            gen_util.accepted_values_error(
+                'str_type', str_type, ['print', 'file'])
 
         if stats == 'mean':
             stat_str = u'{}{}{}'.format(stats, sep, error)
@@ -231,8 +231,8 @@ def stat_par_str(stats='mean', error='sem', str_type='file'):
             elif error == 'sem':
                 stat_str = u'{}{}mad'.format(stats, sep)
             else:
-                gen_util.accepted_values_error('error', error, 
-                                            ['std', 'sem', 'None', 'none'])
+                gen_util.accepted_values_error(
+                    'error', error, ['std', 'sem', 'None', 'none'])
         else:
             gen_util.accepted_values_error('stats', stats, ['mean', 'median'])
     return stat_str
@@ -263,8 +263,8 @@ def op_par_str(plot_vals='both', op='diff', str_type='file'):
         gen_util.accepted_values_error('op', op, ['diff', 'ratio'])
     
     if plot_vals not in ['both', 'reg', 'surp']:
-        gen_util.accepted_values_error('plot_vals', plot_vals, 
-                                      ['both', 'reg', 'surp'])
+        gen_util.accepted_values_error(
+            'plot_vals', plot_vals, ['both', 'reg', 'surp'])
     
     if plot_vals == 'both':
         if str_type == 'print':
@@ -272,16 +272,16 @@ def op_par_str(plot_vals='both', op='diff', str_type='file'):
         elif str_type == 'file':
             op_str = op
         else:
-            gen_util.accepted_values_error('str_type', str_type, 
-                                           ['print', 'file'])
+            gen_util.accepted_values_error(
+                'str_type', str_type, ['print', 'file'])
     else:
         if str_type == 'print':
             op_str = f'for {plot_vals}'
         elif str_type == 'file':
             op_str = plot_vals
         else:
-            gen_util.accepted_values_error('str_type', str_type, 
-                                           ['print', 'file'])
+            gen_util.accepted_values_error(
+                'str_type', str_type, ['print', 'file'])
     
     return op_str
 
@@ -405,8 +405,8 @@ def dend_par_str(dend='extr', plane='dend', datatype='roi', str_type='file'):
         elif str_type == 'print':
             dend_str = ' (aibs)'
         else:
-            gen_util.accepted_values_error('str_type', str_type, 
-                                           ['print', 'file'])
+            gen_util.accepted_values_error(
+                'str_type', str_type, ['print', 'file'])
     
     return dend_str
 
@@ -480,7 +480,7 @@ def gabfr_letters(gabfr, surp='any'):
     else:
         if len(gabfr) != len(surp):
             raise ValueError('If passing more than one surp value, must '
-                             'pass as many as gabfr.')
+                'pass as many as gabfr.')
 
     if min(gabfr) < 0 or max(gabfr) > 3:
         raise ValueError('Gabor frames are only between 0 and 3, inclusively.')
@@ -662,8 +662,8 @@ def bri_par_str(direc, size, str_type='file'):
     if str_type == 'print':
         if len(dirstr) > 6: # specified direction
             if len(sizestr) > 6: # specified size
-                pars = '{}, {}'.format(sizestr.replace(')', ''), 
-                                    dirstr.replace('bricks (', '')) 
+                pars = '{}, {}'.format(
+                    sizestr.replace(')', ''), dirstr.replace('bricks (', '')) 
             else:
                 pars = dirstr
         else:
@@ -714,16 +714,16 @@ def stim_par_str(stimtype='gabors', bri_dir=None, bri_size=None, gabk=None,
     if stimtype == 'gabors':
         if gabk is None:
             raise ValueError('If stimulus is gabors, must pass gabk '
-                             'parameters.')
+                'parameters.')
         pars = gabk_par_str(gabk, str_type)
     elif stimtype == 'bricks':
         if bri_size is None or bri_dir is None:
             raise ValueError('If stimulus is bricks, must pass direction and '
-                             'size parameters.')
+                'size parameters.')
         pars = bri_par_str(bri_dir, bri_size, str_type=str_type)
     else:
-        gen_util.accepted_values_error('stimtype', stimtype, 
-                                       ['gabors', 'bricks'])
+        gen_util.accepted_values_error(
+            'stimtype', stimtype, ['gabors', 'bricks'])
 
     return pars
 
@@ -763,7 +763,7 @@ def sess_par_str(sess_n, stimtype='gabors', layer='soma', bri_dir=None,
     """
     if gabk is None and (bri_size is None or bri_dir is None):
         raise ValueError('Must pass value for gabor k parameter or brick '
-                         'size and direction.')
+            'size and direction.')
     elif gabk is None:
         stimtype = 'bricks'
     elif bri_size is None or bri_dir is None:
@@ -886,8 +886,8 @@ def ext_test_str(q1v4=False, rvs=False, str_type='file'):
         raise ValueError('`q1v4` and `rvs` cannot both be True.')
 
     if str_type not in ['file', 'print', 'label']:
-        gen_util.accepted_values_error('str_type', str_type, ['file', 'print', 
-                                       'label'])
+        gen_util.accepted_values_error(
+            'str_type', str_type, ['file', 'print', 'label'])
 
     if q1v4:
         if str_type == 'file':
@@ -989,4 +989,34 @@ def get_stimdir(stimtype='gabors', gabfr=0):
         stimdir = f'{stimdir}{gab_lett}'
 
     return stimdir
+
+
+#############################################
+def get_position_name(position):
+    """
+    get_position_name()
+
+    Returns position name based on the index (e.g., 'first' for 0).
+
+    Required args:
+        - position (int): position number type
+    
+    Returns:
+        - (str): position name
+    """
+
+    position_names = [
+        'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 
+        'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth', 'thirteenth', 
+        'fourteenth', 'fifteenth', 'sixteenth', 'seventeenth', 'eighteenth', 
+        'nineteenth', 'twentieth']
+
+    if not int(position) == float(position):
+        raise ValueError('position must be of type int.')
+    if position >= len(position_names):
+        raise ValueError(
+            f'Only values smaller than {len(position_names)} allowed for '
+            '`position`.')
+
+    return position_names[position]
 

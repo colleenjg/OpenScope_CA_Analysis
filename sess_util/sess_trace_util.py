@@ -93,7 +93,7 @@ def add_cell_specimen_ids_to_roi_metrics(roi_metrics, roi_locations):
         id_vals = roi_locations[
             (roi_locations.x == minx) & (roi_locations.y == miny) &
             (roi_locations.width == wid) & (roi_locations.height == hei)
-        ].id.values
+                ].id.values
         if len(id_vals) != 1:
             if len(id_vals) > 1:
                 msg = f'Multiple ROI matches found ({len(id_vals)}).'

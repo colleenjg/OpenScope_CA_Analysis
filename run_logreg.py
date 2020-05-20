@@ -27,6 +27,7 @@ DEFAULT_DATADIR = os.path.join('..', 'data', 'AIBS')
 DEFAULT_MOUSE_DF_PATH = 'mouse_df.csv'
 DEFAULT_FONTDIR = os.path.join('..', 'tools', 'fonts')
 
+
 #############################################
 def get_comps(stimtype='gabors', q1v4=False, regvsurp=False):
     """
@@ -52,19 +53,20 @@ def get_comps(stimtype='gabors', q1v4=False, regvsurp=False):
         if regvsurp:
             raise ValueError('regvsurp can only be used with bricks.')
         comps = ['surp', 'AvB', 'AvC', 'BvC', 'DvE', 'Aori', 'Bori', 'Cori', 
-                 'Dori', 'Eori']
+            'Dori', 'Eori']
     elif stimtype == 'bricks':
         comps = ['surp', 'dir_all', 'dir_surp', 'dir_reg', 'half_right', 
-                 'half_left', 'half_diff'] 
+            'half_left', 'half_diff'] 
         if regvsurp:
-            comps = gen_util.remove_if(comps, ['surp', 'dir_surp', 'dir_all', 
-                                       'half_right', 'half_left', 'half_diff'])
+            comps = gen_util.remove_if(
+                comps, ['surp', 'dir_surp', 'dir_all', 'half_right', 
+                'half_left', 'half_diff'])
         if q1v4:
-            comps = gen_util.remove_if(comps, ['half_left', 'half_right', 
-                                               'half_diff'])
+            comps = gen_util.remove_if(
+                comps, ['half_left', 'half_right', 'half_diff'])
     else:
-        gen_util.accepted_values_error('stimtype', stimtype,
-                                       ['gabors', 'bricks'])
+        gen_util.accepted_values_error(
+            'stimtype', stimtype, ['gabors', 'bricks'])
 
     return comps
 
@@ -99,8 +101,8 @@ def check_args(comp='surp', stimtype='gabors', q1v4=False, regvsurp=False):
     if comp not in poss_comps:
         comps_str = ', '.join(poss_comps)
         raise ValueError(f'With stimtype={stimtype}, q1v4={q1v4}, '
-                         f'regvsurp={regvsurp}, can only use the following '
-                         f'comps:{comps_str}')
+            f'regvsurp={regvsurp}, can only use the following '
+            f'comps:{comps_str}')
     return
 
 
@@ -187,6 +189,8 @@ def run_regr(args):
             batchsize (int)       : nbr of samples dataloader will load per 
                                     batch (for 'pytorch' alg)
             bri_dir (str)         : brick direction to analyse
+            bri_per (float)       : number of seconds to include before Bricks 
+                                    segments
             bri_size (int or list): brick sizes to include
             comp (str)            : type of comparison
             datadir (str)         : data directory
@@ -261,37 +265,36 @@ def run_regr(args):
     mouse_df = DEFAULT_MOUSE_DF_PATH
 
     stimpar = logreg.get_stimpar(args.comp, args.stimtype, args.bri_dir, 
-                                 args.bri_size, args.gabfr, args.gabk)
+        args.bri_size, args.gabfr, args.gabk, bri_pre=args.bri_pre)
+    
     analyspar = sess_ntuple_util.init_analyspar(args.fluor, stats=args.stats, 
-                                 error=args.error, scale=not(args.no_scale), 
-                                 dend=args.dend)  
+        error=args.error, scale=not(args.no_scale), dend=args.dend)  
+    
     if args.q1v4:
         quintpar = sess_ntuple_util.init_quintpar(4, [0, -1])
     else:
         quintpar = sess_ntuple_util.init_quintpar(1)
+    
     logregpar = sess_ntuple_util.init_logregpar(args.comp, not(args.not_ctrl), 
-                            args.q1v4, args.regvsurp, args.n_epochs, 
-                            args.batchsize, args.lr, args.train_p, args.wd, 
-                            args.bal, args.alg)
+        args.q1v4, args.regvsurp, args.n_epochs, args.batchsize, args.lr, 
+        args.train_p, args.wd, args.bal, args.alg)
+    
     omit_sess, omit_mice = sess_gen_util.all_omit(stimpar.stimtype, 
-                                         args.runtype, stimpar.bri_dir, 
-                                         stimpar.bri_size, stimpar.gabk)
+        args.runtype, stimpar.bri_dir, stimpar.bri_size, stimpar.gabk)
 
     sessids = sess_gen_util.get_sess_vals(mouse_df, 'sessid', args.mouse_n, 
-                                          args.sess_n, args.runtype, 
-                                          incl=args.incl, omit_sess=omit_sess, 
-                                          omit_mice=omit_mice)
+        args.sess_n, args.runtype, incl=args.incl, omit_sess=omit_sess, 
+        omit_mice=omit_mice)
 
     if len(sessids) == 0:
         print(f'No sessions found (mouse: {args.mouse_n}, sess: {args.sess_n}, '
-              f'runtype: {args.runtype})')
+            f'runtype: {args.runtype})')
 
     for sessid in sessids:
         sess = sess_gen_util.init_sessions(sessid, args.datadir, mouse_df, 
-                                           args.runtype, fulldict=False, 
-                                           dend=analyspar.dend)[0]
+            args.runtype, fulldict=False, dend=analyspar.dend)[0]
         logreg.run_regr(sess, analyspar, stimpar, logregpar, quintpar, 
-                        extrapar, techpar)
+            extrapar, techpar)
 
 
 
@@ -299,70 +302,68 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', 
-                        default=os.path.join('results', 'logreg_models'),
-                        help='where to store output')
+        default=os.path.join('results', 'logreg_models'),
+        help='where to store output')
     parser.add_argument('--datadir', default=None, 
-                        help=('data directory (if None, uses a directory '
-                              'defined below'))
+        help=('data directory (if None, uses a directory defined below'))
     parser.add_argument('--task', default='run_regr', 
-                        help='run_regr, analyse or plot')
+        help='run_regr, analyse or plot')
 
         # technical parameters
     parser.add_argument('--plt_bkend', default=None, 
-                        help='switch mpl backend when running on server')
+        help='switch mpl backend when running on server')
     parser.add_argument('--parallel', action='store_true', 
-                        help='do runs in parallel.')
+        help='do runs in parallel.')
     parser.add_argument('--cuda', action='store_true', 
-                        help='run on cuda.')
+        help='run on cuda.')
     parser.add_argument('--ep_freq', default=50, type=int,  
-                        help='epoch frequency at which to print loss')
+        help='epoch frequency at which to print loss')
     parser.add_argument('--n_reg', default=50, type=int, help='n regular runs')
     parser.add_argument('--n_shuff', default=50, type=int, 
-                        help='n shuffled runs')
+        help='n shuffled runs')
 
         # logregpar
     parser.add_argument('--comp', default='surp', 
-                        help='surp, AvB, AvC, BvC, DvE, Eori, dir_all, '
-                             'dir_reg, dir_surp, half_right, half_left, '
-                             'half_diff')
+        help='surp, AvB, AvC, BvC, DvE, Eori, dir_all, dir_reg, dir_surp, '
+            'half_right, half_left, half_diff')
     parser.add_argument('--not_ctrl', action='store_true', 
-                        help=('run comparisons not as controls for surp '
-                              '(ignored for surp)'))
+        help=('run comparisons not as controls for surp (ignored for surp)'))
     parser.add_argument('--n_epochs', default=1000, type=int)
     parser.add_argument('--batchsize', default=200, type=int)
     parser.add_argument('--lr', default=0.0001, type=float, 
-                        help='learning rate')
+        help='learning rate')
     parser.add_argument('--train_p', default=0.75, type=float, 
-                        help='proportion of dataset used in training set')
+        help='proportion of dataset used in training set')
     parser.add_argument('--wd', default=0, type=float, 
-                        help='weight decay to use')
+        help='weight decay to use')
     parser.add_argument('--q1v4', action='store_true', 
-                        help='run on 1st quintile and test on last')
+        help='run on 1st quintile and test on last')
     parser.add_argument('--regvsurp', action='store_true', 
-                        help='use with dir_reg to run on reg and test on surp')
+        help='use with dir_reg to run on reg and test on surp')
     parser.add_argument('--bal', action='store_true', 
-                        help='if True, classes are balanced')
+        help='if True, classes are balanced')
     parser.add_argument('--alg', default='sklearn', 
-                        help='use sklearn or pytorch log reg.')
+        help='use sklearn or pytorch log reg.')
 
         # sesspar
     parser.add_argument('--mouse_n', default=1, type=int)
     parser.add_argument('--runtype', default='prod', help='prod or pilot')
     parser.add_argument('--sess_n', default='all')
     parser.add_argument('--incl', default='any',
-                        help='include only `yes`, `no` or `any`')
+        help='include only `yes`, `no` or `any`')
         # stimpar
     parser.add_argument('--stimtype', default='gabors', help='gabors or bricks')
     parser.add_argument('--gabk', default=16, type=int, 
-                        help='gabor kappa parameter')
+        help='gabor kappa parameter')
     parser.add_argument('--gabfr', default=0, type=int, 
-                        help='starting gab frame if comp is surp')
+        help='starting gab frame if comp is surp')
     parser.add_argument('--bri_dir', default='both', help='brick direction')
     parser.add_argument('--bri_size', default=128, help='brick size')
+    parser.add_argument('--bri_pre', default=0.0, type=float, help='brick pre')
 
         # analyspar
     parser.add_argument('--no_scale', action='store_true', 
-                        help='do not scale each roi')
+        help='do not scale each roi')
     parser.add_argument('--fluor', default='dff', help='raw or dff')
     parser.add_argument('--stats', default='mean', help='mean or median')
     parser.add_argument('--error', default='sem', help='std or sem')
@@ -370,23 +371,21 @@ if __name__ == "__main__":
 
         # extra parameters
     parser.add_argument('--seed', default=-1, type=int, 
-                        help='manual seed (-1 for None)')
+        help='manual seed (-1 for None)')
     parser.add_argument('--uniqueid', default='datetime', 
-                        help=('passed string, `datetime` for date and time '
-                              'or `none` for no uniqueid'))
+        help=('passed string, `datetime` for date and time '
+            'or `none` for no uniqueid'))
 
         # CI parameter for analyse and plot tasks
     parser.add_argument('--CI', default=0.95, type=float, help='shuffled CI')
 
         # from dict
     parser.add_argument('--dict_path', default='', 
-                        help=('path to info dictionary directories from which '
-                              'to plot data.'))
+        help=('path to info dictionary directories from which '
+            'to plot data.'))
         # plot modif
     parser.add_argument('--modif', action='store_true', 
-                        help=('run plot task using modified plots.'))
-
-
+        help=('run plot task using modified plots.'))
 
     args = parser.parse_args()
 
@@ -400,15 +399,15 @@ if __name__ == "__main__":
         check_args(args.comp, args.stimtype, args.q1v4, args.regvsurp)
         comps = gen_util.list_if_not(args.comp)
 
-    args.output = format_output(args.output, args.runtype, args.q1v4, args.bal, 
-                                args.regvsurp)
+    args.output = format_output(
+        args.output, args.runtype, args.q1v4, args.bal, args.regvsurp)
 
     args_orig = copy.deepcopy(args)
 
     if args.dict_path != '':
-        plot_dicts.plot_from_dicts(args.dict_path, source='logreg', 
-                   plt_bkend=args.plt_bkend, fontdir=args.fontdir, 
-                   parallel=args.parallel)
+        plot_dicts.plot_from_dicts(
+            args.dict_path, source='logreg', plt_bkend=args.plt_bkend, 
+            fontdir=args.fontdir, parallel=args.parallel)
 
     else:
         for comp in comps:

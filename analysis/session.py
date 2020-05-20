@@ -83,16 +83,16 @@ class Session(object):
         self.home   = datadir
         self.sessid = int(sessid)
         if runtype not in ['pilot', 'prod']:
-            gen_util.accepted_values_error('runtype', runtype, 
-                                           ['pilot', 'prod'])
+            gen_util.accepted_values_error(
+                'runtype', runtype, ['pilot', 'prod'])
         self.runtype = runtype
         self.droptol = droptol
         self._init_directory()
 
         if verbose:
             print('To load mouse database information into the session, run '
-                  '`self.extract_sess_attribs()`.\nTo load stimulus, '
-                  'behaviour and ophys data, run `self.extract_info()`')
+                '`self.extract_sess_attribs()`.\nTo load stimulus, '
+                'behaviour and ophys data, run `self.extract_info()`')
 
 
     #############################################
@@ -212,8 +212,8 @@ class Session(object):
                                      ROI x height x width
         """
 
-        min_n_pix = 3 # value used in ROI extraction
         mask_threshold = 0.1 # value used in ROI extraction
+        min_n_pix = 3 # value used in ROI extraction
 
         if not hasattr(self, '_dend'):
             raise ValueError('Run `self.load_roi_info()` to set ROI '
@@ -222,6 +222,7 @@ class Session(object):
         if not hasattr(self, '_roi_masks'):
             self._roi_masks, _ = sess_trace_util.get_roi_masks(
                 self.roi_mask_file, self.roi_extract_json, self.roi_objectlist, 
+                mask_threshold=mask_threshold, min_n_pix=min_n_pix, 
                 make_bool=True)
 
         return self._roi_masks
@@ -309,8 +310,8 @@ class Session(object):
                                       was playing
         """
 
-        [stim_df, stim2twopfr, 
-         twop_fps, twop_fr_stim] = sess_load_util.load_stim_df_info(
+        [stim_df, stim2twopfr, twop_fps, twop_fr_stim] = \
+            sess_load_util.load_stim_df_info(
                 self.stim_pkl, self.stim_sync_h5, self.align_pkl, self.dir, 
                 self.runtype)
 
@@ -388,8 +389,8 @@ class Session(object):
             prev_diff_thr = self.run_data.columns.get_level_values(
                 level='diff_thr').values[0]
             if replace and diff_thr != prev_diff_thr:
-                print(f'Updating running dataframe using {diff_thr} difference '
-                       'threshold.')
+                print(f'Updating running dataframe using {diff_thr} '
+                    'difference threshold.')
             else:
                 return
         
@@ -1230,8 +1231,7 @@ class Session(object):
                 'fr_type', fr_type, ['stim', 'twop'])
 
         if (fr >= max_val).any() or (fr < 0).any():
-                raise UserWarning('Some of the specified frames are out of '
-                    'range')
+            raise UserWarning('Some of the specified frames are out of range')
         
         run_data = self.get_run_velocity(remnans=remnans, stand=stand)
 
@@ -1342,6 +1342,8 @@ class Session(object):
         
         full_data = self.get_roi_traces(None, fluor, remnans)
         full_data_sm = scsig.medfilt(full_data.unstack().to_numpy(), win)
+        med = np.nanmedian(full_data_sm, axis=1) # smooth full data median
+        std = np.nanstd(full_data_sm, axis=1) # smooth full data std
 
         if stimtype is None:
             stim_data = full_data
@@ -1356,9 +1358,6 @@ class Session(object):
             stim_data = self.get_roi_traces(twop_fr, fluor, remnans)
             stim_data_sm = scsig.medfilt(stim_data, win)
 
-        med = np.nanmedian(full_data_sm, axis=1) # smooth full data median
-        std = np.nanstd(full_data_sm, axis=1) # smooth full data std
-
         # count how many calcium transients occur in the data of interest for
         # each ROI and identify inactive ROIs
         diff = stim_data_sm - (med + 3 * std)[:, np.newaxis]
@@ -1368,6 +1367,75 @@ class Session(object):
         active_roi_indices = full_data.index.unique('ROIs')[active].tolist()
 
         return active_roi_indices
+
+
+    #############################################
+    def get_plateau_roi_traces(self, n_consec=4, thr_ratio=3, fluor='dff', 
+                               remnans=True, replace=False):
+        """
+        self.get_plateau_roi_traces()
+
+        Returns modified ROI traces thresholded, so that values that do not 
+        reach criteria are set to median.
+
+        Attributes:
+            - plateau_traces (2D array): ROI traces converted to plateau traces, 
+                                         ROI x frames
+
+
+        Optional args:
+            - n_consec (int)   : number of consecutive above threshold (3 std) 
+                                 frames to be considered a plateau potential
+                                 default: 4
+            - thr_ratio (float): number of standard deviations above median 
+                                 at which threshold is set for identifying 
+                                 calcium transients
+                                 default: 3
+            - fluor (str)      : if 'dff', then dF/F traces are returned, if 
+                                 'raw', raw processed traces are returned
+                                 default: 'dff'
+            - remnans (bool)   : if True, the indices ignore ROIs containg NaNs 
+                                 or Infs
+                                 default: True
+
+        Returns:
+            - plateau_traces: modified ROI traces where frames below 
+                              threshold, or where trace does not remain above
+                              threshold for minimum number of frames are set to
+                              the median. Frames reaching criteria are 
+                              converted to number of standard deviations above 
+                              median.
+        """
+
+        if not hasattr(self, 'nrois'):
+            raise ValueError('Run `self.load_roi_info()` to set ROI '
+                'attributes correctly.')
+
+        if not hasattr(self, 'plateau_traces'):
+            print('\nRetrieving plateau traces.')
+
+            plateau_traces = gen_util.reshape_df_data(
+                self.get_roi_traces(None, fluor, remnans), squeeze_cols=True)
+            med = np.nanmedian(plateau_traces, axis=1)
+            std = np.nanstd(plateau_traces, axis=1)
+
+            for r, roi_data in enumerate(plateau_traces):
+                roi_bool = ((roi_data - med[r])/std[r] >= thr_ratio)
+                idx = np.where(roi_bool)[0]
+                each_first_idx = np.where(np.insert(np.diff(idx), 0, 100) > 1)[0]
+                drop_break_pts = np.where(np.diff(each_first_idx) < n_consec)[0]
+                for d in drop_break_pts: 
+                    set_zero_indices = np.arange(
+                        idx[each_first_idx[d]], 
+                        idx[each_first_idx[d + 1] - 1] + 1)
+                    roi_bool[set_zero_indices] = False
+                plateau_traces[r, ~roi_bool] = 1.0
+                plateau_traces[r, roi_bool] = \
+                    (plateau_traces[r, roi_bool] - med[r])/std[r]
+
+            self.plateau_traces = plateau_traces
+
+        return self.plateau_traces
 
 
     #############################################
@@ -1569,7 +1637,7 @@ class Session(object):
 
     #############################################
     def get_roi_seqs(self, twop_fr_seqs, padding=(0,0), fluor='dff', 
-                     remnans=True, stand=False):
+                     remnans=True, stand=False, use_plateau=False):
         """
         self.get_roi_seqs(twop_fr_seqs)
 
@@ -1622,16 +1690,18 @@ class Session(object):
         # extend values with padding
         if padding[0] != 0:
             min_fr       = np.asarray([min(x) for x in twop_fr_seqs])
-            st_padd      = np.tile(np.arange(-padding[0], 0), 
-                                   (len(twop_fr_seqs), 1)) + min_fr[:,None]
+            st_padd      = np.tile(
+                np.arange(-padding[0], 0), (len(twop_fr_seqs), 1)) + \
+                    min_fr[:,None]
             twop_fr_seqs = [np.concatenate((st_padd[i], x)) 
-                           for i, x in enumerate(twop_fr_seqs)]
+                for i, x in enumerate(twop_fr_seqs)]
         if padding[1] != 0:
             max_fr       = np.asarray([max(x) for x in twop_fr_seqs])
-            end_padd     = np.tile(np.arange(1, padding[1]+1), 
-                                   (len(twop_fr_seqs), 1)) + max_fr[:,None]
+            end_padd     = np.tile(
+                np.arange(1, padding[1]+1), (len(twop_fr_seqs), 1)) + \
+                    max_fr[:,None]
             twop_fr_seqs = [np.concatenate((x, end_padd[i])) 
-                            for i, x in enumerate(twop_fr_seqs)]
+                for i, x in enumerate(twop_fr_seqs)]
         if padding[0] < 0 or padding[1] < 0:
             raise ValueError('Negative padding not supported.')
 
@@ -1670,6 +1740,10 @@ class Session(object):
 
         traces_flat = self.get_roi_traces(
             frames_flat.astype(int), fluor, remnans, stand=stand)
+        if use_plateau:
+            traces_flat_fill = self.get_plateau_roi_traces(
+                fluor, remnans=remnans)[:, frames_flat.astype(int)].reshape(-1, 1)
+            traces_flat[:] = traces_flat_fill
 
         index_rows = pd.MultiIndex.from_product(
             [traces_flat.index.unique('ROIs').tolist(), 
@@ -1734,8 +1808,8 @@ class Session(object):
             fps = self.pup_fps
             max_val = self.tot_pup_fr
         else:
-            gen_util.accepted_values_error('fr_type', fr_type, 
-                                           ['twop', 'stim', 'pup'])
+            gen_util.accepted_values_error(
+                'fr_type', fr_type, ['twop', 'stim', 'pup'])
 
         ran_fr = [np.around(x * fps) for x in [-ch_fl[0], ch_fl[1]]]
         frs = np.asarray(frs)
@@ -2857,7 +2931,6 @@ class Stim(object):
         """
 
         reg_segs  = self.get_segs_by_criteria(surp=0, remconsec=True, by=by)
-
         surp_segs = self.get_segs_by_criteria(surp=1, remconsec=True, by=by)
 
         return reg_segs, surp_segs
@@ -3133,8 +3206,9 @@ class Stim(object):
                                 not Inf values) are omitted in calculating the 
                                 data statistics.
                                 default: False
-            - baseline (num)  : number of seconds to use as baseline. If None,
-                                data is not baselined.
+            - baseline (num)  : number of seconds from beginning of 
+                                sequences to use as baseline. If None, data 
+                                is not baselined.
                                 default: None
             - stats (str)     : statistic to use for baseline, mean ('mean') or 
                                 median ('median') (NaN values are omitted)
@@ -3269,8 +3343,9 @@ class Stim(object):
             - error (str)     : return std dev/quartiles ('std') or SEM/MAD 
                                 ('sem')
                                 default: 'sem'
-            - baseline (num)  : number of seconds to use as baseline. If None,
-                                data is not baselined.
+            - baseline (num)  : number of seconds from beginning of 
+                                sequences to use as baseline. If None, data 
+                                is not baselined.
                                 default: None
             - stand (bool)    : if True, pupil diameter is standardized using 
                                 full data array
@@ -3334,8 +3409,9 @@ class Stim(object):
                                 not Inf values) are omitted in calculating the 
                                 data statistics.
                                 default: True
-            - baseline (num)  : number of seconds to use as baseline. If None,
-                                data is not baselined.
+            - baseline (num)  : number of seconds from beginning of 
+                                sequences to use as baseline. If None, data 
+                                is not baselined.
                                 default: None
             - stats (str)     : statistic to use for baseline, mean ('mean') or 
                                 median ('median')
@@ -3475,8 +3551,9 @@ class Stim(object):
             - error (str)     : return std dev/quartiles ('std') or SEM/MAD 
                                 ('sem')
                                 default: 'sem'
-            - baseline (num)  : number of seconds to use as baseline. If None,
-                                data is not baselined.
+            - baseline (num)  : number of seconds from beginning of 
+                                sequences to use as baseline. If None, data 
+                                is not baselined.
                                 default: None
             - stand (bool)    : if True, running is standardized based on 
                                 full trace array
@@ -3544,8 +3621,9 @@ class Stim(object):
                                     values (but not Inf values) are omitted in 
                                     calculating the data statistics.
                                     default: True
-            - baseline (num)      : number of seconds to use as baseline. If 
-                                    None, data is not baselined.
+            - baseline (num)      : number of seconds from beginning of 
+                                    sequences to use as baseline. If None, data 
+                                    is not baselined.
                                     default: None
             - stats (str)         : statistic to use for baseline, mean ('mean') 
                                     or median ('median')
@@ -3708,8 +3786,9 @@ class Stim(object):
             - error (str)         : return std dev/quartiles ('std') or SEM/MAD 
                                     ('sem')
                                     default: 'sem'
-            - baseline (num)      : number of seconds to use as baseline. If 
-                                    None, data is not baselined.
+            - baseline (num)      : number of seconds from beginning of 
+                                    sequences to use as baseline. If None, data 
+                                    is not baselined.
                                     default: None
             - transients (bool)   : if True, only ROIs with transients are 
                                    retained
@@ -4042,6 +4121,7 @@ class Gabors(Stim):
         Returns:
             - A_segs (list): list of A gabor segment numbers.
         """
+        
         A_segs = self.get_segs_by_criteria(gabfr=0, by=by)
 
         return A_segs
@@ -4064,6 +4144,7 @@ class Gabors(Stim):
             - A_segs (list) : lists of first frame number for each A gabor 
                               segment number
         """
+        
         A_frames = self.get_stim_fr_by_criteria(gabfr=0, by=by)
 
         return A_frames
@@ -4251,7 +4332,6 @@ class Gabors(Stim):
                             possible range)
                             default: False
      
-        Returns:
         Returns:
             - full_param_df (pd DataFrame): dataframe containing gabor parameter
                                             values for each two-photon frame,
@@ -4606,8 +4686,8 @@ class Grayscr():
             for b in gabors.block_params.loc[d].index.unique('block_n'):
                 row = gabors.block_params.loc[(d, b)].astype(int)
                 grays = np.where(frames_gab[
-                    row['start_stim_fr'][0] : 
-                    row['end_stim_fr'][0]] == -1)[0] + row['start_stim_fr'][0]
+                    row['start_stim_fr'][0] : row['end_stim_fr'][0]
+                    ] == -1)[0] + row['start_stim_fr'][0]
                 temp.append(grays.tolist())
             gab_grays.append(temp)
 

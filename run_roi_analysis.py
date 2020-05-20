@@ -35,6 +35,7 @@ DEFAULT_DATADIR = os.path.join('..', 'data', 'AIBS')
 DEFAULT_MOUSE_DF_PATH = 'mouse_df.csv'
 DEFAULT_FONTDIR = os.path.join('..', 'tools', 'fonts')
 
+
 #############################################
 def reformat_args(args):
     """

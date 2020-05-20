@@ -36,7 +36,8 @@ def build_stim_beh_df(sessions, analyspar, sesspar, stimpar, each_roi=False):
     Builds a dataframe containing the stimulus and behavioural information, for 
     each of the specified segments.
 
-    Inputs: sessions, stimtype, segments, pre-post (pupil, running), pre-post (ROI)
+    Inputs: sessions, stimtype, segments, pre-post (pupil, running), pre-post 
+    (ROI)
 
     GLM inputs:
     - (Segments (A, B, C, D))
@@ -102,8 +103,8 @@ def run_ridge_cv(x_df, y_df, analyspar, alphas=None):
         alphas=(0.1, 0.1, 2.0)
 
     steps = [('scaler', preprocessing.StandardScaler()), 
-             ('model', linear_model.RidgeCV(
-                 normalize=True, alphas=alphas, store_cv_values=True))] 
+        ('model', linear_model.RidgeCV(
+            normalize=True, alphas=alphas, store_cv_values=True))] 
 
     pipl = pipeline.Pipeline(steps)
     pipl.fit(x_df, y_df)
@@ -115,7 +116,7 @@ def run_ridge_cv(x_df, y_df, analyspar, alphas=None):
 def run_bayesian_ridge(x_df, y_df, analyspar):
 
     steps = [('scaler', preprocessing.StandardScaler()), 
-             ('model', linear_model.BayesianRidge(compute_score=True))] 
+        ('model', linear_model.BayesianRidge(compute_score=True))] 
     pipl = pipeline.Pipeline(steps)
     pipl.fit(x_df, y_df)
 
@@ -133,7 +134,7 @@ def fit_expl_var(x_df, y_df, train_idx, test_idx, stimpar):
 
     # get explained variance
     steps = [('scaler', preprocessing.StandardScaler()), 
-             ('model', linear_model.BayesianRidge(compute_score=True))] 
+        ('model', linear_model.BayesianRidge(compute_score=True))] 
     pipl = pipeline.Pipeline(steps)
     pipl.fit(x_tr, y_tr)
     y_pred = pipl.predict(x_test)
@@ -206,7 +207,7 @@ def fit_expl_var_per_coeff(x_df, y_df, train_idx, test_idx, stimpar):
                 elif run == 'single_categ_value':
                     act_idx_tr = (x_df_cat.loc[train_idx, col] == 0)
                     curr_x_df.loc[train_idx] = shuffle_col_idx(
-                            curr_x_df.loc[train_idx], categ_name, act_idx_tr)
+                        curr_x_df.loc[train_idx], categ_name, act_idx_tr)
 
             # shuffle all other columns
             for oth_col in x_cols:
@@ -255,8 +256,8 @@ def compile_dict_fold_stats(dict_list, analyspar):
     all_keys = dict_list[0].keys()
     for key in all_keys:
         fold_vals = np.asarray([sub_dict[key] for sub_dict in dict_list])
-        me, de = math_util.get_stats(fold_vals, stats=analyspar.stats, 
-                                     error=analyspar.error)
+        me, de = math_util.get_stats(
+            fold_vals, stats=analyspar.stats, error=analyspar.error)
         full_dict[key] = [me, de]
     return full_dict
 
@@ -315,7 +316,7 @@ def run_explained_variance(x_df, y_df, analyspar, stimpar, k=10):
     else:
         all_rois = False
         print('Running for ROI {}'.format(
-              y_df_cols[0].replace('roi_data_', '')))
+            y_df_cols[0].replace('roi_data_', '')))
 
     kf = model_selection.KFold(k, shuffle=True, random_state=None)
 
@@ -364,14 +365,14 @@ def run_glm(sessions, analyspar, sesspar, stimpar, glmpar, parallel=False):
     if parallel and glmpar.each_roi:
         n_jobs = gen_util.get_n_jobs(len(roi_cols))
         outs = Parallel(n_jobs=n_jobs)(delayed(run_explained_variance)
-                    (x_df, full_df[cols], analyspar, stimpar, glmpar.k) 
-                    for cols in roi_cols)
+            (x_df, full_df[cols], analyspar, stimpar, glmpar.k) 
+            for cols in roi_cols)
         fulls, coef_alls, coef_unis = zip(*outs)
     else:
         fulls, coef_alls, coef_unis = [], [], []
         for cols in roi_cols:
-            out = run_explained_variance(x_df, full_df[cols], analyspar, 
-                                         stimpar, glmpar.k)
+            out = run_explained_variance(
+                x_df, full_df[cols], analyspar, stimpar, glmpar.k)
             fulls.append(out[0])
             coef_alls.append(out[1])
             coef_unis.append(out[2])
@@ -392,14 +393,14 @@ def run_glms(sessions, analysis, seed, analyspar, sesspar, stimpar, glmpar,
 
     seed = gen_util.seed_all(seed, 'cpu', print_seed=False)
 
-    sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype,
-                                    sesspar.plane, stimpar.bri_dir, 
-                                    stimpar.bri_size, stimpar.gabk, 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
-                                            'roi', 'print')
+    sessstr_pr = sess_str_util.sess_par_str(
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 
+        stimpar.bri_size, stimpar.gabk, 'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar.dend, sesspar.plane, 'roi', 'print')
 
     print('\nAnalysing and plotting explained variance in ROI activity '
-           f'({sessstr_pr}{dendstr_pr}).')
+        f'({sessstr_pr}{dendstr_pr}).')
 
     if glmpar.each_roi: # must do each session separately
         glm_type = 'per_ROI_per_sess'

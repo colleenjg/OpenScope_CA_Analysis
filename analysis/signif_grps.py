@@ -62,8 +62,8 @@ def sep_grps(sign_rois, nrois, grps='all', tails='2', add_reg=False):
         surp_surp = list(set(sign_rois[0]) & set(sign_rois[1]))
         surp_reg  = list(set(sign_rois[0]) - set(sign_rois[1]))
         reg_surp  = list(set(sign_rois[1]) - set(sign_rois[0]))
-        reg_reg   = list(set(all_rois) - set(surp_surp) - 
-                         set(surp_reg) - set(reg_surp))
+        reg_reg   = list(
+            set(all_rois) - set(surp_surp) - set(surp_reg) - set(reg_surp))
         # to store stats
         roi_grps  = [surp_surp, surp_reg, reg_surp, reg_reg]
         grp_names = ['surp_surp', 'surp_reg', 'reg_surp', 'reg_reg']
@@ -81,8 +81,8 @@ def sep_grps(sign_rois, nrois, grps='all', tails='2', add_reg=False):
             elif g == 'incr':
                 grp_ind = [2]
             else:
-                gen_util.accepted_values_error('grps', g, ['all', 'change', 
-                                               'no_change', 'reduc', 'incr'])
+                gen_util.accepted_values_error(
+                    'grps', g, ['all', 'change', 'no_change', 'reduc', 'incr'])
             if add_reg and reg_ind not in grp_ind:
                 grp_ind.extend([reg_ind])
             grp_inds.append(sorted(grp_ind))
@@ -95,28 +95,32 @@ def sep_grps(sign_rois, nrois, grps='all', tails='2', add_reg=False):
         surp_lo_surp_up = list(set(sign_rois[0][0]) & set(sign_rois[1][1]))
         surp_lo_surp_lo = list(set(sign_rois[0][0]) & set(sign_rois[1][0]))
 
-        surp_up_reg = list((set(sign_rois[0][1]) - set(sign_rois[1][1]) - 
-                                set(sign_rois[1][0])))
-        surp_lo_reg = list((set(sign_rois[0][0]) - set(sign_rois[1][1]) -
-                                set(sign_rois[1][0])))
+        surp_up_reg = list(
+            (set(sign_rois[0][1]) - set(sign_rois[1][1]) - \
+                set(sign_rois[1][0])))
+        surp_lo_reg = list(
+            (set(sign_rois[0][0]) - set(sign_rois[1][1]) - \
+                set(sign_rois[1][0])))
         
-        reg_surp_up = list((set(sign_rois[1][1]) - set(sign_rois[0][1]) - 
-                                set(sign_rois[0][0])))
-        reg_surp_lo = list((set(sign_rois[1][0]) - set(sign_rois[0][1]) -
-                                set(sign_rois[0][0])))
+        reg_surp_up = list(
+            (set(sign_rois[1][1]) - set(sign_rois[0][1]) - \
+                set(sign_rois[0][0])))
+        reg_surp_lo = list(
+            (set(sign_rois[1][0]) - set(sign_rois[0][1]) - \
+                set(sign_rois[0][0])))
         
-        reg_reg = list((set(all_rois) - set(sign_rois[0][1]) -
-                                set(sign_rois[1][1]) - set(sign_rois[0][0]) -
-                                set(sign_rois[1][0])))
+        reg_reg = list(
+            (set(all_rois) - set(sign_rois[0][1]) - set(sign_rois[1][1]) - \
+                set(sign_rois[0][0]) - set(sign_rois[1][0])))
         # to store stats
         roi_grps = [surp_up_surp_up, surp_up_surp_lo, surp_lo_surp_up, 
-                    surp_lo_surp_lo, surp_up_reg, surp_lo_reg, 
-                    reg_surp_up, reg_surp_lo, reg_reg]
+            surp_lo_surp_lo, surp_up_reg, surp_lo_reg, reg_surp_up, 
+            reg_surp_lo, reg_reg]
         reg_ind = 8 # index of reg_reg
         # group names 
         grp_names = ['surpup_surpup', 'surpup_surplo', 'surplo_surpup', 
-                     'surplo_surplo', 'surpup_reg', 'surplo_reg', 
-                     'reg_surpup', 'reg_surplo', 'reg_reg']
+            'surplo_surplo', 'surpup_reg', 'surplo_reg', 'reg_surpup', 
+            'reg_surplo', 'reg_reg']
         reg_ind = 8
         grp_inds = []
         for i, g in enumerate(grps):
@@ -131,10 +135,11 @@ def sep_grps(sign_rois, nrois, grps='all', tails='2', add_reg=False):
             elif g == 'incr':
                 grp_ind = [2, 5, 6]
             else:
-                gen_util.accepted_values_error('grps', grps, ['all', 'change', 
-                                               'no_change', 'reduc', 'incr'])
+                gen_util.accepted_values_error(
+                    'grps', grps, 
+                    ['all', 'change', 'no_change', 'reduc', 'incr'])
             if add_reg and reg_ind not in grp_ind:
-                    grp_ind.extend([reg_ind])
+                grp_ind.extend([reg_ind])
             grp_inds.append(sorted(grp_ind))
 
     all_roi_grps = [[roi_grps[i] for i in grp_ind] for grp_ind in grp_inds]
@@ -203,10 +208,10 @@ def grp_stats(integ_stats, grps, plot_vals='both', op='diff', stats='mean',
             if len(grp) != 0:
                 grp_data = sess_data[:, grp]
                 if scale:
-                    grp_data, _ = math_util.scale_data(grp_data, axis=0, pos=0, 
-                                                       sc_type='unit')
-                all_grp_st[i, :, g] = math_util.get_stats(grp_data, stats, 
-                                                          error, axes=1).T
+                    grp_data, _ = math_util.scale_data(
+                        grp_data, axis=0, pos=0, sc_type='unit')
+                all_grp_st[i, :, g] = math_util.get_stats(
+                    grp_data, stats, error, axes=1).T
 
     return all_grp_st, all_ns
 
@@ -246,8 +251,8 @@ def grp_traces_by_qu_surp_sess(trace_data, analyspar, roigrppar, all_roi_grps):
     n_stats  = 2 + (analyspar.stats == 'median' and analyspar.error == 'std')
 
     # sess x quintile (first/last) x ROI grp x stats
-    grp_stats = np.full([n_sesses, n_quints, n_grps, n_stats, n_frames], 
-                        np.nan)
+    grp_stats = np.full(
+        [n_sesses, n_quints, n_grps, n_stats, n_frames], np.nan)
 
     for i, sess in enumerate(data_me):
         for q, quint in enumerate(sess): 
@@ -255,8 +260,8 @@ def grp_traces_by_qu_surp_sess(trace_data, analyspar, roigrppar, all_roi_grps):
                 # leave NaNs if no ROIs in group
                 if len(grp_rois) == 0:
                     continue
-                grp_st = math_util.get_stats(quint[grp_rois], analyspar.stats, 
-                                             analyspar.error, axes=0)
+                grp_st = math_util.get_stats(
+                    quint[grp_rois], analyspar.stats, analyspar.error, axes=0)
                 grp_stats[i, q, g] = grp_st
 
     return grp_stats
@@ -296,16 +301,17 @@ def get_signif_rois(integ_data, permpar, stats='mean', op='diff', nanpol=None,
     n_reg = integ_data[1].shape[1]
     # calculate real values (average across seqs)
     data = [math_util.mean_med(integ_data[0], stats, axis=1, nanpol=nanpol), 
-            math_util.mean_med(integ_data[1], stats, axis=1, nanpol=nanpol)]
+        math_util.mean_med(integ_data[1], stats, axis=1, nanpol=nanpol)]
     # ROI x seq
     qu_data_res = math_util.calc_op(np.asarray(data), op, dim=0)
     # concatenate surp and reg from quintile
     qu_data_all = np.concatenate(integ_data, axis=1)
     # run permutation to identify significant ROIs
-    all_rand_res = math_util.permute_diff_ratio(qu_data_all, n_reg, 
-                             permpar.n_perms, stats, nanpol, op)
-    sign_rois = math_util.id_elem(all_rand_res, qu_data_res, permpar.tails, 
-                                  permpar.p_val, print_elems=print_rois)
+    all_rand_res = math_util.permute_diff_ratio(
+        qu_data_all, n_reg, permpar.n_perms, stats, nanpol, op)
+    sign_rois = math_util.id_elem(
+        all_rand_res, qu_data_res, permpar.tails, permpar.p_val, 
+        print_elems=print_rois)
     return sign_rois
 
 
@@ -356,10 +362,10 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
 
     if len(qu_labs) != 2:
         raise ValueError('Identifying significant ROIs is only implemented '
-                         'for 2 quintiles.')
+            'for 2 quintiles.')
 
     print('\nIdentifying ROIs showing significant surprise in '
-          f'{qu_labs[0].capitalize()} and/or {qu_labs[1].capitalize()}.')
+        f'{qu_labs[0].capitalize()} and/or {qu_labs[1].capitalize()}.')
 
     all_roi_grps = []
 
@@ -374,33 +380,35 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
         permpar_use = permpar
         if permpar.multcomp: # multiple comparisons correction
             n_comps = nrois * float(len(qu_labs)) # number of comp
-            pval_use, nperms_use = math_util.calc_mult_comp(n_comps, 
-                                             permpar.p_val, permpar.n_perms)
+            pval_use, nperms_use = math_util.calc_mult_comp(
+                n_comps, permpar.p_val, permpar.n_perms)
             pvals_mult.append(pval_use)
             nperms_mult.append(nperms_use)
-            permpar_use = sess_ntuple_util.init_permpar(nperms_use, pval_use, 
-                                           permpar.tails)
+            permpar_use = sess_ntuple_util.init_permpar(
+                nperms_use, pval_use, permpar.tails)
         for q, q_lab in enumerate(qu_labs):
             print(f'    {q_lab.capitalize()}') 
-            sign_rois = get_signif_rois([sess_data[0][q], sess_data[1][q]], 
-                                      permpar_use, stats, roigrppar.op, nanpol)
+            sign_rois = get_signif_rois(
+                [sess_data[0][q], sess_data[1][q]], permpar_use, stats, 
+                roigrppar.op, nanpol)
             sess_rois.append(sign_rois)
             
         grps = gen_util.list_if_not(roigrppar.grps)
 
         if len(grps) == 1:
-            roi_grps, grp_names = sep_grps(sess_rois, nrois=nrois, 
-                                      grps=roigrppar.grps, tails=permpar.tails,
-                                      add_reg=roigrppar.add_reg)
+            roi_grps, grp_names = sep_grps(
+                sess_rois, nrois=nrois, grps=roigrppar.grps, 
+                tails=permpar.tails, add_reg=roigrppar.add_reg)
         else:
             roi_grps = []
             for grp_set in roigrppar.grps:
-                roi_grps_set, _ = sep_grps(sess_rois, nrois=nrois, grps=grp_set, 
-                                           tails=permpar.tails, add_reg=False)
+                roi_grps_set, _ = sep_grps(
+                    sess_rois, nrois=nrois, grps=grp_set, tails=permpar.tails, 
+                    add_reg=False)
                 
                 # flat, without duplicates
-                flat_grp = sorted(list(set([roi for grp in roi_grps_set 
-                                                for roi in grp])))
+                flat_grp = sorted(
+                    list(set([roi for grp in roi_grps_set for roi in grp])))
                 roi_grps.append(flat_grp)
                 
             grp_names = roigrppar.grps
@@ -408,8 +416,8 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
         all_roi_grps.append(roi_grps)
     
     if permpar.multcomp:
-        permpar_mult = sess_ntuple_util.init_permpar(nperms_mult, pvals_mult, 
-                                        permpar.tails, 'done')
+        permpar_mult = sess_ntuple_util.init_permpar(
+            nperms_mult, pvals_mult, permpar.tails, 'done')
         return all_roi_grps, grp_names, permpar_mult
     
     else:

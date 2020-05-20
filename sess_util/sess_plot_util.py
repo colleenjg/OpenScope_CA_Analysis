@@ -91,6 +91,8 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                 ['mags'] (str)     : subdirectory name for magnitude analyses
                 ['posori'] (str)   : subdirectory name for position and 
                                      orientation plots
+                ['prog'] (str)     : subdirectory name for firsts progression 
+                                     analysis                
                 ['prop'] (str)     : subdirectory name for proportion 
                                      responsive ROI analyses
                 ['pupil'] (str)    : subdirectory for pupil analyses
@@ -138,6 +140,7 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                 'lat'      : 'latencies',
                 'mags'     : 'mags',
                 'posori'   : 'posori',
+                'prog'     : 'prog',
                 'prop'     : 'prop_resp',
                 'pupil'    : 'pupil',
                 'oridir'   : 'oridir',
@@ -155,7 +158,7 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
 
 
 #############################################
-def fig_init_linpla(figpar=None, traces=False):
+def fig_init_linpla(figpar=None, traces=False, prog=False):
     """
     fig_init_linpla()
 
@@ -173,6 +176,10 @@ def fig_init_linpla(figpar=None, traces=False):
                                 line/plane combination to use in dividing 
                                 subplot height
                                 default: False
+        - prog (bool or int)  : if not False, provides number of progressions 
+                                per line/plane combination to use in 
+                                determining subplot width
+                                default: False
 
     Returns:
         - figpar (dict): dictionary containing figure parameters:
@@ -188,16 +195,24 @@ def fig_init_linpla(figpar=None, traces=False):
     if 'init' not in figpar.keys():
         raise ValueError('figpar should have `init` subdictionary.')
 
+    if traces and prog:
+        raise ValueError('Both `traces` and `prog` cannot be True.')
+
     if traces:
-        wid = 4.5
-        hei = np.max([wid/traces, 1.0])
+        ncols = 2
+        wid = 3
+        hei = np.max([wid/traces * 1.15, 1.0])
+    elif prog:
+        ncols = 2 * prog
+        wid = np.max([9.0/prog, 3.0])
+        hei = 2.0
     else:
-        wid = 3.2
-        hei = wid * 1.8
-        figpar['init']['gs'] = {'hspace': 0.2, 'wspace': 0.4}
+        ncols = 2
+        wid = 2.5
+        hei = 4.3
+        figpar['init']['gs'] = {'hspace': 0.15, 'wspace': 0.2}
 
-
-    figpar['init']['ncols'] = 2
+    figpar['init']['ncols'] = ncols
     figpar['init']['subplot_hei'] = hei
     figpar['init']['subplot_wid'] = wid
     figpar['init']['sharex'] = True
@@ -207,16 +222,16 @@ def fig_init_linpla(figpar=None, traces=False):
 
 
 #############################################
-def fig_linpla_pars(traces=False, n_grps=None):
+def fig_linpla_pars(n_sess=False, n_grps=None):
     """
     fig_linpla_pars()
 
     Returns parameters for a line/plane combination graph.
 
     Optional args:
-        - traces (bool or int): if not False, provides number of traces per 
-                                line/plane combination to use in multiplying
-                                number of plots
+        - n_sess (bool or int): if not False, provides number of sessions 
+                                plotted separately per line/plane combination 
+                                and used in multiplying number of plots
                                 default: False
         - n_grps (int or None): if not None, the number of groups in the data 
                                 is verified against the expected number of 
@@ -238,15 +253,15 @@ def fig_linpla_pars(traces=False, n_grps=None):
     pla_col_names = ['green', 'blue']
     pla_cols = [plot_util.get_color(c, ret='single') for c in pla_col_names]
     
-    if traces:
-        mult = traces
+    if n_sess:
+        mult = n_sess
     else:
         mult = 1
     n_plots = len(lines) * len(planes) * mult
 
     if n_grps is not None and n_grps > n_plots/mult:
         raise ValueError(f'Expected up to {n_plots} line x plane '
-                         f'combinations, not {n_grps}.')
+            f'combinations, not {n_grps}.')
 
     return lines, planes, linpla_iter, pla_cols, pla_col_names, n_plots
 
@@ -281,17 +296,74 @@ def get_quint_cols(n_quints=4):
 
 
 #############################################
+def get_axislabels(fluor='dff', area=False, scale=False, datatype='roi', 
+                   x_ax=None, y_ax=None):
+    """
+    get_axislabels()
+
+    Returns appropriate labels for x and y axes. 
+    
+    If y_ax is None, y axis is assumed to be fluorescence, and label is 
+    inferred from fluor and dff parameters. If x_ax is None, x axis is assumed
+    to be time in seconds.
+
+    Optional args:
+        - fluor (str)     : if y_ax is None, whether 'raw' or processed 
+                            fluorescence traces 'dff' are plotted. 
+                            default: 'dff'
+        - area (bool)     : if True, 'area' is added after the y_ax label
+                            default: False
+        - scale (bool)    : if True, '(scaled)' is added after the y_ax label
+                            default: False
+        - datatype (str)  : type of data, either 'run' or 'roi'
+                            default: 'roi'
+        - x_ax (str)      : label to use for x axis.
+                            default: None
+        - y_ax (str)      : label to use for y axis.
+                            default: None
+
+    Returns:
+        - x_str (str): X axis label
+        - y_str (str): Y axis label
+    """
+
+    area_str = ''
+    if area:
+        area_str = ' area'
+
+    scale_str = ''
+    if scale:
+        scale_str = ' (scaled)'
+
+    if x_ax is None:
+        x_str = 'Time (s)'
+    else:
+        x_str = x_ax
+
+    if y_ax is None:
+        if datatype == 'roi':
+            y_str = sess_str_util.fluor_par_str(fluor, str_type='print')
+        elif datatype == 'run':
+            y_str = 'Running velocity (cm/s)'
+        else:
+            gen_util.accepted_values_error('datatype', datatype, ['roi', 'run'])
+    else:
+        y_str = y_ax
+
+    y_str = u'{}{}{}'.format(y_str, area_str, scale_str)
+
+    return x_str, y_str
+
+
+#############################################
 def add_axislabels(sub_ax, fluor='dff', area=False, scale=False, datatype='roi', 
                    x_ax=None, y_ax=None, first_col=True, last_row=True):
     """
     add_axislabels(sub_ax)
 
     Adds the appropriate labels to the subplot x and y axes. 
+    (See get_axislabel())
     
-    If y_ax is None, y axis is assumed to be fluorescence, and label is 
-    inferred from fluor and dff parameters. If x_ax is None, x axis is assumed
-    to be time in seconds.
-
     Required args:
         - sub_ax (plt Axis subplot): subplot
 
@@ -317,34 +389,101 @@ def add_axislabels(sub_ax, fluor='dff', area=False, scale=False, datatype='roi',
                             default: True
     """
 
-    area_str = ''
-    if area:
-        area_str = ' area'
-
-    scale_str = ''
-    if scale:
-        scale_str = ' (scaled)'
-
-    if x_ax is None:
-        x_str = 'Time (s)'
-    else:
-        x_str = x_ax
+    x_str, y_str = get_axislabels(fluor, area, scale, datatype, x_ax, y_ax)
 
     if not(last_row) or sub_ax.is_last_row():
         sub_ax.set_xlabel(x_str)
 
-    if y_ax is None:
-        if datatype == 'roi':
-            y_str = sess_str_util.fluor_par_str(fluor, str_type='print')
-        elif datatype == 'run':
-            y_str = 'Running velocity (cm/s)'
-        else:
-            gen_util.accepted_values_error('datatype', datatype, ['roi', 'run'])
-    else:
-        y_str = y_ax
-    
     if not(first_col) or sub_ax.is_first_col():
-        sub_ax.set_ylabel(u'{}{}{}'.format(y_str, area_str, scale_str))
+        sub_ax.set_ylabel(y_str)
+
+
+#############################################
+def add_linpla_axislabels(ax, fluor='dff', area=False, scale=False, 
+                          datatype='roi', x_ax=None, y_ax=None, 
+                          single_lab=False, kind='reg'):
+    """
+    add_linpla_axislabels(ax)
+
+    Adds the appropriate labels to the figure axes. 
+    (See get_axislabel())
+
+    Required args:
+        - ax (plt Axis): ax
+
+    Optional args:
+        - fluor (str)      : if y_ax is None, whether 'raw' or processed 
+                             fluorescence traces 'dff' are plotted. 
+                             default: 'dff'
+        - area (bool)      : if True, 'area' is added after the y_ax label
+                             default: False
+        - scale (bool)     : if True, '(scaled)' is added after the y_ax label
+                             default: False
+        - datatype (str)   : type of data, either 'run' or 'roi'
+                             default: 'roi'
+        - x_ax (str)       : label to use for x axis.
+                             default: None
+        - y_ax (str)       : label to use for y axis.
+                             default: None
+        - single_lab (bool): if True, y label only added to top, left graph 
+                             and x label only added to bottom, middle, and
+                             tick labels only added to bottom left
+                             default: True
+        - kind (str)       : kind of plot 
+                             'reg' for single plot per layer/line, 
+                             'traces' for traces plot per session (rows), or 
+                             'prog' for progression plot per session (cols)
+    """
+
+    # get axis labels if not already provided
+    x_str, y_str = get_axislabels(fluor, area, scale, datatype, x_ax, y_ax)
+
+    fig = ax.reshape(-1)[0].figure
+    n_rows, n_cols = ax.shape
+    if n_rows % 2 != 0 or n_cols % 2 != 0:
+        raise ValueError('Expected even number of rows and columns.')
+    row_per_grp = int(n_rows/2)
+    col_per_grp = int(n_cols/2)
+    
+    # add x label
+    if single_lab:    
+        if kind == 'reg':
+            fig_ypos = 0.02
+        elif kind == 'traces':
+            fig_ypos = -0.01
+        else:
+            fig_ypos = 0
+        fig.text(0.5, fig_ypos, x_str, fontsize='xx-large', 
+            horizontalalignment='center', weight='bold')
+    else:
+        for sub_ax in ax.reshape(-1):
+            if sub_ax.is_last_row():
+                if kind == 'prog':
+                    sub_ax.text(0.5, -0.1, x_str, fontsize='xx-large', 
+                        horizontalalignment='center', weight='bold')
+                else:
+                    sub_ax.set_xlabel(x_str, weight='bold')
+
+    # y labels for each plane set (top and bottom)
+    add_y_pos = plot_util.get_axis_rel_pos(ax, row_per_grp, dim='y')
+    y_lab_xpos = -0.07
+    if single_lab:
+        y_lab_xpos = 0.025
+        add_y_pos = add_y_pos[:1] # top only
+    if kind == 'prog': # shift x labels left
+        y_lab_xpos = y_lab_xpos - np.absolute(y_lab_xpos)/2
+    for y_pos in add_y_pos:
+        fig.text(y_lab_xpos, y_pos, y_str, rotation=90, fontsize='xx-large', 
+            verticalalignment='center', weight='bold')
+
+    # remove tick labels for all but last row and first column
+    label_cols = [0]
+    if kind == 'prog':
+        label_cols = [0, col_per_grp]
+    if single_lab:
+        for sub_ax in ax.reshape(-1):
+            if not (sub_ax.is_last_row() and sub_ax.colNum in label_cols):
+                sub_ax.tick_params(labelbottom=False, labelleft=False)
 
 
 #############################################
@@ -382,8 +521,8 @@ def get_fr_lab(plot_vals='both', op='diff', start_fr=-1):
         else:
             gen_util.accepted_values_error('op', op, ['diff', 'ratio'])
     else:
-        gen_util.accepted_values_error('plot_vals', plot_vals, 
-                                       ['both', 'reg', 'surp'])
+        gen_util.accepted_values_error(
+            'plot_vals', plot_vals, ['both', 'reg', 'surp'])
 
     if start_fr != -1:
         labels = list(np.roll(labels, -(start_fr+1)))
@@ -515,7 +654,8 @@ def plot_labels(ax, gabfr=0, plot_vals='both', op='none', pre=0, post=1.5,
 
 
 #############################################
-def plot_gabfr_pattern(sub_ax, x_ran, alpha=0.1, offset=0, bars_omit=[]):
+def plot_gabfr_pattern(sub_ax, x_ran, alpha=0.1, offset=0, bars_omit=[], 
+                       shade_col='k'):
     """
     plot_gabfr_pattern(sub_ax, x_ran)
 
@@ -536,6 +676,8 @@ def plot_gabfr_pattern(sub_ax, x_ran, alpha=0.1, offset=0, bars_omit=[]):
         - bars_omit (list): positions at which to omit bars (e.g., in case they 
                             would be redundant)
                             default: []
+        - shade_col (str) : D/E shading colour (none, if 'none')
+                            default: 'k'
     """
 
     offset_s = np.round(0.3 * offset, 10) # avoid periodic values
@@ -546,13 +688,38 @@ def plot_gabfr_pattern(sub_ax, x_ran, alpha=0.1, offset=0, bars_omit=[]):
         offset=-offset_s - 0.6) # surprise start
     bars = gen_util.remove_if(bars, bars_omit)
     plot_util.add_bars(sub_ax, bars=bars)
-    plot_util.add_vshade(sub_ax, shade_st, width=0.3, alpha=0.1)
+
+    if shade_col not in ['None', 'none']:
+        plot_util.add_vshade(
+            sub_ax, shade_st, width=0.3, alpha=alpha, col=shade_col)
+
+
+#############################################
+def update_plt_linpla():
+    """
+    update_plt_linpla()
+
+    Updates rcParams for plane x line olots.
+    """
+
+    plt.rcParams.update({
+        'lines.linewidth'      : 5.0, 
+        'patch.linewidth'      : 5.0, 
+        'axes.linewidth'       : 4.0, 
+        'xtick.major.width'    : 4.0, 
+        'ytick.major.width'    : 4.0, 
+        'lines.markeredgewidth': 4.0, 
+        'legend.fontsize'      : 'large'
+        })
+        
+    return
 
 
 #############################################
 def format_linpla_subaxes(ax, fluor='dff', area=False, datatype='roi', 
-                          lines=None, planes=None, xlab=None, 
-                          xticks=None, sess_ns=None, y_ax=None):
+                          lines=None, planes=None, xlab=None, xticks=None, 
+                          sess_ns=None, ylab=None, adj_yticks=False, 
+                          kind='reg'):
     """
     format_linpla_subaxes(ax)
 
@@ -571,75 +738,136 @@ def format_linpla_subaxes(ax, fluor='dff', area=False, datatype='roi',
         - ax (plt Axis): plt axis
 
     Optional args:
-        - fluor (str)   : if y_ax is None, whether 'raw' or processed 
-                            fluorescence traces 'dff' are plotted. 
-                            default: 'dff'
-        - area (bool)   : if True, 'area' is added after the y_ax label
-                            default: False
-        - datatype (str): type of data, either 'run' or 'roi'
-                            default: 'roi'
-        - lines (list)  : ordered lines (2)
-                            default: None
-        - planes (list) : ordered planes (2)
-                            default: None
-        - xlab (str)    : x label
-                          default: None
-        - xticks (list) : x tick labels (if None, none are added)
-                          default: None
-        - sess_ns (list): list of session numbers (inferred if None)
-                          default: None 
-        - y_ax (str)    : y axis label (overrides automatic one)
-                          default: None
+        - fluor (str)      : if ylab is None, whether 'raw' or processed 
+                             fluorescence traces 'dff' are plotted. 
+                             default: 'dff'
+        - area (bool)      : if True, 'area' is added after the ylab label
+                             default: False
+        - datatype (str)   : type of data, either 'run' or 'roi'
+                             default: 'roi'
+        - lines (list)     : ordered lines (2)
+                             default: None
+        - planes (list)    : ordered planes (2)
+                             default: None
+        - xlab (str)       : x label
+                             default: None
+        - xticks (list)    : x tick labels (if None, none are added)
+                             default: None
+        - sess_ns (list)   : list of session numbers (inferred if None)
+                             default: None 
+        - ylab (str)       : y axis label (overrides automatic one)
+                             default: None
+        - adj_yticks (bool): if True, y ticks are adjusted so that up to 4 
+                             labelled ticks appear, including 0
+        - kind (str)       : kind of plot 
+                             'reg' for single plot per layer/line, 
+                             'traces' for traces plot per session (rows), or 
+                             'prog' for progression plot per session (cols)
     """
 
-    if ax.shape[1] != 2:
-        raise ValueError('Expected 2 columns.')
-    
-    n_rows = ax.shape[0]
-    if n_rows%2 != 0:
-        raise ValueError('Expected even number of rows')
-    rs_mid = [n_rows//4, n_rows - n_rows//4 - 1]
+    # only label axes and ticks for one plot
+    single_lab = True
 
-    if sess_ns is not None: # extra rows are seconds
-        xlab = 'Time (s)'
+    # get information based on kind of graph
+    n_rows, n_cols = ax.shape
+    row_per_grp, col_per_grp = 1, 1
+    pad_p = 0
+    if kind == 'reg':
+        fig_xpos = 0.9 # for plane names (x pos)
+        if xticks is not None:
+            pad_p = 1.0/(len(xticks))
+        if n_rows != 2 or n_cols != 2:
+            raise ValueError('Regular plots should have 2 rows and 2 columns.')
+    elif kind == 'traces':
+        fig_xpos = 1.0 # for plane names (x pos)            
+        if n_rows % 2 != 0:
+            raise ValueError('Expected even number of rows')
+        row_per_grp = int(n_rows/2)
+    elif kind == 'prog':
+        fig_xpos = 1.0 # for plane names (x pos)            
+        if n_cols % 2 != 0:
+            raise ValueError('Expected even number of columns')
+        col_per_grp = int(n_cols/2)
+    else:
+        gen_util.accepted_values_error('kind', kind, ['reg', 'traces', 'prog'])        
 
+    # get x axis label and tick information
+    if kind == 'traces':
+        xlab = 'Time (s)' if xlab is None else xlab
+    else:
+        xlab = 'Sessions' if xlab is None else xlab
+
+    # get and check lines and planes
     if lines is None:
         lines = ['L2/3', 'L5']
     if planes is None:
         planes = ['dendrites', 'soma']
-    
     for l, name in zip([lines, planes], ['lines', 'planes']):
         if len(l) != 2:
             raise ValueError(f'2 {name} expected.')
 
+    plane_pos = plot_util.get_axis_rel_pos(ax, row_per_grp, dim='y')
+    line_pos = plot_util.get_axis_rel_pos(ax, col_per_grp, dim='x')
+    
+    fig = ax[0, 0].figure
+    # adds plane labels (vertical)
+    for plane, pos in zip(planes, plane_pos):
+        fig.text(fig_xpos, pos, plane, rotation=90, fontsize='xx-large', 
+            verticalalignment='center', weight='bold')
+
+    # adds line names (horizontal)
+    for c, (line, pos) in enumerate(zip(lines, line_pos)):
+        if kind != 'prog':
+            ax[0, c].set_title(f'{line} Pyr', weight='bold') 
+        else:
+            # get ypos based on plane positions
+            ypos = np.max(plane_pos) + np.absolute(np.diff(plane_pos)) * 0.75
+            fig.text(pos, ypos, f'{line} Pyr', fontsize='xx-large', 
+                horizontalalignment='center', weight='bold')
+
+    if adj_yticks:
+        plot_util.set_interm_ticks(ax, 4, dim='y', weight='bold')
 
     for r in range(ax.shape[0]):
         for c in range(ax.shape[1]):
+            sub_ax = ax[r, c]
+            # set x ticks
             if xticks is not None:
-                ax[r, c].set_xticks(xticks)
-            if c == 0 and r in rs_mid: # LEFT MID plane
-                add_axislabels(ax[r, c], fluor=fluor, area=area, 
-                                datatype=datatype, x_ax='', y_ax=y_ax)
-            if c != 0: # RIGHT
-                right_lab = ''
-                if sess_ns is not None:
-                    sess_n = sess_ns[r%len(sess_ns)]
-                    right_lab = f'{sess_n}\n'
-                    if sess_n == sess_ns[-1]:
-                        right_lab = f'sess {right_lab}'
-                if r in rs_mid: # RIGHT MID plane
-                    r_idx = rs_mid.index(r)
-                    right_lab = f'{right_lab}{planes[r_idx]}\n'
-                ax[r, c].set_ylabel(right_lab[:-1])
-                ax[r, c].yaxis.set_label_position('right')
-            if r == 0: # TOP
-                ax[r, c].set_title(f'{lines[c]} neurons')            
-            if r != n_rows-1: # NOT BOTTOM
-                ax[r, c].tick_params(axis='x', which='both', bottom=False) 
-                ax[r, c].spines['bottom'].set_visible(False)
-            elif xlab is not None: # BOTTOM
-                ax[r, c].set_xlabel(xlab)
-                
+                plot_util.set_ticks(sub_ax, min_tick=min(xticks), 
+                    max_tick=max(xticks), n=len(xticks), pad_p=pad_p)
+                sub_ax.set_xticklabels(xticks, weight='bold')
+
+            # add session numbers
+            if kind in ['traces', 'prog'] and sess_ns is not None :
+                if kind == 'traces' and c == 1 and r < len(sess_ns): # RIGHT
+                    sess_lab = f'sess {sess_ns[r]}'
+                    sub_ax.text(0.65, 0.7, sess_lab, fontsize='xx-large', 
+                        transform=sub_ax.transAxes, style='italic')
+                elif (kind == 'prog' and sub_ax.is_last_row() and 
+                    c < len(sess_ns)): # BOTTOM
+                    sub_ax.text(0.5, -0.5, sess_ns[c], fontsize='xx-large', # retry -0.45?
+                        transform=sub_ax.transAxes, weight='bold')
+            
+            # remove x ticks and spines from graphs
+            if not sub_ax.is_last_row(): # NOT BOTTOM
+                sub_ax.tick_params(axis='x', which='both', bottom=False) 
+                sub_ax.spines['bottom'].set_visible(False)
+
+            # remove y ticks and spines from graphs
+            if kind == 'prog' and not sub_ax.colNum in [0, col_per_grp]:
+                sub_ax.tick_params(axis='y', which='both', left=False) 
+                sub_ax.spines['left'].set_visible(False)
+
+            # set y tick labels for traces (rounded and bold)
+            if (kind in ['traces', 'prog'] and sub_ax.is_first_col() and 
+                (sub_ax.is_last_row() or not(single_lab))):
+                ytick_labs = [np.around(v, 10) for v in sub_ax.get_yticks()]
+                sub_ax.set_yticklabels(ytick_labs, weight='bold')
+
+    # add axis labels
+    add_linpla_axislabels(ax, fluor=fluor, area=area, datatype=datatype, 
+        x_ax=xlab, y_ax=ylab, single_lab=single_lab, kind=kind)
+
 
 #############################################
 def plot_ROIs(sub_ax, masks, valid_mask=None, border=None, savename=None):
@@ -680,19 +908,20 @@ def plot_ROIs(sub_ax, masks, valid_mask=None, border=None, savename=None):
     cm = mplcol.LinearSegmentedColormap.from_list(
         'roi_mask_cm', color_list, N=len(color_list))
     
-    masks = masks.astype(bool).astype(int)
+    masks = masks.astype(bool).astype('int8')
     masks[~valid_mask.astype(bool)] *= 2
     masks_plot_proj = np.max(masks, axis=0)
     
     if border is not None:
         hei, wid = masks_plot_proj.shape
         right, left, down, up = [
-            np.ceil(border[i]).astype(int) for i in [0, 1, 2, 3]]
+            np.ceil(border[i]).astype('int8') for i in [0, 1, 2, 3]]
 
         # create dash patterns
         dash_len = 3
-        hei_dash, wid_dash = [np.concatenate([np.arange(i, v, 
-            dash_len * 2) for i in range(dash_len)]) for v in [hei, wid]]
+        hei_dash, wid_dash = [np.concatenate(
+            [np.arange(i, v, dash_len * 2) for i in range(dash_len)]) 
+            for v in [hei, wid]]
 
         masks_plot_proj[hei_dash, right] = 2
         masks_plot_proj[hei_dash, wid-left] = 2
@@ -750,7 +979,7 @@ def plot_ROI_contours(sub_ax, masks, outlier=None, tight=False,
 
     if len(masks.shape) == 2:
         masks = np.expand_dims(masks, 0)
-    masks = np.ceil(masks).astype(int)
+    masks = np.ceil(masks).astype('int8')
     _, h_orig, w_orig = masks.shape
 
     if outlier is None and restrict:
@@ -768,7 +997,7 @@ def plot_ROI_contours(sub_ax, masks, outlier=None, tight=False,
             r_val = 0
         dim_mins = [val.min() for val in dim_vals]
         dim_maxs = [val.max() for val in dim_vals]
-        borders    = [int(np.ceil(border_p*(dmax - dmin))) 
+        borders = [int(np.ceil(border_p*(dmax - dmin))) 
             for dmin, dmax in zip(dim_mins, dim_maxs)]
         h_min, w_min = [np.max([0, val - bord - r_val]) 
             for val, bord in zip(dim_mins, borders)]
@@ -797,7 +1026,7 @@ def plot_ROI_contours(sub_ax, masks, outlier=None, tight=False,
             if val != comp:
                 shifts[i] = r_val
         contour_mask = contour_mask[
-            :, shifts[0]:comps[1]-shifts[1], shifts[2]:comps[3]-shifts[3]]
+            :, shifts[0]:comps[1] - shifts[1], shifts[2]:comps[3] - shifts[3]]
     
     mult_mask = np.ones([len(contour_mask), 1, 1])
     if outlier is not None:

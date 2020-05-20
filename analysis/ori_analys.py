@@ -43,7 +43,7 @@ def collapse_dir(oris):
     oris_nodir = np.copy(oris)
     if (np.absolute(oris) > 180).any():
         raise ValueError('Only orientations between -180 and 180 are '
-                         'accepted.')
+            'accepted.')
 
     ori_ch = np.where(np.absolute(oris) > 90)
     new_vals = oris[ori_ch] - np.sign(oris[ori_ch]) * 180.0
@@ -78,7 +78,8 @@ def estim_vm(x_cuml, data_sort, tc_oris, hist_n=1000):
         - hist_pars (list)  : parameters to create histograms from (sub, mult) 
     """
 
-    av_roi_data = np.bincount(x_cuml, data_sort)/np.bincount(x_cuml).astype(float)
+    av_roi_data = np.bincount(
+        x_cuml, data_sort)/np.bincount(x_cuml).astype(float)
     sub = np.min(av_roi_data)
     mult = hist_n/np.sum(av_roi_data - sub)
     counts = np.around((av_roi_data - sub) * mult).astype(int)
@@ -136,8 +137,7 @@ def estim_vm_by_roi(oris, roi_data, hist_n=1000, parallel=False):
     if parallel:
         n_jobs = gen_util.get_n_jobs(len(roi_data_sort))
         returns = Parallel(n_jobs=n_jobs)(delayed(estim_vm)
-                          (x_cuml, data_sort, tc_oris, hist_n) 
-                          for data_sort in roi_data_sort)       
+            (x_cuml, data_sort, tc_oris, hist_n) for data_sort in roi_data_sort)       
     else:
         returns = []
         for data_sort in roi_data_sort:
@@ -221,23 +221,21 @@ def tune_curv_estims(gab_oris, roi_data, ngabs_tot, nrois='all', ngabs='all',
 
     if parallel and ngabs > nrois:
         n_jobs = gen_util.get_n_jobs(ngabs)
-        returns = Parallel(n_jobs=n_jobs)(delayed(estim_vm_by_roi)(
-                                                  gab_oris[g], roi_data, 
-                                                  hist_n, False) 
-                                                  for g in range(ngabs))       
+        returns = Parallel(n_jobs=n_jobs)(delayed(estim_vm_by_roi)
+            (gab_oris[g], roi_data, hist_n, False) for g in range(ngabs))       
     else:
         returns = []
         for g in range(ngabs):
-            returns.append(estim_vm_by_roi(gab_oris[g], roi_data, hist_n, 
-                                           parallel))
+            returns.append(estim_vm_by_roi(
+                gab_oris[g], roi_data, hist_n, parallel))
     
     returns = list(zip(*returns))
     gab_tc_oris = [list(ret) for ret in returns[0]]
     gab_tc_data = [list(ret) for ret in zip(*returns[1])] # move ROIs to first
-    gab_vm_pars = np.transpose(np.asarray([list(ret) for ret in returns[2]]), 
-                               [1, 0, 2])
-    gab_hist_pars = np.transpose(np.asarray([list(ret) for ret in returns[3]]), 
-                                 [1, 0, 2])
+    gab_vm_pars = np.transpose(
+        np.asarray([list(ret) for ret in returns[2]]), [1, 0, 2])
+    gab_hist_pars = np.transpose(
+        np.asarray([list(ret) for ret in returns[3]]), [1, 0, 2])
     means = gab_vm_pars[:, :, 1] 
     kaps  = gab_vm_pars[:, :, 0]
 
@@ -245,8 +243,8 @@ def tune_curv_estims(gab_oris, roi_data, ngabs_tot, nrois='all', ngabs='all',
     gab_vm_mean[:, 0] = st.circmean(means, np.pi/2., -np.pi/2, axis=1)
     if not comb_gabs:
         # astropy only implemented with -pi to pi range
-        gab_vm_mean[:, 1] = astrost.circmean(means * 2., axis=1, 
-                                                weights=kaps)/2.
+        gab_vm_mean[:, 1] = astrost.circmean(
+            means * 2., axis=1, weights=kaps)/2.
     
     return gab_tc_oris, gab_tc_data, gab_vm_pars, gab_vm_mean, gab_hist_pars
 
@@ -372,9 +370,9 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois='all', ngabs='all',
 
         if prev: # PREVIOUS ESTIMATION METHOD
             [gab_tc_oris, gab_tc_data, gab_vm_pars, 
-            gab_vm_mean, gab_hist_pars] = tune_curv_estims(
-                gab_oris, roi_data, ngabs_tot, sess_nrois, sess_ngabs, 
-                comb_gabs, collapse=False, parallel=parallel)
+                gab_vm_mean, gab_hist_pars] = tune_curv_estims(
+                    gab_oris, roi_data, ngabs_tot, sess_nrois, sess_ngabs, 
+                    comb_gabs, collapse=False, parallel=parallel)
             tc_oris[i] = gab_tc_oris
             tc_data[i] = gab_tc_data
             tc_vm_pars.append(gab_vm_pars)

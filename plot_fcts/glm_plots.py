@@ -46,8 +46,8 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, datetime=True):
 
     print(f'\nPlotting from dictionary: {dict_path}')
     
-    figpar = sess_plot_util.init_figpar(plt_bkend=plt_bkend, fontdir=fontdir, 
-        datetime=datetime)
+    figpar = sess_plot_util.init_figpar(
+        plt_bkend=plt_bkend, fontdir=fontdir, datetime=datetime)
     plot_util.manage_mpl(cmap=False, **figpar['mng'])
 
     info = file_util.loadfile(dict_path)
@@ -121,17 +121,17 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
                           subfolder is added.)
         - savename (str): name under which the figure is saved
     """
-    stimstr_pr = sess_str_util.stim_par_str(stimpar['stimtype'], 
-                               stimpar['bri_dir'], stimpar['bri_size'], 
-                               stimpar['gabk'], 'print')
-    dendstr_pr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
-                                            'roi', 'print')
+    stimstr_pr = sess_str_util.stim_par_str(
+        stimpar['stimtype'], stimpar['bri_dir'], stimpar['bri_size'], 
+        stimpar['gabk'], 'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], 'roi', 'print')
 
-    sessstr = sess_str_util.sess_par_str(sesspar['sess_n'], stimpar['stimtype'], 
-                                         sesspar['plane'], stimpar['bri_dir'],
-                                         stimpar['bri_size'], stimpar['gabk']) 
-    dendstr = sess_str_util.dend_par_str(analyspar['dend'], sesspar['plane'], 
-                                         'roi')
+    sessstr = sess_str_util.sess_par_str(
+        sesspar['sess_n'], stimpar['stimtype'], sesspar['plane'], 
+        stimpar['bri_dir'],stimpar['bri_size'], stimpar['gabk']) 
+    dendstr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], 'roi')
 
     # extract some info from sess_info
     keys = ['mouse_ns', 'sess_ns', 'lines', 'planes']
@@ -207,8 +207,8 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
                 if key in xyzc_dims:
                     # get mean/med
                     dims_all.append(np.asarray(expl_var[var_type][key])[rs, 0])
-                math_util.print_stats(expl_var[var_type][key][all_rs], 
-                                      stat_str=key)
+                math_util.print_stats(
+                    expl_var[var_type][key][all_rs], stat_str=key)
 
             if not plot_bools[-1]:
                 continue
@@ -235,7 +235,9 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
         i += 1
 
     if savedir is None:
-        savedir = os.path.join(figpar['dirs']['roi'],figpar['dirs']['glm'])
+        savedir = os.path.join(
+            figpar['dirs']['roi'],
+            figpar['dirs']['glm'])
 
     savename = (f'roi_glm_ev_{sessstr}{dendstr}')
 
