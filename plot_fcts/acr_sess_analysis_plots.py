@@ -1028,21 +1028,24 @@ def plot_single_prog(sub_ax, prog_st, col='k', label=None, alpha_line=0.8):
 
     Required args:
         - sub_ax (plt Axis subplot): subplot
-        - prog_st (4D array)       : progression statistics, structured as
+        - prog_st (2D array)       : progression statistics, structured as
                                          seqs x stats
 
     Optional args:
         - col  (str)      : colour for data
                             default: 'k'
-        - alpha_line (num): plt alpha variable controlling line transparency                          transparency (from 0 to 1)
+        - alpha_line (num): plt alpha variable controlling line transparency
                             default: 0.5
         - label (str)     : label for legend
                             default: None
 
+    Returns:
+        - n (int): number of sequences plotted
+
     """
 
     prog_st = np.asarray(prog_st)
-    xran = np.arange(prog_st.shape[0])
+    xran = np.arange(1, prog_st.shape[0] + 1)
 
     # ensures that if no data is plotted in these subplots, there is at 
     # least a vertically finite horizontal object to prevent indefinite 
@@ -1054,6 +1057,11 @@ def plot_single_prog(sub_ax, prog_st, col='k', label=None, alpha_line=0.8):
         
     plot_util.plot_traces(sub_ax, xran, prog_st[:, 0], prog_st[:, 1:], 
         alpha_line=alpha_line, col=col, label=label)
+
+    # sets x ticks based on full dataset
+    n = len(prog_st)
+    
+    return n
 
 
 #############################################
@@ -1415,7 +1423,7 @@ def plot_lock_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
 
 #############################################
 def plot_prog_per_mouse(ax, mouse_st, sess_info, sess_ns=None, col=None, 
-                        use_lab=True):
+                        use_lab=True, prev_n=0):
     """
     plot_prog_per_mouse(ax, mouse_st, sess_info)
 
@@ -1424,7 +1432,7 @@ def plot_prog_per_mouse(ax, mouse_st, sess_info, sess_ns=None, col=None,
     Required args:
         - ax (1D array of subplots): array of subplots
         - mouse_st (3D array)      : statistics across ROIs or seqs, 
-                                     structured as mouse x session x stats
+                                     structured as mouse x session x seq x stats
         - sess_info (list)         : list of dictionaries for each mouse 
                                      containing information from each session, 
                                      with None for missing sessions
@@ -1443,9 +1451,13 @@ def plot_prog_per_mouse(ax, mouse_st, sess_info, sess_ns=None, col=None,
                                 default: None
         - use_lab (bool)      : if True, label with mouse numbers is added
                                 default: True
+    
+    Returns:
+        - n (int): number of sequences plotted
     """
 
     mouse_st = np.asarray(mouse_st)
+    n = mouse_st.shape[2]
 
     if sess_ns is None:
         sess_ns = np.asarray(range(len(mouse_st[0])))
@@ -1454,7 +1466,7 @@ def plot_prog_per_mouse(ax, mouse_st, sess_info, sess_ns=None, col=None,
 
     labs = [None for _ in sess_ns]
     labs_used = [False for _ in sess_ns]
-    for i, s in enumerate(sess_ns):
+    for i in range(len(sess_ns)):
         mouse_ns = []
         for m, m_info in enumerate(sess_info):
             if np.isfinite(np.asarray(mouse_st[m][i])).any():
@@ -1462,15 +1474,19 @@ def plot_prog_per_mouse(ax, mouse_st, sess_info, sess_ns=None, col=None,
         labs[i] = 'M{}'.format(', '.join(mouse_ns))
 
     for m, m_info in enumerate(sess_info):
-        for i, s in enumerate(sess_ns):
+        for i in range(len(sess_ns)):
+            stats = np.asarray(mouse_st[m][i])
+            if not np.isfinite(np.asarray(mouse_st[m][i])).any():
+                continue
             lab = None
             if not labs_used[i]:
                 lab = labs[i]
                 labs_used[i] = True
-            stats = np.asarray(mouse_st[m][i])
-            if np.isfinite(np.asarray(mouse_st[m][i])).any():
-                plot_single_prog(
-                    ax[i], stats, col=col, label=lab, alpha_line=0.6)
+            # plot
+            _ = plot_single_prog(
+                ax[i], stats, col=col, label=lab, alpha_line=0.6)
+
+    return n
 
 
 #############################################
@@ -1596,6 +1612,7 @@ def plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
 
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
     
+    max_n = 0
     for i, (line, pla) in enumerate(linpla_iter):
         li = lines.index(line)
         pl = planes.index(pla)
@@ -1605,26 +1622,41 @@ def plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
             continue
 
         if plot == 'sep':
-            plot_prog_per_mouse(
+            n = plot_prog_per_mouse(
                 ax[pl, li * n_sess:(li + 1) * n_sess], 
                 prog_info[key_str][l_idx], sess_info[l_idx], sess_ns, 
                 pla_cols[pl], use_lab=True)
+            max_n = np.max([n, max_n]) # max number of sequences
         else:
             for s in range(n_sess):
                 sub_ax = ax[pl, s + li * n_sess]
                 # lab = (pl == 0 and s == 0)
-                plot_single_prog(
+                n = plot_single_prog(
                     sub_ax, prog_info[key_str][l_idx][s], pla_cols[pl])
+                max_n = np.max([n, max_n]) # max number of sequences
 
     if plot == 'sep':
         sub_ax = ax.reshape(-1)[-1]
 
-    # Add plane, line info to plots
-    xticks = [int(v) for v in sub_ax.get_xticks()]
+    # choose axis ticks and limits to fit all progs
+    if max_n == 0:
+        xticks = None
+    elif max_n < 5:
+        xticks = range(max_n + 2)
+    else:
+        base_itv = 5
+        max_nticks = 6
+        interv = base_itv * np.ceil(((max_n + 1)//base_itv)/(max_nticks - 1))
+        xticks = range(
+            0, int(np.ceil((max_n + 1)/interv) * interv + 1), int(interv))
 
+    # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar['fluor'], 
         area=False, datatype=datatype, lines=lines, planes=planes, 
         sess_ns=sess_ns, xticks=xticks, kind='prog')
+
+    # reset x_lims
+    sub_ax.set_xlim([0, max_n + 1])
 
     fig.suptitle(title, y=1.25, weight='bold')
 

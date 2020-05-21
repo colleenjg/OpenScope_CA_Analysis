@@ -82,14 +82,17 @@ def plot_from_dicts(direc, source='roi', plt_bkend=None, fontdir=None,
     else:
         dict_paths = [direc]
 
+    if len(dict_paths) > 1:
+        print(f'Plotting from {len(dict_paths)} dictionaries.')
+
     sub_parallel = parallel * (len(dict_paths) == 1)
 
     args_dict = {
         'plt_bkend': plt_bkend, 
         'fontdir'  : fontdir,
         'plot_tc'  : plot_tc,
+        'parallel' : sub_parallel,
         'datetime' : datetime,
-        'parallel' : sub_parallel
         }
 
     sources = ['roi', 'run', 'gen', 'modif', 'pup', 'logreg', 'glm', 'acr_sess']
