@@ -2032,6 +2032,7 @@ def plot_posori_resp(analyspar, sesspar, stimpar, extrapar, sess_info,
     oris = [u'{} {}'.format(ori, deg) for ori in posori_data['oris']]
     plot_util.add_labels(sub_ax, oris, center_pos, t_hei=-0.18, col='k')
 
+    # always set ticks (even again) before setting labels
     sub_ax.set_xticks(tick_pos)
     sub_ax.set_xticklabels(all_labs)
 

@@ -177,23 +177,34 @@ def plot_data_signif(ax, sess_ns, sig_comps, lin_p_vals, maxes,
     else:
         p_val_thr_corr = p_val_thr/n_comps
 
-    all_max = np.nanmax(np.asarray(maxes))
-    if not np.isnan(all_max):
-        ylims = ax[0, 0].get_ylim()
-        ax[0, 0].set_ylim([ylims[0], np.max([ylims[1], all_max * 1.20])])
+    shared = False
+    if len(plot_util.get_shared_axes(ax, axis='y')) == 1:
+        shared = True
 
-    ylims = ax[0, 0].get_ylim()
-    prop = (ylims[1] - ylims[0])/10.0 # star position above data
+    if shared:
+        all_max = np.nanmax(np.asarray(maxes))
+        if not np.isnan(all_max):
+            ylims = ax[0, 0].get_ylim()
+            ax[0, 0].set_ylim([ylims[0], np.max([ylims[1], all_max * 1.20])])
+        prop = np.diff(ax[0, 0].get_ylim())[0]/10.0 # star position above data
 
     n_sess = len(sess_ns)
     n = 0
     # comparison number: first session start pts
     st_s1 = [sum(list(reversed(range(n_sess)))[:v]) for v in range(n_sess-1)] 
-    highest = 0 
+    highest = [0] * ax.size
     for i, (line, pla) in enumerate(linpla_iter):
         li = lines.index(line)
         pl = planes.index(pla)
         sub_ax = ax[pl, li]
+        flat_idx = np.where(ax.reshape(-1) == sub_ax)[0][0]
+        if not shared:
+            ylims = sub_ax.get_ylim()
+            if np.isfinite(ylims).all():
+                sub_ax.set_ylim(
+                    [ylims[0], np.nanmax([ylims[1], np.nanmax(maxes[i]) * 1.20])])
+                # star position above data
+                prop = np.diff(sub_ax.get_ylim())[0]/10.0
         if not(sig_comps[i] is None or len(sig_comps[i]) == 0):
             n = 0
             for p in sig_comps[i]:
@@ -202,19 +213,25 @@ def plot_data_signif(ax, sess_ns, sig_comps, lin_p_vals, maxes,
                 s1 = np.where(np.asarray(st_s1) <= p)[0][-1] 
                 s2 = s1 + p - st_s1[s1] + 1
                 y_pos = np.nanmax([maxes[i]]) + n * prop
-                highest = np.max([highest, y_pos])
+                highest[flat_idx] = np.max([highest[flat_idx], y_pos])
                 plot_util.plot_barplot_signif(
                     sub_ax, [sess_ns[s1], sess_ns[s2]], [y_pos], rel_y=0.03, 
                     col=pla_cols[pl], lw=3, star_rel_y=0.09)
 
     # adjust for number of significance lines plotted
-    ylims = ax[0, 0].get_ylim()
-    if not np.isnan(highest):
-        ax[0, 0].set_ylim(ylims[0], np.max([ylims[1], highest * 1.1]))
+    for high_val, sub_ax in zip(highest, ax.reshape(-1)):
+        if not np.isnan(high_val):
+            ylims = sub_ax.get_ylim()
+            if not np.isfinite(ylims).all():
+                continue
+            sub_ax.set_ylim(ylims[0], np.max([ylims[1], high_val * 1.1]))
 
-    ylims = ax[0, 0].get_ylim()
-    pos = ylims[0] + (ylims[1] - ylims[0])/10.0 # star position (btw plots)
-    
+    yposes = []
+    for c in range(ax.shape[-1]):
+        ylims = ax[1, c].get_ylim()
+        ypos = ylims[1] + (ylims[1] - ylims[0])/10.0 # star position (btw plots)
+        yposes.append(ypos)
+
     for i, (line, pla) in enumerate(linpla_iter):
         li = lines.index(line)
         pl = planes.index(pla)
@@ -225,8 +242,8 @@ def plot_data_signif(ax, sess_ns, sig_comps, lin_p_vals, maxes,
             for s, p in enumerate(lin_p_vals[li]):
                 if not np.isnan(p) and p < p_val_thr_corr:
                     # between subplots
-                    plot_util.add_signif_mark(sub_ax, sess_ns[s], pos, 
-                        rel_y=1, col='k', fig_coord=True)
+                    plot_util.add_signif_mark(sub_ax, sess_ns[s], yposes[li], 
+                        rel_y=0, col='k', fig_coord=True)
 
 
 #############################################
@@ -636,7 +653,8 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
         f'{dimstr}{grp_str_pr} (sess {sess_ns_str}{dendstr_pr})')
 
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
-    
+    fig.suptitle(title, y=1.03, weight='bold')
+
     for i, (d, [line, pla]) in enumerate(linpla_iter):
         li = lines.index(line)
         pl = planes.index(pla)
@@ -663,7 +681,6 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
     if plot == 'grped':
         plot_data_signif(ax, sess_ns, sig_comps, diff_info['lin_p_vals'], 
             maxes, p_val_thr=0.05, n_comps=diff_info['max_comps_per'])
-    fig.suptitle(title, y=1.03, weight='bold')
 
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar['fluor'], 
@@ -969,16 +986,16 @@ def plot_traces(sub_ax, xran, trace_st, lock=False, col='k', lab=True,
 
 
     # horizontal and vertical 0 line
-    if not sub_ax.is_last_row():
+    all_rows = True
+    if not sub_ax.is_last_row() or all_rows:
         alpha = 0.5
     else:
         # ensures that if no data is plotted in these subplots, there is at 
         # least a vertically finite horizontal object to prevent indefinite 
-        # axis expansion. (Occurs when, for one axis, there are only indefinite
-        # objects, e.g. shading or h/vline.) 
+        # axis limit expansion bug.
         alpha = 0
-    sub_ax.axhline(y=0, ls='dashed', c='k', lw=3.0, alpha=alpha, zorder=-13)
-    sub_ax.axvline(x=0, ls='dashed', c='k', lw=3.0, alpha=0.5, zorder=-13)
+    sub_ax.axhline(y=0, ls= (0, (4, 2)), c='k', lw=3.0, alpha=alpha, zorder=-13)
+    sub_ax.axvline(x=0, ls= (0, (3, 2)), c='k', lw=3.0, alpha=0.5, zorder=-13)
         
 
     xticks = None
@@ -1171,7 +1188,8 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
         f'{statstr_pr} across {dim_str} (sess {sess_ns_str}{dendstr_pr})')
 
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
-    
+    fig.suptitle(title, y=1.1, weight='bold')
+
     xran = trace_info['xran']
     for i, (line, pla) in enumerate(linpla_iter):
         li = lines.index(line)
@@ -1191,23 +1209,25 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
 
     # Add plane, line info to plots
     if stimpar['stimtype'] == 'gabors':
-        step = 0.3
-        max_tick = np.max(xran)//step * step
+        step = 0.15
+        max_tick = int(np.ceil(np.max(xran)/step)) * step
         if lock:
             min_tick = - max_tick
         else:
             min_tick = np.min(xran)//step * step
-        n_ticks = np.max([int((max_tick - min_tick)/step) % 5, 5]) + 1
-        xticks = [np.around(v, 1) 
-            for v in np.linspace(min_tick, max_tick, n_ticks)]
+        n_ticks = np.min([int((max_tick - min_tick)/step) % 5, 5]) + 1
+        xticks = np.linspace(min_tick, max_tick, n_ticks)
     else:
-        xticks = [np.around(v, 1) for v in sub_ax.get_xticks()]
+        xticks = sub_ax.get_xticks()
+    
+    if len(xticks) > 1:
+        diff = np.min(np.diff(xticks))
+        n_dig = - np.floor(np.log10(np.absolute(diff))).astype(int) + 1
+        xticks = [np.around(v, n_dig) for v in xticks]
 
     sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar['fluor'], 
         area=False, datatype=datatype, lines=lines, planes=planes, 
         sess_ns=sess_ns, xticks=xticks, kind='traces')
-
-    fig.suptitle(title, y=1.1, weight='bold')
 
     return fig
    
@@ -1611,7 +1631,8 @@ def plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
         f'{statstr_pr}{dim_str}{grp_str_pr} (sess {sess_ns_str}{dendstr_pr})')
 
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
-    
+    fig.suptitle(title, y=1.2, weight='bold')
+
     max_n = 0
     for i, (line, pla) in enumerate(linpla_iter):
         li = lines.index(line)
@@ -1657,8 +1678,6 @@ def plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
 
     # reset x_lims
     sub_ax.set_xlim([0, max_n + 1])
-
-    fig.suptitle(title, y=1.25, weight='bold')
 
     return fig
 
@@ -1981,7 +2000,7 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
     sig_comps = [[] for _ in range(len(linpla_iter))]
     maxes = np.full([len(linpla_iter), n_sess], np.nan)
 
-    figpar = sess_plot_util.fig_init_linpla(figpar)
+    figpar = sess_plot_util.fig_init_linpla(figpar, sharey=True)
     
     if figpar['save']['use_dt'] is None:
         figpar['save']['use_dt'] = gen_util.create_time_str()
@@ -1994,6 +2013,7 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
 
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
     fig.suptitle(title, y=1.03, weight='bold')
+
     for i, (line, pla) in enumerate(linpla_iter):
         li = lines.index(line)
         pl = planes.index(pla)
@@ -2148,6 +2168,7 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
 
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
     fig.suptitle(title, y=1.03, weight='bold')
+
     for i, (line, pla) in enumerate(linpla_iter):
         li = lines.index(line)
         pl = planes.index(pla)

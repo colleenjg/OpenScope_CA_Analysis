@@ -718,6 +718,7 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
         figs.append(fig)
         axs.append(ax)
         sub_ax = ax[0, 0]
+        # always set ticks (even again) before setting labels
         sub_ax.set_xticks(cent)
         sub_ax.set_xticklabels(labels)
         title_scale = u'{}{}'.format(title, scalestr_pr)

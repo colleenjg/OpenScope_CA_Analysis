@@ -30,7 +30,8 @@ from plot_fcts import logreg_plots, glm_plots
 
 #############################################
 def plot_from_dicts(direc, source='roi', plt_bkend=None, fontdir=None, 
-                    plot_tc=True, parallel=False, datetime=True):
+                    plot_tc=True, parallel=False, datetime=True, pattern='lat', 
+                    depth=7):
     """
     plot_from_dicts(direc)
 
@@ -39,7 +40,7 @@ def plot_from_dicts(direc, source='roi', plt_bkend=None, fontdir=None,
 
     Required args:
         - direc (str): path to directory in which dictionaries to plot data 
-                       from are located
+                       from are located or path to a single json file
     
     Optional_args:
         - source (str)   : plotting source ('roi', 'run', 'gen', 'pup', 
@@ -56,6 +57,12 @@ def plot_from_dicts(direc, source='roi', plt_bkend=None, fontdir=None,
         - datetime (bool): figpar['save'] datatime parameter (whether to 
                            place figures in a datetime folder)
                            default: True
+        - pattern (str)  : pattern based on which to include json files in 
+                           direc if direc is a directory
+                           default: ''
+        - depth (int)    : maximum depth at which to check for json files if 
+                           direc is a directory
+                           default: 0
     """
     
     file_util.checkexists(direc)
@@ -67,19 +74,22 @@ def plot_from_dicts(direc, source='roi', plt_bkend=None, fontdir=None,
                 glob.glob(os.path.join(direc, '*', fn))
             dict_paths = [os.path.dirname(dp) for dp in all_paths]
         else:
-            depth = 6 # depth to check for jsons
             dict_paths = []
             for d in range(depth + 1):
                 dict_paths.extend(
                     glob.glob(os.path.join(direc, *(['*'] * d), '*.json')))
             
-            # pattern to filter dictionaries
-            pattern = ''
             dict_paths = list(filter(lambda x : pattern in x, dict_paths))
 
         if len(dict_paths) == 0:
             raise ValueError(f'No jsons found in directory: {direc}.')
+    elif '.json' not in direc:
+        raise ValueError('If providing a file, must be a json file.')
     else:
+        if source == 'logreg' and not direc.endswith('hyperparameters.json'):
+            raise ValueError('For logreg source, must provide path to '
+                'a hyperparameters json file.')
+
         dict_paths = [direc]
 
     if len(dict_paths) > 1:

@@ -372,7 +372,7 @@ def init_res_fig(n_subplots, max_sess=None, modif=False):
 
     if modif:
         sess_plot_util.update_plt_linpla()
-        figpar_init = sess_plot_util.fig_init_linpla()['init']
+        figpar_init = sess_plot_util.fig_init_linpla(sharey=True)['init']
         fig, ax = plot_util.init_fig(n_subplots, **figpar_init)
     else:
         fig, ax = plot_util.init_fig(n_subplots, 2, sharey=True, 
@@ -805,7 +805,11 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
         ax[0, 0].set_ylabel('')
         sess_plot_util.format_linpla_subaxes(ax, ylab=ylab, xlab='Sessions', 
             xticks=np.arange(1, n_sess_keep + 1))
-        ax[1, 0].set_yticklabels([int(v) for v in ax[0, 0].get_yticks()], 
+
+        yticks = ax[0, 0].get_yticks()
+        # always set ticks (even again) before setting labels
+        ax[1, 0].set_yticks(yticks)
+        ax[1, 0].set_yticklabels([int(v) for v in yticks], 
             fontdict={'weight': 'bold'})
 
     fig.savefig(savename)

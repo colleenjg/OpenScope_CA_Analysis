@@ -158,115 +158,6 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
 
 
 #############################################
-def fig_init_linpla(figpar=None, traces=False, prog=False):
-    """
-    fig_init_linpla()
-
-    Returns figpar dictionary with initialization parameters modified for
-    graphs across sessions divided by line/plane combinations.
-
-    Optional args:
-        - figpar (dict)       : dictionary containing figure parameters 
-                                (initialized if None):
-            ['init'] : dictionary containing the following inputs as
-                       attributes:
-                           ncols, sharex, sharey, subplot_hei, subplot_wid
-                                default: None
-        - traces (bool or int): if not False, provides number of traces per 
-                                line/plane combination to use in dividing 
-                                subplot height
-                                default: False
-        - prog (bool or int)  : if not False, provides number of progressions 
-                                per line/plane combination to use in 
-                                determining subplot width
-                                default: False
-
-    Returns:
-        - figpar (dict): dictionary containing figure parameters:
-            ['init'] : dictionary containing the following inputs modified:
-                           ncols, sharex, sharey, subplot_hei, subplot_wid
-    """
-
-    figpar = copy.deepcopy(figpar)
-
-    if figpar is None:
-        figpar = init_figpar()
-
-    if 'init' not in figpar.keys():
-        raise ValueError('figpar should have `init` subdictionary.')
-
-    if traces and prog:
-        raise ValueError('Both `traces` and `prog` cannot be True.')
-
-    if traces:
-        ncols = 2
-        wid = 3
-        hei = np.max([wid/traces * 1.15, 1.0])
-    elif prog:
-        ncols = 2 * prog
-        wid = np.max([9.0/prog, 3.0])
-        hei = 2.0
-    else:
-        ncols = 2
-        wid = 2.5
-        hei = 4.3
-        figpar['init']['gs'] = {'hspace': 0.15, 'wspace': 0.2}
-
-    figpar['init']['ncols'] = ncols
-    figpar['init']['subplot_hei'] = hei
-    figpar['init']['subplot_wid'] = wid
-    figpar['init']['sharex'] = True
-    figpar['init']['sharey'] = True
-
-    return figpar
-
-
-#############################################
-def fig_linpla_pars(n_sess=False, n_grps=None):
-    """
-    fig_linpla_pars()
-
-    Returns parameters for a line/plane combination graph.
-
-    Optional args:
-        - n_sess (bool or int): if not False, provides number of sessions 
-                                plotted separately per line/plane combination 
-                                and used in multiplying number of plots
-                                default: False
-        - n_grps (int or None): if not None, the number of groups in the data 
-                                is verified against the expected number of 
-                                groups
-                                default: None
-
-    Returns:
-        - lines (list)      : ordered list of lines
-        - planes (list)     : ordered list of planes
-        - linpla_iter (list): ordered list of lines and planes, structured as 
-                              grp x [lin, pla]
-        - pla_cols (list)   : colors for each plane
-        - pla_cols (list)   : color names for each plane
-        - n_plots (int)     : total number of plots
-    """
-
-    lines, planes = ['L2/3', 'L5'], ['dendrites', 'soma']
-    linpla_iter = [[lin, pla] for lin in lines for pla in planes]
-    pla_col_names = ['green', 'blue']
-    pla_cols = [plot_util.get_color(c, ret='single') for c in pla_col_names]
-    
-    if n_sess:
-        mult = n_sess
-    else:
-        mult = 1
-    n_plots = len(lines) * len(planes) * mult
-
-    if n_grps is not None and n_grps > n_plots/mult:
-        raise ValueError(f'Expected up to {n_plots} line x plane '
-            f'combinations, not {n_grps}.')
-
-    return lines, planes, linpla_iter, pla_cols, pla_col_names, n_plots
-
-
-#############################################
 def get_quint_cols(n_quints=4):
     """
     get_quint_cols()
@@ -396,94 +287,6 @@ def add_axislabels(sub_ax, fluor='dff', area=False, scale=False, datatype='roi',
 
     if not(first_col) or sub_ax.is_first_col():
         sub_ax.set_ylabel(y_str)
-
-
-#############################################
-def add_linpla_axislabels(ax, fluor='dff', area=False, scale=False, 
-                          datatype='roi', x_ax=None, y_ax=None, 
-                          single_lab=False, kind='reg'):
-    """
-    add_linpla_axislabels(ax)
-
-    Adds the appropriate labels to the figure axes. 
-    (See get_axislabel())
-
-    Required args:
-        - ax (plt Axis): ax
-
-    Optional args:
-        - fluor (str)      : if y_ax is None, whether 'raw' or processed 
-                             fluorescence traces 'dff' are plotted. 
-                             default: 'dff'
-        - area (bool)      : if True, 'area' is added after the y_ax label
-                             default: False
-        - scale (bool)     : if True, '(scaled)' is added after the y_ax label
-                             default: False
-        - datatype (str)   : type of data, either 'run' or 'roi'
-                             default: 'roi'
-        - x_ax (str)       : label to use for x axis.
-                             default: None
-        - y_ax (str)       : label to use for y axis.
-                             default: None
-        - single_lab (bool): if True, y label only added to top, left graph 
-                             and x label only added to bottom, middle, and
-                             tick labels only added to bottom left
-                             default: True
-        - kind (str)       : kind of plot 
-                             'reg' for single plot per layer/line, 
-                             'traces' for traces plot per session (rows), or 
-                             'prog' for progression plot per session (cols)
-    """
-
-    # get axis labels if not already provided
-    x_str, y_str = get_axislabels(fluor, area, scale, datatype, x_ax, y_ax)
-
-    fig = ax.reshape(-1)[0].figure
-    n_rows, n_cols = ax.shape
-    if n_rows % 2 != 0 or n_cols % 2 != 0:
-        raise ValueError('Expected even number of rows and columns.')
-    row_per_grp = int(n_rows/2)
-    col_per_grp = int(n_cols/2)
-    
-    # add x label
-    if single_lab:    
-        if kind == 'reg':
-            fig_ypos = 0.02
-        elif kind == 'traces':
-            fig_ypos = -0.01
-        else:
-            fig_ypos = 0
-        fig.text(0.5, fig_ypos, x_str, fontsize='xx-large', 
-            horizontalalignment='center', weight='bold')
-    else:
-        for sub_ax in ax.reshape(-1):
-            if sub_ax.is_last_row():
-                if kind == 'prog':
-                    sub_ax.text(0.5, -0.1, x_str, fontsize='xx-large', 
-                        horizontalalignment='center', weight='bold')
-                else:
-                    sub_ax.set_xlabel(x_str, weight='bold')
-
-    # y labels for each plane set (top and bottom)
-    add_y_pos = plot_util.get_axis_rel_pos(ax, row_per_grp, dim='y')
-    y_lab_xpos = -0.07
-    if single_lab:
-        y_lab_xpos = 0.025
-        add_y_pos = add_y_pos[:1] # top only
-    if kind == 'prog': # shift x labels left
-        y_lab_xpos = y_lab_xpos - np.absolute(y_lab_xpos)/2
-    for y_pos in add_y_pos:
-        fig.text(y_lab_xpos, y_pos, y_str, rotation=90, fontsize='xx-large', 
-            verticalalignment='center', weight='bold')
-
-    # remove tick labels for all but last row and first column
-    label_cols = [0]
-    if kind == 'prog':
-        label_cols = [0, col_per_grp]
-    if single_lab:
-        for sub_ax in ax.reshape(-1):
-            if not (sub_ax.is_last_row() and sub_ax.colNum in label_cols):
-                sub_ax.tick_params(labelbottom=False, labelleft=False)
 
 
 #############################################
@@ -716,10 +519,430 @@ def update_plt_linpla():
 
 
 #############################################
+def fig_init_linpla(figpar=None, traces=False, prog=False, sharey=False):
+    """
+    fig_init_linpla()
+
+    Returns figpar dictionary with initialization parameters modified for
+    graphs across sessions divided by line/plane combinations.
+
+    Optional args:
+        - figpar (dict)       : dictionary containing figure parameters 
+                                (initialized if None):
+            ['init'] : dictionary containing the following inputs as
+                       attributes:
+                           ncols, sharex, sharey, subplot_hei, subplot_wid
+                                default: None
+        - traces (bool or int): if not False, provides number of traces per 
+                                line/plane combination to use in dividing 
+                                subplot height
+                                default: False
+        - prog (bool or int)  : if not False, provides number of progressions 
+                                per line/plane combination to use in 
+                                determining subplot width
+                                default: False
+        - sharey (bool)       : y-axis sharing parameter
+                                default: False
+
+    Returns:
+        - figpar (dict): dictionary containing figure parameters:
+            ['init'] : dictionary containing the following inputs modified:
+                           ncols, sharex, sharey, subplot_hei, subplot_wid
+    """
+
+    figpar = copy.deepcopy(figpar)
+
+    if figpar is None:
+        figpar = init_figpar()
+
+    if 'init' not in figpar.keys():
+        raise ValueError('figpar should have `init` subdictionary.')
+
+    if traces and prog:
+        raise ValueError('Both `traces` and `prog` cannot be True.')
+
+    if sharey in [False, 'rows']:
+        wspace = 0.5
+    else:
+        wspace = 0.2
+
+    ncols = 2
+    if traces:
+        wid = 3.3
+        hei = np.max([wid/traces * 1.15, 1.0])
+    elif prog:
+        ncols *= prog
+        wid = np.max([9.0/prog, 3.0])
+        hei = 2.0
+    else:
+        wid = 2.5
+        hei = 4.3
+        figpar['init']['gs'] = {'hspace': 0.15, 'wspace': wspace}
+
+    figpar['init']['ncols'] = ncols
+    figpar['init']['subplot_hei'] = hei
+    figpar['init']['subplot_wid'] = wid
+    figpar['init']['sharex'] = True
+    figpar['init']['sharey'] = sharey
+
+    return figpar
+
+
+#############################################
+def fig_linpla_pars(n_sess=False, n_grps=None):
+    """
+    fig_linpla_pars()
+
+    Returns parameters for a line/plane combination graph.
+
+    Optional args:
+        - n_sess (bool or int): if not False, provides number of sessions 
+                                plotted separately per line/plane combination 
+                                and used in multiplying number of plots
+                                default: False
+        - n_grps (int or None): if not None, the number of groups in the data 
+                                is verified against the expected number of 
+                                groups
+                                default: None
+
+    Returns:
+        - lines (list)      : ordered list of lines
+        - planes (list)     : ordered list of planes
+        - linpla_iter (list): ordered list of lines and planes, structured as 
+                              grp x [lin, pla]
+        - pla_cols (list)   : colors for each plane
+        - pla_cols (list)   : color names for each plane
+        - n_plots (int)     : total number of plots
+    """
+
+    lines, planes = ['L2/3', 'L5'], ['dendrites', 'soma']
+    linpla_iter = [[lin, pla] for lin in lines for pla in planes]
+    pla_col_names = ['green', 'blue']
+    pla_cols = [plot_util.get_color(c, ret='single') for c in pla_col_names]
+    
+    if n_sess:
+        mult = n_sess
+    else:
+        mult = 1
+    n_plots = len(lines) * len(planes) * mult
+
+    if n_grps is not None and n_grps > n_plots/mult:
+        raise ValueError(f'Expected up to {n_plots} line x plane '
+            f'combinations, not {n_grps}.')
+
+    return lines, planes, linpla_iter, pla_cols, pla_col_names, n_plots
+
+
+#############################################
+def adjust_linpla_y_axis_sharing(ax, kind='reg'):
+    """
+    adjust_linpla_y_axis_sharing(ax)
+
+    If no y axes are shared, sets y-axes belonging to the same plane/line group 
+    to be shared, and updates axis scaling.
+
+    Required args:
+        - ax (plt Axis): ax
+
+    Optional args:
+        - kind (str)       : kind of plot 
+                             'reg' for single plot per layer/line, 
+                             'traces' for traces plot per session (rows), or 
+                             'prog' for progression plot per session (cols)
+    """
+
+    # check whether any y axes are shared
+    set_sharey = (len(plot_util.get_shared_axes(ax, axis='y')) == 0)
+
+    if kind == 'reg' or not set_sharey:
+        return
+
+    n_rows, n_cols = ax.shape
+    to_share = []
+    if kind == 'traces':
+        if n_rows % 2 != 0:
+            raise ValueError('Expected even number of rows')
+        row_per_grp = int(n_rows/2)
+        if row_per_grp > 1:
+            to_share = [[ax[i * row_per_grp + r, c] 
+                for r in range(row_per_grp)] 
+                for i in range(2) for c in range(2)]
+    elif kind == 'prog':
+        if n_cols % 2 != 0:
+            raise ValueError('Expected even number of columns')
+        col_per_grp = int(n_cols/2)
+        if col_per_grp > 1:
+            to_share = [[ax[r, i * col_per_grp + c] 
+                for c in range(col_per_grp)] 
+                for i in range(2) for r in range(2)]
+    else:
+        gen_util.accepted_values_error('kind', kind, ['reg', 'traces', 'prog'])
+
+    for axis_set in to_share:
+        axis_set[0].get_shared_y_axes().join(*axis_set)
+        if kind == 'traces':
+            remove_labs = axis_set[:-1]
+        elif kind == 'prog':
+            remove_labs = axis_set[1:]
+        for subax in remove_labs:
+            subax.tick_params(axis='y', labelleft=False)
+
+    for sub_ax in ax.reshape(-1):
+       sub_ax.autoscale()
+
+    return
+
+
+#############################################
+def get_yticklabel_info(ax, kind='reg'):
+    """
+    get_yticklabel_info(ax)
+
+    Returns information on how to label y axes.
+
+    Required args:
+        - ax (plt Axis): ax
+
+    Optional args:
+        - kind (str)       : kind of plot 
+                             'reg' for single plot per layer/line, 
+                             'traces' for traces plot per session (rows), or 
+                             'prog' for progression plot per session (cols)
+
+    Returns:
+        - add_yticks (list) : list of subplots that should have ytick labels
+        - move_ylabel (bool): if True, y axis label should be shifted over
+    """
+
+    # establish which subplots should have y tick labels
+    axgrps = plot_util.get_shared_axes(ax, axis='y')
+    if len(axgrps) == 4: # sharing by group
+        add_idx = -1
+        move_ylabel = (np.min([len(grp) for grp in axgrps]) == 1)
+        if kind == 'prog':
+            add_idx = 0
+            move_ylabel = True
+        add_yticks = [axg[add_idx] for axg in axgrps]
+
+    elif len(axgrps) == 0: # no sharing
+        add_yticks = ax.reshape(-1)
+        move_ylabel = True
+    elif len(axgrps) == 1: # all sharing
+        add_yticks = ax[-1, 0:]
+        move_ylabel = False
+    elif len(axgrps) == ax.shape[0]: # sharing by row
+        add_yticks = ax[:, 0].reshape(-1)
+        move_ylabel = True
+    else:
+        raise NotImplementedError(f'Condition for {len(axgrps)} subplots in '
+            'shared axis groups not implemented.')
+
+    return add_yticks, move_ylabel
+
+
+#############################################
+def add_linpla_axislabels(ax, fluor='dff', area=False, scale=False, 
+                          datatype='roi', x_ax=None, y_ax=None, 
+                          single_lab=False, kind='reg'):
+    """
+    add_linpla_axislabels(ax)
+
+    Adds the appropriate axis labels to the figure axes. 
+    (See get_axislabel() for label content)
+
+    Required args:
+        - ax (plt Axis): ax
+
+    Optional args:
+        - fluor (str)      : if y_ax is None, whether 'raw' or processed 
+                             fluorescence traces 'dff' are plotted. 
+                             default: 'dff'
+        - area (bool)      : if True, 'area' is added after the y_ax label
+                             default: False
+        - scale (bool)     : if True, '(scaled)' is added after the y_ax label
+                             default: False
+        - datatype (str)   : type of data, either 'run' or 'roi'
+                             default: 'roi'
+        - x_ax (str)       : label to use for x axis.
+                             default: None
+        - y_ax (str)       : label to use for y axis.
+                             default: None
+        - single_lab (bool): if True, y label only added to top, left of each 
+                             subplot group sharing y axis, and x label only 
+                             added to bottom, middle, and tick labels only 
+                             added to bottom left
+                             default: False
+        - kind (str)       : kind of plot 
+                             'reg' for single plot per layer/line, 
+                             'traces' for traces plot per session (rows), or 
+                             'prog' for progression plot per session (cols)
+    """
+
+    add_yticks, move_ylabel = get_yticklabel_info(ax, kind=kind)
+
+    # get axis labels if not already provided
+    x_str, y_str = get_axislabels(fluor, area, scale, datatype, x_ax, y_ax)
+
+    fig = ax.reshape(-1)[0].figure
+    n_rows, n_cols = ax.shape
+    if n_rows % 2 != 0 or n_cols % 2 != 0:
+        raise ValueError('Expected even number of rows and columns.')
+    row_per_grp = int(n_rows/2)
+    col_per_grp = int(n_cols/2)
+    
+    # add x label
+    if single_lab:    
+        if kind == 'reg':
+            fig_ypos = 0.02
+        elif kind == 'traces':
+            fig_ypos = -0.01
+        else:
+            fig_ypos = 0
+        fig.text(0.5, fig_ypos, x_str, fontsize='xx-large', 
+            horizontalalignment='center', weight='bold')
+    else:
+        for sub_ax in ax.reshape(-1):
+            if sub_ax.is_last_row():
+                if kind == 'prog':
+                    if x_str == 'Sessions':
+                        x_str = 'Session'
+                    x_pos = fig.transFigure.inverted().transform(
+                        sub_ax.transAxes.transform([0.5, 0]))[0]
+                    fig.text(x_pos, -0.05, x_str, fontsize='xx-large', 
+                        horizontalalignment='center', weight='bold')
+                else:
+                    sub_ax.set_xlabel(x_str, weight='bold')
+
+    # y labels for each plane set (top and bottom)
+    add_y_pos = plot_util.get_fig_rel_pos(ax, row_per_grp, dim='y')
+    if single_lab:
+        add_y_pos = add_y_pos[:1] # top only
+
+    # move labels for long y axis labels
+    if len(y_str) > 6 and kind == 'traces' and (ax.size/len(add_yticks) < 5):
+        move_ylabel = True
+
+    y_lab_xpos = 0.02 - 0.09 * (move_ylabel or not(single_lab))
+    if kind == 'traces':
+        y_lab_xpos = 0.03 - 0.05 * (move_ylabel or not(single_lab))
+    elif kind == 'prog':
+        y_lab_xpos = 0.01 - 0.02 * (move_ylabel or not(single_lab))
+
+    for y_pos in add_y_pos:
+        fig.text(y_lab_xpos, y_pos, y_str, rotation=90, fontsize='xx-large', 
+            verticalalignment='center', weight='bold')
+
+    # remove tick labels for all but last row and first column
+    label_cols = [0]
+    if kind == 'prog':
+        label_cols = [0, col_per_grp]
+    if single_lab:
+        for sub_ax in ax.reshape(-1):
+            if not (sub_ax.is_last_row() and sub_ax.colNum in label_cols):
+                sub_ax.tick_params(labelbottom=False)
+            if sub_ax not in add_yticks:
+                sub_ax.tick_params(labelleft=False)
+
+
+#############################################
+def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind='reg', 
+                               single_lab=True):
+    """
+    format_each_linpla_subaxis(ax)
+
+    Formats each subaxis separately, specifically:
+    
+    - Adds session numbers if provided
+    - Removes bottom lines and ticks for top plots
+    - Adds x tick labels to bottom plots
+    - Adds y tick labels to correct plots
+
+    Required args:
+        - ax (plt Axis): plt axis
+
+    Optional args:
+        - xticks (list)    : x tick labels (if None, none are added)
+                             default: None
+        - sess_ns (list)   : list of session numbers (inferred if None)
+                             default: None 
+        - kind (str)       : kind of plot 
+                             'reg' for single plot per layer/line, 
+                             'traces' for traces plot per session (rows), or 
+                             'prog' for progression plot per session (cols)
+                             default: 'reg'
+        - single_lab (bool): if True, only one set of session labels it added 
+                             to the graph
+                             default: True 
+    """
+    # make sure to autoscale subplots after this, otherwise bugs emerge
+    for sub_ax in ax.reshape(-1):
+        sub_ax.autoscale()
+
+    # get information based on kind of graph
+    n_rows, n_cols = ax.shape
+    col_per_grp = 1
+    pad_p = 0
+    if kind == 'reg':
+        if xticks is not None:
+            pad_p = 1.0/(len(xticks))
+        if n_rows != 2 or n_cols != 2:
+            raise ValueError('Regular plots should have 2 rows and 2 columns.')
+    elif kind == 'prog':
+        if n_cols % 2 != 0:
+            raise ValueError('Expected even number of columns')
+        col_per_grp = int(n_cols/2)
+    elif kind != 'traces':
+        gen_util.accepted_values_error('kind', kind, ['reg', 'traces', 'prog'])
+
+    for r in range(n_rows):
+        for c in range(n_cols):
+            sub_ax = ax[r, c]
+            # set x ticks
+            if xticks is not None:
+                plot_util.set_ticks(sub_ax, min_tick=min(xticks), 
+                    max_tick=max(xticks), n=len(xticks), pad_p=pad_p)
+                # always set ticks (even again) before setting labels
+                sub_ax.set_xticklabels(xticks, weight='bold')
+
+            # add session numbers
+            if kind in ['traces', 'prog'] and sess_ns is not None :
+                if kind == 'traces' and c == 1 and r < len(sess_ns): # RIGHT
+                    sess_lab = f'sess {sess_ns[r]}'
+                    sub_ax.text(0.65, 0.75, sess_lab, fontsize='xx-large', 
+                        transform=sub_ax.transAxes, style='italic')
+                elif (kind == 'prog' and sub_ax.is_last_row() and 
+                    (c < len(sess_ns) or not(single_lab))): # BOTTOM
+                    sub_ax.text(0.5, -0.5, sess_ns[c % len(sess_ns)], 
+                        fontsize='xx-large', transform=sub_ax.transAxes, 
+                        weight='bold')
+            
+            # remove x ticks and spines from graphs
+            if not sub_ax.is_last_row(): # NOT BOTTOM
+                sub_ax.tick_params(axis='x', which='both', bottom=False) 
+                sub_ax.spines['bottom'].set_visible(False)
+
+            # remove y ticks and spines from graphs
+            if kind == 'prog' and not sub_ax.colNum in [0, col_per_grp]:
+                sub_ax.tick_params(axis='y', which='both', left=False) 
+                sub_ax.spines['left'].set_visible(False)
+
+            yticks = [np.around(v, 10) for v in sub_ax.get_yticks()]
+            if kind == 'traces' and len(yticks) > 3:
+                max_abs = np.max(np.absolute(yticks))
+                new = [-max_abs, 0, max_abs]
+                yticks = list(filter(lambda x: x == 0 or x in yticks, new))
+                
+            # always set ticks (even again) before setting labels
+            sub_ax.set_yticks(yticks)
+            sub_ax.set_yticklabels(yticks, weight='bold')            
+
+
+
+#############################################
 def format_linpla_subaxes(ax, fluor='dff', area=False, datatype='roi', 
                           lines=None, planes=None, xlab=None, xticks=None, 
                           sess_ns=None, ylab=None, adj_yticks=False, 
-                          kind='reg'):
+                          kind='reg', tight=True):
     """
     format_linpla_subaxes(ax)
 
@@ -727,12 +950,13 @@ def format_linpla_subaxes(ax, fluor='dff', area=False, datatype='roi',
     planes (2 or more rows) x lines (2 columns). 
     
     Specifically:
-    - Removes bottom lines and ticks for top plots
     - Adds line names to top plots
-    - Adds y labels on left plots (midde of top and bottom half)
     - Adds plane information on right plots (midde of top and bottom half)
-    - Adds x labels to bottom plots
-    - Adds session numbers if provided
+
+    Calls:
+        - adjust_linpla_y_axis_sharing()
+        - format_each_linpla_subaxis()
+        - add_linpla_axislabels()
 
     Required args:
         - ax (plt Axis): plt axis
@@ -763,19 +987,26 @@ def format_linpla_subaxes(ax, fluor='dff', area=False, datatype='roi',
                              'reg' for single plot per layer/line, 
                              'traces' for traces plot per session (rows), or 
                              'prog' for progression plot per session (cols)
+                             default: 'reg'
+        - tight (bool)     : tight figure layout
+                             default: True
     """
-
+    
     # only label axes and ticks for one plot
     single_lab = True
+
+    adjust_linpla_y_axis_sharing(ax, kind=kind)
+
+    format_each_linpla_subaxis(ax, xticks=xticks, sess_ns=sess_ns, kind=kind)
+
+    if adj_yticks:
+        plot_util.set_interm_ticks(ax, 4, dim='y', weight='bold', share=False)
 
     # get information based on kind of graph
     n_rows, n_cols = ax.shape
     row_per_grp, col_per_grp = 1, 1
-    pad_p = 0
     if kind == 'reg':
         fig_xpos = 0.9 # for plane names (x pos)
-        if xticks is not None:
-            pad_p = 1.0/(len(xticks))
         if n_rows != 2 or n_cols != 2:
             raise ValueError('Regular plots should have 2 rows and 2 columns.')
     elif kind == 'traces':
@@ -789,7 +1020,7 @@ def format_linpla_subaxes(ax, fluor='dff', area=False, datatype='roi',
             raise ValueError('Expected even number of columns')
         col_per_grp = int(n_cols/2)
     else:
-        gen_util.accepted_values_error('kind', kind, ['reg', 'traces', 'prog'])        
+        gen_util.accepted_values_error('kind', kind, ['reg', 'traces', 'prog'])
 
     # get x axis label and tick information
     if kind == 'traces':
@@ -806,63 +1037,29 @@ def format_linpla_subaxes(ax, fluor='dff', area=False, datatype='roi',
         if len(l) != 2:
             raise ValueError(f'2 {name} expected.')
 
-    plane_pos = plot_util.get_axis_rel_pos(ax, row_per_grp, dim='y')
-    line_pos = plot_util.get_axis_rel_pos(ax, col_per_grp, dim='x')
-    
     fig = ax[0, 0].figure
+
+    if tight:
+        # Calling tight layout here to ensure that labels are properly 
+        # positioned with respect to final layout
+        fig.tight_layout()
+
     # adds plane labels (vertical)
+    plane_pos = plot_util.get_fig_rel_pos(ax, row_per_grp, dim='y')
     for plane, pos in zip(planes, plane_pos):
         fig.text(fig_xpos, pos, plane, rotation=90, fontsize='xx-large', 
             verticalalignment='center', weight='bold')
 
     # adds line names (horizontal)
+    line_pos = plot_util.get_fig_rel_pos(ax, col_per_grp, dim='x')
     for c, (line, pos) in enumerate(zip(lines, line_pos)):
         if kind != 'prog':
             ax[0, c].set_title(f'{line} Pyr', weight='bold') 
         else:
             # get ypos based on plane positions
-            ypos = np.max(plane_pos) + np.absolute(np.diff(plane_pos)) * 0.75
+            ypos = np.max(plane_pos) + np.absolute(np.diff(plane_pos)) * 0.5
             fig.text(pos, ypos, f'{line} Pyr', fontsize='xx-large', 
                 horizontalalignment='center', weight='bold')
-
-    if adj_yticks:
-        plot_util.set_interm_ticks(ax, 4, dim='y', weight='bold')
-
-    for r in range(ax.shape[0]):
-        for c in range(ax.shape[1]):
-            sub_ax = ax[r, c]
-            # set x ticks
-            if xticks is not None:
-                plot_util.set_ticks(sub_ax, min_tick=min(xticks), 
-                    max_tick=max(xticks), n=len(xticks), pad_p=pad_p)
-                sub_ax.set_xticklabels(xticks, weight='bold')
-
-            # add session numbers
-            if kind in ['traces', 'prog'] and sess_ns is not None :
-                if kind == 'traces' and c == 1 and r < len(sess_ns): # RIGHT
-                    sess_lab = f'sess {sess_ns[r]}'
-                    sub_ax.text(0.65, 0.7, sess_lab, fontsize='xx-large', 
-                        transform=sub_ax.transAxes, style='italic')
-                elif (kind == 'prog' and sub_ax.is_last_row() and 
-                    c < len(sess_ns)): # BOTTOM
-                    sub_ax.text(0.5, -0.5, sess_ns[c], fontsize='xx-large', # retry -0.45?
-                        transform=sub_ax.transAxes, weight='bold')
-            
-            # remove x ticks and spines from graphs
-            if not sub_ax.is_last_row(): # NOT BOTTOM
-                sub_ax.tick_params(axis='x', which='both', bottom=False) 
-                sub_ax.spines['bottom'].set_visible(False)
-
-            # remove y ticks and spines from graphs
-            if kind == 'prog' and not sub_ax.colNum in [0, col_per_grp]:
-                sub_ax.tick_params(axis='y', which='both', left=False) 
-                sub_ax.spines['left'].set_visible(False)
-
-            # set y tick labels for traces (rounded and bold)
-            if (kind in ['traces', 'prog'] and sub_ax.is_first_col() and 
-                (sub_ax.is_last_row() or not(single_lab))):
-                ytick_labs = [np.around(v, 10) for v in sub_ax.get_yticks()]
-                sub_ax.set_yticklabels(ytick_labs, weight='bold')
 
     # add axis labels
     add_linpla_axislabels(ax, fluor=fluor, area=area, datatype=datatype, 
