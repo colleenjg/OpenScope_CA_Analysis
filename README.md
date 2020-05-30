@@ -8,7 +8,7 @@ The code itself can be obtained by cloning the [AIBS\_Analysis Github repo](http
 
 However, to run the code, you should install [Anaconda](https://www.anaconda.com/) or [Miniconda](https://conda.io/miniconda.html), as well as [pip](https://pip.pypa.io/en/stable/).
 
-Once these are installed, you can simply use the appropriate .yml 
+Once these are installed, you can simply use the appropriate `.yml` 
 file to create a conda environment. For example, if using Ubuntu or Mac OS, open a terminal, go to the repo directory, and enter:
 
 `conda env create -f aibs3.yml`
@@ -22,7 +22,7 @@ Once installed, you simply activate the environment:
 
 `source activate aibs3`
 
-All of the appropriate libraries should then be loaded, and the modules can be imported for use in ipython, python scripts, or jupyter notebooks.
+All of the appropriate libraries should then be loaded, and the modules can be imported for use in ipython, python scripts, or jupyter notebooks, for example.
 
 **Scripts and modules**:
 
