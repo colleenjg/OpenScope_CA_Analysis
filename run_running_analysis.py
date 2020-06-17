@@ -155,6 +155,7 @@ def init_param_cont(args):
             pre (num)              : range of frames to include before each 
                                      reference frame (in s)
             runtype (str or list)  : runtype ('pilot' or 'prod')
+            scale (bool)           : whether to scale running data
             sess_n (int)           : session number
             stats (str)            : statistic parameter ('mean' or 'median')
             stimtype (str)         : stimulus to analyse ('bricks' or 'gabors')
@@ -219,7 +220,7 @@ def init_param_cont(args):
 
     # analysis parameters
     analysis_dict['analyspar'] = sess_ntuple_util.init_analyspar(
-        'n/a', not(args.keepnans), args.stats, args.error)
+        'n/a', not(args.keepnans), args.stats, args.error, args.scale)
 
     # session parameters
     analysis_dict['sesspar'] = sess_ntuple_util.init_sesspar(
@@ -424,7 +425,10 @@ if __name__ == "__main__":
             'interpolated.'))
     parser.add_argument('--stats', default='mean', help='plot mean or median')
     parser.add_argument('--error', default='sem', 
-        help='sem for SEM/MAD, std for std/qu')    
+        help='sem for SEM/MAD, std for std/qu')
+    parser.add_argument('--scale', action='store_true', 
+        help='whether to scale running data')    
+
         # session parameters
     parser.add_argument('--line', default='any', help='L23, L5')
     parser.add_argument('--closest', action='store_true', 

@@ -30,8 +30,8 @@ from plot_fcts import logreg_plots, glm_plots
 
 #############################################
 def plot_from_dicts(direc, source='roi', plt_bkend=None, fontdir=None, 
-                    plot_tc=True, parallel=False, datetime=True, pattern='lat', 
-                    depth=7):
+                    plot_tc=True, parallel=False, datetime=True, pattern='', 
+                    depth=0):
     """
     plot_from_dicts(direc)
 
@@ -82,7 +82,9 @@ def plot_from_dicts(direc, source='roi', plt_bkend=None, fontdir=None,
             dict_paths = list(filter(lambda x : pattern in x, dict_paths))
 
         if len(dict_paths) == 0:
-            raise ValueError(f'No jsons found in directory: {direc}.')
+            raise ValueError(f'No jsons found in {direc} at '
+                f'depth {depth} with pattern `{pattern}`.')
+    
     elif '.json' not in direc:
         raise ValueError('If providing a file, must be a json file.')
     else:

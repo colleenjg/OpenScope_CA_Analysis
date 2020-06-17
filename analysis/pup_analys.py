@@ -94,7 +94,7 @@ def get_ran_s(ran_s=None, datatype='both'):
 #############################################
 def peristim_data(sess, stimpar, ran_s=None, datatype='both',
                   returns='diff', fluor='dff', stats='mean', 
-                  remnans=True, first_surp=True, trans_all=False):
+                  remnans=True, scale=False, first_surp=True, trans_all=False):
     """
     peristim_data(sess)
 
@@ -142,6 +142,8 @@ def peristim_data(sess, stimpar, ran_s=None, datatype='both',
                                      statistics for the ROI and running data 
                                      (always ignored for pupil data)
                                      default: True
+        - scale (bool)             : if True, data is scaled
+                                     default: False
         - first_surp (bool)        : if True, only the first of consecutive 
                                      surprises are retained
                                      default: True
@@ -188,7 +190,7 @@ def peristim_data(sess, stimpar, ran_s=None, datatype='both',
     # get data dataframes
     pup_data = gen_util.reshape_df_data(stim.get_pup_diam_data(
         surp_pupfr, ran_s['pup_pre'], ran_s['pup_post'], 
-        remnans=remnans)['pup_diam'], squeeze_cols=True)
+        remnans=remnans, scale=scale)['pup_diam'], squeeze_cols=True)
 
     datasets = [pup_data]
     datanames = ['pup']
@@ -196,14 +198,14 @@ def peristim_data(sess, stimpar, ran_s=None, datatype='both',
         # ROI x trial x fr
         roi_data = gen_util.reshape_df_data(stim.get_roi_data(
             surp_twopfr, ran_s['roi_pre'], ran_s['roi_post'], fluor=fluor, 
-            integ=False, remnans=remnans, transients=trans_all)['roi_traces'], 
-            squeeze_cols=True) 
+            integ=False, remnans=remnans, scale=scale, 
+            transients=trans_all)['roi_traces'], squeeze_cols=True) 
         datasets.append(roi_data.transpose([1, 2, 0])) # ROIs last
         datanames.append('roi')
     if datatype in ['run', 'both']:
         run_data = gen_util.reshape_df_data(stim.get_run_data(
-            surp_stimfr, ran_s['run_pre'], ran_s['run_post'], remnans=remnans), 
-            squeeze_cols=True)
+            surp_stimfr, ran_s['run_pre'], ran_s['run_post'], remnans=remnans, 
+            scale=scale), squeeze_cols=True)
         datasets.append(run_data)
         datanames.append('run')
 
@@ -284,7 +286,8 @@ def run_pupil_diff_corr(sessions, analysis, analyspar, sesspar,
     
     for sess in sessions:
         diffs = peristim_data(
-            sess, stimpar, datatype=datatype, returns='diff', first_surp=True)
+            sess, stimpar, datatype=datatype, returns='diff', 
+            scale=analyspar.scale, first_surp=True)
         [pup_diff, data_diff] = diffs 
         # trials (x ROIs)
         if datatype == 'roi':
@@ -389,7 +392,8 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
         for sub_stimpar in stimpars:
             diffs = peristim_data(
                 sess, sub_stimpar, datatype='roi', returns='diff', 
-                first_surp=True, remnans=analyspar.remnans)
+                first_surp=True, remnans=analyspar.remnans, 
+                scale=analyspar.scale)
             [pup_diff, roi_diff] = diffs 
             nrois = roi_diff.shape[-1]
             if parallel:

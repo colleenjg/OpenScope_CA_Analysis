@@ -253,7 +253,7 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
                         byroi=byroi, fluor=analyspar.fluor, 
                         remnans=analyspar.remnans, 
                         stats=analyspar.stats, error=analyspar.error,
-                        integ=integ, ret_arr=ret_arr, #stand=True,
+                        integ=integ, ret_arr=ret_arr, scale=analyspar.scale,
                         baseline=baseline)
                 elif datatype == 'run':
                     stim_fr = stim.get_stim_fr_by_seg(
@@ -261,7 +261,7 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
                     trace_df = stim.get_run_stats_df(stim_fr, pre, post, 
                         remnans=analyspar.remnans,
                         stats=analyspar.stats, error=analyspar.error,
-                        integ=integ, ret_arr=ret_arr, #stand=True,
+                        integ=integ, ret_arr=ret_arr, scale=analyspar.scale,
                         baseline=baseline)
                 else:
                     gen_util.accepted_values_error(

@@ -178,6 +178,7 @@ def init_param_cont(args):
             pre (num)              : range of frames to include before each 
                                      reference frame (in s)
             runtype (str or list)  : runtype ('pilot' or 'prod')
+            scale (bool)           : whether to scale ROI data
             sess_n (int)           : session number
             stats (str)            : statistic parameter ('mean' or 'median')
             stimtype (str)         : stimulus to analyse ('bricks' or 'gabors')
@@ -258,7 +259,8 @@ def init_param_cont(args):
 
     # analysis parameters
     analysis_dict['analyspar'] = sess_ntuple_util.init_analyspar(
-        args.fluor, not(args.keepnans), args.stats, args.error, dend=args.dend)
+        args.fluor, not(args.keepnans), args.stats, args.error, args.scale, 
+        dend=args.dend)
 
     # session parameters
     analysis_dict['sesspar'] = sess_ntuple_util.init_sesspar(
@@ -530,6 +532,8 @@ if __name__ == "__main__":
     parser.add_argument('--stats', default='mean', help='plot mean or median')
     parser.add_argument('--error', default='sem', 
         help='sem for SEM/MAD, std for std/qu')    
+    parser.add_argument('--scale', action='store_true', 
+        help='whether to scale ROI data')    
     parser.add_argument('--dend', default='extr', help='aibs, extr')
         # session parameters
     parser.add_argument('--line', default='any', help='L23, L5')

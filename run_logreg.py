@@ -102,7 +102,7 @@ def check_args(comp='surp', stimtype='gabors', q1v4=False, regvsurp=False):
         comps_str = ', '.join(poss_comps)
         raise ValueError(f'With stimtype={stimtype}, q1v4={q1v4}, '
             f'regvsurp={regvsurp}, can only use the following '
-            f'comps:{comps_str}')
+            f'comps: {comps_str}')
     return
 
 

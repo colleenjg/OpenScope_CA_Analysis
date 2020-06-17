@@ -20,7 +20,7 @@ from matplotlib import colors as mplcol
 from matplotlib import pyplot as plt
 import numpy as np
 
-from util import gen_util, plot_util
+from util import gen_util, math_util, plot_util
 from sess_util import sess_str_util
 
 
@@ -100,6 +100,8 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                                      orientation/direction analyses
                 ['surp_qu'] (str)  : subdirectory name for surprise, quintile 
                                      analyses
+                ['surp_idx'] (str) : subdirectory name for surprise index 
+                                     analyses
                 ['tune_curv'] (str): subdirectory name for tuning curves
                 
             ['mng']: dictionary containing the following attributes:
@@ -144,6 +146,7 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                 'prop'     : 'prop_resp',
                 'pupil'    : 'pupil',
                 'oridir'   : 'oridir',
+                'surp_idx' : 'surp_idx',
                 'surp_qu'  : 'surp_qu',
                 'tune_curv': 'tune_curves',
                }
@@ -458,7 +461,7 @@ def plot_labels(ax, gabfr=0, plot_vals='both', op='none', pre=0, post=1.5,
 
 #############################################
 def plot_gabfr_pattern(sub_ax, x_ran, alpha=0.1, offset=0, bars_omit=[], 
-                       shade_col='k'):
+                       shade_col='k', shade_lim='all'):
     """
     plot_gabfr_pattern(sub_ax, x_ran)
 
@@ -467,7 +470,8 @@ def plot_gabfr_pattern(sub_ax, x_ran, alpha=0.1, offset=0, bars_omit=[],
 
     Required args:
         - sub_ax (plt Axis subplot): subplot
-        - x_ran (array-like)       : range of x axis values
+        - x_ran (array-like)       : range of x axis values 
+                                     (or at least [min, max])
 
     Optional args:
         - alpha (num)     : plt alpha variable controlling shading 
@@ -481,20 +485,89 @@ def plot_gabfr_pattern(sub_ax, x_ran, alpha=0.1, offset=0, bars_omit=[],
                             default: []
         - shade_col (str) : D/E shading colour (none, if 'none')
                             default: 'k'
+        - shade_lim (str) : how to limit shading 
+                            'all': no limits within x_ran
+                            'neg': only within x_ran =< 0
+                            'pos': only within x_ran >= 0
+                            default: 'all'
     """
 
     offset_s = np.round(0.3 * offset, 10) # avoid periodic values
 
-    bars = plot_util.get_repeated_bars(np.min(x_ran), np.max(x_ran), 1.5, 
+    x_min, x_max = [np.min(x_ran), np.max(x_ran)]
+    bars = plot_util.get_repeated_bars(x_min, x_max, 1.5, 
         offset=-offset_s) # sequence start/end
-    shade_st = plot_util.get_repeated_bars(np.min(x_ran), np.max(x_ran), 1.5, 
-        offset=-offset_s - 0.6) # surprise start
-    bars = gen_util.remove_if(bars, bars_omit)
+    bars = gen_util.remove_if(bars, bars_omit + [x_min, x_max])
     plot_util.add_bars(sub_ax, bars=bars)
 
-    if shade_col not in ['None', 'none']:
+    sh_min, sh_max = x_min, x_max
+    if shade_lim == 'pos':
+        sh_min = np.max([sh_min, 0])
+    elif shade_lim == 'neg':
+        sh_max = np.min([sh_max, 0])
+    elif shade_lim != 'all':
+        gen_util.accepted_values_error(
+            'shade_lim', shade_lim, ['all', 'pos', 'neg'])
+
+    shade_wid = 0.3
+    # get the extended shade starts
+    ext_shade_st = plot_util.get_repeated_bars(
+        sh_min - shade_wid, sh_max + shade_wid, 1.5, 
+        offset=-offset_s - 0.6) # surprise start
+
+    shade_st = []
+    shade_end = []
+    for st in ext_shade_st:
+        end = st + shade_wid
+        if st < sh_min:
+            st = sh_min
+        if end > sh_max:
+            end = sh_max
+        if end > st:
+            shade_st.append(st)
+            shade_end.append(end)
+
+    if len(shade_st) != 0 and shade_col not in ['None', 'none']:
         plot_util.add_vshade(
-            sub_ax, shade_st, width=0.3, alpha=alpha, col=shade_col)
+            sub_ax, shade_st, shade_end, alpha=alpha, col=shade_col)
+
+
+#############################################
+def get_gab_time_xticks(xran, lock=False):
+    """
+    get_gab_time_xticks(xran)
+
+    Returns xtick values for Gabor response traces.
+
+    Required args:
+        - xran (array-like): x-values for the data, or at least the [min, max]
+
+    Optional args:
+        - lock (bool): if True, xran is replicated in the negative
+                       default: False
+    """
+    step = 0.15
+    max_tick = int(np.ceil(np.max(xran)/step)) * step
+    if lock:
+        min_tick = - max_tick
+        if min_tick > max_tick:
+            raise ValueError('If `lock` is True, `xran` should be positive.')
+    else:
+        min_tick = int(np.min(xran)/step) * step
+    if max_tick - min_tick == 0:
+        n_ticks = 1
+    else:
+        n_ticks = int((max_tick - min_tick)/step)
+        n_tick_vals = math_util.get_divisors(n_ticks, min_val=2, max_val=5)
+        n_ticks = 6 if len(n_tick_vals) == 0 else n_tick_vals[-1] + 1
+    xticks = np.linspace(min_tick, max_tick, n_ticks)
+
+    if len(xticks) > 1:
+        diff = np.min(np.diff(xticks))
+        n_dig = - np.floor(np.log10(np.absolute(diff))).astype(int) + 1
+        xticks = [np.around(v, n_dig) for v in xticks]
+    
+    return xticks
 
 
 #############################################
@@ -519,7 +592,8 @@ def update_plt_linpla():
 
 
 #############################################
-def fig_init_linpla(figpar=None, traces=False, prog=False, sharey=False):
+def fig_init_linpla(figpar=None, kind='reg', n_sub=1, sharey=False, 
+                    sharex=True):
     """
     fig_init_linpla()
 
@@ -533,16 +607,18 @@ def fig_init_linpla(figpar=None, traces=False, prog=False, sharey=False):
                        attributes:
                            ncols, sharex, sharey, subplot_hei, subplot_wid
                                 default: None
-        - traces (bool or int): if not False, provides number of traces per 
-                                line/plane combination to use in dividing 
-                                subplot height
-                                default: False
-        - prog (bool or int)  : if not False, provides number of progressions 
-                                per line/plane combination to use in 
-                                determining subplot width
-                                default: False
+        - kind (str)          : kind of plot 
+                                'reg' for single plot per layer/line, 
+                                'traces' for traces plot per session (rows), 
+                                'prog' for progression plot per session (cols), 
+                                'idx' for surprise index plot per session (rows)
+                                default: 'reg'
+        - n_sub (int)         : number of subplots per line/plane combination
+                                default: 1
         - sharey (bool)       : y-axis sharing parameter
                                 default: False
+        - sharex (bool)       : x-axis sharing parameter
+                                default: True
 
     Returns:
         - figpar (dict): dictionary containing figure parameters:
@@ -558,22 +634,22 @@ def fig_init_linpla(figpar=None, traces=False, prog=False, sharey=False):
     if 'init' not in figpar.keys():
         raise ValueError('figpar should have `init` subdictionary.')
 
-    if traces and prog:
-        raise ValueError('Both `traces` and `prog` cannot be True.')
-
     if sharey in [False, 'rows']:
         wspace = 0.5
     else:
         wspace = 0.2
 
     ncols = 2
-    if traces:
+    if kind == 'traces':
         wid = 3.3
-        hei = np.max([wid/traces * 1.15, 1.0])
-    elif prog:
-        ncols *= prog
-        wid = np.max([9.0/prog, 3.0])
+        hei = np.max([wid/n_sub * 1.15, 1.0])
+    elif kind == 'prog':
+        ncols *= n_sub
+        wid = np.max([9.0/n_sub, 3.0])
         hei = 2.0
+    elif kind == 'idx':
+        wid = 4
+        hei = np.max([wid/n_sub * 2.0, 1.0])
     else:
         wid = 2.5
         hei = 4.3
@@ -582,7 +658,7 @@ def fig_init_linpla(figpar=None, traces=False, prog=False, sharey=False):
     figpar['init']['ncols'] = ncols
     figpar['init']['subplot_hei'] = hei
     figpar['init']['subplot_wid'] = wid
-    figpar['init']['sharex'] = True
+    figpar['init']['sharex'] = sharex
     figpar['init']['sharey'] = sharey
 
     return figpar
@@ -647,8 +723,10 @@ def adjust_linpla_y_axis_sharing(ax, kind='reg'):
     Optional args:
         - kind (str)       : kind of plot 
                              'reg' for single plot per layer/line, 
-                             'traces' for traces plot per session (rows), or 
-                             'prog' for progression plot per session (cols)
+                             'traces' for traces plot per session (rows), 
+                             'prog' for progression plot per session (cols), 
+                             'idx' for surprise index plot per session (rows)
+                             default: 'reg'
     """
 
     # check whether any y axes are shared
@@ -659,7 +737,7 @@ def adjust_linpla_y_axis_sharing(ax, kind='reg'):
 
     n_rows, n_cols = ax.shape
     to_share = []
-    if kind == 'traces':
+    if kind in ['traces', 'idx']:
         if n_rows % 2 != 0:
             raise ValueError('Expected even number of rows')
         row_per_grp = int(n_rows/2)
@@ -676,11 +754,12 @@ def adjust_linpla_y_axis_sharing(ax, kind='reg'):
                 for c in range(col_per_grp)] 
                 for i in range(2) for r in range(2)]
     else:
-        gen_util.accepted_values_error('kind', kind, ['reg', 'traces', 'prog'])
+        gen_util.accepted_values_error(
+            'kind', kind, ['reg', 'traces', 'prog', 'idx'])
 
     for axis_set in to_share:
         axis_set[0].get_shared_y_axes().join(*axis_set)
-        if kind == 'traces':
+        if kind in ['traces', 'idx']:
             remove_labs = axis_set[:-1]
         elif kind == 'prog':
             remove_labs = axis_set[1:]
@@ -706,8 +785,9 @@ def get_yticklabel_info(ax, kind='reg'):
     Optional args:
         - kind (str)       : kind of plot 
                              'reg' for single plot per layer/line, 
-                             'traces' for traces plot per session (rows), or 
-                             'prog' for progression plot per session (cols)
+                             'traces' for traces plot per session (rows), 
+                             'prog' for progression plot per session (cols), 
+                             'idx' for surprise index plot per session (rows)
 
     Returns:
         - add_yticks (list) : list of subplots that should have ytick labels
@@ -774,8 +854,9 @@ def add_linpla_axislabels(ax, fluor='dff', area=False, scale=False,
                              default: False
         - kind (str)       : kind of plot 
                              'reg' for single plot per layer/line, 
-                             'traces' for traces plot per session (rows), or 
-                             'prog' for progression plot per session (cols)
+                             'traces' for traces plot per session (rows),  
+                             'prog' for progression plot per session (cols), 
+                             'idx' for surprise index plot per session (rows)
     """
 
     add_yticks, move_ylabel = get_yticklabel_info(ax, kind=kind)
@@ -794,7 +875,7 @@ def add_linpla_axislabels(ax, fluor='dff', area=False, scale=False,
     if single_lab:    
         if kind == 'reg':
             fig_ypos = 0.02
-        elif kind == 'traces':
+        elif kind in ['traces', 'idx']:
             fig_ypos = -0.01
         else:
             fig_ypos = 0
@@ -819,11 +900,12 @@ def add_linpla_axislabels(ax, fluor='dff', area=False, scale=False,
         add_y_pos = add_y_pos[:1] # top only
 
     # move labels for long y axis labels
-    if len(y_str) > 6 and kind == 'traces' and (ax.size/len(add_yticks) < 5):
+    if (len(y_str) > 6 and kind in ['traces', 'idx'] and 
+        (ax.size/len(add_yticks) < 5)):
         move_ylabel = True
 
     y_lab_xpos = 0.02 - 0.09 * (move_ylabel or not(single_lab))
-    if kind == 'traces':
+    if kind in ['traces', 'idx']:
         y_lab_xpos = 0.03 - 0.05 * (move_ylabel or not(single_lab))
     elif kind == 'prog':
         y_lab_xpos = 0.01 - 0.02 * (move_ylabel or not(single_lab))
@@ -838,7 +920,8 @@ def add_linpla_axislabels(ax, fluor='dff', area=False, scale=False,
         label_cols = [0, col_per_grp]
     if single_lab:
         for sub_ax in ax.reshape(-1):
-            if not (sub_ax.is_last_row() and sub_ax.colNum in label_cols):
+            if (not (sub_ax.is_last_row() and sub_ax.colNum in label_cols) 
+                and kind != 'idx'):
                 sub_ax.tick_params(labelbottom=False)
             if sub_ax not in add_yticks:
                 sub_ax.tick_params(labelleft=False)
@@ -867,8 +950,9 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind='reg',
                              default: None 
         - kind (str)       : kind of plot 
                              'reg' for single plot per layer/line, 
-                             'traces' for traces plot per session (rows), or 
-                             'prog' for progression plot per session (cols)
+                             'traces' for traces plot per session (rows), 
+                             'prog' for progression plot per session (cols), 
+                             'idx' for surprise index plot per session (rows)
                              default: 'reg'
         - single_lab (bool): if True, only one set of session labels it added 
                              to the graph
@@ -891,7 +975,7 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind='reg',
         if n_cols % 2 != 0:
             raise ValueError('Expected even number of columns')
         col_per_grp = int(n_cols/2)
-    elif kind != 'traces':
+    elif kind not in ['traces', 'idx']:
         gen_util.accepted_values_error('kind', kind, ['reg', 'traces', 'prog'])
 
     for r in range(n_rows):
@@ -905,8 +989,8 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind='reg',
                 sub_ax.set_xticklabels(xticks, weight='bold')
 
             # add session numbers
-            if kind in ['traces', 'prog'] and sess_ns is not None :
-                if kind == 'traces' and c == 1 and r < len(sess_ns): # RIGHT
+            if kind in ['traces', 'idx', 'prog'] and sess_ns is not None :
+                if kind in ['traces', 'idx'] and c == 1 and r < len(sess_ns): # RIGHT
                     sess_lab = f'sess {sess_ns[r]}'
                     sub_ax.text(0.65, 0.75, sess_lab, fontsize='xx-large', 
                         transform=sub_ax.transAxes, style='italic')
@@ -917,7 +1001,7 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind='reg',
                         weight='bold')
             
             # remove x ticks and spines from graphs
-            if not sub_ax.is_last_row(): # NOT BOTTOM
+            if not sub_ax.is_last_row() and kind != 'idx': # NOT BOTTOM
                 sub_ax.tick_params(axis='x', which='both', bottom=False) 
                 sub_ax.spines['bottom'].set_visible(False)
 
@@ -927,7 +1011,7 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind='reg',
                 sub_ax.spines['left'].set_visible(False)
 
             yticks = [np.around(v, 10) for v in sub_ax.get_yticks()]
-            if kind == 'traces' and len(yticks) > 3:
+            if kind in ['traces', 'idx'] and len(yticks) > 3:
                 max_abs = np.max(np.absolute(yticks))
                 new = [-max_abs, 0, max_abs]
                 yticks = list(filter(lambda x: x == 0 or x in yticks, new))
@@ -941,8 +1025,7 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind='reg',
 #############################################
 def format_linpla_subaxes(ax, fluor='dff', area=False, datatype='roi', 
                           lines=None, planes=None, xlab=None, xticks=None, 
-                          sess_ns=None, ylab=None, adj_yticks=False, 
-                          kind='reg', tight=True):
+                          sess_ns=None, ylab=None, kind='reg', tight=True):
     """
     format_linpla_subaxes(ax)
 
@@ -981,12 +1064,11 @@ def format_linpla_subaxes(ax, fluor='dff', area=False, datatype='roi',
                              default: None 
         - ylab (str)       : y axis label (overrides automatic one)
                              default: None
-        - adj_yticks (bool): if True, y ticks are adjusted so that up to 4 
-                             labelled ticks appear, including 0
         - kind (str)       : kind of plot 
                              'reg' for single plot per layer/line, 
-                             'traces' for traces plot per session (rows), or 
-                             'prog' for progression plot per session (cols)
+                             'traces' for traces plot per session (rows), 
+                             'prog' for progression plot per session (cols), 
+                             'idx' for surprise index plot per session (rows)
                              default: 'reg'
         - tight (bool)     : tight figure layout
                              default: True
@@ -995,36 +1077,42 @@ def format_linpla_subaxes(ax, fluor='dff', area=False, datatype='roi',
     # only label axes and ticks for one plot
     single_lab = True
 
-    adjust_linpla_y_axis_sharing(ax, kind=kind)
+    if kind != 'idx':
+        adjust_linpla_y_axis_sharing(ax, kind=kind)
 
     format_each_linpla_subaxis(ax, xticks=xticks, sess_ns=sess_ns, kind=kind)
-
-    if adj_yticks:
-        plot_util.set_interm_ticks(ax, 4, dim='y', weight='bold', share=False)
 
     # get information based on kind of graph
     n_rows, n_cols = ax.shape
     row_per_grp, col_per_grp = 1, 1
     if kind == 'reg':
         fig_xpos = 0.9 # for plane names (x pos)
+        n = 4
         if n_rows != 2 or n_cols != 2:
             raise ValueError('Regular plots should have 2 rows and 2 columns.')
-    elif kind == 'traces':
-        fig_xpos = 1.0 # for plane names (x pos)            
+    elif kind in ['traces', 'idx']:
+        fig_xpos = 1.0 # for plane names (x pos)
         if n_rows % 2 != 0:
             raise ValueError('Expected even number of rows')
         row_per_grp = int(n_rows/2)
     elif kind == 'prog':
+        n = 3
         fig_xpos = 1.0 # for plane names (x pos)            
         if n_cols % 2 != 0:
             raise ValueError('Expected even number of columns')
         col_per_grp = int(n_cols/2)
     else:
-        gen_util.accepted_values_error('kind', kind, ['reg', 'traces', 'prog'])
+        gen_util.accepted_values_error(
+            'kind', kind, ['reg', 'traces', 'prog', 'idx'])
+
+    if kind in ['reg', 'prog']:
+        plot_util.set_interm_ticks(ax, n, dim='y', weight='bold', share=False)
 
     # get x axis label and tick information
     if kind == 'traces':
         xlab = 'Time (s)' if xlab is None else xlab
+    elif kind == 'idx':
+        xlab = 'Index' if xlab is None else xlab
     else:
         xlab = 'Sessions' if xlab is None else xlab
 

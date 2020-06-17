@@ -368,10 +368,10 @@ class Session(object):
                 hierarchical rows:
                     - 'info'        : type of information contained 
                                       ('frames': values for each frame, 
-                                       'factors': standardization values for 
+                                       'factors': scaling values for 
                                       each factor)
                     - 'specific'    : specific type of information contained 
-                                      (frame number, standardization factor 
+                                      (frame number, scaling factor 
                                       name)
             - tot_run_fr (1D array)  : number of running velocity frames
 
@@ -448,10 +448,10 @@ class Session(object):
                 hierarchical rows:
                     - 'info'        : type of information contained 
                                       ('frames': values for each frame, 
-                                       'factors': standardization values for 
+                                       'factors': scaling values for 
                                       each factor)
                     - 'specific'    : specific type of information contained 
-                                      (frame number, standardization factor 
+                                      (frame number, scaling factor 
                                       name)
         """
 
@@ -555,13 +555,13 @@ class Session(object):
 
         Attributes:
             - roi_facts_df (pd DataFrame): multi-level dataframe containing ROI 
-                                           standardization factors, organized 
+                                           scaling factors, organized 
                                            by: 
                 hierarchical columns:
                     - 'datatype'    : type of ROI data ('roi_traces')
                     - 'fluorescence': type of ROI trace ('dff', 'raw')
                 hierarchical rows:
-                    - 'factors'     : standardization factor name
+                    - 'factors'     : scaling factor name
                     - 'ROIs'        : ROI index
 
         Optional args:
@@ -619,7 +619,7 @@ class Session(object):
 
         file_util.checkfile(roi_trace_use)
 
-        # get standardization facts (factor x ROI)
+        # get scaling facts (factor x ROI)
         with h5py.File(roi_trace_use, 'r') as f:
             self.roi_facts_df[('roi_traces', fluor)] = np.asarray(
                 math_util.scale_facts(f[dataset][()], axis=1, 
@@ -634,7 +634,7 @@ class Session(object):
         """
         self._get_roi_facts()
 
-        Returns standardization factors dataframe for ROIs for specified
+        Returns scaling factors dataframe for ROIs for specified
         fluorescence type(s).
 
         Calls:
@@ -642,18 +642,18 @@ class Session(object):
 
         Optional args:
             - fluor (str or list): type(s) of fluorescence for which to return 
-                                   standardization values ('dff', 'raw')
+                                   scaling values ('dff', 'raw')
                                    default: 'dff'
 
         Returns:
             - specific_roi_facts (pd DataFrame): multi-level dataframe 
-                                                 containing ROI standardization 
+                                                 containing ROI scaling 
                                                  factors, organized by: 
                 hierarchical columns (dummy):
                     - 'datatype'    : type of ROI data ('roi_traces')
                     - 'fluorescence': type of ROI trace ('dff', 'raw')
                 hierarchical rows:
-                    - 'factors'     : standardization factor name
+                    - 'factors'     : scaling factor name
                     - 'ROIs'        : ROI index
         """
 
@@ -1048,7 +1048,7 @@ class Session(object):
 
 
     #############################################
-    def get_pup_data(self, datatype='pup_diam', remnans=True, stand=False):
+    def get_pup_data(self, datatype='pup_diam', remnans=True, scale=False):
         """
         self.get_pup_data()
 
@@ -1064,7 +1064,7 @@ class Session(object):
                               interpolation is returned. If False, the non
                               interpolated pupil array is returned.
                               default: True
-            - stand (bool)  : if True, pupil data is standardized using full 
+            - scale (bool)  : if True, pupil data is scaled using full 
                               data array
                               default: False      
 
@@ -1075,7 +1075,7 @@ class Session(object):
                 hierarchical columns (all dummy):
                     - datatype    : type of data (e.g., 'pup_diam')
                     - interpolated: whether data is interpolated ('yes', 'no')
-                    - standardized: whether data is standardized ('yes', 'no')
+                    - scaled      : whether data is scaled ('yes', 'no')
                 hierarchical rows:
                     - info        : type of information contained 
                                     ('frames': values for each frame)
@@ -1100,15 +1100,15 @@ class Session(object):
         
         index = pd.MultiIndex.from_product(
             [[datatype], [interpolated], ['no']], 
-            names=['datatype', 'interpolated', 'standardized'])
+            names=['datatype', 'interpolated', 'scaled'])
 
         pup_data_df = pd.DataFrame(self.pup_data, columns=index)
         
-        if stand:
-            pup_data_df = sess_data_util.standardize_data_df(
+        if scale:
+            pup_data_df = sess_data_util.scale_data_df(
                 pup_data_df, datatype, interpolated)
             pup_data_df = pup_data_df.drop(
-                labels='no', axis='columns', level='standardized')
+                labels='no', axis='columns', level='scaled')
 
         pup_data_df = pup_data_df.drop('factors', axis='index')
 
@@ -1116,7 +1116,7 @@ class Session(object):
 
 
     #############################################
-    def get_run_velocity(self, remnans=True, stand=False):
+    def get_run_velocity(self, remnans=True, scale=False):
         """
         self.get_run_velocity()
 
@@ -1129,7 +1129,7 @@ class Session(object):
                               interpolation is returned. If False, the non
                               interpolated running array is returned.
                               default: True
-            - stand (bool)  : if True, running is standardized based on 
+            - scale (bool)  : if True, running is scaled based on 
                               full trace array
                               default: False
 
@@ -1140,7 +1140,7 @@ class Session(object):
                 hierarchical columns (all dummy):
                     - datatype    : type of data (e.g., 'run_velocity')
                     - interpolated: whether data is interpolated ('yes', 'no')
-                    - standardized: whether data is standardized ('yes', 'no')
+                    - scaled      : whether data is scaled ('yes', 'no')
                     - diff_thr    : threshold of difference in running velocity 
                                     used to identify outliers
                 hierarchical rows:
@@ -1163,7 +1163,7 @@ class Session(object):
             (datatype, interpolated)].columns.get_level_values(
             level='diff_thr')[0]
 
-        names = ['datatype', 'interpolated', 'diff_thr', 'standardized']
+        names = ['datatype', 'interpolated', 'diff_thr', 'scaled']
         reorder = [names[i] for i in [0, 1, 3, 2]]
         index = pd.MultiIndex.from_product(
             [[datatype], [interpolated], [diff_thr], ['no']], names=names)
@@ -1171,11 +1171,11 @@ class Session(object):
         run_data_df = pd.DataFrame(self.run_data, columns=index).reorder_levels(
             reorder, axis='columns')
 
-        if stand:
-            run_data_df = sess_data_util.standardize_data_df(
+        if scale:
+            run_data_df = sess_data_util.scale_data_df(
                 run_data_df, datatype, interpolated, other_vals=[diff_thr])
             run_data_df = run_data_df.drop(
-                labels='no', axis='columns', level='standardized')
+                labels='no', axis='columns', level='scaled')
 
         run_data_df = run_data_df.drop('factors', axis='index')
 
@@ -1184,7 +1184,7 @@ class Session(object):
 
     #############################################
     def get_run_velocity_by_fr(self, fr, fr_type='stim', remnans=True, 
-                               stand=False):
+                               scale=False):
         """
         self.get_run_velocity_by_fr(fr)
 
@@ -1200,7 +1200,7 @@ class Session(object):
             - remnans (bool): if True, NaN values are removed using linear 
                               interpolation.
                               default: True
-            - stand (bool)  : if True, running is standardized based on 
+            - scale (bool)  : if True, running is scaled based on 
                               full trace array
                               default: False
         Returns:
@@ -1210,7 +1210,7 @@ class Session(object):
                 hierarchical columns (all dummy):
                     - datatype    : type of data (e.g., 'run_velocity')
                     - interpolated: whether data is interpolated ('yes', 'no')
-                    - standardized: whether data is standardized ('yes', 'no')
+                    - scaled      : whether data is scaled ('yes', 'no')
                 hierarchical rows:
                     - 'sequences' : sequence numbers
                     - 'frames'    : frame numbers
@@ -1233,7 +1233,7 @@ class Session(object):
         if (fr >= max_val).any() or (fr < 0).any():
             raise UserWarning('Some of the specified frames are out of range')
         
-        run_data = self.get_run_velocity(remnans=remnans, stand=stand)
+        run_data = self.get_run_velocity(remnans=remnans, scale=scale)
 
         if fr_type == 'stim':
             velocity = run_data.to_numpy()[fr]
@@ -1440,7 +1440,7 @@ class Session(object):
 
     #############################################
     def get_roi_traces(self, frames=None, fluor='dff', remnans=True, 
-                       stand=False):
+                       scale=False):
         """
         self.get_roi_traces()
 
@@ -1460,7 +1460,7 @@ class Session(object):
             - remnans (bool)    : if True, ROIs with NaN/Inf values anywhere 
                                   in session are excluded. 
                                   default: True
-            - stand (bool)      : if True, each ROIs is standardized 
+            - scale (bool)      : if True, each ROIs is scaled 
                                   based on full data array
                                   default: False
         Returns:
@@ -1471,7 +1471,7 @@ class Session(object):
                     - datatype        : type of data (e.g., 'roi_traces')
                     - nan_rois_removed: whether ROIs with NaNs/Infs were 
                                         removed ('yes', 'no')
-                    - standardized    : whether ROI data is standardized 
+                    - scaled          : whether ROI data is scaled 
                                         ('yes', 'no')
                     - fluorescence    : type of data ('raw' or 'dff')
                 hierarchical rows:
@@ -1492,7 +1492,7 @@ class Session(object):
             frames = np.asarray(frames)
 
         remnans_str = 'yes' if remnans else 'no'
-        stand_str = 'yes' if stand else 'no'
+        scale_str = 'yes' if scale else 'no'
 
         # read the data points into the return array
         if fluor == 'dff':
@@ -1514,7 +1514,7 @@ class Session(object):
             except Exception as err:
                 raise OSError(f'Could not read {self.roi_trace_h5}: {err}')
 
-        if stand:
+        if scale:
             factors = self._get_roi_facts(fluor)
             factor_names = factors.index.unique(level='factors')
             sub_names =  list(filter(lambda x: 'sub' in x, factor_names))
@@ -1537,8 +1537,8 @@ class Session(object):
 
         # initialize the return dataframe
         index_cols = pd.MultiIndex.from_product(
-            [['roi_traces'], [remnans_str], [stand_str], [fluor]], 
-            names=['datatype', 'nan_rois_removed', 'standardized', 
+            [['roi_traces'], [remnans_str], [scale_str], [fluor]], 
+            names=['datatype', 'nan_rois_removed', 'scaled', 
             'fluorescence'])
         index_rows = pd.MultiIndex.from_product(
             [ROI_ids, *[range(dim) for dim in frames.shape]], 
@@ -1637,7 +1637,7 @@ class Session(object):
 
     #############################################
     def get_roi_seqs(self, twop_fr_seqs, padding=(0,0), fluor='dff', 
-                     remnans=True, stand=False, use_plateau=False):
+                     remnans=True, scale=False, use_plateau=False):
         """
         self.get_roi_seqs(twop_fr_seqs)
 
@@ -1666,7 +1666,7 @@ class Session(object):
             - remnans (bool)           : if True, ROIs with NaN/Inf values 
                                          anywhere in session are excluded. 
                                          default: True
-            - stand (bool)             : if True, each ROIs is standardized 
+            - scale (bool)             : if True, each ROIs is scaled 
                                          based on full data array
                                          default: False
 
@@ -1678,7 +1678,7 @@ class Session(object):
                     - datatype        : type of data (e.g., 'roi_traces')
                     - nan_rois_removed: whether ROIs with NaNs/Infs were 
                                         removed ('yes', 'no')
-                    - standardized    : whether ROI data is standardized 
+                    - scaled          : whether ROI data is scaled 
                                         ('yes', 'no')
                     - fluorescence    : type of data ('raw' or 'dff')
                 hierarchical rows:
@@ -1739,10 +1739,11 @@ class Session(object):
                 frames_flat = frames_flat[: last_idx]
 
         traces_flat = self.get_roi_traces(
-            frames_flat.astype(int), fluor, remnans, stand=stand)
+            frames_flat.astype(int), fluor, remnans, scale=scale)
         if use_plateau:
             traces_flat_fill = self.get_plateau_roi_traces(
-                fluor, remnans=remnans)[:, frames_flat.astype(int)].reshape(-1, 1)
+                fluor, remnans=remnans
+                )[:, frames_flat.astype(int)].reshape(-1, 1)
             traces_flat[:] = traces_flat_fill
 
         index_rows = pd.MultiIndex.from_product(
@@ -2341,7 +2342,7 @@ class Stim(object):
     def get_stim_beh_sub_df(self, pre, post, stats='mean', fluor='dff', 
                             remnans=True, gabfr='any', gabk='any', 
                             gab_ori='any', bri_size='any', bri_dir='any', 
-                            pupil=False, run=False):
+                            pupil=False, run=False, scale=False):
         """
         self.get_stim_beh_sub_df(pre, post)
 
@@ -2380,6 +2381,8 @@ class Stim(object):
             - pupil (bool)          : if True, pupil data is added in
                                       default: False
             - run (bool)            : if True, run data is added in
+                                      default: False
+            - scale (bool)          : if True, data is scaled
                                       default: False
 
         Returns:
@@ -2435,12 +2438,13 @@ class Stim(object):
             pup_fr = self.sess.get_pup_fr_by_twop_fr(
                 sub_df['start2pfr'].to_numpy())
             pup_data = self.get_pup_diam_data(pup_fr, pre, post, 
-                remnans=remnans)['pup_diam'].unstack().to_numpy()
+                remnans=remnans, scale=scale)['pup_diam'].unstack().to_numpy()
             sub_df['pup_diam_data'] = math_util.mean_med(
                 pup_data, stats=stats, axis=-1)
         if run:
             run_data = self.get_run_data(sub_df['start_stim_fr'].to_numpy(), 
-                pre, post, remnans=remnans)['run_velocity'].unstack().to_numpy()
+                pre, post, remnans=remnans, scale=scale
+                )['run_velocity'].unstack().to_numpy()
             sub_df['run_data'] = math_util.mean_med(
                 run_data, stats=stats, axis=-1)
         
@@ -2448,7 +2452,7 @@ class Stim(object):
         print('Adding ROI data to dataframe.')
         roi_data = self.get_roi_data(
             sub_df['start2pfr'].to_numpy(), pre, post, remnans=remnans, 
-            fluor=fluor)['roi_traces']
+            fluor=fluor, scale=scale)['roi_traces']
         targ = [len(roi_data.index.unique(dim)) for dim in roi_data.index.names]
         roi_data = math_util.mean_med(roi_data.to_numpy().reshape(targ), 
             stats=stats, axis=-1, nanpol='omit')
@@ -3181,7 +3185,7 @@ class Stim(object):
     #############################################
     def get_pup_diam_data(self, pup_ref_fr, pre, post, integ=False, 
                            remnans=False, baseline=None, stats='mean', 
-                           stand=False):
+                           scale=False):
         """
         self.get_pup_diam_data(pup_ref_fr, pre, post)
 
@@ -3213,7 +3217,7 @@ class Stim(object):
             - stats (str)     : statistic to use for baseline, mean ('mean') or 
                                 median ('median') (NaN values are omitted)
                                 default: 'mean'
-            - stand (bool)    : if True, pupil diameter is standardized using 
+            - scale (bool)    : if True, pupil diameter is scaled using 
                                 full data array
                                 default: False      
 
@@ -3224,7 +3228,7 @@ class Stim(object):
                 hierarchical columns (all dummy):
                     - datatype    : type of data ('pup_diam')
                     - interpolated: whether data is interpolated ('yes', 'no')
-                    - standardized: whether data is standardized ('yes', 'no')
+                    - scaled      : whether data is scaled ('yes', 'no')
                     - baseline    : baseline used ('no', value)
                     - integrated  : whether data is integrated over sequences 
                                     ('yes', 'no')
@@ -3262,7 +3266,7 @@ class Stim(object):
             raise ValueError('No frames in list.')
 
         pup_data = self.sess.get_pup_data(
-            datatype=datatype, remnans=remnans, stand=stand)
+            datatype=datatype, remnans=remnans, scale=scale)
 
         data_array = pup_data.to_numpy().squeeze()[fr_idx]
 
@@ -3293,11 +3297,11 @@ class Stim(object):
             row_names.append('time_values')
 
         interp_str = pup_data.columns.unique('interpolated')[0]
-        stand_str = pup_data.columns.unique('standardized')[0]
+        scale_str = pup_data.columns.unique('scaled')[0]
 
         col_index = pd.MultiIndex.from_product(
-            [[datatype], [interp_str], [stand_str], [baseline_str], [integ_str]], 
-            names=['datatype', 'interpolated', 'standardized', 'baseline', 
+            [[datatype], [interp_str], [scale_str], [baseline_str], [integ_str]], 
+            names=['datatype', 'interpolated', 'scaled', 'baseline', 
                 'integrated'])
         row_index = pd.MultiIndex.from_product(row_indices, names=row_names)
 
@@ -3310,7 +3314,7 @@ class Stim(object):
     #############################################
     def get_pup_diam_stats_df(self, pup_ref_fr, pre, post, integ=False, 
                               remnans=False, ret_arr=False, stats='mean', 
-                              error='std', baseline=None, stand=False):
+                              error='std', baseline=None, scale=False):
         """
         self.get_pup_diam_stats_df(pup_ref_fr, pre, post)
 
@@ -3347,7 +3351,7 @@ class Stim(object):
                                 sequences to use as baseline. If None, data 
                                 is not baselined.
                                 default: None
-            - stand (bool)    : if True, pupil diameter is standardized using 
+            - scale (bool)    : if True, pupil diameter is scaled using 
                                 full data array
                                 default: False      
 
@@ -3357,7 +3361,7 @@ class Stim(object):
                 hierarchical columns (dummy):
                     - datatype    : the specific datatype
                     - interpolated: whether data is interpolated ('yes', 'no')
-                    - standardized: whether data is standardized ('yes', 'no')
+                    - scaled      : whether data is scaled ('yes', 'no')
                     - baseline    : baseline used ('no', value)
                     - integrated  : whether data is integrated over sequences 
                                     ('yes', 'no')
@@ -3370,7 +3374,7 @@ class Stim(object):
 
         pup_data_df = self.get_pup_diam_data(
             pup_ref_fr, pre, post, integ, remnans=remnans, baseline=baseline, 
-            stats=stats, stand=stand)
+            stats=stats, scale=scale)
 
         if remnans:
             nanpol = None 
@@ -3386,7 +3390,7 @@ class Stim(object):
 
     #############################################
     def get_run_data(self, stim_ref_fr, pre, post, integ=False, remnans=True, 
-                      baseline=None, stats='mean', stand=False):
+                      baseline=None, stats='mean', scale=False):
         """
         self.get_run_data(stim_ref_fr, pre, post)
 
@@ -3416,7 +3420,7 @@ class Stim(object):
             - stats (str)     : statistic to use for baseline, mean ('mean') or 
                                 median ('median')
                                 default: 'mean'
-            - stand (bool)    : if True, each ROI is standardized based on 
+            - scale (bool)    : if True, each ROI is scaled based on 
                                 full trace array
                                 default: False            
         Returns:            
@@ -3426,7 +3430,7 @@ class Stim(object):
                 hierarchical columns (all dummy):
                     - datatype    : type of data ('run_velocity')
                     - interpolated: whether data is interpolated ('yes', 'no')
-                    - standardized: whether data is standardized ('yes', 'no')
+                    - scaled      : whether data is scale ('yes', 'no')
                     - baseline    : baseline used ('no', value)
                     - integrated  : whether data is integrated over sequences 
                                     ('yes', 'no')
@@ -3467,7 +3471,7 @@ class Stim(object):
             raise ValueError('No frames in list.')
 
         run_data = self.sess.get_run_velocity_by_fr(
-            fr_idx, fr_type='stim', remnans=remnans, stand=stand)
+            fr_idx, fr_type='stim', remnans=remnans, scale=scale)
 
         data_array = run_data.unstack().to_numpy()
 
@@ -3500,13 +3504,13 @@ class Stim(object):
             row_names.append('time_values')
 
         interp_str = run_data.columns.unique('interpolated')[0]
-        stand_str = run_data.columns.unique('standardized')[0]
+        scale_str = run_data.columns.unique('scaled')[0]
         diff_thr = run_data.columns.unique('diff_thr')[0]
 
         col_index = pd.MultiIndex.from_product(
-            [[datatype], [interp_str], [stand_str], [baseline_str], 
+            [[datatype], [interp_str], [scale_str], [baseline_str], 
             [integ_str], [diff_thr]], 
-            names=['datatype', 'interpolated', 'standardized', 'baseline', 
+            names=['datatype', 'interpolated', 'scaled', 'baseline', 
             'integrated', 'diff_thr'])
         row_index = pd.MultiIndex.from_product(row_indices, names=row_names)
 
@@ -3519,7 +3523,7 @@ class Stim(object):
     #############################################
     def get_run_stats_df(self, stim_ref_fr, pre, post, integ=False,
                          remnans=True, ret_arr=False, stats='mean', 
-                         error='std', baseline=None, stand=False):
+                         error='std', baseline=None, scale=False):
         """
         self.get_run_stats_df(stim_ref_fr, pre, post)
 
@@ -3555,7 +3559,7 @@ class Stim(object):
                                 sequences to use as baseline. If None, data 
                                 is not baselined.
                                 default: None
-            - stand (bool)    : if True, running is standardized based on 
+            - scale (bool)    : if True, running is scaled based on 
                                 full trace array
                                 default: False
 
@@ -3565,7 +3569,7 @@ class Stim(object):
                 hierarchical columns (dummy):
                     - datatype    : the specific datatype
                     - interpolated: whether data is interpolated ('yes', 'no')
-                    - standardized: whether data is standardized ('yes', 'no')
+                    - scaled      : whether data is scaled ('yes', 'no')
                     - baseline    : baseline used ('no', value)
                     - integrated  : whether data is integrated over sequences 
                                     ('yes', 'no')
@@ -3580,7 +3584,7 @@ class Stim(object):
 
         run_data_df = self.get_run_data(
             stim_ref_fr, pre, post, integ, baseline=baseline, stats=stats, 
-            remnans=remnans, stand=stand)
+            remnans=remnans, scale=scale)
 
         if remnans:
             nanpol = None 
@@ -3597,7 +3601,7 @@ class Stim(object):
     #############################################
     def get_roi_data(self, twop_ref_fr, pre, post, fluor='dff', integ=False, 
                      remnans=True, baseline=None, stats='mean', 
-                     transients=False, stand=False, pad=(0, 0), smooth=False):
+                     transients=False, scale=False, pad=(0, 0), smooth=False):
         """
         self.get_roi_data(twop_ref_fr, pre, post)
 
@@ -3631,7 +3635,7 @@ class Stim(object):
             - transients (bool)   : if True, only ROIs with transients are 
                                     retained
                                     default: False
-            - stand (bool)        : if True, each ROI is standardized based on 
+            - scale (bool)        : if True, each ROI is scaled based on 
                                     full trace array
                                     default: False 
             - pad (tuple)         : number of frames to use as padding 
@@ -3649,7 +3653,7 @@ class Stim(object):
                     - datatype        : type of data (e.g., 'roi_traces')
                     - nan_rois_removed: whether ROIs with NaNs/Infs were 
                                         removed ('yes', 'no')
-                    - standardized    : whether ROI data is standardized 
+                    - scaled          : whether ROI data is scaled 
                                         ('yes', 'no')
                     - baseline        : baseline used ('no', value)
                     - integrated      : whether data is integrated over 
@@ -3675,7 +3679,7 @@ class Stim(object):
         # get dF/F: ROI x seq x fr
         roi_data_df = self.sess.get_roi_seqs(
             frame_n_df.unstack().to_numpy(), fluor=fluor, remnans=remnans, 
-            stand=stand)
+            scale=scale)
 
         if transients:
             keep_rois = self.sess.get_active_rois(
@@ -3730,13 +3734,13 @@ class Stim(object):
             row_names.append('time_values')
 
         remnans_str = roi_data_df.columns.unique('nan_rois_removed')[0]
-        stand_str = roi_data_df.columns.unique('standardized')[0]
+        scale_str = roi_data_df.columns.unique('scaled')[0]
         fluor_str = roi_data_df.columns.unique('fluorescence')[0]
 
         col_index = pd.MultiIndex.from_product(
-            [[datatype], [remnans_str], [stand_str], [baseline_str], 
+            [[datatype], [remnans_str], [scale_str], [baseline_str], 
             [integ_str], [smooth_str], [fluor_str], ], 
-            names=['datatype', 'nan_rois_removed', 'standardized', 'baseline', 
+            names=['datatype', 'nan_rois_removed', 'scaled', 'baseline', 
             'integrated', 'smoothing', 'fluorescence'])
         row_index = pd.MultiIndex.from_product(row_indices, names=row_names)
 
@@ -3750,7 +3754,7 @@ class Stim(object):
     def get_roi_stats_df(self, twop_ref_fr, pre, post, byroi=True, 
                          fluor='dff', integ=False, remnans=True, 
                          ret_arr=False, stats='mean', error='std', 
-                         baseline=None, transients=False, stand=False, 
+                         baseline=None, transients=False, scale=False, 
                          smooth=False):
         """
         self.get_roi_stats_df(twop_ref_fr, pre, post)
@@ -3793,7 +3797,7 @@ class Stim(object):
             - transients (bool)   : if True, only ROIs with transients are 
                                    retained
                                    default: False
-            - stand (bool)        : if True, each ROI is standardized based on 
+            - scale (bool)        : if True, each ROI is scaled based on 
                                     full trace array
                                     default: False
             - smooth (bool or int): if not False, specifies the window length 
@@ -3806,7 +3810,7 @@ class Stim(object):
                 hierarchical columns (dummy):
                     - datatype    : the specific datatype
                     - interpolated: whether data is interpolated ('yes', 'no')
-                    - standardized: whether data is standardized ('yes', 'no')
+                    - scaled      : whether data is scaled ('yes', 'no')
                     - baseline    : baseline used ('no', value)
                     - integrated  : whether data is integrated over sequences 
                                     ('yes', 'no')
@@ -3822,7 +3826,7 @@ class Stim(object):
         
         roi_data_df = self.get_roi_data(
             twop_ref_fr, pre, post, fluor, integ, remnans=remnans, 
-            baseline=baseline, stats=stats, transients=transients, stand=stand, 
+            baseline=baseline, stats=stats, transients=transients, scale=scale, 
             smooth=smooth)
             
         # order in which to take statistics on data
@@ -3843,7 +3847,7 @@ class Stim(object):
 
 
     #############################################
-    def get_run(self, by='block', remnans=True, stand=False):
+    def get_run(self, by='block', remnans=True, scale=False):
         """
         self.get_run()
 
@@ -3857,7 +3861,7 @@ class Stim(object):
             - remnans (bool): if True, NaN values are removed using linear 
                               interpolation.
                               default: True
-            - stand (bool)  : if True, each ROI is standardized based on 
+            - scale (bool)  : if True, each ROI is scaled based on 
                               full trace array
                               default: False
         Returns:
@@ -3870,7 +3874,7 @@ class Stim(object):
                     - datatype    : type of data (e.g., 'run_velocity', 
                                     'block_n' or 'display_sequence_n')
                     - interpolated: whether data is interpolated ('yes', 'no')
-                    - standardized: whether data is standardized ('yes', 'no')
+                    - scaled      : whether data is scaled ('yes', 'no')
                     - diff_thr    : threshold of difference in running velocity 
                                     used to identify outliers
                 hierarchical rows:
@@ -3880,7 +3884,7 @@ class Stim(object):
                                     (frame number)
         """
         
-        run_df = self.sess.get_run_velocity(remnans=remnans, stand=stand)
+        run_df = self.sess.get_run_velocity(remnans=remnans, scale=scale)
 
         if by not in ['block', 'frame', 'disp']:
             gen_util.accepted_values_error('by', by, ['block', 'frame', 'disp'])
