@@ -439,13 +439,16 @@ def get_analysis_fcts():
     # across sessions
     fct_dict['g'] = [acr_sess_analys.run_prog, ['roi', 'run']]
 
-    # 5. Plots surprise indices across sessions
+    # 5. Plots surprise or regular position responses across sessions
+    fct_dict['o'] = [acr_sess_analys.run_position, ['roi', 'run']]
+
+    # 6. Plots surprise indices across sessions
     fct_dict['i'] = [acr_sess_analys.run_surp_idx, ['roi', 'run']]
 
-    # 6. Plots the surprise latencies across sessions
+    # 7. Plots the surprise latencies across sessions
     fct_dict['u'] = [acr_sess_analys.run_surp_latency, ['roi', 'run']]
 
-    # 7. Plots proportion of ROIs responses to both surprise types
+    # 8. Plots proportion of ROIs responses to both surprise types
     fct_dict['p'] = [acr_sess_analys.run_resp_prop, ['roi']]
 
 

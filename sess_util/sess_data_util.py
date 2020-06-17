@@ -102,7 +102,7 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
     if run:
         twop_fr_seqs = sess.get_twop_fr_ran(twopfr, pre, post).unstack()
         run_velocity = sess.get_run_velocity_by_fr(
-            twop_fr_seqs, remnans=True).unstack().to_numpy()
+            twop_fr_seqs, remnans=True, scale=False).unstack().to_numpy()
         
         # scale running array to mean 0 with std 1
         ret_run_stats = False
@@ -201,7 +201,8 @@ def get_roi_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
         gabfr=gabfr, gabk=gabk, surp=surp, by='seg')
     twopfr = stim.get_twop_fr_by_seg(segs, first=True)['first_twop_fr']
     
-    roi_data_df = stim.get_roi_data(twopfr, pre, post)
+    roi_data_df = stim.get_roi_data(twopfr, pre, post, remnans=True, 
+        scale=False)
     ret_roi_stats = False
     xran = roi_data_df.index.unique('time_values').to_numpy()
     traces = gen_util.reshape_df_data(roi_data_df, squeeze_cols=True)
@@ -315,11 +316,11 @@ def get_mapping(par, act_vals=None):
 
 
 #############################################
-def standardize_data_df(data_df, datatype, interpolated='no', other_vals=[]):
+def scale_data_df(data_df, datatype, interpolated='no', other_vals=[]):
     """
-    standardize_data_df(data_df, datatype)
+    scale_data_df(data_df, datatype)
 
-    Returns data frame with specific column standardized using the factors
+    Returns data frame with specific column scaled using the factors
     found in the dataframe.
 
     Required args:
@@ -328,23 +329,23 @@ def standardize_data_df(data_df, datatype, interpolated='no', other_vals=[]):
             hierarchical columns:
                 - datatype    : type of data
                 - interpolated: whether data is interpolated ('yes', 'no')
-                - standardized: whether data is standardized ('yes', 'no')
+                - scaled      : whether data is scaled ('yes', 'no')
             hierarchical rows:
                 - 'info'      : type of information contained 
                                 ('frames': values for each frame, 
-                                'factors': standardization values for 
+                                'factors': scaling values for 
                                 each factor)
                 - 'specific'  : specific type of information contained 
-                                (frame number, standardization factor name)
-        - datatype (str)            : datatype to be standardized
+                                (frame number, scaling factor name)
+        - datatype (str)        : datatype to be scaled
 
     Optional args:
-        - interpolated (str): whether to standardize interpolated data ('yes') 
+        - interpolated (str): whether to scale interpolated data ('yes') 
                               or not ('no')
                               default: 'no'
     
     Returns:
-        - data_df (pd DataFrame): same dataframe, but with standardized 
+        - data_df (pd DataFrame): same dataframe, but with scaled 
                                   data added
     """
 
@@ -356,8 +357,8 @@ def standardize_data_df(data_df, datatype, interpolated='no', other_vals=[]):
     other_vals = gen_util.list_if_not(other_vals)
 
     if 'yes' in data_df[datatype].columns.get_level_values(
-        level='standardized'):
-        print('Data already standardized.')
+        level='scaled'):
+        print('Data already scaled.')
 
     factor_names = data_df.loc['factors'].index.unique(
         level='specific').tolist()

@@ -351,8 +351,8 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois='all', ngabs='all',
         # ROI x seq
         roi_data = stim.get_roi_data(
             twopfr, stimpar.pre, stimpar.post, analyspar.fluor, integ=True, 
-            remnans=analyspar.remnans)['roi_traces'].unstack().to_numpy(
-            )[:sess_nrois]
+            remnans=analyspar.remnans, scale=analyspar.scale
+            )['roi_traces'].unstack().to_numpy()[:sess_nrois]
 
         # gab x seq 
         gab_oris = gen_util.reshape_df_data(stim.get_stim_par_by_seg(

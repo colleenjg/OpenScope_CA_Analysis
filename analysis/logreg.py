@@ -461,6 +461,76 @@ def get_classes(comp='surp'):
 
 
 #############################################
+def get_data(stim, analyspar, stimpar, quintpar, qu_i=0, surp=[0, 1], 
+             n=1, remconsec_surps=False, get_2nd=False):
+    """
+    get_data(sess, quintpar, stimpar)
+
+    Returns ROI data based on specified criteria. 
+
+    Required args:
+        - stim (Stim)          : stimulus object
+        - analyspar (AnalysPar): named tuple containing analysis parameters        
+        - stimpar (StimPar)    : named tuple containing stimulus parameters
+        - quintpar (QuintPar)  : named tuple containing quintile parameters
+    
+    Optional args:
+        - qu_i (int)            : quintile index
+                                  default: 0
+        - surp (list)           : surprise values
+                                  default: [0, 1]
+        - n (int)               : factor by which to multiply number of 
+                                  surprise values
+                                  default: 1
+        - remconsec_surps (bool): whether consecutive segments are removed for 
+                                  surprise segments
+                                  default: False
+        - get_2nd (bool)        : if True, every second segment is retained
+                                  default: False
+
+    Returns:
+        - roi_data (3D array): ROI data, as sequences x frames x ROIs
+        - surp_n (int)       : Number of surprise sequences
+    """
+   
+    # data for single quintile
+    # first number of surprises, then segs
+    for t, surp_use in enumerate([1, surp]):
+        remconsec = (remconsec_surps and surp_use == 1)
+        segs = quint_analys.quint_segs(
+            stim, stimpar, quintpar.n_quints, qu_i, surp_use, 
+            remconsec=remconsec)[0][0]
+        # get alternating for consecutive segments
+        if get_2nd and not remconsec: 
+            segs = gen_util.get_alternating_consec(segs, first=False)
+        if t == 0:
+            surp_n = len(segs) * n
+    twop_fr = stim.get_twop_fr_by_seg(segs, first=True)['first_twop_fr']
+    
+    # do not scale (scaling factors cannot be based on test data)
+    roi_data = gen_util.reshape_df_data(
+        stim.get_roi_data(twop_fr, stimpar.pre, stimpar.post, 
+        analyspar.fluor, remnans=True, scale=False), squeeze_cols=True)
+    
+    # if remconsec_surps: # normalize to first half
+        ## normalize to first half
+        # mid = roi_data.shape[-1]//2
+        # div = np.median(roi_data[:, :, :mid], axis=-1)
+        # roi_data = roi_data - np.expand_dims(div, -1)
+        #
+        # 3 provide mean and std
+        # roi_data = np.stack([np.nanmean(roi_data, axis=0),
+        #     np.nanstd(roi_data, axis=0)], axis=0)
+        ## provide only mean
+        # roi_data = np.expand_dims(np.nanmean(roi_data, axis=0), axis=0)
+    
+    # transpose to seqs x frames x ROIs
+    roi_data = np.transpose(roi_data, [1, 2, 0])
+
+    return roi_data, surp_n
+
+
+#############################################
 def get_sess_data(sess, analyspar, stimpar, quintpar, class_var='surps', 
                   surps=[0, 1], regvsurp=False):
     """
@@ -572,39 +642,18 @@ def get_sess_data(sess, analyspar, stimpar, quintpar, class_var='surps',
             elif 'half' in class_var:
                 use_qu_i = [qu_i[cl]]
             else:
-                # get specific modified stimpar
+                # modify stimpar
                 stimpar_sp = sess_ntuple_util.get_modif_ntuple(
                     stimpar, class_var, stimpar._asdict()[class_var][cl])
-            # data for single quintile
-            # first number of surprises, then segs
-            for t, surp_use in enumerate([1, surp]):
-                remconsec = (remconsec_surps and surp_use == 1)
-                segs = quint_analys.quint_segs(
-                    stim, stimpar_sp, quintpar.n_quints, use_qu_i, surp_use, 
-                    remconsec=remconsec)[0][0]
-                # get alternating for consecutive segments
-                if get_2nd and not remconsec: 
-                    segs = gen_util.get_alternating_consec(segs, first=False)
-                if t == 0:
-                    surp_ns[d].append(len(segs) * n)
-            twop_fr = stim.get_twop_fr_by_seg(segs, first=True)['first_twop_fr']
-            roi_data = gen_util.reshape_df_data(
-                stim.get_roi_data(twop_fr, stimpar_sp.pre, stimpar_sp.post, 
-                analyspar.fluor), squeeze_cols=True)
-            # if remconsec_surps: # normalize to first half
-                ## normalize to first half
-                # mid = roi_data.shape[-1]//2
-                # div = np.median(roi_data[:, :, :mid], axis=-1)
-                # roi_data = roi_data - np.expand_dims(div, -1)
-                #
-                # 3 provide mean and std
-                # roi_data = np.stack([np.nanmean(roi_data, axis=0),
-                #     np.nanstd(roi_data, axis=0)], axis=0)
-                ## provide only mean
-                # roi_data = np.expand_dims(np.nanmean(roi_data, axis=0), axis=0)
-            # transpose to seqs x frames x ROIs
-            roi_seqs[d].append(np.transpose(roi_data, [1, 2, 0]))
-            seq_classes[d].append(np.full(roi_data.shape[1], cl))
+
+            roi_data, surp_n = get_data(
+                stim, analyspar, stimpar_sp, quintpar, qu_i=use_qu_i, 
+                surp=surp, remconsec_surps=remconsec_surps, n=n,  
+                get_2nd=get_2nd)
+
+            roi_seqs[d].append(roi_data)
+            seq_classes[d].append(np.full(len(roi_data), cl))
+            surp_ns[d].append(surp_n)
 
         # concatenate data split by class along trial seqs axis
         roi_seqs[d] = np.concatenate(roi_seqs[d], axis=0)

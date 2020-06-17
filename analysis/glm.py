@@ -263,7 +263,7 @@ def compile_dict_fold_stats(dict_list, analyspar):
 
 
 #############################################
-def stand_across_rois(y_df, tr_idx, sessids, stats='mean'):
+def scale_across_rois(y_df, tr_idx, sessids, stats='mean'):
     """
     """
 
@@ -306,7 +306,7 @@ def run_explained_variance(x_df, y_df, analyspar, stimpar, k=10):
     
     y_df_cols = y_df.columns
 
-    if len(y_df_cols) > 1: # multiple ROIs (to standardize and average)
+    if len(y_df_cols) > 1: # multiple ROIs (to scale and average)
         all_rois = True
         if 'sessid' in x_df.columns:
             sessids = x_df['sessid'].tolist()
@@ -323,7 +323,7 @@ def run_explained_variance(x_df, y_df, analyspar, stimpar, k=10):
     full, coef_all, coef_uni = [], [], []
     for tr_idx, test_idx in kf.split(x_df):
         if all_rois:
-            y_df = stand_across_rois(y_df, tr_idx, sessids, analyspar.stats)
+            y_df = scale_across_rois(y_df, tr_idx, sessids, analyspar.stats)
         # one model per category
         full.append(fit_expl_var(x_df, y_df, tr_idx, test_idx, stimpar))
         coef_all.append(fit_expl_var_per_coeff(

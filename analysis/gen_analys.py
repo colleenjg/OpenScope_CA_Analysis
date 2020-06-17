@@ -94,7 +94,7 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
             if not analyspar.remnans:
                 nanpol = 'omit'
             all_rois = sess.get_roi_traces(
-                None, analyspar.fluor, analyspar.remnans
+                None, analyspar.fluor, analyspar.remnans, analyspar.scale
                 )['roi_traces'].unstack().to_numpy()
             full_tr = math_util.get_stats(
                 all_rois, analyspar.stats, analyspar.error, axes=0, 
@@ -102,7 +102,8 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
             roi_tr.append(all_rois.tolist())
         elif datatype == 'run':
             full_tr = sess.get_run_velocity(
-                remnans=analyspar.remnans).to_numpy().squeeze().tolist()
+                remnans=analyspar.remnans, scale=analyspar.scale
+                ).to_numpy().squeeze().tolist()
             roi_tr = None
         all_tr.append(full_tr)
         all_edges.append(edge_fr)
@@ -485,7 +486,8 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
                 frame_edges = stim.get_twop_fr_by_seg([min(segs), max(segs)])
                 fr = list(range(min(frame_edges[0]), max(frame_edges[1])+1))
                 traces = sess.get_roi_traces(fr, fluor=analyspar.fluor, 
-                    remnans=analyspar.remnans).unstack().to_numpy()
+                    remnans=analyspar.remnans, scale=analyspar.scale
+                    ).unstack().to_numpy()
             elif datatype == 'run':
                 if autocorrpar.byitem != False:
                     raise ValueError('autocorrpar.byitem must be False for '
@@ -494,7 +496,8 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
                 fr = list(range(min(frame_edges[0]), max(frame_edges[1])+1))
                 
                 traces = sess.get_run_velocity_by_fr(fr, fr_type='stim', 
-                    remnans=analyspar.remnans).to_numpy().reshape(1, -1)
+                    remnans=analyspar.remnans, scale=analyspar.scale
+                    ).to_numpy().reshape(1, -1)
                 
             sess_traces.append(traces)
         xran, ac_st = math_util.autocorr_stats(
@@ -581,9 +584,6 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
     if figpar['save']['use_dt'] is None:
         figpar['save']['use_dt'] = gen_util.create_time_str()
 
-    # correlation method (numpy or scipy stats)
-    st_corr = True
-
     # correlate average traces between sessions for each mouse and each surprise
     # value   
     all_counts = []
@@ -602,13 +602,9 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
         grp_me = grp_stats[:, :, 0]
         grp_corrs = []
         for s, surp in enumerate(['reg', 'surp']):
-            if st_corr:
-                corr = st.pearsonr(grp_me[0, s], grp_me[1, s])
-                print(f'    {surp}: {corr[0]:.4f} (p={corr[1]:.2f})')
-                corr = corr[0]
-            else:
-                corr = float(np.correlate(grp_me[0, s], grp_me[1, s]))
-                print(f'    {surp}: {corr:.4f}')
+            corr = st.pearsonr(grp_me[0, s], grp_me[1, s])
+            print(f'    {surp}: {corr[0]:.4f} (p={corr[1]:.2f})')
+            corr = corr[0]
             grp_corrs.append(corr)
         all_corrs.append(grp_corrs)
         all_me_tr.append(grp_me)
@@ -628,14 +624,9 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
                     surp_corrs = []
                     print(f'    sess {sessions[n][se].sess_n}:')
                     for s, surp in enumerate(['reg', 'surp']):
-                        if st_corr:
-                            corr = st.pearsonr(m1_s1_me[s], m2_sess_mes[se][s])
-                            print(f'\t{surp}: {corr[0]:.4f} (p={corr[1]:.2f})')
-                            corr = corr[0]
-                        else:
-                            corr = float(np.correlate
-                                (m1_s1_me[s], m2_sess_mes[se][s]))
-                            print(f'\t{surp}: {corr:.4f}')
+                        corr = st.pearsonr(m1_s1_me[s], m2_sess_mes[se][s])
+                        print(f'\t{surp}: {corr[0]:.4f} (p={corr[1]:.2f})')
+                        corr = corr[0]
                         surp_corrs.append(corr)
                     sess_corrs.append(surp_corrs)
                 mouse_corrs.append(sess_corrs)

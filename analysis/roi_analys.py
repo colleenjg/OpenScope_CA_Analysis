@@ -928,7 +928,8 @@ def posori_resp(sess, analyspar, stimpar, nrois='all'):
             gf_stats = gen_util.reshape_df_data(stim.get_roi_stats_df(twopfr, 
                 stimpar.pre, stimpar.post, byroi=True, fluor=analyspar.fluor, 
                 integ=True, remnans=analyspar.remnans, stats=analyspar.stats, 
-                error=analyspar.error).loc['stats'], squeeze_cols=True).T
+                error=analyspar.error, scale=analyspar.scale).loc['stats'], 
+                squeeze_cols=True).T
             ori_stats.append(gf_stats[:, :sess_nrois].tolist())
         roi_stats.append(ori_stats)
         nseqs.append(ori_nseqs)
@@ -1080,7 +1081,7 @@ def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar,
             # ROI x sequences (x frames)
             traces_df = stim.get_roi_data(
                 twop_fr, stimpar.pre, stimpar.post, fluor=analyspar.fluor, 
-                remnans=analyspar.remnans)
+                remnans=analyspar.remnans, scale=analyspar.scale)
             all_traces.append(gen_util.reshape_df_data(
                 traces_df, squeeze_cols=True))
         if stimpar.stimtype == 'gabors':
