@@ -189,10 +189,10 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
         if datatype == 'roi':
             # average trace
             av_tr = np.asarray(trace_info['all_tr'][i][1])
-            x_ran = range(roi_tr_sep.shape[1])
+            xran  = range(roi_tr_sep.shape[1])
             subtitle = 'u{} across ROIs'.format(statstr_pr)
             plot_util.plot_traces(
-                sub_axs[1], x_ran, av_tr[0], av_tr[1:], title=subtitle)
+                sub_axs[1], xran, av_tr[0], av_tr[1:], title=subtitle)
             
             # each ROI trace
             roi_tr = np.asarray(trace_info['all_tr'][i][0])
@@ -259,7 +259,8 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
             ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
                                     traces ('raw', 'dff')
         - trace_stats (dict): dictionary containing trace stats information
-            ['x_ran'] (array-like)     : time values for the 2p frames
+            ['xrans'] (list)           : time values for the 2p frames, for 
+                                         each session
             ['all_stats'] (list)       : list of 4D arrays or lists of trace 
                                          data statistics across ROIs, 
                                          structured as:
@@ -311,7 +312,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
         sess_info, analyspar['remnans'], analyspar['fluor'], 
         empty=(datatype!='roi'), style='par')
 
-    x_ran      = np.asarray(trace_stats['x_ran'])
+    xrans      = [np.asarray(xran) for xran in trace_stats['xrans']]
     all_stats  = [np.asarray(sessst) for sessst in trace_stats['all_stats']]
     all_counts = trace_stats['all_counts']
 
@@ -350,7 +351,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
                     y_ax = None
                 # leg = f'{qu_lab}{leg_ext} ({all_counts[i][s][q]})'
                 plot_util.plot_traces(
-                    sub_ax, x_ran, all_stats[i][s, q, 0], 
+                    sub_ax, xrans[i], all_stats[i][s, q, 0], 
                     all_stats[i][s, q, 1:], title, col=col[q], alpha=alpha, 
                     label=leg, n_xticks=n)
                 sess_plot_util.add_axislabels(
@@ -412,7 +413,8 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
                                     traces ('raw', 'dff')
         - trace_stats (dict): dictionary containing trace stats information
-            ['x_ran'] (array-like)     : time values for the 2p frames
+            ['xrans'] (list)           : time values for the 2p frames, for 
+                                         each session
             ['all_stats'] (list)       : list of 4D arrays or lists of trace 
                                          data statistics across ROIs, 
                                          structured as:
@@ -483,7 +485,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         sess_info, analyspar['remnans'], analyspar['fluor'], 
         empty=(datatype!='roi'), style='par')
 
-    x_ran      = np.asarray(trace_stats['x_ran'])
+    xrans      = [np.asarray(xran) for xran in trace_stats['xrans']]
     all_stats  = [np.asarray(sessst) for sessst in trace_stats['all_stats']]
     reg_stats  = [np.asarray(regst) for regst in trace_stats['reg_stats']]
     all_counts = trace_stats['all_counts']
@@ -526,14 +528,6 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         end_val = end_val - 2
         inv = -1
     n_ticks = int((end_val - st_val)//2 + 1)
-
-    st, end = 0, len(x_ran)
-    st_vals = list(filter(lambda i: x_ran[i] <= st_val, range(len(x_ran))))
-    if len(st_vals) != 0:
-        st = st_vals[-1]
-    end_vals = list(filter(lambda i: x_ran[i] >= end_val, range(len(x_ran))))
-    if len(end_vals) != 0:
-        end = end_vals[0] + 1
     
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
@@ -542,6 +536,15 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
 
     fig, ax = plot_util.init_fig(n_sess, **figpar['init'])
     for i, (stats, counts) in enumerate(zip(all_stats, all_counts)):
+        xran = xrans[i]
+        st, end = 0, len(xran)
+        st_vals = list(filter(lambda i: xran[i] <= st_val, range(len(xran))))
+        if len(st_vals) != 0:
+            st = st_vals[-1]
+        end_vals = list(filter(lambda i: xran[i] >= end_val, range(len(xran))))
+        if len(end_vals) != 0:
+            end = end_vals[0] + 1
+
         sub_ax = plot_util.get_subax(ax, i)
 
         line, plane = '5', 'dendrites'
@@ -568,7 +571,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             cols = [None] * n_lines
         alpha = np.min([0.4, 0.8/n_lines])
         if stimpar['stimtype'] == 'gabors':
-            sess_plot_util.plot_gabfr_pattern(sub_ax, x_ran[st:end], 
+            sess_plot_util.plot_gabfr_pattern(sub_ax, xran[st:end], 
                 offset=offset, bars_omit=[0] + surp_lens[i])
         # plot regular data
         if reg_stats[i].shape[0] != 1:
@@ -583,7 +586,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                     sub_ax, 0, leng * inv, col=cols[-1], alpha=0.1)
         # leg = f'reg (no lock) ({reg_counts[i][0]})'
         plot_util.plot_traces(
-            sub_ax, x_ran[st:end], reg_stats[i][0][0, st:end], 
+            sub_ax, xran[st:end], reg_stats[i][0][0, st:end], 
             reg_stats[i][0][1:, st:end], alpha=alpha, label=leg, 
             alpha_line=0.8, col='darkgray')
         n = 0 # count lines plotted
@@ -607,7 +610,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                 if i == 0:
                     leg = lab
                 plot_util.plot_traces(
-                    sub_ax, x_ran[st:end], stats[q][0, st:end], 
+                    sub_ax, xran[st:end], stats[q][0, st:end], 
                     stats[q][1:, st:end], title, alpha=alpha, label=leg, 
                     n_xticks=n_ticks, alpha_line=0.8, col=cols[n])
                 n += 1
@@ -827,7 +830,8 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
                                with each surprise x ori/dir combination under a 
                                separate key
                                (NaN arrays for combinations with 0 seqs.)
-    
+            ['xran'] (list)  : time values for the 2p frames
+
     Optional args:
         - figpar (dict): dictionary containing the following figure parameter 
                          dictionaries
@@ -876,7 +880,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
     nroi_str = sess_str_util.get_nroi_strs(
         sess_info, analyspar['remnans'], analyspar['fluor'], style='par')[0]
 
-    xran_ends = [-stimpar['pre'], stimpar['post']]
+    xran = tr_data['xran']
 
     surps = ['reg', 'surp']
     if stimpar['stimtype'] == 'gabors':
@@ -927,7 +931,6 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
             sess_plot_util.add_axislabels(sub_ax, datatype=datatype)
             me  = np.asarray(tr_data['stats'][key][0])
             err = np.asarray(tr_data['stats'][key][1:])
-            xran = np.linspace(xran_ends[0], xran_ends[1], me.shape[0])
             plot_util.plot_traces(
                 sub_ax, xran, me, err, title_tr, label=lab, n_xticks=n)
             cols.append(sub_ax.lines[-1].get_color())
@@ -998,6 +1001,7 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
                                    with each surprise x ori/dir combination 
                                    under a separate key
                                    (NaN arrays for combinations with 0 seqs.)
+            ['xran'] (list)      : time values for the 2p frames
     
     Optional args:
         - figpar (dict)  : dictionary containing the following figure parameter 
@@ -1119,6 +1123,8 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
         tr_data, fig_type, surps, oridirs)
     fig, ax = plot_util.init_fig(len(oridirs) * len(surps), **figpar['init'])
     
+    xran_edges = [np.min(tr_data['xran']), np.max(tr_data['xran'])]
+
     nrois = scaled_sort_me[f'{surps[0]}_{oridirs[0]}'].shape[1]
     yticks_ev = int(10 * np.max([1, np.ceil(nrois/100)])) # avoid > 10 ticks
     for o, od in enumerate(oridirs):
@@ -1145,7 +1151,7 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
                 datatype='roi')
             im = plot_util.plot_colormap(
                 sub_ax, scaled_sort_me[key], title=title, cmap=cmap, n_xticks=n,
-                yticks_ev=yticks_ev, xran=[-stimpar['pre'], stimpar['post']])
+                yticks_ev=yticks_ev, xran=xran_edges)
             
             if stimpar['stimtype'] == 'bricks':
                 plot_util.add_bars(sub_ax, 0)

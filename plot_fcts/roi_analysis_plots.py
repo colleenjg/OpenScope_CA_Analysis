@@ -298,17 +298,18 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
             ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
                                     traces ('raw', 'dff')
         - roi_grps (dict) : dictionary containing ROI groups:
-            ['all_roi_grps'] (list)     : nested lists containing ROI numbers 
-                                          included in each group, structured 
-                                          as follows:
-                                              if sets of groups are passed: 
-                                                  session x set x roi_grp
-                                              if one group is passed: 
-                                                  session x roi_grp
-            ['grp_names'] (list)        : list of names of the ROI groups in 
-                                          ROI grp lists (order preserved)
-            ['x_ran'] (array-like)      : list of time values for the traces
-            ['trace_stats'] (array-like): nested lists or array of statistics 
+            ['all_roi_grps'] (list): nested lists containing ROI numbers 
+                                     included in each group, structured 
+                                     as follows:
+                                         if sets of groups are passed: 
+                                             session x set x roi_grp
+                                         if one group is passed: 
+                                             session x roi_grp
+            ['grp_names'] (list)   : list of names of the ROI groups in 
+                                     ROI grp lists (order preserved)
+            ['xrans'] (list)       : time values for the traces, for each 
+                                     session
+            ['trace_stats'] (list) : nested lists or array of statistics 
                                           across ROIs for ROI groups 
                                           structured as:
                                               sess x qu x ROI grp x 
@@ -361,8 +362,7 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
 
     n_sess = len(mouse_ns)
 
-    xran        = np.asarray(roi_grps['xran'])
-    trace_stats = np.asarray(roi_grps['trace_stats'])
+    xrans       = [np.asarray(xran) for xran in roi_grps['xrans']]
     
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
@@ -380,6 +380,7 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
 
     print_dir = False
     for i in range(n_sess):
+        sess_traces = np.asarray(roi_grps['trace_stats'][i])
         if i == n_sess - 1:
             print_dir = True
         n_grps = len(roi_grps['all_roi_grps'][i])
@@ -392,8 +393,8 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
                 sub_ax, fluor=analyspar['fluor'], datatype=datatype)
             for q, qu_lab in enumerate(quintpar['qu_lab']):
                 plot_util.plot_traces(
-                    sub_ax, xran, trace_stats[i, q, g, 0], 
-                    trace_stats[i, q, g, 1:], title=title, 
+                    sub_ax, xrans[i], sess_traces[q, g, 0], 
+                    sess_traces[q, g, 1:], title=title, 
                     alpha=0.8/len(quintpar['qu_lab']), 
                     label=qu_lab.capitalize())
 
@@ -655,8 +656,8 @@ def plot_rois_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
             ['grp_ns'] (array-like)           : nested list of group ns, 
                                                 structured as: 
                                                     session x grp
-            ['xran'] (array-like)             : array or list of time values 
-                                                for the frame chunks
+            ['xrans'] (list)                  : time values for the frame 
+                                                chunks, for each session
             ['trace_stats'] (array-like)      : array or nested list of 
                                                 statistics across ROIs, for ROI 
                                                 groups structured as:
@@ -807,8 +808,8 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
     nroi_str = sess_str_util.get_nroi_strs(
         sess_info, analyspar['remnans'], fluor=analyspar['fluor'])[0]
 
-    xran_ends = [-stimpar['pre'], stimpar['post']]
-    
+    xran = tr_data['xran']
+
     surps = ['reg', 'surp']
     if stimpar['stimtype'] == 'gabors':
         surp_labs = surps
@@ -851,7 +852,6 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
             sess_plot_util.add_axislabels(sub_ax, datatype=datatype)
             me  = np.asarray(tr_data['stats'][key][0])
             err = np.asarray(tr_data['stats'][key][1:])
-            xran = np.linspace(xran_ends[0], xran_ends[1], me.shape[0])
             plot_util.plot_traces(
                 sub_ax, xran, me, err, title_tr, n_xticks=n, label=lab)
             cols.append(sub_ax.lines[-1].get_color())
@@ -1159,6 +1159,8 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quintpar,
     scaled_sort_me = scale_sort_trace_data(tr_data, fig_type, surps, oridirs)
     fig, ax = plot_util.init_fig(len(oridirs) * len(surps), **figpar['init'])
 
+    xran_edges = [np.min(tr_data['xran']), np.max(tr_data['xran'])]
+
     nrois = scaled_sort_me[f'{surps[0]}_{oridirs[0]}'].shape[1]
     yticks_ev = int(10 * np.max([1, np.ceil(nrois/100)])) # avoid > 10 ticks
     for o, od in enumerate(oridirs):
@@ -1171,8 +1173,7 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quintpar,
                 sub_ax, fluor=analyspar['fluor'], y_ax='ROIs', datatype='roi')
             im = plot_util.plot_colormap(
                 sub_ax, scaled_sort_me[key], title=title, cmap=cmap,
-                xran=[-stimpar['pre'], stimpar['post']], n_xticks=n, 
-                yticks_ev=yticks_ev)
+                xran=xran_edges, n_xticks=n, yticks_ev=yticks_ev)
             if stimpar['stimtype'] == 'bricks':
                 plot_util.add_bars(sub_ax, 0)
 

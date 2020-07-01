@@ -415,14 +415,14 @@ def get_analysis_fcts():
     fct_dict['c'] = [roi_analys.run_tune_curves, False]
 
     # 8. Plots trials as trajectories in 2 principal components
+    #### UNDER DEVELOPMENT ####
     fct_dict['v'] = [roi_analys.run_trial_pc_traj, False]
 
     # 9. Analyses and plots ROI responses for positions and mean gabor 
     # orientations
     fct_dict['p'] = [roi_analys.run_posori_resp, False]
 
-    # 10. Analyses and plots ROI responses for positions and mean gabor 
-    # orientations
+    # 10. Analyses and prints correlations between sessions to console
     fct_dict['r'] = [gen_analys.run_trace_corr_acr_sess, True]
 
     return fct_dict

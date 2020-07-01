@@ -190,8 +190,8 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
         - roi_grps (dict): dictionary containing ROI grps information:
             ['grp_names'] (list)        : see above
             ['all_roi_grps'] (list)     : see above
-            ['xran'] (array-like)       : array or list of time values for the
-                                          frame chunks
+            ['xrans'] (list)            : list of time values for the
+                                          frame chunks, for each session
             ['trace_stats'] (array-like): array or nested list of statistics of
                                           ROI groups for quintiles of interest
                                           structured as:
@@ -224,7 +224,7 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
     trace_info = quint_analys.trace_stats_by_qu_sess(
         sessions, analyspar, stimpar, n_quints=quintpar.n_quints, 
         qu_idx=quintpar.qu_idx, byroi=True, bysurp=True)
-    xran = trace_info[0]
+    xrans = [xran.tolist() for xran in trace_info[0]]
 
     # retain mean/median from trace stats
     trace_me = [sessst[:, :, 0] for sessst in trace_info[1]]
@@ -233,8 +233,8 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
         trace_me, analyspar, roigrppar, roi_grps['all_roi_grps'])
 
     roi_grps = copy.deepcopy(roi_grps)
-    roi_grps['xran'] = xran.tolist()
-    roi_grps['trace_stats'] = grp_stats.tolist()
+    roi_grps['xrans'] = xrans
+    roi_grps['trace_stats'] = grp_stats
 
     sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)
 
@@ -498,12 +498,12 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
 
 #############################################
-def run_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts, 
+def run_oridirs_by_qu_sess(sess, oridirs, surps, xran, mes, counts, 
                            analyspar, sesspar, stimpar, extrapar, quintpar, 
                            figpar, parallel=False):
     """
 
-    run_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts, 
+    run_oridirs_by_qu_sess(sess, oridirs, surps, xrans, mes, counts, 
                            analyspar, sesspar, stimpar, extrapar, quintpar, 
                            figpar)
 
@@ -513,15 +513,14 @@ def run_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts,
     Saves results and parameters relevant to analysis in a dictionary. 
 
     Required args:
-        - se (int)             : session index in roi_me
         - sess (Session)       : Session object
         - oridirs (list)       : list of orientations/directions
         - surps (list)         : list of surprise values
-        - xran (1D array)      : time values for the 2p frames
+        - xran (list)          : list of time values for the 2p frames
         - mes (nested list)    : ROI mean/median data, structured as:
-                                    oridirs x session x surp x ROI x frames
+                                    oridirs x surp x ROI x frames
         - counts (nested list) : number of sequences, structured as:
-                                    oridirs x session x surp
+                                    oridirs x surp
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
@@ -564,8 +563,8 @@ def run_oridirs_by_qu_sess(se, sess, oridirs, surps, xran, mes, counts,
     for o, od in enumerate(oridirs):
         for s, surp in enumerate(surps):
             key = f'{surp}_{od}'
-            me = mes[o][se][s] # me per ROI
-            n_seqs[key] = counts[o][se][s]
+            me = mes[o][s] # me per ROI
+            n_seqs[key] = int(counts[o][s])
             # sorting idx
             roi_sort[key] = np.argsort(np.argmax(me, axis=1)).tolist()
             scale_vals[f'{key}_max'] = np.max(me, axis=1).tolist()
@@ -637,7 +636,7 @@ def run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
     """
 
     # for each orientation/direction
-    xran, mes, counts = [], [], []
+    mes, counts = [], []
     for od in oridirs:
         # create a specific stimpar for each direction or orientation
         if stimpar.stimtype == 'bricks':
@@ -653,25 +652,29 @@ def run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
             sessions, analyspar, stimpar_od, quintpar.n_quints, 
             quintpar.qu_idx, byroi=True, bysurp=True, lock=lock, 
             nan_empty=nan_empty)
-        xran = trace_info[0]
+        xrans = trace_info[0]
         # retrieve mean/medians and single quintile data:
         # sess x [surp x ROIs x frames]
         mes.append([sess_stats[:, 0, 0] for sess_stats in trace_info[1]]) 
         # retrieve single quintile counts: sess x surp
         counts.append(
             [[surp_c[0] for surp_c in sess_c] for sess_c in trace_info[2]])
-    
+
+    mes = [np.asarray(vals) for vals in zip(*mes)]
+    counts = [np.asarray(vals) for vals in zip(*counts)]
+
     if parallel:
         n_jobs = gen_util.get_n_jobs(len(sessions))
         Parallel(n_jobs=n_jobs)(delayed(run_oridirs_by_qu_sess)
-            (se, sess, oridirs, surps, xran, mes, counts, analyspar, sesspar, 
-            stimpar, extrapar, quintpar, figpar, False) 
+            (sess, oridirs, surps, xrans[se], mes[se], counts[se], analyspar, 
+            sesspar, stimpar, extrapar, quintpar, figpar, False) 
             for se, sess in enumerate(sessions))
     else:
         for se, sess in enumerate(sessions):
             run_oridirs_by_qu_sess(
-                se, sess, oridirs, surps, xran, mes, counts, analyspar, 
-                sesspar, stimpar, extrapar, quintpar, figpar, parallel)
+                sess, oridirs, surps, xrans[se], mes[se], counts[se], 
+                analyspar, sesspar, stimpar, extrapar, quintpar, figpar, 
+                parallel)
 
 
 #############################################
