@@ -323,7 +323,7 @@ def surp_data_by_sess(sess, analyspar, stimpar, datatype='roi', surp='bysurp',
 
     stim = sess.get_stim(stimpar.stimtype)
     if surp == 'bysurp':
-        if stimpar.gabfr * 0.3 + stimpar.post < 0.9:
+        if stimpar.stimtype == 'gabors' and stimpar.gabfr * 0.3 + stimpar.post < 0.9:
             raise ValueError('Surprise period will not necessarily include '
                 f'surprise, with {stimpar.post}s after gaborframe '
                 f'{stimpar.gabfr}.')

@@ -246,17 +246,23 @@ def grp_traces_by_qu_surp_sess(trace_data, analyspar, roigrppar, all_roi_grps):
     
     n_sesses = len(data_me)
     n_quints = data_me[0].shape[0]
+    n_stats  = 2 + (analyspar.stats == 'median' and analyspar.error == 'std')
+
+    n_frames = [me.shape[2] for me in data_me]
 
     # sess x quintile (first/last) x ROI grp
+    empties = [np.empty([n_stats, n_fr]) * np.nan for n_fr in n_frames]
     grp_stats = [[[] for _ in range(n_quints)] for _ in range(n_sesses)]
     for i, sess in enumerate(data_me):
         for q, quint in enumerate(sess): 
             for g, grp_rois in enumerate(all_roi_grps[i]):
                 # leave NaNs if no ROIs in group
-                if len(grp_rois) == 0:
-                    continue
-                grp_st = math_util.get_stats(
-                    quint[grp_rois], analyspar.stats, analyspar.error, axes=0)
+                if len(grp_rois) != 0:
+                    grp_st = math_util.get_stats(
+                        quint[grp_rois], analyspar.stats, analyspar.error, 
+                        axes=0)
+                else:
+                    grp_st = empties[i]
                 grp_stats[i][q].append(grp_st.tolist())
 
     return grp_stats
