@@ -30,8 +30,8 @@ from plot_fcts import logreg_plots, glm_plots
 
 #############################################
 def plot_from_dicts(direc, source='roi', plt_bkend=None, fontdir=None, 
-                    plot_tc=True, parallel=False, datetime=True, pattern='', 
-                    depth=0):
+                    plot_tc=True, parallel=False, datetime=True, pattern='idx', 
+                    depth=7):
     """
     plot_from_dicts(direc)
 

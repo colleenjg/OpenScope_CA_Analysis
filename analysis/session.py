@@ -517,6 +517,8 @@ class Session(object):
                            default: 'dff'
         """
         
+        rem_noisy = True
+
         if not hasattr(self, '_dend'):
             raise ValueError('Run `self.load_roi_info()` to set ROI '
                 'attributes correctly.')
@@ -538,6 +540,23 @@ class Session(object):
             traces = f[dataset_name][()]
 
         nan_arr = np.isnan(traces).any(axis=1) + np.isinf(traces).any(axis=1)
+        
+        if rem_noisy:
+            min_roi = np.min(traces, axis=1)
+            high_med = ((np.median(traces, axis=1) - min_roi)/\
+                (np.max(traces, axis=1) - min_roi) > 0.5)
+            sub0_mean = np.nanmean(traces, axis=1) < 0
+            
+            warn_str = 'None'
+            roi_ns = np.where(high_med + sub0_mean)[0]
+            if len(roi_ns) != 0:
+                warn_str = ', '.join([str(x) for x in roi_ns])
+            print('    Warning: Noisy ROIs (mean below 0, median above '
+                'mid-range point) are also included in NaN ROI attribute '
+                f'(but not set to NaN): {warn_str}.')
+            
+            nan_arr += high_med + sub0_mean
+
         nan_rois = np.where(nan_arr)[0].tolist()
 
         if fluor == 'dff':

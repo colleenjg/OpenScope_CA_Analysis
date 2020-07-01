@@ -86,61 +86,6 @@ def split_by_linpla(sessions, rem_empty=False):
 
 
 #############################################
-def define_baseline(stimtype='bricks', gabfr=3, baseline=0.1, pre=0, 
-                    post=1.5):
-    """
-    define_baseline()
-
-    Returns baseline times based on stimulus type and times. 
-    
-    For gabors, the baseline is before onset of the earliest D/E frame in the 
-    stimulus period. If there are no D/E frames in the stimulus period 
-    (including if the stimulus period ends at a first D/E frame), the 
-    closest preceeding D/E frame is chosen. 
-
-    For bricks, the baseline is before 0 seconds reference point.
-
-    Optional args:
-        - stimtype (str)  : stimulus ('bricks' or 'gabors')
-                            default: 'bricks'
-        - gabfr (int)     : gabor frame at which stimulus period start 
-                            (0, 1, 2, 3) (or to include, for GLM)
-                            default: 0
-        - baseline (float): baseline length (in sec)
-                            default: 0.1
-        - pre (float)     : range of frames included in stimulus period before 
-                            each reference frame (in s)
-                            default: 0 (in sec)
-        - post (float)    : range of frames included in stimulus period after 
-                            each reference frame (in s)
-                            default: 1.5 (in sec)
-
-    Returns:
-        - pre (float)     : range of frames in stimulus period before each 
-                            reference frame included in baseline (in s)
-        - post (float)    : range of frames in stimulus period after each 
-                            reference frame included in baseline (in s)
-    """
-
-    if stimtype == 'bricks': # same as provided pre
-        base_pre = baseline
-    elif stimtype == 'gabors':
-        sec_per, targ_fr, full = 0.3, 3, 1.5
-        # offset from 0, first from pre
-        offset = (sec_per * (targ_fr - gabfr) + pre) % full - pre
-        # if beyond stimulus range, move to before stimulus period
-        if offset >= post:
-            offset -= full
-        # reverses base_pre: if positive -> before 0, and v.v.
-        base_pre = baseline - offset
-
-    print(base_pre)
-    base_post = baseline - base_pre
-    
-    return base_pre, base_post
-
-
-#############################################
 def comp_vals_acr_planes(linpla_ord, vals, n_perms=None, normal=True, 
                          stats='mean'):
     """
@@ -290,7 +235,7 @@ def data_from_segs(sess, segs, analyspar, stimpar, datatype='roi',
             ch_fl = [0, 0]
         if base_pre is None:
             base_pre = stimpar.pre
-        base_pre, base_post = define_baseline(
+        base_pre, base_post = quint_analys.define_transition_baseline(
             stimpar.stimtype, stimpar.gabfr, baseline, base_pre, stimpar.post)
         # expand flank checking as needed
         ch_fl = [np.max([p, b]) 
@@ -378,6 +323,10 @@ def surp_data_by_sess(sess, analyspar, stimpar, datatype='roi', surp='bysurp',
 
     stim = sess.get_stim(stimpar.stimtype)
     if surp == 'bysurp':
+        if stimpar.gabfr * 0.3 + stimpar.post < 0.9:
+            raise ValueError('Surprise period will not necessarily include '
+                f'surprise, with {stimpar.post}s after gaborframe '
+                f'{stimpar.gabfr}.')
         segs = [stim.get_segs_by_criteria(
             gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
             bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, surp=s, 
@@ -465,6 +414,62 @@ def surp_data_by_sess(sess, analyspar, stimpar, datatype='roi', surp='bysurp',
         data_arr.append(data_from_segs(
             sess, subsegs, analyspar, stimpar_use, datatype, integ=integ, 
             baseline=baseline, base_pre=base_pre, ch_fl=ch_fl))
+
+    return data_arr
+
+
+#############################################
+def dir_data_by_sess(sess, analyspar, stimpar, datatype='roi', integ=False, 
+                     baseline=0.1, surp='any', remconsec=False):
+    """
+    dir_data_by_sess(sess, analyspar, stimpar)
+
+    Returns regular and surprise data for the session.
+
+    Required args:
+        - sess (Session)       : Session object
+        - analyspar (AnalysPar): named tuple containing analysis parameters
+        - stimpar (StimPar)    : named tuple containing stimulus parameters
+
+    Optional args:
+        - datatype (str)        : type of data (e.g., 'roi', 'run')
+                                  default: 'roi'
+        - integ (bool)          : if True, sequence data is integrated
+                                  default: False
+        - baseline (bool or num): if not False, number of second to use for 
+                                  baseline
+                                  default: 0.1
+        - surp (str or int)     : surprise value, e.g. 'any', 0, 1
+                                  default: 'any'
+        - remconsec (bool)      : if True, consecutive segments are removed
+                                  default: False
+
+    Returns:
+        - data_arr (list): list of data arrays structured as 
+                           left, right [x ROIs] x seq [x frames]
+    """
+
+
+    if stimpar.stimtype != 'bricks':
+        raise ValueError('Cannot get direction data for Gabors.')
+
+    if not remconsec and not (baseline is None or baseline == 0):
+        raise ValueError('Baseline not implemented for Bricks direction ' 
+            'without `remconsec`.')
+
+    stim = sess.get_stim(stimpar.stimtype)
+    data_arr = []
+    for direc in ['left', 'right']:
+        stimpar_sp = sess_ntuple_util.get_modif_ntuple(
+            stimpar, 'bri_dir', direc)
+        segs = stim.get_segs_by_criteria(
+            gabfr=stimpar_sp.gabfr, gabk=stimpar_sp.gabk, 
+            gab_ori=stimpar_sp.gab_ori, bri_dir=stimpar_sp.bri_dir, 
+            bri_size=stimpar_sp.bri_size, remconsec=remconsec, surp=surp, 
+            by='seg')
+        data_arr.append(data_from_segs(
+            sess, segs, analyspar, stimpar, datatype, integ=integ, 
+            baseline=baseline, base_pre=stimpar.pre))
 
     return data_arr
 
@@ -579,11 +584,11 @@ def prog_by_sess(sess, analyspar, stimpar, datatype='roi', surp='progsurp',
                                   default: 0.1
 
     Returns:
-        - diff_arr (1 or 2D array): array of differences between surprise and 
-                                    the preceeding regular sequence 
-                                    (surp - reg), or v.v. if surp is 
+        - data_arr (2 or 3D array): array of data for surprise and the 
+                                    preceeding regular sequence  
+                                    (reg, surp), or v.v. if surp is 
                                     'progreg', structured as 
-                                    [x ROIs] x seq
+                                    (reg, surp) [x ROIs] x seq
     """
 
     if surp not in ['progsurp', 'progreg']:
@@ -592,18 +597,17 @@ def prog_by_sess(sess, analyspar, stimpar, datatype='roi', surp='progsurp',
     data_arr = surp_data_by_sess(sess, analyspar, stimpar, datatype=datatype, 
         surp=surp, integ=True, baseline=baseline, 
         prog_pos=position)
-    
-    # diff between surp and reg or v.v. ([ROIs x] seq)
-    diff_arr = data_arr[1] - data_arr[0]
 
-    return diff_arr
+    data_arr = np.asarray(data_arr)
+
+    return data_arr
 
 
 #############################################
-def surp_idx_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype='roi', 
-                     surp='bysurp', position=0, op='diff'):
+def stim_idx_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype='roi', 
+                     feature='bysurp', position=0, op='diff'):
     """
-    surp_idx_by_sess(sess, analyspar, stimpar)
+    stim_idx_by_sess(sess, analyspar, stimpar)
     
     Returns session item (ROIs or 1 for running) indices for difference between 
     surprise and regular sequences, as well as their percentiles based on 
@@ -619,10 +623,11 @@ def surp_idx_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype='roi',
                                   default: 1000
         - datatype (str)        : type of data (e.g., 'roi', 'run')
                                   default: 'roi'
-        - surp (str)            : how to split surprise vs reg data, either 
+        - feature (str)         : how to split stimuli, e.g.,
                                   'bysurp': all reg vs all surp, or
                                   'progsurp': first surp, vs preceeding reg, or
                                   'progreg': first reg, vs preceeding surp, or
+                                  'dir': left v right direction
                                   default: 'bysurp'
         - position (int)        : surprise or regular position to retrieve
                                   default: 0
@@ -645,8 +650,24 @@ def surp_idx_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype='roi',
     if analyspar.remnans:
         nanpol = None
 
-    data_arr = surp_data_by_sess(sess, analyspar, stimpar, datatype=datatype, 
-        surp=surp, integ=True, baseline=0, prog_pos=position)
+    if 'dir' in feature:
+        if feature == 'dir_reg':
+            surp = 0
+        elif feature == 'dir_surp':
+            surp = 1
+        elif feature == 'dir':
+            surp = 'any'
+        else:
+            raise ValueError('If `dir` in `feature`, must be '
+                'among `dir_reg`, `dir_surp` or `dir`.')
+
+        data_arr = dir_data_by_sess(sess, analyspar, stimpar, 
+            datatype=datatype, integ=True, baseline=0, surp=surp, 
+            remconsec=False)
+    else:
+        data_arr = surp_data_by_sess(sess, analyspar, stimpar, 
+            datatype=datatype, surp=feature, integ=True, baseline=0, 
+            prog_pos=position)
     
     # take statistic across sequences
     seq_mes = np.stack([math_util.mean_med(
@@ -666,7 +687,8 @@ def surp_idx_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype='roi',
 
     last_dim = np.sum([sub.shape[-1] for sub in data_arr])
     if datatype != 'roi':
-        mean_meds = np.asarray(mean_meds).reshape(2, 1)
+        item_idxs = np.asarray(item_idxs).reshape(-1)
+        seq_mes = np.asarray(seq_mes).reshape(2, 1)
         targ = (1, last_dim)
     else:
         targ = (-1, last_dim)
@@ -687,16 +709,16 @@ def surp_idx_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype='roi',
 
 
 #############################################
-def surp_idx_by_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05, 
-                       datatype='roi', surp='bysurp', position=0, 
+def stim_idx_by_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05, 
+                       datatype='roi', feature='bysurp', position=0, seed=None,
                        parallel=False):
     """
-    surp_idx_by_sesses(sessions, analyspar, stimpar)
+    stim_idx_by_sesses(sessions, analyspar, stimpar)
     
     Returns item (ROIs or running) indices for difference between 
-    surprise and regular sequences, as well as their percentiles based on 
-    random permutations for each item, grouped across mice for each session 
-    number.
+    stimulus features (e.g., surprise v regular, brick direction), as well as 
+    their percentiles based on random permutations for each item, grouped 
+    across mice for each session number.
 
     Required args:
         - sessions (list)      : nested list of Session objects (mouse x sess)
@@ -710,13 +732,18 @@ def surp_idx_by_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05,
                                   default: 0.05
         - datatype (str)        : type of data (e.g., 'roi', 'run')
                                   default: 'roi'
-        - surp (str)            : how to split surprise vs reg data, either 
+        - feature (str)         : how to split stimuli, e.g.,
                                   'bysurp': all reg vs all surp, or
                                   'progsurp': first surp, vs preceeding reg, or
                                   'progreg': first reg, vs preceeding surp, or
+                                  'dir_reg': left v right direction (regular),
+                                  'dir_surp': left v right direction (surprise),
+                                  'dir': left v right direction
                                   default: 'bysurp'
         - position (int)        : surprise or regular position to retrieve
                                   default: 0 
+        - seed (int)            : seed value to use. (-1 treated as None)
+                                  default: None
         - parallel (bool)       : if True, sessions are analysed in parallel
                                   default: False
     Returns:
@@ -753,6 +780,8 @@ def surp_idx_by_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05,
     if len(sessions) == 0:
         raise ValueError('At least one session must be passed.') 
 
+    seed = gen_util.seed_all(seed, 'cpu', print_seed=False)
+
     n_mice = len(sessions)
     n_sess = list(set([len(m_sess) for m_sess in sessions]))
     if len(n_sess) != 1:
@@ -778,18 +807,39 @@ def surp_idx_by_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05,
             sesses.append(sess)
             if sess is None:
                 continue
-            item_idxs, item_percs, rand_idxs = surp_idx_by_sess(
-                sess, analyspar, stimpar, n_perms, datatype, surp, position, op)
+            try:
+                item_idxs, item_percs, rand_idxs = stim_idx_by_sess(
+                    sess, analyspar, stimpar, n_perms, datatype, feature, 
+                    position, op)
+            except Exception as e:
+                if 'dir' in feature and 'No segments' in str(e):
+                    continue
+                else:
+                    raise e
             all_items.extend(item_idxs.tolist())
             all_percs.extend(item_percs.tolist())
             all_rand.extend(rand_idxs.tolist())
             
         sess_info.append(sess_gen_util.get_sess_info(
             sesses, analyspar.fluor, add_none=True, incl_roi=(datatype=='roi')))
-        all_rand = np.concatenate(all_rand, axis=0)
-        div = len(all_rand)/float(len(all_items))
+        
+        if len(all_rand) == 0:
+            use_bounds = [-0.5, 0.5]
+            bin_edges = np.linspace(*use_bounds, n_bins + 1)
+            all_item_idxs.append(
+                np.histogram(all_items, bins=bin_edges)[0].tolist())
+            all_rand_idxs.append(
+                (np.histogram(all_rand, bins=bin_edges)[0]).tolist())
+            sess_edges.append([np.min(bin_edges), np.max(bin_edges)])
+            all_item_percs.append(
+                np.histogram(
+                    all_percs, bins=n_bins, range=[0, 100])[0].tolist())
+            continue
         
         # get edges for histogram 
+        all_rand = np.concatenate(all_rand, axis=0)
+        div = len(all_rand)/float(len(all_items))
+
         if op in ['diff', 'discr']:
             use_bounds = [np.min(all_rand), np.max(all_rand)]
         elif op == 'rel_diff':
@@ -962,7 +1012,7 @@ def get_mouse_stats(mouse_diff_st, all_rand, analyspar, permpar):
 
 #############################################
 def surp_diff_by_sesses(sessions, analyspar, stimpar, permpar, datatype='roi', 
-                        surp='bysurp', baseline=0.1):
+                        surp='bysurp', baseline=0.1, seed=None):
     """
     surp_diff_by_sesses(sessions, analyspar, stimpar, permpar)
 
@@ -986,6 +1036,8 @@ def surp_diff_by_sesses(sessions, analyspar, stimpar, permpar, datatype='roi',
         - baseline (bool or num): if not False, number of second to use for 
                                   baseline for bysurp data
                                   default: 0.1
+        - seed (int)            : seed value to use. (-1 treated as None)
+                                  default: None
 
     Returns:
         - mouse_diff_st (list)   : difference statistics across ROIs or seqs, 
@@ -1037,6 +1089,8 @@ def surp_diff_by_sesses(sessions, analyspar, stimpar, permpar, datatype='roi',
 
     st_len = 2 + (analyspar.stats == 'median' and analyspar.error == 'std')
 
+    seed = gen_util.seed_all(seed, 'cpu', print_seed=False)
+
     n_mice = len(sessions)
     mouse_diff_st = np.empty([n_mice, n_sess, st_len]) * np.nan
     all_rand = np.empty([n_mice, n_sess, permpar.n_perms]) * np.nan
@@ -1077,7 +1131,7 @@ def surp_diff_by_sesses(sessions, analyspar, stimpar, permpar, datatype='roi',
 
 #############################################
 def surp_diff_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi', 
-                        surp='bysurp', baseline=0.1, parallel=False):
+                        surp='bysurp', baseline=0.1, seed=None, parallel=False):
     """
     surp_diff_by_linpla(sessions, analyspar, stimpar, permpar)
     
@@ -1100,7 +1154,9 @@ def surp_diff_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi',
                                   default: 'bysurp'
         - baseline (bool or num): if not False, number of second to use for 
                                   baseline for bysurp data
-                                  default: 0.1
+                                  default: 0.1        
+        - seed (int)            : seed value to use. (-1 treated as None)
+                                  default: None
         - parallel (bool)       : if True, some of the analysis is run in 
                                   parallel across CPU cores 
                                   default: False
@@ -1168,13 +1224,13 @@ def surp_diff_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi',
     n_jobs = gen_util.get_n_jobs(len(linpla_sess), parallel=parallel)
     if parallel:
         outs = Parallel(n_jobs=n_jobs)(delayed(surp_diff_by_sesses)(
-            sessions, analyspar, stimpar, permpar, datatype, surp, baseline)
-            for sessions in linpla_sess)
+            sessions, analyspar, stimpar, permpar, datatype, surp, baseline, 
+            seed) for sessions in linpla_sess)
     else:
         outs = []
         for sessions in linpla_sess:
             outs.append(surp_diff_by_sesses(sessions, analyspar, stimpar, 
-                permpar, datatype, surp, baseline))
+                permpar, datatype, surp, baseline, seed))
     outs = [list(out) for out in zip(*outs)]
 
     diff_info = dict()
@@ -1213,11 +1269,12 @@ def surp_diff_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi',
 
 
 #############################################
-def run_surp_area_diff(sessions, analysis, analyspar, sesspar, stimpar, basepar, 
-                       permpar, figpar, datatype='roi', parallel=False):
+def run_surp_area_diff(sessions, analysis, seed, analyspar, sesspar, stimpar, 
+                       basepar, permpar, figpar, datatype='roi', 
+                       parallel=False):
     """
-    run_surp_area_diff(sessions, analysis, analyspar, sesspar, stimpar, basepar, 
-                       permpar, figpar)
+    run_surp_area_diff(sessions, analysis, seed, analyspar, sesspar, stimpar, 
+                       basepar, permpar, figpar)
 
     Retrieves area values by session x surp val and plots statistics across 
     ROIs of difference between regular and surprise.
@@ -1227,6 +1284,7 @@ def run_surp_area_diff(sessions, analysis, analyspar, sesspar, stimpar, basepar,
     Required args:
         - sessions (list)      : nested list of Session objects (mouse x sess)
         - analysis (str)       : analysis type (e.g., 't')
+        - seed (int)           : seed value to use. (-1 treated as None)
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
@@ -1260,10 +1318,11 @@ def run_surp_area_diff(sessions, analysis, analyspar, sesspar, stimpar, basepar,
 
     diff_info, sess_info = surp_diff_by_linpla(
         sessions, analyspar, stimpar, permpar, datatype, surp='bysurp', 
-        baseline=basepar.baseline, parallel=parallel)
+        baseline=basepar.baseline, seed=seed, parallel=parallel)
 
     extrapar = {'analysis': analysis,
                 'datatype': datatype,
+                'seed'    : seed,
                 }
 
     info = {'analyspar': analyspar._asdict(),
@@ -1282,7 +1341,7 @@ def run_surp_area_diff(sessions, analysis, analyspar, sesspar, stimpar, basepar,
 
       
 #############################################
-def run_lock_area_diff(sessions, analysis, analyspar, sesspar, stimpar, 
+def run_lock_area_diff(sessions, analysis, seed, analyspar, sesspar, stimpar, 
                        basepar, permpar, figpar, datatype='roi', 
                        parallel=False):
     """
@@ -1297,6 +1356,7 @@ def run_lock_area_diff(sessions, analysis, analyspar, sesspar, stimpar,
     Required args:
         - sessions (list)      : nested list of Session objects (mouse x sess)
         - analysis (str)       : analysis type (e.g., 't')
+        - seed (int)           : seed value to use. (-1 treated as None)
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
@@ -1339,12 +1399,13 @@ def run_lock_area_diff(sessions, analysis, analyspar, sesspar, stimpar,
     for lock in ['surplock', 'reglock']:
         diff_info, sess_info = surp_diff_by_linpla(
             sessions, analyspar, stimpar, permpar, datatype, surp=lock, 
-            baseline=basepar.baseline, parallel=parallel)
+            baseline=basepar.baseline, seed=seed, parallel=parallel)
         all_diff_info.append(diff_info)
         all_sess_info.append(sess_info)
 
     extrapar = {'analysis': analysis,
-                'datatype': datatype
+                'datatype': datatype,
+                'seed'    : seed,
                 }
 
     info = {'analyspar' : analyspar._asdict(),
@@ -1793,7 +1854,8 @@ def run_lock_traces(sessions, analysis, analyspar, sesspar, stimpar,
 
 #############################################
 def prog_by_sesses(sessions, analyspar, stimpar, datatype='roi', 
-                   surp='progsurp', position=0, baseline=0.0, seq_st=False):
+                   surp='progsurp', position=0, baseline=0.0, seq_st=False, 
+                   diff=False):
     """
     prog_by_sesses(sessions, analyspar, stimpar)
 
@@ -1828,15 +1890,16 @@ def prog_by_sesses(sessions, analyspar, stimpar, datatype='roi',
     Returns:
         - mouse_seq_st (list)    : difference statistics across ROIs for each 
                                    sequence or across sequences, structured as 
-                                       mouse x session [x seqs] x stats
+                                       mouse x session [x surps] [x seqs] 
+                                           x stats
         - all_seq_st (list)      : difference statistics across mice for each 
                                    sequence, structured as 
-                                       session [x seqs] x stats
+                                       session [x surps] [x seqs] x stats
         if datatype == 'roi':
             - grped_seq_st (list): difference statistics across ROIs grouped by 
                                    session for each sequence, or across 
                                    sequences, structured as 
-                                       session [x seqs] x stats
+                                       session [x surps] [x seqs] x stats
         - sess_info (nested list): nested list of dictionaries for each 
                                    mouse containing information from each 
                                    session, with None for missing sessions
@@ -1868,7 +1931,12 @@ def prog_by_sesses(sessions, analyspar, stimpar, datatype='roi',
 
     n_mice = len(sessions)
     upper_bound = 1000
-    mouse_seq_st = np.empty([n_mice, n_sess, upper_bound, st_len]) * np.nan
+
+    # n_mice x n_sess x surp/reg x n_seq x stats
+    mouse_seq_st = np.empty([n_mice, n_sess, 2, upper_bound, st_len]) * np.nan
+    if diff:
+        mouse_seq_st = mouse_seq_st[:, :, 0]
+
     all_roi_vals = [[] for _ in range(n_sess)]
     sess_info = []
     cut_seq = upper_bound
@@ -1878,11 +1946,13 @@ def prog_by_sesses(sessions, analyspar, stimpar, datatype='roi',
         for s, sess in enumerate(m_sess):
             if sess is None:
                 continue
-            # (ROIs x) sequences
+            # surp (reg, surp or v.v.) x (ROIs x) sequences
             try:
-                diff_arr = prog_by_sess(sess, analyspar, stimpar, 
+                data_arr = prog_by_sess(sess, analyspar, stimpar, 
                     datatype=datatype, surp=surp, position=position, 
                     baseline=baseline)
+                if diff:
+                    data_arr = data_arr[1] - data_arr[0]
             except Exception as e:
                 # catch error if the position value is too high and no segments 
                 # meet the criteria
@@ -1890,38 +1960,43 @@ def prog_by_sesses(sessions, analyspar, stimpar, datatype='roi',
                     continue
                 else:
                     raise(e)
-            n_seqs = diff_arr.shape[-1]
-            if n_seqs > mouse_seq_st.shape[2]:
+            n_seqs = data_arr.shape[-1]
+            if n_seqs > mouse_seq_st.shape[-2]:
                 raise NotImplementedError('Implementation problem: '
                     f'`upper_bound` set too low at {upper_bound}, as some '
                     f'sessions have {n_seqs} sequences.')
             cut_seq = np.min([cut_seq, n_seqs])
             upper_bound = None # allows a later check
+
+            # set target slice (mouse, session, surp/reg)
+            targ_slice = (slice(m, m + 1), slice(s, s + 1), slice(None))
+            if diff:
+                targ_slice = targ_slice[:-1]
             if datatype == 'roi':
-                all_roi_vals[s].append(diff_arr)
-                mouse_seq_st[m, s, :n_seqs] = math_util.get_stats(
-                    diff_arr, stats=analyspar.stats, error=analyspar.error, 
-                    axes=0, nanpol=nanpol).T
+                all_roi_vals[s].append(data_arr)
+                mouse_seq_st[targ_slice + (slice(0, n_seqs), )] = \
+                    np.moveaxis(math_util.get_stats(
+                        data_arr, stats=analyspar.stats, error=analyspar.error, 
+                        axes=-2, nanpol=nanpol), 0, -1)
             else:
-                mouse_seq_st[m, s, :n_seqs, 0] = diff_arr
+                mouse_seq_st[targ_slice + (slice(0, n_seqs), 0)] = data_arr
         sess_info.append(m_sess_info)
 
     # cut down to number of sequences
-    mouse_seq_st = mouse_seq_st[:, :, :cut_seq]
+    mouse_seq_st = mouse_seq_st[..., :cut_seq, :]
 
-    axes = [1, 2]
     if seq_st:
-        mouse_seq_st = np.transpose(math_util.get_stats(
-            mouse_seq_st[:, :, :, 0], stats=analyspar.stats, 
-            error=analyspar.error, axes=-1, nanpol='omit'), [1, 2, 0])
-        axes = [1]
+        mouse_seq_st = np.moveaxis(math_util.get_stats(
+            mouse_seq_st[..., 0], stats=analyspar.stats, 
+            error=analyspar.error, axes=-1, nanpol='omit'), 0, -1)
 
-    all_seq_st = np.transpose(math_util.get_stats(mouse_seq_st[..., 0], 
+    all_seq_st = np.moveaxis(math_util.get_stats(mouse_seq_st[..., 0], 
         stats=analyspar.stats, error=analyspar.error, axes=0, 
-        nanpol='omit'), axes + [0]).tolist()
+        nanpol='omit'), 0, -1).tolist()
 
     if datatype == 'roi':
-        # session x mouse x [ROI x seqs] -> session x seqs x stats
+        # session x mouse [x surps] x [ROI x seqs] -> 
+        # session [x surps] [x seqs] x stats
         grped_seq_st = []
         for sess_vals in all_roi_vals:
             if len(sess_vals) == 0:
@@ -1929,17 +2004,19 @@ def prog_by_sesses(sessions, analyspar, stimpar, datatype='roi',
                 targ_shape = [cut_seq, st_len]
                 if seq_st:
                     targ_shape = [st_len]
-                grped_seq_st.append(np.empty(targ_shape) * np.nan).tolist()
+                if not diff:
+                    targ_shape = [2] + targ_shape
+                grped_seq_st.append((np.empty(targ_shape) * np.nan).tolist())
             else:
                 sess_vals = np.concatenate(
-                    [data[:, :cut_seq] for data in sess_vals], axis=0) 
-                targ_ax = 0
+                    [data[..., :cut_seq] for data in sess_vals], axis=-2) 
+                targ_ax = -2
                 if seq_st:
-                    targ_ax = [0, 1]
+                    targ_ax = [-2, -1]
 
-                grped_seq_st.append(math_util.get_stats(
+                grped_seq_st.append(np.moveaxis(math_util.get_stats(
                     sess_vals, stats=analyspar.stats, error=analyspar.error, 
-                    axes=targ_ax, nanpol=nanpol).T.tolist())
+                    axes=targ_ax, nanpol=nanpol), 0, -1).tolist())
 
         return mouse_seq_st.tolist(), all_seq_st, grped_seq_st, sess_info
 
@@ -1985,21 +2062,35 @@ def prog_by_linpla(sessions, analyspar, stimpar, datatype='roi',
 
     Returns:
         - prog_info (dict)       : dictionary with surprise progression info
-            ['prog_stats'] (list)      : surprise progression stats across 
-                                         mice, structured as 
-                                            plane/line x session x seq x stats
-            ['mouse_prog_stats'] (list): surprise progression stats across 
-                                         ROIs, structured as 
-                                             plane/line x mouse x session 
-                                                x seq x stats
+            ['prog_stats'] (list)           : surprise progression stats across 
+                                              mice, structured as 
+                                                  plane/line x session x surps 
+                                                  x seq x stats
+            ['prog_diff_stats'] (list)      : surprise difference progression 
+                                              stats across mice, structured as 
+                                                  plane/line x session x seq 
+                                                  x stats
+            ['mouse_prog_stats'] (list)     : surprise progression stats across 
+                                              ROIs, structured as 
+                                                 plane/line x mouse x session x
+                                                 surps x seq x stats
+            ['mouse_prog_diff_stats'] (list): surprise difference progression 
+                                              stats across ROIs, structured as 
+                                                 plane/line x mouse x session x
+                                                 seq x stats
+
             ['linpla_ord'] (list)      : order list of planes/lines
         if datatype == 'roi':
-            ['prog_stats_grped'] (list): surprise progression stats across ROIs 
-                                          (grouped across mice), 
-                                             structured as 
-                                               plane/line x session x seqs x 
-                                               stats
-
+            ['prog_stats_grped'] (list)     : surprise progression stats across 
+                                              ROIs (grouped across mice), 
+                                              structured as 
+                                                  plane/line x session x surps 
+                                                  x seqs x stats
+            ['prog_diff_stats_grped'] (list): surprise difference progression 
+                                              stats across ROIs (grouped across 
+                                              mice), structured as 
+                                                  plane/line x session 
+                                                  x seqs x stats
         - sess_info (nested list): nested list of dictionaries for each 
                                    line/plane x mouse containing information 
                                    from each session, with None for missing 
@@ -2018,37 +2109,41 @@ def prog_by_linpla(sessions, analyspar, stimpar, datatype='roi',
     # get sessions organized by lin/pla x mouse x session
     linpla_sess, linpla_order = split_by_linpla(sessions, rem_empty=True)
 
-    n_jobs = gen_util.get_n_jobs(len(linpla_sess), parallel=parallel)
-    if parallel:
-        outs = Parallel(n_jobs=n_jobs)(delayed(prog_by_sesses)(
-            sessions, analyspar, stimpar, datatype, surp, position, baseline)
-            for sessions in linpla_sess)
-    else:
-        outs = []
-        for sessions in linpla_sess:
-            outs.append(prog_by_sesses(sessions, analyspar, stimpar, 
-                datatype, surp, position, baseline))
-    outs = [list(out) for out in zip(*outs)]
-
     prog_info = dict()
-    if datatype == 'roi':
-        [mouse_seq_st, all_seq_st, grped_seq_st, sess_info] = outs
-        prog_info['prog_stats_grped'] = grped_seq_st
-        
-    elif datatype == 'run':
-        [mouse_seq_st, all_seq_st, sess_info] = outs
-    else:
-        gen_util.accepted_values_error('datatype', datatype, ['run', 'roi'])
+    for diff in [False, True]:
+        n_jobs = gen_util.get_n_jobs(len(linpla_sess), parallel=parallel)
+        if parallel:
+            outs = Parallel(n_jobs=n_jobs)(delayed(prog_by_sesses)(
+                sessions, analyspar, stimpar, datatype, surp, position, 
+                baseline, diff=diff)
+                for sessions in linpla_sess)
+        else:
+            outs = []
+            for sessions in linpla_sess:
+                outs.append(prog_by_sesses(sessions, analyspar, stimpar, 
+                    datatype, surp, position, baseline, diff=diff))
+        outs = [list(out) for out in zip(*outs)]
 
-    prog_info['prog_stats']       = all_seq_st
-    prog_info['mouse_prog_stats'] = mouse_seq_st
-    prog_info['linpla_ord']       = linpla_order
+        diff_str = '_diff' if diff else ''
+
+        if datatype == 'roi':
+            [mouse_seq_st, all_seq_st, grped_seq_st, sess_info] = outs
+            prog_info[f'prog{diff_str}_stats_grped'] = grped_seq_st
+            
+        elif datatype == 'run':
+            [mouse_seq_st, all_seq_st, sess_info] = outs
+        else:
+            gen_util.accepted_values_error('datatype', datatype, ['run', 'roi'])
+
+        prog_info[f'prog{diff_str}_stats']       = all_seq_st
+        prog_info[f'mouse_prog{diff_str}_stats'] = mouse_seq_st
+        prog_info['linpla_ord']                  = linpla_order
 
     return prog_info, sess_info
 
 
 #############################################
-def position_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi', 
+def position_by_linpla(sessions, analyspar, stimpar, datatype='roi', 
                        surp='progsurp', position=0, baseline=0.0, 
                        parallel=False):
     """
@@ -2061,8 +2156,7 @@ def position_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi',
     Required args:
         - sessions (list)      : nested list of Session objects (mouse x sess)
         - analyspar (AnalysPar): named tuple containing analysis parameters
-        - stimpar (StimPar)    : named tuple containing stimulus parameters  
-        - permpar (PermPar)    : named tuple containing permutation parameters
+        - stimpar (StimPar)    : named tuple containing stimulus parameters
 
     Optional args:
         - datatype (str)        : type of data (e.g., 'roi', 'run')
@@ -2092,7 +2186,7 @@ def position_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi',
             ['mouse_pos_stats'] (list): surprise position stats across 
                                         sequences, structured as 
                                             plane/line x mouse x session 
-                                               x stats
+                                                x  stats
             ['linpla_ord'] (list)      : order list of planes/lines
         if datatype == 'roi':
             ['pos_stats_grped'] (list): surprise position stats across 
@@ -2122,13 +2216,13 @@ def position_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi',
     if parallel:
         outs = Parallel(n_jobs=n_jobs)(delayed(prog_by_sesses)(
             sessions, analyspar, stimpar, datatype, surp, position, baseline, 
-            seq_st=True)
+            seq_st=True, diff=True)
             for sessions in linpla_sess)
     else:
         outs = []
         for sessions in linpla_sess:
             outs.append(prog_by_sesses(sessions, analyspar, stimpar, 
-                datatype, surp, position, baseline, seq_st=True))
+                datatype, surp, position, baseline, seq_st=True, diff=True))
     outs = [list(out) for out in zip(*outs)]
 
     pos_info = dict()
@@ -2149,12 +2243,12 @@ def position_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi',
 
 
 #############################################
-def surp_idx_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi', 
-                       surp='bysurp', position=0, parallel=False):
+def stim_idx_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi', 
+                       feature='bysurp', position=0, seed=None, parallel=False):
     """
-    surp_idx_by_linpla(sessions, analyspar, stimpar)
+    stim_idx_by_linpla(sessions, analyspar, stimpar)
     
-    Returns dictionary containing surprise indices for ROIs or running, across 
+    Returns dictionary containing stimulus indices for ROIs or running, across 
     sessions, as well as session information dictionaries.
 
     Required args:
@@ -2166,7 +2260,7 @@ def surp_idx_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi',
     Optional args:
         - datatype (str)        : type of data (e.g., 'roi', 'run')
                                   default: 'roi'
-        - surp (str)            : how to split surprise vs reg data, either 
+        - feature (str)         : how to split data, either 
                                   'bysurp'  : surprise vs regular sequences
                                   'progsurp': surp, vs preceeding reg, 
                                       but not locked (e.g., E, vs prev D) 
@@ -2174,24 +2268,27 @@ def surp_idx_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi',
                                   'progreg': reg, vs preceeding surp, 
                                       but not locked (e.g., D, vs prev E)
                                       (i.e., pre not necessarily equal to post)
+                                  'dir': left vs right (Bricks)
                                   default: 'bysurp'
         - position (int)        : surprise or regular position to retrieve
                                   default: 0
+        - seed (int)            : seed value to use. (-1 treated as None)
+                                  default: None
         - parallel (bool)       : if True, some of the analysis is run in 
                                   parallel across CPU cores 
                                   default: False
 
     Returns:
-        - surpidx_info (dict)   : dictionary with surprise index info
-            ['item_idxs'] (list) : surprise index bin counts for each 
+        - idx_info (dict)   : dictionary with feature index info
+            ['item_idxs'] (list) : feature index bin counts for each 
                                    ROI or running value, grouped across mice, 
                                    structured as 
                                        plane/line x session x bin
-            ['item_percs'] (list): surprise percentile bin counts for each 
+            ['item_percs'] (list): feature percentile bin counts for each 
                                    ROI or running value, grouped across mice, 
                                    structured as 
                                        plane/line x session x bin
-            ['rand_idxs'] (list) : random surprise index bin counts for each 
+            ['rand_idxs'] (list) : random feature index bin counts for each 
                                    ROI or running value, grouped across mice, 
                                    structured as 
                                        plane/line x session x bin
@@ -2218,26 +2315,27 @@ def surp_idx_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi',
     linpla_sess, linpla_order = split_by_linpla(sessions, rem_empty=True)
 
     args_list = [analyspar, stimpar, permpar.n_perms, permpar.p_val, datatype, 
-        surp, position, False]
+        feature, position, seed, False]
+
 
     lp_item_idxs, lp_item_percs, lp_rand_idxs, lp_bin_edges, sess_info = \
         gen_util.parallel_wrap(
-            surp_idx_by_sesses, linpla_sess, args_list, parallel=parallel, 
+            stim_idx_by_sesses, linpla_sess, args_list, parallel=parallel, 
             zip_output=True)
 
-    surpidx_info = dict()
+    idx_info = dict()
 
-    surpidx_info['item_idxs']     = lp_item_idxs
-    surpidx_info['item_percs']    = lp_item_percs
-    surpidx_info['rand_idxs']     = lp_rand_idxs
-    surpidx_info['bin_edges']     = lp_bin_edges
-    surpidx_info['linpla_ord']    = linpla_order
+    idx_info['item_idxs']     = lp_item_idxs
+    idx_info['item_percs']    = lp_item_percs
+    idx_info['rand_idxs']     = lp_rand_idxs
+    idx_info['bin_edges']     = lp_bin_edges
+    idx_info['linpla_ord']    = linpla_order
 
-    return surpidx_info, sess_info
+    return idx_info, sess_info
 
 
 #############################################
-def run_surp_idx(sessions, analysis, analyspar, sesspar, stimpar, 
+def run_surp_idx(sessions, analysis, seed, analyspar, sesspar, stimpar, 
                  permpar, figpar, datatype='roi', parallel=False):
     """
     run_surp_idx(sessions, analysis, analyspar, sesspar, stimpar, 
@@ -2251,6 +2349,7 @@ def run_surp_idx(sessions, analysis, analyspar, sesspar, stimpar,
     Required args:
         - sessions (list)      : nested list of Session objects (mouse x sess)
         - analysis (str)       : analysis type (e.g., 't')
+        - seed (int)           : seed value to use. (-1 treated as None)
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
@@ -2282,12 +2381,13 @@ def run_surp_idx(sessions, analysis, analyspar, sesspar, stimpar,
     
     position = 0
 
-    surpidx_info, sess_info = surp_idx_by_linpla(
-        sessions, analyspar, stimpar, permpar, datatype, surp='bysurp', 
-        position=position, parallel=parallel)
+    surpidx_info, sess_info = stim_idx_by_linpla(
+        sessions, analyspar, stimpar, permpar, datatype, feature='bysurp', 
+        position=position, seed=seed, parallel=parallel)
 
     extrapar = {'analysis': analysis,
-                'datatype': datatype
+                'datatype': datatype,
+                'seed'    : seed,
                 }
 
     info = {'analyspar'   : analyspar._asdict(),
@@ -2299,15 +2399,100 @@ def run_surp_idx(sessions, analysis, analyspar, sesspar, stimpar,
             'surpidx_info': surpidx_info
             }
 
-    fulldir, savename = acr_sess_plots.plot_surpidx(figpar=figpar, **info)
+    fulldir, savename = acr_sess_plots.plot_surp_idx(figpar=figpar, **info)
     file_util.saveinfo(info, savename, fulldir, 'json')
     
 
 #############################################
-def run_prog(sessions, analysis, analyspar, sesspar, stimpar, basepar, figpar, 
+def run_direction_idx(sessions, analysis, seed, analyspar, sesspar, stimpar, 
+                      permpar, figpar, datatype='roi', parallel=False):
+    """
+    run_direction_idx(sessions, analysis, analyspar, sesspar, stimpar, 
+                      permpar, figpar)
+
+    Retrieves direction indices for each item (ROI or 1 running item) and plots 
+    progression within a session, as well as across sessions.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list)      : nested list of Session objects (mouse x sess)
+        - analysis (str)       : analysis type (e.g., 't')
+        - seed (int)           : seed value to use. (-1 treated as None)
+        - analyspar (AnalysPar): named tuple containing analysis parameters
+        - sesspar (SessPar)    : named tuple containing session parameters
+        - stimpar (StimPar)    : named tuple containing stimulus parameters
+        - permpar (PermPar)    : named tuple containing permutation parameters
+        - figpar (dict)        : dictionary containing figure parameters
+    
+    Optional args:
+        - datatype (str) : type of data (e.g., 'roi', 'run')
+                           default: 'roi'
+        - parallel (bool): if True, some of the analysis is run in parallel 
+                           across CPU cores 
+                           default: False
+    """
+
+    if stimpar.stimtype != 'bricks':
+        print('direction index analysis can only be run on Bricks.')
+        return
+
+    if stimpar.bri_dir != 'both':
+        print('Setting stimpar.bri_dir to `both`.')
+        stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, 'bri_dir', 'both')
+
+    sessstr_pr = sess_str_util.sess_par_str(
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 
+        stimpar.bri_size, stimpar.gabk, 'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar.dend, sesspar.plane, datatype, 'print')
+
+    if not analyspar.scale:
+        print('Setting analyspar.scale to True.')
+        analyspar = sess_ntuple_util.get_modif_ntuple(analyspar, 'scale', True)
+
+    datastr = sess_str_util.datatype_par_str(datatype)
+
+    print(f'\nAnalysing and plotting direction indices for {datastr} '
+        f'\n({sessstr_pr}{dendstr_pr}).')
+
+    diridx_info = []
+    sess_info = []
+    for direc in ['dir_reg', 'dir_surp']:
+        diridx_info_sub, sess_info_sub = stim_idx_by_linpla(
+            sessions, analyspar, stimpar, permpar, datatype, feature=direc, 
+            seed=seed, parallel=parallel)
+        diridx_info.append(diridx_info_sub)
+        sess_info.append(sess_info_sub)
+    
+    if sess_info[0] != sess_info[1]:
+        raise NotImplementedError('Did not expect different `sess_info`.')
+    else:
+        sess_info = sess_info[0]
+
+    extrapar = {'analysis': analysis,
+                'datatype': datatype,
+                'seed'    : seed,
+                }
+
+    info = {'analyspar'  : analyspar._asdict(),
+            'sesspar'    : sesspar._asdict(),
+            'stimpar'    : stimpar._asdict(),
+            'permpar'    : permpar._asdict(),
+            'extrapar'   : extrapar,
+            'sess_info'  : sess_info,
+            'diridx_info': diridx_info
+            }
+
+    fulldir, savename = acr_sess_plots.plot_direction_idx(figpar=figpar, **info)
+    file_util.saveinfo(info, savename, fulldir, 'json')
+    
+
+#############################################
+def run_prog(sessions, analysis, analyspar, sesspar, stimpar, figpar, 
              datatype='roi', parallel=False):
     """
-    run_prog(sessions, analysis, analyspar, sesspar, stimpar, basepar, figpar)
+    run_prog(sessions, analysis, analyspar, sesspar, stimpar, figpar)
 
     Retrieves difference between surprise response, and the 
     preceeding regular response (and v.v.), and plots progression within a 
@@ -2321,7 +2506,6 @@ def run_prog(sessions, analysis, analyspar, sesspar, stimpar, basepar, figpar,
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
-        - basepar (BasePar)    : named tuple containing baseline parameters
         - figpar (dict)        : dictionary containing figure parameters
     
     Optional args:
@@ -2355,7 +2539,7 @@ def run_prog(sessions, analysis, analyspar, sesspar, stimpar, basepar, figpar,
         for lock in ['progsurp', 'progreg']:
             prog_info, sess_info = prog_by_linpla(
                 sessions, analyspar, stimpar, datatype, surp=lock, 
-                baseline=basepar.baseline, position=position, parallel=parallel)
+                baseline=0, position=position, parallel=parallel)
             all_prog_info.append(prog_info)
             all_sess_info.append(sess_info)
 
@@ -2367,7 +2551,6 @@ def run_prog(sessions, analysis, analyspar, sesspar, stimpar, basepar, figpar,
         info = {'analyspar'  : analyspar._asdict(),
                 'sesspar'    : sesspar._asdict(),
                 'stimpar'    : stimpar._asdict(),
-                'basepar'    : basepar._asdict(),
                 'extrapar'   : extrapar,
                 'sess_info'  : all_sess_info,
                 'prog_info'  : all_prog_info
@@ -2378,11 +2561,10 @@ def run_prog(sessions, analysis, analyspar, sesspar, stimpar, basepar, figpar,
     
 
 #############################################
-def run_position(sessions, analysis, analyspar, sesspar, stimpar, basepar, 
-                 permpar, figpar, datatype='roi', parallel=False):
+def run_position(sessions, analysis, analyspar, sesspar, stimpar, figpar, 
+                 datatype='roi', parallel=False):
     """
-    run_position(sessions, analysis, analyspar, sesspar, stimpar, basepar, 
-                 permpar, figpar)
+    run_position(sessions, analysis, analyspar, sesspar, stimpar, figpar)
 
     Retrieves difference response to surprise in each position (first, second, 
     third), and the preceeding regular response (and v.v.), and plots 
@@ -2396,8 +2578,6 @@ def run_position(sessions, analysis, analyspar, sesspar, stimpar, basepar,
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
-        - basepar (BasePar)    : named tuple containing baseline parameters
-        - permpar (PermPar)    : named tuple containing permutation parameters
         - figpar (dict)        : dictionary containing figure parameters
     
     Optional args:
@@ -2420,11 +2600,6 @@ def run_position(sessions, analysis, analyspar, sesspar, stimpar, basepar,
         f'previous regular {datastr} response (and v.v.) across sessions '
         f'\n({sessstr_pr}{dendstr_pr}).')
 
-    # if permpar.multcomp:
-    #     print('NOTE: Multiple comparisons not implemented for this analysis. '
-    #           'Setting to False.')
-    #     permpar = sess_ntuple_util.get_modif_ntuple(permpar, 'multcomp', False)
-
     max_n_surp = 4
     positions = np.arange(max_n_surp)
 
@@ -2434,8 +2609,8 @@ def run_position(sessions, analysis, analyspar, sesspar, stimpar, basepar,
         print(f'\nFor position {position}.')      
         for lock in ['progsurp', 'progreg']:
             pos_info, sess_info = position_by_linpla(
-                sessions, analyspar, stimpar, permpar, datatype, surp=lock, 
-                baseline=basepar.baseline, position=position, parallel=parallel)
+                sessions, analyspar, stimpar, datatype, surp=lock, 
+                baseline=0, position=position, parallel=parallel)
             all_pos_info.append(pos_info)
             all_sess_info.append(sess_info)
 
@@ -2447,8 +2622,6 @@ def run_position(sessions, analysis, analyspar, sesspar, stimpar, basepar,
         info = {'analyspar'  : analyspar._asdict(),
                 'sesspar'    : sesspar._asdict(),
                 'stimpar'    : stimpar._asdict(),
-                # 'permpar'    : permpar._asdict(),
-                'basepar'    : basepar._asdict(),
                 'extrapar'   : extrapar,
                 'sess_info'  : all_sess_info,
                 'pos_info'   : all_pos_info
@@ -2553,7 +2726,7 @@ def get_rise_latency(data_arr, xran, method='ttest', p_val_thr=0.005,
 
 #############################################
 def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None, 
-                       datatype='roi'):
+                       seed=None, datatype='roi'):
     """
     get_sess_latencies(sess, analyspar, stimpar)
 
@@ -2568,6 +2741,8 @@ def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None,
     Optional args:
         - permpar (PermPar): named tuple containing permutation parameters. 
                              Required only if latpar.surp_resp is True.
+                             default: None
+        - seed (int)       : seed value to use. (-1 treated as None)
                              default: None
         - datatype (str)   : type of data (e.g., 'roi', 'run')
                              default: 'roi'
@@ -2630,6 +2805,7 @@ def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None,
                 raise ValueError('Must pass a `permpar` if latpar.surp_resp.')
             elif permpar.tails != 'up':
                 raise ValueError('permpar.tails must be `up`.')
+            seed = gen_util.seed_all(seed, 'cpu', print_seed=False)
             # full_arr: 'surp x ROI x sequences'
             integ_data = [gen_util.reshape_df_data(stim.get_roi_data(
                 twop_fr, pre=pre, post=post, fluor=analyspar.fluor, integ=True,
@@ -2667,8 +2843,9 @@ def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None,
 
 
 #############################################
-def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
-                     figpar, permpar=None, datatype='roi', parallel=False):
+def run_surp_latency(sessions, analysis, seed, analyspar, sesspar, stimpar, 
+                     latpar, figpar, permpar=None, datatype='roi', 
+                     parallel=False):
     """
     run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, 
                      figpar)
@@ -2681,6 +2858,7 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
     Required args:
         - sessions (list)      : nested list of Session objects (mouse x sess)
         - analysis (str)       : analysis type (e.g., 't')
+        - seed (int)           : seed value to use. (-1 treated as None)
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
@@ -2744,7 +2922,7 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
             if parallel:
                 sess_vals = Parallel(n_jobs=n_jobs)(delayed(
                     get_sess_latencies)(sess, analyspar, stimpar, latpar, 
-                    permpar, datatype) for sess in sesses)
+                    permpar, seed, datatype) for sess in sesses)
                 sess_lat_vals = [vals[0] for vals in sess_vals]
                 if latpar.surp_resp:
                     sess_n_sign_rois = [len(vals[2]) for vals in sess_vals]
@@ -2753,7 +2931,8 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
                 sess_n_sign_rois = []
                 for sess in sesses:
                     vals = get_sess_latencies(
-                        sess, analyspar, stimpar, latpar, permpar, datatype)
+                        sess, analyspar, stimpar, latpar, permpar, seed, 
+                        datatype)
                     sess_lat_vals.append(vals[0])
                     if latpar.surp_resp:
                         sess_n_sign_rois.append(vals[2])
@@ -2785,7 +2964,6 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
     lin_p_vals = comp_vals_acr_planes(
         linpla_ord, all_lat_vals_flat, permpar.n_perms, stats=analyspar.stats)
 
-
     n_sess = len(all_lat_vals_flat[0])
     tot_n_comps, max_comps_per = get_n_comps(all_lat_p_vals, n_sess, lin_p_vals)
     
@@ -2815,15 +2993,16 @@ def run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, latpar,
             }
     
     if latpar.surp_resp:
-        info['permpar'] = permpar
+        info['permpar']  = permpar
+        extrapar['seed'] = seed
 
     fulldir, savename = acr_sess_plots.plot_surp_latency(figpar=figpar, **info)
     file_util.saveinfo(info, savename, fulldir, 'json')
 
 
 #############################################
-def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
-                  figpar, permpar=None, parallel=False):
+def run_resp_prop(sessions, analysis, seed, analyspar, sesspar, stimpar, 
+                  latpar, figpar, permpar=None, parallel=False):
     """
     run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
                   figpar)
@@ -2836,6 +3015,7 @@ def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
     Required args:
         - sessions (list)      : nested list of Session objects (mouse x sess)
         - analysis (str)       : analysis type (e.g., 'p')
+        - seed (int)           : seed value to use. (-1 treated as None)
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
@@ -2903,7 +3083,7 @@ def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
                 if parallel:
                     sess_vals = Parallel(n_jobs=n_jobs)(delayed(
                         get_sess_latencies)(sess, analyspar, stimpar_spec, 
-                        latpar, permpar, datatype) for sess in sesses)
+                        latpar, permpar, seed, datatype) for sess in sesses)
                     sess_roi_ns = [vals[1] for vals in sess_vals]
                     if latpar.surp_resp:
                         sess_n_sign_rois = \
@@ -2913,7 +3093,8 @@ def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
                     sess_n_sign_rois = []
                     for sess in sesses:
                         vals = get_sess_latencies(
-                            sess, analyspar, stimpar, latpar, permpar, datatype)
+                            sess, analyspar, stimpar, latpar, permpar, seed, 
+                            datatype)
                         sess_roi_ns.append(vals[1])
                         if latpar.surp_resp:
                             sess_n_sign_rois.append(vals[2])
@@ -2964,7 +3145,8 @@ def run_resp_prop(sessions, analysis, analyspar, sesspar, stimpar, latpar,
             }
 
     if latpar.surp_resp:
-        info['permpar'] = permpar
+        info['permpar']  = permpar
+        extrapar['seed'] = seed
 
     fulldir, savename = acr_sess_plots.plot_resp_prop(figpar=figpar, **info)
     file_util.saveinfo(info, savename, fulldir, 'json')

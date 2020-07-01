@@ -18,6 +18,7 @@ import warnings
 
 from joblib import Parallel, delayed
 from matplotlib import pyplot as plt
+from matplotlib import ticker
 import numpy as np
 import scipy.stats as st
 
@@ -98,9 +99,13 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False,
 
     # 6. Plots the surprise indices across sessions
     elif analysis == 'i':
-        plot_surpidx(figpar=figpar, savedir=savedir, **info)
+        plot_surp_idx(figpar=figpar, savedir=savedir, **info)
 
-    # 7. Plots the surprise latency across sessions
+    # 7. Plots the direction indices across sessions
+    elif analysis == 'd':
+        plot_direction_idx(figpar=figpar, savedir=savedir, **info)
+
+    # 8. Plots the surprise latency across sessions
     elif analysis == 'u':
         plot_surp_latency(figpar=figpar, savedir=savedir, **info)
 
@@ -1441,8 +1446,8 @@ def plot_lock_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
 
 
 #############################################
-def plot_prog_per_mouse(ax, mouse_st, sess_info, sess_ns=None, col=None, 
-                        use_lab=True, prev_n=0):
+def plot_prog_per_mouse(ax, mouse_st, sess_info, sess_ns=None, cols=None, 
+                        use_lab=True, prev_n=0, diff=True):
     """
     plot_prog_per_mouse(ax, mouse_st, sess_info)
 
@@ -1451,7 +1456,8 @@ def plot_prog_per_mouse(ax, mouse_st, sess_info, sess_ns=None, col=None,
     Required args:
         - ax (1D array of subplots): array of subplots
         - mouse_st (3D array)      : statistics across ROIs or seqs, 
-                                     structured as mouse x session x seq x stats
+                                     structured as mouse x session x surps 
+                                        x seq x stats
         - sess_info (list)         : list of dictionaries for each mouse 
                                      containing information from each session, 
                                      with None for missing sessions
@@ -1466,9 +1472,11 @@ def plot_prog_per_mouse(ax, mouse_st, sess_info, sess_ns=None, col=None,
     Optional args:
         - sess_ns (array-like): session numbers for each session
                                 default: None
-        - col (str)           : plotting color
+        - cols (list)         : plotting colors (1 if diff, 2 otherwise)
                                 default: None
         - use_lab (bool)      : if True, label with mouse numbers is added
+                                default: True
+        - diff (bool)         : if True, difference between surp/reg is taken
                                 default: True
     
     Returns:
@@ -1492,18 +1500,33 @@ def plot_prog_per_mouse(ax, mouse_st, sess_info, sess_ns=None, col=None,
                 mouse_ns.append(str(m_info['mouse_ns'][i]))
         labs[i] = 'M{}'.format(', '.join(mouse_ns))
 
+    n_dims = 2 - diff
+
+    cols = gen_util.list_if_not(cols) if diff else cols
+    if len(cols) != n_dims:
+        raise ValueError('Must provide 1 cols if diff, else 2.')
+
     for m, m_info in enumerate(sess_info):
         for i in range(len(sess_ns)):
             stats = np.asarray(mouse_st[m][i])
-            if not np.isfinite(np.asarray(mouse_st[m][i])).any():
-                continue
-            lab = None
-            if not labs_used[i]:
-                lab = labs[i]
-                labs_used[i] = True
-            # plot
-            _ = plot_single_prog(
-                ax[i], stats, col=col, label=lab, alpha_line=0.6)
+
+            for d in range(n_dims):
+                if diff:
+                    alpha = 0.6
+                    stats_sp = stats
+                else:
+                    alpha = 0.4
+                    stats_sp = stats[d]
+
+                if not np.isfinite(stats_sp).any():
+                    continue
+                lab = None
+                if d == 0 and not labs_used[i]:
+                    lab = labs[i]
+                    labs_used[i] = True
+                # plot
+                _ = plot_single_prog(
+                    ax[i], stats_sp, col=cols[d], label=lab, alpha_line=alpha)
 
     return n
 
@@ -1511,7 +1534,7 @@ def plot_prog_per_mouse(ax, mouse_st, sess_info, sess_ns=None, col=None,
 #############################################
 def plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info, 
                        prog_info, figpar=None, prog='progsurp', 
-                       plot='tog'):
+                       plot='tog', diff=True):
     """
     plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info, 
                        prog_info)
@@ -1545,17 +1568,17 @@ def plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
             ['linpla_ord'] (list)       : order list of planes/lines            
             ['prog_stats'] (list)  : surprise progression stats across mice, 
                                           structured as plane/line x session 
-                                            x seq x stats
+                                            x surps x seq x stats
             ['mouse_prog_stats'] (list): surprise progression stats across 
                                           ROIs, structured as 
                                              plane/line x mouse x session 
-                                                x seq x stats
+                                                x surps x seq x stats
             if extrapar['datatype'] == 'roi':
                 ['prog_stats_grped'] (list): surprise progression stats across 
                                               ROIs (grouped across mice), 
                                               structured as 
-                                                 plane/line x session x seqs x 
-                                                 stats
+                                                 plane/line x session x surps 
+                                                     x seqs x stats
 
     Optional args:
         - figpar (dict): dictionary containing the following figure parameter 
@@ -1572,6 +1595,10 @@ def plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
                          data is grouped across ROIs, if 'sep', data is 
                          separated by mouse
                          default: 'tog'
+        - diff (bool)  : if True, difference is plotted instead of surp, reg 
+                         separately
+                         default: True
+
     Returns:
         - fig (plt Figure) : pyplot figure
     """
@@ -1610,18 +1637,19 @@ def plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
     subtitle = 'Progression of each {} {} vs preceeding {} sequence'.format(
         pos, *substrs)
 
+    diff_str = '_diff' if diff else ''
     grp_str_pr = ''
     if plot == 'tog':
-        key_str = 'prog_stats'
+        key_str = f'prog{diff_str}_stats'
         dim_str = ' across mice'
     elif plot in ['sep', 'grped']:
         dim_str = f' across {sess_str_util.datatype_dim_str(datatype)}'
-        key_str = 'mouse_prog_stats'
+        key_str = f'mouse_prog{diff_str}_stats'
         if plot == 'grped':
             if datatype == 'run':
                 raise ValueError(f'Grouping (`grp`) only across ROIs for ROI '
                     'datatype.')
-            key_str = 'prog_stats_grped'
+            key_str = f'prog{diff_str}_stats_grped'
             grp_str_pr = ' (grouped)'
     else:
         gen_util.accepted_values_error('plot', plot, ['tog', 'sep', 'grped'])
@@ -1641,19 +1669,33 @@ def plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
         if l_idx is None:
             continue
 
+        cols = [pla_cols[pl]]
+        if not diff:
+            if prog == 'progreg':
+                cols = cols + ['gray']
+            elif prog == 'progsurp':
+                cols = ['gray'] + cols
+
         if plot == 'sep':
             n = plot_prog_per_mouse(
                 ax[pl, li * n_sess:(li + 1) * n_sess], 
                 prog_info[key_str][l_idx], sess_info[l_idx], sess_ns, 
-                pla_cols[pl], use_lab=True)
+                cols, use_lab=True, diff=diff)
             max_n = np.max([n, max_n]) # max number of sequences
-        else:
+        else:   
             for s in range(n_sess):
-                sub_ax = ax[pl, s + li * n_sess]
-                # lab = (pl == 0 and s == 0)
-                n = plot_single_prog(
-                    sub_ax, prog_info[key_str][l_idx][s], pla_cols[pl])
-                max_n = np.max([n, max_n]) # max number of sequences
+                for d in range(2 - diff):
+                    data = np.asarray(prog_info[key_str][l_idx][s])
+                    if diff:
+                        alpha = 0.8
+                        data_sp = data
+                    else:
+                        alpha = 0.4
+                        data_sp = data[d]
+                    col = cols[d]
+                    sub_ax = ax[pl, s + li * n_sess]
+                    n = plot_single_prog(sub_ax, data_sp, col, alpha_line=alpha)
+                    max_n = np.max([n, max_n]) # max number of sequences
 
     if plot == 'sep':
         sub_ax = ax.reshape(-1)[-1]
@@ -1682,10 +1724,10 @@ def plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
 
 
 #############################################
-def plot_prog(analyspar, sesspar, stimpar, basepar, extrapar, sess_info, 
+def plot_prog(analyspar, sesspar, stimpar, extrapar, sess_info, 
               prog_info, figpar=None, savedir=None):
     """
-    plot_prog(analyspar, sesspar, stimpar, basepar, extrapar, sess_info, 
+    plot_prog(analyspar, sesspar, stimpar, extrapar, sess_info, 
               prog_info)
 
     From dictionaries, plots progression of difference between each surprise 
@@ -1716,20 +1758,35 @@ def plot_prog(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
         - prog_info (list): list of dictionaries containing prog surprise or 
                              regular sequence information, structured as 
                              [progsurp, progreg]
-            ['linpla_ord'] (list)       : order list of planes/lines            
-            ['prog_stats'] (list)       : surprise progression stats across 
-                                          mice, structured as 
-                                            plane/line x session x seq x stats
-            ['mouse_prog_stats'] (list): surprise progression stats across ROIs, 
-                                          structured as 
-                                             plane/line x mouse x session 
-                                                x seq x stats
-            if extrapar['datatype'] == 'roi':
-                ['prog_stats_grped'] (list): surprise progression stats across 
-                                             ROIs (grouped across mice), 
-                                            structured as 
-                                                 plane/line x session x seqs x 
-                                                 stats
+            ['prog_stats'] (list)           : surprise progression stats across 
+                                              mice, structured as 
+                                                  plane/line x session x surps 
+                                                  x seq x stats
+            ['prog_diff_stats'] (list)      : surprise difference progression 
+                                              stats across mice, structured as 
+                                                  plane/line x session x seq 
+                                                  x stats
+            ['mouse_prog_stats'] (list)     : surprise progression stats across 
+                                              ROIs, structured as 
+                                                 plane/line x mouse x session x
+                                                 surps x seq x stats
+            ['mouse_prog_diff_stats'] (list): surprise difference progression 
+                                              stats across ROIs, structured as 
+                                                 plane/line x mouse x session x
+                                                 seq x stats
+
+            ['linpla_ord'] (list)           : order list of planes/lines
+        if datatype == 'roi':
+            ['prog_stats_grped'] (list)     : surprise progression stats across 
+                                              ROIs (grouped across mice), 
+                                              structured as 
+                                                  plane/line x session x surps 
+                                                  x seqs x stats
+            ['prog_diff_stats_grped'] (list): surprise difference progression 
+                                              stats across ROIs (grouped across 
+                                              mice), structured as 
+                                                  plane/line x session 
+                                                  x seqs x stats
 
     Optional args:
         - figpar (dict): dictionary containing the following figure parameter 
@@ -1769,29 +1826,29 @@ def plot_prog(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
 
     stimdir = sess_str_util.get_stimdir(stimpar['stimtype'], stimpar['gabfr'])
 
-    for l, prog in enumerate(['progsurp', 'progreg']):
-        for plot in ['sep', 'tog', 'grped']:
-            if plot == 'grped' and datatype == 'run':
-                continue
-            fig = plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, 
-                sess_info[l], prog_info[l], figpar=figpar, prog=prog, 
-                plot=plot)
+    for diff in [True, False]:
+        diff_str = '_diff' if diff else ''
+        for l, prog in enumerate(['progsurp', 'progreg']):
+            for plot in ['sep', 'tog', 'grped']:
+                if plot == 'grped' and datatype == 'run':
+                    continue
+                fig = plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, 
+                    sess_info[l], prog_info[l], figpar=figpar, prog=prog, 
+                    plot=plot, diff=diff)
 
-            base_str = sess_str_util.base_par_str(basepar['baseline'])[1:]
-            if savedir is None:
-                savedir = os.path.join(
-                    figpar['dirs'][datatype], 
-                    figpar['dirs']['acr_sess'], 
-                    stimdir,
-                    base_str,
-                    figpar['dirs']['prog'])
+                if savedir is None:
+                    savedir = os.path.join(
+                        figpar['dirs'][datatype], 
+                        figpar['dirs']['acr_sess'], 
+                        stimdir,
+                        figpar['dirs']['prog'])
 
-            savename = \
-                f'{gen_savename[:add_idx]}_{plot}{gen_savename[add_idx:]}'
-            savename = savename.replace('prog', prog)
+                savename = (f'{gen_savename[:add_idx]}_{plot}{diff_str}'
+                    f'{gen_savename[add_idx:]}')
+                savename = savename.replace('prog', prog)
 
-            fulldir = plot_util.savefig(
-                fig, savename, savedir, **figpar['save'])
+                fulldir = plot_util.savefig(
+                    fig, savename, savedir, **figpar['save'])
 
     return fulldir, gen_savename
 
@@ -1942,10 +1999,10 @@ def plot_position_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
 
 
 #############################################
-def plot_position(analyspar, sesspar, stimpar, basepar, extrapar, sess_info, 
+def plot_position(analyspar, sesspar, stimpar, extrapar, sess_info, 
                   pos_info, figpar=None, savedir=None):
     """
-    plot_position(analyspar, sesspar, stimpar, permpar, extrapar, sess_info, 
+    plot_position(analyspar, sesspar, stimpar, extrapar, sess_info, 
                   pos_info)
 
     From dictionaries, plots statistics across ROIs or mice of difference 
@@ -1957,8 +2014,6 @@ def plot_position(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
         - analyspar (dict): dictionary with keys of AnalysPar namedtuple
         - sesspar (dict)  : dictionary with keys of SessPar namedtuple
         - stimpar (dict)  : dictionary with keys of StimPar namedtuple
-        - basepar (dict)  : dictionary with keys of BasePar namedtuple
-        - permpar (dict)  : dictionary with keys of PermPar namedtuple
         - extrapar (dict) : dictionary containing additional analysis 
                             parameters
             ['analysis'] (str): analysis type (e.g., 'l')
@@ -2022,8 +2077,6 @@ def plot_position(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
     if figpar['save']['use_dt'] is None:
         figpar['save']['use_dt'] = gen_util.create_time_str()
 
-    base_str = sess_str_util.base_par_str(basepar['baseline'])[1:]
-
     gen_savename = f'{datatype}_pos_{pos}_{sessstr}{dendstr}'
     part = f'pos_{pos}'
     add_idx = gen_savename.find(part) + len(part)
@@ -2038,13 +2091,11 @@ def plot_position(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
                 sess_info[l], pos_info[l], figpar=figpar, prog=prog, 
                 plot=plot)
 
-            base_str = sess_str_util.base_par_str(basepar['baseline'])[1:]
             if savedir is None:
                 savedir = os.path.join(
                     figpar['dirs'][datatype], 
                     figpar['dirs']['acr_sess'], 
                     stimdir,
-                    base_str,
                     figpar['dirs']['prog'])
 
             savename = \
@@ -2058,10 +2109,12 @@ def plot_position(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
 
 
 #############################################
-def plot_surpidx_hist(sub_ax, percs, sess_info, n_bins=None, data=None, 
-                      rand_data=None, orig_edges=None, p_val=0.05, tails='2', 
-                      plot='items', col='r', ):
+def plot_stim_idx_hist(sub_ax, percs, sess_info, n_bins=None, data=None, 
+                       rand_data=None, orig_edges=None, p_val=0.05, tails='2', 
+                       plot='items', col='r', ):
     """
+    plot_stim_idx_hist(sub_ax, percs, sess_info)
+
     Required args:
         - sub_ax (plt subplot): subplot
         - percs (array-like)  : item percentile bin counts (bins assumed to be 
@@ -2103,6 +2156,11 @@ def plot_surpidx_hist(sub_ax, percs, sess_info, n_bins=None, data=None,
         - col (str)             : color for indices (only significant indices, 
                                    if plot == 'data')
                                   default: 'r'
+    
+    Returns:
+        - perc_signif (float)   : percentage of significant items
+        - perc_signif_lo (float): percentage of significant items (low)
+        - perc_signif_hi (float): percentage of significant items (high)
     """
 
     if len(percs) == 0:
@@ -2112,7 +2170,7 @@ def plot_surpidx_hist(sub_ax, percs, sess_info, n_bins=None, data=None,
 
     # check possible n_bin values
     CI_wid = np.max([CI_edges[0], 100 - CI_edges[1]])
-    
+
     min_n_bins = int(np.around(100/CI_wid))
     orig_n_bins = len(percs)
     poss_b_bins = list(range(min_n_bins, orig_n_bins + 1, min_n_bins))
@@ -2128,7 +2186,7 @@ def plot_surpidx_hist(sub_ax, percs, sess_info, n_bins=None, data=None,
     
     join_bins = int(orig_n_bins/n_bins)
 
-    rebinned_percs = np.sum(np.asarray(percs).reshape(join_bins, -1), axis=0)
+    rebinned_percs = np.sum(np.asarray(percs).reshape(-1, join_bins), axis=1)
     perc_bin_edges = np.linspace(0, 100, n_bins + 1).tolist()
 
     # count signif ROIs
@@ -2137,10 +2195,17 @@ def plot_surpidx_hist(sub_ax, percs, sess_info, n_bins=None, data=None,
     n_sig_items_lo = np.sum(rebinned_percs[: CI_bin_edges[0]])
     n_sig_items_hi = np.sum(rebinned_percs[CI_bin_edges[1] :])
 
-    perc_signif = \
-        np.around((n_sig_items_lo + n_sig_items_hi) * 100.0/n_items, 2)
+    if n_items == 0:
+        perc_signif_lo, perc_signif_hi = np.nan, np.nan
+        perc_signif = np.sum([perc_signif_lo, perc_signif_hi])
+        perc_signif_pr = 'NaN'
+    else:
+        perc_signif_lo = n_sig_items_lo * 100.0 / n_items
+        perc_signif_hi = n_sig_items_hi * 100.0 / n_items
+        perc_signif = np.sum([perc_signif_lo, perc_signif_hi])
+        perc_signif_pr = np.around(perc_signif, 2)
 
-    perc_label = (f'{perc_signif}% sig\n'
+    perc_label = (f'{perc_signif_pr}% sig\n'
         f'({n_sig_items_lo}-/{n_sig_items_hi}+ of {n_items})')
     sub_ax.plot([], label=perc_label, color=col)
     sub_ax.legend(fontsize='large')
@@ -2148,6 +2213,8 @@ def plot_surpidx_hist(sub_ax, percs, sess_info, n_bins=None, data=None,
     if plot == 'items':
         if data is None:
             raise ValueError('Must provide `data` if plot is `items`.')
+        if len(percs) != len(data):
+            raise ValueError('Expected as many bins for percentiles and data.')
         if orig_edges is None:
             raise ValueError('Must provide `orig_edges` if plot is `items`.')
         if len(data) != len(percs):
@@ -2155,12 +2222,12 @@ def plot_surpidx_hist(sub_ax, percs, sess_info, n_bins=None, data=None,
         if len(orig_edges) != 2:
             raise ValueError('`orig_edges` must be of length 2 [min, max].')
 
-        rebinned_data = np.sum(np.asarray(data).reshape(join_bins, -1), axis=0)
+        rebinned_data = np.sum(np.asarray(data).reshape(-1, join_bins), axis=1)
         bin_edges = np.linspace(orig_edges[0], orig_edges[1], n_bins + 1)
 
         colors = [col]
         plot_data = [rebinned_data]
-        alphas = [0.7]
+        alphas = [0.6]
 
         # add random data
         if rand_data is not None:
@@ -2169,37 +2236,45 @@ def plot_surpidx_hist(sub_ax, percs, sess_info, n_bins=None, data=None,
                     'length as `percs`.')
             # rebin and scale random data
             rebinned_rand_data = \
-                np.sum(np.asarray(rand_data).reshape(join_bins, -1), axis=0)
+                np.sum(np.asarray(rand_data).reshape(-1, join_bins), axis=1)
             plot_data.insert(0, rebinned_rand_data)
             colors.insert(0, 'gray')
-            alphas.insert(0, 0.4)
+            alphas.insert(0, 0.45)
         
         for sub, c, a in zip(plot_data, colors, alphas):
             sub_ax.hist(
                 bin_edges[:-1], bin_edges, weights=sub, color=c, alpha=a)
     
     elif plot == 'percs':
+        for c, CI_edge in enumerate(CI_edges):
+            # sub_ax.axvline(
+            #     x=CI_edge, ls=VDASH, c=DARKRED, lw=80./n_bins, alpha=0.6)
+            if c == 0:
+                sub_ax.axvspan(0, CI_edge, color=DARKRED, alpha=0.15, 
+                    lw=80./n_bins)
+            elif c == 1:
+                sub_ax.axvspan(CI_edge, 100, color=DARKRED, alpha=0.15, 
+                    lw=80./n_bins)
+
         sub_ax.hist(perc_bin_edges[:-1], perc_bin_edges, 
             weights=rebinned_percs, color=col, alpha=0.7)
-
-        for CI_edge in CI_edges:
-            sub_ax.axvline(x=CI_edge, ls=VDASH, c=DARKRED, lw=2.0, alpha=0.8)
     
     else:
         gen_util.accepted_values_error('plot', plot, ['items', 'percs'])
 
-    return
+    return perc_signif, perc_signif_lo, perc_signif_hi
 
 
 #############################################
-def plot_surpidx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar, 
-                          surpidx_info, sess_info, figpar=None, plot='tog'):
+def plot_stim_idx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar, 
+                           idx_info, sess_info, figpar=None, plot='tog', 
+                           feature='surp'):
     """
-    plot_position_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info, 
-                            diff_info)
+    plot_stim_idx_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info, 
+                           idx_info, sess_info)
 
-    From dictionaries, plots statistics across ROIs or mice of difference 
-    between each surprise and the preceeding regular sequence across sessions. 
+    From dictionaries, stimulus feature indices for each ROI or single running 
+    value, across sessions. 
     
     Returns figure name and save directory path.
     
@@ -2212,16 +2287,16 @@ def plot_surpidx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
                               parameters
             ['analysis'] (str): analysis type (e.g., 't')
             ['datatype'] (str): datatype (e.g., 'run', 'roi')
-        - surpidx_info (dict): surprise index information:
-            ['item_idxs'] (list) : surprise index bin counts for each 
+        - idx_info (dict) : feature index information:
+            ['item_idxs'] (list) : feature index bin counts for each 
                                    ROI or running value, grouped across mice, 
                                    structured as 
                                        plane/line x session x bin
-            ['item_percs'] (list): surprise percentile bin counts for each 
+            ['item_percs'] (list): feature percentile bin counts for each 
                                    ROI or running value, grouped across mice, 
                                    structured as 
                                        plane/line x session x bin
-            ['rand_idxs'] (list) : random surprise index bin counts for each 
+            ['rand_idxs'] (list) : random feature index bin counts for each 
                                    ROI or running value, grouped across mice, 
                                    structured as 
                                        plane/line x session x bin
@@ -2247,12 +2322,23 @@ def plot_surpidx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
             ['init'] (dict): dictionary with figure initialization parameters
             ['save'] (dict): dictionary with figure saving parameters
             ['dirs'] (dict): dictionary with additional figure parameters
-        - plot (str)        : if 'tog', average is taken across mice, otherwise, 
-                              if 'sep', each mouse is plotted separately
-                              default: 'tog'
+        - plot (str)        : type of plot 
+                              ('items' for ROIs/running value indices
+                              'percs' for index percentiles)
+                              default: 'items'
+        - feature (str)     : feature on which index is based, 
+                              e.g. 'surp' or 'dir'
+                              default: 'surp'
 
     Returns:
-        - fig (plt Figure) : pyplot figure
+        - fig (plt Figure)    : pyplot figure
+        - perc_sig_info (dict): dictionary containing information on percentage 
+                                of significant items
+            ['linpla_ord'] (list)  : order list of planes/lines
+            ['perc_sig'] (3D array): percentage significant items, 
+                                     structured as 
+                                        plane/line x session x 
+                                        [overall, low, high]
     """
  
     datatype = extrapar['datatype']
@@ -2260,7 +2346,7 @@ def plot_surpidx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
     dim_str = sess_str_util.datatype_dim_str(datatype)
     if plot == 'items':
         plot_str = 'indices'
-        n_bins = 20
+        n_bins = 40
     elif plot == 'percs':
         plot_str = 'index percentiles'
         n_bins = 40
@@ -2275,20 +2361,32 @@ def plot_surpidx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
     
     sess_ns = np.asarray(sesspar['sess_n'])
     if sesspar['sess_n'] in ['any', 'all']:
-        sess_ns = np.arange(len(sess_info[0][0]['sess_ns'])) + 1
+        sess_ns = np.asarray(range(len(sess_info[0]))) + 1
     sess_ns_str = gen_util.intlist_to_str(sess_ns.reshape(-1).tolist())
     n_sess = len(sess_ns)
 
     [lines, planes, linpla_iter, 
      pla_cols, _, n_plots] = sess_plot_util.fig_linpla_pars(
-        n_sess = len(sess_ns), n_grps=len(surpidx_info['linpla_ord']))
+        n_sess = len(sess_ns), n_grps=len(idx_info['linpla_ord']))
     figpar = sess_plot_util.fig_init_linpla(figpar, kind='idx', n_sub=n_sess, 
         sharex=(plot == 'percs'))
 
     prepost_str = sess_str_util.prepost_par_str(
             stimpar['pre'], stimpar['post'], str_type='print')
 
-    subtitle = (f'{dim_str} surprise {plot_str}')
+    if 'dir' in feature:
+        if feature == 'dir_reg':
+            feat_sub = 'regular '
+        elif feature == 'dir_surp':
+            feat_sub = 'surprise '
+        elif feature != 'dir':
+            raise ValueError('If `dir` in `feature`, must be '
+                'among `dir_reg`, `dir_surp` or `dir`.')
+        feature_str = f'{feat_sub}direction (left v right)\n'
+    else:
+        feature_str = 'surprise'
+
+    subtitle = (f'{dim_str} {feature_str} {plot_str}')
     
     title = (f'{subtitle} ({prepost_str} seqs)\nfor {stimstr_pr} '
         f'(sess {sess_ns_str}{dendstr_pr})')
@@ -2296,68 +2394,205 @@ def plot_surpidx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
     fig.suptitle(title, y=1.05, weight='bold')
 
-    # # retrieve max and min indices, if sharing x
-    # min_val, max_val = np.inf, -np.inf
-    # for lp_data in surpidx_info['item_idxs']:
-    #     for sess_data in lp_data:
-    #         if len(sess_data) != 0:
-    #             min_val = np.min([min_val, np.min(sess_data)])
-    #             max_val = np.max([max_val, np.max(sess_data)])
-
+    perc_sig_info = {
+        'linpla_ord': idx_info['linpla_ord'],
+        'perc_sig'  : np.empty([len(linpla_iter), n_sess, 3]) * np.nan
+    }
     for i, (line, pla) in enumerate(linpla_iter):
         li = lines.index(line)
         pl = planes.index(pla)
         l_idx = get_linpla_idx(
-            surpidx_info['linpla_ord'], line, pla, verbose=True, newline=(i==0))
+            idx_info['linpla_ord'], line, pla, verbose=True, newline=(i==0))
         if l_idx is None:
             continue
         for s in range(n_sess):
             sub_ax = ax[s + pl * n_sess, li]
-            plot_surpidx_hist(sub_ax, 
-                surpidx_info['item_percs'][l_idx][s], sess_info[l_idx][s], 
-                data=surpidx_info['item_idxs'][l_idx][s], 
-                rand_data=surpidx_info['rand_idxs'][l_idx][s],
-                orig_edges=surpidx_info['bin_edges'][l_idx][s], 
+            perc_sig_info['perc_sig'][i, s] = plot_stim_idx_hist(sub_ax, 
+                idx_info['item_percs'][l_idx][s], sess_info[l_idx][s], 
+                data=idx_info['item_idxs'][l_idx][s], 
+                rand_data=idx_info['rand_idxs'][l_idx][s],
+                orig_edges=idx_info['bin_edges'][l_idx][s], 
                 p_val=permpar['p_val'], tails=permpar['tails'], 
-                col=pla_cols[pl], n_bins=40, plot=plot)
+                col=pla_cols[pl], n_bins=n_bins, plot=plot)
 
-            if plot == 'items':
-                nticks = 3
-                edges = surpidx_info['bin_edges'][l_idx][s]
-                edges = np.floor(edges[0]), np.ceil(edges[1])
-                # xticks = sub_ax.get_xticks()
-                # edges = np.min(xticks), np.max(xticks)
-                xticks = np.linspace(edges[0], edges[1], nticks)
-                diff = np.diff(xticks)[0]
+    if plot == 'percs':
+        sub_ax = ax[-1, 0]
+        nticks = 5
+        xticks = [int(np.around(x, 0)) for x in np.linspace(0, 100, nticks)]
+        for sub_ax in ax[-1]:
+            sub_ax.set_xticks(xticks)
+            sub_ax.set_xticklabels(xticks, weight='bold')
+    
+    elif plot == 'items':
+        nticks = 3
+        plot_util.set_interm_ticks(
+            ax, nticks, dim='x', weight='bold', share=False)
+        for sub_ax in ax.reshape(-1):
+            xticks = sub_ax.get_xticks()
+            diff = np.diff(xticks)[0]
+            if diff != 0:
                 n_dig = - np.floor(np.log10(np.absolute(diff))).astype(int) + 1
                 xticks = [np.around(v, n_dig) for v in xticks]
                 if n_dig <= 0:
                     xticks = [int(v) for v in xticks]
-                sub_ax.set_xticks(xticks)
-                sub_ax.set_xticklabels(xticks, weight='bold')
-
-    if plot == 'percs':
-        nticks = 5
-        xticks = [int(np.around(x, 0)) for x in np.linspace(0, 100, nticks)]
-
-        sub_ax.set_xticks(xticks)
-        sub_ax.set_xticklabels(xticks, weight='bold')
-
+            sub_ax.set_xticks(xticks)
+            sub_ax.set_xticklabels(xticks, weight='bold')
 
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(ax, datatype=datatype, lines=lines, 
         planes=planes, ylab=f'N {dim_str}', xticks=None, sess_ns=sess_ns, 
         kind='idx')
 
+    return fig, perc_sig_info
+
+
+#############################################
+def plot_perc_sig_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar, 
+                           perc_sig_info, sess_info, figpar=None, plot='items', 
+                           feature='surp'):
+    """
+    plot_perc_sig_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar, 
+                           perc_sig_info, sess_info)
+
+    From dictionaries, percentage of significant stimulus feature indices 
+    across sessions. 
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict)    : dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict)      : dictionary with keys of SessPar namedtuple
+        - stimpar (dict)      : dictionary with keys of StimPar namedtuple
+        - permpar (dict)      : dictionary with keys of PermPar namedtuple
+        - extrapar (dict)     : dictionary containing additional analysis 
+                              parameters
+            ['analysis'] (str): analysis type (e.g., 't')
+            ['datatype'] (str): datatype (e.g., 'run', 'roi')
+        - perc_sig_info (dict): dictionary containing information on percentage 
+                                of significant items
+            ['linpla_ord'] (list)  : order list of planes/lines
+            ['perc_sig'] (3D array): percentage significant items, 
+                                     structured as 
+                                        plane/line x session x 
+                                        [overall, low, high]
+        - sess_info (nested list): nested list of dictionaries for each 
+                                   line/plane x session containing information 
+                                   from each mouse, with None for missing 
+                                   sessions
+            ['mouse_ns'] (list)   : mouse numbers
+            ['sess_ns'] (list)    : session numbers  
+            ['lines'] (list)      : mouse lines
+            ['planes'] (list)     : imaging planes
+            ['nrois'] (list)      : number of ROIs in session
+            ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
+                                    traces ('raw', 'dff')
+                
+    Optional args:
+        - figpar (dict)     : dictionary containing the following figure 
+                              parameter dictionaries
+                              default: None
+            ['init'] (dict): dictionary with figure initialization parameters
+            ['save'] (dict): dictionary with figure saving parameters
+            ['dirs'] (dict): dictionary with additional figure parameters
+        - feature (str)     : feature on which index is based, 
+                              e.g. 'surp' or 'dir'
+                              default: 'surp'
+
+    Returns:
+        - fig (plt Figure)   : pyplot figure
+        - perc_sig (3D array): percentage significant items, structured as 
+                               plane/line x session x [overall, low, high]
+    """
+ 
+    datatype = extrapar['datatype']
+    
+    dim_str = sess_str_util.datatype_dim_str(datatype)
+
+    stimstr_pr = sess_str_util.stim_par_str(
+        stimpar['stimtype'], stimpar['bri_dir'], stimpar['bri_size'],
+        stimpar['gabk'], 'print')
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], extrapar['datatype'], 'print')
+    
+    sess_ns = np.asarray(sesspar['sess_n'])
+    if sesspar['sess_n'] in ['any', 'all']:
+        sess_ns = np.asarray(range(len(sess_info[0]))) + 1
+    sess_ns_str = gen_util.intlist_to_str(sess_ns.reshape(-1).tolist())
+
+    [lines, planes, linpla_iter, _, 
+        pla_col_names, n_plots] = sess_plot_util.fig_linpla_pars(
+            n_grps=len(perc_sig_info['linpla_ord']))
+    figpar = sess_plot_util.fig_init_linpla(
+        figpar, kind='reg', sharex=True, sharey=True)
+
+    prepost_str = sess_str_util.prepost_par_str(
+            stimpar['pre'], stimpar['post'], str_type='print')
+
+    if 'dir' in feature:
+        if feature == 'dir_reg':
+            feat_sub = 'regular '
+        elif feature == 'dir_surp':
+            feat_sub = 'surprise '
+        elif feature != 'dir':
+            raise ValueError('If `dir` in `feature`, must be '
+                'among `dir_reg`, `dir_surp` or `dir`.')
+        feature_str = f'{feat_sub}direction (left v right)'
+    else:
+        feature_str = 'surprise'
+
+    subtitle = (f'Percentage of significant {dim_str}\nfor {feature_str}')
+    
+    title = (f'{subtitle} ({prepost_str} seqs)\nfor {stimstr_pr} '
+        f'(sess {sess_ns_str}{dendstr_pr})')
+
+    fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
+    fig.suptitle(title, y=1.05, weight='bold')
+
+    # perc_sig = np.empty([len(linpla_iter), n_sess, 3]) * np.nan
+    for i, (line, pla) in enumerate(linpla_iter):
+        li = lines.index(line)
+        pl = planes.index(pla)
+        l_idx = get_linpla_idx(
+            perc_sig_info['linpla_ord'], line, pla, verbose=True, 
+            newline=(i==0))
+        if l_idx is None:
+            continue
+        cols = plot_util.get_color_range(3, pla_col_names[pl])
+        perc_sigs = ['all', 'low', 'high']
+        cols = [cols[i] for i in [1, 0, 2]] # reorder
+        alphas = [0.3, 0.6, 0.6]
+        for p, lab in enumerate(perc_sigs):
+            sub_ax = ax[pl, li]
+            keep_idx = np.where(np.isfinite(
+                perc_sig_info['perc_sig'][i, :, p]))[0]
+            if len(keep_idx) == 0:
+                continue
+            plot_util.plot_errorbars(
+                sub_ax, perc_sig_info['perc_sig'][i, keep_idx, p], 
+                x=sess_ns[keep_idx], col=cols[p], label=lab, alpha=alphas[p])
+
+    # Add plane, line info to plots
+    sess_plot_util.format_linpla_subaxes(ax, datatype=datatype, lines=lines, 
+        planes=planes, ylab=f'% signif.', xticks=sess_ns, sess_ns=sess_ns, 
+        kind='reg')
+
+    # max percent, shared
+    ymax = np.max([int(np.ceil(ax[1, 0].get_ylim()[1]/10.) * 10), 10])
+    yticks = np.linspace(0, ymax, 5)
+    plot_util.set_ticks(ax[1, 0], 'y', 0, ymax, 5, pad_p=0.1)
+    ax[1, 0].set_yticklabels(
+        [int(v) if i % 2 == 0 else '' for i, v in enumerate(yticks)], 
+        fontdict={'weight': 'bold'})
+
     return fig
 
 
 #############################################
-def plot_surpidx(analyspar, sesspar, stimpar, permpar, extrapar, sess_info, 
-                 surpidx_info, figpar=None, savedir=None):
+def plot_surp_idx(analyspar, sesspar, stimpar, permpar, extrapar, sess_info, 
+                  surpidx_info, figpar=None, savedir=None):
     """
-    plot_surpidx(analyspar, sesspar, stimpar, permpar, extrapar, sess_info,
-                 surpidx_info)
+    plot_surp_idx(analyspar, sesspar, stimpar, permpar, extrapar, sess_info,
+                  surpidx_info)
 
     From dictionaries, plots surprise indices for all ROIs or running values.
     
@@ -2433,9 +2668,16 @@ def plot_surpidx(analyspar, sesspar, stimpar, permpar, extrapar, sess_info,
 
     stimdir = sess_str_util.get_stimdir(stimpar['stimtype'], stimpar['gabfr'])
 
-    for plot in ['items', 'percs']:
-        fig = plot_surpidx_acr_sess(analyspar, sesspar, stimpar, permpar, 
-            extrapar, surpidx_info, sess_info, figpar=figpar, plot=plot)
+    for plot in ['items', 'percs', 'perc_sig']:
+        if plot != 'perc_sig':
+            fig, perc_sig_info = plot_stim_idx_acr_sess(
+                analyspar, sesspar, stimpar, permpar, extrapar, surpidx_info, 
+                sess_info, figpar=figpar, plot=plot, feature='surp')
+        else:
+            fig = plot_perc_sig_acr_sess(
+                analyspar, sesspar, stimpar, permpar, extrapar, 
+                perc_sig_info, sess_info, figpar=figpar, feature='surp')
+
         if savedir is None:
             savedir = os.path.join(
                 figpar['dirs'][datatype], 
@@ -2446,9 +2688,125 @@ def plot_surpidx(analyspar, sesspar, stimpar, permpar, extrapar, sess_info,
         savename = gen_savename
         if plot == 'percs':
             savename = gen_savename.replace('idx', 'idx_percs')
+        elif plot == 'perc_sig':
+            savename = gen_savename.replace('idx', '_perc_sig')
 
         fulldir = plot_util.savefig(
             fig, savename, savedir, **figpar['save'])
+
+    return fulldir, gen_savename
+
+
+#############################################
+def plot_direction_idx(analyspar, sesspar, stimpar, permpar, extrapar, 
+                       sess_info, diridx_info, figpar=None, savedir=None):
+    """
+    plot_direction_idx(analyspar, sesspar, stimpar, permpar, extrapar, 
+                       sess_info, diridx_info)
+
+    From dictionaries, plots surprise indices for all ROIs or running values.
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict): dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict)  : dictionary with keys of SessPar namedtuple
+        - stimpar (dict)  : dictionary with keys of StimPar namedtuple
+        - permpar (dict)  : dictionary with keys of PermPar namedtuple
+        - extrapar (dict) : dictionary containing additional analysis 
+                            parameters
+            ['analysis'] (str): analysis type (e.g., 'l')
+            ['datatype'] (str): datatype (e.g., 'run', 'roi')
+        - sess_info (dict): dictionaries containing information from each 
+                            session:
+            ['mouse_ns'] (list)   : mouse numbers
+            ['sess_ns'] (list)    : session numbers  
+            ['lines'] (list)      : mouse lines
+            ['planes'] (list)     : imaging planes
+            ['nrois'] (list)      : number of ROIs in session
+            ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
+                                    traces ('raw', 'dff')
+        - diridx_info (dict) : list of dictionaries containing direction index 
+                               information, ordered as ['dir_reg', 'dir_surp']:
+            ['item_idxs'] (list) : direction index bin counts for each 
+                                   ROI or running value, grouped across mice, 
+                                   structured as 
+                                       plane/line x session x bin
+            ['item_percs'] (list): direction percentile bin counts for each 
+                                   ROI or running value, grouped across mice, 
+                                   structured as 
+                                       plane/line x session x bin
+            ['rand_idxs'] (list) : random direction index bin counts for each 
+                                   ROI or running value, grouped across mice, 
+                                   structured as 
+                                       plane/line x session x bin
+            ['bin_edges'] (list) : bin edges for indices, structured as 
+                                       plane/line x session x edge
+            ['linpla_ord'] (list): order list of planes/lines
+
+    Optional args:
+        - figpar (dict): dictionary containing the following figure parameter 
+                         dictionaries
+                         default: None
+            ['init'] (dict): dictionary with figure initialization parameters
+            ['save'] (dict): dictionary with figure saving parameters
+            ['dirs'] (dict): dictionary with additional figure parameters
+        - savedir (str): path of directory in which to save plots.
+                         default: None    
+    
+    Returns:
+        - fulldir (str)     : final name of the directory in which the figure 
+                              is saved (may differ from input savedir, if 
+                              datetime subfolder is added.)
+        - gen_savename (str): name under which the figure is saved
+    """
+ 
+    sessstr = sess_str_util.sess_par_str(
+        sesspar['sess_n'], stimpar['stimtype'], sesspar['plane'], 
+        stimpar['bri_dir'], stimpar['bri_size'], stimpar['gabk'])
+    dendstr = sess_str_util.dend_par_str(
+        analyspar['dend'], sesspar['plane'], extrapar['datatype'])
+    datatype = extrapar['datatype']
+
+    if figpar is None:
+        figpar = sess_plot_util.init_figpar()
+
+    figpar = copy.deepcopy(figpar)
+    if figpar['save']['use_dt'] is None:
+        figpar['save']['use_dt'] = gen_util.create_time_str()
+
+    gen_savename = f'{datatype}_diridx_{sessstr}{dendstr}'
+
+    stimdir = sess_str_util.get_stimdir(stimpar['stimtype'], stimpar['gabfr'])
+
+    for d, direc in enumerate(['dir_reg', 'dir_surp']):
+        for plot in ['items', 'percs', 'perc_sig']:
+            if plot != 'perc_sig':
+                fig, perc_sig_info = plot_stim_idx_acr_sess(
+                    analyspar, sesspar, stimpar, permpar, extrapar, 
+                    diridx_info[d], sess_info, figpar=figpar, plot=plot, 
+                    feature=direc)
+            else:
+                fig = plot_perc_sig_acr_sess(
+                    analyspar, sesspar, stimpar, permpar, extrapar, 
+                    perc_sig_info, sess_info, figpar=figpar, feature=direc)
+
+            if savedir is None:
+                savedir = os.path.join(
+                    figpar['dirs'][datatype], 
+                    figpar['dirs']['acr_sess'], 
+                    stimdir,
+                    figpar['dirs']['dir_idx'])
+
+            savename = gen_savename
+            if plot == 'percs':
+                savename = gen_savename.replace('idx', 'idx_percs')
+            elif plot == 'perc_sig':
+                savename = gen_savename.replace('idx', '_perc_sig')
+            savename = savename.replace('dir', direc)
+
+            fulldir = plot_util.savefig(
+                fig, savename, savedir, **figpar['save'])
 
     return fulldir, gen_savename
 
@@ -2831,6 +3189,7 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
                 in prop_data['prop_stats'][l_idx]]) * 100
             plot_util.plot_errorbars(
                 sub_ax, prop_st[:, 0], prop_st[:, 1:], sess_ns, col=col)
+    
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar['fluor'], 
         datatype=datatype, lines=lines, planes=planes, 

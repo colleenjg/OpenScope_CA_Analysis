@@ -233,8 +233,9 @@ def grp_traces_by_qu_surp_sess(trace_data, analyspar, roigrppar, all_roi_grps):
                                  in the group: session x roi_grp
 
     Returns:
-        - grp_stats (5D array): statistics for ROI groups structured as:
-                                    sess x qu x ROI grp x stats x frame
+        - grp_stats (list): nested list of statistics for ROI groups 
+                            structured as:
+                                sess x qu x ROI grp x stats x frame
     """
 
     # calculate diff/ratio or retrieve reg/surp 
@@ -245,15 +246,9 @@ def grp_traces_by_qu_surp_sess(trace_data, analyspar, roigrppar, all_roi_grps):
     
     n_sesses = len(data_me)
     n_quints = data_me[0].shape[0]
-    n_frames = data_me[0].shape[2]
 
-    n_grps   = len(all_roi_grps[0])
-    n_stats  = 2 + (analyspar.stats == 'median' and analyspar.error == 'std')
-
-    # sess x quintile (first/last) x ROI grp x stats
-    grp_stats = np.full(
-        [n_sesses, n_quints, n_grps, n_stats, n_frames], np.nan)
-
+    # sess x quintile (first/last) x ROI grp
+    grp_stats = [[[] for _ in range(n_quints)] for _ in range(n_sesses)]
     for i, sess in enumerate(data_me):
         for q, quint in enumerate(sess): 
             for g, grp_rois in enumerate(all_roi_grps[i]):
@@ -262,7 +257,7 @@ def grp_traces_by_qu_surp_sess(trace_data, analyspar, roigrppar, all_roi_grps):
                     continue
                 grp_st = math_util.get_stats(
                     quint[grp_rois], analyspar.stats, analyspar.error, axes=0)
-                grp_stats[i, q, g] = grp_st
+                grp_stats[i][q].append(grp_st.tolist())
 
     return grp_stats
 

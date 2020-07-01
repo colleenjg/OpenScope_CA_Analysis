@@ -82,6 +82,8 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                                      sessions
                 ['autocorr'] (str) : subdirectory name for autocorrelation 
                                      analyses
+                ['dir_idx'] (str)  : subdirectory name for direction index 
+                                     analyses
                 ['full'] (str)     : subdirectory name for full trace plots
                 ['glm'] (str)      : subdirectory name for glm plots
                 ['grped'] (str)    : subdirectory name for ROI grps data
@@ -136,6 +138,7 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                 'run'      : os.path.join(figdir, f'{runtype}_run'),
                 'acr_sess' : 'acr_sess',
                 'autocorr' : 'autocorr',
+                'dir_idx'  : 'dir_idx',
                 'full'     : 'full',
                 'glm'      : 'glm',
                 'grped'    : 'grped',
@@ -648,8 +651,8 @@ def fig_init_linpla(figpar=None, kind='reg', n_sub=1, sharey=False,
         wid = np.max([9.0/n_sub, 3.0])
         hei = 2.0
     elif kind == 'idx':
-        wid = 4
-        hei = np.max([wid/n_sub * 2.0, 1.0])
+        wid = 5
+        hei = np.max([wid * 1.5/n_sub, 1.0])
     else:
         wid = 2.5
         hei = 4.3
@@ -682,16 +685,16 @@ def fig_linpla_pars(n_sess=False, n_grps=None):
                                 default: None
 
     Returns:
-        - lines (list)      : ordered list of lines
-        - planes (list)     : ordered list of planes
-        - linpla_iter (list): ordered list of lines and planes, structured as 
-                              grp x [lin, pla]
-        - pla_cols (list)   : colors for each plane
-        - pla_cols (list)   : color names for each plane
-        - n_plots (int)     : total number of plots
+        - lines (list)        : ordered list of lines
+        - planes (list)       : ordered list of planes
+        - linpla_iter (list)  : ordered list of lines and planes, structured as 
+                                grp x [lin, pla]
+        - pla_cols (list)     : colors for each plane
+        - pla_col_names (list): color names for each plane
+        - n_plots (int)       : total number of plots
     """
 
-    lines, planes = ['L2/3', 'L5'], ['dendrites', 'soma']
+    lines, planes = ['L2/3', 'L5'], ['dendrites', 'somata']
     linpla_iter = [[lin, pla] for lin in lines for pla in planes]
     pla_col_names = ['green', 'blue']
     pla_cols = [plot_util.get_color(c, ret='single') for c in pla_col_names]
@@ -916,12 +919,18 @@ def add_linpla_axislabels(ax, fluor='dff', area=False, scale=False,
 
     # remove tick labels for all but last row and first column
     label_cols = [0]
+    skip_x = False
     if kind == 'prog':
         label_cols = [0, col_per_grp]
+    elif kind == 'idx':
+        skip_x = True
+        ax_flat = ax.reshape(-1)
+        if len(list(ax_flat[0].get_shared_x_axes())) != 1:
+            skip_x = False
     if single_lab:
         for sub_ax in ax.reshape(-1):
-            if (not (sub_ax.is_last_row() and sub_ax.colNum in label_cols) 
-                and kind != 'idx'):
+            if (not (sub_ax.is_last_row() and sub_ax.colNum in label_cols) and 
+                skip_x):
                 sub_ax.tick_params(labelbottom=False)
             if sub_ax not in add_yticks:
                 sub_ax.tick_params(labelleft=False)
@@ -1095,6 +1104,7 @@ def format_linpla_subaxes(ax, fluor='dff', area=False, datatype='roi',
         if n_rows % 2 != 0:
             raise ValueError('Expected even number of rows')
         row_per_grp = int(n_rows/2)
+        n = 4
     elif kind == 'prog':
         n = 3
         fig_xpos = 1.0 # for plane names (x pos)            
@@ -1105,7 +1115,7 @@ def format_linpla_subaxes(ax, fluor='dff', area=False, datatype='roi',
         gen_util.accepted_values_error(
             'kind', kind, ['reg', 'traces', 'prog', 'idx'])
 
-    if kind in ['reg', 'prog']:
+    if kind in ['reg', 'prog', 'idx']:
         plot_util.set_interm_ticks(ax, n, dim='y', weight='bold', share=False)
 
     # get x axis label and tick information
@@ -1120,7 +1130,7 @@ def format_linpla_subaxes(ax, fluor='dff', area=False, datatype='roi',
     if lines is None:
         lines = ['L2/3', 'L5']
     if planes is None:
-        planes = ['dendrites', 'soma']
+        planes = ['dendrites', 'somata']
     for l, name in zip([lines, planes], ['lines', 'planes']):
         if len(l) != 2:
             raise ValueError(f'2 {name} expected.')

@@ -271,11 +271,12 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
             ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
                                     traces ('raw', 'dff')
         - trace_stats (dict): dictionary containing trace stats information
-            ['x_ran'] (array-like)     : time values for the frames
+            ['xrans'] (list)           : time values for the frames, for each 
+                                         session
             ['all_stats'] (list)       : list of 4D arrays or lists of trace 
-                                         data statistics across ROIs, 
-                                         structured as:
-                                            surp x quintiles x
+                                         data statistics across ROIs for each
+                                         session, structured as:
+                                            sess x surp x quintiles x
                                             stats (me, err) x frames
             ['all_counts'] (array-like): number of sequences, structured as:
                                                 sess x surp x quintiles
@@ -323,7 +324,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
 
     n_sess = len(mouse_ns)
 
-    x_ran      = np.asarray(trace_stats['x_ran'])
+    xrans      = [np.asarray(xran) for xran in trace_stats['xrans']]
     all_stats  = [np.asarray(sessst) for sessst in trace_stats['all_stats']]
     all_counts = trace_stats['all_counts']
 
@@ -351,7 +352,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
                     f'{nroi_strs[i]})')
                 leg = f'{qu_lab}{leg_ext} ({all_counts[i][s][q]})'
                 plot_util.plot_traces(
-                    sub_ax, x_ran, all_stats[i][s, q, 0], 
+                    sub_ax, xrans[i], all_stats[i][s, q, 0], 
                     all_stats[i][s, q, 1:], title, col=col[q], alpha=alpha, 
                     label=leg, n_xticks=n)
                 sess_plot_util.add_axislabels(
@@ -413,10 +414,11 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
                                     traces ('raw', 'dff')
         - trace_stats (dict): dictionary containing trace stats information
-            ['x_ran'] (array-like)     : time values for the 2p frames
+            ['xrans'] (list)           : time values for the 2p frames for each 
+                                         session
             ['all_stats'] (list)       : list of 4D arrays or lists of trace 
-                                         data statistics across ROIs, 
-                                         structured as:
+                                         data statistics across ROIs for each 
+                                         session, structured as:
                                             (surp_len x) quintiles x
                                             stats (me, err) x frames
             ['all_counts'] (array-like): number of sequences, structured as:
@@ -484,7 +486,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
 
     n_sess = len(mouse_ns)
 
-    x_ran      = np.asarray(trace_stats['x_ran'])
+    xrans      = [np.asarray(xran) for xran in trace_stats['xrans']]
     all_stats  = [np.asarray(sessst) for sessst in trace_stats['all_stats']]
     reg_stats  = [np.asarray(regst) for regst in trace_stats['reg_stats']]
     all_counts = trace_stats['all_counts']
@@ -534,13 +536,13 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         alpha = np.min([0.4, 0.8/n_lines])
         if stimpar['stimtype'] == 'gabors':
             sess_plot_util.plot_gabfr_pattern(
-                sub_ax, x_ran, offset=offset, bars_omit=[0] + surp_lens[i])
+                sub_ax, xrans[i], offset=offset, bars_omit=[0] + surp_lens[i])
         # plot regular data
         if reg_stats[i].shape[0] != 1:
             raise ValueError('Expected only one quintile for reg_stats.')
         leg = f'reg (no lock) ({reg_counts[i][0]})'
         plot_util.plot_traces(
-            sub_ax, x_ran, reg_stats[i][0][0], reg_stats[i][0][1:], 
+            sub_ax, xrans[i], reg_stats[i][0][0], reg_stats[i][0][1:], 
             alpha=alpha, label=leg, alpha_line=0.8, col='darkgray')
 
         # get regular data range to adjust y lims
@@ -562,9 +564,9 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                 if n == 2 and cols[n] is None:
                     sub_ax.plot([], []) # to advance the color cycle (past gray)
                 leg = f'{lab} ({counts[q]})'
-                plot_util.plot_traces(sub_ax, x_ran, stats[q][0], stats[q][1:], 
-                    title, alpha=alpha, label=leg, n_xticks=n_ticks, 
-                    alpha_line=0.8, col=cols[n])
+                plot_util.plot_traces(sub_ax, xrans[i], stats[q][0], 
+                    stats[q][1:], title, alpha=alpha, label=leg, 
+                    n_xticks=n_ticks, alpha_line=0.8, col=cols[n])
                 n += 1
             if surp_len is not None:
                 plot_util.add_bars(

@@ -20,6 +20,78 @@ from sess_util import sess_gen_util, sess_ntuple_util
 
 
 #############################################
+def define_transition_baseline(stimtype='bricks', gabfr=3, baseline=0.1, pre=0, 
+                               post=1.5):
+    """
+    define_transition_baseline()
+
+    Returns transition baseline times based on stimulus type and times. 
+    
+    For gabors, the baseline is before onset of the earliest D/E frame in the 
+    stimulus period. If there are no D/E frames in the stimulus period 
+    (including if the stimulus period ends at a first D/E frame), the 
+    closest preceeding D/E frame is chosen. 
+
+    For bricks, the baseline is before 0 seconds reference point.
+
+    Optional args:
+        - stimtype (str)  : stimulus ('bricks' or 'gabors')
+                            default: 'bricks'
+        - gabfr (int)     : gabor frame at which stimulus period start 
+                            (0, 1, 2, 3) (or to include, for GLM)
+                            default: 0
+        - baseline (float): baseline length (in sec)
+                            default: 0.1
+        - pre (float)     : range of frames included in stimulus period before 
+                            each reference frame (in s)
+                            default: 0 (in sec)
+        - post (float)    : range of frames included in stimulus period after 
+                            each reference frame (in s)
+                            default: 1.5 (in sec)
+
+    Returns:
+        - pre (float)     : range of frames in stimulus period before each 
+                            reference frame included in baseline (in s)
+        - post (float)    : range of frames in stimulus period after each 
+                            reference frame included in baseline (in s)
+    """
+
+    if stimtype == 'bricks': # same as provided pre
+        base_pre = baseline
+    elif stimtype == 'gabors':
+        sec_per, targ_fr, full = 0.3, 3, 1.5
+        # offset from 0, first from pre
+        offset = (sec_per * (targ_fr - gabfr) + pre) % full - pre
+        # if beyond stimulus range, move to before stimulus period
+        if offset >= post:
+            offset -= full
+        # reverses base_pre: if positive -> before 0, and v.v.
+        base_pre = baseline - offset
+
+    base_post = baseline - base_pre
+    
+    return base_pre, base_post
+
+
+#############################################
+def sub_baseline(stimtype='bricks', gabfr=3, baseline=0.1, pre=0, 
+                    post=1.5):
+    """
+    sub_baseline()
+
+    Returns baseline times based on stimulus type and times. 
+    
+    For gabors, the baseline is before onset of the earliest D/E frame in the 
+    stimulus period. If there are no D/E frames in the stimulus period 
+    (including if the stimulus period ends at a first D/E frame), the 
+    closest preceeding D/E frame is chosen. 
+
+    For bricks, the baseline is before 0 seconds reference point.
+    """
+
+
+
+#############################################
 def quint_segs(stim, stimpar, n_quints=4, qu_idx='all', surp='any', 
                empty_ok=False, remconsec=False, by_surp_len=False):
     """
@@ -350,8 +422,8 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
                                 default: 'roi'
 
     Returns:
-        - xran (1D array)          : time values for the 2p frames (None if 
-                                     integ)
+        - xrans (list)             : time values for the 2p frames (None if 
+                                     integ), for each session
         - all_stats (list)         : list of 2 to 5D arrays of trace data 
                                      statistics for each session, structured as:
                                          (surp if bysurp x)
@@ -393,6 +465,7 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
         surp_vals = [0, 1]    
 
     all_counts, all_stats, all_arrays = [], [], []
+    xrans = []
     for sess in sessions:
         stim = sess.get_stim(stimpar.stimtype)
         sess_counts, sess_stats, sess_arrays = [], [], []
@@ -411,10 +484,10 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
                 stim, qu_segs, stimpar.pre, stimpar.post, analyspar, 
                 byroi=byroi, integ=integ, ret_arr=ret_arr, nan_empty=nan_empty, 
                 baseline=baseline, datatype=datatype)
-            xran = trace_info[0]
             sess_stats.append(trace_info[1])
             if ret_arr:
                 sess_arrays.append(trace_info[2])
+        xrans.append(trace_info[0])
         if len(surp_vals) > 1:
             sess_stats = np.asarray(sess_stats)
         else:
@@ -428,9 +501,9 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
             all_arrays.append(sess_arrays)
 
     if ret_arr:
-        return xran, all_stats, all_counts, all_arrays
+        return xrans, all_stats, all_counts, all_arrays
     else:
-        return xran, all_stats, all_counts
+        return xrans, all_stats, all_counts
 
 
 #############################################
@@ -472,8 +545,8 @@ def trace_stats_by_surp_len_sess(sessions, analyspar, stimpar, n_quints=4,
                                 default: 'roi'
 
     Returns:
-        - xran (1D array)         : time values for the 2p frames (None if 
-                                     integ)
+        - xrans (list)            : time values for the 2p frames (None if 
+                                     integ), for each session
         - all_stats (list)        : list of 2 to 5D arrays of trace data 
                                     statistics for each session, structured as:
                                         surp_len x
@@ -501,6 +574,7 @@ def trace_stats_by_surp_len_sess(sessions, analyspar, stimpar, n_quints=4,
         stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, 'gabfr', 'any')
 
     all_counts, all_stats, all_arrays, all_n_consec = [], [], [], []
+    xrans = []
     for sess in sessions:
         stim = sess.get_stim(stimpar.stimtype)
         sess_counts, sess_stats, sess_arrays = [], [], []
@@ -526,19 +600,19 @@ def trace_stats_by_surp_len_sess(sessions, analyspar, stimpar, n_quints=4,
                 stimpar.post, analyspar, byroi=byroi, integ=integ, 
                 ret_arr=ret_arr, nan_empty=nan_empty, 
                 baseline=baseline, datatype=datatype)
-            xran = trace_info[0]
             sess_stats.append(trace_info[1])
             if ret_arr:
                 sess_arrays.append(trace_info[2])
+        xrans.append(trace_info[0])
         all_counts.append(sess_counts)
         all_stats.append(np.asarray(sess_stats))
         if ret_arr:
             all_arrays.append(sess_arrays)
 
     if ret_arr:
-        return xran, all_stats, all_counts, all_n_consec, all_arrays
+        return xrans, all_stats, all_counts, all_n_consec, all_arrays
     else:
-        return xran, all_stats, all_counts, all_n_consec
+        return xrans, all_stats, all_counts, all_n_consec
 
 
 #############################################

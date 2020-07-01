@@ -194,8 +194,9 @@ def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar,
                     'datatype': datatype,
                     }
 
+        xrans = [xran.tolist() for xran in trace_info[0]]
         all_stats = [sessst.tolist() for sessst in trace_info[1]]
-        trace_stats = {'x_ran'     : trace_info[0].tolist(),
+        trace_stats = {'xrans'     : xrans,
                        'all_stats' : all_stats,
                        'all_counts': trace_info[2]
                       }
@@ -268,8 +269,17 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
     n_quints      = quintpar.n_quints
     quintpar_mult = sess_ntuple_util.init_quintpar(n_quints, 'all')
 
+    if stimpar.stimtype == 'bricks':
+        pre_post = [2.0, 6.0]
+    elif stimpar.stimtype == 'gabors':
+        pre_post = [2.0, 8.0]
+    else:
+        gen_util.accepted_values_error(
+            'stimpar.stimtype', stimpar.stimtype, ['bricks', 'gabors'])
+    print('Setting pre to {}s and post to {}s.'.format(*pre_post))
+    
     stimpar = sess_ntuple_util.get_modif_ntuple(
-        stimpar, ['pre', 'post'], [10.0, 10.0])
+        stimpar, ['pre', 'post'], pre_post)
 
     figpar = copy.deepcopy(figpar)
     if figpar['save']['use_dt'] is None:
@@ -306,9 +316,10 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
                             'seed'    : seed,
                             }
 
+                xrans = [xran.tolist() for xran in trace_info[0]]
                 all_stats = [sessst.tolist() for sessst in trace_info[1]]
                 reg_stats = [regst.tolist() for regst in reg_samp[1]]
-                trace_stats = {'x_ran'     : trace_info[0].tolist(),
+                trace_stats = {'xrans'     : xrans,
                                'all_stats' : all_stats,
                                'all_counts': trace_info[2],
                                'lock'      : lock,
@@ -556,7 +567,7 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
 
     Required args:
         - sessions (list)      : list of Session objects
-        - analysis (str)       : analysis type (e.g., 't')
+        - analysis (str)       : analysis type (e.g., 'r')
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
