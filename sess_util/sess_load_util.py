@@ -165,6 +165,7 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, align_pkl, sessdir,
                                     'stimType', 'stimPar1', 'stimPar2', 
                                     'surp', 'stimSeg', 'gabfr', 
                                     'start2pfr', 'end2pfr', 'num2pfr'
+        - stimtype_order (list) : stimulus type order
         - stim2twopfr (1D array): 2p frame numbers for each stimulus frame, 
                                   as well as the flanking
                                   blank screen frames 
@@ -192,12 +193,22 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, align_pkl, sessdir,
                  'num_frames': 'num2pfr'})
 
     stim_df = modify_bri_segs(stim_df, runtype)
+    stim_df = stim_df.sort_values("start2pfr").reset_index(drop=True)
+
+    # note: STIMULI ARE NOT ORDERED IN THE PICKLE
+    stimtype_map = {
+        'g': 'gabors', 
+        'b': 'bricks'
+        }
+    stimtype_order = stim_df["stimType"].map(stimtype_map).unique()
+    stimtype_order = list(
+        filter(lambda s: s in stimtype_map.values(), stimtype_order))
 
     stim2twopfr  = align['stim_align'].astype('int')
     twop_fps     = sess_sync_util.get_frame_rate(stim_sync_h5)[0] 
     twop_fr_stim = int(max(align['stim_align']))
     
-    return stim_df, stim2twopfr, twop_fps, twop_fr_stim
+    return stim_df, stimtype_order, stim2twopfr, twop_fps, twop_fr_stim
 
 
 #############################################
@@ -350,6 +361,7 @@ def modify_bri_segs(stim_df, runtype='prod'):
 
     Optional args:
         - runtype (str): runtype
+                         default: 'prod'
 
     Returns:
         - stim_df (pd DataFrame): modified dataframe
@@ -383,3 +395,44 @@ def modify_bri_segs(stim_df, runtype='prod'):
 
     return stim_df
 
+
+def load_sess_stim_seed(stim_dict, runtype='prod'):
+    """
+    load_sess_stim_seed(stim_df)
+
+    Returns session's stimulus seed for this session. Expects all stimuli 
+    stored in the session's stimulus dictionary to share the same seed.
+
+    Required args:
+        - stim_dict (dict): stimlus dictionary
+
+    Optional args:
+        - runtype (str): runtype
+                         default: 'prod'
+
+    Returns:
+        - seed (int): session's stimulus seed
+    """
+
+    if runtype == 'pilot':
+        stim_param_key = 'stimParams'
+        sess_param_key = 'subj_params'
+    elif runtype == 'prod':
+        stim_param_key = 'stim_params'
+        sess_param_key = 'session_params'
+    else:
+        gen_util.accepted_values_error('runtype', runtype, ['pilot', 'prod'])
+
+    seeds = []
+    for stimulus in stim_dict['stimuli']:
+        seeds.append(stimulus[stim_param_key][sess_param_key]['seed'])
+    
+    if np.max(seeds) != np.min(seeds):
+        raise ValueError('Unexpectedly found different seeds for different '
+        'stimuli for this session.')
+    
+    seed = seeds[0]
+
+    return seed
+
+    

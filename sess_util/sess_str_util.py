@@ -859,7 +859,35 @@ def pars_to_descr(par_str):
     
 
 #############################################
-def ext_test_str(q1v4=False, rvs=False, str_type='file'):
+def get_split_oris(comp='DoriA'):
+    """
+    get_split_oris()
+
+    Returns Gabor frames values split for orientation comparisons, if 
+    applicable.
+
+    Optional args:
+        - comp (str): type of comparison
+                      default: 'DoriA'
+    
+    Returns
+        - split_oris (bool or list): List of Gabor frames for each split, or 
+                                     False if splitting orientation comparison 
+                                     is not applicable.
+    """
+
+    split_oris = False
+    if 'ori' in comp:
+        gab_letts = [lett.upper() for lett in comp.split('ori') 
+                    if len(lett) > 0]
+        if len(gab_letts) == 2:
+            split_oris = gab_letts
+
+    return split_oris
+
+
+#############################################
+def ext_test_str(q1v4=False, rvs=False, comp='surp', str_type='file'):
     """
     ext_test_str()
     
@@ -873,6 +901,8 @@ def ext_test_str(q1v4=False, rvs=False, str_type='file'):
         - rvs (bool)     : if True, analysis is separated across regular and 
                            surprise sequences 
                            default: False
+        - comp (str)     : type of comparison
+                           default: 'surp'
         - str_type (str) : use of output str, i.e., for a filename 
                            ('file') or to print the info to console ('print')
                            or for a label ('label')
@@ -889,6 +919,8 @@ def ext_test_str(q1v4=False, rvs=False, str_type='file'):
         gen_util.accepted_values_error(
             'str_type', str_type, ['file', 'print', 'label'])
 
+    split_oris = get_split_oris(comp)
+
     if q1v4:
         if str_type == 'file':
             ext_str = 'test_Q4'
@@ -903,6 +935,13 @@ def ext_test_str(q1v4=False, rvs=False, str_type='file'):
             ext_str = ' (only reg)'
         else:
             ext_str = ' (trained on reg and tested on surp)'
+    elif split_oris is not False:
+        if str_type == 'file':
+            ext_str = f'test_{split_oris[1]}'
+        elif str_type == 'label':
+            ext_str = f' ({split_oris[0]} Gabors)'
+        else:
+            ext_str = ' (trained on {} and tested on {})'.format(*split_oris)
     else:
         ext_str = ''
 

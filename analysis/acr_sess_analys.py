@@ -629,7 +629,8 @@ def stim_idx_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype='roi',
                                   'progreg': first reg, vs preceeding surp, or
                                   'dir': left v right direction
                                   default: 'bysurp'
-        - position (int)        : surprise or regular position to retrieve
+        - position (int)        : surprise or regular position to retrieve if 
+                                  surp is 'progsurp' or 'progreg'
                                   default: 0
         - op (str)              : operation to use in measuring surprise 
                                   indices ('diff', 'rel_diff', 'discr')
@@ -669,26 +670,22 @@ def stim_idx_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype='roi',
             datatype=datatype, surp=feature, integ=True, baseline=0, 
             prog_pos=position)
     
-    # take statistic across sequences
-    seq_mes = np.stack([math_util.mean_med(
-        arr, stats=analyspar.stats, axis=-1, nanpol=nanpol) 
-        for arr in data_arr])
-    
-    use_op = op if op != 'discr' else 'diff'
+    if op != 'discr':
+        # take statistic across sequences
+        seq_mes = np.stack([math_util.mean_med(
+            arr, stats=analyspar.stats, axis=-1, nanpol=nanpol) 
+            for arr in data_arr])
+        axis = None
+    else:
+        seq_mes = data_arr
+        axis = -1
 
     # take relative difference (index)
-    item_idxs = math_util.calc_op(seq_mes, op=use_op, nanpol=nanpol)
-
-    if op == 'discr':
-        seq_stds = np.sum([math_util.error_stat(
-            arr, stats='mean', error='std', axis=-1, nanpol=nanpol) 
-            for arr in data_arr], axis=0)
-        item_idxs = 2 * item_idxs / seq_stds
+    item_idxs = math_util.calc_op(seq_mes, op=op, nanpol=nanpol, axis=axis)
 
     last_dim = np.sum([sub.shape[-1] for sub in data_arr])
     if datatype != 'roi':
         item_idxs = np.asarray(item_idxs).reshape(-1)
-        seq_mes = np.asarray(seq_mes).reshape(2, 1)
         targ = (1, last_dim)
     else:
         targ = (-1, last_dim)
@@ -740,7 +737,8 @@ def stim_idx_by_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05,
                                   'dir_surp': left v right direction (surprise),
                                   'dir': left v right direction
                                   default: 'bysurp'
-        - position (int)        : surprise or regular position to retrieve
+        - position (int)        : surprise or regular position to retrieve if 
+                                  surp is 'progsurp' or 'progreg'
                                   default: 0 
         - seed (int)            : seed value to use. (-1 treated as None)
                                   default: None
@@ -757,7 +755,9 @@ def stim_idx_by_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05,
                                  (ROIs or running) surprise index bin counts, 
                                  based on each item's random permutations, 
                                  grouped across mice, structured as 
-                                    session x (item * n_perms)
+                                    session (item * n_perms)
+        - all_perc_pos (list)  : for each session number, percent ROIs with 
+                                 positive indices, grouped across mice, 
         - sess_edges (list)    : for each session number, bin edges used for 
                                  indices, 
                                     session x [min, max]
@@ -796,7 +796,7 @@ def stim_idx_by_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05,
     else:
         n_bins = int(n_bins)
 
-    all_item_idxs, all_item_percs, all_rand_idxs = [], [], []
+    all_item_idxs, all_item_percs, all_rand_idxs, all_poses = [], [], [], []
     sess_edges = []
     sess_info = []
     for s in range(n_sess):
@@ -834,6 +834,7 @@ def stim_idx_by_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05,
             all_item_percs.append(
                 np.histogram(
                     all_percs, bins=n_bins, range=[0, 100])[0].tolist())
+            all_poses.append(np.nan)
             continue
         
         # get edges for histogram 
@@ -856,22 +857,25 @@ def stim_idx_by_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05,
         n_out = np.sum(all_rand < use_bounds[0]) + \
             np.sum(all_rand > use_bounds[1])
         if n_out > 0:
-            print(f'    Warning: {n_out}/{len(all_rand)} random values lie '
+            print(f'    WARNING: {n_out}/{len(all_rand)} random values lie '
                 'outside histogram bin bounds (outliers).')
 
         bin_edges = np.linspace(*use_bounds, n_bins + 1)
         
+        perc_pos = (len(np.where(np.asarray(all_items) > 0)[0]) * 100 / 
+            len(all_items))
+
         all_item_idxs.append(
             np.histogram(all_items, bins=bin_edges)[0].tolist())
         all_rand_idxs.append(
             (np.histogram(all_rand, bins=bin_edges)[0]/div).tolist())
-        sess_edges.append([np.min(bin_edges), np.max(bin_edges)])
-
         all_item_percs.append(
             np.histogram(all_percs, bins=n_bins, range=[0, 100])[0].tolist())
+        all_poses.append(perc_pos)
+        sess_edges.append([np.min(bin_edges), np.max(bin_edges)])
 
-    return [all_item_idxs, all_item_percs, all_rand_idxs, sess_edges, 
-        sess_info]
+    return [all_item_idxs, all_item_percs, all_rand_idxs, all_poses, 
+        sess_edges, sess_info]
 
 
 #############################################
@@ -2270,7 +2274,8 @@ def stim_idx_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi',
                                       (i.e., pre not necessarily equal to post)
                                   'dir': left vs right (Bricks)
                                   default: 'bysurp'
-        - position (int)        : surprise or regular position to retrieve
+        - position (int)        : surprise or regular position to retrieve if 
+                                  surp is 'progsurp' or 'progreg'
                                   default: 0
         - seed (int)            : seed value to use. (-1 treated as None)
                                   default: None
@@ -2291,7 +2296,11 @@ def stim_idx_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi',
             ['rand_idxs'] (list) : random feature index bin counts for each 
                                    ROI or running value, grouped across mice, 
                                    structured as 
-                                       plane/line x session x bin
+                                       plane/line x sessionx bin
+            ['perc_pos'] (list)  : for each session number, percent ROIs with 
+                                   positive indices, grouped across mice, 
+                                   structured as 
+                                       plane/line x session 
             ['bin_edges'] (list) : data edges for indices, structured as 
                                        plane/line x session x [min, max]
             ['linpla_ord'] (list): order list of planes/lines
@@ -2318,18 +2327,22 @@ def stim_idx_by_linpla(sessions, analyspar, stimpar, permpar, datatype='roi',
         feature, position, seed, False]
 
 
-    lp_item_idxs, lp_item_percs, lp_rand_idxs, lp_bin_edges, sess_info = \
+    [lp_item_idxs, lp_item_percs, lp_rand_idxs, lp_perc_pos, 
+     lp_bin_edges, sess_info] = \
         gen_util.parallel_wrap(
             stim_idx_by_sesses, linpla_sess, args_list, parallel=parallel, 
             zip_output=True)
 
     idx_info = dict()
 
-    idx_info['item_idxs']     = lp_item_idxs
-    idx_info['item_percs']    = lp_item_percs
-    idx_info['rand_idxs']     = lp_rand_idxs
-    idx_info['bin_edges']     = lp_bin_edges
-    idx_info['linpla_ord']    = linpla_order
+    idx_info['item_idxs']  = lp_item_idxs
+    idx_info['item_percs'] = lp_item_percs
+    idx_info['rand_idxs']  = lp_rand_idxs
+    idx_info['perc_pos']   = lp_perc_pos
+    idx_info['bin_edges']  = lp_bin_edges
+    idx_info['linpla_ord'] = linpla_order
+
+    print(lp_perc_pos)
 
     return idx_info, sess_info
 
@@ -2380,9 +2393,10 @@ def run_surp_idx(sessions, analysis, seed, analyspar, sesspar, stimpar,
         f'\n({sessstr_pr}{dendstr_pr}).')
     
     position = 0
+    feature = 'bysurp'
 
     surpidx_info, sess_info = stim_idx_by_linpla(
-        sessions, analyspar, stimpar, permpar, datatype, feature='bysurp', 
+        sessions, analyspar, stimpar, permpar, datatype, feature=feature, 
         position=position, seed=seed, parallel=parallel)
 
     extrapar = {'analysis': analysis,
@@ -2848,7 +2862,7 @@ def run_surp_latency(sessions, analysis, seed, analyspar, sesspar, stimpar,
                      parallel=False):
     """
     run_surp_latency(sessions, analysis, analyspar, sesspar, stimpar, 
-                     figpar)
+                     latpar, figpar)
 
     Retrieves area values by session x surp val, locked to surprise onset and 
     plots statistics across ROIs of difference between regular and surprise.

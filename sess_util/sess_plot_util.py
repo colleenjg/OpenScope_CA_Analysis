@@ -16,6 +16,7 @@ import copy
 import os
 
 import itertools
+import matplotlib as mpl
 from matplotlib import colors as mplcol
 from matplotlib import pyplot as plt
 import numpy as np
@@ -977,7 +978,8 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind='reg',
     pad_p = 0
     if kind == 'reg':
         if xticks is not None:
-            pad_p = 1.0/(len(xticks))
+            div = len(xticks)
+            pad_p = 1.0/div
         if n_rows != 2 or n_cols != 2:
             raise ValueError('Regular plots should have 2 rows and 2 columns.')
     elif kind == 'prog':
@@ -996,7 +998,9 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind='reg',
                     max_tick=max(xticks), n=len(xticks), pad_p=pad_p)
                 # always set ticks (even again) before setting labels
                 sub_ax.set_xticklabels(xticks, weight='bold')
-
+                # to avoid very wide plot features
+                if len(xticks) == 1:
+                    sub_ax.set_xlim(xticks[0] - 1, xticks[0] + 1)
             # add session numbers
             if kind in ['traces', 'idx', 'prog'] and sess_ns is not None :
                 if kind in ['traces', 'idx'] and c == 1 and r < len(sess_ns): # RIGHT
@@ -1024,7 +1028,7 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind='reg',
                 max_abs = np.max(np.absolute(yticks))
                 new = [-max_abs, 0, max_abs]
                 yticks = list(filter(lambda x: x == 0 or x in yticks, new))
-                
+
             # always set ticks (even again) before setting labels
             sub_ax.set_yticks(yticks)
             sub_ax.set_yticklabels(yticks, weight='bold')            
@@ -1229,6 +1233,210 @@ def plot_ROIs(sub_ax, masks, valid_mask=None, border=None, savename=None):
         plt.imsave(savename, masks_plot_proj, cmap=cm)
 
     return masks_plot_proj
+
+
+#############################################
+def plot_rec_proj(sub_ax, data, border=None, savename=None):
+    """
+    plot_rec_proj(sub_ax, data)
+
+    Plots scaled average projection of recording data in black and white.
+
+    Required args:
+        - sub_ax (plt Axis subplot): subplot
+        - data (3D array)          : recording data, structured as
+                                     frames x hei x wid
+    
+    Optional args:
+        - border (list)   : border values to plot in red [right, left, down, up]
+                            default: None
+        - savename (bool) : if provided, saves masks to file 
+                            (exact pixel size). '.png' best to avoid 
+                            anti-aliasing.
+                            default: False
+
+    Returns:
+        - av_proj (2D array): data image array: hei x wid
+    """
+
+    if len(data.shape) == 2:
+        data = np.expand_dims(data, 0)
+
+    data_av = np.mean(data, axis=0)
+    scale_min = np.min(data_av)
+    scale_max = np.max(data_av)
+
+    av_proj = (data_av - scale_min)/(scale_max - scale_min)
+
+    color_list = ['black', 'white', 'red']
+    if border is None:
+        color_list = ['black', 'white']
+    cm = mplcol.LinearSegmentedColormap.from_list(
+        'roi_mask_cm', color_list, N=100)
+    
+    if border is not None:
+        hei, wid = av_proj.shape
+        right, left, down, up = [
+            np.ceil(border[i]).astype('int8') for i in [0, 1, 2, 3]]
+    
+        # create dash patterns
+        dash_len = 3
+        hei_dash, wid_dash = [np.concatenate(
+            [np.arange(i, v, dash_len * 2) for i in range(dash_len)]) 
+            for v in [hei, wid]]
+
+        av_proj[hei_dash, right] = 2
+        av_proj[hei_dash, wid - left] = 2
+        av_proj[hei - down, wid_dash] = 2
+        av_proj[up, wid_dash] = 2
+
+    sub_ax.imshow(av_proj, cmap=cm, interpolation='none')
+
+    if savename:
+        plt.imsave(savename, av_proj, cmap=cm)
+
+    return av_proj
+
+
+#############################################
+def plot_ROIs(sub_ax, masks, valid_mask=None, border=None, savename=None):
+    """
+    plot_ROIs(sub_ax, masks)
+
+    Plots whole ROIs contours from a boolean mask, and optionally non valid
+    ROIs in red.
+
+    Required args:
+        - sub_ax (plt Axis subplot): subplot
+        - masks (3D array)         : boolean ROI masks, structured as
+                                     ROIs x hei x wid
+    
+    Optional args:
+        - valid_mask (int): mask of valid ROIs (length of mask_bool). If None,
+                            all ROIs plotted in white.
+                            default: None
+        - border (list)   : border values to plot in red [right, left, down, up]
+                            default: None
+        - savename (bool) : if provided, saves mask contours to file 
+                            (exact pixel size). '.png' best to avoid 
+                            anti-aliasing.
+                            default: False
+
+    Returns:
+        - masks_plot_proj (2D array): ROI image array: hei x wid
+    """
+
+    if len(masks.shape) == 2:
+        masks = np.expand_dims(masks, 0)
+    if valid_mask is None:
+        valid_mask = np.ones(len(masks))
+
+    color_list = ['black', 'white', 'red']
+    if valid_mask.all() and border is None:
+        color_list = ['black', 'white']
+    cm = mplcol.LinearSegmentedColormap.from_list(
+        'roi_mask_cm', color_list, N=len(color_list))
+    
+    masks = masks.astype(bool).astype('int8')
+    masks[~valid_mask.astype(bool)] *= 2
+    masks_plot_proj = np.max(masks, axis=0)
+    
+    if border is not None:
+        hei, wid = masks_plot_proj.shape
+        right, left, down, up = [
+            np.ceil(border[i]).astype('int8') for i in [0, 1, 2, 3]]
+
+        # create dash patterns
+        dash_len = 3
+        hei_dash, wid_dash = [np.concatenate(
+            [np.arange(i, v, dash_len * 2) for i in range(dash_len)]) 
+            for v in [hei, wid]]
+
+        masks_plot_proj[hei_dash, right] = 2
+        masks_plot_proj[hei_dash, wid-left] = 2
+        masks_plot_proj[hei-down, wid_dash] = 2
+        masks_plot_proj[up, wid_dash] = 2
+
+    sub_ax.imshow(masks_plot_proj, cmap=cm, interpolation='none')
+
+    if savename:
+        plt.imsave(savename, masks_plot_proj, cmap=cm)
+
+    return masks_plot_proj
+
+
+#############################################
+def plot_ROIs_sep(sub_ax, masks, border=None, savename=None):
+    """
+    plot_ROIs(sub_ax, masks)
+
+    Plots whole ROIs contours from a boolean mask, and optionally non valid
+    ROIs in red.
+
+    Required args:
+        - sub_ax (plt Axis subplot): subplot
+        - masks (3D array)         : boolean ROI masks, structured as
+                                     ROIs x hei x wid
+    
+    Optional args:
+        - border (list)   : border values to plot in red [right, left, down, up]
+                            default: None
+        - savename (bool) : if provided, saves masks to file 
+                            (exact pixel size). '.png' best to avoid 
+                            anti-aliasing.
+                            default: False
+
+    Returns:
+        - masks_max_proj (2D array): ROI image array: hei x wid
+    """
+
+    masks = masks.astype(bool).astype('int8')
+
+    if len(masks.shape) == 2:
+        masks = np.expand_dims(masks, 0)
+
+    # each ROI gets a number, and the number of the smallest ROI is retained in 
+    # the projection
+    n_pix = np.sum(masks, axis=(1, 2))
+    roi_vals = np.argsort(n_pix)[::-1].reshape(-1, 1, 1) + 1
+    masks_max_proj = np.max(masks * roi_vals, axis=0)
+
+    n_rois = masks.shape[0]
+    add_border = (border is not None)
+
+    color_list = np.ones([n_rois + 1 + add_border, 4])
+    color_list[0, :-1] = 0
+    col_spacing = np.linspace(0, 1, n_rois)
+    color_list[1 : 1 + n_rois] = mpl.cm.get_cmap('gist_rainbow')(col_spacing)
+    cm = mplcol.LinearSegmentedColormap.from_list(
+        'roi_mask_col_cm', color_list, N=len(color_list))
+    
+    # numbers remapped to original order
+    remap = np.insert(np.argsort(roi_vals.reshape(-1)) + 1, 0, 0)
+    masks_max_proj = remap[masks_max_proj]
+    
+    if border is not None:
+        hei, wid = masks_max_proj.shape
+        right, left, down, up = [
+            np.ceil(border[i]).astype('int8') for i in [0, 1, 2, 3]]
+    
+        # create dash patterns
+        dash_len = 3
+        hei_dash, wid_dash = [np.concatenate(
+            [np.arange(i, v, dash_len * 2) for i in range(dash_len)]) 
+            for v in [hei, wid]]
+
+        masks_max_proj[hei_dash, right] = n_rois + 1
+        masks_max_proj[hei_dash, wid - left] = n_rois + 1
+        masks_max_proj[hei - down, wid_dash] = n_rois + 1
+        masks_max_proj[up, wid_dash] = n_rois + 1
+
+    sub_ax.imshow(masks_max_proj, cmap=cm, interpolation='none')
+
+    if savename:
+        plt.imsave(savename, masks_max_proj, cmap=cm)
+
+    return masks_max_proj
 
 
 #############################################

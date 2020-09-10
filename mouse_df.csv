@@ -1,85 +1,85 @@
-sessid,mouse_n,mouseid,date,depth,plane,line,runtype,nrois,sess_gen,sess_within,sess_n,pass_fail,all_files,any_files,incl,notes
-718921993,1,392960,20180711,175,soma,L23-Cux2,pilot,60,1,1,1,F,1,1,yes,half stimuli
-720115420,1,392960,20180712,75,dend,L23-Cux2,pilot,23,2,1,2,F,1,1,yes,half stimuli
-720519615,1,392960,20180716,175,soma,L23-Cux2,pilot,31,1,2,3,P,1,1,yes,half stimuli
-720520553,1,392960,20180717,75,dend,L23-Cux2,pilot,19,2,2,4,P,1,1,yes,half stimuli
-721032982,1,392960,20180717,175,soma,L23-Cux2,pilot,37,3,1,5,P,1,1,yes,half stimuli
-721038464,1,392960,20180718,75,dend,L23-Cux2,pilot,19,4,1,6,P,1,1,no,"half stimuli, alignment fails"
-721975393,1,392960,20180718,175,soma,L23-Cux2,pilot,35,5,1,7,P,1,1,yes,half stimuli
-722126561,1,392960,20180719,75,dend,L23-Cux2,pilot,36,6,1,8,P,1,1,yes,half stimuli
-723322122,1,392960,20180719,175,soma,L23-Cux2,pilot,29,7,1,9,P,1,1,yes,half stimuli
-723323411,1,392960,20180723,75,dend,L23-Cux2,pilot,17,8,1,10,P,1,1,yes,half stimuli
-712483302,2,389778,20180621,20,dend,L5-Rbp4,pilot,259,1,1,1,F,1,1,yes,"dropped beh and eye tracking frames (7), stim frames (534), 2nd alignment fails"
-712942208,2,389778,20180622,375,soma,L5-Rbp4,pilot,78,2,1,2,F,1,1,yes,"dropped beh and eye tracking frames (6), stim frames (254), 2nd alignment fails"
-714893802,2,389778,20180627,20,dend,L5-Rbp4,pilot,-1,1,2,3,F,0,1,no,missing 2P recordings and ROI traces
-715244457,2,389778,20180628,20,dend,L5-Rbp4,pilot,504,1,3,4,P,1,1,yes,problematic running values
-716425232,2,389778,20180702,375,soma,L5-Rbp4,pilot,79,2,2,5,P,1,1,yes,
-716711420,2,389778,20180703,20,dend,L5-Rbp4,pilot,241,3,1,6,P,1,1,yes,
-717030161,2,389778,20180705,375,soma,L5-Rbp4,pilot,60,4,1,7,P,1,1,yes,
-724421207,3,396998,20180723,175,soma,L23-Cux2,pilot,50,1,1,1,P,1,1,yes,half stimuli
-724422062,3,396998,20180725,75,dend,L23-Cux2,pilot,12,2,1,2,P,1,1,yes,"half stimuli, 2nd alignment fails"
-725009252,3,396998,20180725,175,soma,L23-Cux2,pilot,45,3,1,3,P,1,1,yes,half stimuli
-725010342,3,396998,20180726,75,dend,L23-Cux2,pilot,15,4,1,4,P,1,1,yes,half stimuli
-726837871,3,396998,20180726,175,soma,L23-Cux2,pilot,40,5,1,5,P,1,1,yes,half stimuli
-726844248,3,396998,20180730,75,dend,L23-Cux2,pilot,12,6,1,6,P,1,1,yes,half stimuli
-727680211,3,396998,20180730,175,soma,L23-Cux2,pilot,32,7,1,7,P,1,1,yes,half stimuli
-727683236,3,396998,20180731,75,dend,L23-Cux2,pilot,8,8,1,8,P,1,1,yes,half stimuli
-715576465,4,389886,20180628,20,dend,L5-Rbp4,pilot,189,1,1,1,F,1,1,yes,only 2P recordings
-717071321,4,389886,20180705,375,soma,L5-Rbp4,pilot,183,2,1,2,F,1,1,yes,only 2P recordings
-718138179,4,389886,20180709,20,dend,L5-Rbp4,pilot,55,1,2,3,F,1,1,yes,only 2P recordings
-718579351,4,389886,20180710,375,soma,L5-Rbp4,pilot,163,2,2,4,P,1,1,yes,
-718742560,4,389886,20180711,20,dend,L5-Rbp4,pilot,289,3,1,5,P,1,1,yes,
-719034388,4,389886,20180712,375,soma,L5-Rbp4,pilot,254,4,1,6,P,1,1,yes,
-720247732,4,389886,20180716,20,dend,L5-Rbp4,pilot,325,5,1,7,F,1,1,yes,only 2P recordings
-722188453,4,389886,20180719,20,dend,L5-Rbp4,pilot,266,5,2,8,P,1,1,yes,2nd alignment fails
-758519303,1,408021,20180926,175,soma,L23-Cux2,prod,116,1,1,1,P,1,1,yes,
-759189643,1,408021,20180927,175,soma,L23-Cux2,prod,86,2,1,2,P,1,1,yes,2nd alignment fails
-759660390,1,408021,20181001,175,soma,L23-Cux2,prod,121,3,1,3,P,1,1,yes,
-759666166,2,411400,20181001,20,dend,L5-Rbp4,prod,79,1,1,1,F,1,1,yes,"dropped beh and eye tracking frames (5), stim frames (953), 2nd alignment fails"
-759872185,2,411400,20181002,20,dend,L5-Rbp4,prod,58,1,2,2,F,1,1,yes,"dropped beh and eye tracking frames (4), stim frames (1086), 2nd alignment fails"
-760269100,2,411400,20181003,20,dend,L5-Rbp4,prod,86,1,3,3,F,1,1,yes,"dropped beh and eye tracking frames (7), stim frames (696), 2nd alignment fails"
-761730740,2,411400,20181009,20,dend,L5-Rbp4,prod,65,1,4,4,P,1,1,yes,
-762415169,2,411400,20181011,20,dend,L5-Rbp4,prod,31,2,1,5,P,1,1,yes,
-763646681,2,411400,20181015,20,dend,L5-Rbp4,prod,44,3,1,6,P,1,1,yes,
-761624763,3,411424,20181009,175,soma,L23-Cux2,prod,96,1,1,1,P,1,1,yes,
-761944562,3,411424,20181010,175,soma,L23-Cux2,prod,94,2,1,2,P,1,1,yes,"dropped stim frames (17), 2nd alignment fails"
-762250376,3,411424,20181011,175,soma,L23-Cux2,prod,88,3,1,3,P,1,1,yes,
-760260459,4,411771,20181003,375,soma,L5-Rbp4,prod,104,1,1,1,P,1,1,yes,
-760659782,4,411771,20181004,375,soma,L5-Rbp4,prod,76,2,1,2,P,1,1,yes,
-761269197,4,411771,20181008,375,soma,L5-Rbp4,prod,99,3,1,3,P,1,1,yes,
-763949859,5,412933,20181016,75,dend,L23-Cux2,prod,12,1,1,1,F,1,1,yes,ROI not in retinotopic center
-764897534,5,412933,20181017,75,dend,L23-Cux2,prod,11,1,2,2,F,1,1,yes,ROI not in retinotopic center
-765427689,5,412933,20181018,75,dend,L23-Cux2,prod,12,1,3,3,F,1,1,yes,ROI not in retinotopic center
-766755831,5,412933,20181022,50,dend,L23-Cux2,prod,75,1,4,4,P,1,1,yes,
-767254594,5,412933,20181023,50,dend,L23-Cux2,prod,84,2,1,5,P,1,1,yes,
-768807532,5,412933,20181025,50,dend,L23-Cux2,prod,129,3,1,6,P,1,1,yes,
-764704289,6,413663,20181017,50,dend,L23-Cux2,prod,102,1,1,1,P,1,1,yes,
-765193831,6,413663,20181018,50,dend,L23-Cux2,prod,193,2,1,2,P,1,1,yes,
-766502238,6,413663,20181022,50,dend,L23-Cux2,prod,127,3,1,3,P,1,1,yes,
-777914830,7,420011,20181113,20,dend,L5-Rbp4,prod,61,1,1,1,P,1,1,yes,
-778864809,7,420011,20181114,20,dend,L5-Rbp4,prod,101,2,1,2,P,1,1,yes,
-779650018,7,420011,20181115,20,dend,L5-Rbp4,prod,178,3,1,3,P,1,1,yes,
-777496949,8,418779,20181112,375,soma,L5-Rbp4,prod,31,1,1,1,P,1,1,yes,
-778374308,8,418779,20181113,375,soma,L5-Rbp4,prod,56,2,1,2,P,1,1,yes,
-779152062,8,418779,20181114,375,soma,L5-Rbp4,prod,55,3,1,3,P,1,1,yes,
-826187862,9,433414,20190220,75,dend,L23-Cux2,prod,110,1,1,1,P,1,1,yes,dropped stim frames (133)
-826773996,9,433414,20190221,75,dend,L23-Cux2,prod,99,2,1,2,P,1,1,yes,
-827833392,9,433414,20190222,75,dend,L23-Cux2,prod,113,3,1,3,P,1,1,yes,
-828754259,9,433414,20190225,75,dend,L23-Cux2,prod,-1,4,1,4,P,0,0,no,viewed different experiment
-826338612,10,433448,20190220,20,dend,L5-Rbp4,prod,163,1,1,1,P,1,1,yes,"dropped stim frames (126), 2nd alignment fails"
-826819032,10,433448,20190221,20,dend,L5-Rbp4,prod,339,2,1,2,P,1,1,yes,
-828816509,10,433448,20190225,20,dend,L5-Rbp4,prod,320,3,1,3,P,1,1,yes,
-829283315,10,433448,20190226,20,dend,L5-Rbp4,prod,288,4,1,4,P,1,1,yes,
-823453391,11,433451,20190215,20,dend,L5-Rbp4,prod,63,1,1,1,P,1,1,yes,
-824434038,11,433451,20190218,20,dend,L5-Rbp4,prod,71,2,1,2,P,1,1,yes,
-825180479,11,433451,20190219,20,dend,L5-Rbp4,prod,47,3,1,3,P,1,1,yes,
-826659257,12,433458,20190221,375,soma,L5-Rbp4,prod,126,1,1,1,P,1,1,yes,
-827300090,12,433458,20190222,375,soma,L5-Rbp4,prod,107,2,1,2,P,1,1,yes,
-828475005,12,433458,20190225,375,soma,L5-Rbp4,prod,-1,3,1,3,?,0,1,no,"absent from documents, missing ROI data"
-829520904,12,433458,20190227,375,soma,L5-Rbp4,prod,109,4,1,4,P,1,1,yes,
-832883243,13,440889,20190306,175,soma,L23-Cux2,prod,251,1,1,1,P,1,1,yes,"dropped stim frames (257), 2nd alignment fails"
-833704570,13,440889,20190307,175,soma,L23-Cux2,prod,251,2,1,2,F,1,1,yes,"dropped 2P frames (1), beh and eye tracking frames (5), stim frames (363), 2nd alignment fails"
-834403597,13,440889,20190308,175,soma,L23-Cux2,prod,228,2,2,3,F,1,1,yes,"dropped beh and eye tracking frames (6), stim frames (166)"
-836968429,13,440889,20190314,175,soma,L23-Cux2,prod,217,2,3,4,P,1,1,yes,
-837360280,13,440889,20190315,175,soma,L23-Cux2,prod,244,3,1,5,F,1,1,yes,
-838633305,13,440889,20190318,175,soma,L23-Cux2,prod,256,3,2,6,F,1,1,yes,
+sessid,mouse_n,mouseid,date,depth,plane,line,runtype,nrois_AIBS,nrois,sess_gen,sess_within,sess_n,pass_fail,all_files,any_files,incl,stim_seed,notes
+718921993,1,392960,20180711,175,soma,L23-Cux2,pilot,60,60,1,1,1,F,1,1,yes,100,half stimuli
+720115420,1,392960,20180712,75,dend,L23-Cux2,pilot,23,448,2,1,2,F,1,1,yes,100,half stimuli
+720519615,1,392960,20180716,175,soma,L23-Cux2,pilot,31,31,1,2,3,P,1,1,yes,100,half stimuli
+720520553,1,392960,20180717,75,dend,L23-Cux2,pilot,19,370,2,2,4,P,1,1,yes,100,half stimuli
+721032982,1,392960,20180717,175,soma,L23-Cux2,pilot,37,37,3,1,5,P,1,1,yes,100,half stimuli
+721038464,1,392960,20180718,75,dend,L23-Cux2,pilot,19,425,4,1,6,P,1,1,no,100,"half stimuli, alignment fails"
+721975393,1,392960,20180718,175,soma,L23-Cux2,pilot,35,35,5,1,7,P,1,1,yes,100,half stimuli
+722126561,1,392960,20180719,75,dend,L23-Cux2,pilot,36,424,6,1,8,P,1,1,yes,100,half stimuli
+723322122,1,392960,20180719,175,soma,L23-Cux2,pilot,29,29,7,1,9,P,1,1,yes,100,half stimuli
+723323411,1,392960,20180723,75,dend,L23-Cux2,pilot,17,425,8,1,10,P,1,1,yes,100,half stimuli
+712483302,2,389778,20180621,20,dend,L5-Rbp4,pilot,259,1468,1,1,1,F,1,1,yes,103,"dropped beh and eye tracking frames (7), stim frames (534), 2nd alignment fails"
+712942208,2,389778,20180622,375,soma,L5-Rbp4,pilot,78,78,2,1,2,F,1,1,yes,103,"dropped beh and eye tracking frames (6), stim frames (254), 2nd alignment fails"
+714893802,2,389778,20180627,20,dend,L5-Rbp4,pilot,-1,-1,1,2,3,F,0,1,no,103,missing 2P recordings and ROI traces
+715244457,2,389778,20180628,20,dend,L5-Rbp4,pilot,504,949,1,3,4,P,1,1,yes,103,problematic running values
+716425232,2,389778,20180702,375,soma,L5-Rbp4,pilot,79,79,2,2,5,P,1,1,yes,103,
+716711420,2,389778,20180703,20,dend,L5-Rbp4,pilot,241,920,3,1,6,P,1,1,yes,103,
+717030161,2,389778,20180705,375,soma,L5-Rbp4,pilot,60,60,4,1,7,P,1,1,yes,103,
+724421207,3,396998,20180723,175,soma,L23-Cux2,pilot,50,50,1,1,1,P,1,1,yes,103,half stimuli
+724422062,3,396998,20180725,75,dend,L23-Cux2,pilot,12,513,2,1,2,P,1,1,yes,103,"half stimuli, 2nd alignment fails"
+725009252,3,396998,20180725,175,soma,L23-Cux2,pilot,45,45,3,1,3,P,1,1,yes,103,half stimuli
+725010342,3,396998,20180726,75,dend,L23-Cux2,pilot,15,497,4,1,4,P,1,1,yes,103,half stimuli
+726837871,3,396998,20180726,175,soma,L23-Cux2,pilot,40,40,5,1,5,P,1,1,yes,103,half stimuli
+726844248,3,396998,20180730,75,dend,L23-Cux2,pilot,12,525,6,1,6,P,1,1,yes,103,half stimuli
+727680211,3,396998,20180730,175,soma,L23-Cux2,pilot,32,32,7,1,7,P,1,1,yes,103,half stimuli
+727683236,3,396998,20180731,75,dend,L23-Cux2,pilot,8,426,8,1,8,P,1,1,yes,103,half stimuli
+715576465,4,389886,20180628,20,dend,L5-Rbp4,pilot,189,1276,1,1,1,F,1,1,yes,100,only 2P recordings
+717071321,4,389886,20180705,375,soma,L5-Rbp4,pilot,183,183,2,1,2,F,1,1,yes,100,only 2P recordings
+718138179,4,389886,20180709,20,dend,L5-Rbp4,pilot,55,525,1,2,3,F,1,1,yes,100,only 2P recordings
+718579351,4,389886,20180710,375,soma,L5-Rbp4,pilot,163,163,2,2,4,P,1,1,yes,100,
+718742560,4,389886,20180711,20,dend,L5-Rbp4,pilot,289,955,3,1,5,P,1,1,yes,100,
+719034388,4,389886,20180712,375,soma,L5-Rbp4,pilot,254,254,4,1,6,P,1,1,yes,100,
+720247732,4,389886,20180716,20,dend,L5-Rbp4,pilot,325,1237,5,1,7,F,1,1,yes,100,
+722188453,4,389886,20180719,20,dend,L5-Rbp4,pilot,266,634,5,2,8,P,1,1,yes,100,2nd alignment fails
+758519303,1,408021,20180926,175,soma,L23-Cux2,prod,116,116,1,1,1,P,1,1,yes,30587,
+759189643,1,408021,20180927,175,soma,L23-Cux2,prod,86,86,2,1,2,P,1,1,yes,5730,2nd alignment fails
+759660390,1,408021,20181001,175,soma,L23-Cux2,prod,121,121,3,1,3,P,1,1,yes,36941,
+759666166,2,411400,20181001,20,dend,L5-Rbp4,prod,79,1009,1,1,1,F,1,1,yes,11883,"dropped beh and eye tracking frames (5), stim frames (953), 2nd alignment fails"
+759872185,2,411400,20181002,20,dend,L5-Rbp4,prod,58,309,1,2,2,F,1,1,yes,8005,"dropped beh and eye tracking frames (4), stim frames (1086), 2nd alignment fails"
+760269100,2,411400,20181003,20,dend,L5-Rbp4,prod,86,539,1,3,3,F,1,1,yes,34380,"dropped beh and eye tracking frames (7), stim frames (696), 2nd alignment fails"
+761730740,2,411400,20181009,20,dend,L5-Rbp4,prod,65,657,1,4,4,P,1,1,yes,44023,
+762415169,2,411400,20181011,20,dend,L5-Rbp4,prod,31,662,2,1,5,P,1,1,yes,29259,
+763646681,2,411400,20181015,20,dend,L5-Rbp4,prod,44,602,3,1,6,P,1,1,yes,1118,
+761624763,3,411424,20181009,175,soma,L23-Cux2,prod,96,96,1,1,1,P,1,1,yes,997,
+761944562,3,411424,20181010,175,soma,L23-Cux2,prod,94,94,2,1,2,P,1,1,yes,33856,"dropped stim frames (17), 2nd alignment fails"
+762250376,3,411424,20181011,175,soma,L23-Cux2,prod,88,88,3,1,3,P,1,1,yes,23187,
+760260459,4,411771,20181003,375,soma,L5-Rbp4,prod,104,104,1,1,1,P,1,1,yes,33767,
+760659782,4,411771,20181004,375,soma,L5-Rbp4,prod,76,76,2,1,2,P,1,1,yes,32698,
+761269197,4,411771,20181008,375,soma,L5-Rbp4,prod,99,99,3,1,3,P,1,1,yes,17904,
+763949859,5,412933,20181016,75,dend,L23-Cux2,prod,12,1073,1,1,1,F,1,1,yes,44721,ROI not in retinotopic center
+764897534,5,412933,20181017,75,dend,L23-Cux2,prod,11,992,1,2,2,F,1,1,yes,32579,ROI not in retinotopic center
+765427689,5,412933,20181018,75,dend,L23-Cux2,prod,12,881,1,3,3,F,1,1,yes,26850,ROI not in retinotopic center
+766755831,5,412933,20181022,50,dend,L23-Cux2,prod,75,350,1,4,4,P,1,1,yes,39002,
+767254594,5,412933,20181023,50,dend,L23-Cux2,prod,84,172,2,1,5,P,1,1,yes,6698,
+768807532,5,412933,20181025,50,dend,L23-Cux2,prod,129,256,3,1,6,P,1,1,yes,8612,
+764704289,6,413663,20181017,50,dend,L23-Cux2,prod,102,644,1,1,1,P,1,1,yes,12470,
+765193831,6,413663,20181018,50,dend,L23-Cux2,prod,193,359,2,1,2,P,1,1,yes,7038,
+766502238,6,413663,20181022,50,dend,L23-Cux2,prod,127,529,3,1,3,P,1,1,yes,23433,
+777914830,7,420011,20181113,20,dend,L5-Rbp4,prod,61,222,1,1,1,P,1,1,yes,20846,
+778864809,7,420011,20181114,20,dend,L5-Rbp4,prod,101,166,2,1,2,P,1,1,yes,35159,
+779650018,7,420011,20181115,20,dend,L5-Rbp4,prod,178,192,3,1,3,P,1,1,yes,34931,
+777496949,8,418779,20181112,375,soma,L5-Rbp4,prod,31,31,1,1,1,P,1,1,yes,32706,
+778374308,8,418779,20181113,375,soma,L5-Rbp4,prod,56,56,2,1,2,P,1,1,yes,8114,
+779152062,8,418779,20181114,375,soma,L5-Rbp4,prod,55,55,3,1,3,P,1,1,yes,11744,
+826187862,9,433414,20190220,75,dend,L23-Cux2,prod,110,736,1,1,1,P,1,1,yes,303,dropped stim frames (133)
+826773996,9,433414,20190221,75,dend,L23-Cux2,prod,99,311,2,1,2,P,1,1,yes,13515,
+827833392,9,433414,20190222,75,dend,L23-Cux2,prod,113,340,3,1,3,P,1,1,yes,32899,
+828754259,9,433414,20190225,75,dend,L23-Cux2,prod,-1,-1,4,1,4,P,0,0,no,-1,viewed different experiment
+826338612,10,433448,20190220,20,dend,L5-Rbp4,prod,163,1728,1,1,1,P,1,1,yes,38171,"dropped stim frames (126), 2nd alignment fails"
+826819032,10,433448,20190221,20,dend,L5-Rbp4,prod,339,462,2,1,2,P,1,1,yes,38273,
+828816509,10,433448,20190225,20,dend,L5-Rbp4,prod,320,523,3,1,3,P,1,1,yes,18246,
+829283315,10,433448,20190226,20,dend,L5-Rbp4,prod,288,456,4,1,4,P,1,1,yes,17769,
+823453391,11,433451,20190215,20,dend,L5-Rbp4,prod,63,1003,1,1,1,P,1,1,yes,18665,
+824434038,11,433451,20190218,20,dend,L5-Rbp4,prod,71,1070,2,1,2,P,1,1,yes,36,
+825180479,11,433451,20190219,20,dend,L5-Rbp4,prod,47,1022,3,1,3,P,1,1,yes,7754,
+826659257,12,433458,20190221,375,soma,L5-Rbp4,prod,126,126,1,1,1,P,1,1,yes,35969,
+827300090,12,433458,20190222,375,soma,L5-Rbp4,prod,107,107,2,1,2,P,1,1,yes,10378,
+828475005,12,433458,20190225,375,soma,L5-Rbp4,prod,-1,-1,3,1,3,?,0,1,no,10576,"absent from documents, missing ROI data"
+829520904,12,433458,20190227,375,soma,L5-Rbp4,prod,109,109,4,1,4,P,1,1,yes,42270,
+832883243,13,440889,20190306,175,soma,L23-Cux2,prod,251,251,1,1,1,P,1,1,yes,27797,"dropped stim frames (257), 2nd alignment fails"
+833704570,13,440889,20190307,175,soma,L23-Cux2,prod,251,251,2,1,2,F,1,1,yes,16745,"dropped 2P frames (1), beh and eye tracking frames (5), stim frames (363), 2nd alignment fails"
+834403597,13,440889,20190308,175,soma,L23-Cux2,prod,228,228,2,2,3,F,1,1,yes,10210,"dropped beh and eye tracking frames (6), stim frames (166)"
+836968429,13,440889,20190314,175,soma,L23-Cux2,prod,217,217,2,3,4,P,1,1,yes,24253,
+837360280,13,440889,20190315,175,soma,L23-Cux2,prod,244,244,3,1,5,F,1,1,yes,19576,
+838633305,13,440889,20190318,175,soma,L23-Cux2,prod,256,256,3,2,6,F,1,1,yes,30582,
