@@ -29,49 +29,6 @@ DEFAULT_FONTDIR = os.path.join('..', 'tools', 'fonts')
 
 
 #############################################
-def get_comps(stimtype='gabors', q1v4=False, regvsurp=False):
-    """
-    get_comps()
-
-    Returns comparisons that fit the criteria.
-
-    Optional args:
-        - stimtype (str) : stimtype
-                           default: 'gabors'
-        - q1v4 (bool)    : if True, analysis is trained on first and tested on 
-                           last quintiles
-                           default: False
-        - regvsurp (bool): if True, analysis is trained on regular and tested 
-                           on regular sequences
-                           default: False
-    
-    Returns:
-        - comps (list): list of comparisons that fit the criteria
-    """
-
-    if stimtype == 'gabors':
-        if regvsurp:
-            raise ValueError('regvsurp can only be used with bricks.')
-        comps = ['surp', 'AvB', 'AvC', 'BvC', 'DvE', 'Aori', 'Bori', 'Cori', 
-            'Dori', 'Eori']
-    elif stimtype == 'bricks':
-        comps = ['surp', 'dir_all', 'dir_surp', 'dir_reg', 'half_right', 
-            'half_left', 'half_diff'] 
-        if regvsurp:
-            comps = gen_util.remove_if(
-                comps, ['surp', 'dir_surp', 'dir_all', 'half_right', 
-                'half_left', 'half_diff'])
-        if q1v4:
-            comps = gen_util.remove_if(
-                comps, ['half_left', 'half_right', 'half_diff'])
-    else:
-        gen_util.accepted_values_error(
-            'stimtype', stimtype, ['gabors', 'bricks'])
-
-    return comps
-
-
-#############################################
 def check_args(comp='surp', stimtype='gabors', q1v4=False, regvsurp=False):
     """
     check_args()
@@ -93,7 +50,7 @@ def check_args(comp='surp', stimtype='gabors', q1v4=False, regvsurp=False):
     """
 
 
-    poss_comps = get_comps(stimtype, q1v4, regvsurp)
+    poss_comps = logreg.get_comps(stimtype, q1v4, regvsurp)
 
     if q1v4 and regvsurp:
         raise ValueError('q1v4 and regvsurp cannot both be set to True.')
@@ -123,7 +80,8 @@ def set_ctrl(ctrl=False, comp='surp'):
         - ctrl (bool): modified control value
     """    
 
-    if comp in ['surp', 'DvE', 'Eori', 'dir_surp']:
+    ori_with_E = 'E' in comp and 'ori' in comp
+    if comp in ['surp', 'DvE', 'dir_surp'] or ori_with_E:
         ctrl = False
     
     if comp == 'all':
@@ -265,7 +223,8 @@ def run_regr(args):
     mouse_df = DEFAULT_MOUSE_DF_PATH
 
     stimpar = logreg.get_stimpar(args.comp, args.stimtype, args.bri_dir, 
-        args.bri_size, args.gabfr, args.gabk, bri_pre=args.bri_pre)
+        args.bri_size, args.gabfr, args.gabk, gab_ori='shared', 
+        bri_pre=args.bri_pre)
     
     analyspar = sess_ntuple_util.init_analyspar(args.fluor, stats=args.stats, 
         error=args.error, scale=not(args.no_scale), dend=args.dend)  
@@ -357,6 +316,8 @@ if __name__ == "__main__":
         help='gabor kappa parameter')
     parser.add_argument('--gabfr', default=0, type=int, 
         help='starting gab frame if comp is surp')
+    # parser.add_argument('--gab_ori', default='all',  
+    #     help='gabor orientations to include, either `all` or `shared`.')
     parser.add_argument('--bri_dir', default='both', help='brick direction')
     parser.add_argument('--bri_size', default=128, help='brick size')
     parser.add_argument('--bri_pre', default=0.0, type=float, help='brick pre')
@@ -394,7 +355,7 @@ if __name__ == "__main__":
 
 
     if args.comp == 'all':
-        comps = get_comps(args.stimtype, args.q1v4, args.regvsurp)
+        comps = logreg.get_comps(args.stimtype, args.q1v4, args.regvsurp)
     else:
         check_args(args.comp, args.stimtype, args.q1v4, args.regvsurp)
         comps = gen_util.list_if_not(args.comp)

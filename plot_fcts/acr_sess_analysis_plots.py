@@ -647,8 +647,8 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
     # correct p-value (Bonferroni)
     if plot == 'grped':
         p_val_thr = 0.05
-        if diff_info['max_comps_per'] != 0:
-            p_val_thr_corr = p_val_thr/diff_info['max_comps_per']
+        if diff_info['tot_n_comps'] != 0:
+            p_val_thr_corr = p_val_thr/diff_info['tot_n_comps']
         else:
             p_val_thr_corr = p_val_thr
         sig_comps = [[] for _ in range(len(linpla_iter))]
@@ -698,7 +698,7 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
 
     if plot == 'grped':
         plot_data_signif(ax, sess_ns, sig_comps, diff_info['lin_p_vals'], 
-            maxes, p_val_thr=0.05, n_comps=diff_info['max_comps_per'])
+            maxes, p_val_thr=0.05, n_comps=diff_info['tot_n_comps'])
 
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar['fluor'], 
@@ -970,7 +970,7 @@ def plot_lock_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
 
 #############################################
 def plot_traces(sub_ax, xran, trace_st, lock=False, col='k', lab=True, 
-                stimtype='gabors', gabfr=0):
+                stimtype='gabors', gabfr=0, ls=None, reg_col='gray'):
     """
     plot_traces(sub_ax, xran, trace_st)
 
@@ -993,12 +993,16 @@ def plot_traces(sub_ax, xran, trace_st, lock=False, col='k', lab=True,
                           default: 'gabors'
         - gabfr (int)   : gabor start frame number
                           default: 0
+        - ls (float)    : trace line style
+                          default: None
+        - reg_col (str) : color for regular data
+                          default: 'gray'
     """
 
     if lock:
         cols = [col, col]
     else:
-        cols = ['gray', col]
+        cols = [reg_col, col]
     names = ['reg', 'surp']
     xran = np.asarray(xran)
 
@@ -1044,7 +1048,7 @@ def plot_traces(sub_ax, xran, trace_st, lock=False, col='k', lab=True,
             i = 1 - i # data ordered as [surp, reg] instead of vv
         plot_util.plot_traces(sub_ax, xran_use, trace_st[i, :, 0], 
             trace_st[i, :, 1:], label=label, alpha_line=0.8, col=col, 
-            xticks=xticks)
+            xticks=xticks, ls=ls)
 
 
 #############################################
@@ -1197,6 +1201,8 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
         grp_str = '_grped'
     title = (f'{subtitle}\n({prepost_str} seqs) for {stimstr_pr}\n'
         f'{statstr_pr} across {dim_str} (sess {sess_ns_str}{dendstr_pr})')
+
+    # figpar['init']['sharey'] = 'row'
 
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
     fig.suptitle(title, y=1.1, weight='bold')
@@ -2300,6 +2306,10 @@ def plot_stim_idx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
                                    ROI or running value, grouped across mice, 
                                    structured as 
                                        plane/line x session x bin
+            ['perc_pos'] (list)  : for each session number, percent ROIs with 
+                                   positive indices, grouped across mice, 
+                                   structured as 
+                                       plane/line x session
             ['bin_edges'] (list) : bin edges for indices, structured as 
                                        plane/line x session x [min, max]
             ['linpla_ord'] (list): order list of planes/lines
@@ -2407,7 +2417,7 @@ def plot_stim_idx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
             continue
         for s in range(n_sess):
             sub_ax = ax[s + pl * n_sess, li]
-            perc_sig_info['perc_sig'][i, s] = plot_stim_idx_hist(sub_ax, 
+            perc_sig_info['perc_sig'][l_idx, s] = plot_stim_idx_hist(sub_ax, 
                 idx_info['item_percs'][l_idx][s], sess_info[l_idx][s], 
                 data=idx_info['item_idxs'][l_idx][s], 
                 rand_data=idx_info['rand_idxs'][l_idx][s],
@@ -2564,11 +2574,11 @@ def plot_perc_sig_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
         for p, lab in enumerate(perc_sigs):
             sub_ax = ax[pl, li]
             keep_idx = np.where(np.isfinite(
-                perc_sig_info['perc_sig'][i, :, p]))[0]
+                perc_sig_info['perc_sig'][l_idx, :, p]))[0]
             if len(keep_idx) == 0:
                 continue
             plot_util.plot_errorbars(
-                sub_ax, perc_sig_info['perc_sig'][i, keep_idx, p], 
+                sub_ax, perc_sig_info['perc_sig'][l_idx, keep_idx, p], 
                 x=sess_ns[keep_idx], col=cols[p], label=lab, alpha=alphas[p])
 
     # Add plane, line info to plots
@@ -2629,6 +2639,10 @@ def plot_surp_idx(analyspar, sesspar, stimpar, permpar, extrapar, sess_info,
                                    ROI or running value, grouped across mice, 
                                    structured as 
                                        plane/line x session x bin
+            ['perc_pos'] (list)  : for each session number, percent ROIs with 
+                                   positive indices, grouped across mice, 
+                                   structured as 
+                                       plane/line x session
             ['bin_edges'] (list) : bin edges for indices, structured as 
                                        plane/line x session x edge
             ['linpla_ord'] (list): order list of planes/lines
@@ -2740,6 +2754,10 @@ def plot_direction_idx(analyspar, sesspar, stimpar, permpar, extrapar,
                                    ROI or running value, grouped across mice, 
                                    structured as 
                                        plane/line x session x bin
+            ['perc_pos'] (list)  : for each session number, percent ROIs with 
+                                   positive indices, grouped across mice, 
+                                   structured as 
+                                       plane/line x session
             ['bin_edges'] (list) : bin edges for indices, structured as 
                                        plane/line x session x edge
             ['linpla_ord'] (list): order list of planes/lines
@@ -2997,8 +3015,8 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
 
     # correct p-value (Bonferroni)
     p_val_thr = 0.05
-    if lat_data['max_comps_per'] != 0:
-        p_val_thr_corr = p_val_thr/lat_data['max_comps_per']
+    if lat_data['tot_n_comps'] != 0:
+        p_val_thr_corr = p_val_thr/lat_data['tot_n_comps']
     else:
         p_val_thr_corr = p_val_thr
     sig_comps = [[] for _ in range(len(linpla_iter))]
@@ -3047,7 +3065,7 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
 
     plot_data_signif(
         ax, sess_ns, sig_comps, lat_data['lin_p_vals'], maxes, p_val_thr=0.05, 
-        n_comps=lat_data['max_comps_per'])
+        n_comps=lat_data['tot_n_comps'])
 
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(

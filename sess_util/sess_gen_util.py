@@ -672,6 +672,8 @@ def get_params(stimtype='both', bri_dir='both', bri_size=128, gabfr=0,
 
     if gab_ori in ['both', 'any', 'all']:
         gab_ori = [0, 45, 90, 135]
+    elif gab_ori == 'shared':
+        gab_ori = [90, 135]
     else:
         gab_ori = int(gab_ori)
 
@@ -704,6 +706,57 @@ def get_params(stimtype='both', bri_dir='both', bri_size=128, gabfr=0,
 
 
 #############################################
+def gab_adjacent_gabfrs(gab_frs):
+    """
+    gab_adjacent_gabfrs(gab_frs)
+
+    Returns whether at least 2 Gabor frames in list are consecutive.
+
+    Required args:
+        - gab_frs (list): list of Gabor frames (0, 1, 2, 3)
+
+    Returns:
+        - adjacent (bool): True, if any 2 Gabor frames are adjacent. False, 
+                           otherwise.
+    """
+
+    gab_frs = [int(gab_fr) for gab_fr in gab_frs]
+    adjacent = (1 in np.diff(sorted(gab_frs)))
+
+    return adjacent
+
+
+#############################################
+def gab_oris_shared_E(gab_letters, gab_oris):
+    """
+    gab_oris_shared_E(gab_letters, gab_oris)
+
+    Returns Gabor orientations that are shared with E frames, for each gabor 
+    letter, ordered together.
+
+    Required args:
+        - gab_letters (str): Gabor letters for which to retrieve orientations
+        - gab_oris (list)  : Gabor orientations that can be included
+
+    Returns:
+        - new_oris (list): list of orientations for each Gabor letter
+    """
+
+    shared_oris = [90, 135] # from ABCD reference
+
+    new_oris = []
+    for lett in gab_letters:
+        is_E = (lett.upper() == 'E')
+        if is_E and len(lett) > 1:
+            raise NotImplementedError('Cannot return shared orientations if '
+                'E Gabors are grouped with other Gabor letters.')
+        oris = [ori - 90 * is_E for ori in shared_oris if ori in gab_oris]
+        new_oris.append(oris) 
+
+    return new_oris
+
+
+#############################################
 def pilot_gab_omit(gabk):
     """
     pilot_gab_omit(gabk)
@@ -716,6 +769,7 @@ def pilot_gab_omit(gabk):
     Returns:
         - omit_mice (list): list IDs of mice to omit
     """
+
     gabk = gen_util.list_if_not(gabk)
     if 4 not in gabk:
         omit_mice = [1] # mouse 1 only got K=4

@@ -31,6 +31,50 @@ from plot_fcts import logreg_plots
 
 
 #############################################
+def get_comps(stimtype='gabors', q1v4=False, regvsurp=False):
+    """
+    get_comps()
+
+    Returns comparisons that fit the criteria.
+
+    Optional args:
+        - stimtype (str) : stimtype
+                           default: 'gabors'
+        - q1v4 (bool)    : if True, analysis is trained on first and tested on 
+                           last quintiles
+                           default: False
+        - regvsurp (bool): if True, analysis is trained on regular and tested 
+                           on regular sequences
+                           default: False
+    
+    Returns:
+        - comps (list): list of comparisons that fit the criteria
+    """
+
+    if stimtype == 'gabors':
+        if regvsurp:
+            raise ValueError('regvsurp can only be used with bricks.')
+        comps = ['surp', 'AvB', 'AvC', 'BvC', 'DvE', 'Aori', 'Bori', 'Cori', 
+            'Dori', 'Eori', 'DoriE', 'DoriA', 'BCDoriA', 'BCDoriE', 'ABCoriD', 
+            'ABCoriE']
+    elif stimtype == 'bricks':
+        comps = ['surp', 'dir_all', 'dir_surp', 'dir_reg', 'half_right', 
+            'half_left', 'half_diff'] 
+        if regvsurp:
+            comps = gen_util.remove_if(
+                comps, ['surp', 'dir_surp', 'dir_all', 'half_right', 
+                'half_left', 'half_diff'])
+        if q1v4:
+            comps = gen_util.remove_if(
+                comps, ['half_left', 'half_right', 'half_diff'])
+    else:
+        gen_util.accepted_values_error(
+            'stimtype', stimtype, ['gabors', 'bricks'])
+
+    return comps
+
+
+#############################################
 def get_class_pars(comp='surp', stimtype='gabors'):
     """
     get_class_pars()
@@ -59,16 +103,18 @@ def get_class_pars(comp='surp', stimtype='gabors'):
             surps = [0, 1]
         elif 'ori' in comp:
             class_var = 'gab_ori'
-            gab_lett = comp.strip('ori').capitalize()
-            if len(gab_lett) != 1:
-                raise NotImplementedError(f'{comp} comparison not properly '
-                    'implemented, as E orientations are shifted wrt others.')
-            if gab_lett == 'E':
-                surps = 1
-            elif gab_lett == 'D':
-                surps = 0
-            else:
-                surps = 'any'
+            gab_letts = [lett.upper() for lett in comp.split('ori') 
+                if len(lett) > 0]
+            surps = []
+            for lett in gab_letts:
+                if ('D' in lett) ^ ('E' in lett): # exclusive or
+                    surp_val = 1 if 'E' in lett else 0
+                    surps.append(surp_val)
+                else:
+                    surps.append('any')
+            if len(gab_letts) == 1:
+                surps = surps[0]
+            
         elif 'dir' in comp:
             raise ValueError('dir comparison not valid for gabors.')
         else:
@@ -98,7 +144,7 @@ def get_class_pars(comp='surp', stimtype='gabors'):
 
 #############################################
 def get_stimpar(comp='surp', stimtype='gabors', bri_dir='both', bri_size=128, 
-                gabfr=0, gabk=16, bri_pre=0.0):
+                gabfr=0, gabk=16, gab_ori='all', bri_pre=0.0):
     """
     get_stimpar()
     
@@ -119,6 +165,9 @@ def get_stimpar(comp='surp', stimtype='gabors', bri_dir='both', bri_size=128,
                                   default: 0
         - gabk (int or list)    : gabor kappa
                                   default: 16
+        - gab_ori (str)         : gabor orientations ('all' or 'shared'), 
+                                  for comp values like DoriE, DoriA, etc.
+                                  default: 'all'
         - bri_pre (int)         : pre parameter for Bricks
                                   default: 0.0 
 
@@ -129,9 +178,12 @@ def get_stimpar(comp='surp', stimtype='gabors', bri_dir='both', bri_size=128,
     if stimtype == 'bricks' and 'half' in bri_dir or 'dir' in bri_dir:
         print('Ignoring brick dir setting.')
 
+    if not (len(comp.replace('ori', '').upper()) > 1):
+        gab_ori = 'all'
+
     [bri_dir, bri_size, gabfr, 
         gabk, gab_ori] = sess_gen_util.get_params(
-            stimtype, bri_dir, bri_size, gabfr, gabk)
+            stimtype, bri_dir, bri_size, gabfr, gabk, gab_ori)
 
     if stimtype == 'gabors':
         # DO NOT ALLOW OVERLAPPING
@@ -143,15 +195,21 @@ def get_stimpar(comp='surp', stimtype='gabors', bri_dir='both', bri_size=128,
             stimpar = sess_ntuple_util.init_stimpar(
                 stimtype, bri_dir, bri_size, gabfr, gabk, gab_ori, 0, 0.45)
         elif 'ori' in comp:
-            gab_lett = comp.strip('ori').capitalize()
-            if len(gab_lett) != 1:
-                raise NotImplementedError(f'{comp} comparison not properly '
-                    'implemented, as E orientations are shifted wrt others.')
-            act_gabfr = sess_str_util.gabfr_nbrs(gab_lett)
-            if act_gabfr != gabfr:
-                print(f'Setting gabfr to {act_gabfr} instead of {gabfr}.')
+            gab_letts = [lett.upper() for lett in comp.split('ori')
+                if len(lett) > 0]
+            act_gabfr = [[sess_str_util.gabfr_nbrs(lett) for lett in letts] 
+                for letts in gab_letts]
+            pre, post = 0, 0.45
+            if len(act_gabfr) == 1:
+                act_gabfr = act_gabfr[0]
+                if act_gabfr != gabfr:
+                    print(f'Setting gabfr to {act_gabfr} instead of {gabfr}.')
+            else:
+                pre, post = -0.15, 0.45
+                gab_ori = sess_gen_util.gab_oris_shared_E(gab_letts, gab_ori)
             stimpar = sess_ntuple_util.init_stimpar(
-                stimtype, bri_dir, bri_size, act_gabfr, gabk, gab_ori, 0, 0.45)         
+                stimtype, bri_dir, bri_size, act_gabfr, gabk, gab_ori, 
+                pre, post)         
         elif 'dir' in comp or 'half' in comp:
             raise ValueError('dir/half comparison not valid for gabors.')
         else:
@@ -425,28 +483,35 @@ def save_hyperpar(analyspar, logregpar, sesspar, stimpar, extrapar):
 
 
 #############################################
-def get_classes(comp='surp'):
+def get_classes(comp='surp', gab_ori='shared'):
     """
     get_classes()
 
     Returns names for classes based on the comparison type.
     
     Optional args:
-        - comp (str): type of comparison
-                      default: 'surp'
-    
+        - comp (str)           : type of comparison
+                                 default: 'surp'
+        - gab_ori (str or list): Gabor orientations
+                                 default: 'all'
     Returns:
         - classes (list): list of class names
     """
+
+    if gab_ori == 'all':
+        gab_ori = [0, 45, 90, 135]
 
     if comp == 'surp':
         classes = ['Regular', 'Surprise']
     elif comp in ['AvB', 'AvC', 'BvC', 'DvE']:
         classes = [f'Gabor {fr}' for fr in [comp[0], comp[2]]]    
     elif 'ori' in comp:
-        deg_vals = [0, 45, 90, 135]
-        if 'E' in comp:
+        deg_vals = gab_ori
+        stripped = comp.replace('ori', '')
+        if stripped == 'E':
             deg_vals = [val + 90 for val in deg_vals]
+        elif len(stripped) == 2:
+            deg_vals = gab_ori[0]
         deg = u'\u00B0'
         classes = [f'{val}{deg}' for val in deg_vals]
     elif 'dir' in comp :
@@ -455,7 +520,7 @@ def get_classes(comp='surp'):
         classes = ['First half', 'Second half']
     else:
         gen_util.accepted_values_error('comp', comp, 
-            ['surp', 'AvB', 'AvC', 'BvC', 'DvE', 'dir...', '...ori'])
+            ['surp', 'AvB', 'AvC', 'BvC', 'DvE', 'dir...', '...ori...'])
 
     return classes
 
@@ -512,16 +577,17 @@ def get_data(stim, analyspar, stimpar, quintpar, qu_i=0, surp=[0, 1],
         stim.get_roi_data(twop_fr, stimpar.pre, stimpar.post, 
         analyspar.fluor, remnans=True, scale=False), squeeze_cols=True)
     
-    # if remconsec_surps: # normalize to first half
-        ## normalize to first half
+    # if remconsec_surps:
+        # Normalize to first half
         # mid = roi_data.shape[-1]//2
         # div = np.median(roi_data[:, :, :mid], axis=-1)
         # roi_data = roi_data - np.expand_dims(div, -1)
-        #
-        # 3 provide mean and std
+        
+        # Mean and std
         # roi_data = np.stack([np.nanmean(roi_data, axis=0),
         #     np.nanstd(roi_data, axis=0)], axis=0)
-        ## provide only mean
+        
+        # Mean only
         # roi_data = np.expand_dims(np.nanmean(roi_data, axis=0), axis=0)
     
     # transpose to seqs x frames x ROIs
@@ -532,7 +598,7 @@ def get_data(stim, analyspar, stimpar, quintpar, qu_i=0, surp=[0, 1],
 
 #############################################
 def get_sess_data(sess, analyspar, stimpar, quintpar, class_var='surps', 
-                  surps=[0, 1], regvsurp=False):
+                  surps=[0, 1], regvsurp=False, split_oris=False):
     """
     get_sess_data(sess, analyspar, stimpar, quintpar)
 
@@ -546,16 +612,19 @@ def get_sess_data(sess, analyspar, stimpar, quintpar, class_var='surps',
         - quintpar (QuintPar)  : named tuple containing quintile parameters
 
     Optional args:
-        - class_var (str)       : class determining variable ('surps' or 
-                                  stimpar attribute)
-                                  default: 'surps'
-        - surps (list, str, int): surprise value(s) (list if class_var is 
-                                  'surps', otherwise 0, 1 or 'any')
-        - regvsurp (bool)       : if True, the first dataset will include 
-                                  regular sequences and the second will include 
-                                  surprise sequences
-                                  default: False
-
+        - class_var (str)          : class determining variable ('surps' or 
+                                     stimpar attribute)
+                                     default: 'surps'
+        - surps (list, str, int)   : surprise value(s) (list if class_var is 
+                                     'surps', otherwise 0, 1 or 'any')
+        - regvsurp (bool)          : if True, the first dataset will include 
+                                     regular sequences and the second will 
+                                     include surprise sequences
+                                     default: False
+        - split_oris (bool or list): List of Gabor frames for each split, or 
+                                     False if splitting orientation comparison 
+                                     is not applicable.
+                                     default: False
     Returns:
         - roi_seqs (list)   : list of 3D arrays of selected ROI trace seqs
                               (1 or 2 if an additional test set is included), 
@@ -570,11 +639,18 @@ def get_sess_data(sess, analyspar, stimpar, quintpar, class_var='surps',
 
     stim = sess.get_stim(stimpar.stimtype)
 
-    if (regvsurp + (len(quintpar.qu_idx) > 1) + ('half' in class_var)) > 1:
+    split_oris = split_oris is not False # set to boolean
+
+    if (regvsurp + (len(quintpar.qu_idx) > 1) + ('half' in class_var)
+        + split_oris) > 1:
         raise ValueError('Cannot combine any of the following: separating '
-            'quintiles, regvsurp or half comparisons')
+            'quintiles, regvsurp, half comparisons, multiple Gabor frame '
+            'orientation comparisons.')
     elif len(quintpar.qu_idx) > 2:
         raise ValueError('Max of 2 quintiles expected.')
+    elif split_oris and len(stimpar.gabfr) > 2:
+        raise ValueError('Max of 2 Gabor frame sets expected for orientation '
+            'classification.')
 
     # check for stimulus pre/post problems
     pre_post_err = False
@@ -611,9 +687,10 @@ def get_sess_data(sess, analyspar, stimpar, quintpar, class_var='surps',
     else:
         n_cl = len(stimpar._asdict()[class_var])
 
-    # modify surps and qu_idx to cycle through datasets
+    # modify surps, qu_idx, gabfr to cycle through datasets
     if len(quintpar.qu_idx) == 2:
         surps = [surps, surps]
+        gabfr_idxs = ['ignore', 'ignore']
         if regvsurp:
             raise ValueError(
                 'Cannot set regvsurp to True if more than 1 quintile.')
@@ -621,18 +698,27 @@ def get_sess_data(sess, analyspar, stimpar, quintpar, class_var='surps',
             raise ValueError('Cannot do half comparisons with quintiles.')
     elif regvsurp:
         surps = [surps, 1-surps]
+        gabfr_idxs = ['ignore', 'ignore']
+        quintpar = sess_ntuple_util.init_quintpar(
+            1, [0, 0], [None, None], [None, None])
+    elif split_oris:
+        surps = surps
+        gabfr_idxs = [0, 1]
         quintpar = sess_ntuple_util.init_quintpar(
             1, [0, 0], [None, None], [None, None])
     else:
         surps = [surps]
+        gabfr_idxs = ['ignore']
+    gabfr_idxs = [0, 1] if split_oris else ['ignore', 'ignore']
 
     # cycle through classes
     roi_seqs    = [[] for _ in range(len(quintpar.qu_idx))]
     seq_classes = [[] for _ in range(len(quintpar.qu_idx))]
     surp_ns     = [[] for _ in range(len(quintpar.qu_idx))]
 
-    # cycle through data groups (quint or regvsurp)        
-    for d, (qu_i, subsurps) in enumerate(zip(quintpar.qu_idx, surps)):
+    # cycle through data groups (quint or regvsurp or gabfr for oris)        
+    for d, (qu_i, subsurps, gabfr_idx) in enumerate(
+        zip(quintpar.qu_idx, surps, gabfr_idxs)):
         for cl in range(n_cl):
             use_qu_i = [qu_i]
             surp = subsurps
@@ -642,9 +728,15 @@ def get_sess_data(sess, analyspar, stimpar, quintpar, class_var='surps',
             elif 'half' in class_var:
                 use_qu_i = [qu_i[cl]]
             else:
+                keys = class_var
+                vals = stimpar._asdict()[class_var][cl]
+                if split_oris:
+                    keys = [keys, 'gabfr', 'gab_ori']
+                    vals = [vals, stimpar.gabfr[gabfr_idx], 
+                        stimpar.gab_ori[gabfr_idx][cl]]
                 # modify stimpar
                 stimpar_sp = sess_ntuple_util.get_modif_ntuple(
-                    stimpar, class_var, stimpar._asdict()[class_var][cl])
+                    stimpar, keys, vals)
 
             roi_data, surp_n = get_data(
                 stim, analyspar, stimpar_sp, quintpar, qu_i=use_qu_i, 
@@ -667,7 +759,13 @@ def get_sess_data(sess, analyspar, stimpar, quintpar, class_var='surps',
         surp_use = surps[0]
         if surp_use == [0, 1] and not isinstance(stimpar.gabfr, list):
             surp_use = 'any'
-        gabfr_lett = sess_str_util.gabfr_letters(stimpar.gabfr, surp=surp_use)
+        if split_oris:
+            gabfr_lett = [sess_str_util.gabfr_letters(
+                gabfr, surp=surp_use) for gabfr in stimpar.gabfr]
+            gabfr_lett = ' -> '.join([str(lett) for lett in gabfr_lett])
+        else:
+            gabfr_lett = sess_str_util.gabfr_letters(
+                stimpar.gabfr, surp=surp_use)
         stim_info = f'\nGab fr: {gabfr_lett}\nGab K: {stimpar.gabk}'
     elif stimpar.stimtype == 'bricks':
         stim_info = (f'\nBri dir: {stimpar.bri_dir}\n'
@@ -798,6 +896,7 @@ def save_tr_stats(plot_data, plot_targ, data_names, analyspar, stimpar, n_rois,
 
 
 #############################################
+@logreg_util.catch_set_problem_decorator
 def init_logreg_model_pt(roi_seqs, seq_classes, logregpar, extrapar, 
                          scale=True, device='cpu', thresh_cl=2):
     """
@@ -820,14 +919,15 @@ def init_logreg_model_pt(roi_seqs, seq_classes, logregpar, extrapar,
             ['shuffle'] (bool): if True, data is shuffled
     
     Optional args:
-        - scale (bool)   : whether data is scaled by ROI
-                           default: True
-        - device (str)   : device to use
-                           default: 'cpu'
-        - thresh_cl (int): size threshold for classes in each non empty set 
-                           beneath which the indices are reselected (only if
-                           targets are passed). Not checked if thresh_cl is 0.
-                           default: 2
+        - scale (bool)          : whether data is scaled by ROI
+                                  default: True
+        - device (str)          : device to use
+                                  default: 'cpu'
+        - thresh_cl (int)       : size threshold for classes in each non empty 
+                                  set beneath which the indices are reselected 
+                                  (only if targets are passed). Not checked if 
+                                  thresh_cl is 0.
+                                  default: 2
 
     Returns:
         - model (torch.nn.Module)        : Neural network module with optimizer 
@@ -927,7 +1027,8 @@ def save_scores(info, scores, key_order=None, dirname=''):
 
 
 #############################################
-def setup_run(quintpar, extrapar, techpar, sess_data, comp='surp'):
+def setup_run(quintpar, extrapar, techpar, sess_data, comp='surp', 
+              gab_ori='all'):
     """
     setup_run(quintpar, extrapar, techpar, sess_data)
     
@@ -961,8 +1062,11 @@ def setup_run(quintpar, extrapar, techpar, sess_data, comp='surp'):
                                   structured as datasets x class 
 
     Optional args:
-        - comp (str): comparison
-                      default: 'surp'
+        - comp (str)           : comparison
+                                 default: 'surp'
+        - gab_ori (str or list): Gabor orientations,
+                                 for comp values like DoriE, DoriA, etc.
+                                 default: 'shared'
 
     Returns:
         - extrapar (dict)   : dictionary with extra parameters
@@ -987,7 +1091,7 @@ def setup_run(quintpar, extrapar, techpar, sess_data, comp='surp'):
     if techpar['reseed']: # reset seed         
         extrapar['seed'] = None
     extrapar['seed'] = gen_util.seed_all(extrapar['seed'], techpar['device'])
-    extrapar['classes'] = get_classes(comp)
+    extrapar['classes'] = get_classes(comp, gab_ori)
     
     [roi_seqs, seq_classes, n_surps] = copy.deepcopy(sess_data)
     extrapar['n_rois']  = roi_seqs[0].shape[-1]
@@ -1045,7 +1149,8 @@ def all_runs_sk(n_runs, analyspar, logregpar, quintpar, sesspar, stimpar,
         print('sklearn method not implemented with GPU.')
 
     [extrapar, roi_seqs, seq_classes, n_surps] = setup_run(
-         quintpar, extrapar, techpar, sess_data, logregpar.comp)
+         quintpar, extrapar, techpar, sess_data, logregpar.comp, 
+         gab_ori=stimpar.gab_ori)
     main_data = [roi_seqs[0], seq_classes[0]]
 
     samples = [False for _ in n_surps]
@@ -1070,48 +1175,44 @@ def all_runs_sk(n_runs, analyspar, logregpar, quintpar, sesspar, stimpar,
 
     split_test = False
 
-    set_prob = False # problem with sets
-    try:
-        [mod_cvs, cv, extrapar] = logreg_util.run_logreg_cv_sk(
-            main_data[0], main_data[1], logregpar, extrapar, analyspar.scale, 
-            samples[0], split_test, extrapar['seed'], techpar['parallel'])
-    except ValueError as err:
-        catch_phr = ['threshold', 'true labels', 'size', 'populated class']
-        catch = sum(phr in str(err) for phr in catch_phr)
-        if catch:
-            set_prob = True
-            print(err)
-        else:
-            raise err
-    
-    if set_prob:
+    returns = logreg_util.run_logreg_cv_sk(
+        main_data[0], main_data[1], logregpar._asdict(), extrapar, 
+        analyspar.scale, samples[0], split_test, extrapar['seed'], 
+        techpar['parallel'], catch_set_prob=True)
+    if returns is None:
         return
+    else:
+        mod_cvs, cv, extrapar = returns
+
 
     hyperpars = save_hyperpar(analyspar, logregpar, sesspar, stimpar, extrapar)
 
     # Additional data for scoring
     set_names  = ['train', 'test']
     extra_data, extra_cv = None, None
-    extra_name = sess_str_util.ext_test_str(logregpar.q1v4, logregpar.regvsurp)
+    extra_name = sess_str_util.ext_test_str(
+        logregpar.q1v4, logregpar.regvsurp, logregpar.comp)
     if cv._split_test:
         set_names.append('test_out')
     if len(roi_seqs) == 2:
         extra_data = [roi_seqs[1], seq_classes[1]]
         extra_cv = logreg_util.StratifiedShuffleSplitMod(
             n_splits=cv.n_splits, train_p=0.5, sample=samples[1], 
-            bal=logregpar.bal)
+            bal=logregpar.bal) # since train_p cannot be 1.0
         if extra_name is None:
             raise ValueError('Extra test dataset not labelled.')
         set_names.append(extra_name)
 
     mod_cvs = logreg_util.test_logreg_cv_sk(
         mod_cvs, cv, extrapar['scoring'], main_data=main_data, 
-        extra_data=extra_data, extra_name=extra_name, extra_cv=extra_cv)
+        extra_data=extra_data, extra_name=extra_name, extra_cv=extra_cv, 
+        catch_set_prob=True)
+    if mod_cvs is None:
+        return
 
     # Get and save best model
     best_mod_idx = np.argmax(mod_cvs[f'{set_names[-1]}_neg_log_loss'])
     best_mod     = mod_cvs['estimator'][best_mod_idx]
-
     # Save data used for best model
     plot_data, plot_targ, data_names = [], [], []
     for name, subcv, data in zip(
@@ -1192,10 +1293,13 @@ def single_run_pt(run_n, analyspar, logregpar, quintpar, sesspar, stimpar,
                                   quintile, (doubled if 'half' comparison)
     """
     
-    [extrapar, roi_seqs, seq_classes, n_surps] = setup_run(
-        quintpar, extrapar, techpar, sess_data, logregpar.comp)
-
     extrapar = copy.deepcopy(extrapar)
+    extrapar['seed'] *= run_n + 1 # ensure different seed for each run
+
+    [extrapar, roi_seqs, seq_classes, n_surps] = setup_run(
+        quintpar, extrapar, techpar, sess_data, logregpar.comp, 
+        gab_ori=stimpar.gab_ori)
+
     extrapar['run_n'] = run_n
     scale_str = sess_str_util.scale_par_str(analyspar.scale, 'print')
     shuff_str = sess_str_util.shuff_par_str(extrapar['shuffle'], 'labels')
@@ -1219,25 +1323,20 @@ def single_run_pt(run_n, analyspar, logregpar, quintpar, sesspar, stimpar,
     rundir = get_rundir(extrapar['run_n'], extrapar['uniqueid'], logregpar.alg)
     extrapar['dirname'] = file_util.createdir(
         [techpar['output'], techpar['compdir'], rundir])
-    set_prob = False # problem with sets
-    try:
-        mod, dls, extrapar = init_logreg_model_pt(
-            roi_seqs, seq_classes, logregpar, extrapar, analyspar.scale, 
-            techpar['device'], thresh_cl=thresh_cl)
-    except ValueError as err:
-        if 'threshold' in str(err):
-            set_prob = True
-            print(err)
-        else:
-            raise err
 
-    if set_prob:
+    returns = init_logreg_model_pt(
+        roi_seqs, seq_classes, logregpar, extrapar, analyspar.scale, 
+        techpar['device'], thresh_cl=thresh_cl, catch_set_prob=True)
+    if returns is None:
         return
+    else:
+        mod, dls, extrapar = returns
 
     hyperpars = save_hyperpar(analyspar, logregpar, sesspar, stimpar, extrapar)
 
     data_names = ['train']
-    extra_name = sess_str_util.ext_test_str(logregpar.q1v4, logregpar.regvsurp)
+    extra_name = sess_str_util.ext_test_str(
+        logregpar.q1v4, logregpar.regvsurp, logregpar.comp)
     idx = [0]
     if len(roi_seqs) == 2:
         idx.append(-1)
@@ -1312,11 +1411,12 @@ def run_regr(sess, analyspar, stimpar, logregpar, quintpar, extrapar, techpar):
         mouse_n=sess.mouse_n)
 
     class_var, surps = get_class_pars(logregpar.comp, stimpar.stimtype)
+    split_oris = sess_str_util.get_split_oris(logregpar.comp)
 
     try:
         sess_data = get_sess_data(
             sess, analyspar, stimpar, quintpar, class_var, surps, 
-            regvsurp=logregpar.regvsurp)
+            regvsurp=logregpar.regvsurp, split_oris=split_oris)
     except ValueError as err:
         catch_phr = ['fit these criteria', 'No frames']
         catch = sum(phr in str(err) for phr in catch_phr)
@@ -1326,8 +1426,8 @@ def run_regr(sess, analyspar, stimpar, logregpar, quintpar, extrapar, techpar):
         else:
             raise err
 
-    for n_runs, shuffle in zip([techpar['n_reg'], techpar['n_shuff']], 
-                                [False, True]):
+    for n_runs, shuffle in zip(
+        [techpar['n_reg'], techpar['n_shuff']], [False, True]):
         if n_runs == 0:
             continue
         extrapar = copy.deepcopy(extrapar)
@@ -1405,6 +1505,34 @@ def collate_scores(direc, all_labels, alg='sklearn'):
 
 
 #############################################
+def remove_overlap_comp_dir(gen_dirs, stimtype='gabors', comp='surp'):
+    """
+    remove_overlap_comp_dir(gen_dirs)
+
+    Returns list of directories with those corresponding to comparisons with 
+    overlapping names removed.
+
+    Required args:
+        - gen_dirs (list): list of directories
+
+    Optional args:
+        - stimtype (str) : stimulus type
+                           default: 'gabors'
+        - comp (str)     : type of comparison
+                           default: 'surp'
+    """
+
+    all_comps = get_comps(stimtype)
+
+    for other_comp in all_comps:
+        if comp != other_comp and comp in other_comp:
+            gen_dirs = [gen_dir for gen_dir in gen_dirs 
+                if other_comp not in gen_dir]
+
+    return gen_dirs
+
+
+#############################################
 def run_collate(output, stimtype='gabors', comp='surp', ctrl=False, 
                 alg='sklearn', parallel=False):
     """
@@ -1442,8 +1570,8 @@ def run_collate(output, stimtype='gabors', comp='surp', ctrl=False,
         print(f'{output} does not exist.')
         return
 
-    ext_test = sess_str_util.ext_test_str(('q1v4' in output), 
-                             ('rvs' in output))
+    ext_test = sess_str_util.ext_test_str(
+        ('q1v4' in output), ('rvs' in output), comp)
     if ext_test == '':
         ext_test = None
 
@@ -1458,9 +1586,7 @@ def run_collate(output, stimtype='gabors', comp='surp', ctrl=False,
     else:
         gen_util.accepted_values_error('alg', alg, ['sklearn', 'pytorch'])
 
-    if comp == 'surp':
-        gen_dirs = [gen_dir for gen_dir in gen_dirs 
-            if 'dir_surp' not in gen_dir]
+    gen_dirs = remove_overlap_comp_dir(gen_dirs, stimtype, comp)
     if not ctrl:
         gen_dirs = [gen_dir for gen_dir in gen_dirs 
             if 'ctrl' not in gen_dir]
@@ -1648,7 +1774,8 @@ def run_analysis(output, stimtype='gabors', comp='surp', ctrl=False,
 
     scores_summ = pd.DataFrame()
 
-    ext_test = sess_str_util.ext_test_str(('q1v4' in output), ('rvs' in output))
+    ext_test = sess_str_util.ext_test_str(
+        ('q1v4' in output), ('rvs' in output), comp)
     if ext_test == '':
         ext_test = None
 

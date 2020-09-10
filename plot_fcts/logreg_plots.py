@@ -164,7 +164,8 @@ def plot_class_traces(analyspar, sesspar, stimpar, logregpar, tr_stats,
         test_lab = st_name.replace('_class_stats', '')
         n_name    = f'{test_lab}_ns'
         ext_str = sess_str_util.ext_test_str(
-            logregpar['q1v4'], logregpar['regvsurp'], 'label')
+            logregpar['q1v4'], logregpar['regvsurp'], logregpar['comp'], 
+            'label')
         if len(classes) == 2:
             ext_cols = ['cornflowerblue', 'salmon']
         else:
@@ -247,7 +248,7 @@ def plot_scores(analyspar, sesspar, stimpar, logregpar, extrapar, scores,
         stimpar['bri_dir'], stimpar['bri_size'], stimpar['gabk'])
 
     ext_str = sess_str_util.ext_test_str(
-        logregpar['q1v4'], logregpar['regvsurp'], 'print')
+        logregpar['q1v4'], logregpar['regvsurp'], logregpar['comp'], 'print')
 
     gen_title = (f'{fig_title}{ext_str}' + u' {}'.format(fluor_str) +
         f'{scale_str}{shuff_str}')
@@ -526,7 +527,7 @@ def plot_CI(ax, x_label, arr, CI=0.95, ext_data=False, modif=False):
 #############################################
 def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane, 
                  stat='mean', error='sem', CI=0.95, q1v4=False, rvs=False, 
-                 modif=False):
+                 split_oris=False, modif=False):
     """
     summ_subplot(ax, arr, data_title, mouse_ns, sess_ns, line, plane, title)
 
@@ -551,24 +552,28 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane,
         - plane (str)          : plane name
     
     Optional args:
-        - stat (str)  : stats to take for non shuffled data, 
-                        i.e., 'mean' or 'median' 
-                        default: 'mean'
-        - error (str) : error stats to take for non shuffled data, i.e., 'std', 
-                        'sem'
-                        default: 'sem'
-        - CI (num)    : CI for shuffled data (e.g., 0.95)
-                        default: 0.95
-        - q1v4 (bool) : if True, analysis is separated across first and 
-                        last quintiles
-                        default: False
-        - rvs (bool)  : if True, the first dataset will include regular 
-                        sequences and the second will include surprise 
-                        sequences
-                        default: False
-        - modif (bool): if True, plots are made in a modified (simplified 
-                        way)
-                        default: False
+        - stat (str)       : stats to take for non shuffled data, 
+                             i.e., 'mean' or 'median' 
+                             default: 'mean'
+        - error (str)      : error stats to take for non shuffled data, 
+                             i.e., 'std', 'sem'
+                             default: 'sem'
+        - CI (num)         : CI for shuffled data (e.g., 0.95)
+                             default: 0.95
+        - q1v4 (bool)      : if True, analysis is separated across first and 
+                             last quintiles
+                             default: False
+        - rvs (bool)       : if True, the first dataset will include regular 
+                             sequences and the second will include surprise 
+                             sequences
+                             default: False
+        - split_oris (list): if not False, the dataset will include 
+                             orientations from the first set of Gabor frame, 
+                             and the second, from the second set.
+                             default: False 
+        - modif (bool)     : if True, plots are made in a modified (simplified 
+                             way)
+                             default: False
 
     """
 
@@ -594,19 +599,22 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane,
     elif 'epoch' in data_title.lower():
         q1v4 = False # treated as if no Q4
         rvs = False # treated as if no reg v surp
+        split_oris = False # treated as if no 2 sets of Gabor frames
         if (not modif or ax.is_first_row()) and ax.is_first_col():
             ax.set_ylabel('Nbr epochs')
         plot_util.set_ticks(ax, 'y', 0, 1000, 6, pad_p=0)
 
-    if q1v4 or rvs:
+    if q1v4 or rvs or split_oris:
         mean_ids = [0, 3]
         alphas = [0.3, 0.8]
         if modif:
             alphas = [0.5, 0.8]
         if q1v4:
             add_leg = [' (Q1)', ' (Q4)']
-        else:
+        elif rvs:
             add_leg = [' (reg)', ' (surp)']
+        else:
+            add_leg = [f' ({split_oris[0]})', f' ({split_oris[1]})']
     else:
         mean_ids = [0]
         alphas = [0.5]
@@ -667,7 +675,7 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane,
 
 #############################################    
 def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename, 
-                   CI=0.95, q1v4=False, rvs=False, modif=False):
+                   CI=0.95, q1v4=False, rvs=False, comp='surp', modif=False):
     """
     plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename)
 
@@ -696,6 +704,8 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
                         sequences and the second will include surprise 
                         sequences
                         default: False
+        - comp (str)  : type of comparison
+                        default: 'surp'
         - modif (bool): if True, plots are made in a modified (simplified 
                         way)
                         default: False
@@ -722,9 +732,12 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
             print('test_acc_bal was not recorded')
             return
     
+    split_oris = sess_str_util.get_split_oris(comp)
+
     data_types = gen_util.list_if_not(data)
-    if (q1v4 or rvs) and 'test_acc' in data:
-        ext_test = sess_str_util.ext_test_str(q1v4, rvs)
+
+    if (q1v4 or rvs or split_oris) and 'test_acc' in data:
+        ext_test = sess_str_util.ext_test_str(q1v4, rvs, comp)
         n_vals = 8 # (extra mean/med, sem/2.5p, sem/97.5p for Q4) 
         if data == 'test_acc': 
             data_types = ['test_acc', f'{ext_test}_acc']
@@ -797,7 +810,7 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
                     curr_line['runs_nan']
 
         summ_subplot(sub_ax, data_arr, shuff_arr, title, mouse_ns, sess_ns, 
-            line, plane, stats[0], stats[1], CI, q1v4, rvs, modif)
+            line, plane, stats[0], stats[1], CI, q1v4, rvs, split_oris, modif)
     
     if modif:
         n_sess_keep = 3
@@ -942,7 +955,7 @@ def plot_summ(output, savename, stimtype='gabors', comp='surp', ctrl=False,
             f'{modif_str}.svg')
         full_savename = os.path.join(save_dir, savename)
         plot_data_summ(plot_lines, data, stats, shuff_stats, title, 
-            full_savename, CI, q1v4, rvs, modif)
+            full_savename, CI, q1v4, rvs, comp, modif)
 
     plt.close('all')
 

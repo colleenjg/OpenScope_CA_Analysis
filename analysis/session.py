@@ -285,6 +285,8 @@ class Session(object):
         self.post_blank     = self.stim_dict['post_blank_sec'] # seconds
         self.drop_stim_fr   = self.stim_dict['droppedframes']
         self.n_drop_stim_fr = len(self.drop_stim_fr[0])
+        self.sess_stim_seed = sess_load_util.load_sess_stim_seed(
+            self.stim_dict, runtype=self.runtype)
 
         sess_sync_util.check_drop_tolerance(
             self.n_drop_stim_fr, self.tot_stim_fr, self.droptol, 
@@ -302,6 +304,7 @@ class Session(object):
                                         'stimType', 'stimPar1', 'stimPar2', 
                                         'surp', 'stimSeg', 'gabfr', 
                                         'start2pfr', 'end2pfr', 'num2pfr'
+            - stimtype_order (list) : stimulus type order
             - stim2twopfr (1D array): 2p frame numbers for each stimulus frame, 
                                       as well as the flanking
                                       blank screen frames 
@@ -310,15 +313,16 @@ class Session(object):
                                       was playing
         """
 
-        [stim_df, stim2twopfr, twop_fps, twop_fr_stim] = \
+        [stim_df, stimtype_order, stim2twopfr, twop_fps, twop_fr_stim] = \
             sess_load_util.load_stim_df_info(
                 self.stim_pkl, self.stim_sync_h5, self.align_pkl, self.dir, 
                 self.runtype)
 
-        self.stim_df      = stim_df
-        self.stim2twopfr  = stim2twopfr
-        self.twop_fps     = twop_fps
-        self.twop_fr_stim = twop_fr_stim
+        self.stim_df        = stim_df
+        self.stimtype_order = stimtype_order
+        self.stim2twopfr    = stim2twopfr
+        self.twop_fps       = twop_fps
+        self.twop_fr_stim   = twop_fr_stim
 
 
     #############################################
@@ -552,7 +556,7 @@ class Session(object):
             if len(roi_ns) != 0:
                 warn_str = ', '.join([str(x) for x in roi_ns])
             print('    Warning: Noisy ROIs (mean below 0, median above '
-                'mid-range point) are also included in NaN ROI attribute '
+                'mid-range point) are also included in NaN ROI attributes '
                 f'(but not set to NaN): {warn_str}.')
             
             nan_arr += high_med + sub0_mean
@@ -1761,7 +1765,7 @@ class Session(object):
             frames_flat.astype(int), fluor, remnans, scale=scale)
         if use_plateau:
             traces_flat_fill = self.get_plateau_roi_traces(
-                fluor, remnans=remnans
+                fluor=fluor, remnans=remnans
                 )[:, frames_flat.astype(int)].reshape(-1, 1)
             traces_flat[:] = traces_flat_fill
 
@@ -1808,6 +1812,7 @@ class Session(object):
                               default: False
         Returns:
             - frs (1D array): list of frames values within bounds
+            if ret_idx:
             - all_idx (list): list of original indices retained
         """
 

@@ -436,6 +436,10 @@ def add_grayscreen_rows_gabors(df):
                              added
     """
 
+    df = df.copy()
+
+    df = df.sort_values("start2pfr").reset_index(drop=True)
+
     if 'gabfr' not in df.columns:
         raise ValueError('Should only be used with dataframes containing '
                          'gabor frame information')
