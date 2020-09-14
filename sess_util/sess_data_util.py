@@ -16,6 +16,7 @@ import copy
 import numpy as np
 
 from util import data_util, gen_util, math_util
+from sess_util import sess_gen_util
 
 
 #############################################
@@ -293,7 +294,8 @@ def get_mapping(par, act_vals=None):
     elif par == 'bri_size':
         vals = [128, 256]
     elif par == 'bri_dir':
-        vals = ['right', 'left']
+        vals = [sess_gen_util.get_bri_screen_mouse_direc(direc) 
+            for direc in ['right', 'left']]
     elif par == 'line':
         vals = ['L23-Cux2', 'L5-Rbp4']
     elif par == 'plane':
@@ -492,7 +494,8 @@ def format_stim_criteria(stim_df, stimtype='gabors', stimPar1='any',
                                             oris: 0, 45, 90, 135)
                                             default: 'any'
         - stimPar2 (str, int or list)  : stimPar2 value(s) of interest 
-                                            ('right', 'left', 4, 16)
+                                            ('right', 'left', 'temp', 
+                                             'nasal', 4, 16)
                                             default: 'any'
         - surp (str, int or list)      : surp value(s) of interest (0, 1)
                                             default: 'any'
@@ -520,7 +523,8 @@ def format_stim_criteria(stim_df, stimtype='gabors', stimPar1='any',
                                             stimPar1 (128, 256, or 'any')
                                             default: None
         - bri_dir (str or list)        : if not None, will overwrite 
-                                            stimPar2 ('right', 'left' or 'any')
+                                            stimPar2 ('right', 'left', 'temp', 
+                                             'nasal', or 'any')
                                             default: None
     
     Returns:
@@ -573,7 +577,12 @@ def format_stim_criteria(stim_df, stimtype='gabors', stimPar1='any',
     if len(sp1) != 0:
         stimPar1 = sp1
     if len(sp2) != 0:
-        stimPar2 = sp2 
+        stimPar2 = sp2
+        # change direction names
+        for i in range(len(stimPar2)):
+            if stimPar2[i] in ['right', 'left', 'temp', 'nasal']:
+                stimPar2[i] = sess_gen_util.get_bri_screen_mouse_direc(
+                    stimPar2[i])
 
     # converts values to lists or gets all possible values, if 'any'
     stimPar1 = gen_util.get_df_label_vals(stim_df, 'stimPar1', stimPar1)

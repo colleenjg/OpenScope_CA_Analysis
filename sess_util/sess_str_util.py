@@ -14,6 +14,7 @@ Note: this code uses python 3.7.
 
 import datetime
 
+from sess_util import sess_gen_util
 from util import gen_util
 
 
@@ -621,12 +622,16 @@ def dir_par_str(direc, str_type='file'):
     else:
         gen_util.accepted_values_error('str_type', str_type, ['print', 'file'])
     
-    if len(direc) == 1:
+    if len(direc) == 1 and direc[0] != 'both':
+        direc = direc[0]
+        direc_detailed = sess_gen_util.get_bri_screen_mouse_direc(direc)
         if str_type == 'file':
-            pars = f'{pars}_{direc[0]}'
+            direc = direc_detailed[:5].strip(' ') # get left/right
+            pars = f'{pars}_{direc}'
         elif str_type == 'print':
-            pars = f'{pars} ({direc[0]})'
-        
+            direc_detailed = direc_detailed.replace(' (', ', ').replace(')', '')
+            pars = f'{pars} ({direc_detailed})'
+
     return pars
 
 
@@ -678,7 +683,7 @@ def bri_par_str(direc, size, str_type='file'):
             pars = sizestr
     else:
         gen_util.accepted_values_error('str_type', str_type, ['print', 'file'])
-    
+        
     return pars
 
 
@@ -1026,6 +1031,8 @@ def get_stimdir(stimtype='gabors', gabfr=0):
         if '/' in gab_lett:
             gab_lett = gab_lett.replace('/', '')
         stimdir = f'{stimdir}{gab_lett}'
+    elif stimtype == 'both':
+        stimdir = stimtype
 
     return stimdir
 

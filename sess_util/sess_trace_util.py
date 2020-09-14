@@ -492,12 +492,11 @@ def save_roi_dataset(data, save_path, roi_names, data_name='data',
 
 
 #############################################
-def demix_rois(raw_traces, h5path, masks, excl_dict, verbose=False):
+def demix_rois(raw_traces, h5path, masks, excl_dict):
     """
-    demix_rois(raw_traces, h5path, masks, excp)
+    demix_rois(raw_traces, h5path, masks, excl_dict)
 
-    Returns time-dependent demixed traces (modified from allensdk, demixer.py, 
-    demix_time_dep_masks).
+    Returns time-dependent demixed traces.
 
     Required args:
         - raw_traces (2D array): extracted traces, structured as ROI x frames
@@ -511,10 +510,6 @@ def demix_rois(raw_traces, h5path, masks, excl_dict, verbose=False):
             ['empty']        : mask for empty ROIs
             ['motion_border']: mask for motion border overlapping ROIs
             ['union']        : mask for union ROIs
-    
-    Optional args:
-        - verbose (bool): if True, singular matrix warning is printed
-                          default: False
 
     Returns:
         - demixed_traces (2D array): demixed traces, with excluded ROIs set to 
@@ -543,47 +538,8 @@ def demix_rois(raw_traces, h5path, masks, excl_dict, verbose=False):
     masks_valid = masks[valid_mask.astype(bool)]
 
     with h5py.File(h5path, 'r') as f:
-        stack = f['data']
-
-        N, T = raw_traces_valid.shape
-        _, x, y = masks_valid.shape
-        P = x * y
-
-        num_pixels_in_mask = np.sum(masks_valid, axis=(1, 2))
-        F = raw_traces_valid.T * num_pixels_in_mask  # shape (T,N)
-        F = F.T
-
-        flat_masks = masks_valid.reshape(N, P)
-        flat_masks = sparse.csr_matrix(flat_masks)
-
-        drop_frames = []
-        demix_traces = np.zeros((N, T))
-        for t in range(T):
-            weighted_mask_sum = F[:, t]
-            drop_test = (weighted_mask_sum == 0)
-            if np.sum(drop_test == 0):
-                norm_mat = sparse.diags(num_pixels_in_mask / weighted_mask_sum, 
-                    offsets=0)
-                stack_t = sparse.diags(stack[t].reshape(-1), offsets=0)
-
-                flat_weighted_masks = norm_mat.dot(flat_masks.dot(stack_t))
-
-                # cast to dense numpy array for linear solver because solution 
-                # is dense
-                overlap = flat_masks.dot(flat_weighted_masks.T).toarray()
-                try:
-                    demix_traces[:, t] = linalg.solve(overlap, F[:, t])
-                except linalg.LinAlgError:
-                    if verbose:
-                        print(f'Frame {t}: singular matrix, using least '
-                            'squares')
-                    x, _, _, _ = linalg.lstsq(overlap, F[:, t])
-                    demix_traces[:, t] = x
-
-                drop_frames.append(False)
-
-            else:
-                drop_frames.append(True)
+        demix_traces, drop_frames = demixer.demix_time_dep_masks(
+            raw_traces_valid, f['data'], masks_valid)
 
     # put NaNs in for dropped ROIs
     demix_traces_all = np.full(raw_traces.shape, np.nan)
@@ -717,8 +673,7 @@ def create_traces_from_masks(datadir, sessid, runtype='prod', h5dir=None,
 
 
     print('Demixing ROI traces.')
-    demixed_traces, _ = demix_rois(roi_traces, h5path, masks_bool, excl_dict, 
-        verbose=False)
+    demixed_traces, _ = demix_rois(roi_traces, h5path, masks_bool, excl_dict)
 
     print('Saving demixed traces.')
     save_roi_dataset(

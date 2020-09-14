@@ -21,7 +21,7 @@ import pandas as pd
 import pickle
 
 from util import file_util, gen_util
-from sess_util import sess_sync_util
+from sess_util import sess_gen_util, sess_sync_util
 
 
 ######################################
@@ -204,10 +204,15 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, align_pkl, sessdir,
     stimtype_order = list(
         filter(lambda s: s in stimtype_map.values(), stimtype_order))
 
+    # expand on direction info
+    for direc in ['right', 'left']:
+        stim_df.loc[(stim_df['stimPar2'] == direc), 'stimPar2'] = \
+            sess_gen_util.get_bri_screen_mouse_direc(direc)
+
     stim2twopfr  = align['stim_align'].astype('int')
     twop_fps     = sess_sync_util.get_frame_rate(stim_sync_h5)[0] 
     twop_fr_stim = int(max(align['stim_align']))
-    
+
     return stim_df, stimtype_order, stim2twopfr, twop_fps, twop_fr_stim
 
 
@@ -396,6 +401,7 @@ def modify_bri_segs(stim_df, runtype='prod'):
     return stim_df
 
 
+#############################################
 def load_sess_stim_seed(stim_dict, runtype='prod'):
     """
     load_sess_stim_seed(stim_df)

@@ -399,7 +399,7 @@ def get_seg_comp(gabfr=0, plot_vals='both', op='diff', pre=0, post=1.5):
 #############################################
 def plot_labels(ax, gabfr=0, plot_vals='both', op='none', pre=0, post=1.5, 
                 cols=None, sharey=True, t_heis=[0.85, 0.75], incr=True, 
-                omit_empty=True):
+                omit_empty=True, **axline_kw):
     """
     plot_labels(ax)
 
@@ -435,6 +435,10 @@ def plot_labels(ax, gabfr=0, plot_vals='both', op='none', pre=0, post=1.5,
         - omit_empty (bool): if True, no labels are added to subplots with no 
                              lines plotted
                              default: True 
+
+    Kewyord args:
+        - axline_kw (dict): keyword arguments for plot_util.add_bars 
+                            (-> plt.axvline() or plt.axhline())
     """
 
     t_heis = gen_util.list_if_not(t_heis)
@@ -460,7 +464,7 @@ def plot_labels(ax, gabfr=0, plot_vals='both', op='none', pre=0, post=1.5,
             [xpos, lab, h_bars, seg_bars] = get_seg_comp(
                 gabfr, pv, op, pre, post)
             plot_util.add_labels(sub_ax, lab, xpos, t_heis[i], cols[i])
-        plot_util.add_bars(sub_ax, hbars=h_bars, bars=seg_bars)
+        plot_util.add_bars(sub_ax, hbars=h_bars, bars=seg_bars, **axline_kw)
 
 
 #############################################
@@ -533,7 +537,7 @@ def plot_gabfr_pattern(sub_ax, x_ran, alpha=0.1, offset=0, bars_omit=[],
 
     if len(shade_st) != 0 and shade_col not in ['None', 'none']:
         plot_util.add_vshade(
-            sub_ax, shade_st, shade_end, alpha=alpha, col=shade_col)
+            sub_ax, shade_st, shade_end, alpha=alpha, color=shade_col)
 
 
 #############################################
@@ -930,7 +934,8 @@ def add_linpla_axislabels(ax, fluor='dff', area=False, scale=False,
             skip_x = False
     if single_lab:
         for sub_ax in ax.reshape(-1):
-            if (not (sub_ax.is_last_row() and sub_ax.colNum in label_cols) and 
+            colNum = sub_ax.get_subplotspec().colspan.start
+            if (not (sub_ax.is_last_row() and colNum in label_cols) and 
                 skip_x):
                 sub_ax.tick_params(labelbottom=False)
             if sub_ax not in add_yticks:
@@ -1019,7 +1024,8 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind='reg',
                 sub_ax.spines['bottom'].set_visible(False)
 
             # remove y ticks and spines from graphs
-            if kind == 'prog' and not sub_ax.colNum in [0, col_per_grp]:
+            colNum = sub_ax.get_subplotspec().colspan.start
+            if kind == 'prog' and not colNum in [0, col_per_grp]:
                 sub_ax.tick_params(axis='y', which='both', left=False) 
                 sub_ax.spines['left'].set_visible(False)
 
@@ -1299,73 +1305,6 @@ def plot_rec_proj(sub_ax, data, border=None, savename=None):
 
 
 #############################################
-def plot_ROIs(sub_ax, masks, valid_mask=None, border=None, savename=None):
-    """
-    plot_ROIs(sub_ax, masks)
-
-    Plots whole ROIs contours from a boolean mask, and optionally non valid
-    ROIs in red.
-
-    Required args:
-        - sub_ax (plt Axis subplot): subplot
-        - masks (3D array)         : boolean ROI masks, structured as
-                                     ROIs x hei x wid
-    
-    Optional args:
-        - valid_mask (int): mask of valid ROIs (length of mask_bool). If None,
-                            all ROIs plotted in white.
-                            default: None
-        - border (list)   : border values to plot in red [right, left, down, up]
-                            default: None
-        - savename (bool) : if provided, saves mask contours to file 
-                            (exact pixel size). '.png' best to avoid 
-                            anti-aliasing.
-                            default: False
-
-    Returns:
-        - masks_plot_proj (2D array): ROI image array: hei x wid
-    """
-
-    if len(masks.shape) == 2:
-        masks = np.expand_dims(masks, 0)
-    if valid_mask is None:
-        valid_mask = np.ones(len(masks))
-
-    color_list = ['black', 'white', 'red']
-    if valid_mask.all() and border is None:
-        color_list = ['black', 'white']
-    cm = mplcol.LinearSegmentedColormap.from_list(
-        'roi_mask_cm', color_list, N=len(color_list))
-    
-    masks = masks.astype(bool).astype('int8')
-    masks[~valid_mask.astype(bool)] *= 2
-    masks_plot_proj = np.max(masks, axis=0)
-    
-    if border is not None:
-        hei, wid = masks_plot_proj.shape
-        right, left, down, up = [
-            np.ceil(border[i]).astype('int8') for i in [0, 1, 2, 3]]
-
-        # create dash patterns
-        dash_len = 3
-        hei_dash, wid_dash = [np.concatenate(
-            [np.arange(i, v, dash_len * 2) for i in range(dash_len)]) 
-            for v in [hei, wid]]
-
-        masks_plot_proj[hei_dash, right] = 2
-        masks_plot_proj[hei_dash, wid-left] = 2
-        masks_plot_proj[hei-down, wid_dash] = 2
-        masks_plot_proj[up, wid_dash] = 2
-
-    sub_ax.imshow(masks_plot_proj, cmap=cm, interpolation='none')
-
-    if savename:
-        plt.imsave(savename, masks_plot_proj, cmap=cm)
-
-    return masks_plot_proj
-
-
-#############################################
 def plot_ROIs_sep(sub_ax, masks, border=None, savename=None):
     """
     plot_ROIs(sub_ax, masks)
@@ -1517,7 +1456,7 @@ def plot_ROI_contours(sub_ax, masks, outlier=None, tight=False,
             continue
         contour_mask[:, cw+h_sh: h+cw+h_sh, cw+w_sh: w+cw+w_sh] += masks
     
-    contour_mask = contour_mask[:, cw:h+cw, cw:w+cw] != len(shifts)**2
+    contour_mask = contour_mask[:, cw:h+cw, cw:w+cw] != len(shifts) ** 2
     contour_mask = contour_mask * masks
     del masks
 

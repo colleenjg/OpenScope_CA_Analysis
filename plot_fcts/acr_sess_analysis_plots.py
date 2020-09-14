@@ -109,6 +109,10 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False,
     elif analysis == 'u':
         plot_surp_latency(figpar=figpar, savedir=savedir, **info)
 
+    # 9. Plots proportion of ROIs responses to both surprise types
+    elif analysis == 'p':
+        plot_resp_prop(figpar=figpar, savedir=savedir, **info)
+
     else:
         print(f'    No plotting function for analysis {analysis}')
 
@@ -234,7 +238,7 @@ def plot_data_signif(ax, sess_ns, sig_comps, lin_p_vals, maxes,
                 highest[flat_idx] = np.max([highest[flat_idx], y_pos])
                 plot_util.plot_barplot_signif(
                     sub_ax, [sess_ns[s1], sess_ns[s2]], [y_pos], rel_y=0.03, 
-                    col=pla_cols[pl], lw=3, star_rel_y=0.09)
+                    color=pla_cols[pl], lw=3, star_rel_y=0.09)
 
     # adjust for number of significance lines plotted
     for high_val, sub_ax in zip(highest, ax.reshape(-1)):
@@ -261,7 +265,7 @@ def plot_data_signif(ax, sess_ns, sig_comps, lin_p_vals, maxes,
                 if not np.isnan(p) and p < p_val_thr_corr:
                     # between subplots
                     plot_util.add_signif_mark(sub_ax, sess_ns[s], yposes[li], 
-                        rel_y=0, col='k', fig_coord=True)
+                        rel_y=0, color='k', fig_coord=True)
 
 
 #############################################
@@ -324,7 +328,7 @@ def plot_per_mouse(sub_ax, mouse_st, sess_info, sess_ns=None, col=None,
             raise ValueError('Not as many session numbers as sessions.')
 
         plot_util.plot_errorbars(sub_ax, mouse_st[m, keep_idx, 0], 
-            mouse_st[m, keep_idx, 1:].T, sess_ns[keep_idx], col=col, 
+            mouse_st[m, keep_idx, 1:].T, sess_ns[keep_idx], color=col, 
             label=lab_use, alpha=0.6)
 
 
@@ -373,7 +377,7 @@ def plot_area_diff_stats(sub_ax, all_diff_st, sess_ns=None, mouse_mes=None,
             lab = f'{lab}-{max_mice}'
 
     plot_util.plot_errorbars(sub_ax, all_diff_st[keep_idx, 0], 
-        all_diff_st[keep_idx, 1:].T, sess_ns[keep_idx], col=col, 
+        all_diff_st[keep_idx, 1:].T, sess_ns[keep_idx], color=col, 
         label=lab, alpha=0.8)
 
 
@@ -421,7 +425,7 @@ def plot_signif_from_mouse_diffs(sub_ax, signif_idx, st_data, signs,
             ys    = np.nansum([st_data[:, idx, 0], -st_data[:, idx, 1]], axis=0)
             y_val = np.nanmin(ys, axis=0).reshape([1])
             rel_y = -0.03
-        plot_util.add_signif_mark(sub_ax, x_val, y_val, rel_y=rel_y, col=col)
+        plot_util.add_signif_mark(sub_ax, x_val, y_val, rel_y=rel_y, color=col)
 
 
 #############################################
@@ -507,7 +511,7 @@ def plot_area_diff_per_linpla(sub_ax, sess_ns, mouse_diff_st, diff_st, CI_vals,
         if plot == 'sep': # Add mean/median lines
             plot_util.plot_lines(
                 sub_ax, diff_st[keep_idx, 0], sess_ns[keep_idx], y_rat=0.025, 
-                col=col, width=width)
+                color=col, width=width)
             ypos_data = np.asarray(mouse_diff_st)
         else:
             ypos_data = np.expand_dims(diff_st, axis=0) 
@@ -1047,7 +1051,7 @@ def plot_traces(sub_ax, xran, trace_st, lock=False, col='k', lab=True,
         if lock == 'reglock':
             i = 1 - i # data ordered as [surp, reg] instead of vv
         plot_util.plot_traces(sub_ax, xran_use, trace_st[i, :, 0], 
-            trace_st[i, :, 1:], label=label, alpha_line=0.8, col=col, 
+            trace_st[i, :, 1:], label=label, alpha_line=0.8, color=col, 
             xticks=xticks, ls=ls)
 
 
@@ -1088,7 +1092,7 @@ def plot_single_prog(sub_ax, prog_st, col='k', label=None, alpha_line=0.8):
     sub_ax.axhline(y=0, ls=HDASH, c='k', lw=3.0, alpha=0.5, zorder=-13)
         
     plot_util.plot_traces(sub_ax, xran, prog_st[:, 0], prog_st[:, 1:], 
-        alpha_line=alpha_line, col=col, label=label)
+        alpha_line=alpha_line, color=col, label=label)
 
     # sets x ticks based on full dataset
     n = len(prog_st)
@@ -1205,7 +1209,7 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
     # figpar['init']['sharey'] = 'row'
 
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
-    fig.suptitle(title, y=1.1, weight='bold')
+    fig.suptitle(title, y=1.0, weight='bold')
 
     xran = trace_info['xran']
     for i, (line, pla) in enumerate(linpla_iter):
@@ -1664,7 +1668,7 @@ def plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
         f'{statstr_pr}{dim_str}{grp_str_pr} (sess {sess_ns_str}{dendstr_pr})')
 
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
-    fig.suptitle(title, y=1.2, weight='bold')
+    fig.suptitle(title, y=1.03, weight='bold')
 
     max_n = 0
     for i, (line, pla) in enumerate(linpla_iter):
@@ -1973,7 +1977,8 @@ def plot_position_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
     else:
         raise ValueError('If prog is not False, it must be `progreg` or \
             `progsurp`.')
-    subtitle = '{} {} - preceeding {} sequences'.format(pos, *substrs)
+    subtitle = '{} {} - preceeding {} sequences'.format(
+        pos, *substrs).capitalize()
     
     title = (f'{subtitle}\n({prepost_str} seqs) for {stimstr_pr} '
         f'{statstr_pr}\n{dim_str}{grp_str_pr} (sess {sess_ns_str}{dendstr_pr})')
@@ -2402,7 +2407,7 @@ def plot_stim_idx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
         f'(sess {sess_ns_str}{dendstr_pr})')
 
     fig, ax = plot_util.init_fig(n_plots, **figpar['init'])
-    fig.suptitle(title, y=1.05, weight='bold')
+    fig.suptitle(title, y=1, weight='bold')
 
     perc_sig_info = {
         'linpla_ord': idx_info['linpla_ord'],
@@ -2579,7 +2584,7 @@ def plot_perc_sig_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
                 continue
             plot_util.plot_errorbars(
                 sub_ax, perc_sig_info['perc_sig'][l_idx, keep_idx, p], 
-                x=sess_ns[keep_idx], col=cols[p], label=lab, alpha=alphas[p])
+                x=sess_ns[keep_idx], color=cols[p], label=lab, alpha=alphas[p])
 
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(ax, datatype=datatype, lines=lines, 
@@ -2901,11 +2906,16 @@ def plot_lat_clouds(sub_ax, sess_ns, lat_data, sess_info, datatype='roi',
             alpha_spec = alpha/div_fact
             clouds[m] = plot_util.plot_data_cloud(
                 sub_ax, sess_n, lat_data[s][m], 0.15, label=None, 
-                col=m_cols[m], alpha=alpha_spec, zorder=-11)
+                color=m_cols[m], alpha=alpha_spec, zorder=-11)
             maxes[s] = np.nanmax([maxes[s], np.nanmax(lat_data[s][m])])
     if datatype == 'roi':
         labels = [f'{label} ROIs)' for label in labels]
-    sub_ax.legend(clouds, labels, fontsize='small')
+
+    # remove Nones
+    clouds, labels = list(zip(*[(cl, lab) for (cl, lab) in zip(clouds, labels) 
+        if cl is not None]))
+    if len(clouds) != 0:
+        sub_ax.legend(clouds, labels, fontsize='small')
 
     return maxes
 
@@ -3040,15 +3050,13 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
         li = lines.index(line)
         pl = planes.index(pla)
         sub_ax = ax[pl, li]
-
         l_idx = get_linpla_idx(
             lat_data['linpla_ord'], line, pla, verbose=True, newline=(i==0))
         if l_idx is None:
             continue
-
         lat_st = np.asarray(lat_data['lat_stats'][l_idx])
         plot_util.plot_errorbars(
-            sub_ax, lat_st[0], lat_st[1:], sess_ns, col=pla_cols[pl])
+            sub_ax, lat_st[0], lat_st[1:], sess_ns, color=pla_cols[pl])
         # plot ROI cloud
         if datatype == 'roi':
             maxes[i] = plot_lat_clouds(
@@ -3062,11 +3070,10 @@ def plot_surp_latency(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
         for p, p_val in enumerate(all_p_vals):
             if not np.isnan(p_val) and p_val < p_val_thr_corr:
                 sig_comps[i].append(p)
-
+    
     plot_data_signif(
         ax, sess_ns, sig_comps, lat_data['lin_p_vals'], maxes, p_val_thr=0.05, 
         n_comps=lat_data['tot_n_comps'])
-
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(
         ax, fluor=analyspar['fluor'], datatype=datatype, lines=lines, 
@@ -3177,6 +3184,7 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
     [lines, planes, linpla_iter, pla_cols, _, n_plots] = \
         sess_plot_util.fig_linpla_pars(n_grps=len(prop_data['linpla_ord']))
     figpar = sess_plot_util.fig_init_linpla(figpar)
+    figpar['init']['sharey'] = True
 
     if figpar['save']['use_dt'] is None:
         figpar['save']['use_dt'] = gen_util.create_time_str()
@@ -3201,17 +3209,24 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
         if l_idx is None:
             continue
         
-        for idx, col in zip([surp_idx, ctrl_idx], [pla_cols[pl], 'gray']):
+        for idx, col in zip([ctrl_idx, surp_idx], ['gray', pla_cols[pl]]):
             # retrieve proportion (* 100)
             prop_st = np.asarray([sess_vals[idx] for sess_vals 
                 in prop_data['prop_stats'][l_idx]]) * 100
             plot_util.plot_errorbars(
-                sub_ax, prop_st[:, 0], prop_st[:, 1:], sess_ns, col=col)
+                sub_ax, prop_st[:, 0], prop_st[:, 1:], sess_ns, color=col)
     
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar['fluor'], 
         datatype=datatype, lines=lines, planes=planes, 
         xticks=sess_ns, ylab='Prop (%)', xlab='Sessions', kind='reg')
+
+    for sub_ax in ax.reshape(-1):
+        plot_util.set_ticks(
+            sub_ax, axis='y', min_tick=0, max_tick=100, n=5, pad_p=0.1)
+        # convert to int
+        yticks = [int(v) for v in sub_ax.get_yticks()]
+        sub_ax.set_yticklabels(yticks, weight='bold')
 
     if savedir is None:
         savedir = os.path.join(

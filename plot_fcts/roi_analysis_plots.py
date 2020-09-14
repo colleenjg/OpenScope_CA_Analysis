@@ -411,7 +411,7 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
             f'\n(sess {sess_ns[i]}, {lines[i]} {planes[i]}{dendstr_pr}, '
             '{} tail{})'.format(permpar['tails'], nroi_strs[i]))
 
-        fig.suptitle(suptitle, y=1.08)
+        fig.suptitle(suptitle, y=1)
 
         savename = (f'{datatype}_tr_m{mouse_ns[i]}_{sessstr}{dendstr}_'
             f'grps_{opstr}_' + u'{}q_{}tail'.format(
@@ -591,7 +591,7 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
         for i, (fig, scale) in enumerate(zip(figs, scales)):
             scale_str    = sess_str_util.scale_par_str(scale)
             scale_str_pr = sess_str_util.scale_par_str(scale, 'print')
-            fig.suptitle(u'{}{}'.format(suptitle, scale_str_pr), y=1.08)
+            fig.suptitle(u'{}{}'.format(suptitle, scale_str_pr), y=1)
             full_savename = f'{savename}{scale_str}'
             fulldir = plot_util.savefig(
                 fig, full_savename, savedir, print_dir=print_dir, 
@@ -843,11 +843,14 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
     fig, ax = plot_util.init_fig(len(oridirs), **figpar['init'])
     for o, od in enumerate(oridirs):
         cols = []
+        od_str = od
+        if stimpar['stimtype'] == 'bricks':
+            od_str = sess_str_util.dir_par_str(od, str_type='print')[8:-1]
         for surp, surp_lab in zip(surps, surp_labs): 
             sub_ax = plot_util.get_subax(ax, o)
             key = f'{surp}_{od}'
             stimtype_str_pr = stimpar['stimtype'][:-1].capitalize()
-            title_tr = u'{} traces ({}{})'.format(stimtype_str_pr, od, deg)
+            title_tr = u'{} traces ({}{})'.format(stimtype_str_pr, od_str, deg)
             lab = '{} (n={})'.format(surp_lab, tr_data['n_seqs'][key])
             sess_plot_util.add_axislabels(sub_ax, datatype=datatype)
             me  = np.asarray(tr_data['stats'][key][0])
@@ -863,7 +866,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
             ax, stimpar['gabfr'], cols=cols, pre=stimpar['pre'], 
             post=stimpar['post'], sharey=figpar['init']['sharey'])
 
-    fig.suptitle(suptitle, y=1.08)
+    fig.suptitle(suptitle, y=1)
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar['save'])
 
     return fulldir
@@ -1164,11 +1167,14 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quintpar,
     nrois = scaled_sort_me[f'{surps[0]}_{oridirs[0]}'].shape[1]
     yticks_ev = int(10 * np.max([1, np.ceil(nrois/100)])) # avoid > 10 ticks
     for o, od in enumerate(oridirs):
+        od_str = od
+        if stimpar['stimtype'] == 'bricks':
+            od_str = sess_str_util.dir_par_str(od, str_type='print')[8:-1]
         for s, (surp, surp_lab) in enumerate(zip(surps, surp_labs)):    
             sub_ax = ax[s][o]
             key = f'{surp}_{od}'
             title = u'{} seqs ({}{}) (n={})'.format(
-                surp_lab.capitalize(), od, deg_pr, tr_data['n_seqs'][key])
+                surp_lab.capitalize(), od_str, deg_pr, tr_data['n_seqs'][key])
             sess_plot_util.add_axislabels(
                 sub_ax, fluor=analyspar['fluor'], y_ax='ROIs', datatype='roi')
             im = plot_util.plot_colormap(
@@ -1186,7 +1192,7 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quintpar,
                 t_heis=-0.05, omit_empty=False)
         
     plot_util.add_colorbar(fig, im, len(oridirs))
-    fig.suptitle(suptitle, y=1.08)
+    fig.suptitle(suptitle, y=1)
 
     savename = f'{gen_savename}_{fig_type}'
     fulldir = plot_util.savefig(
@@ -1581,7 +1587,7 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
     if roi_vm_pars is not None:
         n_subplots *= 3
     fig, ax = plot_util.init_fig(n_subplots, **figpar['init'])
-    fig.suptitle(f'{gentitle} - ROI {n+1} ({nrois} total)', y=1.08)
+    fig.suptitle(f'{gentitle} - ROI {n+1} ({nrois} total)', y=1)
     
     deg = u'\u00B0'
     for s, surp_oris in enumerate(tc_oris):
@@ -1667,8 +1673,8 @@ def plot_tune_curve_regr(vm_means, vm_regr, seq_info, gentitle='',
     if savedir is None:
         savedir = os.path.join(
             figpar['dirs']['roi'], 
-            figpar['dirs']['tune_curv'])
-    savedir = os.path.join(savedir, 'prev')
+            figpar['dirs']['tune_curv'], 
+            'prev')
 
     vm_means = np.asarray(vm_means)
     vm_regr = np.asarray(vm_regr)
@@ -1710,7 +1716,7 @@ def plot_tune_curve_regr(vm_means, vm_regr, seq_info, gentitle='',
         ax.set_ylabel(u'Mean orientation preference\nfrom {} '
             u'({})'.format(seq_info[1], deg))
         ax.set_title(f'{gentitle}\nCorrelation btw orientation '
-            f'pref{kap_str_pr}')
+            f'pref{kap_str_pr}', y=1.1)
         ax.legend()
         savename = f'{gen_savename}_regr{kap_str}'
         fulldir = plot_util.savefig(
@@ -2021,7 +2027,7 @@ def plot_posori_resp(analyspar, sesspar, stimpar, extrapar, sess_info,
         for r, roi_data in enumerate(ori_data):
             plot_util.plot_errorbars(
                 sub_ax, roi_data[0], roi_data[1:], x=xpos, title=title, 
-                col=roi_cols[r], xticks='None')
+                color=roi_cols[r], xticks='None')
             roi_cols[r] = sub_ax.lines[-1].get_color()
         labels = ['A', 'B', 'C', 'D', 'E']
         labels = [f'{lab}\n({nseqs})' for lab, nseqs 
@@ -2031,7 +2037,7 @@ def plot_posori_resp(analyspar, sesspar, stimpar, extrapar, sess_info,
 
     deg = u'\u00B0'
     oris = [u'{} {}'.format(ori, deg) for ori in posori_data['oris']]
-    plot_util.add_labels(sub_ax, oris, center_pos, t_hei=-0.18, col='k')
+    plot_util.add_labels(sub_ax, oris, center_pos, t_hei=-0.18, color='k')
 
     # always set ticks (even again) before setting labels
     sub_ax.set_xticks(tick_pos)
