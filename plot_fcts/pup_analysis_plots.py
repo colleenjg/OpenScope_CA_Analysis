@@ -220,9 +220,9 @@ def plot_pup_diff_corr(analyspar, sesspar, stimpar, extrapar,
                 u'{} response locked\nto surprise (scaled)'.format(delta))
         # shade area between lines
         plot_util.plot_btw_traces(
-            sub_axs[1], scaled[0], scaled[1], col=cols, alpha=0.4)
+            sub_axs[1], scaled[0], scaled[1], color=cols, alpha=0.4)
 
-    fig.suptitle(suptitle, fontsize='xx-large', y=1.04)
+    fig.suptitle(suptitle, fontsize='xx-large', y=1)
 
     if savedir is None:
         savedir = os.path.join(
@@ -351,7 +351,7 @@ def plot_pup_roi_stim_corr(analyspar, sesspar, stimpar, extrapar,
 
     plot_util.turn_off_extra(ax, n_sess)
 
-    fig.suptitle(suptitle, fontsize='xx-large', y=1.04)
+    fig.suptitle(suptitle, fontsize='xx-large', y=1)
 
     if savedir is None:
         savedir = os.path.join(

@@ -85,7 +85,7 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
                     par in stim.block_params.columns.unique('parameters'), 
                     param_names)
                 par_vals = [row[param, ].values[0] for param in params]
-                pars_str = ', '.join([str(par) for par in par_vals][0:2])
+                pars_str = '\n'.join([str(par) for par in par_vals][0:2])
                 par_descrs.append(sess_str_util.pars_to_descr(
                     f'{stim.stimtype.capitalize()}\n{pars_str}'))
             

@@ -185,8 +185,10 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
 
     fig, ax = plot_util.init_fig(n_sess*n_rows, gs=gs, **figpar['init'])
 
+    label_height = 0.8
     if datatype == 'roi':
         fig.subplots_adjust(top=0.92) # remove extra white space at top
+        label_height = 0.55
     for i in range(n_sess):
         title = (f'Mouse {mouse_ns[i]} (sess {sess_ns[i]}, {lines[i]} '
             f'{planes[i]}{dendstr_pr}{nroi_strs[i]})')
@@ -213,7 +215,7 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
             # all block labels to the lower plot
             plot_util.add_labels(
                 sub_axs[-1], trace_info['all_pars'][i][b], np.mean(block), 
-                0.75, 'k')
+                label_height, color='k')
             sess_plot_util.add_axislabels(
                 sub_axs[-1], fluor=analyspar['fluor'], datatype=datatype, 
                 x_ax='')
@@ -228,7 +230,7 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
             figpar['dirs'][datatype], 
             figpar['dirs']['full'])
 
-    y = 1.08 if datatype == 'run' else 1
+    y = 1 if datatype == 'run' else 0.98
     fig.suptitle('Full traces across sessions', fontsize='xx-large', y=y)
 
     savename = f'{datatype}_tr_{sessstr}{dendstr}'
@@ -353,7 +355,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
                 leg = f'{qu_lab}{leg_ext} ({all_counts[i][s][q]})'
                 plot_util.plot_traces(
                     sub_ax, xrans[i], all_stats[i][s, q, 0], 
-                    all_stats[i][s, q, 1:], title, col=col[q], alpha=alpha, 
+                    all_stats[i][s, q, 1:], title, color=col[q], alpha=alpha, 
                     label=leg, n_xticks=n)
                 sess_plot_util.add_axislabels(
                     sub_ax, fluor=analyspar['fluor'], datatype=datatype)
@@ -543,7 +545,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         leg = f'reg (no lock) ({reg_counts[i][0]})'
         plot_util.plot_traces(
             sub_ax, xrans[i], reg_stats[i][0][0], reg_stats[i][0][1:], 
-            alpha=alpha, label=leg, alpha_line=0.8, col='darkgray')
+            alpha=alpha, label=leg, alpha_line=0.8, color='darkgray')
 
         # get regular data range to adjust y lims
         reg_min = np.min([reg_min, np.nanmin(reg_stats[i][0][0])])
@@ -566,11 +568,11 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                 leg = f'{lab} ({counts[q]})'
                 plot_util.plot_traces(sub_ax, xrans[i], stats[q][0], 
                     stats[q][1:], title, alpha=alpha, label=leg, 
-                    n_xticks=n_ticks, alpha_line=0.8, col=cols[n])
+                    n_xticks=n_ticks, alpha_line=0.8, color=cols[n])
                 n += 1
             if surp_len is not None:
                 plot_util.add_bars(
-                    sub_ax, hbars=surp_len, col=sub_ax.lines[-1].get_color(), 
+                    sub_ax, hbars=surp_len, color=sub_ax.lines[-1].get_color(), 
                     alpha=1)
     
     plot_util.turn_off_extra(ax, n_sess)
@@ -837,12 +839,12 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
     if datatype == 'roi':
         fluorstr_pr = sess_str_util.fluor_par_str(
             analyspar['fluor'], str_type='print')
-        title_str = u'{} autocorrelation\n'.format(fluorstr_pr)
+        title_str = u'{}\nautocorrelation'.format(fluorstr_pr)
         if not autocorrpar['byitem']:
             title_str = f'{title_str}across ROIs' 
     elif datatype == 'run':
         datastr = sess_str_util.datatype_par_str(datatype)
-        title_str = u'{} autocorrelation\n'.format(datastr)
+        title_str = u'{}\nautocorrelation'.format(datastr)
 
     if stimpar['stimtype'] == 'gabors':
         seq_bars = [-1.5, 1.5] # light lines

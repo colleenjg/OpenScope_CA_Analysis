@@ -26,8 +26,9 @@ import pickle
 import scipy.stats as st
 import scipy.signal as scsig
 
-from sess_util import sess_data_util, sess_file_util, sess_load_util, \
-                      sess_pupil_util, sess_sync_util, sess_trace_util
+from sess_util import sess_data_util, sess_file_util, sess_gen_util, \
+                      sess_load_util, sess_pupil_util, sess_sync_util, \
+                      sess_trace_util
 from util import file_util, gen_util, math_util
 
 
@@ -2311,9 +2312,10 @@ class Stim(object):
                 min_idx = self.stim_seg_list.index(row['start_seg'][0])
                 max_idx = len(self.stim_seg_list)-1 - \
                     self.stim_seg_list[::-1].index(row['end_seg'][0] - 1) + 1 
-                self.block_params.loc[(d, b), 'start_stim_fr'] = min_idx
-                self.block_params.loc[(d, b), 'end_stim_fr'] = max_idx
-                self.block_params.loc[(d, b), 'len_stim_fr'] = max_idx - min_idx
+                self.block_params.loc[(d, b), ('start_stim_fr', )] = min_idx
+                self.block_params.loc[(d, b), ('end_stim_fr', )] = max_idx
+                self.block_params.loc[
+                    (d, b), ('len_stim_fr', )] = max_idx - min_idx
                 # update the stimulus dataframe
                 row_index = (
                     (self.sess.stim_df['stimType'] == self.stimtype[0]) &
@@ -2357,9 +2359,10 @@ class Stim(object):
                     (self.sess.stim_df['stimSeg'] == row['end_seg'][0] - 1)
                     ]['end2pfr'].tolist()[0] + 1)
                 # 1 added as range end is excluded
-                self.block_params.loc[(d, b), 'start_twop_fr'] = min_idx
-                self.block_params.loc[(d, b), 'end_twop_fr'] = max_idx
-                self.block_params.loc[(d, b), 'len_twop_fr'] = max_idx - min_idx
+                self.block_params.loc[(d, b), ('start_twop_fr', )] = min_idx
+                self.block_params.loc[(d, b), ('end_twop_fr', )] = max_idx
+                self.block_params.loc[
+                    (d, b), ('len_twop_fr', )] = max_idx - min_idx
 
 
     #############################################
@@ -2400,7 +2403,7 @@ class Stim(object):
                                       default: 'any'
             - bri_size (int or list): 128, 256, or 'any'
                                       default: 'any'
-            - bri_dir (str or list) : 'right', 'left' or 'any'
+            - bri_dir (str or list) : 'right', 'left', 'temp', 'nasal' or 'any'
                                       default: 'any'
             - pupil (bool)          : if True, pupil data is added in
                                       default: False
@@ -2666,7 +2669,8 @@ class Stim(object):
                                              oris: 0, 45, 90, 135)
                                              default: 'any'
             - stimPar2 (str, int or list)  : stimPar2 value(s) of interest 
-                                             ('right', 'left', 4, 16)
+                                             ('right', 'left', 'temp', 
+                                             'nasal', 4, 16)
                                              default: 'any'
             - surp (str, int or list)      : surp value(s) of interest (0, 1)
                                              default: 'any'
@@ -2694,7 +2698,8 @@ class Stim(object):
                                              stimPar1 (128, 256, or 'any')
                                              default: None
             - bri_dir (str or list)        : if not None, will overwrite 
-                                             stimPar2 ('right', 'left' or 'any')
+                                             stimPar2 ('right', 'left', 'temp', 
+                                             'nasal', or 'any')
                                              default: None
         
         Returns:
@@ -2748,7 +2753,8 @@ class Stim(object):
                                              oris: 0, 45, 90, 135)
                                              default: 'any'
             - stimPar2 (str, int or list)  : stimPar2 value(s) of interest 
-                                             ('right', 'left', 4, 16)
+                                             ('right', 'left', 'temp', 'nasal', 
+                                             4, 16)
                                              default: 'any'
             - surp (str, int or list)      : surp value(s) of interest (0, 1)
                                              default: 'any'
@@ -2776,7 +2782,8 @@ class Stim(object):
                                              stimPar1 (128, 256, or 'any')
                                              default: None
             - bri_dir (str or list)        : if not None, will overwrite 
-                                             stimPar2 ('right', 'left' or 'any')
+                                             stimPar2 ('right', 'left', 'temp', 
+                                             'nasal', or 'any')
                                              default: None
             - remconsec (bool)             : if True, consecutive segments are 
                                              removed within a block
@@ -2851,7 +2858,8 @@ class Stim(object):
                                              oris: 0, 45, 90, 135)
                                              default: 'any'
             - stimPar2 (str, int or list)  : stimPar2 value(s) of interest 
-                                             ('right', 'left', 4, 16)
+                                             ('right', 'left', 'temp', 'nasal', 
+                                             4, 16)
                                              default: 'any'
             - surp (str, int or list)      : surp value(s) of interest (0, 1)
                                              default: 'any'
@@ -3987,7 +3995,7 @@ class Gabors(Stim):
             - n_patches (int)         : number of gabors 
             - ori_kaps (float or list): orientation kappa (calculated from std) 
                                         for each gabor block (only one value 
-                                        for production data)
+                                        for production data), not ordered
             - ori_std (float or list) : orientation standard deviation for each
                                         gabor block (only one value for 
                                         production data) (rad)
@@ -4131,7 +4139,7 @@ class Gabors(Stim):
                     raise ValueError(f'Block {b} of {self.stimtype} '
                         'comprises segments with different '
                         f'stimPar2 values: {stimPar2}')
-                self.block_params.loc[(d, b), 'kappa'] = stimPar2[0]
+                self.block_params.loc[(d, b), ('kappa', )] = stimPar2[0]
 
 
     #############################################
@@ -4424,9 +4432,10 @@ class Bricks(Stim):
             - flipfrac (num)          : fraction of bricks that flip direction 
                                         at each surprise
             - n_bricks (float or list): n_bricks for each brick block (only one
-                                        value for production data)
+                                        value for production data), not ordered
             - sizes (int or list)     : brick size for each brick block (only
-                                        one value for production data) (in pix)
+                                        one value for production data) (in pix), 
+                                        not ordered
             - speed (num)             : speed at which the bricks are moving 
                                         (in pix/sec)
             - units (str)             : units used to create stimuli in 
@@ -4471,6 +4480,9 @@ class Bricks(Stim):
             self.sizes    = stim_info['stim_params']['elemParams']['sizes']
             self.n_bricks = stim_info['stim_params']['elemParams']['nElements']
         
+        self.direcs = [sess_gen_util.get_bri_screen_mouse_direc(direc) 
+            for direc in self.direcs]
+
         self.speed = sqr_par['speed']
         if self.units == 'pix':
             # recorded in deg, so converting to pix
@@ -4519,18 +4531,18 @@ class Bricks(Stim):
                         raise ValueError(f'Block {b} of {self.stimtype} '
                             'comprises segments with different '
                             f'{source_name} values: {stimPar}')
-                    self.block_params.loc[(d, b), par_name] = stimPar[0]
+                    self.block_params.loc[(d, b), (par_name, )] = stimPar[0]
                 
                 # add n_bricks info
                 if self.sess.runtype == 'prod':
-                    self.block_params.loc[(d, b), 'number'] = self.n_bricks
+                    self.block_params.loc[(d, b), ('number', )] = self.n_bricks
                 else:
-                    if (self.block_params.loc[(d, b), 'size'][0] == \
+                    if (self.block_params.loc[(d, b), ('size', )] == \
                         min(self.sizes)):
-                        self.block_params.loc[(d, b), 'number'] = \
+                        self.block_params.loc[(d, b), ('number', )] = \
                             max(gen_util.list_if_not(self.n_bricks))
                     else:
-                        self.block_params.loc[(d, b), 'number'] = \
+                        self.block_params.loc[(d, b), ('number', )] = \
                             min(gen_util.list_if_not(self.n_bricks))
 
 
@@ -4540,8 +4552,8 @@ class Bricks(Stim):
         self.get_dir_segs_reg()
 
         Returns two lists of stimulus segment numbers, the first is a list of 
-        the right moving segments. The second is a list of left moving 
-        segments. Both lists exclude surprise segments.
+        the temporal moving segments. The second is a list of nasal 
+        moving segments. Both lists exclude surprise segments.
 
         Optional args:
             - by (str): determines whether segment numbers are returned in a 
@@ -4549,16 +4561,16 @@ class Bricks(Stim):
                         further grouped by display sequence ('disp')
                         default: 'block'  
         Returns:
-            - right_segs (list): list of right moving segment numbers, 
-                                 excluding surprise segments.
-            - left_segs (list) : list of left moving segment numbers, 
-                                 excluding surprise segments.
+            - temp_segs (list) : list of temporal (head to tail) moving segment 
+                                 numbers, excluding surprise segments.
+            - nasal_segs (list): list of nasal (tail to head) moving segment 
+                                 numbers, excluding surprise segments.
         """
 
-        right_segs = self.get_segs_by_criteria(bri_dir='right', surp=0, by=by)
-        left_segs  = self.get_segs_by_criteria(bri_dir='left', surp=0, by=by)
+        temp_segs = self.get_segs_by_criteria(bri_dir='temp', surp=0, by=by)
+        nasal_segs  = self.get_segs_by_criteria(bri_dir='nasal', surp=0, by=by)
 
-        return right_segs, left_segs
+        return temp_segs, nasal_segs
 
 
 #############################################

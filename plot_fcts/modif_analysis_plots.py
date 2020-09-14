@@ -209,7 +209,7 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
             # all block labels to the lower plot
             plot_util.add_labels(
                 sub_axs[-1], trace_info['all_pars'][b], np.mean(block), 0.85, 
-                'k')
+                color='k')
             # add lines to both plots
             for r in range(n_rows):
                 plot_util.add_bars(sub_axs[r], hbars=block)
@@ -352,7 +352,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
                 # leg = f'{qu_lab}{leg_ext} ({all_counts[i][s][q]})'
                 plot_util.plot_traces(
                     sub_ax, xrans[i], all_stats[i][s, q, 0], 
-                    all_stats[i][s, q, 1:], title, col=col[q], alpha=alpha, 
+                    all_stats[i][s, q, 1:], title, color=col[q], alpha=alpha, 
                     label=leg, n_xticks=n)
                 sess_plot_util.add_axislabels(
                     sub_ax, fluor=analyspar['fluor'], datatype=datatype, 
@@ -583,17 +583,17 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         if surp_len_default:
             for leng in DEFAULT_SURP_LENS:
                 plot_util.add_vshade(
-                    sub_ax, 0, leng * inv, col=cols[-1], alpha=0.1)
+                    sub_ax, 0, leng * inv, color=cols[-1], alpha=0.1)
         # leg = f'reg (no lock) ({reg_counts[i][0]})'
         plot_util.plot_traces(
             sub_ax, xran[st:end], reg_stats[i][0][0, st:end], 
             reg_stats[i][0][1:, st:end], alpha=alpha, label=leg, 
-            alpha_line=0.8, col='darkgray')
+            alpha_line=0.8, color='darkgray')
         n = 0 # count lines plotted
         for s, surp_len in enumerate(surp_lens[i]):
             if surp_len is not None:
                 plot_util.add_vshade(
-                    sub_ax, 0, surp_len * inv, col=cols[n], alpha=0.1)
+                    sub_ax, 0, surp_len * inv, color=cols[n], alpha=0.1)
                 counts, stats = all_counts[i][s], all_stats[i][s]                
                 surp_lab = f'surp len {surp_len}'
             else:
@@ -612,11 +612,11 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                 plot_util.plot_traces(
                     sub_ax, xran[st:end], stats[q][0, st:end], 
                     stats[q][1:, st:end], title, alpha=alpha, label=leg, 
-                    n_xticks=n_ticks, alpha_line=0.8, col=cols[n])
+                    n_xticks=n_ticks, alpha_line=0.8, color=cols[n])
                 n += 1
             if surp_len is not None:
                 plot_util.add_bars(sub_ax, hbars=surp_len, 
-                                   col=sub_ax.lines[-1].get_color(), alpha=1)
+                                   color=sub_ax.lines[-1].get_color(), alpha=1)
     
     plot_util.turn_off_extra(ax, n_sess)
 

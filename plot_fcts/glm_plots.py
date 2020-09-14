@@ -169,7 +169,7 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
         
         fig, ax = plot_util.init_fig(2 * n_sess, **figpar['init'], proj='3d')
 
-        fig.suptitle('Explained variance per ROI', y=1.08)
+        fig.suptitle('Explained variance per ROI', y=1)
     else:
         print('No plots, as only results across ROIs are included')
         fig = None
@@ -228,7 +228,8 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
             sub_ax.set_ylabel(xyzc_dims[1])
             sub_ax.set_zlabel(xyzc_dims[2])
             if v == 0:
-                full_ev_lab = math_util.print_stats(full_ev, stat_str='Full EV')
+                full_ev_lab = math_util.print_stats(
+                    full_ev, stat_str='Full EV', ret_str_only=True)
                 sub_ax.plot([], [], c='k', label=full_ev_lab)
                 sub_ax.legend()
 

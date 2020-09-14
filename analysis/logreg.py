@@ -514,8 +514,11 @@ def get_classes(comp='surp', gab_ori='shared'):
             deg_vals = gab_ori[0]
         deg = u'\u00B0'
         classes = [f'{val}{deg}' for val in deg_vals]
-    elif 'dir' in comp :
-        classes = ['Right', 'Left']
+    elif 'dir' in comp:
+        classes = [sess_str_util.dir_par_str(
+            direc, str_type='print').replace(
+                'bricks (', '').replace(', ', ' (').capitalize() 
+            for direc in ['right', 'left']]
     elif 'half' in comp:
         classes = ['First half', 'Second half']
     else:
@@ -1145,7 +1148,7 @@ def all_runs_sk(n_runs, analyspar, logregpar, quintpar, sesspar, stimpar,
     """
     logregpar = sess_ntuple_util.get_modif_ntuple(
         logregpar, ['batchsize', 'lr', 'wd'], [None, None, None])
-    if techpar['device'] == 'gpu':
+    if techpar['device'] == 'cuda':
         print('sklearn method not implemented with GPU.')
 
     [extrapar, roi_seqs, seq_classes, n_surps] = setup_run(
@@ -1849,7 +1852,7 @@ def run_plot(output, stimtype='gabors', comp='surp', ctrl=False, bri_dir='both',
     """
 
     if comp in ['half_right', 'half_left']:
-        bri_dir = '{}'.format(comp.replace('half_', ''))
+        bri_dir = comp.replace('half_', '')
 
     savename = get_df_name('analyse', stimtype, comp, ctrl, alg)
 

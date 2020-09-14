@@ -89,18 +89,18 @@ def plot_title(mouse_n, sess_n, line, plane, comp, stimtype, bri_dir='right',
     elif comp == 'half_diff':
         comp_str = 'Halves (diff dir)'
     elif comp == 'half_right':
-        comp_str = 'Halves (both right)'
+        comp_str = f'Halves (both right)'
     elif comp == 'half_left':
-        comp_str = 'Halves (both left)'
+        comp_str = f'Halves (both left)'
 
     else:
         comp_str = comp
-    
+
     stim_str = sess_str_util.stim_par_str(
-        stimtype, bri_dir, bri_size, gabk, 'print')
+        stimtype, bri_dir, bri_size, gabk, 'print').capitalize()
 
     return (f'Mouse {mouse_n}, sess {sess_n}, {line} {plane}\n'
-        f'{stim_str.capitalize()}, {comp_str}')
+        f'{stim_str}, {comp_str}')
 
 
 #############################################
@@ -655,7 +655,7 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane,
         title_post = data_title[data_title.index('data') :] 
         title = f'{title_pre}{line} {plane} {title_post}'
 
-        ax.set_title(title)
+        ax.set_title(title, y=1.03)
 
     # add a mean line
     else:
@@ -666,8 +666,8 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane,
                     nanpol='omit')
                 errs = math_util.error_stat(arr[:, :, m_i], axis=0, 
                     stats=stat, error='sem', nanpol='omit')
-                plot_util.plot_errorbars(ax, meds, err=errs, x=x_label, col=col, 
-                    alpha=alphas[m])
+                plot_util.plot_errorbars(ax, meds, err=errs, x=x_label, 
+                    color=col, alpha=alphas[m])
     
     if not modif:
         ax.legend()
@@ -908,9 +908,11 @@ def plot_summ(output, savename, stimtype='gabors', comp='surp', ctrl=False,
         stim_str_pr = 'gabors'
 
     else:
-        bri_dir_vals = sess_gen_util.get_params(stimtype, bri_dir)[0]
-        stim_str = sess_str_util.dir_par_str(bri_dir_vals, str_type='file')
-        stim_str_pr = sess_str_util.dir_par_str(bri_dir_vals, str_type='print')
+        bri_dir = sess_gen_util.get_params(stimtype, bri_dir)[0]
+        if isinstance(bri_dir, list) and len(bri_dir) == 2:
+            bri_dir = 'both'
+        stim_str = sess_str_util.dir_par_str(bri_dir, str_type='file')
+        stim_str_pr = sess_str_util.dir_par_str(bri_dir, str_type='print')
 
     scale_str = sess_str_util.scale_par_str(scale, 'file')
     scale_str_pr = sess_str_util.scale_par_str(scale, 'file').replace('_', ' ')
@@ -945,9 +947,9 @@ def plot_summ(output, savename, stimtype='gabors', comp='surp', ctrl=False,
                 u'{} {} '.format(scale_str_pr, fluor) + 
                 f'data ({runtype})')
         else:
-            title = (f'{stim_str_pr.capitalize()} {comp}{ctrl_str_pr} - '
+            title = (f'{stim_str_pr.capitalize()} {comp}{ctrl_str_pr}\n'
                 f'{data_title}')
-        
+
         if '_' in title:
             title = title.replace('_', ' ')
 

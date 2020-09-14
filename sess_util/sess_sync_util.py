@@ -554,7 +554,8 @@ def get_run_velocity(pkl_file_name='', stim_dict=None):
         # read the input pickle file and call it 'pkl'
         stim_dict = file_util.loadfile(pkl_file_name)
         
-    # Info from Allen
+    # Based on allensdk.brain_observatory.behavior.running_processing.py
+    # deg_to_dist()
     wheel_radius = 5.5036
 
     # determine the frames per second of the running wheel recordings

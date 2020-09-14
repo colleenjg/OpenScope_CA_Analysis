@@ -688,7 +688,8 @@ def get_params(stimtype='both', bri_dir='both', bri_size=128, gabfr=0,
         bri_size = int(bri_size)
 
     if bri_dir in ['both', 'any', 'all']:
-        bri_dir = ['right', 'left']
+        bri_dir = [get_bri_screen_mouse_direc(direc) 
+            for direc in ['right', 'left']]
 
     # set to 'none' any parameters that are irrelevant
     if stimtype == 'gabors':
@@ -703,6 +704,36 @@ def get_params(stimtype='both', bri_dir='both', bri_size=128, gabfr=0,
             'stim argument', stimtype, ['gabors', 'bricks'])
 
     return bri_dir, bri_size, gabfr, gabk, gab_ori
+
+
+#############################################
+def get_bri_screen_mouse_direc(direc='right'):
+    """
+    get_bri_screen_mouse_direc()
+
+    Returns direction for screen and mouse.
+
+    Optional args:
+        - direc (str): direction
+
+    Returns:
+        - direc (str): direction wrt screen and mouse
+    """
+
+    if 'right' in direc or 'temp' in direc:
+        direc = 'right (temp)'
+    elif 'left' in direc or 'nasal' in direc:
+        direc = 'left (nasal)'
+    elif 'right' in direc and 'nasal' in direc:
+        raise ValueError(
+            f'Invalid brick direction {direc}, as rightward motion is temp.')
+    elif 'left' in direc and 'temp' in direc:
+        raise ValueError(
+            f'Invalid brick direction {direc}, as leftward motion is nasal.')
+    else:
+        raise ValueError(f'Brick direction {direc} not recognized.')
+
+    return direc
 
 
 #############################################
@@ -800,13 +831,16 @@ def pilot_bri_omit(bri_dir, bri_size):
     bri_size = gen_util.list_if_not(bri_size)
     omit_mice = []
 
-    if 'right' not in bri_dir:
+    right_incl = len(list(filter(lambda x: 'right' in x, bri_dir)))
+    left_incl = len(list(filter(lambda x: 'left' in x, bri_dir)))
+
+    if not right_incl:
         # mouse 3 only got bri_dir='right'
         omit_mice.extend([3]) 
         if 128 not in bri_size:
             # mouse 1 only got bri_dir='left' with bri_size=128
             omit_mice.extend([1])
-    elif 'left' not in bri_dir and 256 not in bri_size:
+    elif not left_incl and 256 not in bri_size:
         # mouse 1 only got bri_dir='right' with bri_size=256
         omit_mice.extend([1]) 
     return omit_mice
