@@ -46,4 +46,4 @@ This code was written by:
 * Joel Zylberberg (joelzy@yorku.ca)
 * Blake Richards  (blake.richards@mcgill.ca)
 
-The code also uses some modules shared by authors at the AIBS. The authors of the code cannot guarantee support for its usage.
+The module `sess_util.Dataset2p.py` contains code shared by authors at the AIBS. The authors of the code cannot guarantee support for its usage.

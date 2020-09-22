@@ -17,12 +17,12 @@ dependencies:
     - seaborn
     - holoviews
     - jupyter
+    - opencv
     - scikit-learn
     - scikit-image
     - astropy
     - pytorch
     - torchvision
-    - suite2p
     - pip:
         - tables
         - allensdk

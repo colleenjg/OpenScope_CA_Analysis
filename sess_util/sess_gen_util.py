@@ -13,6 +13,7 @@ Note: this code uses python 3.7.
 """
 
 import copy
+import logging
 import os
 
 import numpy as np
@@ -20,7 +21,9 @@ import pandas as pd
 
 from analysis import session
 from sess_util import sess_str_util
-from util import file_util, gen_util
+from util import file_util, gen_util, logger_util
+
+logger = logging.getLogger(__name__)
 
 
 #############################################
@@ -31,29 +34,29 @@ def depth_vals(plane, line):
     Returns depth values corresponding to a specified plane.
 
     Required args:
-        - plane (str): plane (e.g., 'dend', 'soma', 'any')
-        - line (str) : line (e.g., 'L23', 'L5', 'any')
+        - plane (str): plane (e.g., "dend", "soma", "any")
+        - line (str) : line (e.g., "L23", "L5", "any")
     Returns:
-        - depths (str or list): depths corresponding to plane and line or 'any'
+        - depths (str or list): depths corresponding to plane and line or "any"
     """
 
-    if plane == 'any' and line == 'any':
-        return 'any'
+    if plane == "any" and line == "any":
+        return "any"
     
-    depth_dict = {'L23_dend': [50, 75],
-                  'L23_soma': [175],
-                  'L5_dend' : [20],
-                  'L5_soma' : [375]
+    depth_dict = {"L23_dend": [50, 75],
+                  "L23_soma": [175],
+                  "L5_dend" : [20],
+                  "L5_soma" : [375]
                  }
 
-    all_planes = ['dend', 'soma']
-    if plane == 'any':
+    all_planes = ["dend", "soma"]
+    if plane == "any":
         planes = all_planes
     else:
         planes = gen_util.list_if_not(plane)
     
-    all_lines = ['L23', 'L5']
-    if line == 'any':
+    all_lines = ["L23", "L5"]
+    if line == "any":
         lines = all_lines
     else:
         lines = gen_util.list_if_not(line)
@@ -61,18 +64,18 @@ def depth_vals(plane, line):
     depths = []
     for plane in planes:
         if plane not in all_planes:
-            gen_util.accepted_values_error('plane', plane, all_planes)
+            gen_util.accepted_values_error("plane", plane, all_planes)
         for line in lines:
             if plane not in all_planes:
-                gen_util.accepted_values_error('line', line, all_lines)
-            depths.extend(depth_dict[f'{line}_{plane}'])
+                gen_util.accepted_values_error("line", line, all_lines)
+            depths.extend(depth_dict[f"{line}_{plane}"])
 
     return depths
 
 
 #############################################
 def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth, 
-                pass_fail='P', incl='yes', all_files=1, any_files=1, 
+                pass_fail="P", incl="yes", all_files=1, any_files=1, 
                 min_rois=1, unique=False, sort=False):
     """
     get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth)
@@ -92,11 +95,11 @@ def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth,
                                       175, 375)
 
     Optional args:
-        - pass_fail (str or list)     : pass/fail values of interest ('P', 'F')
-                                        default: 'P'
-        - incl (str)                  : which sessions to include ('yes', 'no', 
-                                        'any')
-                                        default: 'yes'
+        - pass_fail (str or list)     : pass/fail values of interest ("P", "F")
+                                        default: "P"
+        - incl (str)                  : which sessions to include ("yes", "no", 
+                                        "any")
+                                        default: "yes"
         - all_files (int, str or list): all_files values of interest (0, 1)
                                         default: 1
         - any_files (int, str or list): any_files values of interest (0, 1)
@@ -124,21 +127,21 @@ def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth,
         pass_fail, incl, all_files, any_files] = all_labs
 
     df_rows = mouse_df.loc[
-        (mouse_df['mouse_n'].isin(mouse_n)) & 
-        (mouse_df['sessid'].isin(sessid)) &
-        (mouse_df['sess_n'].isin(sess_n)) &
-        (mouse_df['runtype'].isin(runtype)) &
-        (mouse_df['depth'].isin(depth)) &
-        (mouse_df['pass_fail'].isin(pass_fail)) &
-        (mouse_df['incl'].isin(incl)) &
-        (mouse_df['all_files'].isin(all_files)) &
-        (mouse_df['any_files'].isin(any_files)) &
-        (mouse_df['nrois'].astype(int) >= min_rois)]
+        (mouse_df["mouse_n"].isin(mouse_n)) & 
+        (mouse_df["sessid"].isin(sessid)) &
+        (mouse_df["sess_n"].isin(sess_n)) &
+        (mouse_df["runtype"].isin(runtype)) &
+        (mouse_df["depth"].isin(depth)) &
+        (mouse_df["pass_fail"].isin(pass_fail)) &
+        (mouse_df["incl"].isin(incl)) &
+        (mouse_df["all_files"].isin(all_files)) &
+        (mouse_df["any_files"].isin(any_files)) &
+        (mouse_df["nrois"].astype(int) >= min_rois)]
 
     returnlab = gen_util.list_if_not(returnlab)
     if len(returnlab) != 1 and (sort or unique):
-        print('WARNING: Sorted and unique will be set to False as multiple '
-            'labels are requested.')
+        logger.warning("Sorted and unique will be set to False as multiple "
+            "labels are requested.")
         sort   = False
         unique = False
     
@@ -157,9 +160,9 @@ def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth,
 
 
 #############################################
-def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any', 
-                  runtype='any', plane='any', line='any', pass_fail='P', 
-                  incl='all', all_files=1, any_files=1, min_rois=1, 
+def get_sess_vals(mouse_df, returnlab, mouse_n="any", sess_n="any", 
+                  runtype="any", plane="any", line="any", pass_fail="P", 
+                  incl="all", all_files=1, any_files=1, min_rois=1, 
                   omit_sess=[], omit_mice=[], unique=True, sort=False):
     """
     get_sess_vals(mouse_df, returnlab)
@@ -174,24 +177,24 @@ def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any',
 
     Optional args:
         - mouse_n (int, str or list)  : mouse number(s) of interest
-                                        default: 'any'
+                                        default: "any"
         - sess_n (int, str or list)   : session number(s) of interest
-                                        default: 'any'
+                                        default: "any"
         - runtype (str or list)       : runtype value(s) of interest
-                                        ('pilot', 'prod')
-                                        default: 'any'
+                                        ("pilot", "prod")
+                                        default: "any"
         - plane (str or list)         : plane value(s) of interest
-                                        ('soma', 'dend', 'any')
-                                        default: 'any'
+                                        ("soma", "dend", "any")
+                                        default: "any"
         - line (str or list)          : line value(s) of interest
-                                        ('L5', 'L23', 'any')
-                                        default: 'any'
+                                        ("L5", "L23", "any")
+                                        default: "any"
         - pass_fail (str or list)     : pass/fail values of interest 
-                                        ('P', 'F', 'any')
-                                        default: 'P'
-        - incl (str)                  : which sessions to include ('yes', 'no', 
-                                        'any')
-                                        default: 'yes'
+                                        ("P", "F", "any")
+                                        default: "P"
+        - incl (str)                  : which sessions to include ("yes", "no", 
+                                        "any")
+                                        default: "yes"
         - all_files (str, int or list): all_files values of interest (0, 1)
                                         default: 1
         - any_files (str, int or list): any_files values of interest (0, 1)
@@ -220,11 +223,11 @@ def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any',
     # get depth values corresponding to the plane
     depth = depth_vals(plane, line)
 
-    sessid      = 'any'
+    sessid      = "any"
     params      = [mouse_n, sessid, sess_n, runtype, depth, pass_fail, incl, 
         all_files, any_files]
-    param_names = ['mouse_n', 'sessid', 'sess_n', 'runtype', 'depth',
-        'pass_fail', 'incl', 'all_files', 'any_files']
+    param_names = ["mouse_n", "sessid", "sess_n", "runtype", "depth",
+        "pass_fail", "incl", "all_files", "any_files"]
     
     # for each label, collect values in a list
     for i in range(len(params)):
@@ -247,8 +250,8 @@ def get_sess_vals(mouse_df, returnlab, mouse_n='any', sess_n='any',
 
 
 #############################################
-def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod', 
-                   plane='any', line='any', pass_fail='P', incl='yes',
+def sess_per_mouse(mouse_df, mouse_n="any", sess_n=1, runtype="prod", 
+                   plane="any", line="any", pass_fail="P", incl="yes",
                    all_files=1, any_files=1, min_rois=1, closest=False, 
                    omit_sess=[], omit_mice=[]):
     """
@@ -263,25 +266,25 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
         
     Optional args:
         - mouse_n (int or str)   : mouse number(s) of interest
-                                   default: 'any'
+                                   default: "any"
         - sess_n (int or str)    : session number(s) of interest
-                                   (1, 2, 3, ... or 'first', 'last')
+                                   (1, 2, 3, ... or "first", "last")
                                    default: 1
         - runtype (str or list)  : runtype value(s) of interest
-                                   ('pilot', 'prod')
-                                   default: 'prod'
+                                   ("pilot", "prod")
+                                   default: "prod"
         - plane (str or list)    : plane value(s) of interest
-                                   ('soma', 'dend', 'any')
-                                   default: 'any'
+                                   ("soma", "dend", "any")
+                                   default: "any"
         - line (str or list)     : line value(s) of interest
-                                   ('L5', 'L23', 'any')
-                                   default: 'any'
+                                   ("L5", "L23", "any")
+                                   default: "any"
         - pass_fail (str or list): pass/fail values of interest 
-                                   ('P', 'F', 'any')
-                                   default: 'P'
-        - incl (str)             : which sessions to include ('yes', 'no', 
-                                   'any')
-                                   default: 'yes'
+                                   ("P", "F", "any")
+                                   default: "P"
+        - incl (str)             : which sessions to include ("yes", "no", 
+                                   "any")
+                                   default: "yes"
         - all_files (int or list): all_files values of interest (0, 1)
                                    default: 1
         - any_files (int or list): any_files values of interest (0, 1)
@@ -304,16 +307,16 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
         mouse_df = file_util.loadfile(mouse_df)
         
     orig_sess_n = int(sess_n)
-    if closest or str(sess_n) in ['first', 'last', '-1']:
-        sess_n = gen_util.get_df_label_vals(mouse_df, 'sess_n', 'any')
+    if closest or str(sess_n) in ["first", "last", "-1"]:
+        sess_n = gen_util.get_df_label_vals(mouse_df, "sess_n", "any")
     
-    if runtype == 'any':
-        raise ValueError('Must specify runtype (cannot be any), as there is '
-            'overlap in mouse numbers.')
+    if runtype == "any":
+        raise ValueError("Must specify runtype (cannot be any), as there is "
+            "overlap in mouse numbers.")
 
     # get list of mice that fit the criteria
     mouse_ns = get_sess_vals(
-        mouse_df, 'mouse_n', mouse_n, sess_n, runtype,  plane, line, pass_fail, 
+        mouse_df, "mouse_n", mouse_n, sess_n, runtype,  plane, line, pass_fail, 
         incl, all_files, any_files, min_rois, omit_sess, omit_mice, 
         unique=True, sort=True)
 
@@ -321,35 +324,35 @@ def sess_per_mouse(mouse_df, mouse_n='any', sess_n=1, runtype='prod',
     sessids = []
     for i in sorted(mouse_ns):
         sess_ns = get_sess_vals(
-            mouse_df, 'sess_n', i, sess_n, runtype, plane, line, pass_fail, 
+            mouse_df, "sess_n", i, sess_n, runtype, plane, line, pass_fail, 
             incl, all_files, any_files, min_rois, omit_sess, omit_mice, 
             sort=True)
         # skip mouse if no sessions meet criteria
         if len(sess_ns) == 0:
             continue
         # if only exact sess n is accepted (not closest)
-        elif str(orig_sess_n) == 'first' or not closest:
+        elif str(orig_sess_n) == "first" or not closest:
             n = sess_ns[0]
-        elif str(orig_sess_n) in ['last', '-1']:
+        elif str(orig_sess_n) in ["last", "-1"]:
             n = sess_ns[-1]
         # find closest sess number among possible sessions
         else:
             n = sess_ns[np.argmin(
                 np.absolute([x - orig_sess_n for x in sess_ns]))]
         sessid = get_sess_vals(
-            mouse_df, 'sessid', i, n, runtype, plane, line, pass_fail, incl, 
+            mouse_df, "sessid", i, n, runtype, plane, line, pass_fail, incl, 
             all_files, any_files, min_rois, omit_sess, omit_mice)[0]
         sessids.append(sessid)
     
     if len(sessids) == 0:
-        raise ValueError('No sessions meet the criteria.')
+        raise ValueError("No sessions meet the criteria.")
 
     return sessids
 
 
 #############################################
-def sess_comp_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod', 
-                        plane='any', line='any', pass_fail='P', incl='yes', 
+def sess_comp_per_mouse(mouse_df, mouse_n="any", sess_n="1v2", runtype="prod", 
+                        plane="any", line="any", pass_fail="P", incl="yes", 
                         all_files=1, any_files=1, min_rois=1, closest=False, 
                         omit_sess=[], omit_mice=[]):
     """
@@ -364,24 +367,24 @@ def sess_comp_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
         
     Optional args:
         - mouse_n (int or str)   : mouse number(s) of interest
-                                   default: 'any'
+                                   default: "any"
         - sess_n (int or str)    : session numbers of interest to compare
-                                   default: '1v2'
+                                   default: "1v2"
         - runtype (str or list)  : runtype value(s) of interest
-                                   ('pilot', 'prod')
-                                   default: 'prod'
+                                   ("pilot", "prod")
+                                   default: "prod"
         - plane (str or list)    : plane value(s) of interest
-                                   ('soma', 'dend', 'any')
-                                   default: 'any'
+                                   ("soma", "dend", "any")
+                                   default: "any"
         - line (str or list)     : line value(s) of interest
-                                   ('L5', 'L23', 'any')
-                                   default: 'any'
+                                   ("L5", "L23", "any")
+                                   default: "any"
         - pass_fail (str or list): pass/fail values of interest 
-                                   ('P', 'F', 'any')
-                                   default: 'P'
-        - incl (str)             : which sessions to include ('yes', 'no', 
-                                   'any')
-                                   default: 'yes'
+                                   ("P", "F", "any")
+                                   default: "P"
+        - incl (str)             : which sessions to include ("yes", "no", 
+                                   "any")
+                                   default: "yes"
         - all_files (int or list): all_files values of interest (0, 1)
                                    default: 1
         - any_files (int or list): any_files values of interest (0, 1)
@@ -402,29 +405,29 @@ def sess_comp_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
     """
 
     if closest:
-        print('Session comparisons not implemented using the `closest` '
-            'parameter. Setting to False.')
+        logger.info("Session comparisons not implemented using the 'closest' "
+            "parameter. Setting to False.")
         closest = False
 
-    if 'v' not in str(sess_n):
-        raise ValueError('sess_n must be of a format like `1v3`.')
+    if "v" not in str(sess_n):
+        raise ValueError("sess_n must be of a format like '1v3'.")
 
-    sess_n = [n for n in sess_n.split('v')]
+    sess_n = [n for n in sess_n.split("v")]
     for i in range(len(sess_n)):
-        if sess_n[i] not in ['first', 'last']:
+        if sess_n[i] not in ["first", "last"]:
             sess_n[i] = int(sess_n[i])
 
-    if runtype == 'any':
-        raise ValueError('Must specify runtype (cannot be any), as there is '
-            'overlap in mouse numbers.')
+    if runtype == "any":
+        raise ValueError("Must specify runtype (cannot be any), as there is "
+            "overlap in mouse numbers.")
 
     # get list of mice that fit the criteria
     mouse_ns = []
     for n in sess_n:
-        if str(n) in ['last', '-1']:
-            n = 'any'
+        if str(n) in ["last", "-1"]:
+            n = "any"
         ns = get_sess_vals(
-            mouse_df, 'mouse_n', mouse_n, n, runtype, plane, line, pass_fail, 
+            mouse_df, "mouse_n", mouse_n, n, runtype, plane, line, pass_fail, 
             incl, all_files, any_files, min_rois, omit_sess, omit_mice, 
             unique=True, sort=True)
         mouse_ns.append(ns)
@@ -436,32 +439,32 @@ def sess_comp_per_mouse(mouse_df, mouse_n='any', sess_n='1v2', runtype='prod',
     for i in mouse_ns:
         mouse_sessids = []
         for j, n in enumerate(sess_n):
-            if str(n) in ['first', 'last', '-1']:
+            if str(n) in ["first", "last", "-1"]:
                 ns = get_sess_vals(
-                    mouse_df, 'sess_n', i, 'any', runtype, plane, line, 
+                    mouse_df, "sess_n", i, "any", runtype, plane, line, 
                     pass_fail, incl, all_files, any_files, min_rois, omit_sess, 
                     omit_mice, sort=True)[-1]
                 if len(ns) == 0 or ns[-1] == sess_n[1-j]:
                     break # mouse omitted
-                if n == 'first':
+                if n == "first":
                     n = ns[0]
                 else:
                     n = ns[-1]
             sessid = get_sess_vals(
-                mouse_df, 'sessid', i, n, runtype, plane, line, pass_fail, 
+                mouse_df, "sessid", i, n, runtype, plane, line, pass_fail, 
                 incl, all_files, any_files, min_rois, omit_sess, omit_mice)[0]
             mouse_sessids.append(sessid)
         sessids.append(mouse_sessids)
     
     if len(sessids) == 0:
-        raise ValueError('No session combinations meet the criteria.')
+        raise ValueError("No session combinations meet the criteria.")
 
     return sessids
 
 
 #############################################
-def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True, 
-                  dend='extr', omit=False, roi=True, run=False, pupil=False):
+def init_sessions(sessids, datadir, mouse_df, runtype="prod", fulldict=True, 
+                  dend="extr", omit=False, roi=True, run=False, pupil=False):
     """
     init_sessions(sessids, datadir)
 
@@ -474,13 +477,13 @@ def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True,
                                  on each session
 
     Optional args:
-        - runtype (str)    : the type of run, either 'pilot' or 'prod'
-                             default: 'prod'
+        - runtype (str)    : the type of run, either "pilot" or "prod"
+                             default: "prod"
         - fulldict (bool)  : if True, the full stimulus dictionary is loaded 
                              (with all the brick positions).
                              default: True
-        - dend (str)       : type of dendrites to use ('aibs' or 'extr')
-                             default: 'extr'
+        - dend (str)       : type of dendrites to use ("aibs" or "extr")
+                             default: "extr"
         - omit (bool)      : if True, dendritic sessions with the wrong type of 
                              dendrite are omitted
                              default: False
@@ -499,28 +502,30 @@ def init_sessions(sessids, datadir, mouse_df, runtype='prod', fulldict=True,
     sessions = []
     sessids = gen_util.list_if_not(sessids)
     for sessid in sessids:
-        print(f'\nCreating session {sessid}...')
+        logger.info(f"Creating session {sessid}...", extra={"spacing": "\n"})
         # creates a session object to work with
         sess = session.Session(datadir, sessid, runtype=runtype) 
         # extracts necessary info for analysis
         sess.extract_sess_attribs(mouse_df)
         sess.extract_info(fulldict=fulldict, dend=dend, roi=roi, run=run)
-        if omit and sess.plane == 'dend' and sess.dend != dend:
-            print(f'Omitting session {sessid} ({dend} dendrites not found).')
+        if omit and sess.plane == "dend" and sess.dend != dend:
+            logger.info(
+                f"Omitting session {sessid} ({dend} dendrites not found).")
             continue
-        if pupil and sess.pup_data_h5 == 'none':
-            print(f'Omitting session {sessid} as no pupil data h5 was found.')
+        if pupil and sess.pup_data_h5 == "none":
+            logger.info(
+                f"Omitting session {sessid} as no pupil data h5 was found.")
             continue
         if pupil:
             sess.load_pup_data()
-        print(f'Finished session {sessid}.')
+        logger.info(f"Finished session {sessid}.")
         sessions.append(sess)
 
     return sessions
 
 
 #############################################
-def get_nrois(nrois, n_nanrois=0, n_nanrois_dff=0, remnans=True, fluor='dff'):
+def get_nrois(nrois, n_nanrois=0, n_nanrois_dff=0, remnans=True, fluor="dff"):
     """
     get_nrois(nrois)
 
@@ -536,22 +541,22 @@ def get_nrois(nrois, n_nanrois=0, n_nanrois_dff=0, remnans=True, fluor='dff'):
         - remnans (bool)     : if True, the number of ROIs with NaN/Infs is  
                                removed from the total
                                default: True
-        - fluor (str)        : if 'raw', number of ROIs is calculated with 
-                               n_nanrois. If 'dff', it is calculated with 
+        - fluor (str)        : if "raw", number of ROIs is calculated with 
+                               n_nanrois. If "dff", it is calculated with 
                                n_nanrois_dff  
-                               default: 'dff'
+                               default: "dff"
 
     Returns:
         - nrois (int): resulting number of ROIs
     """
 
     if remnans:
-        if fluor == 'dff':
+        if fluor == "dff":
             n_rem = n_nanrois_dff
-        elif fluor == 'raw':
+        elif fluor == "raw":
             n_rem = n_nanrois
         else:
-            gen_util.accepted_values_error('fluor', fluor, ['raw', 'dff'])
+            gen_util.accepted_values_error("fluor", fluor, ["raw", "dff"])
 
         nrois = nrois - n_rem
     
@@ -559,7 +564,7 @@ def get_nrois(nrois, n_nanrois=0, n_nanrois_dff=0, remnans=True, fluor='dff'):
 
 
 #############################################
-def get_sess_info(sessions, fluor='dff', add_none=False, incl_roi=True):
+def get_sess_info(sessions, fluor="dff", add_none=False, incl_roi=True):
     """
     get_sess_info(sessions)
 
@@ -570,9 +575,9 @@ def get_sess_info(sessions, fluor='dff', add_none=False, incl_roi=True):
         - sessions (list): ordered list of Session objects
     
     Optional args:
-        - fluor (str)    : specifies which nanrois to include (for 'dff' or 
-                           'raw')
-                           default: 'dff'
+        - fluor (str)    : specifies which nanrois to include (for "dff" or 
+                           "raw")
+                           default: "dff"
         - add_none (bool): if True, None sessions are allowed and all values 
                            are filled with None
                            default: False
@@ -582,26 +587,26 @@ def get_sess_info(sessions, fluor='dff', add_none=False, incl_roi=True):
     Returns:
         - sess_info (dict): dictionary containing information from each
                             session 
-                ['mouse_ns'] (list)   : mouse numbers
-                ['mouseids'] (list)   : mouse ids
-                ['sess_ns'] (list)    : session numbers
-                ['sessids'] (list)    : session ids  
-                ['lines'] (list)      : mouse lines
-                ['planes'] (list)     : imaging planes
-                if datatype == 'roi':
-                    ['nrois'] (list)      : number of ROIs in session
-                    ['twop_fps'] (list)   : 2p frames per second
-                    ['nanrois_{}'] (list) : list of ROIs with NaNs/Infs in raw
+                ["mouse_ns"] (list)   : mouse numbers
+                ["mouseids"] (list)   : mouse ids
+                ["sess_ns"] (list)    : session numbers
+                ["sessids"] (list)    : session ids  
+                ["lines"] (list)      : mouse lines
+                ["planes"] (list)     : imaging planes
+                if datatype == "roi":
+                    ["nrois"] (list)      : number of ROIs in session
+                    ["twop_fps"] (list)   : 2p frames per second
+                    ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw
                                             or dff traces
     """
 
     if add_none and set(sessions) == {None}:
-        print('All None value sessions.')
+        logger.info("All None value sessions.")
 
     sess_info = dict()
-    keys = ['mouse_ns', 'mouseids', 'sess_ns', 'sessids', 'lines', 'planes']
+    keys = ["mouse_ns", "mouseids", "sess_ns", "sessids", "lines", "planes"]
     if incl_roi:
-        keys.extend(['nrois', 'twop_fps', f'nanrois_{fluor}'])
+        keys.extend(["nrois", "twop_fps", f"nanrois_{fluor}"])
 
     for key in keys:
         sess_info[key] = []
@@ -614,45 +619,45 @@ def get_sess_info(sessions, fluor='dff', add_none=False, incl_roi=True):
                  for key in keys:
                      sess_info[key].append(None)
             else:
-                raise ValueError('None sessions not allowed.')
+                raise ValueError("None sessions not allowed.")
         else:
-            sess_info['mouse_ns'].append(sess.mouse_n)
-            sess_info['mouseids'].append(sess.mouseid)
-            sess_info['sess_ns'].append(sess.sess_n)
-            sess_info['sessids'].append(sess.sessid)
-            sess_info['lines'].append(sess.line)
-            sess_info['planes'].append(sess.plane)
+            sess_info["mouse_ns"].append(sess.mouse_n)
+            sess_info["mouseids"].append(sess.mouseid)
+            sess_info["sess_ns"].append(sess.sess_n)
+            sess_info["sessids"].append(sess.sessid)
+            sess_info["lines"].append(sess.line)
+            sess_info["planes"].append(sess.plane)
             if not incl_roi:
                 continue
 
-            sess_info['nrois'].append(sess.nrois)
-            sess_info['twop_fps'].append(sess.twop_fps)
-            sess_info[f'nanrois_{fluor}'].append(sess.get_nanrois(fluor))            
+            sess_info["nrois"].append(sess.nrois)
+            sess_info["twop_fps"].append(sess.twop_fps)
+            sess_info[f"nanrois_{fluor}"].append(sess.get_nanrois(fluor))            
 
     return sess_info
 
 
 #############################################
-def get_params(stimtype='both', bri_dir='both', bri_size=128, gabfr=0, 
-               gabk=16, gab_ori='all'):
+def get_params(stimtype="both", bri_dir="both", bri_size=128, gabfr=0, 
+               gabk=16, gab_ori="all"):
     """
     get_params()
 
-    Gets and formats full parameters. For example, replaces 'both' with a 
+    Gets and formats full parameters. For example, replaces "both" with a 
     list of parameter values, and sets parameters irrelevant to the stimulus
-    of interest to 'none'.
+    of interest to "none".
 
     Required args:
         - stimtype  (str)            : stimulus to analyse 
-                                       ('bricks', 'gabors', 'both')
+                                       ("bricks", "gabors", "both")
         - bri_dir (str or list)      : brick direction values 
-                                       ('right', 'left', 'both')
-        - bri_size (int, str or list): brick size values (128, 256, 'both')
-        - gabfr (int, list or str)   : gabor frame value (0, 1, 2, 3, '0_3', 
+                                       ("right", "left", "both")
+        - bri_size (int, str or list): brick size values (128, 256, "both")
+        - gabfr (int, list or str)   : gabor frame value (0, 1, 2, 3, "0_3", 
                                                           [0, 3])
-        - gabk (int, str or list)    : gabor kappa values (4, 16, 'both')
+        - gabk (int, str or list)    : gabor kappa values (4, 16, "both")
         - gab_ori (int, str or list) : gabor orientation values 
-                                       (0, 45, 90, 135 or 'all')
+                                       (0, 45, 90, 135 or "all")
 
     Returns:
         - bri_dir (str or list) : brick direction values
@@ -665,49 +670,49 @@ def get_params(stimtype='both', bri_dir='both', bri_size=128, gabfr=0,
 
     # get all the parameters
 
-    if gabk in ['both', 'any', 'all']:
+    if gabk in ["both", "any", "all"]:
         gabk = [4, 16]
     else:
         gabk = int(gabk)
 
-    if gab_ori in ['both', 'any', 'all']:
+    if gab_ori in ["both", "any", "all"]:
         gab_ori = [0, 45, 90, 135]
-    elif gab_ori == 'shared':
+    elif gab_ori == "shared":
         gab_ori = [90, 135]
     else:
         gab_ori = int(gab_ori)
 
-    if gabfr in ['both', 'any', 'all']:
-        gabfr = [0, 1, 2, 3, 'gray']
-    elif gabfr != 'gray':
+    if gabfr in ["both", "any", "all"]:
+        gabfr = [0, 1, 2, 3, "G"]
+    elif gabfr not in ["G", "gray"]:
         gabfr = int(gabfr)
 
-    if bri_size in ['both', 'any', 'all']:
+    if bri_size in ["both", "any", "all"]:
         bri_size = [128, 256]
     else:
         bri_size = int(bri_size)
 
-    if bri_dir in ['both', 'any', 'all']:
+    if bri_dir in ["both", "any", "all"]:
         bri_dir = [get_bri_screen_mouse_direc(direc) 
-            for direc in ['right', 'left']]
+            for direc in ["right", "left"]]
 
-    # set to 'none' any parameters that are irrelevant
-    if stimtype == 'gabors':
-        bri_size = 'none'
-        bri_dir = 'none'
-    elif stimtype == 'bricks':
-        gabfr = 'none'
-        gabk = 'none'
-        gab_ori = 'none'
-    elif stimtype != 'both':
+    # set to "none" any parameters that are irrelevant
+    if stimtype == "gabors":
+        bri_size = "none"
+        bri_dir = "none"
+    elif stimtype == "bricks":
+        gabfr = "none"
+        gabk = "none"
+        gab_ori = "none"
+    elif stimtype != "both":
         gen_util.accepted_values_error(
-            'stim argument', stimtype, ['gabors', 'bricks'])
+            "stim argument", stimtype, ["gabors", "bricks"])
 
     return bri_dir, bri_size, gabfr, gabk, gab_ori
 
 
 #############################################
-def get_bri_screen_mouse_direc(direc='right'):
+def get_bri_screen_mouse_direc(direc="right"):
     """
     get_bri_screen_mouse_direc()
 
@@ -720,18 +725,18 @@ def get_bri_screen_mouse_direc(direc='right'):
         - direc (str): direction wrt screen and mouse
     """
 
-    if 'right' in direc or 'temp' in direc:
-        direc = 'right (temp)'
-    elif 'left' in direc or 'nasal' in direc:
-        direc = 'left (nasal)'
-    elif 'right' in direc and 'nasal' in direc:
+    if "right" in direc or "temp" in direc:
+        direc = "right (temp)"
+    elif "left" in direc or "nasal" in direc:
+        direc = "left (nasal)"
+    elif "right" in direc and "nasal" in direc:
         raise ValueError(
-            f'Invalid brick direction {direc}, as rightward motion is temp.')
-    elif 'left' in direc and 'temp' in direc:
+            f"Invalid brick direction {direc}, as rightward motion is temp.")
+    elif "left" in direc and "temp" in direc:
         raise ValueError(
-            f'Invalid brick direction {direc}, as leftward motion is nasal.')
+            f"Invalid brick direction {direc}, as leftward motion is nasal.")
     else:
-        raise ValueError(f'Brick direction {direc} not recognized.')
+        raise ValueError(f"Brick direction {direc} not recognized.")
 
     return direc
 
@@ -758,11 +763,11 @@ def gab_adjacent_gabfrs(gab_frs):
 
 
 #############################################
-def gab_oris_shared_E(gab_letters, gab_oris):
+def gab_oris_shared_U(gab_letters, gab_oris):
     """
-    gab_oris_shared_E(gab_letters, gab_oris)
+    gab_oris_shared_U(gab_letters, gab_oris)
 
-    Returns Gabor orientations that are shared with E frames, for each gabor 
+    Returns Gabor orientations that are shared with U frames, for each gabor 
     letter, ordered together.
 
     Required args:
@@ -777,11 +782,11 @@ def gab_oris_shared_E(gab_letters, gab_oris):
 
     new_oris = []
     for lett in gab_letters:
-        is_E = (lett.upper() == 'E')
-        if is_E and len(lett) > 1:
-            raise NotImplementedError('Cannot return shared orientations if '
-                'E Gabors are grouped with other Gabor letters.')
-        oris = [ori - 90 * is_E for ori in shared_oris if ori in gab_oris]
+        is_U = (lett.upper() == "U")
+        if is_U and len(lett) > 1:
+            raise NotImplementedError("Cannot return shared orientations if "
+                "U Gabors are grouped with other Gabor letters.")
+        oris = [ori - 90 * is_U for ori in shared_oris if ori in gab_oris]
         new_oris.append(oris) 
 
     return new_oris
@@ -820,7 +825,7 @@ def pilot_bri_omit(bri_dir, bri_size):
     to include.
 
     Required args:
-        - bri_dir (str or list) : brick direction values ('right', 'left')
+        - bri_dir (str or list) : brick direction values ("right", "left")
         - bri_size (int or list): brick size values (128, 256, [128, 256])
                                     
     Returns:
@@ -831,23 +836,23 @@ def pilot_bri_omit(bri_dir, bri_size):
     bri_size = gen_util.list_if_not(bri_size)
     omit_mice = []
 
-    right_incl = len(list(filter(lambda x: 'right' in x, bri_dir)))
-    left_incl = len(list(filter(lambda x: 'left' in x, bri_dir)))
+    right_incl = len(list(filter(lambda x: "right" in x, bri_dir)))
+    left_incl = len(list(filter(lambda x: "left" in x, bri_dir)))
 
     if not right_incl:
-        # mouse 3 only got bri_dir='right'
+        # mouse 3 only got bri_dir="right"
         omit_mice.extend([3]) 
         if 128 not in bri_size:
-            # mouse 1 only got bri_dir='left' with bri_size=128
+            # mouse 1 only got bri_dir="left" with bri_size=128
             omit_mice.extend([1])
     elif not left_incl and 256 not in bri_size:
-        # mouse 1 only got bri_dir='right' with bri_size=256
+        # mouse 1 only got bri_dir="right" with bri_size=256
         omit_mice.extend([1]) 
     return omit_mice
 
     
 #############################################
-def all_omit(stimtype='gabors', runtype='prod', bri_dir='both', bri_size=128, 
+def all_omit(stimtype="gabors", runtype="prod", bri_dir="both", bri_size=128, 
              gabk=16):
     """
     all_omit()
@@ -857,9 +862,9 @@ def all_omit(stimtype='gabors', runtype='prod', bri_dir='both', bri_size=128,
     combination requested does not occur in the dataset.
 
     Required args:
-        - stimtype  (str)       : stimulus to analyse ('bricks', 'gabors')
-        - runtype (str)         : runtype ('pilot', 'prod')
-        - bri_dir (str or list) : brick direction values ('right', 'left')
+        - stimtype  (str)       : stimulus to analyse ("bricks", "gabors")
+        - runtype (str)         : runtype ("pilot", "prod")
+        - bri_dir (str or list) : brick direction values ("right", "left")
         - bri_size (int or list): brick size values to include
                                   (128, 256, [128, 256])
         - gabk (int or list)    : gabor kappa values to include 
@@ -873,33 +878,33 @@ def all_omit(stimtype='gabors', runtype='prod', bri_dir='both', bri_size=128,
     omit_sess = []
     omit_mice = []
 
-    if runtype == 'pilot':
+    if runtype == "pilot":
         omit_sess = [721038464] # alignment didn't work
-        if stimtype == 'gabors':
+        if stimtype == "gabors":
             omit_mice = pilot_gab_omit(gabk)
-        elif stimtype == 'bricks':
+        elif stimtype == "bricks":
             omit_mice = pilot_bri_omit(bri_dir, bri_size)
 
-    elif runtype == 'prod':
+    elif runtype == "prod":
         omit_sess = [828754259] # stim pickle not saved correctly
-        if stimtype == 'gabors': 
+        if stimtype == "gabors": 
             if 16 not in gen_util.list_if_not(gabk):
-                print('The production data only includes gabor '
-                    'stimuli with kappa=16')
+                logger.warning("The production data only includes gabor "
+                    "stimuli with kappa=16")
                 omit_mice = list(range(1, 9)) # all
-        elif stimtype == 'bricks':
+        elif stimtype == "bricks":
             if 128 not in gen_util.list_if_not(bri_size):
-                print('The production data only includes bricks stimuli with '
-                    'size=128')
+                logger.warning("The production data only includes bricks "
+                    "stimuli with size=128")
                 omit_mice = list(range(1, 9)) # all
 
     return omit_sess, omit_mice
 
 
 #############################################
-def get_analysdir(mouse_n, sess_n, plane, fluor='dff', scale=True, 
-                  stimtype='gabors', bri_dir='right', bri_size=128, gabk=16, 
-                  comp='surp', ctrl=False, shuffle=False):
+def get_analysdir(mouse_n, sess_n, plane, fluor="dff", scale=True, 
+                  stimtype="gabors", bri_dir="right", bri_size=128, gabk=16, 
+                  comp="surp", ctrl=False, shuffle=False):
     """
     get_analysdir(mouse_n, sess_n, plane)
 
@@ -913,43 +918,43 @@ def get_analysdir(mouse_n, sess_n, plane, fluor='dff', scale=True,
 
     Optional arguments:
         - fluor (str)           : fluorescence trace type
-                                  default: 'dff'
+                                  default: "dff"
         - scale (str or bool)   : if scaling is used or type of scaling used 
-                                  (e.g., 'roi', 'all', 'none')
+                                  (e.g., "roi", "all", "none")
                                   default: None
         - stimtype (str)        : stimulus type
-                                  default: 'gabors'
+                                  default: "gabors"
         - bri_dir (str)         : brick direction
-                                  default: 'right'
+                                  default: "right"
         - bri_size (int or list): brick size values to include
                                   (128, 256, [128, 256])
         - gabk (int or list)    : gabor kappa values to include 
                                   (4, 16 or [4, 16])        
         - comp (str)            : type of comparison
-                                  default: 'surp'
-        - ctrl (bool)           : whether analysis is a control for 'surp'
+                                  default: "surp"
+        - ctrl (bool)           : whether analysis is a control for "surp"
                                   default: False
         - shuffle (bool)        : whether analysis is on shuffled data
                                   default: False
 
     Returns:
         - analysdir (str): name of directory to save analysis in, of the form:
-                           'm{}_s{}_plane_stimtype_fluor_scaled_comp_shuffled'
+                           "m{}_s{}_plane_stimtype_fluor_scaled_comp_shuffled"
     """
 
     stim_str = sess_str_util.stim_par_str(
-        stimtype, bri_dir, bri_size, gabk, 'file')
+        stimtype, bri_dir, bri_size, gabk, "file")
 
     scale_str = sess_str_util.scale_par_str(scale)
     shuff_str = sess_str_util.shuff_par_str(shuffle)
     ctrl_str  = sess_str_util.ctrl_par_str(ctrl)
     if comp is None:
-        comp_str = ''
+        comp_str = ""
     else:
-        comp_str = f'_{comp}'
+        comp_str = f"_{comp}"
 
-    analysdir = (f'm{mouse_n}_s{sess_n}_{plane}_{stim_str}_{fluor}{scale_str}'
-        f'{comp_str}{ctrl_str}{shuff_str}')
+    analysdir = (f"m{mouse_n}_s{sess_n}_{plane}_{stim_str}_{fluor}{scale_str}"
+        f"{comp_str}{ctrl_str}{shuff_str}")
 
     return analysdir
 
@@ -963,98 +968,98 @@ def get_params_from_str(param_str, no_lists=False):
 
     Required args:
         - param_str (str): String containing parameter information, of the form
-                           'm{}_s{}_plane_stimtype_fluor_scaled_comp_shuffled',
+                           "m{}_s{}_plane_stimtype_fluor_scaled_comp_shuffled",
                            though the order can be different as of plane
     
     Optional args:
         - no_lists (bool): if True, list parameters are replaced with a string, 
-                           e.g. 'both'
+                           e.g. "both"
                            False
     Returns:
         - params (dict): parameter dictionary
-            - bri_dir (str or list) : Bricks direction parameter ('right', 
-                                      'left', ['right', 'left'] or 'none') 
+            - bri_dir (str or list) : Bricks direction parameter ("right", 
+                                      "left", ["right", "left"] or "none") 
             - bri_size (int or list): Bricks size parameter (128, 256, 
-                                      [128, 256] or 'none')
-            - comp (str)            : comparison parameter ('surp', 'AvB',
-                                      'AvC', 'BvC' or 'DvE', None)
-            - fluor (str)           : fluorescence parameter ('raw' or 'dff')
+                                      [128, 256] or "none")
+            - comp (str)            : comparison parameter ("surp", "AvB",
+                                      "AvC", "BvC" or "DvU", None)
+            - fluor (str)           : fluorescence parameter ("raw" or "dff")
             - gabk (int or list)    : Gabor kappa parameter (4, 16, [4, 16] or 
-                                      'none')
-            - plane (str)           : plane ('soma' or 'dend')
+                                      "none")
+            - plane (str)           : plane ("soma" or "dend")
             - mouse_n (int)         : mouse number
             - sess_n (int)          : session number
             - scale (bool)          : scaling parameter
             - shuffle (bool)        : shuffle parameter
-            - stimtype (str)        : stimulus type ('gabors' or 'bricks')
+            - stimtype (str)        : stimulus type ("gabors" or "bricks")
     """
 
     params = dict()
 
-    params['mouse_n'] = int(param_str.split('_')[0][1:])
-    params['sess_n']  = int(param_str.split('_')[1][1:])
+    params["mouse_n"] = int(param_str.split("_")[0][1:])
+    params["sess_n"]  = int(param_str.split("_")[1][1:])
 
-    [params['bri_dir'], params['bri_size'], params['gabk']] = \
-        'none', 'none', 'none'
+    [params["bri_dir"], params["bri_size"], params["gabk"]] = \
+        "none", "none", "none"
     
-    if 'gab' in param_str:
-        params['stimtype'] = 'gabors'
-        params['gabk'] = 16
-        if 'both' in param_str:
+    if "gab" in param_str:
+        params["stimtype"] = "gabors"
+        params["gabk"] = 16
+        if "both" in param_str:
             if no_lists:
-                params['gabk'] = 'both'
+                params["gabk"] = "both"
             else:
-                params['gabk'] = [4, 16]
-        elif 'gab4' in param_str:
-            params['gabk'] = 4
-    elif 'bri' in param_str:
-        params['stimtype'] = 'bricks'
-        params['bri_size'] = 128
-        if 'both' in param_str:
+                params["gabk"] = [4, 16]
+        elif "gab4" in param_str:
+            params["gabk"] = 4
+    elif "bri" in param_str:
+        params["stimtype"] = "bricks"
+        params["bri_size"] = 128
+        if "both" in param_str:
             if no_lists:
-                params['bri_size'] = 'both'
+                params["bri_size"] = "both"
             else:
-                params['bri_size'] = [128, 256]
-        elif 'bri256' in param_str:
-            params['bri_size'] = 256
+                params["bri_size"] = [128, 256]
+        elif "bri256" in param_str:
+            params["bri_size"] = 256
         if no_lists:
-            params['bri_dir'] = 'both'
+            params["bri_dir"] = "both"
         else:
-            params['bri_dir'] = ['right', 'left']
-        if 'right' in param_str:
-            params['bri_dir'] = 'right'
-        elif 'left' in param_str:
-            params['bri_dir'] = 'left'
+            params["bri_dir"] = ["right", "left"]
+        if "right" in param_str:
+            params["bri_dir"] = "right"
+        elif "left" in param_str:
+            params["bri_dir"] = "left"
     else:
-        raise ValueError('Stimtype not identified.')
+        raise ValueError("Stimtype not identified.")
 
-    if 'soma' in param_str:
-        params['plane'] = 'soma'
-    elif 'dend' in param_str:
-        params['plane'] = 'dend'
+    if "soma" in param_str:
+        params["plane"] = "soma"
+    elif "dend" in param_str:
+        params["plane"] = "dend"
     else:
-        raise ValueError('plane not identified.')
+        raise ValueError("plane not identified.")
 
-    if 'dff' in param_str:
-        params['fluor'] = 'dff'
-    elif 'raw' in param_str:
-        params['fluor'] = 'raw'
+    if "dff" in param_str:
+        params["fluor"] = "dff"
+    elif "raw" in param_str:
+        params["fluor"] = "raw"
     else:
-        raise ValueError('Fluorescence type not identified.')
+        raise ValueError("Fluorescence type not identified.")
 
-    params['scale'] = False
-    if 'scale' in param_str:
-        params['scale'] = True
+    params["scale"] = False
+    if "scale" in param_str:
+        params["scale"] = True
 
-    params['comp'] = None
-    for comptype in ['surp', 'AvB', 'AvC', 'BvC', 'DvE']:
+    params["comp"] = None
+    for comptype in ["surp", "AvB", "AvC", "BvC", "DvU"]:
         if comptype in param_str:
-            params['comp'] = comptype
+            params["comp"] = comptype
 
-    if 'shuffled' in param_str:
-        params['shuffle'] = True
+    if "shuffled" in param_str:
+        params["shuffle"] = True
     else:
-        params['shuffle'] = False
+        params["shuffle"] = False
 
     return params
 
@@ -1064,7 +1069,7 @@ def check_both_stimuli(sessions):
     """
     check_both_stimuli(sessions)
 
-    Returns only sessions that have both stimuli ('gabors' and 'bricks').
+    Returns only sessions that have both stimuli ("gabors" and "bricks").
         
     Required args:
         - sessions (list) :  list of Session objects
@@ -1074,7 +1079,7 @@ def check_both_stimuli(sessions):
     """
 
     keep_sess = []
-    all_stims = ['gabors', 'bricks']
+    all_stims = ["gabors", "bricks"]
     for sess in sessions:
         check = np.product([stim in sess.stimtypes for stim in all_stims])
         if check:

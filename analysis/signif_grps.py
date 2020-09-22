@@ -13,15 +13,20 @@ Note: this code uses python 3.7.
 
 """
 
+import logging
+
 import numpy as np
 
 from sess_util import sess_ntuple_util
-from util import gen_util, math_util
+from util import gen_util, logger_util, math_util
 
+logger = logging.getLogger(__name__)
+
+TAB = "    "
 
 
 #############################################
-def sep_grps(sign_rois, nrois, grps='all', tails='2', add_reg=False):
+def sep_grps(sign_rois, nrois, grps="all", tails="2", add_reg=False):
     """
     sep_grps(sign_rois, nrois)
 
@@ -34,10 +39,10 @@ def sep_grps(sign_rois, nrois, grps='all', tails='2', add_reg=False):
         - nrois (int)            : total number of ROIs in data (signif or not)
     Optional args:
         - grps (str or list): set of groups or list of sets of groups to 
-                              return, e.g., 'all', 'change', 'no_change', 
-                              'reduc', 'incr'
-                              default: 'all'
-        - tails (str)       : tail(s) used in analysis: 'up', 'lo' or 2
+                              return, e.g., "all", "change", "no_change", 
+                              "reduc", "incr"
+                              default: "all"
+        - tails (str)       : tail(s) used in analysis: "up", "lo" or 2
                               default: 2
         - add_reg (bool)    : if True, group of ROIs showing no significance in 
                               either is included in the groups returned
@@ -56,7 +61,7 @@ def sep_grps(sign_rois, nrois, grps='all', tails='2', add_reg=False):
 
     grps = gen_util.list_if_not(grps)
     # get ROI numbers for each group
-    if tails in ['up', 'lo']:
+    if tails in ["up", "lo"]:
         # sign_rois[first/last]
         all_rois  = list(range(nrois))
         surp_surp = list(set(sign_rois[0]) & set(sign_rois[1]))
@@ -66,28 +71,28 @@ def sep_grps(sign_rois, nrois, grps='all', tails='2', add_reg=False):
             set(all_rois) - set(surp_surp) - set(surp_reg) - set(reg_surp))
         # to store stats
         roi_grps  = [surp_surp, surp_reg, reg_surp, reg_reg]
-        grp_names = ['surp_surp', 'surp_reg', 'reg_surp', 'reg_reg']
+        grp_names = ["surp_surp", "surp_reg", "reg_surp", "reg_reg"]
         reg_ind = 3
         grp_inds = []
         for i, g in enumerate(grps):
-            if g == 'all':
+            if g == "all":
                 grp_ind = list(range(len(roi_grps)))
-            elif g == 'change':
+            elif g == "change":
                 grp_ind = [1, 2]
-            elif g == 'no_change':
+            elif g == "no_change":
                 grp_ind = [0, 3]
-            elif g == 'reduc':
+            elif g == "reduc":
                 grp_ind = [1]
-            elif g == 'incr':
+            elif g == "incr":
                 grp_ind = [2]
             else:
                 gen_util.accepted_values_error(
-                    'grps', g, ['all', 'change', 'no_change', 'reduc', 'incr'])
+                    "grps", g, ["all", "change", "no_change", "reduc", "incr"])
             if add_reg and reg_ind not in grp_ind:
                 grp_ind.extend([reg_ind])
             grp_inds.append(sorted(grp_ind))
 
-    elif str(tails) == '2':
+    elif str(tails) == "2":
         # sign_rois[first/last][lo/up]
         all_rois = list(range(nrois))         
         surp_up_surp_up = list(set(sign_rois[0][1]) & set(sign_rois[1][1]))
@@ -118,26 +123,26 @@ def sep_grps(sign_rois, nrois, grps='all', tails='2', add_reg=False):
             reg_surp_lo, reg_reg]
         reg_ind = 8 # index of reg_reg
         # group names 
-        grp_names = ['surpup_surpup', 'surpup_surplo', 'surplo_surpup', 
-            'surplo_surplo', 'surpup_reg', 'surplo_reg', 'reg_surpup', 
-            'reg_surplo', 'reg_reg']
+        grp_names = ["surpup_surpup", "surpup_surplo", "surplo_surpup", 
+            "surplo_surplo", "surpup_reg", "surplo_reg", "reg_surpup", 
+            "reg_surplo", "reg_reg"]
         reg_ind = 8
         grp_inds = []
         for i, g in enumerate(grps):
-            if g == 'all':
+            if g == "all":
                 grp_ind = list(range(len(roi_grps)))
-            elif g == 'change':
+            elif g == "change":
                 grp_ind = [1, 2, 4, 5, 6, 7]
-            elif g == 'no_change':
+            elif g == "no_change":
                 grp_ind = [0, 3, 8]
-            elif g == 'reduc':
+            elif g == "reduc":
                 grp_ind = [1, 4, 7]
-            elif g == 'incr':
+            elif g == "incr":
                 grp_ind = [2, 5, 6]
             else:
                 gen_util.accepted_values_error(
-                    'grps', grps, 
-                    ['all', 'change', 'no_change', 'reduc', 'incr'])
+                    "grps", grps, 
+                    ["all", "change", "no_change", "reduc", "incr"])
             if add_reg and reg_ind not in grp_ind:
                 grp_ind.extend([reg_ind])
             grp_inds.append(sorted(grp_ind))
@@ -152,8 +157,8 @@ def sep_grps(sign_rois, nrois, grps='all', tails='2', add_reg=False):
 
 
 #############################################
-def grp_stats(integ_stats, grps, plot_vals='both', op='diff', stats='mean', 
-              error='std', scale=False):
+def grp_stats(integ_stats, grps, plot_vals="both", op="diff", stats="mean", 
+              error="std", scale=False):
     """
     grp_stats(integ_stats, grps)
 
@@ -170,16 +175,16 @@ def grp_stats(integ_stats, grps, plot_vals='both', op='diff', stats='mean',
                               sublists per roi grp with ROI numbers included in 
                               the group: session x roi_grp
     Optional args:
-        - plot_vals (str): which values to return ('surp', 'reg' or 'both')
-                           default: 'both'
+        - plot_vals (str): which values to return ("surp", "reg" or "both")
+                           default: "both"
         - op (str)       : operation to use to compare groups, if plot_vals
-                           is 'both'
-                           i.e. 'diff': grp1-grp2, or 'ratio': grp1/grp2
-                           default: 'diff'
-        - stats (str)    : statistic parameter, i.e. 'mean' or 'median'
-                           default: 'mean'
-        - error (str)    : error statistic parameter, i.e. 'std' or 'sem'
-                           default: 'std'
+                           is "both"
+                           i.e. "diff": grp1-grp2, or "ratio": grp1/grp2
+                           default: "diff"
+        - stats (str)    : statistic parameter, i.e. "mean" or "median"
+                           default: "mean"
+        - error (str)    : error statistic parameter, i.e. "std" or "sem"
+                           default: "std"
         - scale (bool)   : if True, data is scaled using first quintile
     Returns:
         - all_grp_st (4D array): array of group stats (mean/median, error) 
@@ -191,7 +196,7 @@ def grp_stats(integ_stats, grps, plot_vals='both', op='diff', stats='mean',
 
     n_sesses = len(integ_stats)
     n_quints = integ_stats[0].shape[1]
-    n_stats  = 2 + (stats == 'median' and error == 'std')
+    n_stats  = 2 + (stats == "median" and error == "std")
     n_grps   = len(grps[0])
 
     all_grp_st = np.empty([n_sesses, n_quints, n_grps, n_stats])
@@ -199,8 +204,8 @@ def grp_stats(integ_stats, grps, plot_vals='both', op='diff', stats='mean',
 
     for i, [sess_data, sess_grps] in enumerate(zip(integ_stats, grps)):
         # calculate diff/ratio or retrieve reg/surp 
-        if plot_vals in ['reg', 'surp']:
-            op = ['reg', 'surp'].index(plot_vals)
+        if plot_vals in ["reg", "surp"]:
+            op = ["reg", "surp"].index(plot_vals)
         sess_data = math_util.calc_op(sess_data, op, dim=0)
         for g, grp in enumerate(sess_grps):
             all_ns[i, g] = len(grp)
@@ -209,7 +214,7 @@ def grp_stats(integ_stats, grps, plot_vals='both', op='diff', stats='mean',
                 grp_data = sess_data[:, grp]
                 if scale:
                     grp_data, _ = math_util.scale_data(
-                        grp_data, axis=0, pos=0, sc_type='unit')
+                        grp_data, axis=0, pos=0, sc_type="unit")
                 all_grp_st[i, :, g] = math_util.get_stats(
                     grp_data, stats, error, axes=1).T
 
@@ -240,13 +245,13 @@ def grp_traces_by_qu_surp_sess(trace_data, analyspar, roigrppar, all_roi_grps):
 
     # calculate diff/ratio or retrieve reg/surp 
     op = roigrppar.op
-    if roigrppar.plot_vals in ['reg', 'surp']:
-        op = ['reg', 'surp'].index(roigrppar.plot_vals)
+    if roigrppar.plot_vals in ["reg", "surp"]:
+        op = ["reg", "surp"].index(roigrppar.plot_vals)
     data_me = [math_util.calc_op(sess_me, op, dim=0) for sess_me in trace_data]
     
     n_sesses = len(data_me)
     n_quints = data_me[0].shape[0]
-    n_stats  = 2 + (analyspar.stats == 'median' and analyspar.error == 'std')
+    n_stats  = 2 + (analyspar.stats == "median" and analyspar.error == "std")
 
     n_frames = [me.shape[2] for me in data_me]
 
@@ -269,8 +274,8 @@ def grp_traces_by_qu_surp_sess(trace_data, analyspar, roigrppar, all_roi_grps):
 
 
 #############################################
-def get_signif_rois(integ_data, permpar, stats='mean', op='diff', nanpol=None, 
-                    print_rois=True):
+def get_signif_rois(integ_data, permpar, stats="mean", op="diff", nanpol=None, 
+                    log_rois=True):
     """
     get_signif_rois(integ_data, permpar)
 
@@ -284,15 +289,15 @@ def get_signif_rois(integ_data, permpar, stats='mean', op='diff', nanpol=None,
         - permpar (PermPar): named tuple containing permutation parameters
 
     Optional args:
-        - stats (str)      : statistic parameter, i.e. 'mean' or 'median'
-                             default: 'mean'
-        - op (str)         : operation to identify significant ROIs
-                             default: 'diff'
-        - nanpol (str)     : policy for NaNs, 'omit' or None when taking 
-                             statistics
-                             default: None
-        - print_rois (bool): if True, the indices of significant ROIs and
-                             their actual difference values are printed
+        - stats (str)    : statistic parameter, i.e. "mean" or "median"
+                           default: "mean"
+        - op (str)       : operation to identify significant ROIs
+                           default: "diff"
+        - nanpol (str)   : policy for NaNs, "omit" or None when taking 
+                           statistics
+                           default: None
+        - log_rois (bool): if True, the indices of significant ROIs and
+                           their actual difference values are logged
 
     Returns: 
         - sign_rois (list): list of ROIs showing significant differences, or 
@@ -312,14 +317,14 @@ def get_signif_rois(integ_data, permpar, stats='mean', op='diff', nanpol=None,
         qu_data_all, n_reg, permpar.n_perms, stats, nanpol, op)
     sign_rois = math_util.id_elem(
         all_rand_res, qu_data_res, permpar.tails, permpar.p_val, 
-        print_elems=print_rois)
+        log_elems=log_rois)
     return sign_rois
 
 
 #############################################
 def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,  
-                            qu_labs=['first quint', 'last quint'], 
-                            stats='mean', nanpol=None):
+                            qu_labs=["first quint", "last quint"], 
+                            stats="mean", nanpol=None):
     """
     signif_rois_by_grp_sess(sessids, integ_data, permpar, quintpar, roigrppar)
 
@@ -338,10 +343,10 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
 
     Optional args:
         - qu_labs (list): quintiles being compared
-                          default: ['first Q', 'last Q']
-        - stats (str)   : statistic parameter, i.e. 'mean' or 'median'
-                          default: 'mean'
-        - nanpol (str)  : policy for NaNs, 'omit' or None when taking statistics
+                          default: ["first Q", "last Q"]
+        - stats (str)   : statistic parameter, i.e. "mean" or "median"
+                          default: "mean"
+        - nanpol (str)  : policy for NaNs, "omit" or None when taking statistics
                           default: None
 
     Returns: 
@@ -362,11 +367,12 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
     """
 
     if len(qu_labs) != 2:
-        raise ValueError('Identifying significant ROIs is only implemented '
-            'for 2 quintiles.')
+        raise ValueError("Identifying significant ROIs is only implemented "
+            "for 2 quintiles.")
 
-    print('\nIdentifying ROIs showing significant surprise in '
-        f'{qu_labs[0].capitalize()} and/or {qu_labs[1].capitalize()}.')
+    logger.info("Identifying ROIs showing significant surprise in "
+        f"{qu_labs[0].capitalize()} and/or {qu_labs[1].capitalize()}.", 
+        extra={"spacing": "\n"})
 
     all_roi_grps = []
 
@@ -375,7 +381,7 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
         nperms_mult = []
 
     for sessid, sess_data in zip(sessids, integ_data):
-        print(f'\nSession {sessid}')
+        logger.info(f"Session {sessid}", extra={"spacing": "\n"})
         sess_rois = []
         nrois   = sess_data[0][0].shape[0]
         permpar_use = permpar
@@ -388,7 +394,7 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
             permpar_use = sess_ntuple_util.init_permpar(
                 nperms_use, pval_use, permpar.tails)
         for q, q_lab in enumerate(qu_labs):
-            print(f'    {q_lab.capitalize()}') 
+            logger.info(f"{q_lab.capitalize()}", extra={"spacing": TAB})
             sign_rois = get_signif_rois(
                 [sess_data[0][q], sess_data[1][q]], permpar_use, stats, 
                 roigrppar.op, nanpol)
@@ -418,7 +424,7 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
     
     if permpar.multcomp:
         permpar_mult = sess_ntuple_util.init_permpar(
-            nperms_mult, pvals_mult, permpar.tails, 'done')
+            nperms_mult, pvals_mult, permpar.tails, "done")
         return all_roi_grps, grp_names, permpar_mult
     
     else:

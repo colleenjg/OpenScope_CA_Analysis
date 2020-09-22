@@ -11,18 +11,23 @@ Date: July, 2019
 Note: this code uses python 3.7.
 
 """
+
 import copy
+import logging
+import warnings
 
 from joblib import Parallel, delayed
 import numpy as np
 
-from util import file_util, gen_util, math_util
+from util import file_util, gen_util, logger_util, math_util
 from sess_util import sess_gen_util, sess_str_util, sess_ntuple_util
 from plot_fcts import pup_analysis_plots as pup_plots
 
+logger = logging.getLogger(__name__)
+
 
 #############################################
-def get_ran_s(ran_s=None, datatype='both'):
+def get_ran_s(ran_s=None, datatype="both"):
     """
     get_ran_s()
 
@@ -34,9 +39,9 @@ def get_ran_s(ran_s=None, datatype='both'):
                                      surprise for each datatype (ROI, run, 
                                      pupil) (in sec). 
                                         If dictionary, expected keys are:
-                                            'pup_pre', 'pup_post', 
-                                            ('roi_pre', 'roi_post'), 
-                                            ('run_pre', 'run_post'), 
+                                            "pup_pre", "pup_post", 
+                                            ("roi_pre", "roi_post"), 
+                                            ("run_pre", "run_post"), 
                                         If list, should be structured as 
                                         [pre, post] and the same values will be 
                                         used for all datatypes. 
@@ -44,33 +49,33 @@ def get_ran_s(ran_s=None, datatype='both'):
                                             for all keys. 
                                         If None, all keys are initialized with 
                                             3.5.
-        - datatype (str)           : if 'roi', roi keys are included, if 'run', 
-                                     run keys are included. If 'both', all keys
+        - datatype (str)           : if "roi", roi keys are included, if "run", 
+                                     run keys are included. If "both", all keys
                                      are included.
-                                     default: 'both'
+                                     default: "both"
     Returns:                
         - ran_s (dict): dictionary specifying number of frames to take before 
                         and after surprise for each datatype (ROI, run, pupil), 
-                        with keys: ('roi_pre', 'roi_post'), ('run_pre', 
-                                   'run_post'), 'pup_pre', 'pup_post'
+                        with keys: ("roi_pre", "roi_post"), ("run_pre", 
+                                   "run_post"), "pup_pre", "pup_post"
     """
 
     ran_s = copy.deepcopy(ran_s)
 
-    keys = ['pup_pre', 'pup_post']
-    if datatype in ['both', 'roi']:
-        keys.extend(['roi_pre', 'roi_post'])
-    if datatype in ['both', 'run']:
-        keys.extend(['run_pre', 'run_post'])
-    elif datatype not in ['both', 'run', 'roi']:
+    keys = ["pup_pre", "pup_post"]
+    if datatype in ["both", "roi"]:
+        keys.extend(["roi_pre", "roi_post"])
+    if datatype in ["both", "run"]:
+        keys.extend(["run_pre", "run_post"])
+    elif datatype not in ["both", "run", "roi"]:
         gen_util.accepted_values_error(
-            'datatype', datatype, ['both', 'roi', 'run'])
+            "datatype", datatype, ["both", "roi", "run"])
 
     if isinstance(ran_s, dict):
         missing = [key for key in keys if key not in ran_s.keys()]
         if len(missing) > 0:
             raise ValueError(
-                '`ran_s` is missing keys: {}'.format(', '.join(missing)))
+                "'ran_s' is missing keys: {}".format(", ".join(missing)))
     else:
         if ran_s is None:
             vals = 3.5
@@ -78,22 +83,22 @@ def get_ran_s(ran_s=None, datatype='both'):
             if len(ran_s) == 2:
                 vals = ran_s[:]
             else:
-                raise ValueError('If `ran_s` is a list, must be of length 2.')
+                raise ValueError("If 'ran_s' is a list, must be of length 2.")
         else:
             vals = [ran_s, ran_s]
         ran_s = dict()
         for key in keys:
-            if 'pre' in key:
+            if "pre" in key:
                 ran_s[key] = vals[0]
-            elif 'post' in key:
+            elif "post" in key:
                 ran_s[key] = vals[1]
 
     return ran_s
 
 
 #############################################
-def peristim_data(sess, stimpar, ran_s=None, datatype='both',
-                  returns='diff', fluor='dff', stats='mean', 
+def peristim_data(sess, stimpar, ran_s=None, datatype="both",
+                  returns="diff", fluor="dff", stats="mean", 
                   remnans=True, scale=False, first_surp=True, trans_all=False):
     """
     peristim_data(sess)
@@ -110,9 +115,9 @@ def peristim_data(sess, stimpar, ran_s=None, datatype='both',
                                      surprise for each datatype (ROI, run, 
                                      pupil) (in sec).  
                                          If dictionary, expected keys are:
-                                            'pup_pre', 'pup_post', 
-                                            ('roi_pre', 'roi_post'), 
-                                            ('run_pre', 'run_post'), 
+                                            "pup_pre", "pup_post", 
+                                            ("roi_pre", "roi_post"), 
+                                            ("run_pre", "run_post"), 
                                         If list, should be structured as 
                                         [pre, post] and the same values will be 
                                         used for all datatypes. 
@@ -122,19 +127,19 @@ def peristim_data(sess, stimpar, ran_s=None, datatype='both',
                                             stimpar pre and post attributes.
                                      default: None
         - datatype (str)           : type of data to include with pupil data, 
-                                     'roi', 'run' or 'both'
-                                     default: 'roi' 
+                                     "roi", "run" or "both"
+                                     default: "roi" 
         - returns (str)            : type of data to return (data around 
                                      surprise, difference between post and pre 
                                      surprise)
-                                     default: 'diff'
-        - fluor (str)              : if 'dff', dF/F is used, if 'raw', ROI 
+                                     default: "diff"
+        - fluor (str)              : if "dff", dF/F is used, if "raw", ROI 
                                      traces
-                                     default: 'dff'
+                                     default: "dff"
         - stats (str)              : measure on which to take the pre and post
-                                     surprise difference: either mean ('mean') 
-                                     or median ('median')
-                                     default: 'mean'
+                                     surprise difference: either mean ("mean") 
+                                     or median ("median")
+                                     default: "mean"
         - remnans (bool)           : if True, removes ROIs with NaN/Inf values 
                                      anywhere in session and running array with
                                      NaNs linearly interpolated is used. If 
@@ -152,11 +157,11 @@ def peristim_data(sess, stimpar, ran_s=None, datatype='both',
                                      default: False
 
     Returns:
-        if datatype == 'data' or 'both':
+        if datatype == "data" or "both":
         - datasets (list): list of 2-3D data arrays, structured as
                                datatype (pupil, (ROI), (running)) x 
                                [trial x frames (x ROI)]
-        elif datatype == 'diff' or 'both':
+        elif datatype == "diff" or "both":
         - diffs (list)   : list of 1-2D data difference arrays, structured as
                                datatype (pupil, (ROI), (running)) x 
                                [trial (x ROI)]    
@@ -172,82 +177,82 @@ def peristim_data(sess, stimpar, ran_s=None, datatype='both',
     if first_surp:
         surp_segs = stim.get_segs_by_criteria(
             bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, 
-            gabk=stimpar.gabk, surp=1, remconsec=True, by='seg')
-        if stimpar.stimtype == 'gabors':
+            gabk=stimpar.gabk, surp=1, remconsec=True, by="seg")
+        if stimpar.stimtype == "gabors":
             surp_segs = [seg + stimpar.gabfr for seg in surp_segs]
     else:
         surp_segs = stim.get_segs_by_criteria(
             bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, 
             gabk=stimpar.gabk, gabfr=stimpar.gabfr, surp=1, remconsec=False, 
-            by='seg')
+            by="seg")
     
     surp_twopfr = stim.get_twop_fr_by_seg(
-        surp_segs, first=True)['first_twop_fr']
+        surp_segs, first=True)["first_twop_fr"]
     surp_stimfr = stim.get_stim_fr_by_seg(
-        surp_segs, first=True)['first_stim_fr']
+        surp_segs, first=True)["first_stim_fr"]
     surp_pupfr  = sess.get_pup_fr_by_twop_fr(surp_twopfr)
 
     # get data dataframes
     pup_data = gen_util.reshape_df_data(stim.get_pup_diam_data(
-        surp_pupfr, ran_s['pup_pre'], ran_s['pup_post'], 
-        remnans=remnans, scale=scale)['pup_diam'], squeeze_cols=True)
+        surp_pupfr, ran_s["pup_pre"], ran_s["pup_post"], 
+        remnans=remnans, scale=scale)["pup_diam"], squeeze_cols=True)
 
     datasets = [pup_data]
-    datanames = ['pup']
-    if datatype in ['roi', 'both']:
+    datanames = ["pup"]
+    if datatype in ["roi", "both"]:
         # ROI x trial x fr
         roi_data = gen_util.reshape_df_data(stim.get_roi_data(
-            surp_twopfr, ran_s['roi_pre'], ran_s['roi_post'], fluor=fluor, 
+            surp_twopfr, ran_s["roi_pre"], ran_s["roi_post"], fluor=fluor, 
             integ=False, remnans=remnans, scale=scale, 
-            transients=trans_all)['roi_traces'], squeeze_cols=True) 
+            transients=trans_all)["roi_traces"], squeeze_cols=True) 
         datasets.append(roi_data.transpose([1, 2, 0])) # ROIs last
-        datanames.append('roi')
-    if datatype in ['run', 'both']:
+        datanames.append("roi")
+    if datatype in ["run", "both"]:
         run_data = gen_util.reshape_df_data(stim.get_run_data(
-            surp_stimfr, ran_s['run_pre'], ran_s['run_post'], remnans=remnans, 
+            surp_stimfr, ran_s["run_pre"], ran_s["run_post"], remnans=remnans, 
             scale=scale), squeeze_cols=True)
         datasets.append(run_data)
-        datanames.append('run')
+        datanames.append("run")
 
     if remnans:
         nanpolgen = None
     else:
-        nanpolgen = 'omit'
+        nanpolgen = "omit"
 
-    if returns in ['diff', 'both']:
+    if returns in ["diff", "both"]:
         for key in ran_s.keys():
-            if 'pre' in key and ran_s[key] == 0:
-                raise ValueError('Cannot set pre to 0 if returns is '
-                    '`diff` or `both`.')
+            if "pre" in key and ran_s[key] == 0:
+                raise ValueError("Cannot set pre to 0 if returns is "
+                    "'diff' or 'both'.")
         # get avg for first and second halves
         diffs = []
         for dataset, name in zip(datasets, datanames):
-            if name == 'pup':
-                nanpol = 'omit'
+            if name == "pup":
+                nanpol = "omit"
             else:
                 nanpol = nanpolgen
             n_fr = dataset.shape[1]
-            pre_s  = ran_s[f'{name}_pre']
-            post_s = ran_s[f'{name}_post']
+            pre_s  = ran_s[f"{name}_pre"]
+            post_s = ran_s[f"{name}_post"]
             split = int(np.round(pre_s/(pre_s + post_s) * n_fr)) # find 0 mark
             pre  = math_util.mean_med(dataset[:, :split], stats, 1, nanpol)
             post = math_util.mean_med(dataset[:, split:], stats, 1, nanpol)
             diffs.append(post - pre)
 
-    if returns == 'data':
+    if returns == "data":
         return datasets
-    elif returns == 'diff':
+    elif returns == "diff":
         return diffs
-    elif returns == 'both':
+    elif returns == "both":
         return datasets, diffs
     else:
         gen_util.accepted_values_error(
-            'returns', returns, ['data', 'diff', 'both'])
+            "returns", returns, ["data", "diff", "both"])
 
 
 #############################################
 def run_pupil_diff_corr(sessions, analysis, analyspar, sesspar, 
-                        stimpar, figpar, datatype='roi'):
+                        stimpar, figpar, datatype="roi"):
     """
     run_pupil_diff_corr(sessions, analysis, analyspar, sesspar, 
                         stimpar, figpar)
@@ -259,77 +264,77 @@ def run_pupil_diff_corr(sessions, analysis, analyspar, sesspar,
 
     Required args:
         - sessions (list)      : list of Session objects
-        - analysis (str)       : analysis type (e.g., 't')
+        - analysis (str)       : analysis type (e.g., "t")
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
         - figpar (dict)        : dictionary containing figure parameters
     
     Optional args:
-        - datatype (str): type of data (e.g., 'roi', 'run')
+        - datatype (str): type of data (e.g., "roi", "run")
     """
 
     sessstr_pr = sess_str_util.sess_par_str(
         sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 
-        stimpar.bri_size, stimpar.gabk, 'print')
+        stimpar.bri_size, stimpar.gabk, "print")
     dendstr_pr = sess_str_util.dend_par_str(
-        analyspar.dend, sesspar.plane, datatype, 'print')
+        analyspar.dend, sesspar.plane, datatype, "print")
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    print('\nAnalysing and plotting correlations between surprise vs non '
-        f'surprise {datastr} traces between sessions ({sessstr_pr}'
-        f'{dendstr_pr}).')
+    logger.info("Analysing and plotting correlations between surprise vs non "
+        f"surprise {datastr} traces between sessions ({sessstr_pr}"
+        f"{dendstr_pr}).", extra={"spacing": "\n"})
 
     sess_diffs = []
     sess_corr = []
     
     for sess in sessions:
         diffs = peristim_data(
-            sess, stimpar, datatype=datatype, returns='diff', 
+            sess, stimpar, datatype=datatype, returns="diff", 
             scale=analyspar.scale, first_surp=True)
         [pup_diff, data_diff] = diffs 
         # trials (x ROIs)
-        if datatype == 'roi':
+        if datatype == "roi":
             if analyspar.remnans:
                 nanpol = None
             else:
-                nanpol = 'omit'
+                nanpol = "omit"
             data_diff = math_util.mean_med(
                 data_diff, analyspar.stats, axis=-1, nanpol=nanpol)
-        elif datatype != 'run':
+        elif datatype != "run":
             gen_util.accepted_values_error(
-                'datatype', datatype, ['roi', 'run'])
+                "datatype", datatype, ["roi", "run"])
         sess_corr.append(np.corrcoef(pup_diff, data_diff)[0, 1])
         sess_diffs.append([diff.tolist() for diff in [pup_diff, data_diff]])
     
-    extrapar = {'analysis': analysis,
-                'datatype': datatype,
+    extrapar = {"analysis": analysis,
+                "datatype": datatype,
                 }
     
-    corr_data = {'corrs': sess_corr,
-                 'diffs': sess_diffs
+    corr_data = {"corrs": sess_corr,
+                 "diffs": sess_diffs
                  }
 
     sess_info = sess_gen_util.get_sess_info(
-        sessions, analyspar.fluor, incl_roi=(datatype=='roi'))
+        sessions, analyspar.fluor, incl_roi=(datatype=="roi"))
     
-    info = {'analyspar': analyspar._asdict(),
-            'sesspar'  : sesspar._asdict(),
-            'stimpar'  : stimpar._asdict(),
-            'extrapar' : extrapar,
-            'sess_info': sess_info,
-            'corr_data': corr_data
+    info = {"analyspar": analyspar._asdict(),
+            "sesspar"  : sesspar._asdict(),
+            "stimpar"  : stimpar._asdict(),
+            "extrapar" : extrapar,
+            "sess_info": sess_info,
+            "corr_data": corr_data
             }
 
     fulldir, savename = pup_plots.plot_pup_diff_corr(figpar=figpar, **info)
 
-    file_util.saveinfo(info, savename, fulldir, 'json')
+    file_util.saveinfo(info, savename, fulldir, "json")
 
 
 #############################################
 def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar, 
-                          figpar, datatype='roi', parallel=False):
+                          figpar, datatype="roi", parallel=False):
     """
     run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar, 
                           figpar)
@@ -341,57 +346,58 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
 
     Required args:
         - sessions (list)      : list of Session objects
-        - analysis (str)       : analysis type (e.g., 't')
+        - analysis (str)       : analysis type (e.g., "t")
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
         - figpar (dict)        : dictionary containing figure parameters
     
     Optional args:
-        - datatype (str) : type of data (e.g., 'roi', 'run')
+        - datatype (str) : type of data (e.g., "roi", "run")
         - parallel (bool): if True, some of the analysis is parallelized across 
                            CPU cores
                            default: False
     """
 
-    if datatype != 'roi':
-        raise ValueError('Analysis only implemented for roi datatype.')
+    if datatype != "roi":
+        raise ValueError("Analysis only implemented for roi datatype.")
     
-    stimtypes = ['gabors', 'bricks']
-    if stimpar.stimtype != 'both':
+    stimtypes = ["gabors", "bricks"]
+    if stimpar.stimtype != "both":
         non_stimtype = stimtypes[1 - stimtypes.index(stimpar.stimtype)]
-        print('stimpar.stimtype will be set to `both`, but non default '
-            f'{non_stimtype} parameters are lost.')
+        warnings.warn("stimpar.stimtype will be set to 'both', but non default "
+            f"{non_stimtype} parameters are lost.")
         stimpar_dict = stimpar._asdict()
-        for key in list(stimpar_dict.keys()): # remove any 'none's
-            if stimpar_dict[key] == 'none':
+        for key in list(stimpar_dict.keys()): # remove any "none"s
+            if stimpar_dict[key] == "none":
                 stimpar_dict.pop(key)
 
-    sessstr_pr = f'session: {sesspar.sess_n}, plane: {sesspar.plane}'
+    sessstr_pr = f"session: {sesspar.sess_n}, plane: {sesspar.plane}"
     dendstr_pr = sess_str_util.dend_par_str(
-        analyspar.dend, sesspar.plane, datatype, 'print')
+        analyspar.dend, sesspar.plane, datatype, "print")
     stimstr_pr = []
     stimpars = []
     for stimtype in stimtypes:
-        stimpar_dict['stimtype'] = stimtype
-        stimpar_dict['gabfr'] = 3
+        stimpar_dict["stimtype"] = stimtype
+        stimpar_dict["gabfr"] = 3
         stimpars.append(sess_ntuple_util.init_stimpar(**stimpar_dict))
         stimstr_pr.append(sess_str_util.stim_par_str(
             stimtype, stimpars[-1].bri_dir, stimpars[-1].bri_size, 
-            stimpars[-1].gabk, 'print'))
+            stimpars[-1].gabk, "print"))
     stimpar_dict = stimpars[0]._asdict()
-    stimpar_dict['stimtype'] = 'both'
+    stimpar_dict["stimtype"] = "both"
     
 
-    print('\nAnalysing and plotting correlations between surprise vs non '
-          f'surprise ROI traces between sessions ({sessstr_pr}{dendstr_pr}).')
+    logger.info("Analysing and plotting correlations between surprise vs non "
+          f"surprise ROI traces between sessions ({sessstr_pr}{dendstr_pr}).", 
+          extra={"spacing": "\n"})
     sess_corrs = []
     sess_roi_corrs = []
     for sess in sessions:
         stim_corrs = []
         for sub_stimpar in stimpars:
             diffs = peristim_data(
-                sess, sub_stimpar, datatype='roi', returns='diff', 
+                sess, sub_stimpar, datatype="roi", returns="diff", 
                 first_surp=True, remnans=analyspar.remnans, 
                 scale=analyspar.scale)
             [pup_diff, roi_diff] = diffs 
@@ -409,27 +415,27 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
         sess_corrs.append(np.corrcoef(stim_corrs[0], stim_corrs[1])[0, 1])
         sess_roi_corrs.append([corrs.tolist() for corrs in stim_corrs])
 
-    extrapar = {'analysis': analysis,
-                'datatype': datatype,
+    extrapar = {"analysis": analysis,
+                "datatype": datatype,
                 }
     
-    corr_data = {'stim_order': stimtypes,
-                 'roi_corrs' : sess_roi_corrs,
-                 'corrs'     : sess_corrs
+    corr_data = {"stim_order": stimtypes,
+                 "roi_corrs" : sess_roi_corrs,
+                 "corrs"     : sess_corrs
                  }
 
     sess_info = sess_gen_util.get_sess_info(
-        sessions, analyspar.fluor, incl_roi=(datatype=='roi'))
+        sessions, analyspar.fluor, incl_roi=(datatype=="roi"))
     
-    info = {'analyspar': analyspar._asdict(),
-            'sesspar'  : sesspar._asdict(),
-            'stimpar'  : stimpar_dict,
-            'extrapar' : extrapar,
-            'sess_info': sess_info,
-            'corr_data': corr_data
+    info = {"analyspar": analyspar._asdict(),
+            "sesspar"  : sesspar._asdict(),
+            "stimpar"  : stimpar_dict,
+            "extrapar" : extrapar,
+            "sess_info": sess_info,
+            "corr_data": corr_data
             }
 
     fulldir, savename = pup_plots.plot_pup_roi_stim_corr(figpar=figpar, **info)
 
-    file_util.saveinfo(info, savename, fulldir, 'json')
+    file_util.saveinfo(info, savename, fulldir, "json")
 

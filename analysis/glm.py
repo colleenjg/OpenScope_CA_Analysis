@@ -12,7 +12,9 @@ Date: September, 2019
 Note: this code uses python 3.7.
 
 """
+
 import copy
+import logging
 import multiprocessing
 import random
 
@@ -21,11 +23,13 @@ from joblib import Parallel, delayed
 import numpy as np
 import pandas as pd
 from sklearn import linear_model, metrics, model_selection, pipeline, \
-                    preprocessing
+    preprocessing
 
-from util import file_util, gen_util, math_util
+from util import file_util, gen_util, logger_util, math_util
 from sess_util import sess_data_util, sess_gen_util, sess_str_util
 from plot_fcts import glm_plots
+
+logger = logging.getLogger(__name__)
 
 
 #############################################
@@ -41,7 +45,7 @@ def build_stim_beh_df(sessions, analyspar, sesspar, stimpar, each_roi=False):
 
     GLM inputs:
     - (Segments (A, B, C, D))
-    - Surprise status (only 1 for E and the following grayscreen)
+    - Surprise status (only 1 for U and the following grayscreen (G))
     - Pupil dilation
     - Running velocity
     - Plane
@@ -54,7 +58,8 @@ def build_stim_beh_df(sessions, analyspar, sesspar, stimpar, each_roi=False):
     
     sessions = gen_util.list_if_not(sessions)
     for sess in sessions:
-        print(f'\nBuilding dataframe for session {sess.sessid}')
+        logger.info(f"Building dataframe for session {sess.sessid}", 
+            extra={"spacing": "\n"})
         stim = sess.get_stim(stimpar.stimtype)
         sub_df = stim.get_stim_beh_sub_df(
             stimpar.pre, stimpar.post, analyspar.stats, analyspar.fluor, 
@@ -70,30 +75,32 @@ def build_stim_beh_df(sessions, analyspar, sesspar, stimpar, each_roi=False):
 
 
 #############################################
-def print_sklearn_results(model, analyspar, name='bayes_ridge', var_names=None):
+def log_sklearn_results(model, analyspar, name="bayes_ridge", var_names=None):
 
     
-    print('\n{} regression'.format(name.replace('_', ' ').upper()))
+    logger.info("{} regression".format(name.replace("_", " ").upper()), 
+        extra={"spacing": "\n"})
     if var_names is None:
-        var_names = [f'coef {i}' for i in range(len(model.coef_))] 
+        var_names = [f"coef {i}" for i in range(len(model.coef_))] 
 
-    print('\n'.join([f'{varn}: {coef:.5f}' for varn, coef 
-                     in zip(var_names, model.coef_)]))
-    print(f'intercept: {model.intercept_:.5f}')
-    print(f'\nalpha: {model.alpha_:.5f}')
-    if name == 'ridge_cv':
+    results = "\n".join([f"{varn}: {coef:.5f}" for varn, coef 
+        in zip(var_names, model.coef_)])
+    logger.info(results)
+    logger.info(f"intercept: {model.intercept_:.5f}")
+    logger.info(f"alpha: {model.alpha_:.5f}", extra={"spacing": "\n"})
+    if name == "ridge_cv":
         alpha_idx = np.where(model.alphas == model.alpha_)[0]
         score_data = model.cv_values_[:, alpha_idx]
-        score_name = 'MSE'
-    elif name == 'bayes_ridge':
+        score_name = "MSE"
+    elif name == "bayes_ridge":
         score_data = model.scores_
-        score_name = 'Score'
+        score_name = "Score"
     else:
         gen_util.accepted_values_error(
-            'name', name, ['ridge_cv', 'bayes_ridge'])
+            "name", name, ["ridge_cv", "bayes_ridge"])
     stats = math_util.get_stats(
         score_data, stats=analyspar.stats, error=analyspar.error)
-    math_util.print_stats(stats, f'{score_name}')
+    math_util.log_stats(stats, f"{score_name}")
 
 
 #############################################
@@ -102,26 +109,26 @@ def run_ridge_cv(x_df, y_df, analyspar, alphas=None):
     if alphas is None:
         alphas=(0.1, 0.1, 2.0)
 
-    steps = [('scaler', preprocessing.StandardScaler()), 
-        ('model', linear_model.RidgeCV(
+    steps = [("scaler", preprocessing.StandardScaler()), 
+        ("model", linear_model.RidgeCV(
             normalize=True, alphas=alphas, store_cv_values=True))] 
 
     pipl = pipeline.Pipeline(steps)
     pipl.fit(x_df, y_df)
 
-    print_sklearn_results(
-        pipl, analyspar, name='ridge_cv', var_names=x_df.columns)
+    log_sklearn_results(
+        pipl, analyspar, name="ridge_cv", var_names=x_df.columns)
 
 #############################################
 def run_bayesian_ridge(x_df, y_df, analyspar):
 
-    steps = [('scaler', preprocessing.StandardScaler()), 
-        ('model', linear_model.BayesianRidge(compute_score=True))] 
+    steps = [("scaler", preprocessing.StandardScaler()), 
+        ("model", linear_model.BayesianRidge(compute_score=True))] 
     pipl = pipeline.Pipeline(steps)
     pipl.fit(x_df, y_df)
 
-    print_sklearn_results(
-        pipl, analyspar, name='bayes_ridge', var_names=x_df.columns)
+    log_sklearn_results(
+        pipl, analyspar, name="bayes_ridge", var_names=x_df.columns)
 
 
 #############################################
@@ -133,13 +140,13 @@ def fit_expl_var(x_df, y_df, train_idx, test_idx, stimpar):
     x_test, y_test = x_df.loc[test_idx], y_df.loc[test_idx].to_numpy().ravel()
 
     # get explained variance
-    steps = [('scaler', preprocessing.StandardScaler()), 
-        ('model', linear_model.BayesianRidge(compute_score=True))] 
+    steps = [("scaler", preprocessing.StandardScaler()), 
+        ("model", linear_model.BayesianRidge(compute_score=True))] 
     pipl = pipeline.Pipeline(steps)
     pipl.fit(x_tr, y_tr)
     y_pred = pipl.predict(x_test)
     varsc = metrics.explained_variance_score(
-        y_test, y_pred, multioutput='uniform_average')
+        y_test, y_pred, multioutput="uniform_average")
     return varsc
 
 
@@ -155,7 +162,7 @@ def is_bool_var(df_col):
 
 #############################################
 def get_categ(col_name):
-    categ_symb = '$'
+    categ_symb = "$"
     if categ_symb in col_name:
         categ_name = col_name[ : col_name.find(categ_symb)]
     else:
@@ -189,7 +196,7 @@ def fit_expl_var_per_coeff(x_df, y_df, train_idx, test_idx, stimpar):
     done = []
     expl_var = dict()
     for col in x_cols_cat:
-        for run in ['full_categ', 'single_categ_value']:
+        for run in ["full_categ", "single_categ_value"]:
             curr_x_df = copy.deepcopy(x_df)
             act = col
             key = col
@@ -197,14 +204,14 @@ def fit_expl_var_per_coeff(x_df, y_df, train_idx, test_idx, stimpar):
             if is_bool_var(x_df_cat[col]):
                 categ_name = get_categ(col)
                 act = categ_name
-                if run == 'full_categ':
+                if run == "full_categ":
                     key = categ_name
                     if categ_name in done or categ_name == col:
                         continue
                     else:
                         done.append(categ_name)
                 # shuffle the other instances of category
-                elif run == 'single_categ_value':
+                elif run == "single_categ_value":
                     act_idx_tr = (x_df_cat.loc[train_idx, col] == 0)
                     curr_x_df.loc[train_idx] = shuffle_col_idx(
                         curr_x_df.loc[train_idx], categ_name, act_idx_tr)
@@ -263,7 +270,7 @@ def compile_dict_fold_stats(dict_list, analyspar):
 
 
 #############################################
-def scale_across_rois(y_df, tr_idx, sessids, stats='mean'):
+def scale_across_rois(y_df, tr_idx, sessids, stats="mean"):
     """
     """
 
@@ -277,19 +284,19 @@ def scale_across_rois(y_df, tr_idx, sessids, stats='mean'):
         curr_test = list(all_idx_set - tr_idx_set)
 
         scaled_tr, facts = math_util.scale_data(
-            y_df.loc[curr_tr].to_numpy(), axis=0, sc_type='stand_rob', 
-            nanpol='omit')
+            y_df.loc[curr_tr].to_numpy(), axis=0, sc_type="stand_rob", 
+            nanpol="omit")
         acr_rois_tr   = math_util.mean_med(
-            scaled_tr, stats=stats, axis=1, nanpol='omit')
-        y_df_new.loc[curr_tr, 'roi_data'] = acr_rois_tr
+            scaled_tr, stats=stats, axis=1, nanpol="omit")
+        y_df_new.loc[curr_tr, "roi_data"] = acr_rois_tr
 
         scaled_test = math_util.scale_data(y_df.loc[curr_test].to_numpy(), 
-            axis=0, sc_type='stand_rob', facts=facts, nanpol='omit')
+            axis=0, sc_type="stand_rob", facts=facts, nanpol="omit")
         acr_rois_test = math_util.mean_med(
-            scaled_test, stats=stats, axis=1, nanpol='omit')
-        y_df_new.loc[curr_test, 'roi_data'] = acr_rois_test
+            scaled_test, stats=stats, axis=1, nanpol="omit")
+        y_df_new.loc[curr_test, "roi_data"] = acr_rois_test
 
-    y_df_new = y_df_new[['roi_data']]
+    y_df_new = y_df_new[["roi_data"]]
 
     return y_df_new
 
@@ -308,15 +315,15 @@ def run_explained_variance(x_df, y_df, analyspar, stimpar, k=10):
 
     if len(y_df_cols) > 1: # multiple ROIs (to scale and average)
         all_rois = True
-        if 'sessid' in x_df.columns:
-            sessids = x_df['sessid'].tolist()
+        if "sessid" in x_df.columns:
+            sessids = x_df["sessid"].tolist()
         else:
             sessids = [1] * len(x_df)
-        print('Running all ROIs')
+        logger.info("Running all ROIs")
     else:
         all_rois = False
-        print('Running for ROI {}'.format(
-            y_df_cols[0].replace('roi_data_', '')))
+        logger.info("Running for ROI {}".format(
+            y_df_cols[0].replace("roi_data_", "")))
 
     kf = model_selection.KFold(k, shuffle=True, random_state=None)
 
@@ -350,11 +357,11 @@ def run_glm(sessions, analyspar, sesspar, stimpar, glmpar, parallel=False):
     # run_ols_summary(x_df, y_df)
 
     roi_nbrs = [-1]
-    roi_cols = [[col for col in full_df.columns if 'roi_data_' in col]]
+    roi_cols = [[col for col in full_df.columns if "roi_data_" in col]]
     if glmpar.each_roi:
         for col in roi_cols[0]:
             roi_cols.append([col])
-            roi_nbrs.append(int(col.replace('roi_data_', '')))
+            roi_nbrs.append(int(col.replace("roi_data_", "")))
 
     x_df = full_df.drop(columns=roi_cols[0])
 
@@ -377,10 +384,10 @@ def run_glm(sessions, analyspar, sesspar, stimpar, glmpar, parallel=False):
             coef_alls.append(out[1])
             coef_unis.append(out[2])
 
-    expl_var = {'full'    : fulls,
-                'coef_all': gen_util.compile_dict_list(coef_alls),
-                'coef_uni': gen_util.compile_dict_list(coef_unis),
-                'rois'    : roi_nbrs
+    expl_var = {"full"    : fulls,
+                "coef_all": gen_util.compile_dict_list(coef_alls),
+                "coef_uni": gen_util.compile_dict_list(coef_unis),
+                "rois"    : roi_nbrs
                 }
 
     return expl_var
@@ -391,25 +398,25 @@ def run_glms(sessions, analysis, seed, analyspar, sesspar, stimpar, glmpar,
              figpar, parallel=False):
 
 
-    seed = gen_util.seed_all(seed, 'cpu', print_seed=False)
+    seed = gen_util.seed_all(seed, "cpu", log_seed=False)
 
     sessstr_pr = sess_str_util.sess_par_str(
         sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 
-        stimpar.bri_size, stimpar.gabk, 'print')
+        stimpar.bri_size, stimpar.gabk, "print")
     dendstr_pr = sess_str_util.dend_par_str(
-        analyspar.dend, sesspar.plane, 'roi', 'print')
+        analyspar.dend, sesspar.plane, "roi", "print")
 
-    print('\nAnalysing and plotting explained variance in ROI activity '
-        f'({sessstr_pr}{dendstr_pr}).')
+    logger.info("Analysing and plotting explained variance in ROI activity "
+        f"({sessstr_pr}{dendstr_pr}).", extra={"spacing": "\n"})
 
     if glmpar.each_roi: # must do each session separately
-        glm_type = 'per_ROI_per_sess'
+        glm_type = "per_ROI_per_sess"
         sess_batches = sessions
-        print('Per ROI, each session separately.')
+        logger.info("Per ROI, each session separately.")
     else:
-        glm_type = 'across_sess'
+        glm_type = "across_sess"
         sess_batches = [sessions]
-        print(f'Across ROIs, {len(sessions)} sessions together.')
+        logger.info(f"Across ROIs, {len(sessions)} sessions together.")
 
     if parallel and not(glmpar.each_roi) and len(sess_batches) != 1:
         n_jobs = gen_util.get_n_jobs(len(sess_batches))
@@ -431,23 +438,23 @@ def run_glms(sessions, analysis, seed, analyspar, sesspar, stimpar, glmpar,
 
     sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)
 
-    extrapar = {'analysis': analysis,
-                'seed'    : seed,
-                'glm_type': glm_type,
+    extrapar = {"analysis": analysis,
+                "seed"    : seed,
+                "glm_type": glm_type,
                 }
 
-    info = {'analyspar'   : analyspar._asdict(),
-            'sesspar'     : sesspar._asdict(),
-            'stimpar'     : stimpar._asdict(),
-            'glmpar'      : glmpar._asdict(),
-            'extrapar'    : extrapar,
-            'all_expl_var': all_expl_var,
-            'sess_info'   : sess_info
+    info = {"analyspar"   : analyspar._asdict(),
+            "sesspar"     : sesspar._asdict(),
+            "stimpar"     : stimpar._asdict(),
+            "glmpar"      : glmpar._asdict(),
+            "extrapar"    : extrapar,
+            "all_expl_var": all_expl_var,
+            "sess_info"   : sess_info
             }
 
     fulldir, savename = glm_plots.plot_glm_expl_var(figpar=figpar, **info)
 
-    file_util.saveinfo(info, savename, fulldir, 'json')
+    file_util.saveinfo(info, savename, fulldir, "json")
 
 
         # Sensitivity:
