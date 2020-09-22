@@ -13,30 +13,36 @@ Note: this code uses python 3.7.
 """
 
 import copy
+import logging
+
 import numpy as np
 
-from util import gen_util, math_util
+from util import gen_util, logger_util, math_util
 from sess_util import sess_gen_util, sess_ntuple_util
+
+logger = logging.getLogger(__name__)
+
+TAB = "    "
 
 
 #############################################
-def define_transition_baseline(stimtype='bricks', gabfr=3, baseline=0.1, pre=0, 
+def define_transition_baseline(stimtype="bricks", gabfr=3, baseline=0.1, pre=0, 
                                post=1.5):
     """
     define_transition_baseline()
 
     Returns transition baseline times based on stimulus type and times. 
     
-    For gabors, the baseline is before onset of the earliest D/E frame in the 
-    stimulus period. If there are no D/E frames in the stimulus period 
-    (including if the stimulus period ends at a first D/E frame), the 
-    closest preceeding D/E frame is chosen. 
+    For gabors, the baseline is before onset of the earliest D/U frame in the 
+    stimulus period. If there are no D/U frames in the stimulus period 
+    (including if the stimulus period ends at a first D/U frame), the 
+    closest preceeding D/U frame is chosen. 
 
     For bricks, the baseline is before 0 seconds reference point.
 
     Optional args:
-        - stimtype (str)  : stimulus ('bricks' or 'gabors')
-                            default: 'bricks'
+        - stimtype (str)  : stimulus ("bricks" or "gabors")
+                            default: "bricks"
         - gabfr (int)     : gabor frame at which stimulus period start 
                             (0, 1, 2, 3) (or to include, for GLM)
                             default: 0
@@ -56,9 +62,9 @@ def define_transition_baseline(stimtype='bricks', gabfr=3, baseline=0.1, pre=0,
                             reference frame included in baseline (in s)
     """
 
-    if stimtype == 'bricks': # same as provided pre
+    if stimtype == "bricks": # same as provided pre
         base_pre = baseline
-    elif stimtype == 'gabors':
+    elif stimtype == "gabors":
         sec_per, targ_fr, full = 0.3, 3, 1.5
         # offset from 0, first from pre
         offset = (sec_per * (targ_fr - gabfr) + pre) % full - pre
@@ -74,25 +80,7 @@ def define_transition_baseline(stimtype='bricks', gabfr=3, baseline=0.1, pre=0,
 
 
 #############################################
-def sub_baseline(stimtype='bricks', gabfr=3, baseline=0.1, pre=0, 
-                    post=1.5):
-    """
-    sub_baseline()
-
-    Returns baseline times based on stimulus type and times. 
-    
-    For gabors, the baseline is before onset of the earliest D/E frame in the 
-    stimulus period. If there are no D/E frames in the stimulus period 
-    (including if the stimulus period ends at a first D/E frame), the 
-    closest preceeding D/E frame is chosen. 
-
-    For bricks, the baseline is before 0 seconds reference point.
-    """
-
-
-
-#############################################
-def quint_segs(stim, stimpar, n_quints=4, qu_idx='all', surp='any', 
+def quint_segs(stim, stimpar, n_quints=4, qu_idx="all", surp="any", 
                empty_ok=False, remconsec=False, by_surp_len=False):
     """
     quint_segs(stim, stimpar)
@@ -107,9 +95,9 @@ def quint_segs(stim, stimpar, n_quints=4, qu_idx='all', surp='any',
         - n_quints (int)      : number of quintiles to split data into
                                 default: 4
         - qu_idx (str or list): indices of quintiles to retain
-                                default: 'all'
+                                default: "all"
         - surp (int or list)  : surprise values to include (e.g., 0 or 1)
-                                default: 'any'
+                                default: "any"
         - empty_ok (bool)     : if True, catches error if no segments respond 
                                 to criteria and returns empty qu_segs and 
                                 qu_counts = 0.
@@ -132,7 +120,7 @@ def quint_segs(stim, stimpar, n_quints=4, qu_idx='all', surp='any',
                                   corresponding to the values in qu_segs
     """
 
-    if qu_idx == 'all':
+    if qu_idx == "all":
         qu_idx = list(range(n_quints))
     else:
         qu_idx = gen_util.pos_idx(qu_idx, n_quints)
@@ -140,7 +128,7 @@ def quint_segs(stim, stimpar, n_quints=4, qu_idx='all', surp='any',
     # get all seg values (for all gabor frames and orientations)
     try:
         all_segs = stim.get_segs_by_criteria(gabk=stimpar.gabk, 
-            bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, by='seg')
+            bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, by="seg")
                         
     except ValueError as err:
         if empty_ok:
@@ -168,7 +156,7 @@ def quint_segs(stim, stimpar, n_quints=4, qu_idx='all', surp='any',
         all_segs = stim.get_segs_by_criteria(gabfr=stimpar.gabfr,
             gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
             bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size,
-            surp=surp, by='seg', remconsec=remconsec)
+            surp=surp, by="seg", remconsec=remconsec)
     except ValueError as err:
         if empty_ok:
             all_segs = []
@@ -229,8 +217,8 @@ def samp_quint_segs(qu_segs, seg_pre=0, seg_post=0):
     qu_segs_flat = [seg for segs in qu_segs for seg in segs]
 
     if min(np.diff(qu_segs_flat)) not in [1, 4]:
-        raise ValueError('No consecutive segments (1 or 4 interval) found in '
-                         ' qu_segs.')
+        raise ValueError("No consecutive segments (1 or 4 interval) found in "
+                         " qu_segs.")
 
     all_segs, n_consec = gen_util.consec(qu_segs_flat, smallest=True)
 
@@ -262,7 +250,7 @@ def samp_quint_segs(qu_segs, seg_pre=0, seg_post=0):
 #############################################
 def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True, 
                       integ=False, ret_arr=False, nan_empty=False, 
-                      baseline=None, datatype='roi'):
+                      baseline=None, datatype="roi"):
     """
     trace_stats_by_qu(stim, qu_seg, pre, post, analyspar)
 
@@ -280,7 +268,7 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
         - analyspar (AnalysPar): named tuple containing analysis parameters
     
     Optional args:
-        - byroi (bool)    : If datatype is 'roi', if True, returns statistics 
+        - byroi (bool)    : If datatype is "roi", if True, returns statistics 
                             for each ROI. If False, returns statistics 
                             across ROIs.
                             default: True
@@ -295,7 +283,7 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
                             data is not baselined.
                             default: None
         - datatype (str)  : datatype, i.e. ROIs or running
-                            default: 'roi'
+                            default: "roi"
 
     Returns:
         - xran (1D array)          : time values for the 2p frames (None if 
@@ -318,18 +306,18 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
         rep_nan = False
         for _ in range(2): # allows retrying if nan_empty is True
             try:
-                if datatype == 'roi':
+                if datatype == "roi":
                     twop_fr = stim.get_twop_fr_by_seg(
-                        segs, first=True)['first_twop_fr']
+                        segs, first=True)["first_twop_fr"]
                     trace_df = stim.get_roi_stats_df(twop_fr, pre, post, 
                         byroi=byroi, fluor=analyspar.fluor, 
                         remnans=analyspar.remnans, 
                         stats=analyspar.stats, error=analyspar.error,
                         integ=integ, ret_arr=ret_arr, scale=analyspar.scale,
                         baseline=baseline)
-                elif datatype == 'run':
+                elif datatype == "run":
                     stim_fr = stim.get_stim_fr_by_seg(
-                        segs, first=True)['first_stim_fr']
+                        segs, first=True)["first_stim_fr"]
                     trace_df = stim.get_run_stats_df(stim_fr, pre, post, 
                         remnans=analyspar.remnans,
                         stats=analyspar.stats, error=analyspar.error,
@@ -337,21 +325,21 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
                         baseline=baseline)
                 else:
                     gen_util.accepted_values_error(
-                        'datatype', datatype, ['roi', 'run'])
+                        "datatype", datatype, ["roi", "run"])
                 break # break out of for loop if successful
             except ValueError as err:
-                if nan_empty and 'No frames' in str(err):
+                if nan_empty and "No frames" in str(err):
                     segs = [10]     # dummy segment to use
                     rep_nan = True # later, replace values with NaNs
                 else:
                     raise err
 
         if not integ:
-            xran = trace_df.index.unique('time_values').to_numpy()
+            xran = trace_df.index.unique("time_values").to_numpy()
         # array: stats [me, err] (x ROI) (x frames)
         trace_stats = gen_util.reshape_df_data(
-            trace_df.loc['stats', ], squeeze_cols=True)
-        if datatype == 'roi':
+            trace_df.loc["stats", ], squeeze_cols=True)
+        if datatype == "roi":
             if not byroi:
                 trace_stats = trace_stats.squeeze(0)
             else:
@@ -362,7 +350,7 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
         qu_stats.append(trace_stats)
         if ret_arr:
             trace_array = gen_util.reshape_df_data(
-                trace_df.loc['data', ], squeeze_cols=True)
+                trace_df.loc["data", ], squeeze_cols=True)
             if rep_nan: # replace dummy values with NaNs
                 trace_array = np.full_like(trace_array, np.nan)
             qu_array.append(trace_array)
@@ -377,9 +365,9 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
 
 #############################################
 def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4, 
-                           qu_idx='all', byroi=True, bysurp=False, integ=False, 
-                           ret_arr=False, nan_empty=False, lock='no', 
-                           baseline=None, sample_reg=False, datatype='roi'):
+                           qu_idx="all", byroi=True, bysurp=False, integ=False, 
+                           ret_arr=False, nan_empty=False, lock="no", 
+                           baseline=None, sample_reg=False, datatype="roi"):
     """
     trace_stats_by_qu_sess(sessions, analyspar, stimpar)
 
@@ -395,8 +383,8 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
         - n_quints (int)      : number of quintiles to divide sessions into
                                 default: 4
         - qu_idx (str or list): indices of quintiles to retain
-                                default: 'all'
-        - byroi (bool)        : If datatype is 'roi', if True, returns 
+                                default: "all"
+        - byroi (bool)        : If datatype is "roi", if True, returns 
                                 statistics for each ROI. If False, returns 
                                 statistics across ROIs.
                                 default: True
@@ -410,16 +398,16 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
         - nan_empty (bool)    : if a quintile is empty, return NaN arrays 
                                 (avoids an error)
                                 default: False
-        - lock (bool)         : if 'surp', 'reg', 'regsamp', only the first 
+        - lock (bool)         : if "surp", "reg", "regsamp", only the first 
                                 surprise or regular segments are retained.
-                                If 'both'
+                                If "both"
                                 (bysurp is ignore). 
                                 default: False
         - baseline (num)      : number of seconds to use as baseline. If None,
                                 data is not baselined.
                                 default: None
         - datatype (str)      : datatype, i.e. ROIs or running
-                                default: 'roi'
+                                default: "roi"
 
     Returns:
         - xrans (list)             : time values for the 2p frames (None if 
@@ -434,7 +422,7 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
         - all_counts (nested list) : list of number of sequences, 
                                      structured as:
                                         sess 
-                                        x (surp if bysurp or lock is 'both') 
+                                        x (surp if bysurp or lock is "both") 
                                         x quintiles
         if ret_arr:
         - all_arrays (nested lists): list of data trace arrays, structured as:
@@ -446,19 +434,19 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
 
     shift_gab_segs = False
     remconsec, sample = False, False
-    surp_vals = ['any']
-    if lock in ['surp', 'reg', 'both']:
+    surp_vals = ["any"]
+    if lock in ["surp", "reg", "both"]:
         remconsec = True
         surp_vals = [1, 0]
-        if lock == 'reg':
+        if lock == "reg":
             surp_vals = [0]
-        elif lock == 'surp':
+        elif lock == "surp":
             surp_vals = [1]
-        if stimpar.stimtype == 'gabors' and stimpar.gabfr not in ['any', 'all']:
+        if stimpar.stimtype == "gabors" and stimpar.gabfr not in ["any", "all"]:
             shift_gab_segs = True
             orig_gabfr = stimpar.gabfr
-            stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, 'gabfr', 'any')
-    elif lock == 'regsamp':
+            stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, "gabfr", "any")
+    elif lock == "regsamp":
         remconsec, sample = False, True
         surp_vals = [0]
     elif bysurp:
@@ -508,9 +496,9 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quints=4,
 
 #############################################
 def trace_stats_by_surp_len_sess(sessions, analyspar, stimpar, n_quints=4, 
-                                 qu_idx='all', byroi=True, integ=False, 
+                                 qu_idx="all", byroi=True, integ=False, 
                                  ret_arr=False, nan_empty=False, 
-                                 baseline=None, datatype='roi'):
+                                 baseline=None, datatype="roi"):
     """
     trace_stats_by_surp_len_sess(sessions, analyspar, stimpar)
 
@@ -526,8 +514,8 @@ def trace_stats_by_surp_len_sess(sessions, analyspar, stimpar, n_quints=4,
         - n_quints (int)      : number of quintiles to divide sessions into
                                 default: 4
         - qu_idx (str or list): indices of quintiles to retain
-                                default: 'all'
-        - byroi (bool)        : If datatype is 'roi', if True, returns 
+                                default: "all"
+        - byroi (bool)        : If datatype is "roi", if True, returns 
                                 statistics for each ROI. If False, returns 
                                 statistics across ROIs.
                                 default: True
@@ -542,7 +530,7 @@ def trace_stats_by_surp_len_sess(sessions, analyspar, stimpar, n_quints=4,
                                 data is not baselined.
                                 default: None
         - datatype (str)      : datatype, i.e. ROIs or running
-                                default: 'roi'
+                                default: "roi"
 
     Returns:
         - xrans (list)            : time values for the 2p frames (None if 
@@ -568,10 +556,10 @@ def trace_stats_by_surp_len_sess(sessions, analyspar, stimpar, n_quints=4,
     """
 
     shift_gab_segs = False
-    if stimpar.stimtype == 'gabors' and stimpar.gabfr not in ['any', 'all']:
+    if stimpar.stimtype == "gabors" and stimpar.gabfr not in ["any", "all"]:
         shift_gab_segs = True
         orig_gabfr = stimpar.gabfr
-        stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, 'gabfr', 'any')
+        stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, "gabfr", "any")
 
     all_counts, all_stats, all_arrays, all_n_consec = [], [], [], []
     xrans = []
@@ -617,7 +605,7 @@ def trace_stats_by_surp_len_sess(sessions, analyspar, stimpar, n_quints=4,
 
 #############################################
 def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar, 
-                    op_qu='diff', op_grp='diff', stats='mean', nanpol=None):
+                    op_qu="diff", op_grp="diff", stats="mean", nanpol=None):
     """
     run_mag_permute(all_data_perm, act_mag_rel, act_L2_rel, n_reg, permpar)
 
@@ -639,43 +627,43 @@ def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar,
     
     Optional args:
         - op_qu (str) : Operation to use in comparing the last vs first 
-                        quintile ('diff' or 'ratio')
-                        default: 'diff'       
+                        quintile ("diff" or "ratio")
+                        default: "diff"       
         - op_grp (str): Operation to use in comparing groups 
-                        (e.g., surprise vs regular data) ('diff' or 'ratio')
-                        default: 'diff' 
+                        (e.g., surprise vs regular data) ("diff" or "ratio")
+                        default: "diff" 
         - stats (str) : Statistic to take across group sequences, and then 
-                        across magnitude differences ('mean' or 'median')
-                        default: 'mean'
-        - nanpol (str): Policy for NaNs, 'omit' or None when taking statistics
+                        across magnitude differences ("mean" or "median")
+                        default: "mean"
+        - nanpol (str): Policy for NaNs, "omit" or None when taking statistics
                         default: None
     
     Returns:
-        - signif (list) : list of significance results ('up', 'lo' or 'no') for 
+        - signif (list) : list of significance results ("up", "lo" or "no") for 
                           magnitude, L2
         - threshs (list): list of thresholds (1 if 1-tailed analysis, 
                           2 if 2-tailed) for magnitude, L2
     """
 
     if permpar.multcomp:
-        raise NotImplementedError('NOTE: Multiple comparisons not implemented '
-            'for magnitude analysis.')
+        raise NotImplementedError("Multiple comparisons not implemented "
+            "for magnitude analysis.")
 
     if len(all_data_perm) != 2 or len(n_regs) !=2:
-        raise ValueError('all_data_perm and n_regs must have length of 2.')
+        raise ValueError("all_data_perm and n_regs must have length of 2.")
 
     all_rand_vals = [] # qu x grp x ROI x perms
     # for each quintile
     for q, perm_data in enumerate(all_data_perm):
         qu_vals = math_util.permute_diff_ratio(
             perm_data, n_regs[q], permpar.n_perms, stats, nanpol=nanpol, 
-            op='none')
+            op="none")
         all_rand_vals.append(qu_vals)
 
     all_rand_vals = np.asarray(all_rand_vals)
     # get absolute change stats and retain mean/median only
     rand_mag_me = math_util.calc_mag_change(
-        all_rand_vals, 0, 2, order='stats', op=op_qu, stats=stats)[0]
+        all_rand_vals, 0, 2, order="stats", op=op_qu, stats=stats)[0]
     rand_L2 = math_util.calc_mag_change(all_rand_vals, 0, 2, order=2, op=op_qu)
 
     # take diff/ratio between grps
@@ -688,17 +676,17 @@ def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar,
     L2_sign, L2_th   = math_util.id_elem(
         rand_L2_rel, act_L2_rel, permpar.tails, permpar.p_val, ret_th=True)
     
-    mag_signif, L2_signif = ['no', 'no']
-    if str(permpar.tails) == '2':
+    mag_signif, L2_signif = ["no", "no"]
+    if str(permpar.tails) == "2":
         if len(mag_sign[0]) == 1:
-            mag_signif = 'lo'
+            mag_signif = "lo"
         elif len(mag_sign[1]) == 1:
-            mag_signif = 'up'
+            mag_signif = "up"
         if len(L2_sign[0]) == 1:
-            L2_signif = 'lo'
+            L2_signif = "lo"
         elif len(L2_sign[1]) == 1:
-            L2_signif = 'up'
-    elif permpar.tails in ['lo', 'up']:
+            L2_signif = "up"
+    elif permpar.tails in ["lo", "up"]:
         if len(mag_sign) == 1:
             mag_signif = permpar.tails
         if len(L2_sign) == 1:
@@ -711,8 +699,8 @@ def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar,
 
 
 #############################################
-def qu_mags(all_data, permpar, mouse_ns, lines, stats='mean', error='sem', 
-            nanpol=None, op_qu='diff', op_surp='diff', print_vals=True):
+def qu_mags(all_data, permpar, mouse_ns, lines, stats="mean", error="sem", 
+            nanpol=None, op_qu="diff", op_surp="diff", log_vals=True):
     """
     qu_mags(all_data, permpar, mouse_ns, lines)
 
@@ -730,7 +718,7 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats='mean', error='sem',
     Significance is assessed based on the diff/ratio between surprise and 
     regular magnitude/L2 norm results.
 
-    Optionally, the magnitudes and L2 norms are printed for each session, with
+    Optionally, the magnitudes and L2 norms are logged for each session, with
     significance indicated.
 
     Required args:
@@ -742,68 +730,69 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats='mean', error='sem',
 
     Optional args:
         - stats (str)      : statistic to take across segments, (then ROIs) 
-                             ('mean' or 'median')
-                             default: 'mean'
+                             ("mean" or "median")
+                             default: "mean"
         - error (str)      : statistic to take across segments, (then ROIs) 
-                             ('std' or 'sem')
-                             default: 'sem'
-        - nanpol (str)     : policy for NaNs, 'omit' or None when taking 
+                             ("std" or "sem")
+                             default: "sem"
+        - nanpol (str)     : policy for NaNs, "omit" or None when taking 
                              statistics
                              default: None
         - op_qu (str)      : Operation to use in comparing the last vs first 
-                             quintile ('diff' or 'ratio')
-                             default: 'diff'       
+                             quintile ("diff" or "ratio")
+                             default: "diff"       
         - op_surp (str)    : Operation to use in comparing the surprise vs 
-                             regular, data ('diff' or 'ratio')
-                             default: 'diff' 
-        - print_vals (bool): If True, the magnitudes and L2 norms are printed
+                             regular, data ("diff" or "ratio")
+                             default: "diff" 
+        - log_vals (bool)  : If True, the magnitudes and L2 norms are logged
                              for each session, with significance indicated.
 
     Returns:
         - mags (dict): dictionary containing magnitude and L2 data to plot.
-            ['L2'] (3D array)        : L2 norms, structured as: 
+            ["L2"] (3D array)        : L2 norms, structured as: 
                                            sess x scaled x surp
-            ['mag_st'] (4D array)    : magnitude stats, structured as: 
+            ["mag_st"] (4D array)    : magnitude stats, structured as: 
                                            sess x scaled x surp x stats
-            ['L2_rel_th'] (2D array) : L2 thresholds calculated from 
+            ["L2_rel_th"] (2D array) : L2 thresholds calculated from 
                                        permutation analysis, structured as:
                                            sess x tail(s)
-            ['mag_rel_th'] (2D array): magnitude thresholds calculated from
+            ["mag_rel_th"] (2D array): magnitude thresholds calculated from
                                        permutation analysis, structured as:
                                            sess x tail(s)
-            ['L2_sig'] (list)        : L2 significance results for each session 
-                                       ('hi', 'lo' or 'no')
-            ['mag_sig'] (list)       : magnitude significance results for each 
+            ["L2_sig"] (list)        : L2 significance results for each session 
+                                       ("hi", "lo" or "no")
+            ["mag_sig"] (list)       : magnitude significance results for each 
                                        session 
-                                           ('hi', 'lo' or 'no')
+                                           ("hi", "lo" or "no")
     """
 
 
     n_sess = len(all_data)
     n_qu   = len(all_data[0][0])
     scales = [False, True]
-    surps    = ['reg', 'surp']
-    stat_len = 2 + (stats == 'median' and error == 'std')
-    tail_len = 1 + (str(permpar.tails) == '2')
+    surps    = ["reg", "surp"]
+    stat_len = 2 + (stats == "median" and error == "std")
+    tail_len = 1 + (str(permpar.tails) == "2")
 
     if n_qu != 2:
-        raise ValueError(f'Expected 2 quintiles, but found {n_qu}.')
+        raise ValueError(f"Expected 2 quintiles, but found {n_qu}.")
     if len(surps) != 2:
-        raise ValueError('Expected a length 2 surprise dim, '
-            f'but found length {len(surps)}.')
+        raise ValueError("Expected a length 2 surprise dim, "
+            f"but found length {len(surps)}.")
     
-    mags = {'mag_st': np.empty([n_sess, len(scales), len(surps), stat_len]),
-            'L2'    : np.empty([n_sess, len(scales), len(surps)])
+    mags = {"mag_st": np.empty([n_sess, len(scales), len(surps), stat_len]),
+            "L2"    : np.empty([n_sess, len(scales), len(surps)])
            }
     
-    for lab in ['mag_sig', 'L2_sig']:
+    for lab in ["mag_sig", "L2_sig"]:
         mags[lab] = []
-    for lab in ['mag_rel_th', 'L2_rel_th']:
+    for lab in ["mag_rel_th", "L2_rel_th"]:
         mags[lab] = np.empty([n_sess, tail_len])
 
     all_data = copy.deepcopy(all_data)
     for i in range(n_sess):
-        print(f'\nMouse {mouse_ns[i]}, {lines[i]}:')
+        logger.info(f"Mouse {mouse_ns[i]}, {lines[i]}:", 
+            extra={"spacing": "\n"})
         sess_data_me = []
         # number of regular sequences
         n_regs = [all_data[i][0][q].shape[-1] for q in range(n_qu)]
@@ -817,24 +806,24 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats='mean', error='sem',
                 data_me = data_me[:, np.newaxis]
                 all_data[i][s] = \
                     [qu_data[np.newaxis, :] for qu_data in all_data[i][s]]
-            mags['mag_st'][i, 0, s] = math_util.calc_mag_change(
-                data_me, 0, 1, order='stats', op=op_qu, stats=stats, 
+            mags["mag_st"][i, 0, s] = math_util.calc_mag_change(
+                data_me, 0, 1, order="stats", op=op_qu, stats=stats, 
                 error=error)
-            mags['L2'][i, 0, s] = math_util.calc_mag_change(
+            mags["L2"][i, 0, s] = math_util.calc_mag_change(
                 data_me, 0, 1, order=2, op=op_qu)
             sess_data_me.append(data_me)
         # scale
         sess_data_me = np.asarray(sess_data_me)
-        mags['mag_st'][i, 1] = math_util.calc_mag_change(
-            sess_data_me, 1, 2, order='stats', op=op_qu, stats=stats, 
-            error=error, scale=True, axis=0, pos=0, sc_type='unit').T
-        mags['L2'][i, 1] = math_util.calc_mag_change(
+        mags["mag_st"][i, 1] = math_util.calc_mag_change(
+            sess_data_me, 1, 2, order="stats", op=op_qu, stats=stats, 
+            error=error, scale=True, axis=0, pos=0, sc_type="unit").T
+        mags["L2"][i, 1] = math_util.calc_mag_change(
             sess_data_me, 1, 2, order=2, op=op_qu, stats=stats, scale=True, 
-            axis=0, pos=0, sc_type='unit').T
+            axis=0, pos=0, sc_type="unit").T
         
         # diff/ratio for permutation test
-        act_mag_rel = math_util.calc_op(mags['mag_st'][i, 0, :, 0], op=op_surp)
-        act_L2_rel  = math_util.calc_op(mags['L2'][i, 0, :], op=op_surp)
+        act_mag_rel = math_util.calc_op(mags["mag_st"][i, 0, :, 0], op=op_surp)
+        act_L2_rel  = math_util.calc_op(mags["L2"][i, 0, :], op=op_surp)
 
         # concatenate regular and surprise sequences for each quintile
         all_data_perm = [np.concatenate(
@@ -845,23 +834,24 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats='mean', error='sem',
             all_data_perm, act_mag_rel, act_L2_rel, n_regs, permpar, op_qu, 
             op_surp, stats, nanpol)
         
-        mags['mag_sig'].append(signif[0])
-        mags['L2_sig'].append(signif[1])
-        mags['mag_rel_th'][i] = np.asarray(ths[0])
-        mags['L2_rel_th'][i] = np.asarray(ths[1])
+        mags["mag_sig"].append(signif[0])
+        mags["L2_sig"].append(signif[1])
+        mags["mag_rel_th"][i] = np.asarray(ths[0])
+        mags["L2_rel_th"][i] = np.asarray(ths[1])
 
-        # prints results 
-        if print_vals:
-            sig_symb = ['', '']
+        # logs results 
+        if log_vals:
+            sig_symb = ["", ""]
             for si, sig in enumerate(signif):
-                if sig != 'no':
-                    sig_symb[si] = '*'
+                if sig != "no":
+                    sig_symb[si] = "*"
 
-            vals = [mags['mag_st'][i, 0, :, 0], mags['L2'][i, 0, :]]
-            names = [f'{stats} mag'.capitalize(), 'L2']
+            vals = [mags["mag_st"][i, 0, :, 0], mags["L2"][i, 0, :]]
+            names = [f"{stats} mag".capitalize(), "L2"]
             for v, (val, name) in enumerate(zip(vals, names)):
-                for s, surp in zip([0, 1], ['(reg) ', '(surp)']):
-                    print(f'    {name} {surp}: {val[s]:.4f}{sig_symb[v]}')
+                for s, surp in zip([0, 1], ["(reg) ", "(surp)"]):
+                    logger.info(f"{name} {surp}: {val[s]:.4f}{sig_symb[v]}", 
+                        extra={"spacing": TAB})
         
     return mags
 

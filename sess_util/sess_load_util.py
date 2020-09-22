@@ -13,19 +13,25 @@ Note: this code uses python 3.7.
 """
 
 import copy
+import logging
 import os
 
 import h5py
 import numpy as np
 import pandas as pd
 import pickle
+import scipy
 
-from util import file_util, gen_util
+from util import file_util, gen_util, logger_util
 from sess_util import sess_gen_util, sess_sync_util
+
+logger = logging.getLogger(__name__)
+
+TAB = "    "
 
 
 ######################################
-def load_info_from_mouse_df(sessid, mouse_df='mouse_df.csv'):
+def load_info_from_mouse_df(sessid, mouse_df="mouse_df.csv"):
     """
     load_info_from_mouse_df(sessid)
 
@@ -40,7 +46,7 @@ def load_info_from_mouse_df(sessid, mouse_df='mouse_df.csv'):
                               sessid, mouse_n, depth, plane, line, sess_gen, 
                               sess_within, sess_n, pass_fail, all_files, 
                               any_files, notes
-                          default: 'mouse_df.csv'
+                          default: "mouse_df.csv"
 
     Returns:
         - df_dict (dict): dictionary with following keys:
@@ -49,11 +55,11 @@ def load_info_from_mouse_df(sessid, mouse_df='mouse_df.csv'):
             - any_files (bool) : if True, some files have been acquired for
                                  the session
             - depth (int)      : recording depth 
-            - plane (str)      : recording plane ('soma' or 'dend')
-            - line (str)       : mouse line (e.g., 'L5-Rbp4')
+            - plane (str)      : recording plane ("soma" or "dend")
+            - line (str)       : mouse line (e.g., "L5-Rbp4")
             - mouse_n (int)    : mouse number (e.g., 1)
             - notes (str)      : notes from the dataframe on the session
-            - pass_fail (str)  : whether session passed 'P' or failed 'F' 
+            - pass_fail (str)  : whether session passed "P" or failed "F" 
                                  quality control
             - sess_gen (int)   : general session number (e.g., 1)
             - sess_within (int): within session number (session number within
@@ -64,35 +70,35 @@ def load_info_from_mouse_df(sessid, mouse_df='mouse_df.csv'):
     if isinstance(mouse_df, str):
         mouse_df = file_util.loadfile(mouse_df)
 
-    df_line = gen_util.get_df_vals(mouse_df, 'sessid', sessid)
+    df_line = gen_util.get_df_vals(mouse_df, "sessid", sessid)
 
     df_dict = {
-        'mouse_n'      : int(df_line['mouse_n'].tolist()[0]),
-        'depth'        : df_line['depth'].tolist()[0],
-        'plane'        : df_line['plane'].tolist()[0],
-        'line'         : df_line['line'].tolist()[0],
-        'sess_gen'     : int(df_line['sess_gen'].tolist()[0]),
-        'sess_n'       : int(df_line['sess_n'].tolist()[0]),
-        'sess_within'  : int(df_line['sess_within'].tolist()[0]),
-        'pass_fail'    : df_line['pass_fail'].tolist()[0],
-        'all_files'    : bool(int(df_line['all_files'].tolist()[0])),
-        'any_files'    : bool(int(df_line['any_files'].tolist()[0])),
-        'notes'        : df_line['notes'].tolist()[0],
+        "mouse_n"      : int(df_line["mouse_n"].tolist()[0]),
+        "depth"        : df_line["depth"].tolist()[0],
+        "plane"        : df_line["plane"].tolist()[0],
+        "line"         : df_line["line"].tolist()[0],
+        "sess_gen"     : int(df_line["sess_gen"].tolist()[0]),
+        "sess_n"       : int(df_line["sess_n"].tolist()[0]),
+        "sess_within"  : int(df_line["sess_within"].tolist()[0]),
+        "pass_fail"    : df_line["pass_fail"].tolist()[0],
+        "all_files"    : bool(int(df_line["all_files"].tolist()[0])),
+        "any_files"    : bool(int(df_line["any_files"].tolist()[0])),
+        "notes"        : df_line["notes"].tolist()[0],
     }
 
     return df_dict
 
 
 #############################################
-def load_small_stim_pkl(stim_pkl, runtype='prod'):
+def load_small_stim_pkl(stim_pkl, runtype="prod"):
     """
     load_small_stim_pkl(stim_pkl)
 
     Loads a smaller stimulus dictionary from the stimulus pickle file in which 
-    'posbyframe' for bricks stimuli is not included. 
+    "posbyframe" for bricks stimuli is not included. 
     
     If it does not exist, small stimulus dictionary is created and saved as a
-    pickle with '_small' appended to name.
+    pickle with "_small" appended to name.
     
     Reduces the pickle size about 10 fold.
 
@@ -101,37 +107,37 @@ def load_small_stim_pkl(stim_pkl, runtype='prod'):
                           pickle file
     
     Optional args:
-        - runtype (str): runtype ('prod' or 'pilot')
+        - runtype (str): runtype ("prod" or "pilot")
     """
 
     stim_pkl_no_ext = os.path.splitext(stim_pkl)[0]
-    small_stim_pkl_name = f'{stim_pkl_no_ext}_small.pkl'
+    small_stim_pkl_name = f"{stim_pkl_no_ext}_small.pkl"
     
     if os.path.exists(small_stim_pkl_name):
         return file_util.loadfile(small_stim_pkl_name)
     else:
-        print('    Creating smaller stimulus pickle.')
+        logger.info("Creating smaller stimulus pickle.", extra={"spacing": TAB})
 
         if isinstance(stim_pkl, str):
             stim_dict = file_util.loadfile(stim_pkl)
         else:
             stim_dict = copy.deepcopy(stim_dict)
 
-        if runtype == 'pilot':
-            stim_par_key = 'stimParams'
-        elif runtype == 'prod':
-            stim_par_key = 'stim_params'
+        if runtype == "pilot":
+            stim_par_key = "stimParams"
+        elif runtype == "prod":
+            stim_par_key = "stim_params"
         else:
             gen_util.accepted_values_error(
-                'runtype', runtype, ['prod', 'pilot'])
+                "runtype", runtype, ["prod", "pilot"])
 
-        for i in range(len(stim_dict['stimuli'])):
-            stim_keys = stim_dict['stimuli'][i][stim_par_key].keys()
-            stim_par = stim_dict['stimuli'][i][stim_par_key]
-            if runtype == 'pilot' and 'posByFrame' in stim_keys:
-                _ = stim_par.pop('posByFrame')
-            elif runtype == 'prod' and 'square_params' in stim_keys:
-                _ = stim_par['session_params'].pop('posbyframe')
+        for i in range(len(stim_dict["stimuli"])):
+            stim_keys = stim_dict["stimuli"][i][stim_par_key].keys()
+            stim_par = stim_dict["stimuli"][i][stim_par_key]
+            if runtype == "pilot" and "posByFrame" in stim_keys:
+                _ = stim_par.pop("posByFrame")
+            elif runtype == "prod" and "square_params" in stim_keys:
+                _ = stim_par["session_params"].pop("posbyframe")
                 
         file_util.saveinfo(stim_dict, small_stim_pkl_name)
 
@@ -140,7 +146,7 @@ def load_small_stim_pkl(stim_pkl, runtype='prod'):
 
 #############################################
 def load_stim_df_info(stim_pkl, stim_sync_h5, align_pkl, sessdir, 
-                      runtype='prod'):
+                      runtype="prod"):
     """
     load_stim_df_info(stim_pkl, align_pkl, stim_sync_h5)
 
@@ -157,14 +163,14 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, align_pkl, sessdir,
         - sessdir (str)     : session directory
 
     Optional args:
-        - runtype (str): runtype ('prod' or 'pilot')
-                         default: 'prod'
+        - runtype (str): runtype ("prod" or "pilot")
+                         default: "prod"
 
     Returns:
         - stim_df (pd DataFrame): stimlus alignment dataframe with columns:
-                                    'stimType', 'stimPar1', 'stimPar2', 
-                                    'surp', 'stimSeg', 'gabfr', 
-                                    'start2pfr', 'end2pfr', 'num2pfr'
+                                    "stimType", "stimPar1", "stimPar2", 
+                                    "surp", "stimSeg", "gabfr", 
+                                    "start2pfr", "end2pfr", "num2pfr"
         - stimtype_order (list) : stimulus type order
         - stim2twopfr (1D array): 2p frame numbers for each stimulus frame, 
                                   as well as the flanking
@@ -180,78 +186,121 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, align_pkl, sessdir,
             stim_pkl, stim_sync_h5, align_pkl, runtype)
         
     else:
-        print('    NOTE: Stimulus alignment pickle already exists in '
-            f'{sessdir}')
+        logging.info("NOTE: Stimulus alignment pickle already exists in "
+            f"{sessdir}", extra={"spacing": TAB})
 
     align = file_util.loadfile(align_pkl)
 
-    stim_df = align['stim_df']
+    stim_df = align["stim_df"]
     stim_df = stim_df.rename(
-        columns={'GABORFRAME': 'gabfr', 
-                 'start_frame': 'start2pfr', 
-                 'end_frame': 'end2pfr', 
-                 'num_frames': 'num2pfr'})
+        columns={"GABORFRAME": "gabfr", 
+                 "start_frame": "start2pfr", 
+                 "end_frame": "end2pfr", 
+                 "num_frames": "num2pfr"})
 
     stim_df = modify_bri_segs(stim_df, runtype)
     stim_df = stim_df.sort_values("start2pfr").reset_index(drop=True)
 
     # note: STIMULI ARE NOT ORDERED IN THE PICKLE
     stimtype_map = {
-        'g': 'gabors', 
-        'b': 'bricks'
+        "g": "gabors", 
+        "b": "bricks"
         }
     stimtype_order = stim_df["stimType"].map(stimtype_map).unique()
     stimtype_order = list(
         filter(lambda s: s in stimtype_map.values(), stimtype_order))
 
     # expand on direction info
-    for direc in ['right', 'left']:
-        stim_df.loc[(stim_df['stimPar2'] == direc), 'stimPar2'] = \
+    for direc in ["right", "left"]:
+        stim_df.loc[(stim_df["stimPar2"] == direc), "stimPar2"] = \
             sess_gen_util.get_bri_screen_mouse_direc(direc)
 
-    stim2twopfr  = align['stim_align'].astype('int')
+    stim2twopfr  = align["stim_align"].astype("int")
     twop_fps     = sess_sync_util.get_frame_rate(stim_sync_h5)[0] 
-    twop_fr_stim = int(max(align['stim_align']))
+    twop_fr_stim = int(max(align["stim_align"]))
 
     return stim_df, stimtype_order, stim2twopfr, twop_fps, twop_fr_stim
 
 
 #############################################
-def load_run_data(stim_dict, diff_thr=100):
+def _warn_nans_diff_thr(run, min_consec=5, n_pre_existing=None):
     """
-    load_run_data(stim_dict)
+    _warn_nans_diff_thr(run)
+
+    Checks for NaNs in running velocity, and logs a warning about the total 
+    number of NaNs, and the consecutive NaNs. Optionally indicates the number 
+    of pre-existing NaNs, versus number of NaNs resulting from the difference 
+    threshold. 
+
+    Required args:
+        - run (1D array): array of running velocities in cm/s
+
+    Optional args:
+        - min_consec (num)    : minimum number of consecutive NaN running 
+                                values to warn aboout
+                                default: 5
+        - n_pre_existing (num): number of pre-existing NaNs (before difference 
+                                thresholding was used)
+                                default: None
+    """
+
+    n_nans = np.sum(np.isnan(run))
+
+    if n_nans == 0:
+        return
+
+    split_str = ""
+    if n_pre_existing is not None:
+        split_str = (f" ({n_pre_existing} from pre-processing, "
+            f"{n_nans - n_pre_existing} from diff thresh)")
+
+    mask = np.concatenate(([False], np.isnan(run), [False]))
+    idx = np.nonzero(mask[1 : ] != mask[ : -1])[0]
+    n_consec = np.sort(idx[1 :: 2] - idx[ :: 2])[::-1]
+
+    n_consec_above_min_idx = np.where(n_consec > min_consec)[0]
+    
+    n_consec_str = ""
+    if len(n_consec_above_min_idx) > 0:
+        n_consec_str = ", ".join(
+            [str(n) for n in n_consec[n_consec_above_min_idx]])
+        n_consec_str = (f"\n{TAB}This includes {n_consec_str} consecutive "
+            "dropped running values.")
+
+    logger.warning(f"{n_nans} running values were dropped, i.e., set "
+        f"to NaN{split_str}.{n_consec_str}", extra={"spacing": TAB})
+
+    return
+
+
+#############################################
+def nan_large_run_differences(run, diff_thr=50, warn_nans=True):
+    """
+    nan_large_run_differences(run)
 
     Returns running velocity with outliers replaced with NaNs.
 
     Required args:
-        - stim_dict (str or dict): stimulus dictionary or path to dictionary,
-                                   containing stimulus information
+        - run (1D array): array of running velocities in cm/s
 
     Optional args:
-        - diff_thr (int): threshold of difference in running velocity to 
-                          identify outliers
-                          default: 100
-
+        - diff_thr (int)    : threshold of difference in running velocity to 
+                              identify outliers
+                              default: 50
+        - warn_nans (bool)  : if True, a warning is logged 
+                              default: True
     Returns:
-        - run (1D array): array of running velocities in cm/s for each 
-                          recorded stimulus frames
-
+        - run (1D array): updated array of running velocities in cm/s
     """
 
-    # identify outliers by identifying unusual changes in running velocity
-    if isinstance(stim_dict, dict):
-        run = sess_sync_util.get_run_velocity(stim_dict=stim_dict)
-    elif isinstance(stim_dict, str):
-        run = sess_sync_util.get_run_velocity(pkl_file_name=stim_dict)
-    else:
-        raise ValueError('`stim_dict` must be a dictionary or a path to a '
-            'pickle.')
-                        
+    # temorarily remove preexisting NaNs (to be reinserted after)
+    original_length = len(run)
+    not_nans_idx = np.where(~np.isnan(run))[0]
+    run = run[not_nans_idx]
+    n_pre_existing = original_length - len(run)
+
     run_diff = np.diff(run)
     out_idx = np.where((run_diff < -diff_thr) | (run_diff > diff_thr))[0]
-    if len(out_idx) > 0:
-        print(f'    WARNING: {len(out_idx)} running values were replaced '
-            'with NaNs.')
     at_idx = -1
     for idx in out_idx:
         if idx > at_idx:
@@ -267,12 +316,66 @@ def load_run_data(stim_dict, diff_thr=100):
             while np.absolute(run[idx + 1] - comp_val) > diff_thr:
                 run[idx + 1] = np.nan
                 idx += 1
-            if idx - orig > 5:
-                print(f'    WARNING: {idx-orig} consecutive running '
-                    'values had to be dropped.')
             at_idx = idx
 
+    # reinsert pre-existing NaNs
+    prev_run = copy.deepcopy(run)
+    run = np.empty(original_length) * np.nan
+    run[not_nans_idx] = prev_run
+
+    if warn_nans:
+        _warn_nans_diff_thr(run, min_consec=5, n_pre_existing=n_pre_existing)
+
+
     return run
+
+
+#############################################
+def load_run_data(stim_dict, stim_sync_h5, filter_ks=5, diff_thr=50):
+    """
+    load_run_data(stim_dict, stim_sync_h5)
+
+    Returns running velocity with outliers replaced with NaNs, and median 
+    filters the data.
+
+    Required args:
+        - stim_dict (str or dict): stimulus dictionary or path to dictionary,
+                                   containing stimulus information
+        - stim_sync_h5 (str)     : stimulus synchronization file. 
+
+    Optional args:
+        - filter_ks (int)   : kernel size to use in median filtering the 
+                              running velocity (0 to skip filtering).
+                              default: 5
+        - diff_thr (int)    : threshold of difference in running velocity to 
+                              identify outliers
+                              default: 50
+
+    Returns:
+        - run_velocity (1D array): array of running velocities in cm/s for each 
+                                   recorded stimulus frames
+
+    """
+
+    run_kwargs = {
+        "stim_sync_h5": stim_sync_h5,
+        "filter_ks"   : filter_ks,
+    }
+
+    if isinstance(stim_dict, dict):
+        run_kwargs["stim_dict"] = stim_dict        
+    elif isinstance(stim_dict, str):
+        run_kwargs["pkl_file_name"] = stim_dict
+    else:
+        raise ValueError("'stim_dict' must be a dictionary or a path to a "
+            "pickle.")
+
+    run_velocity = sess_sync_util.get_run_velocity(**run_kwargs)
+
+    run_velocity = nan_large_run_differences(
+        run_velocity, diff_thr, warn_nans=True)
+
+    return run_velocity
 
 
 #############################################
@@ -298,18 +401,18 @@ def load_pup_data(pup_data_h5):
                                     each pupil frame in pixels
     """
 
-    print('Loading pupil tracking information.')
-    if pup_data_h5 == 'none':
-        raise OSError('No pupil data file found.')
+    logging.info("Loading pupil tracking information.")
+    if pup_data_h5 == "none":
+        raise OSError("No pupil data file found.")
     elif isinstance(pup_data_h5, list):
-        raise OSError('Many pupil data files found.')
+        raise OSError("Many pupil data files found.")
 
-    columns = ['nan_diam', 'nan_center_x', 'nan_center_y']
+    columns = ["nan_diam", "nan_center_x", "nan_center_y"]
     pup_data = pd.read_hdf(pup_data_h5).filter(items=columns).astype(float)
-    nan_pup = (lambda name : name.replace('nan_', 'pup_') 
-        if 'nan' in name else name)
+    nan_pup = (lambda name : name.replace("nan_", "pup_") 
+        if "nan" in name else name)
     pup_data = pup_data.rename(columns=nan_pup)
-    pup_data.insert(0, 'frames', value=range(len(pup_data)))
+    pup_data.insert(0, "frames", value=range(len(pup_data)))
 
     return pup_data  
 
@@ -339,19 +442,19 @@ def load_sync_h5_data(pup_video_h5, time_sync_h5):
                                     with a few differences)
     """
 
-    with h5py.File(pup_video_h5, 'r') as f:
-        pup_fr_interv = f['frame_intervals'][()].astype('float64')
+    with h5py.File(pup_video_h5, "r") as f:
+        pup_fr_interv = f["frame_intervals"][()].astype("float64")
 
-    with h5py.File(time_sync_h5, 'r') as f:
-        twop2bodyfr  = f['body_camera_alignment'][()].astype('int')
-        twop2pupfr   = f['eye_tracking_alignment'][()].astype('int')
-        stim2twopfr2 = f['stimulus_alignment'][()].astype('int')
+    with h5py.File(time_sync_h5, "r") as f:
+        twop2bodyfr  = f["body_camera_alignment"][()].astype("int")
+        twop2pupfr   = f["eye_tracking_alignment"][()].astype("int")
+        stim2twopfr2 = f["stimulus_alignment"][()].astype("int")
 
     return pup_fr_interv, twop2bodyfr, twop2pupfr, stim2twopfr2
 
 
 #############################################
-def modify_bri_segs(stim_df, runtype='prod'):
+def modify_bri_segs(stim_df, runtype="prod"):
     """
     modify_bri_segs(stim_df)
 
@@ -360,49 +463,49 @@ def modify_bri_segs(stim_df, runtype='prod'):
 
     Required args:
         - stim_df (pd DataFrame): stimlus alignment dataframe with columns:
-                                    'stimType', 'stimPar1', 'stimPar2', 
-                                    'surp', 'stimSeg', 'gabfr', 
-                                    'start2pfr', 'end2pfr', 'num2pfr'
+                                    "stimType", "stimPar1", "stimPar2", 
+                                    "surp", "stimSeg", "gabfr", 
+                                    "start2pfr", "end2pfr", "num2pfr"
 
     Optional args:
         - runtype (str): runtype
-                         default: 'prod'
+                         default: "prod"
 
     Returns:
         - stim_df (pd DataFrame): modified dataframe
     """
 
-    if runtype != 'prod':
+    if runtype != "prod":
         return stim_df
 
     stim_df = copy.deepcopy(stim_df)
 
     bri_st_fr = gen_util.get_df_vals(
-        stim_df, 'stimType', 'b', 'start2pfr', unique=False)
+        stim_df, "stimType", "b", "start2pfr", unique=False)
     bri_num_fr = np.diff(bri_st_fr)
     num_fr = gen_util.get_df_vals(
-        stim_df, 'stimType', 'b', 'num2pfr', unique=False)[:-1]
+        stim_df, "stimType", "b", "num2pfr", unique=False)[:-1]
     break_idx = np.where(num_fr != bri_num_fr)[0]
     n_br = len(break_idx)
     if n_br != 1:
-        raise ValueError('Expected only one break in the bricks '
-            f'stimulus, but found {n_br}.')
+        raise ValueError("Expected only one break in the bricks "
+            f"stimulus, but found {n_br}.")
     
     # last start frame and seg for the first brick stim
     last_fr1 = bri_st_fr[break_idx[0]] 
     last_seg1 = gen_util.get_df_vals(
-        stim_df, ['stimType', 'start2pfr'], ['b', last_fr1], 'stimSeg')[0]
+        stim_df, ["stimType", "start2pfr"], ["b", last_fr1], "stimSeg")[0]
     
-    seg_idx = ((stim_df['stimType'] == 'b') & (stim_df['start2pfr'] > last_fr1))
+    seg_idx = ((stim_df["stimType"] == "b") & (stim_df["start2pfr"] > last_fr1))
 
-    new_idx = stim_df.loc[seg_idx]['stimSeg'] + last_seg1 + 1
-    stim_df = gen_util.set_df_vals(stim_df, seg_idx, 'stimSeg', new_idx)
+    new_idx = stim_df.loc[seg_idx]["stimSeg"] + last_seg1 + 1
+    stim_df = gen_util.set_df_vals(stim_df, seg_idx, "stimSeg", new_idx)
 
     return stim_df
 
 
 #############################################
-def load_sess_stim_seed(stim_dict, runtype='prod'):
+def load_sess_stim_seed(stim_dict, runtype="prod"):
     """
     load_sess_stim_seed(stim_df)
 
@@ -414,28 +517,28 @@ def load_sess_stim_seed(stim_dict, runtype='prod'):
 
     Optional args:
         - runtype (str): runtype
-                         default: 'prod'
+                         default: "prod"
 
     Returns:
         - seed (int): session's stimulus seed
     """
 
-    if runtype == 'pilot':
-        stim_param_key = 'stimParams'
-        sess_param_key = 'subj_params'
-    elif runtype == 'prod':
-        stim_param_key = 'stim_params'
-        sess_param_key = 'session_params'
+    if runtype == "pilot":
+        stim_param_key = "stimParams"
+        sess_param_key = "subj_params"
+    elif runtype == "prod":
+        stim_param_key = "stim_params"
+        sess_param_key = "session_params"
     else:
-        gen_util.accepted_values_error('runtype', runtype, ['pilot', 'prod'])
+        gen_util.accepted_values_error("runtype", runtype, ["pilot", "prod"])
 
     seeds = []
-    for stimulus in stim_dict['stimuli']:
-        seeds.append(stimulus[stim_param_key][sess_param_key]['seed'])
+    for stimulus in stim_dict["stimuli"]:
+        seeds.append(stimulus[stim_param_key][sess_param_key]["seed"])
     
     if np.max(seeds) != np.min(seeds):
-        raise ValueError('Unexpectedly found different seeds for different '
-        'stimuli for this session.')
+        raise ValueError("Unexpectedly found different seeds for different "
+        "stimuli for this session.")
     
     seed = seeds[0]
 

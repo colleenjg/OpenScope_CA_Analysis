@@ -17,6 +17,7 @@ import copy
 
 import numpy as np
 
+from util import logger_util
 
 #############################################
 def get_center_dist_diff(center_x, center_y):
@@ -98,7 +99,7 @@ def _eye_diam_center(df, thr=5):
 
     Required args:
         - data (pd DataFrame): dataframe with the following columns 
-                               ('coords', 'bodyparts', ordered frame numbers)
+                               ("coords", "bodyparts", ordered frame numbers)
 
     Optional args:
         - thr (num): threshold diameter to identify blinks
@@ -114,28 +115,28 @@ def _eye_diam_center(df, thr=5):
                                        pupil frame
     """
     
-    pupil = '--pupil'
+    pupil = "--pupil"
     
-    pup_df = df.loc[(df['bodyparts'].str.contains(pupil))]
+    pup_df = df.loc[(df["bodyparts"].str.contains(pupil))]
 
     ds = [None, None]
     all_vals = [None, None]
-    coords = ['x', 'y']
+    coords = ["x", "y"]
     
     for c, coord in enumerate(coords):
-        coord_df = pup_df.loc[(pup_df['coords'].str.match(coord))]
+        coord_df = pup_df.loc[(pup_df["coords"].str.match(coord))]
     
-        col = [col_name.replace(pupil, '') 
-               for col_name in coord_df['bodyparts'].tolist()]
+        col = [col_name.replace(pupil, "") 
+               for col_name in coord_df["bodyparts"].tolist()]
     
-        # Remove 'bodyparts' and 'coords' columns
-        coord_df.pop('bodyparts')
-        coord_df.pop('coords')
+        # Remove "bodyparts" and "coords" columns
+        coord_df.pop("bodyparts")
+        coord_df.pop("coords")
 
-        vals = coord_df.to_numpy('float')
+        vals = coord_df.to_numpy("float")
 
-        diffs = [['left', 'right'], ['top', 'bottom'], 
-            ['lower-left', 'upper-right'], ['upper-left', 'lower-right']]
+        diffs = [["left", "right"], ["top", "bottom"], 
+            ["lower-left", "upper-right"], ["upper-left", "lower-right"]]
         diff_vals = np.empty([vals.shape[1], len(diffs)])
         
         # pairwise distances between points furthest apart (see diffs for pairs)

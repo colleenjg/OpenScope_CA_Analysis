@@ -13,15 +13,19 @@ Note: this code uses python 3.7.
 """
 
 import copy
+import logging
+
 import numpy as np
 
-from util import data_util, gen_util, math_util
+from util import data_util, gen_util, logger_util, math_util
 from sess_util import sess_gen_util
+
+logger = logging.getLogger(__name__)
 
 
 #############################################
 def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5, 
-                  surp='any', step_size=1, gabk=16, run=True, run_mean=None, 
+                  surp="any", step_size=1, gabk=16, run=True, run_mean=None, 
                   run_std=None):
 
     """
@@ -33,7 +37,7 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
 
     Required args:
         - sess (Session)    : session
-        - stimtype (str)    : stimulus type ('gabors'or 'bricks')
+        - stimtype (str)    : stimulus type ("gabors"or "bricks")
         - win_leng_s (num)  : window length in seconds
     
     Optional args:
@@ -47,12 +51,12 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
                                    gabor frame in each sequence (in sec)
                                    default: 1.5
         - surp (str, list or int): surprise value criteria for including 
-                                   reference gabor frames (0, 1, or 'any')
-                                   default: 'any'
+                                   reference gabor frames (0, 1, or "any")
+                                   default: "any"
         - step_size (int)        : step size between windows
                                    default: 1
         - gabk (int or list)     : gabor kappa criteria for including reference
-                                   gabor frames (4, 16 or 'any')
+                                   gabor frames (4, 16 or "any")
                                    default: 16
         - run (bool)             : if True, running data is appended to the
                                    end of the stimulus data
@@ -83,20 +87,20 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
     """
 
     if win_leng_s > (pre + post):
-        raise ValueError('Windows cannot be longer than the sequences.')
+        raise ValueError("Windows cannot be longer than the sequences.")
 
     stim = sess.get_stim(stimtype)
 
     segs = stim.get_segs_by_criteria(
-        gabfr=gabfr, gabk=gabk, surp=surp, by='seg')
-    twopfr = stim.get_twop_fr_by_seg(segs, first=True)['first_twop_fr']
+        gabfr=gabfr, gabk=gabk, surp=surp, by="seg")
+    twopfr = stim.get_twop_fr_by_seg(segs, first=True)["first_twop_fr"]
 
     # get stim params in df with indices seg x frame x gabor x par 
     # (x, y, ori, size). Each param scaled to between -1 and 1 based on known 
     # ranges from which they were sampled
     pars_df = stim.get_stim_par_by_twopfr(twopfr, pre, post, scale=True)
     targ = [len(pars_df.index.unique(lev)) for lev in pars_df.index.names] + \
-        [len(pars_df.columns.unique('parameters'))]
+        [len(pars_df.columns.unique("parameters"))]
     targ[1] = -1 # 2p frame number is not repeated across sequences
     pars = pars_df.to_numpy().reshape(targ)
 
@@ -136,7 +140,7 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
 
 #############################################
 def get_roi_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5, 
-                 surp='any', step_size=1, gabk=16, roi_means=None, 
+                 surp="any", step_size=1, gabk=16, roi_means=None, 
                  roi_stds=None):
     """
     get_roi_data(sess, stimtype, win_leng_s)
@@ -147,7 +151,7 @@ def get_roi_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
 
     Required args:
         - sess (Session)    : session
-        - stimtype (str)    : stimulus type ('gabors'or 'bricks')
+        - stimtype (str)    : stimulus type ("gabors"or "bricks")
         - win_leng_s (num)  : window length in seconds
     
     Optional args:
@@ -161,12 +165,12 @@ def get_roi_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
                                    gabor frame in each sequence (in sec)
                                    default: 1.5
         - surp (str, list or int): surprise value criteria for including 
-                                   reference gabor frames (0, 1, or 'any')
-                                   default: 'any'
+                                   reference gabor frames (0, 1, or "any")
+                                   default: "any"
         - step_size (int)        : step size between windows
                                    default: 1
         - gabk (int or list)     : gabor kappa criteria for including reference
-                                   gabor frames (4, 16 or 'any')
+                                   gabor frames (4, 16 or "any")
                                    default: 16
         - roi_means (1D array)   : mean values for each ROI with which to 
                                    scale trace data. If roi_means or 
@@ -194,18 +198,18 @@ def get_roi_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
 
 
     if win_leng_s > (pre + post):
-        raise ValueError('Windows cannot be longer than the sequences.')
+        raise ValueError("Windows cannot be longer than the sequences.")
 
     stim = sess.get_stim(stimtype)
 
     segs = stim.get_segs_by_criteria(
-        gabfr=gabfr, gabk=gabk, surp=surp, by='seg')
-    twopfr = stim.get_twop_fr_by_seg(segs, first=True)['first_twop_fr']
+        gabfr=gabfr, gabk=gabk, surp=surp, by="seg")
+    twopfr = stim.get_twop_fr_by_seg(segs, first=True)["first_twop_fr"]
     
     roi_data_df = stim.get_roi_data(twopfr, pre, post, remnans=True, 
         scale=False)
     ret_roi_stats = False
-    xran = roi_data_df.index.unique('time_values').to_numpy()
+    xran = roi_data_df.index.unique("time_values").to_numpy()
     traces = gen_util.reshape_df_data(roi_data_df, squeeze_cols=True)
 
     # scale each ROI to mean 0, std 1
@@ -254,13 +258,13 @@ def convert_to_binary_cols(df, col, vals, targ_vals):
 
     uniq_vals = df[col].unique().tolist()    
     if not set(uniq_vals).issubset(set(vals)):
-        raise ValueError(f'Unexpected values for {col}.')
+        raise ValueError(f"Unexpected values for {col}.")
     
     mapping = dict()
     for val in vals:
         mapping[val] = 0
     for val, targ in zip(vals, targ_vals):    
-        col_name = f'{col}${targ}'
+        col_name = f"{col}${targ}"
         this_mapping = copy.deepcopy(mapping)
         this_mapping[val] = 1
         df[col_name] = df[col].copy().replace(this_mapping)
@@ -289,25 +293,25 @@ def get_mapping(par, act_vals=None):
         - mapping (dict): value (between 0 and 1) for each parameter value
     """
 
-    if par == 'gabk':
+    if par == "gabk":
         vals = [4, 16]
-    elif par == 'bri_size':
+    elif par == "bri_size":
         vals = [128, 256]
-    elif par == 'bri_dir':
+    elif par == "bri_dir":
         vals = [sess_gen_util.get_bri_screen_mouse_direc(direc) 
-            for direc in ['right', 'left']]
-    elif par == 'line':
-        vals = ['L23-Cux2', 'L5-Rbp4']
-    elif par == 'plane':
-        vals = ['soma', 'dend']
+            for direc in ["right", "left"]]
+    elif par == "line":
+        vals = ["L23-Cux2", "L5-Rbp4"]
+    elif par == "plane":
+        vals = ["soma", "dend"]
     else:
         gen_util.accepted_values_error(
-            'par', par, ['gabk', 'bri_size', 'bri_dir', 'line', 'plane'])
+            "par", par, ["gabk", "bri_size", "bri_dir", "line", "plane"])
     
     if act_vals is not None:
         if not set(act_vals).issubset(set(vals)):
-            vals_str = ', '.join(list(set(act_vals) - set(vals)))
-            raise ValueError(f'Unexpected value(s) for {par}: {vals_str}')
+            vals_str = ", ".join(list(set(act_vals) - set(vals)))
+            raise ValueError(f"Unexpected value(s) for {par}: {vals_str}")
 
     mapping = dict()
     for i, val in enumerate(vals):
@@ -318,7 +322,7 @@ def get_mapping(par, act_vals=None):
 
 
 #############################################
-def scale_data_df(data_df, datatype, interpolated='no', other_vals=[]):
+def scale_data_df(data_df, datatype, interpolated="no", other_vals=[]):
     """
     scale_data_df(data_df, datatype)
 
@@ -330,55 +334,58 @@ def scale_data_df(data_df, datatype, interpolated='no', other_vals=[]):
                                   organized by:
             hierarchical columns:
                 - datatype    : type of data
-                - interpolated: whether data is interpolated ('yes', 'no')
-                - scaled      : whether data is scaled ('yes', 'no')
+                - interpolated: whether data is interpolated ("yes", "no")
+                - scaled      : whether data is scaled ("yes", "no")
             hierarchical rows:
-                - 'info'      : type of information contained 
-                                ('frames': values for each frame, 
-                                'factors': scaling values for 
+                - "info"      : type of information contained 
+                                ("frames": values for each frame, 
+                                "factors": scaling values for 
                                 each factor)
-                - 'specific'  : specific type of information contained 
+                - "specific"  : specific type of information contained 
                                 (frame number, scaling factor name)
         - datatype (str)        : datatype to be scaled
 
     Optional args:
-        - interpolated (str): whether to scale interpolated data ('yes') 
-                              or not ('no')
-                              default: 'no'
+        - interpolated (str): whether to scale interpolated data ("yes") 
+                              or not ("no")
+                              default: "no"
+        - other_vals (list) : other values in the hierarchical dataframe to
+                              copy to new column
+                              default: []
     
     Returns:
         - data_df (pd DataFrame): same dataframe, but with scaled 
                                   data added
     """
 
-    datatypes = data_df.columns.unique(level='datatype').tolist()
+    datatypes = data_df.columns.unique(level="datatype").tolist()
 
     if datatype not in datatypes:
-        gen_util.accepted_values_error('datatype', datatype, datatypes)
+        gen_util.accepted_values_error("datatype", datatype, datatypes)
 
     other_vals = gen_util.list_if_not(other_vals)
 
-    if 'yes' in data_df[datatype].columns.get_level_values(
-        level='scaled'):
-        print('Data already scaled.')
+    if "yes" in data_df[datatype].columns.get_level_values(
+        level="scaled"):
+        logger.info("Data already scaled.")
 
-    factor_names = data_df.loc['factors'].index.unique(
-        level='specific').tolist()
-    sub_names =  list(filter(lambda x: 'sub' in x, factor_names))
+    factor_names = data_df.loc["factors"].index.unique(
+        level="specific").tolist()
+    sub_names =  list(filter(lambda x: "sub" in x, factor_names))
     if len(sub_names) != 1:
-        raise ValueError('Only one factor should contain `sub`.')
-    div_names =  list(filter(lambda x: 'div' in x, factor_names))
+        raise ValueError("Only one factor should contain 'sub'.")
+    div_names =  list(filter(lambda x: "div" in x, factor_names))
     if len(div_names) != 1:
-        raise ValueError('Only one row should contain `div`.')
+        raise ValueError("Only one row should contain 'div'.")
 
-    sub = data_df.loc[('factors', sub_names[0])].values[0]
-    div = data_df.loc[('factors', div_names[0])].values[0]
+    sub = data_df.loc[("factors", sub_names[0])].values[0]
+    div = data_df.loc[("factors", div_names[0])].values[0]
 
     data_df = data_df.copy(deep=True)
 
-    data_df.loc[('frames',), (datatype, interpolated, 'yes', *other_vals)] = \
-        (data_df.loc[('frames',), 
-        (datatype, interpolated, 'no', *other_vals)].values - sub)/div
+    data_df.loc[("frames",), (datatype, interpolated, "yes", *other_vals)] = \
+        (data_df.loc[("frames",), 
+        (datatype, interpolated, "no", *other_vals)].values - sub)/div
 
     return data_df
 
@@ -400,19 +407,19 @@ def add_categ_stim_cols(df):
     """
 
     for col in df.columns:
-        if col == 'gab_ori':
+        if col == "gab_ori":
             vals = [0, 45, 90, 135, 180, 225]
             df = convert_to_binary_cols(df, col, vals, vals)
-        elif col == 'gabfr':
-            vals = ['gray', 0, 1, 2, 3]
-            targ_vals = ['gray', 'A', 'B', 'C', 'D']
+        elif col == "gabfr":
+            vals = ["G", 0, 1, 2, 3]
+            targ_vals = ["G", "A", "B", "C", "D"]
             df = convert_to_binary_cols(df, col, vals, targ_vals)
-        elif col in ['gabk', 'bri_size', 'bri_dir', 'plane', 'line']:
+        elif col in ["gabk", "bri_size", "bri_dir", "plane", "line"]:
             uniq_vals = df[col].unique().tolist()
             mapping = get_mapping(col, uniq_vals)
             df = df.replace({col: mapping})
-        elif col == 'sessid':
-            vals = df['sessid'].unique().tolist()
+        elif col == "sessid":
+            vals = df["sessid"].unique().tolist()
             df = convert_to_binary_cols(df, col, vals, vals)
         else:
             continue
@@ -421,20 +428,20 @@ def add_categ_stim_cols(df):
 
 
 #############################################
-def add_grayscreen_rows_gabors(df):
+def add_G_rows_gabors(df):
     """
-    add_grayscreen_rows_gabors(df)
+    add_G_rows_gabors(df)
 
-    Returns dataframe with grayscreen rows added between Gabor D/E and Gabor A 
-    segments.
+    Returns dataframe with grayscreen (G) rows added between Gabor D/U and 
+    Gabor A segments.
 
     Required args:
-        - df (pd DataFrame): gabor stimulus dataframe with columns 'gabfr', 
-                             'stimSeg', 'start2pfr', 'end2pfr', 'start_stim_fr', 
-                             'end_stim_fr', 'surp'
+        - df (pd DataFrame): gabor stimulus dataframe with columns "gabfr", 
+                             "stimSeg", "start2pfr", "end2pfr", "start_stim_fr", 
+                             "end_stim_fr", "surp"
 
     Returns:
-        - df (pd DataFrame): gabor stimulus dataframe with grayscreen rows 
+        - df (pd DataFrame): gabor stimulus dataframe with grayscreen (G) rows 
                              added
     """
 
@@ -442,38 +449,38 @@ def add_grayscreen_rows_gabors(df):
 
     df = df.sort_values("start2pfr").reset_index(drop=True)
 
-    if 'gabfr' not in df.columns:
-        raise ValueError('Should only be used with dataframes containing '
-                         'gabor frame information')
+    if "gabfr" not in df.columns:
+        raise ValueError("Should only be used with dataframes containing "
+                         "gabor frame information")
 
-    # add in lines for grayscreen with parameters of previous segment
+    # add in lines for grayscreen (G) with parameters of previous segment
     # except gabfr and start/end frames          
-    pre_seg = df.loc[(df['gabfr'] == 3)].reset_index(drop=True)
-    pre_seg = pre_seg.loc[(pre_seg['stimSeg'] < max(df['stimSeg']))]
+    pre_seg = df.loc[(df["gabfr"] == 3)].reset_index(drop=True)
+    pre_seg = pre_seg.loc[(pre_seg["stimSeg"] < max(df["stimSeg"]))]
 
-    post_seg = df.loc[(df['gabfr'] == 0)].reset_index(drop=True)
-    post_seg = post_seg.loc[(post_seg['stimSeg'] > min(df['stimSeg']))]
+    post_seg = df.loc[(df["gabfr"] == 0)].reset_index(drop=True)
+    post_seg = post_seg.loc[(post_seg["stimSeg"] > min(df["stimSeg"]))]
 
-    gray_seg = pre_seg.copy()
-    gray_seg['gabfr'] = 'gray'
+    G_seg = pre_seg.copy()
+    G_seg["gabfr"] = "G"
 
-    gray_seg['start2pfr']     = pre_seg['end2pfr'].values
-    gray_seg['start_stim_fr'] = pre_seg['end_stim_fr'].values
-    gray_seg['end2pfr']       = post_seg['start2pfr'].values
-    gray_seg['end_stim_fr']   = post_seg['start_stim_fr'].values
+    G_seg["start2pfr"]     = pre_seg["end2pfr"].values
+    G_seg["start_stim_fr"] = pre_seg["end_stim_fr"].values
+    G_seg["end2pfr"]       = post_seg["start2pfr"].values
+    G_seg["end_stim_fr"]   = post_seg["start_stim_fr"].values
 
-    df = df.append(gray_seg).sort_values('start2pfr').reset_index(drop=True)
+    df = df.append(G_seg).sort_values("start2pfr").reset_index(drop=True)
 
-    df['surp'] = df['surp'].astype(int)
+    df["surp"] = df["surp"].astype(int)
     
     return df
 
 
 #############################################
-def format_stim_criteria(stim_df, stimtype='gabors', stimPar1='any', 
-                         stimPar2='any', surp='any', stimSeg='any', 
-                         gabfr='any', start2pfr='any', end2pfr='any', 
-                         num2pfr='any', gabk=None, gab_ori=None, 
+def format_stim_criteria(stim_df, stimtype="gabors", stimPar1="any", 
+                         stimPar2="any", surp="any", stimSeg="any", 
+                         gabfr="any", start2pfr="any", end2pfr="any", 
+                         num2pfr="any", gabk=None, gab_ori=None, 
                          bri_size=None, bri_dir=None):
     """
     format_stim_criteria()
@@ -488,43 +495,43 @@ def format_stim_criteria(stim_df, stimtype='gabors', stimPar1='any',
 
     Optional args:
         - stimtype (str)               : stimulus type
-                                            default: 'gabors'
+                                            default: "gabors"
         - stimPar1 (str, int or list)  : stimPar1 value(s) of interest 
                                             (sizes: 128, 256, 
                                             oris: 0, 45, 90, 135)
-                                            default: 'any'
+                                            default: "any"
         - stimPar2 (str, int or list)  : stimPar2 value(s) of interest 
-                                            ('right', 'left', 'temp', 
-                                             'nasal', 4, 16)
-                                            default: 'any'
+                                            ("right", "left", "temp", 
+                                             "nasal", 4, 16)
+                                            default: "any"
         - surp (str, int or list)      : surp value(s) of interest (0, 1)
-                                            default: 'any'
+                                            default: "any"
         - stimSeg (str, int or list)   : stimSeg value(s) of interest
-                                            default: 'any'
+                                            default: "any"
         - gabfr (str, int or list)     : gaborframe value(s) of interest 
                                             (0, 1, 2, 3)
-                                            default: 'any'
+                                            default: "any"
         - start2pfr (str or list)      : 2p start frames range of interest
                                             [min, max (excl)] 
-                                            default: 'any'
+                                            default: "any"
         - end2pfr (str or list)        : 2p excluded end frames range of 
                                             interest [min, max (excl)]
-                                            default: 'any'
+                                            default: "any"
         - num2pfr (str or list)        : 2p num frames range of interest
                                             [min, max (excl)]
-                                            default: 'any'
+                                            default: "any"
         - gabk (int or list)           : if not None, will overwrite 
-                                            stimPar2 (4, 16, or 'any')
+                                            stimPar2 (4, 16, or "any")
                                             default: None
         - gab_ori (int or list)        : if not None, will overwrite 
-                                            stimPar1 (0, 45, 90, 135, or 'any')
+                                            stimPar1 (0, 45, 90, 135, or "any")
                                             default: None
         - bri_size (int or list)       : if not None, will overwrite 
-                                            stimPar1 (128, 256, or 'any')
+                                            stimPar1 (128, 256, or "any")
                                             default: None
         - bri_dir (str or list)        : if not None, will overwrite 
-                                            stimPar2 ('right', 'left', 'temp', 
-                                             'nasal', or 'any')
+                                            stimPar2 ("right", "left", "temp", 
+                                             "nasal", or "any")
                                             default: None
     
     Returns:
@@ -545,33 +552,33 @@ def format_stim_criteria(stim_df, stimtype='gabors', stimPar1='any',
     """
 
     # remove brick criteria for gabors and vv
-    if stimtype == 'gabors':
+    if stimtype == "gabors":
         bri_size = None
         bri_dir = None
-    elif stimtype == 'bricks':
+    elif stimtype == "bricks":
         gabfr = None
         gabk = None
         gab_ori = None
     else:
         gen_util.accepted_values_error(
-            'stimtype', stimtype, ['gabors', 'bricks'])
+            "stimtype", stimtype, ["gabors", "bricks"])
 
     # if passed, replace StimPar1 and StimPar2 with the gabor and brick
     # arguments
     pars = [gabk, gab_ori, bri_size, bri_dir]
-    stimpar_names = ['stimPar2', 'stimPar1', 'stimPar1', 'stimPar2']
+    stimpar_names = ["stimPar2", "stimPar1", "stimPar1", "stimPar2"]
     sp1 = []
     sp2 = []
 
     for i in range(len(pars)):
-        if pars[i] == 'any':
+        if pars[i] == "any":
             pars[i] = gen_util.get_df_vals(
-                stim_df, 'stimType', stimtype, stimpar_names[i])
+                stim_df, "stimType", stimtype, stimpar_names[i])
         if pars[i] is not None:
             pars[i] = gen_util.list_if_not(pars[i])
-            if stimpar_names[i] == 'stimPar1':
+            if stimpar_names[i] == "stimPar1":
                 sp1.extend(pars[i])
-            elif stimpar_names[i] == 'stimPar2':
+            elif stimpar_names[i] == "stimPar2":
                 sp2.extend(pars[i])
     
     if len(sp1) != 0:
@@ -580,42 +587,42 @@ def format_stim_criteria(stim_df, stimtype='gabors', stimPar1='any',
         stimPar2 = sp2
         # change direction names
         for i in range(len(stimPar2)):
-            if stimPar2[i] in ['right', 'left', 'temp', 'nasal']:
+            if stimPar2[i] in ["right", "left", "temp", "nasal"]:
                 stimPar2[i] = sess_gen_util.get_bri_screen_mouse_direc(
                     stimPar2[i])
 
-    # converts values to lists or gets all possible values, if 'any'
-    stimPar1 = gen_util.get_df_label_vals(stim_df, 'stimPar1', stimPar1)
-    stimPar2 = gen_util.get_df_label_vals(stim_df, 'stimPar2', stimPar2)
-    surp     = gen_util.get_df_label_vals(stim_df, 'surp', surp)
-    stimSeg  = gen_util.get_df_label_vals(stim_df, 'stimSeg', stimSeg)
+    # converts values to lists or gets all possible values, if "any"
+    stimPar1 = gen_util.get_df_label_vals(stim_df, "stimPar1", stimPar1)
+    stimPar2 = gen_util.get_df_label_vals(stim_df, "stimPar2", stimPar2)
+    surp     = gen_util.get_df_label_vals(stim_df, "surp", surp)
+    stimSeg  = gen_util.get_df_label_vals(stim_df, "stimSeg", stimSeg)
     # here, ensure that the -1s are removed
     stimSeg = gen_util.remove_if(stimSeg, -1)
-    gabfr   = gen_util.get_df_label_vals(stim_df, 'gabfr', gabfr)
+    gabfr   = gen_util.get_df_label_vals(stim_df, "gabfr", gabfr)
     
-    if start2pfr in ['any', None]:
-        start2pfr_min = int(stim_df['start2pfr'].min())
-        start2pfr_max = int(stim_df['start2pfr'].max()+1)
+    if start2pfr in ["any", None]:
+        start2pfr_min = int(stim_df["start2pfr"].min())
+        start2pfr_max = int(stim_df["start2pfr"].max()+1)
     elif len(start2pfr) == 2:
         start2pfr_min, start2pfr_max = start2pfr
     else:
-        raise ValueError('`start2pfr` must be of length 2 if passed.')
+        raise ValueError("'start2pfr' must be of length 2 if passed.")
 
-    if end2pfr in ['any', None]:
-        end2pfr_min = int(stim_df['end2pfr'].min())
-        end2pfr_max = int(stim_df['end2pfr'].max() + 1)
+    if end2pfr in ["any", None]:
+        end2pfr_min = int(stim_df["end2pfr"].min())
+        end2pfr_max = int(stim_df["end2pfr"].max() + 1)
     elif len(start2pfr) == 2:
         end2pfr_min, end2pfr_max = end2pfr
     else:
-        raise ValueError('`end2pfr` must be of length 2 if passed.')
+        raise ValueError("'end2pfr' must be of length 2 if passed.")
 
-    if num2pfr in ['any', None]:
-        num2pfr_min = int(stim_df['num2pfr'].min())
-        num2pfr_max = int(stim_df['num2pfr'].max() + 1)
+    if num2pfr in ["any", None]:
+        num2pfr_min = int(stim_df["num2pfr"].min())
+        num2pfr_max = int(stim_df["num2pfr"].max() + 1)
     elif len(start2pfr) == 2:
         num2pfr_min, num2pfr_max = num2pfr
     else:
-        raise ValueError('`num2pfr` must be of length 2 if passed.')
+        raise ValueError("'num2pfr' must be of length 2 if passed.")
 
     return [stimPar1, stimPar2, surp, stimSeg, gabfr, start2pfr_min, 
         start2pfr_max, end2pfr_min, end2pfr_max, num2pfr_min, num2pfr_max] 

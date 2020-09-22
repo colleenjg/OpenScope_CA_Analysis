@@ -12,15 +12,13 @@ Note: this code uses python 3.7.
 
 """
 
-import astropy.stats as astrost
 from joblib import Parallel, delayed
 import numpy as np
 import scipy.stats as st
 from sklearn import linear_model
 
-from util import gen_util, math_util
+from util import gen_util, logger_util, math_util
 from sess_util import sess_gen_util
-
 
 
 #############################################
@@ -42,8 +40,8 @@ def collapse_dir(oris):
 
     oris_nodir = np.copy(oris)
     if (np.absolute(oris) > 180).any():
-        raise ValueError('Only orientations between -180 and 180 are '
-            'accepted.')
+        raise ValueError("Only orientations between -180 and 180 are "
+            "accepted.")
 
     ori_ch = np.where(np.absolute(oris) > 90)
     new_vals = oris[ori_ch] - np.sign(oris[ori_ch]) * 180.0
@@ -152,7 +150,7 @@ def estim_vm_by_roi(oris, roi_data, hist_n=1000, parallel=False):
 
 
 #############################################
-def tune_curv_estims(gab_oris, roi_data, ngabs_tot, nrois='all', ngabs='all',
+def tune_curv_estims(gab_oris, roi_data, ngabs_tot, nrois="all", ngabs="all",
                      comb_gabs=False, hist_n=1000, collapse=True, 
                      parallel=False):
     """
@@ -169,10 +167,10 @@ def tune_curv_estims(gab_oris, roi_data, ngabs_tot, nrois='all', ngabs='all',
 
     Optional args:
         - nrois (int)     : number of ROIs to include in analysis
-                            default: 'all'
+                            default: "all"
         - ngabs (int)     : number of gabors to include in analysis (set to 1 
                             if comb_gabs, as all gabors are combined)
-                            default: 'all'
+                            default: "all"
         - comb_gabs (bool): if True, all gabors have been combined for 
                             gab_oris and roi_data 
                             default: False
@@ -214,9 +212,9 @@ def tune_curv_estims(gab_oris, roi_data, ngabs_tot, nrois='all', ngabs='all',
         kapw_bool = [0]
         ngabs = 1
 
-    if ngabs == 'all':
+    if ngabs == "all":
         ngabs = ngabs_tot
-    if nrois == 'all':
+    if nrois == "all":
         roi_data.shape[0]
 
     if parallel and ngabs > nrois:
@@ -242,6 +240,7 @@ def tune_curv_estims(gab_oris, roi_data, ngabs_tot, nrois='all', ngabs='all',
     gab_vm_mean = np.empty([nrois, len(kapw_bool)])
     gab_vm_mean[:, 0] = st.circmean(means, np.pi/2., -np.pi/2, axis=1)
     if not comb_gabs:
+        import astropy.stats as astrost
         # astropy only implemented with -pi to pi range
         gab_vm_mean[:, 1] = astrost.circmean(
             means * 2., axis=1, weights=kaps)/2.
@@ -250,8 +249,8 @@ def tune_curv_estims(gab_oris, roi_data, ngabs_tot, nrois='all', ngabs='all',
 
 
 #############################################
-def calc_tune_curvs(sess, analyspar, stimpar, nrois='all', ngabs='all', 
-                    grp2='surp', comb_gabs=True, prev=False, collapse=True, 
+def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all", 
+                    grp2="surp", comb_gabs=True, prev=False, collapse=True, 
                     parallel=True):
     """
     calc_tune_curvs(sess, analyspar, stimpar)
@@ -266,13 +265,13 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois='all', ngabs='all',
 
     Optional args:
         - nrois (int)     : number of ROIs to include in analysis
-                            default: 'all'
+                            default: "all"
         - ngabs (int)     : number of gabors to include in analysis (set to 1 
                             if comb_gabs, as all gabors are combined)
-                            default: 'all'
+                            default: "all"
         - grp2 (str)      : second group: either surp, reg or rand (random 
                             subsample of reg, the size of surp)
-                            default: 'surp'
+                            default: "surp"
         - comb_gabs (bool): if True, all gabors have been combined for 
                             gab_oris and roi_data 
                             default: False
@@ -310,22 +309,22 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois='all', ngabs='all',
     gabfrs = gen_util.list_if_not(stimpar.gabfr)
     if len(gabfrs) == 1:
         gabfrs = gabfrs * 2
-    if grp2 == 'surp':
+    if grp2 == "surp":
         surps = [0, 1]
-    elif grp2 in ['reg', 'rand']:
+    elif grp2 in ["reg", "rand"]:
         surps = [0, 0]
     else:
-        gen_util.accepted_values_error('grp2', grp2, ['surp', 'reg', 'rand'])
+        gen_util.accepted_values_error("grp2", grp2, ["surp", "reg", "rand"])
     
     stim = sess.get_stim(stimpar.stimtype)
     nrois_tot = sess.get_nrois(analyspar.remnans, analyspar.fluor)
     ngabs_tot = stim.n_patches
-    if nrois == 'all':
+    if nrois == "all":
         sess_nrois = nrois_tot
     else:
         sess_nrois = np.min([nrois_tot, nrois])
     
-    if ngabs == 'all':
+    if ngabs == "all":
         sess_ngabs = stim.n_patches
     else:
         sess_ngabs = np.min([stim.n_patches, ngabs])                
@@ -338,21 +337,21 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois='all', ngabs='all',
         # get segments
         segs = stim.get_segs_by_criteria(
             gabfr=gf, bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, 
-            gabk=stimpar.gabk, surp=s, by='seg')
+            gabk=stimpar.gabk, surp=s, by="seg")
         
-        if grp2 == 'rand' and i == 1:
+        if grp2 == "rand" and i == 1:
             n_segs = len(stim.get_segs_by_criteria(
                 gabfr=gf, bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, 
-                gabk=stimpar.gabk, surp=1, by='seg'))
+                gabk=stimpar.gabk, surp=1, by="seg"))
             np.random.shuffle(segs)
             segs = sorted(segs[: n_segs])
         tc_nseqs.append(len(segs))
-        twopfr = stim.get_twop_fr_by_seg(segs, first=True)['first_twop_fr']
+        twopfr = stim.get_twop_fr_by_seg(segs, first=True)["first_twop_fr"]
         # ROI x seq
         roi_data = stim.get_roi_data(
             twopfr, stimpar.pre, stimpar.post, analyspar.fluor, integ=True, 
             remnans=analyspar.remnans, scale=analyspar.scale
-            )['roi_traces'].unstack().to_numpy()[:sess_nrois]
+            )["roi_traces"].unstack().to_numpy()[:sess_nrois]
 
         # gab x seq 
         gab_oris = gen_util.reshape_df_data(stim.get_stim_par_by_seg(

@@ -19,8 +19,7 @@ import pickle
 from matplotlib import pyplot as plt
 import scipy.stats as stats
 from sklearn.decomposition import PCA
-import exceptions
-import pdb
+
 
 ###############################################################################
 def run_pca(datafile, outfile, ncomps = 20, nframes=500, ran=(1000,-1000), crop=(500, 500)):
@@ -133,7 +132,6 @@ def project_data(datafile, pcafile, frames):
 
     # get the baseline fluorescence
     #baseline = pcapkl['baseline']
-    #pdb.set_trace()
 
     # get the pca components
     comps = pcapkl['pca'].components_

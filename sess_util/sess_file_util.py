@@ -19,11 +19,11 @@ import json
 import pandas as pd
 import pickle
 
-from util import file_util, gen_util
+from util import file_util, gen_util, logger_util
 
 
 #############################################
-def get_sess_dirs(masterdir, sessid, expid, segid, mouseid, runtype='prod',
+def get_sess_dirs(masterdir, sessid, expid, segid, mouseid, runtype="prod",
                   mouse_dir=True, check=True):
     """
     get_sess_dirs(masterdir, sessid, expid, segid, mouseid)
@@ -40,12 +40,12 @@ def get_sess_dirs(masterdir, sessid, expid, segid, mouseid, runtype='prod',
         - expid (str)    : experiment ID (9 digits)
         - segid (str)    : segmentation ID (9 digits)
         - mouseid (str)  : mouse 6-digit ID string used for session files
-                           e.g. '389778' 
+                           e.g. "389778" 
 
     Optional arguments
-        - runtype (str)   : 'prod' (production) or 'pilot' data
-                            default: 'prod'
-        - mouse_dir (bool): if True, session information is in a 'mouse_*'
+        - runtype (str)   : "prod" (production) or "pilot" data
+                            default: "prod"
+        - mouse_dir (bool): if True, session information is in a "mouse_*"
                             subdirectory
                             default: True
         - check (bool)    : if True, checks whether the directories in the 
@@ -63,15 +63,15 @@ def get_sess_dirs(masterdir, sessid, expid, segid, mouseid, runtype='prod',
     
     # get the name of the session and experiment data directories
     if mouse_dir:
-        sessdir = os.path.join(masterdir, runtype, f'mouse_{mouseid}', 
-            f'ophys_session_{sessid}')
+        sessdir = os.path.join(masterdir, runtype, f"mouse_{mouseid}", 
+            f"ophys_session_{sessid}")
     else:
-        sessdir = os.path.join(masterdir, runtype, f'ophys_session_{sessid}')
+        sessdir = os.path.join(masterdir, runtype, f"ophys_session_{sessid}")
 
-    expdir   = os.path.join(sessdir, f'ophys_experiment_{expid}')
-    procdir  = os.path.join(expdir, 'processed')
-    demixdir = os.path.join(expdir, 'demix')
-    segdir   = os.path.join(procdir, f'ophys_cell_segmentation_run_{segid}')
+    expdir   = os.path.join(sessdir, f"ophys_experiment_{expid}")
+    procdir  = os.path.join(expdir, "processed")
+    demixdir = os.path.join(expdir, "demix")
+    segdir   = os.path.join(procdir, f"ophys_cell_segmentation_run_{segid}")
 
     # check that directory exists
     if check:
@@ -79,14 +79,14 @@ def get_sess_dirs(masterdir, sessid, expid, segid, mouseid, runtype='prod',
             file_util.checkdir(sessdir)
         except OSError:
             raise OSError(
-                f'{sessdir} does not conform to expected AIBS structure.')
+                f"{sessdir} does not conform to expected AIBS structure.")
 
     return sessdir, expdir, procdir, demixdir, segdir
 
 
 #############################################
 def get_file_names(masterdir, sessid, expid, segid, date, mouseid, 
-                   runtype='prod', mouse_dir=True, check=True):
+                   runtype="prod", mouse_dir=True, check=True):
     """
     get_file_names(masterdir, sessionid, expid, date, mouseid)
 
@@ -99,13 +99,13 @@ def get_file_names(masterdir, sessid, expid, segid, date, mouseid,
         - sessid (int)   : session ID (9 digits)
         - expid (str)    : experiment ID (9 digits)
         - segid (str)    : segmentation ID (9 digits)
-        - date (str)     : date for the session in YYYYMMDD, e.g. '20160802'
+        - date (str)     : date for the session in YYYYMMDD, e.g. "20160802"
         - mouseid (str)  : mouse 6-digit ID string used for session files
 
     Optional args:
-        - runtype (str)   : 'prod' (production) or 'pilot' data
-                            default: 'prod'
-        - mouse_dir (bool): if True, session information is in a 'mouse_*'
+        - runtype (str)   : "prod" (production) or "pilot" data
+                            default: "prod"
+        - mouse_dir (bool): if True, session information is in a "mouse_*"
                             subdirectory
                             default: True
         - check (bool)    : if True, checks whether the files and directories 
@@ -115,36 +115,36 @@ def get_file_names(masterdir, sessid, expid, segid, date, mouseid,
 
     Returns:
         - dirpaths (dict): dictionary of directory paths
-            ['expdir'] (str)  : full path name of the experiment directory
-            ['procdir'] (str) : full path name of the processed directory
-            ['demixdir'] (str): full path name of the demixed directory
-            ['segdir'] (str)  : full path name of the segmentation directory
+            ["expdir"] (str)  : full path name of the experiment directory
+            ["procdir"] (str) : full path name of the processed directory
+            ["demixdir"] (str): full path name of the demixed directory
+            ["segdir"] (str)  : full path name of the segmentation directory
         - filepaths (dict): dictionary of file paths
-            ['behav_video_h5'] (str)    : full path name of the behavioral hdf5
+            ["behav_video_h5"] (str)    : full path name of the behavioral hdf5
                                           video file
-            ['pupil_video_h5'] (str)    : full path name of the pupil hdf5 
+            ["pupil_video_h5"] (str)    : full path name of the pupil hdf5 
                                           video file
-            ['roi_extract_json'] (str)  : full path name of the ROI extraction 
+            ["roi_extract_json"] (str)  : full path name of the ROI extraction 
                                           json
-            ['roi_objectlist_txt'] (str): full path to ROI object list txt
-            ['stim_pkl']  (str)         : full path name of the stimulus
+            ["roi_objectlist_txt"] (str): full path to ROI object list txt
+            ["stim_pkl"]  (str)         : full path name of the stimulus
                                           pickle file
-            ['stim_sync_h5'] (str)      : full path name of the stimulus
+            ["stim_sync_h5"] (str)      : full path name of the stimulus
                                           synchronization hdf5 file
-            ['time_sync_h5'] (str)      : full path name of the time 
+            ["time_sync_h5"] (str)      : full path name of the time 
                                           synchronization hdf5 file
             
             Existence not checked:
-            ['align_pkl'] (str)         : full path name of the stimulus
+            ["align_pkl"] (str)         : full path name of the stimulus
                                           alignment pickle file
-            ['corrected_data_h5'] (str) : full path name of the motion
+            ["corrected_data_h5"] (str) : full path name of the motion
                                           corrected 2p data hdf5 file
-            ['roi_trace_h5'] (str)      : full path name of the ROI raw 
+            ["roi_trace_h5"] (str)      : full path name of the ROI raw 
                                           processed fluorescence trace hdf5 
                                           file (AIBS version)
-            ['roi_trace_dff_h5'] (str)  : full path name of the ROI dF/F trace 
+            ["roi_trace_dff_h5"] (str)  : full path name of the ROI dF/F trace 
                                           hdf5 file (AIBS version)
-            ['zstack_h5'] (str)         : full path name of the zstack 2p hdf5 
+            ["zstack_h5"] (str)         : full path name of the zstack 2p hdf5 
                                           file
     """
     
@@ -156,43 +156,43 @@ def get_file_names(masterdir, sessid, expid, segid, date, mouseid,
         dendritic=False, check=False) # will check below, if required
 
     # set the file names
-    sess_m_d = f'{sessid}_{mouseid}_{date}'
+    sess_m_d = f"{sessid}_{mouseid}_{date}"
 
-    dirpaths = {'expdir'  : expdir,
-                'procdir' : procdir,
-                'segdir'  : segdir,
-                'demixdir': demixdir
+    dirpaths = {"expdir"  : expdir,
+                "procdir" : procdir,
+                "segdir"  : segdir,
+                "demixdir": demixdir
                 }
 
-    filepaths = {'align_pkl'         : os.path.join(sessdir, 
-                                       f'{sess_m_d}_df.pkl'),
-                 'behav_video_h5'    : os.path.join(sessdir, 
-                                       f'{sess_m_d}_video-0.h5'),
-                 'correct_data_h5'   : os.path.join(procdir, 
-                                       'concat_31Hz_0.h5'),
-                 'pupil_video_h5'    : os.path.join(sessdir, 
-                                       f'{sess_m_d}_video-1.h5'),
-                 'roi_extract_json'  : os.path.join(procdir, 
-                                       f'{expid}_input_extract_traces.json'),
-                 'roi_trace_h5'      : roi_trace_paths['roi_trace_h5'],
-                 'roi_trace_dff_h5'  : roi_trace_paths['roi_trace_dff_h5'],
-                 'roi_objectlist_txt': os.path.join(segdir, 'objectlist.txt'),
-                 'stim_pkl'          : os.path.join(sessdir, 
-                                       f'{sess_m_d}_stim.pkl'),
-                 'stim_sync_h5'      : os.path.join(sessdir, 
-                                       f'{sess_m_d}_sync.h5'),
+    filepaths = {"align_pkl"         : os.path.join(sessdir, 
+                                       f"{sess_m_d}_df.pkl"),
+                 "behav_video_h5"    : os.path.join(sessdir, 
+                                       f"{sess_m_d}_video-0.h5"),
+                 "correct_data_h5"   : os.path.join(procdir, 
+                                       "concat_31Hz_0.h5"),
+                 "pupil_video_h5"    : os.path.join(sessdir, 
+                                       f"{sess_m_d}_video-1.h5"),
+                 "roi_extract_json"  : os.path.join(procdir, 
+                                       f"{expid}_input_extract_traces.json"),
+                 "roi_trace_h5"      : roi_trace_paths["roi_trace_h5"],
+                 "roi_trace_dff_h5"  : roi_trace_paths["roi_trace_dff_h5"],
+                 "roi_objectlist_txt": os.path.join(segdir, "objectlist.txt"),
+                 "stim_pkl"          : os.path.join(sessdir, 
+                                       f"{sess_m_d}_stim.pkl"),
+                 "stim_sync_h5"      : os.path.join(sessdir, 
+                                       f"{sess_m_d}_sync.h5"),
                  
-                 'time_sync_h5'      : os.path.join(expdir, 
-                                       f'{expid}_time_synchronization.h5'),
-                 'zstack_h5'         : os.path.join(sessdir, 
-                                       f'{sessid}_zstack_column.h5'),
+                 "time_sync_h5"      : os.path.join(expdir, 
+                                       f"{expid}_time_synchronization.h5"),
+                 "zstack_h5"         : os.path.join(sessdir, 
+                                       f"{sessid}_zstack_column.h5"),
                 }
     
     if check:
         # files not to check for (are created if needed or should be checked 
         # when needed, due to size)
-        no_check = ['align_pkl', 'correct_data_h5', 'zstack_h5', 
-            'roi_trace_h5', 'roi_trace_dff_h5']
+        no_check = ["align_pkl", "correct_data_h5", "zstack_h5", 
+            "roi_trace_h5", "roi_trace_dff_h5"]
 
         for key in filepaths.keys():
             if key not in no_check:
@@ -202,7 +202,7 @@ def get_file_names(masterdir, sessid, expid, segid, date, mouseid,
 
 
 #############################################
-def get_file_names_from_sessid(masterdir, sessid, runtype='prod', check=True):
+def get_file_names_from_sessid(masterdir, sessid, runtype="prod", check=True):
     """
     get_file_names_from_sessid(masterdir, sessid)
 
@@ -214,8 +214,8 @@ def get_file_names_from_sessid(masterdir, sessid, runtype='prod', check=True):
         - sessid (int)   : session ID (9 digits)
 
     Optional args:
-        - runtype (str)   : 'prod' (production) or 'pilot' data
-                            default: 'prod'
+        - runtype (str)   : "prod" (production) or "pilot" data
+                            default: "prod"
         - check (bool)    : if True, checks whether the files and directories 
                             in the output dictionaries exist (with a few 
                             exceptions)
@@ -241,7 +241,7 @@ def get_file_names_from_sessid(masterdir, sessid, runtype='prod', check=True):
 
 
 #############################################
-def get_sess_dir_path(masterdir, sessid, runtype='prod'):
+def get_sess_dir_path(masterdir, sessid, runtype="prod"):
     """
     get_sess_dir_path(masterdir, sessid)
 
@@ -253,39 +253,39 @@ def get_sess_dir_path(masterdir, sessid, runtype='prod'):
         - sessid (int)   : session ID
 
     Optional args:
-        - runtype (str): 'prod' (production) or 'pilot' data
-                          default: 'prod'
+        - runtype (str): "prod" (production) or "pilot" data
+                          default: "prod"
 
     Returns:
         - sess_dir (str)  : path to the session directory
-        - mouse_dir (bool): if True, session information is in a 'mouse_*'
+        - mouse_dir (bool): if True, session information is in a "mouse_*"
                             subdirectory
                             default: True 
     """
 
-    if runtype not in ['pilot', 'prod']:
-        gen_util.accepted_values_error('runtype', runtype, ['prod', 'pilot'])
+    if runtype not in ["pilot", "prod"]:
+        gen_util.accepted_values_error("runtype", runtype, ["prod", "pilot"])
 
     # set the session directory (full path)
     wild_dir  = os.path.join(
-        masterdir, runtype, 'mouse_*', f'ophys_session_{sessid}')
+        masterdir, runtype, "mouse_*", f"ophys_session_{sessid}")
     name_dir  = glob.glob(wild_dir)
     
-    # pilot data may not be in a 'mouse_' folder
+    # pilot data may not be in a "mouse_" folder
     if len(name_dir) == 0:
         wild_dir  = os.path.join(
-            masterdir, runtype,  f'ophys_session_{sessid}')
+            masterdir, runtype,  f"ophys_session_{sessid}")
         name_dir  = glob.glob(wild_dir)
         mouse_dir = False
     else:
         mouse_dir = True
 
     if len(name_dir) == 0:
-        raise OSError(f'Could not find directory for session {sessid} '
-            f'(runtype {runtype}) in {masterdir} subfolders.')
+        raise OSError(f"Could not find directory for session {sessid} "
+            f"(runtype {runtype}) in {masterdir} subfolders.")
     elif len(name_dir) > 1:
-        raise OSError(f'Found {len(name_dir)} matching session folders in '
-            f'{masterdir} instead of 1.')
+        raise OSError(f"Found {len(name_dir)} matching session folders in "
+            f"{masterdir} instead of 1.")
 
     sess_dir = name_dir[0]
 
@@ -303,7 +303,7 @@ def get_mouseid(sessdir, mouse_dir=True):
         - sessdir (str): session directory
 
     Optional args:
-        - mouse_dir (bool): if True, session information is in a 'mouse_*'
+        - mouse_dir (bool): if True, session information is in a "mouse_*"
                             subdirectory
                             default: True
         - sessid (int)    : session ID. If None, it is retrieved from the 
@@ -316,7 +316,7 @@ def get_mouseid(sessdir, mouse_dir=True):
     """
 
     if mouse_dir:
-        mstr = 'mouse_'
+        mstr = "mouse_"
         start = sessdir.find(mstr) + len(mstr)
         mouseid = sessdir[start:start + 6]
 
@@ -350,12 +350,12 @@ def get_mouseid_date(sessdir, sessid=None):
     if sessid is None:
         sessid = get_sessid(sessdir)
 
-    pklglob = glob.glob(os.path.join(sessdir, f'{sessid}*stim.pkl'))
+    pklglob = glob.glob(os.path.join(sessdir, f"{sessid}*stim.pkl"))
     
     if len(pklglob) == 0:
-        raise OSError(f'Could not find stim pkl file in {sessdir}')
+        raise OSError(f"Could not find stim pkl file in {sessdir}")
     else:
-        pklinfo = os.path.basename(pklglob[0]).split('_')
+        pklinfo = os.path.basename(pklglob[0]).split("_")
     
     mouseid = int(pklinfo[1]) # mouse 6 digit nbr
     date    = pklinfo[2]
@@ -378,7 +378,7 @@ def get_sessid(sessdir):
 
     """
 
-    sesspart = 'ophys_session_'
+    sesspart = "ophys_session_"
     start = sessdir.find(sesspart) + len(sesspart)
     sessid = sessdir[start:start + 9]
 
@@ -400,11 +400,11 @@ def get_expid(sessdir):
 
     """
 
-    expglob = glob.glob(os.path.join(sessdir,'ophys_experiment*'))
+    expglob = glob.glob(os.path.join(sessdir,"ophys_experiment*"))
     if len(expglob) == 0:
-        raise OSError(f'Could not find experiment directory in {sessdir}.')
+        raise OSError(f"Could not find experiment directory in {sessdir}.")
     else:
-        expinfo = os.path.basename(expglob[0]).split('_')
+        expinfo = os.path.basename(expglob[0]).split("_")
     expid = int(expinfo[2])
 
     return expid
@@ -426,18 +426,18 @@ def get_segid(sessdir):
     """
 
     segglob = glob.glob(os.path.join(
-        sessdir, '*', 'processed', 'ophys_cell_segmentation_run_*'))
+        sessdir, "*", "processed", "ophys_cell_segmentation_run_*"))
     if len(segglob) == 0:
-        raise OSError(f'Could not find segmentation directory in {sessdir}')
+        raise OSError(f"Could not find segmentation directory in {sessdir}")
     else:
-        seginfo = os.path.basename(segglob[0]).split('_')
+        seginfo = os.path.basename(segglob[0]).split("_")
     segid = int(seginfo[-1])
 
     return segid
 
 
 #############################################
-def get_dendritic_mask_path(masterdir, sessid, expid, mouseid, runtype='prod', 
+def get_dendritic_mask_path(masterdir, sessid, expid, mouseid, runtype="prod", 
                             mouse_dir=True, check=True):
     """
     get_dendritic_mask_path(masterdir, sessid, expid, mouseid)
@@ -446,17 +446,17 @@ def get_dendritic_mask_path(masterdir, sessid, expid, mouseid, runtype='prod',
 
     Required args:
         - masterdir (str): name of the master data directory
-        - sessid (int)   : session ID (9 digits), e.g. '712483302'
-        - expid (str)    : experiment ID (9 digits), e.g. '715925563'
+        - sessid (int)   : session ID (9 digits), e.g. "712483302"
+        - expid (str)    : experiment ID (9 digits), e.g. "715925563"
         - date (str)     : date for the session in YYYYMMDD
-                           e.g. '20160802'
+                           e.g. "20160802"
         - mouseid (str)  : mouse 6-digit ID string used for session files
-                           e.g. '389778' 
+                           e.g. "389778" 
 
     Optional args:
-        - runtype (str)   : 'prod' (production) or 'pilot' data
-                            default: 'prod'
-        - mouse_dir (bool): if True, session information is in a 'mouse_*'
+        - runtype (str)   : "prod" (production) or "pilot" data
+                            default: "prod"
+        - mouse_dir (bool): if True, session information is in a "mouse_*"
                             subdirectory
                             default: True
         - check (bool)    : if True, checks whether the mask file exists
@@ -471,7 +471,7 @@ def get_dendritic_mask_path(masterdir, sessid, expid, mouseid, runtype='prod',
         check=check)[2]
 
 
-    maskfile = os.path.join(procdir, f'{sessid}_dendritic_masks.h5')
+    maskfile = os.path.join(procdir, f"{sessid}_dendritic_masks.h5")
 
     if check:
         file_util.checkfile(maskfile)
@@ -480,7 +480,7 @@ def get_dendritic_mask_path(masterdir, sessid, expid, mouseid, runtype='prod',
 
 
 #############################################
-def get_dendritic_mask_path_from_sessid(masterdir, sessid, runtype='prod', 
+def get_dendritic_mask_path_from_sessid(masterdir, sessid, runtype="prod", 
                                         check=True):
     """
     get_dendritic_mask_path_from_sessid(masterdir, sessid)
@@ -492,8 +492,8 @@ def get_dendritic_mask_path_from_sessid(masterdir, sessid, runtype='prod',
         - sessid (int)   : session ID
 
     Optional args:
-        - runtype (str)   : 'prod' (production) or 'pilot' data
-                            default: 'prod'
+        - runtype (str)   : "prod" (production) or "pilot" data
+                            default: "prod"
         - check (bool)    : if True, checks whether the files in the output 
                             dictionary exist
                             default: True
@@ -534,9 +534,9 @@ def get_dendritic_trace_path(orig_file, check=True):
 
     filepath, ext = os.path.splitext(orig_file)
     
-    dend_part = '_dendritic'
+    dend_part = "_dendritic"
 
-    dend_file = f'{filepath}{dend_part}{ext}'
+    dend_file = f"{filepath}{dend_part}{ext}"
 
     if check:
         file_util.checkfile(dend_file)
@@ -546,7 +546,7 @@ def get_dendritic_trace_path(orig_file, check=True):
 
 #############################################
 def get_roi_trace_paths(masterdir, sessid, expid, segid, mouseid, 
-                        runtype='prod', mouse_dir=True, dendritic=False, 
+                        runtype="prod", mouse_dir=True, dendritic=False, 
                         check=True):
     """
     get_roi_trace_paths(masterdir, sessid, expid, segid, mouseid)
@@ -560,12 +560,12 @@ def get_roi_trace_paths(masterdir, sessid, expid, segid, mouseid,
         - expid (str)    : experiment ID (9 digits)
         - segid (str)    : segmentation ID (9 digits)
         - mouseid (str)  : mouse 6-digit ID string used for session files
-                           e.g. '389778' 
+                           e.g. "389778" 
 
     Optional arguments
-        - runtype (str)   : 'prod' (production) or 'pilot' data
-                            default: 'prod'
-        - mouse_dir (bool): if True, session information is in a 'mouse_*'
+        - runtype (str)   : "prod" (production) or "pilot" data
+                            default: "prod"
+        - mouse_dir (bool): if True, session information is in a "mouse_*"
                             subdirectory
                             default: True
         - dendritic (bool): if True, paths are changed to EXTRACT dendritic 
@@ -577,27 +577,27 @@ def get_roi_trace_paths(masterdir, sessid, expid, segid, mouseid,
     
     Returns:
         - roi_trace_paths (dict): ROI trace paths dictionary
-            ['demixed_trace_h5'] (str)   : full path to demixed trace hdf5 file
-            ['neuropil_trace_h5'] (str)  : full path to neuropil trace hdf5 file
-            ['roi_trace_h5'] (str)       : full path name of the ROI raw 
+            ["demixed_trace_h5"] (str)   : full path to demixed trace hdf5 file
+            ["neuropil_trace_h5"] (str)  : full path to neuropil trace hdf5 file
+            ["roi_trace_h5"] (str)       : full path name of the ROI raw 
                                            processed fluorescence trace hdf5 
                                            file
-            ['roi_trace_dff_h5'] (str)   : full path name of the ROI dF/F trace 
+            ["roi_trace_dff_h5"] (str)   : full path name of the ROI dF/F trace 
                                            hdf5 file
-            ['unproc_roi_trace_h5'] (str): full path to unprocessed ROI trace 
-                                           hdf5 file (data stored under 'FC')
+            ["unproc_roi_trace_h5"] (str): full path to unprocessed ROI trace 
+                                           hdf5 file (data stored under "FC")
     """
 
     _, expdir, procdir, demixdir, _ = get_sess_dirs(
         masterdir, sessid, expid, segid, mouseid, runtype, mouse_dir, check)
 
     roi_trace_paths = {
-        'unproc_roi_trace_h5': os.path.join(procdir, 'roi_traces.h5'),
-        'neuropil_trace_h5'  : os.path.join(procdir, 'neuropil_traces.h5'),
-        'demixed_trace_h5'   : os.path.join(demixdir, 
-                               f'{expid}_demixed_traces.h5'),
-        'roi_trace_h5'       : os.path.join(expdir, 'neuropil_correction.h5'),
-        'roi_trace_dff_h5'   : os.path.join(expdir, f'{expid}_dff.h5'),
+        "unproc_roi_trace_h5": os.path.join(procdir, "roi_traces.h5"),
+        "neuropil_trace_h5"  : os.path.join(procdir, "neuropil_traces.h5"),
+        "demixed_trace_h5"   : os.path.join(demixdir, 
+                               f"{expid}_demixed_traces.h5"),
+        "roi_trace_h5"       : os.path.join(expdir, "neuropil_correction.h5"),
+        "roi_trace_dff_h5"   : os.path.join(expdir, f"{expid}_dff.h5"),
     }
 
     if dendritic:
@@ -611,7 +611,7 @@ def get_roi_trace_paths(masterdir, sessid, expid, segid, mouseid,
 
 
 #############################################
-def get_roi_trace_paths_from_sessid(masterdir, sessid, runtype='prod', 
+def get_roi_trace_paths_from_sessid(masterdir, sessid, runtype="prod", 
                                     dendritic=False, check=True):
     """
     get_roi_trace_paths_from_sessid(masterdir, sessid)
@@ -624,8 +624,8 @@ def get_roi_trace_paths_from_sessid(masterdir, sessid, runtype='prod',
         - sessid (int)   : session ID
 
     Optional args:
-        - runtype (str)   : 'prod' (production) or 'pilot' data
-                            default: 'prod'
+        - runtype (str)   : "prod" (production) or "pilot" data
+                            default: "prod"
         - dendritic (bool): if True, paths are changed to EXTRACT dendritic 
                             version
                             default: False
@@ -666,7 +666,7 @@ def get_pupil_data_h5_path(masterdir):
         - pup_data_h5 (str): if full path name of the pupil h5 file
     """
 
-    name_part = '*pupil_data_df.h5'
+    name_part = "*pupil_data_df.h5"
     pupil_data_files = glob.glob(os.path.join(masterdir, name_part))
 
     if len(pupil_data_files) == 1:
@@ -674,7 +674,7 @@ def get_pupil_data_h5_path(masterdir):
     elif len(pupil_data_files) > 1:
         pup_data_h5 = pupil_data_files
     else:
-        pup_data_h5 = 'none'
+        pup_data_h5 = "none"
 
     return pup_data_h5
 

@@ -12,7 +12,7 @@ Note: this code uses python 3.7.
 
 """
 
-import pdb
+import logging
 import os
 import warnings
 
@@ -21,25 +21,23 @@ import json
 import numpy as np
 import pandas as pd
 import pickle
+import scipy
+from allensdk.brain_observatory import sync_dataset, sync_utilities
+from allensdk.brain_observatory.extract_running_speed import __main__ as running_main
+from allensdk.brain_observatory.behavior import running_processing
 
-from util import file_util
-from sess_util import dataset, Dataset2p
+from util import file_util, gen_util, logger_util
+from sess_util import Dataset2p
 
+logger = logging.getLogger(__name__)
 
-# set a few basic parameters
-ASSUMED_DELAY = 0.0351
-DELAY_THRESHOLD = 0.001
-FIRST_ELEMENT_INDEX = 0
-SECOND_ELEMENT_INDEX = 1
-SKIP_FIRST_ELEMENT = 1
 SKIP_LAST_ELEMENT = -1
-ROUND_PRECISION = 4
-ZERO = 0
-ONE = 1
-TWO = 2
-MIN_BOUND = .03
-MAX_BOUND = .04
+TAB = "    "
 
+# from https://allensdk.readthedocs.io/en/latest/_modules/allensdk/brain_observatory/behavior/running_processing.html
+WHEEL_RADIUS = 6.5 * 2.54 / 2 # diameter in inches to radius in cm
+WHEEL_RADIUS = 6.5 * 2.54 / 2 # diameter in inches to radius in cm
+SUBJECT_POSITION = 2 / 3
 
 #############################################
 def check_drop_tolerance(n_drop_stim_fr, tot_stim_fr, droptol=0.0003, 
@@ -47,7 +45,7 @@ def check_drop_tolerance(n_drop_stim_fr, tot_stim_fr, droptol=0.0003,
     """
     check_drop_tolerance(n_drop_stim_fr, tot_stim_fr)
 
-    Prints a warning or raises an exception if dropped stimulus frames 
+    Logs a warning or raises an exception if dropped stimulus frames 
     tolerance is passed.
 
     Required args:
@@ -56,185 +54,86 @@ def check_drop_tolerance(n_drop_stim_fr, tot_stim_fr, droptol=0.0003,
 
     Optional args:
         - droptol (float) : threshold proportion of dropped stimulus frames at 
-                            which to print warning or raise an exception. 
+                            which to log warning or raise an exception. 
         - raise_exc (bool): if True, an exception is raised if threshold is 
-                            passed. Otherwise, a warning is printed.
+                            passed. Otherwise, a warning is logged.
     """
 
     if np.float(n_drop_stim_fr)/tot_stim_fr > droptol:
-        warn_str = (f'{n_drop_stim_fr} dropped stimulus '
-            f'frames out of {tot_stim_fr}.')
+        warn_str = (f"{n_drop_stim_fr} dropped stimulus "
+            f"frames out of {tot_stim_fr}.")
         if raise_exc:
             raise OSError(warn_str)
         else:    
-            print(f'    WARNING: {warn_str}')
+            logger.warning(f"{warn_str}", extra={"spacing": TAB})
 
 
 #############################################
-def calculate_stimulus_alignment(stim_time, valid_twop_vsync_fall):
+def get_monitor_delay(syn_file_name):
     """
-    calculate_stimulus_alignment(stim_time, valid_twop_vsync_fall)
+    get_monitor_delay(syn_file_name)
 
+    Returns monitor delay lag.
+
+    Required args:
+        - syn_file_name (str): full path name of the experiment sync hdf5 
+                               file
     """
 
-    print('Calculating stimulus alignment.')
+    # check if exists
+    file_util.checkfile(syn_file_name)
 
-    # convert stimulus frames into twop frames
-    stimulus_alignment = np.empty(len(stim_time))
+    # create Dataset2p object which allows delay to be calculated
+    monitor_display_lag = Dataset2p.Dataset2p(syn_file_name).display_lag
 
-    for index in range(len(stim_time)):
-        crossings = np.nonzero(np.ediff1d(np.sign(
-            valid_twop_vsync_fall - stim_time[index])) > ZERO)
-        try:
-            stimulus_alignment[index] = int(
-                crossings[FIRST_ELEMENT_INDEX][FIRST_ELEMENT_INDEX])
-        except:
-            stimulus_alignment[index] = np.NaN
+    return monitor_display_lag
 
-    return stimulus_alignment
 
 
 #############################################
-def calculate_valid_twop_vsync_fall(sync_data, sample_frequency):
+def get_vsync_falls(syn_file_name):
     """
-    calculate_valid_twop_vsync_fall(sync_data, sample_frequency)
+    get_vsync_falls(stim_sync_file)
 
-    """
+    Calculates vsyncs for 2p and stimulus frames. 
 
-    ####microscope acquisition frames####
-    # get the falling edges of 2p
-    twop_vsync_fall = sync_data.get_falling_edges('2p_vsync') / sample_frequency
+    Required args:
+        - syn_file_name (str): full path name of the experiment sync hdf5 
+                               file
 
-    if len(twop_vsync_fall) == 0:
-        raise ValueError('Error: twop_vsync_fall length is 0, possible '
-                         'invalid, missing, and/or bad data')
-
-    ophys_start = twop_vsync_fall[0]
-
-    # only get data that is beyond the start of the experiment
-    valid_twop_vsync_fall = twop_vsync_fall[
-        np.where(twop_vsync_fall > ophys_start)[FIRST_ELEMENT_INDEX]]
-
-    # skip the first element to eliminate the DAQ pulse
-    return valid_twop_vsync_fall
-
-
-#############################################
-def calculate_stim_vsync_fall(sync_data, sample_frequency):
-    """
-    calculate_stim_vsync_fall(sync_data, sample_frequency)
-
+    Returns:
+        - stim_vsync_fall_adj (1D array)  : vsyncs for each stimulus frame, 
+                                            adjusted by monitor delay
+        - valid_twop_vsync_fall (1D array): vsyncs for each 2p frame
     """
 
-    ####stimulus frames####
-    # skip the first element to eliminate the DAQ pulse
-    stim_vsync = sync_data.get_falling_edges('stim_vsync')[SKIP_FIRST_ELEMENT:]
-    stim_vsync_fall = stim_vsync / sample_frequency
+    # check that the sync file exists
+    file_util.checkfile(syn_file_name)
 
-    return stim_vsync_fall
+    # create a Dataset object with the sync file 
+    # (ignore deprecated keys warning)
+    Dataset_filt_warn = gen_util.temp_filter_warnings(sync_dataset.Dataset)
+    sync_data = Dataset_filt_warn(
+        syn_file_name, msgs="The loaded sync file", categs=UserWarning)
+   
+    sample_frequency = sync_data.meta_data["ni_daq"]["counter_output_freq"]
+    
+    # calculate the valid twop_vsync fall
+    valid_twop_vsync_fall = Dataset2p.calculate_valid_twop_vsync_fall(
+        sync_data, sample_frequency)
 
+    # get the stim_vsync_fall
+    stim_vsync_fall = Dataset2p.calculate_stim_vsync_fall(
+        sync_data, sample_frequency)
 
-#############################################
-def calculate_delay(sync_data, stim_vsync_fall, sample_frequency):
-    """
-    calculate_delay(sync_data, stim_vsync_fall, sample_frequency)
+    # find the delay
+    # delay = calculate_delay(sync_data, stim_vsync_fall, sample_frequency)
+    delay = get_monitor_delay(syn_file_name)
 
-    """
+    # adjust stimulus time with monitor delay
+    stim_vsync_fall_adj = stim_vsync_fall + delay
 
-    print('calculating delay')
-
-    try:
-        # photodiode transitions
-        photodiode_rise = (
-            sync_data.get_rising_edges('stim_photodiode') / sample_frequency)
-
-        ####Find start and stop of stimulus####
-        # test and correct for photodiode transition errors
-        photodiode_rise_diff = np.ediff1d(photodiode_rise)
-        min_short_photodiode_rise = 0.1
-        max_short_photodiode_rise = 0.3
-        min_medium_photodiode_rise = 0.5
-        max_medium_photodiode_rise = 1.5
-
-        # find the short and medium length photodiode rises
-        short_rise_indexes = np.where(np.logical_and(
-            photodiode_rise_diff > min_short_photodiode_rise, \
-            photodiode_rise_diff < max_short_photodiode_rise))[
-                FIRST_ELEMENT_INDEX]
-        medium_rise_indexes = np.where(np.logical_and(
-            photodiode_rise_diff > min_medium_photodiode_rise, \
-            photodiode_rise_diff < max_medium_photodiode_rise))[
-                FIRST_ELEMENT_INDEX]
-
-        short_set = set(short_rise_indexes)
-
-        # iterate through the medium photodiode rise indexes to find the start 
-        # and stop indices looking for three rise pattern
-        next_frame = ONE
-        start_pattern_index = 2
-        end_pattern_index = 3
-        ptd_start = None
-        ptd_end = None
-
-        for medium_rise_index in medium_rise_indexes:
-            if set(range(
-                medium_rise_index - start_pattern_index, medium_rise_index
-                )) <= short_set:
-                ptd_start = medium_rise_index + next_frame
-            elif set(range(
-                medium_rise_index + next_frame, medium_rise_index + \
-                    end_pattern_index)) <= short_set:
-                ptd_end = medium_rise_index
-
-        # if the photodiode signal exists
-        if ptd_start != None and ptd_end != None:
-            # check to make sure there are no there are no photodiode errors
-            # sometimes two consecutive photodiode events take place close to 
-            # each other correct this case if it happens
-            photodiode_rise_error_threshold = 1.8
-            last_frame_index = -1
-
-            # iterate until all of the errors have been corrected
-            while any(photodiode_rise_diff[ptd_start:ptd_end] < photodiode_rise_error_threshold):
-                error_frames = np.where(photodiode_rise_diff[ptd_start:ptd_end] < \
-                                        photodiode_rise_error_threshold)[FIRST_ELEMENT_INDEX] + ptd_start
-                # remove the bad photodiode event
-                photodiode_rise = np.delete(photodiode_rise, error_frames[last_frame_index])
-                ptd_end -= 1
-                photodiode_rise_diff = np.ediff1d(photodiode_rise)
-
-            ####Find the delay####
-            # calculate monitor delay
-            first_pulse = ptd_start
-            number_of_photodiode_rises = ptd_end - ptd_start
-            half_vsync_fall_events_per_photodiode_rise = 60
-            vsync_fall_events_per_photodiode_rise = half_vsync_fall_events_per_photodiode_rise * 2
-
-            delay_rise = np.empty(number_of_photodiode_rises)
-            for photodiode_rise_index in range(number_of_photodiode_rises):
-                delay_rise[photodiode_rise_index] = photodiode_rise[photodiode_rise_index + first_pulse] - \
-                                                    stim_vsync_fall[(photodiode_rise_index * vsync_fall_events_per_photodiode_rise) + \
-                                                                    half_vsync_fall_events_per_photodiode_rise]
-
-            # get a single delay value by finding the mean of all of the delays 
-            # - skip the element in the array (the end of the experiment)
-            delay = np.mean(delay_rise[:last_frame_index])
-
-            if (delay > DELAY_THRESHOLD or np.isnan(delay)):
-                print('Sync error needs to be fixed')
-                delay = ASSUMED_DELAY
-                print('Using assumed delay:', round(delay, ROUND_PRECISION))
-
-        # assume delay
-        else:
-            delay = ASSUMED_DELAY
-    except Exception as e:
-        print(e)
-        print('Process without photodiode signal')
-        delay = ASSUMED_DELAY
-        print('Assumed delay:', round(delay, ROUND_PRECISION))
-
-    return delay
+    return stim_vsync_fall_adj, valid_twop_vsync_fall
 
 
 #############################################
@@ -246,8 +145,8 @@ def get_frame_rate(syn_file_name):
     ophys frame rates.
 
     Required args:
-        - stim_sync_file (str): full path name of the experiment sync hdf5 
-                                file
+        - syn_file_name (str): full path name of the experiment sync hdf5 
+                               file
 
     Returns:
         - twop_rate_mean (num)  : mean ophys frame rate
@@ -255,14 +154,8 @@ def get_frame_rate(syn_file_name):
         - twop_rate_std (num)   : standard deviation of ophys frame rate
     """
 
-    # create a Dataset object with the sync file
-    sync_data = dataset.Dataset(syn_file_name)
-   
-    sample_frequency = sync_data.meta_data['ni_daq']['counter_output_freq']
-    
-    # calculate the valid twop_vsync fall
-    valid_twop_vsync_fall = calculate_valid_twop_vsync_fall(
-        sync_data, sample_frequency)
+    _, valid_twop_vsync_fall = get_vsync_falls(syn_file_name)
+
     twop_diff = np.diff(valid_twop_vsync_fall)
     
     twop_rate_mean = np.mean(1./twop_diff)
@@ -273,7 +166,7 @@ def get_frame_rate(syn_file_name):
 
 
 #############################################
-def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
+def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype="prod"):
     """
     get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name)
 
@@ -290,133 +183,113 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
                                create
     
     Optional argument:
-        - runtype (str): the type of run, either 'pilot' or 'prod'
-                         default: 'prod'
+        - runtype (str): the type of run, either "pilot" or "prod"
+                         default: "prod"
     """
 
-    # check that the input files exist
+    # check that the pickle file exists
     file_util.checkfile(pkl_file_name)
-    file_util.checkfile(syn_file_name)
-    
-    num_stimtypes = 2 #bricks and Gabors
 
-    # read the pickle file and call it 'pkl'
-    pkl = file_util.loadfile(pkl_file_name, filetype='pickle')
+    # read the pickle file and call it "pkl"
+    pkl = file_util.loadfile(pkl_file_name, filetype="pickle")
 
-    if runtype == 'pilot':
+    if runtype == "pilot":
         num_stimtypes = 2 # bricks and Gabors
-    elif runtype == 'prod':
+    elif runtype == "prod":
         num_stimtypes = 3 # 2 bricks and 1 set of Gabors
-    if len(pkl['stimuli']) != num_stimtypes:
+    if len(pkl["stimuli"]) != num_stimtypes:
         raise ValueError(
-            f'{num_stimtypes} stimuli types expected, but '
-            '{} found.'.format(len(pkl['stimuli'])))
+            f"{num_stimtypes} stimuli types expected, but "
+            "{} found.".format(len(pkl["stimuli"])))
         
-    # create a Dataset object with the sync file
-    sync_data = dataset.Dataset(syn_file_name)
-
-    # create Dataset2p object which will be used for the delay
-    dset = Dataset2p.Dataset2p(syn_file_name)
-
-    sample_frequency = sync_data.meta_data['ni_daq']['counter_output_freq']
-
-    # calculate the valid twop_vsync fall
-    valid_twop_vsync_fall = calculate_valid_twop_vsync_fall(
-        sync_data, sample_frequency)
-
-    # get the stim_vsync_fall
-    stim_vsync_fall = calculate_stim_vsync_fall(sync_data, sample_frequency)
-
-    # find the delay
-    # delay = calculate_delay(sync_data, stim_vsync_fall, sample_frequency)
-    delay = dset.display_lag
-
-    # adjust stimulus time with monitor delay
-    stim_time = stim_vsync_fall + delay
+    # get dataset object, sample frequency and vsyncs
+    stim_vsync_fall_adj, valid_twop_vsync_fall = get_vsync_falls(syn_file_name)
 
     # find the alignment
-    stimulus_alignment = calculate_stimulus_alignment(
-        stim_time, valid_twop_vsync_fall)
-    offset = int(pkl['pre_blank_sec'] * pkl['fps'])
+    stimulus_alignment = Dataset2p.calculate_stimulus_alignment(
+        stim_vsync_fall_adj, valid_twop_vsync_fall)
+    offset = int(pkl["pre_blank_sec"] * pkl["fps"])
     
-    print('Creating the stim_df:')
+    logger.info("Creating the stim_df:")
     
     # get number of segments expected and actually recorded for each stimulus
     segs = []
     segs_exp = []
     frames_per_seg = []
     stim_types = []
+    stim_type_names = []
     
     for i in range(num_stimtypes):
         # records the max num of segs in the frame list for each stimulus
-        segs.extend([np.max(pkl['stimuli'][i]['frame_list'])+1])
+        segs.extend([np.max(pkl["stimuli"][i]["frame_list"])+1])
         
         # calculates the expected number of segs based on fps, 
         # display duration (s) and seg length
-        fps = pkl['stimuli'][i]['fps']
+        fps = pkl["stimuli"][i]["fps"]
         
-        if runtype == 'pilot':
-            name = pkl['stimuli'][i]['stimParams']['elemParams']['name']
-        elif runtype == 'prod':
-            name = pkl['stimuli'][i]['stim_params']['elemParams']['name']
+        if runtype == "pilot":
+            name = pkl["stimuli"][i]["stimParams"]["elemParams"]["name"]
+        elif runtype == "prod":
+            name = pkl["stimuli"][i]["stim_params"]["elemParams"]["name"]
 
-        if name == 'bricks':
-            stim_types.extend(['b'])
+        stim_type_names.extend([name])
+        stim_types.extend([name[0]])
+        if name == "bricks":
             frames_per_seg.extend([fps])
             segs_exp.extend([int(60.*np.sum(np.diff(
-                pkl['stimuli'][i]['display_sequence']))/frames_per_seg[i])])
-        elif name == 'gabors':
-            stim_types.extend(['g'])
+                pkl["stimuli"][i]["display_sequence"]))/frames_per_seg[i])])
+        elif name == "gabors":
             frames_per_seg.extend([fps/1000.*300])
             # to exclude grey seg
             segs_exp.extend([int(60.*np.sum(np.diff(
-                pkl['stimuli'][i]['display_sequence'])
+                pkl["stimuli"][i]["display_sequence"])
                 )/frames_per_seg[i]*4./5)]) 
         else:
-            raise ValueError(f'{name} stimulus type not recognized.')
+            raise ValueError(f"{name} stimulus type not recognized.")
         
         
         # check whether the actual number of frames is within a small range of 
         # expected about two frames per sequence?
-        n_seq = pkl['stimuli'][0]['display_sequence'].shape[0] * 2
+        n_seq = pkl["stimuli"][0]["display_sequence"].shape[0] * 2
         if np.abs(segs[i] - segs_exp[i]) > n_seq:
-            raise ValueError(f'Expected {segs_exp[i]} frames for stimulus {i}, '
-                f'but found {segs[i]}.')
+            raise ValueError(f"Expected {segs_exp[i]} frames for stimulus {i}, "
+                f"but found {segs[i]}.")
     
     total_stimsegs = np.sum(segs)
     
     stim_df = pd.DataFrame(index=list(range(np.sum(total_stimsegs))), 
-        columns=['stimType', 'stimPar1', 'stimPar2', 'surp', 'stimSeg', 
-        'GABORFRAME', 'start_frame', 'end_frame', 'num_frames'])
+        columns=["stimType", "stimPar1", "stimPar2", "surp", "stimSeg", 
+        "GABORFRAME", "start_frame", "end_frame", "num_frames"])
     
     zz = 0
     # For gray-screen pre_blank
-    stim_df.ix[zz, 'stimType'] = -1
-    stim_df.ix[zz, 'stimPar1'] = -1
-    stim_df.ix[zz, 'stimPar2'] = -1
-    stim_df.ix[zz, 'surp'] = -1
-    stim_df.ix[zz, 'stimSeg'] = -1
-    stim_df.ix[zz, 'GABORFRAME'] = -1
-    stim_df.ix[zz, 'start_frame'] = stimulus_alignment[0] # 2p start frame
-    stim_df.ix[zz, 'end_frame'] = stimulus_alignment[offset] # 2p end frame
-    stim_df.ix[zz, 'num_frames'] = \
+    stim_df.loc[zz, "stimType"] = -1
+    stim_df.loc[zz, "stimPar1"] = -1
+    stim_df.loc[zz, "stimPar2"] = -1
+    stim_df.loc[zz, "surp"] = -1
+    stim_df.loc[zz, "stimSeg"] = -1
+    stim_df.loc[zz, "GABORFRAME"] = -1
+    stim_df.loc[zz, "start_frame"] = stimulus_alignment[0] # 2p start frame
+    stim_df.loc[zz, "end_frame"] = stimulus_alignment[offset] # 2p end frame
+    stim_df.loc[zz, "num_frames"] = \
         (stimulus_alignment[offset] - stimulus_alignment[0])
     zz += 1
 
     for stype_n in range(num_stimtypes):
-        print(f'    stimtype: {stim_types[stype_n]}')
-        movie_segs = pkl['stimuli'][stype_n]['frame_list']
+        logger.info(f"Stimtype: {stim_type_names[stype_n]}", 
+            extra={"spacing": TAB})
+        movie_segs = pkl["stimuli"][stype_n]["frame_list"]
 
         for segment in range(segs[stype_n]):
             seg_inds = np.where(movie_segs == segment)[0]
             tup = (segment, int(stimulus_alignment[seg_inds[0] + offset]), \
                 int(stimulus_alignment[seg_inds[-1] + 1 + offset]))
 
-            stim_df.ix[zz, 'stimType'] = stim_types[stype_n]
-            stim_df.ix[zz, 'stimSeg'] = segment
-            stim_df.ix[zz, 'start_frame'] = tup[1]
-            stim_df.ix[zz, 'end_frame'] = tup[2]
-            stim_df.ix[zz, 'num_frames'] = tup[2] - tup[1]
+            stim_df.loc[zz, "stimType"] = stim_types[stype_n][0]
+            stim_df.loc[zz, "stimSeg"] = segment
+            stim_df.loc[zz, "start_frame"] = tup[1]
+            stim_df.loc[zz, "end_frame"] = tup[2]
+            stim_df.loc[zz, "num_frames"] = tup[2] - tup[1]
 
             get_seg_params(
                 stim_types, stype_n, stim_df, zz, pkl, segment, runtype)
@@ -424,25 +297,25 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype='prod'):
             zz += 1
             
     # check whether any 2P frames are in associated to 2 stimuli
-    overlap = np.any((np.sort(stim_df['start_frame'])[1:] - 
-                     np.sort(stim_df['end_frame'])[:-1]) < 0)
+    overlap = np.any((np.sort(stim_df["start_frame"])[1:] - 
+                     np.sort(stim_df["end_frame"])[:-1]) < 0)
     if overlap:
-        raise ValueError('Some 2P frames associated with two stimulus '
-            'segments.')
+        raise ValueError("Some 2P frames associated with two stimulus "
+            "segments.")
 	
     # create a dictionary for pickling
-    stim_dict = {'stim_df': stim_df, 'stim_align': stimulus_alignment}   
+    stim_dict = {"stim_df": stim_df, "stim_align": stimulus_alignment}   
  
     # store in the pickle file
     try:
         file_util.saveinfo(stim_dict, df_pkl_name, overwrite=True)
     except:
-        raise OSError(f'Could not save stimulus pickle file {df_pkl_name}')  
+        raise OSError(f"Could not save stimulus pickle file {df_pkl_name}")  
 
 
 #############################################
 def get_seg_params(stim_types, stype_n, stim_df, zz, pkl, segment, 
-                   runtype='prod'):
+                   runtype="prod"):
     """
     get_seg_params(stim_types, stype_n, stim_df, zz, pkl, segment)
 
@@ -452,7 +325,7 @@ def get_seg_params(stim_types, stype_n, stim_df, zz, pkl, segment,
 
     Required args:
         - stim_types (list): list of stimulus types for each stimulus, 
-                             e.g., ['b', 'g']
+                             e.g., ["b", "g"]
         - stype_n (int)    : stimulus number
         - stim_df (pd df)  : dataframe 
         - zz (int)         : dataframe index
@@ -460,118 +333,215 @@ def get_seg_params(stim_types, stype_n, stim_df, zz, pkl, segment,
         - segment (int)    : segment number
     
     Optional argument:
-        - runtype (str): run type, i.e., 'pilot' or 'prod'
-                         default: 'prod'
+        - runtype (str): run type, i.e., "pilot" or "prod"
+                         default: "prod"
     """
 
-    if stim_types[stype_n] == 'b':
-        if runtype == 'pilot':
+    if stim_types[stype_n] == "b":
+        if runtype == "pilot":
             #big or small
-            stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n][
-                'stimParams']['subj_params']['flipdirecarray'][segment][1]
+            stim_df.loc[zz, "stimPar1"] = pkl["stimuli"][stype_n][
+                "stimParams"]["subj_params"]["flipdirecarray"][segment][1]
             #left or right
-            stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][stype_n][
-                'stimParams']['subj_params']['flipdirecarray'][segment][3] 
+            stim_df.loc[zz, "stimPar2"] = pkl["stimuli"][stype_n][
+                "stimParams"]["subj_params"]["flipdirecarray"][segment][3] 
             #SURP
-            stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n][
-                'stimParams']['subj_params']['flipdirecarray'][segment][0] 
-        elif runtype == 'prod':
+            stim_df.loc[zz, "surp"] = pkl["stimuli"][stype_n][
+                "stimParams"]["subj_params"]["flipdirecarray"][segment][0] 
+        elif runtype == "prod":
             # small
-            stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n][
-                'stim_params']['elemParams']['sizes']
+            stim_df.loc[zz, "stimPar1"] = pkl["stimuli"][stype_n][
+                "stim_params"]["elemParams"]["sizes"]
             # L or R
-            stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][stype_n][
-                'stim_params']['direc']
+            stim_df.loc[zz, "stimPar2"] = pkl["stimuli"][stype_n][
+                "stim_params"]["direc"]
             #SURP
-            stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n][
-                'sweep_params']['Flip'][0][segment]
-        stim_df.ix[zz, 'GABORFRAME'] = -1
-    elif stim_types[stype_n] == 'g':
-        if runtype == 'pilot':
+            stim_df.loc[zz, "surp"] = pkl["stimuli"][stype_n][
+                "sweep_params"]["Flip"][0][segment]
+        stim_df.loc[zz, "GABORFRAME"] = -1
+    elif stim_types[stype_n] == "g":
+        if runtype == "pilot":
             #angle
-            stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n][
-                'stimParams']['subj_params']['oriparsurps'][
+            stim_df.loc[zz, "stimPar1"] = pkl["stimuli"][stype_n][
+                "stimParams"]["subj_params"]["oriparsurps"][
                     int(np.floor(segment/4.))][0] 
             #angular disp (kappa)
-            stim_df.ix[zz, 'stimPar2'] = pkl['stimuli'][stype_n][
-                'stimParams']['subj_params']['oriparsurps'][
+            stim_df.loc[zz, "stimPar2"] = pkl["stimuli"][stype_n][
+                "stimParams"]["subj_params"]["oriparsurps"][
                     int(np.floor(segment/4.))][1] 
             #SURP
-            stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n][
-                'stimParams']['subj_params']['oriparsurps'][
+            stim_df.loc[zz, "surp"] = pkl["stimuli"][stype_n][
+                "stimParams"]["subj_params"]["oriparsurps"][
                     int(np.floor(segment/4.))][2] 
-        elif runtype == 'prod':
+        elif runtype == "prod":
             #angle
-            stim_df.ix[zz, 'stimPar1'] = pkl['stimuli'][stype_n][
-                'sweep_params']['OriSurp'][0][int(np.floor(segment/4.))][0] 
+            stim_df.loc[zz, "stimPar1"] = pkl["stimuli"][stype_n][
+                "sweep_params"]["OriSurp"][0][int(np.floor(segment/4.))][0] 
             #angular disp (kappa)
-            stim_df.ix[zz, 'stimPar2'] = (1./(pkl['stimuli'][stype_n][
-                'stim_params']['gabor_params']['ori_std']))**2 
+            stim_df.loc[zz, "stimPar2"] = (1./(pkl["stimuli"][stype_n][
+                "stim_params"]["gabor_params"]["ori_std"]))**2 
             #SURP
-            stim_df.ix[zz, 'surp'] = pkl['stimuli'][stype_n][
-                'sweep_params']['OriSurp'][0][int(np.floor(segment/4.))][1] 
-        stim_df.ix[zz, 'GABORFRAME'] = np.mod(segment,4)
+            stim_df.loc[zz, "surp"] = pkl["stimuli"][stype_n][
+                "sweep_params"]["OriSurp"][0][int(np.floor(segment/4.))][1] 
+        stim_df.loc[zz, "GABORFRAME"] = np.mod(segment,4)
 
 
 #############################################
-def get_run_velocity(pkl_file_name='', stim_dict=None):
+def calculate_running_velocity(stim_fr_timestamps, raw_running_deg, 
+                               wheel_radius=WHEEL_RADIUS, 
+                               subject_position=SUBJECT_POSITION, 
+                               use_median_duration=False, filter_ks=5):
     """
-    get_run_velocity(pkl_file_name)
+    calculate_running_velocity(stim_fr_timestamps, raw_running_deg)
 
-    Returns the running velocity information as a numpy array. Takes as input 
-    the stim pickle file containing the information (provided either as a path 
-    or the actual dictionary). 
-    
-    NOTE: the length of the array is equivalent to the array returned by 
-    get_stimulus_frames. The running velocity provided corresponds to the 
-    velocity at each stimulus frame. Thus, aligning to the 2p data can be done 
-    using the stimulus_alignment array.
+    Adapted from allensdk.brain_observatory.running_processing.__main__.extract_running_speeds().
+    (Filtering of the linear velocity is added)
+    Returns the linear running velocity at each frame, calculated from the raw 
+    running distance at each frame.
+
+    NOTE: This function is nearly equivalent to the one used in 
+    allensdk.brain_observatory.behavior.running_processing.get_running_df(), 
+    however there, the filtering is done earlier, on the raw running, instead 
+    of the linear velocity. Also, the running velocity obtained there is one 
+    frame longer, as it corresponds to the midframe running velocity (padded 
+    with the first and last frame onset velocities). This version produces the 
+    velocity at each frame onset.
+
+    Required args:
+        - stim_fr_timestamps (list): stimulus frame start timestamps
+        - raw_running_deg (list)   : raw running data (change in wheel 
+                                     orientation at each frame)
 
     Optional args:
-        - pkl_file_name (str): full path name of the experiment stim 
-                               pickle file
-                               default: ''
-        - stim_dict (dict)   : stimulus dictionary, with keys 'fps' and 
-                               'items', from which running velocity is 
-                               extracted.
-                               If not None, overrides pkl_file_name.
-                               default: None
+        - wheel_radius (num)        : running wheel radius (cm)
+                                      default: value of WHEEL_RADIUS module-wide 
+                                      variable
+        - subject_position (num)    : subject position relative from wheel 
+                                      center, relative to wheel edge
+                                      default: value of SUBJECT_POSITION 
+                                      module-wide variable
+        - use_median_duration (bool): if True, median frame duration is used 
+                                      instead of each frame duration to 
+                                      calculate angular velocity
+                                      default: False
+        - filter_ks (int)           : kernel size to use in median filtering 
+                                      the linear running velocity 
+                                      (0 to skip filtering).
+                                      default: 5
+    """
+
+    # the first interval does not have a known start time, so we can't compute
+    # an average velocity from raw_running_deg
+    raw_running_rad = running_main.degrees_to_radians(raw_running_deg[1:])
+
+    start_times = stim_fr_timestamps[:-1]
+    end_times = stim_fr_timestamps[1:]
+
+    durations = end_times - start_times
+    if use_median_duration:
+        angular_velocity = raw_running_rad / np.median(durations)
+    else:
+        angular_velocity = raw_running_rad / durations
+
+    radius = wheel_radius * subject_position
+    linear_velocity = running_main.angular_to_linear_velocity(
+        angular_velocity, radius)
+
+    # due to an acquisition bug (the buffer of raw orientations may be updated 
+    # more slowly than it is read, leading to a 0 value for the change in 
+    # orientation (raw_running/raw_running_rad) over an interval) 
+    # there may be exact zeros in the velocity.
+    linear_velocity[np.isclose(raw_running_rad, 0.0)] = np.nan
+
+    if filter_ks != 0:
+        linear_velocity = scipy.signal.medfilt(
+            linear_velocity, kernel_size=filter_ks)
+
+    return linear_velocity
+
+
+#############################################
+def get_run_velocity(stim_sync_h5, stim_pkl="", stim_dict=None, filter_ks=5):
+    """
+    get_run_velocity(stim_sync_h5)
+
+    Adapted from allensdk.brain_observatory.running_processing.__main__.main().
+    Loads and calculates the linear running velocity from the raw running data.
+
+    Required args:
+        - stim_sync_h5 (str): full path name of the stimulus sync h5 file
+
+    Optional args:
+        - stim_pkl (str)  : full path name of the experiment stim 
+                            pickle file
+                            default: ""
+        - stim_dict (dict): stimulus dictionary, with keys "fps" and 
+                            "items", from which running velocity is 
+                            extracted.
+                            If not None, overrides pkl_file_name.
+                            default: None
+        - filter_ks (int) : kernel size to use in median filtering the linear 
+                            running velocity (0 to skip filtering).
+                            default: 5
 
     Returns:
         - running_velocity (array): array of length equal to the number of 
-                                    stimulus frames, each element indicates 
-                                    running velocity for that stimulus frame
+                                    stimulus frames, each element corresponds 
+                                    to the linear running velocity for that 
+                                    stimulus frame
     """
 
-    if pkl_file_name == '' and stim_dict is None:
-        raise ValueError('Must provide either the pickle file name or the '
-                         'stimulus dictionary.')
+    if stim_pkl == "" and stim_dict is None:
+        raise ValueError("Must provide either the pickle file name or the "
+                         "stimulus dictionary.")
 
     if stim_dict is None:
-        # check that the input file exists
-        file_util.checkfile(pkl_file_name)
+        # check that the pickle file exists
+        file_util.checkfile(stim_pkl)
 
-        # read the input pickle file and call it 'pkl'
-        stim_dict = file_util.loadfile(pkl_file_name)
-        
-    # Based on allensdk.brain_observatory.behavior.running_processing.py
-    # deg_to_dist()
-    wheel_radius = 5.5036
+        # read the input pickle file and call it "pkl"
+        stim_dict = file_util.loadfile(stim_pkl)
 
-    # determine the frames per second of the running wheel recordings
-    fps = stim_dict['fps']
 
-    # determine the change in angle during each frame
-    dtheta = stim_dict['items']['foraging']['encoders'][0]['dx']
+    # check that the sync file exists
+    file_util.checkfile(stim_sync_h5)
 
-    # wheel circumference in cm/degree
-    cm_deg = 2.0 * np.pi * wheel_radius / 360.0
+    dataset = sync_dataset.Dataset(stim_sync_h5)
 
-    # calculate the running velocity 
-    # (skip last element, since it is ignored in stimulus frames as well)
-    run_velocity = dtheta[:SKIP_LAST_ELEMENT] * fps * cm_deg
+    # Why the rising edge? See Sweepstim.update in camstim. This method does:
+    # 1. updates the stimuli
+    # 2. updates the "items", causing a running speed sample to be acquired
+    # 3. sets the vsync line high
+    # 4. flips the buffer
+    stim_fr_timestamps = dataset.get_edges(
+        "rising", sync_dataset.Dataset.FRAME_KEYS, units="seconds"
+    )
 
-    return run_velocity
+    # occasionally an extra set of frame times are acquired after the rest of 
+    # the signals. We detect and remove these
+    stim_fr_timestamps = sync_utilities.trim_discontiguous_times(
+        stim_fr_timestamps)
+    num_raw_timestamps = len(stim_fr_timestamps)
+
+    raw_running_deg = running_main.running_from_stim_file(
+        stim_dict, "dx", num_raw_timestamps)
+
+    if num_raw_timestamps != len(raw_running_deg):
+        raise ValueError(
+            f"found {num_raw_timestamps} rising edges on the vsync line, "
+            f"but only {len(raw_running_deg)} rotation samples"
+        )
+
+    running_velocity = calculate_running_velocity(
+        stim_fr_timestamps=stim_fr_timestamps,
+        raw_running_deg=raw_running_deg,
+        wheel_radius=WHEEL_RADIUS,
+        subject_position=SUBJECT_POSITION,
+        use_median_duration=False,
+        filter_ks=filter_ks
+    )
+
+    return running_velocity
 
 
 #############################################
@@ -598,8 +568,8 @@ def get_twop2stimfr(stim2twopfr, n_twop_fr):
 
     dropped = np.where(stim2twopfr_diff > 1)[0]
     if len(dropped) > 0:
-        print(f'    WARNING: {len(dropped)} dropped stimulus frames '
-            'sequences (2nd align).')
+        logger.warning(f"{len(dropped)} dropped stimulus frames "
+            "sequences (2nd alignment).", extra={"spacing": TAB})
         # repeat stim idx when frame is dropped
         for drop in dropped[-1:]:
             loc = np.where(stim_idx == drop)[0][0]
@@ -612,8 +582,8 @@ def get_twop2stimfr(stim2twopfr, n_twop_fr):
     try:
         twop2stimfr[start:end] = stim_idx
     except:
-        warnings.warn(message='get_twop2stimfr() not working for this '
-            'session. twop2stimfr set to all NaNs.')
+        warnings.warn("get_twop2stimfr() not working for this "
+            "session. twop2stimfr set to all NaNs.", category=RuntimeWarning)
 
     return twop2stimfr
 
