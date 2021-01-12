@@ -83,45 +83,53 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False,
     elif analysis == "l":
         plot_lock_area_diff(figpar=figpar, savedir=savedir, **info)
 
-    # 2. Plots the surprise and regular traces across sessions
+    # 2. Plots the difference between stimulus and grayscreen
+    elif analysis == "a":
+        plot_stim_grayscr_diff(figpar=figpar, savedir=savedir, **info)
+
+    # 3. Plots the surprise and regular traces across sessions
     elif analysis == "t":
         plot_surp_traces(figpar=figpar, savedir=savedir, **info)
 
-    # 3. Plots the surprise and regular locked to surprise traces
+    # 4. Plots the surprise and regular locked to surprise traces
     # across sessions
     elif analysis == "r":
         plot_lock_traces(figpar=figpar, savedir=savedir, **info)
 
-    # 4. Plots the progression surprises/regular sequences across sessions
+    # 5. Plots the stimulus and grayscreen onset/offset traces
+    elif analysis == "b":
+        plot_stim_grayscr_traces(figpar=figpar, savedir=savedir, **info)
+
+    # 6. Plots the progression surprises/regular sequences across sessions
     elif analysis == "g":
         plot_prog(figpar=figpar, savedir=savedir, **info)
 
-    # 5. Plots the difference in position surprises/regular sequences across 
+    # 7. Plots the difference in position surprises/regular sequences across 
     # sessions
     elif analysis == "o":
         plot_position(figpar=figpar, savedir=savedir, **info)
 
-    # 6. Plots the surprise indices across sessions
+    # 8. Plots the surprise indices across sessions
     elif analysis == "i":
         plot_surp_idx(figpar=figpar, savedir=savedir, **info)
 
-    # 7. Plots the surprise indices with matching orientations across sessions
+    # 9. Plots the surprise indices with matching orientations across sessions
     elif analysis == "m":
         plot_surp_idx_match_oris(figpar=figpar, savedir=savedir, **info)
 
-    # 8. Plots the direction indices across sessions
+    # 10. Plots the direction indices across sessions
     elif analysis == "d":
         plot_direction_idx(figpar=figpar, savedir=savedir, **info)
 
-    # 9. Plots surprise index colormaps across sessions 
+    # 11. Plots surprise index colormaps across sessions 
     elif analysis == "c":
         plot_surp_idx_cms(figpar=figpar, savedir=savedir, **info)
 
-    # 10. Plots the surprise latency across sessions
+    # 12. Plots the surprise latency across sessions
     elif analysis == "u":
         plot_surp_latency(figpar=figpar, savedir=savedir, **info)
 
-    # 11. Plots proportion of ROIs responses to both surprise types
+    # 13. Plots proportion of ROIs responses to both surprise types
     elif analysis == "p":
         plot_resp_prop(figpar=figpar, savedir=savedir, **info)
 
@@ -697,6 +705,11 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
             subtitle += " locked to surprise onset"
         elif lock == "reglock":
             subtitle = "Reg - surp activity locked to regular onset"
+        elif lock == "stim_onset":
+            subtitle = "Stimulus - grayscreen activity locked to stimulus onset"
+        elif lock == "stim_offset":
+            subtitle = ("Grayscreen - stimulus activity locked to stimulus "
+                "offset")
         else:
             raise ValueError("If lock is not False, it must be 'reglock' or \
                 'surplock'.")
@@ -877,7 +890,7 @@ def plot_surp_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
 def plot_lock_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar, 
                         sess_info, diff_info, figpar=None, savedir=None):
     """
-    plot_lock_area_diff(analyspar, sesspar, stimpar, permpar, extrapar, 
+    plot_lock_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar, 
                         sess_info, diff_info)
 
     From dictionaries, plots statistics across ROIs or mice of difference 
@@ -1009,6 +1022,146 @@ def plot_lock_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
 
 
 #############################################
+def plot_stim_grayscr_diff(analyspar, sesspar, stimpar, basepar, permpar, 
+                           extrapar, sess_info, diff_info, figpar=None, 
+                           savedir=None):
+    """
+    plot_stim_grayscr_diff(analyspar, sesspar, stimpar, basepar, permpar, 
+                           extrapar, sess_info, diff_info)
+
+    From dictionaries, plots statistics across ROIs or mice of difference 
+    between grayscreen and stimulus averaged across sequences, locked to 
+    onset and offset transitions.
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict): dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict)  : dictionary with keys of SessPar namedtuple
+        - stimpar (dict)  : dictionary with keys of StimPar namedtuple
+        - basepar (dict)  : dictionary with keys of BasePar namedtuple
+        - permpar (dict)  : dictionary with keys of PermPar namedtuple
+        - extrapar (dict) : dictionary containing additional analysis 
+                            parameters
+            ["analysis"] (str): analysis type (e.g., "b")
+            ["datatype"] (str): datatype (e.g., "run", "roi")
+        - sess_info (list): list of dictionaries containing information from 
+                            each session, structured as 
+                            [surp-locked, reg-locked]
+            ["mouse_ns"] (list)   : mouse numbers
+            ["sess_ns"] (list)    : session numbers  
+            ["lines"] (list)      : mouse lines
+            ["planes"] (list)     : imaging planes
+            ["nrois"] (list)      : number of ROIs in session
+            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
+                                    traces ("raw", "dff")
+        - diff_info (list): list of dictionaries containing difference 
+                            information, structured as [stim-onset, stim-offset]
+            ["all_diff_stats"] (list)  : difference stats across mice, 
+                                         structured as plane/line x session 
+                                                                  x stats
+            ["mouse_diff_stats"] (list): difference statistics across ROIs or 
+                                         seqs, structured as 
+                                             plane/line x mouse x session 
+                                                        x stats
+            ["CI_vals"] (list)         : CIs values, structured as
+                                             plane/line x session 
+                                                        x perc (med, lo, high)
+            ["sign_sess"] (list)       : significant session indices, 
+                                         structured as plane/line (x tails)
+            ["p_vals_sess"] (list)     : p values for each session, structured 
+                                         as plane/line x session
+            ["linpla_ord"] (list)      : order list of planes/lines
+            if extrapar["datatype"] == "roi":
+                ["all_diff_st_grped"] (list): difference stats across ROIs 
+                                              (grouped across mice), 
+                                              structured as 
+                                                plane/line x session x stats
+                ["CI_vals_grped"] (list)    : CIs values across ROIs, 
+                                              structured as 
+                                                plane/line x session 
+                                                    x perc (med, lo, high)
+                ["lin_p_vals"] (list)       : p-values for each line comparison, 
+                                              structured as line x session 
+                                              (np.nan for sessions  missing in 
+                                              either plane)
+                ["max_comps_per"] (int)     : total number of comparisons
+                ["p_vals_grped"] (list)     : p values for each comparison, 
+                                              organized by session pairs (where 
+                                              the second session is cycled in 
+                                              the inner loop, e.g., 0-1, 0-2, 
+                                              1-2, including empty groups)
+                ["sign_sess_grped"] (list)  : significant session indices, 
+                                              structured as plane/line (x tails)
+                ["tot_n_comps"] (int)       : total number of comparisons
+
+    Optional args:
+        - figpar (dict): dictionary containing the following figure parameter 
+                         dictionaries
+                         default: None
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters
+        - savedir (str): path of directory in which to save plots.
+                         default: None    
+    
+    Returns:
+        - fulldir (str)     : final name of the directory in which the figure 
+                              is saved (may differ from input savedir, if 
+                              datetime subfolder is added.)
+        - gen_savename (str): name under which the figure is saved
+    """
+ 
+    if stimpar["stimtype"] != "both":
+        raise ValueError("Stimulus grayscreen analysis must include both "
+            "stimulus types.")
+
+    sessstr = sess_str_util.sess_par_str(
+        sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
+        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+    dendstr = sess_str_util.dend_par_str(
+        analyspar["dend"], sesspar["plane"], extrapar["datatype"])
+    datatype = extrapar["datatype"]
+
+    if figpar is None:
+        figpar = sess_plot_util.init_figpar()
+
+    figpar = copy.deepcopy(figpar)
+    if figpar["save"]["use_dt"] is None:
+        figpar["save"]["use_dt"] = gen_util.create_time_str()
+
+    base_str = sess_str_util.base_par_str(basepar["baseline"])[1:]
+
+    if savedir is None:
+        savedir = os.path.join(
+            figpar["dirs"][datatype], 
+            figpar["dirs"]["acr_sess"], 
+            sess_str_util.get_stimdir(stimpar["stimtype"], stimpar["gabfr"]), 
+            base_str)
+
+    gen_savename = f"{datatype}_stim_diff_{sessstr}{dendstr}"
+
+    for l, lock in enumerate(["stim_onset", "stim_offset"]):
+        part = f"{lock}_diff"
+        lock_savename = gen_savename.replace("stim", lock)
+        add_idx = lock_savename.find(part) + len(part)
+
+        for p, plot in enumerate(["sep", "tog", "grped"]):
+            if plot == "grped" and datatype == "run":
+                continue
+            fig = plot_area_diff_acr_sess(
+                analyspar, sesspar, stimpar, permpar, extrapar, sess_info[l], 
+                diff_info[l], figpar=figpar, lock=lock, plot=plot)
+
+            savename = (f"{lock_savename[:add_idx]}_{plot}"
+                f"{lock_savename[add_idx:]}")
+            fulldir = plot_util.savefig(
+                fig, savename, savedir, log_dir=(p==0), **figpar["save"])
+
+    return fulldir, gen_savename
+
+
+#############################################
 def plot_traces(sub_ax, xran, trace_st, lock=False, col="k", lab=True, 
                 stimtype="gabors", gabfr=0, ls=None, reg_col="gray"):
     """
@@ -1043,9 +1196,12 @@ def plot_traces(sub_ax, xran, trace_st, lock=False, col="k", lab=True,
         cols = [col, col]
     else:
         cols = [reg_col, col]
+    
     names = ["reg", "surp"]
-    xran = np.asarray(xran)
+    if lock and "stim" in lock:
+        names = ["off", "on"]
 
+    xran = np.asarray(xran)
 
     # horizontal and vertical 0 line
     all_rows = True
@@ -1072,7 +1228,7 @@ def plot_traces(sub_ax, xran, trace_st, lock=False, col="k", lab=True,
     if stimtype == "gabors":
         shade_col = DARKRED
         shade_lim = "pos"
-        if lock == "reglock":
+        if lock in ["reglock", "stim_offset"]:
             shade_lim = "neg"
         sess_plot_util.plot_gabfr_pattern(sub_ax, full_xran, offset=gabfr, 
             bars_omit=[0], shade_col=shade_col, alpha=0.2, shade_lim=shade_lim)
@@ -1081,10 +1237,10 @@ def plot_traces(sub_ax, xran, trace_st, lock=False, col="k", lab=True,
     for i, (col, name) in enumerate(zip(cols, names)):
         label = name if lab and not lock else None
         if lock and name not in lock:
-                xran_use = rev_xran
+            xran_use = rev_xran
         else:
             xran_use = xran
-        if lock == "reglock":
+        if lock in ["reglock", "stim_offset"]:
             i = 1 - i # data ordered as [surp, reg] instead of vv
         plot_util.plot_traces(sub_ax, xran_use, trace_st[i, :, 0], 
             trace_st[i, :, 1:], label=label, alpha_line=0.8, color=col, 
@@ -1189,6 +1345,8 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
             ["dirs"] (dict): dictionary with additional figure parameters
         - lock (bool or str): if "surplock" or "reglock", differences being
                               plotted are surp or reg-locked, correspondingly. 
+                              If "stim_onset" or "stim_offset", differences 
+                              plotted are from onset or offset.
                               default: False     
         - grp (str)         : if "mice", data is grouped per mouse, if "roi", 
                               data is grouped across mice
@@ -1224,9 +1382,13 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
             subtitle += " locked to surprise onset"
         elif lock == "reglock":
             subtitle = "Reg v surp activity locked to regular onset"
+        elif lock == "stim_onset":
+            subtitle = "Stimulus vs grayscreen activity locked to onset"
+        elif lock == "stim_offset":
+            subtitle = "Grayscreen vs stimulus activity locked to offset"
         else:
-            raise ValueError("If lock is not False, it must be 'reglock' or \
-                'surplock'.")
+            raise ValueError("If lock is not False, it must be 'reglock', "
+                "'surplock', 'stim_onset' or 'stim_offset'.")
     else:
         prepost_str = sess_str_util.prepost_par_str(
             stimpar["pre"], stimpar["post"], str_type="print")
@@ -1480,6 +1642,116 @@ def plot_lock_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
                     base_str)
 
             savename = gen_savename.replace("lock", lock)
+            if grp == "rois":
+                savename = f"{savename}_grped"
+        
+            fulldir = plot_util.savefig(
+                fig, savename, savedir, **figpar["save"])
+
+    return fulldir, gen_savename
+
+
+#############################################
+def plot_stim_grayscr_traces(analyspar, sesspar, stimpar, basepar, extrapar, 
+                             sess_info, trace_info, figpar=None, savedir=None):
+    """
+    plot_stim_grayscr_traces(analyspar, sesspar, stimpar, basepar, extrapar, 
+                             sess_info, trace_info)
+
+    From dictionaries, plots traces across ROIs or mice for stimulus onset and 
+    offset, locked to transitions.
+    
+    Returns general figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict): dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict)  : dictionary with keys of SessPar namedtuple
+        - stimpar (dict)  : dictionary with keys of StimPar namedtuple
+        - basepar (dict)  : dictionary with keys of BasePar namedtuple
+        - extrapar (dict) : dictionary containing additional analysis 
+                            parameters
+            ["analysis"] (str)        : analysis type (e.g., "a")
+            ["datatype"] (str)        : datatype (e.g., "run", "roi")
+        - sess_info (list): list of dictionaries containing information from 
+                            each session, structured as 
+                            [stim-onset, stim_offset]
+            ["mouse_ns"] (list)   : mouse numbers
+            ["sess_ns"] (list)    : session numbers  
+            ["lines"] (list)      : mouse lines
+            ["planes"] (list)     : imaging planes
+            ["nrois"] (list)      : number of ROIs in session
+            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
+                                    traces ("raw", "dff")
+        - trace_info (list): list of dictionaries containing trace 
+                             information, structured as 
+                             [stim-onset, stim_offset]
+            ["linpla_ord"] (list) : order list of planes/lines            
+            ["trace_stats"] (list): trace statistics, structured as
+                                    plane/line x session x reg/surp x frame 
+                                               x stats
+            if datatype == "roi":
+                ["trace_st_grped"] (list): trace statistics across ROIs, 
+                                           grouped across mice, structured 
+                                           as session x reg/surp 
+                                                      x frame x stats
+                                           (or surp/reg if surp == "reglock")
+            ["xran"] (list)       : second values for each frame
+
+    Optional args:
+        - figpar (dict): dictionary containing the following figure parameter 
+                         dictionaries
+                         default: None
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters
+        - savedir (str): path of directory in which to save plots.
+                         default: None    
+    
+    Returns:
+        - fulldir (str)     : final name of the directory in which the figure 
+                              is saved (may differ from input savedir, if 
+                              datetime subfolder is added.)
+        - gen_savename (str): general name under which the figures are saved
+    """
+ 
+    if stimpar["stimtype"] != "both":
+        raise ValueError("Stimulus grayscreen analysis must include both "
+            "stimulus types.")
+
+    sessstr = sess_str_util.sess_par_str(
+        sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
+        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+    dendstr = sess_str_util.dend_par_str(
+        analyspar["dend"], sesspar["plane"], extrapar["datatype"])
+    datatype = extrapar["datatype"]
+
+    if figpar is None:
+        figpar = sess_plot_util.init_figpar()
+
+    figpar = copy.deepcopy(figpar)
+    if figpar["save"]["use_dt"] is None:
+        figpar["save"]["use_dt"] = gen_util.create_time_str()
+
+    gen_savename = f"{datatype}_stim_{sessstr}{dendstr}"
+
+    stimdir = sess_str_util.get_stimdir(stimpar["stimtype"], stimpar["gabfr"])
+
+    for l, lock in enumerate(["stim_onset", "stim_offset"]):
+        for grp in ["mice", "rois"]:
+            if grp == "rois" and datatype == "run":
+                continue
+            fig = plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, 
+                sess_info[l], trace_info[l], figpar=figpar, lock=lock, grp=grp)
+
+            base_str = sess_str_util.base_par_str(basepar["baseline"])[1:]
+            if savedir is None:
+                savedir = os.path.join(
+                    figpar["dirs"][datatype], 
+                    figpar["dirs"]["acr_sess"], 
+                    stimdir, 
+                    base_str)
+
+            savename = gen_savename.replace("stim", lock)
             if grp == "rois":
                 savename = f"{savename}_grped"
         

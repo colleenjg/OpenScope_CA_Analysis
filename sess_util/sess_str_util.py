@@ -716,19 +716,33 @@ def stim_par_str(stimtype="gabors", bri_dir=None, bri_size=None, gabk=None,
                       all parameter values for the stim type are passed.
     """
     
-    if stimtype == "gabors":
+    all_pars = []
+    if stimtype in ["gabors", "both"]:
         if gabk is None:
             raise ValueError("If stimulus is gabors, must pass gabk "
                 "parameters.")
         pars = gabk_par_str(gabk, str_type)
-    elif stimtype == "bricks":
+        if stimtype == "both":
+            all_pars.append(pars)
+    elif stimtype in ["bricks", "both"]:
         if bri_size is None or bri_dir is None:
             raise ValueError("If stimulus is bricks, must pass direction and "
                 "size parameters.")
         pars = bri_par_str(bri_dir, bri_size, str_type=str_type)
+        if stimtype == "both":
+            all_pars.append(pars)
     else:
         gen_util.accepted_values_error(
-            "stimtype", stimtype, ["gabors", "bricks"])
+            "stimtype", stimtype, ["gabors", "bricks", "both"])
+
+    if stimtype == "both":
+        if str_type == "file":
+            pars = "_".join(all_pars)
+        elif str_type == "print":
+            pars = ", ".join(all_pars)
+        else:
+            gen_util.accepted_values_error(
+                "str_type", str_type, ["file", "print"])
 
     return pars
 
@@ -773,7 +787,7 @@ def sess_par_str(sess_n, stimtype="gabors", layer="soma", bri_dir=None,
         stimtype = "bricks"
     elif bri_size is None or bri_dir is None:
         stimtype = "gabors"
-    
+
     stim_str = stim_par_str(stimtype, bri_dir, bri_size, gabk, str_type)
 
     if isinstance(sess_n, list):
