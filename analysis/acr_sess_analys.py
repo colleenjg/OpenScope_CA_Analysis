@@ -192,7 +192,8 @@ def get_n_comps(all_p_vals, n_sess, lin_p_vals=None):
 
 #############################################
 def data_from_segs(sess, segs, analyspar, stimpar, datatype="roi", 
-                   integ=False, baseline=0.1, base_pre=None, ch_fl=None):
+                   integ=False, baseline=0.1, base_pre=None, ch_fl=None, 
+                   seg_ends=False):
     """
     data_from_segs(sess, segs, analyspar, stimpar)
 
@@ -200,6 +201,7 @@ def data_from_segs(sess, segs, analyspar, stimpar, datatype="roi",
 
     Required args:
         - sess (Session)       : Session object
+        - segs (list or dict)  : segments or segment dictionary
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
 
@@ -216,13 +218,15 @@ def data_from_segs(sess, segs, analyspar, stimpar, datatype="roi",
                                   default: None
         - ch_fl (list)          : flanks in sec [pre sec, post sec] around 
                                   frames to check for removal if out of bounds
+                                  default: None
+        - seg_ends (bool)       : if True, the segment ends are included 
+                                  instead
+                                  default: False
 
     Returns:
         - data_arr (1-3D array): data array structured as 
                                  [x ROIs] x seq [x frames]
     """
-
-    stim = sess.get_stim(stimpar.stimtype)
 
     if analyspar.remnans:
         nanpol = None
@@ -233,47 +237,139 @@ def data_from_segs(sess, segs, analyspar, stimpar, datatype="roi",
     args = {"remnans": analyspar.remnans,
             "scale"  : analyspar.scale}
 
-    if baseline:
-        if ch_fl is None:
-            ch_fl = [0, 0]
-        if base_pre is None:
-            base_pre = stimpar.pre
-        base_pre, base_post = quint_analys.define_transition_baseline(
-            stimpar.stimtype, stimpar.gabfr, baseline, base_pre, stimpar.post)
-        # expand flank checking as needed
-        ch_fl = [np.max([p, b]) 
-            for p, b in zip(ch_fl, [base_pre, base_post])]
-    if datatype == "roi":
-        fr_ns = stim.get_twop_fr_by_seg(
-            segs, first=True, ch_fl=ch_fl)["first_twop_fr"]
-        fct = stim.get_roi_data
-        col = "roi_traces"
-        args["fluor"] = analyspar.fluor
-    elif datatype == "run":
-        # array: 1 x sequences
-        fr_ns = stim.get_stim_fr_by_seg(
-            segs, first=True, ch_fl=ch_fl)["first_stim_fr"]
-        fct = stim.get_run_data
-        col = "run_velocity"
-    else:
-        gen_util.accepted_values_error("datatype", datatype, ["run", "roi"])
+    seg_dict = segs
+    if not isinstance(segs, dict):
+        seg_dict = {stimpar.stimtype: segs}
 
-    data_arr = gen_util.reshape_df_data(
-        fct(fr_ns, stimpar.pre, stimpar.post, **args)[col], squeeze_cols=True)
-    
-    if baseline:
-        base_data = gen_util.reshape_df_data(
-            fct(fr_ns, base_pre, base_post, **args), squeeze_cols=True)
-        end_shape = list(base_data.shape)[:-1] + [1]
-        # (ROI x) sequences x frames
-        base_data = math_util.mean_med(
-            base_data, stats=analyspar.stats, axis=-1, nanpol=nanpol)
-        data_arr = data_arr - base_data.reshape(end_shape)
-    if integ:
-        data_arr = math_util.integ(
-            data_arr, 1./sess.twop_fps, axis=-1, nanpol=nanpol)
-    
+    fr_key = "first"
+    if seg_ends:
+        fr_key = "last"
+
+    all_data = []
+    for stimtype, segs in seg_dict.items():
+        if not len(segs):
+            continue
+
+        stim = sess.get_stim(stimtype)
+        use_ch_fl = ch_fl
+        if baseline:
+            if use_ch_fl is None:
+                use_ch_fl = [0, 0]
+            elif seg_ends:
+                # adjust flanks to check
+                n_twop_fr = stim.get_stim_df_by_criteria(
+                    stimSeg=segs)["num2pfr"]
+                min_n_sec = n_twop_fr.min() / sess.twop_fps
+                max_n_sec = n_twop_fr.max() / sess.twop_fps       
+                use_ch_fl = [use_ch_fl[0] + min_n_sec, use_ch_fl[1] + max_n_sec]
+            if base_pre is None:
+                base_pre = stimpar.pre
+            base_pre, base_post = quint_analys.define_transition_baseline(
+                stimtype, stimpar.gabfr, baseline, base_pre, stimpar.post)
+            # expand flank checking as needed
+            use_ch_fl = [np.max([p, b]) 
+                for p, b in zip(use_ch_fl, [base_pre, base_post])]
+        if datatype == "roi":
+            fr_ns = stim.get_twop_fr_by_seg(
+                segs, first=True, last=True, ch_fl=use_ch_fl
+                )[f"{fr_key}_twop_fr"]
+            fct = stim.get_roi_data
+            col = "roi_traces"
+            args["fluor"] = analyspar.fluor
+        elif datatype == "run":
+            # array: 1 x sequences
+            fr_ns = stim.get_stim_fr_by_seg(
+                segs, first=True, last=True, ch_fl=use_ch_fl
+                )[f"{fr_key}_stim_fr"]
+            fct = stim.get_run_data
+            col = "run_velocity"
+        else:
+            gen_util.accepted_values_error("datatype", datatype, ["run", "roi"])
+
+        if len(fr_ns) == 0:
+            raise ValueError("No frames found given flank requirements.")
+
+        data_arr = gen_util.reshape_df_data(
+            fct(fr_ns, stimpar.pre, stimpar.post, **args)[col], 
+            squeeze_cols=True)
+
+        if baseline:
+            base_data = gen_util.reshape_df_data(
+                fct(fr_ns, base_pre, base_post, **args), squeeze_cols=True)
+            end_shape = list(base_data.shape)[:-1] + [1]
+            # (ROI x) sequences x frames
+            base_data = math_util.mean_med(
+                base_data, stats=analyspar.stats, axis=-1, nanpol=nanpol)
+            data_arr = data_arr - base_data.reshape(end_shape)
+        if integ:
+            data_arr = math_util.integ(
+                data_arr, 1. / sess.twop_fps, axis=-1, nanpol=nanpol)
+        
+        all_data.append(data_arr)
+
+    if not len(all_data):
+        raise ValueError("No data was collected.")
+
+    axis = -1 if integ else -2
+
+    data_arr = np.concatenate(all_data, axis=axis)
+
     return data_arr
+
+
+#############################################
+def get_stim_onset_offset_segs(sess, stimpar, lock="stim_onset"):
+    """
+    get_stim_onset_offset_segs(sess, stimpar)
+
+    Returns segment numbers for each stimulus, as well as the pre/post 
+    stimulus timing information
+
+    Required args:
+        - sess (Session)   : Session object
+        - stimpar (StimPar): named tuple containing stimulus parameters
+
+    Optional args:
+        - lock (str): how to lock the stimulus (onset or offset)
+                      default: "stim_onset"
+
+    Returns:
+        - seg_dict (dict): dictionary with segment information
+            [stimtype] (list): segment numbers for the stimulus
+    """
+
+
+    if stimpar.stimtype not in "both":
+        raise NotImplementedError("Implemented for both stimulus types.")
+
+    seg_dict = {}
+    for stimtype in sess.stimtypes:
+        stim = sess.get_stim(stimtype)
+        if stimtype == "gabors":
+            unique_stimpars = ["stimPar2"]
+            if stimpar.gabfr not in [0, "any", "all"]:
+                raise ValueError("Gabor frame must be 0.")
+            if (stimpar.gab_ori not in ["all", "any"] and
+                len(stimpar.gab_ori) != 4):
+                raise ValueError("Gabor orientations must be all.")
+        elif stimtype == "bricks":
+            unique_stimpars = ["stimPar1", "stimPar2"]
+        stim_df = stim.get_stim_df_by_criteria(
+            gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=stimpar.gab_ori, 
+            bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size)
+        
+        segs = []
+        for _, stim_df_grp in stim_df.groupby(unique_stimpars):
+            if lock == "stim_onset":
+                segs.append(stim_df_grp["stimSeg"].min())
+            elif lock == "stim_offset":
+                segs.append(stim_df_grp["stimSeg"].max())
+            else:
+                gen_util.accepted_values_error(
+                    "lock", lock, ["stim_onset", "stim_offset"])
+            seg_dict[stimtype] = segs
+        
+    return seg_dict
 
 
 #############################################
@@ -302,6 +398,8 @@ def surp_data_by_sess(sess, analyspar, stimpar, datatype="roi", surp="bysurp",
                                   "progreg": reg, vs preceeding surp, 
                                       but not locked (e.g., D, vs prev U)
                                       (i.e., pre not necessarily equal to post)
+                                  "stim_onset": stimulus onset vs grayscreen
+                                  "stim_offset": stimulus offset vs grayscreen
                                   default: "bysurp"
         - integ (bool)          : if True, sequence data is integrated
                                   default: False
@@ -324,7 +422,9 @@ def surp_data_by_sess(sess, analyspar, stimpar, datatype="roi", surp="bysurp",
     if surp in ["surplock", "reglock"] and stimpar.pre != stimpar.post:
         raise ValueError("stimpar.pre must equal stimpar.post for "
             "this locked analysis.")
-    locks = ["reglock", "surplock"] # ordered in surp == [0, 1] order
+
+    # ordered in surp == [0, 1] order
+    locks = ["reglock", "surplock", "stim_onset", "stim_offset"] 
     progs = ["progreg", "progsurp"] # ordered in surp == [0, 1] order
 
     if match_oris:
@@ -340,7 +440,9 @@ def surp_data_by_sess(sess, analyspar, stimpar, datatype="roi", surp="bysurp",
     else:
         gab_oris = [stimpar.gab_ori, stimpar.gab_ori]
 
-    stim = sess.get_stim(stimpar.stimtype)
+    stim = None
+    if surp not in ["stim_onset", "stim_offset"]:
+        stim = sess.get_stim(stimpar.stimtype)
     if surp == "bysurp":
         if (stimpar.stimtype == "gabors" and 
             (stimpar.gabfr * 0.3 + stimpar.post) < 0.9):
@@ -369,12 +471,19 @@ def surp_data_by_sess(sess, analyspar, stimpar, datatype="roi", surp="bysurp",
                 "surp", surp, 
                 ["bysurp", "surplock", "reglock", "progsurp", "progreg"])
 
-        segs = stim.get_segs_by_criteria(gabfr=gabfr, gabk=stimpar.gabk, 
-            gab_ori=stimpar.gab_ori, bri_dir=stimpar.bri_dir, 
-            bri_size=stimpar.bri_size, surp=surp_val, by="seg", 
-            remconsec=remconsec)
+        if surp in ["stim_onset", "stim_offset"]:
+            seg_dict = get_stim_onset_offset_segs(
+                sess, stimpar, lock=surp)
+        else:
+            segs = stim.get_segs_by_criteria(gabfr=gabfr, gabk=stimpar.gabk, 
+                gab_ori=stimpar.gab_ori, bri_dir=stimpar.bri_dir, 
+                bri_size=stimpar.bri_size, surp=surp_val, by="seg", 
+                remconsec=remconsec)
         
-        if surp in locks:
+        if surp in ["stim_onset", "stim_offset"]:
+            segs = [seg_dict] * 2
+            pre_posts = [[stimpar.pre, 0], [0, stimpar.post]]
+        elif surp in locks:
             # shift to correct gabor frame
             if (stimpar.stimtype == "gabors" and 
                 stimpar.gabfr not in ["any", "all"]):
@@ -434,9 +543,24 @@ def surp_data_by_sess(sess, analyspar, stimpar, datatype="roi", surp="bysurp",
         stimpar_use = sess_ntuple_util.get_modif_ntuple(
             stimpar, ["pre", "post"], [pre, post])
 
+        seg_ends = False
+        if surp == "stim_offset":
+            seg_ends = True
+
         data_arr.append(data_from_segs(
             sess, subsegs, analyspar, stimpar_use, datatype, integ=integ, 
-            baseline=baseline, base_pre=base_pre, ch_fl=ch_fl))
+            baseline=baseline, base_pre=base_pre, ch_fl=ch_fl, 
+            seg_ends=seg_ends))
+
+       # check for stim_onset/offset that ALL possible segs were retained
+        if surp in ["stim_onset", "stim_offset"]:
+            axis = -1 if integ else -2
+            n_segs = np.sum([len(seg_item) for _, seg_item in subsegs.items()])
+            n_segs_retained = data_arr[-1].shape[axis]
+            if n_segs != n_segs_retained:
+                raise ValueError(f"Not all segments could be retained for "
+                    f"{surp} with stimpar.pre={stimpar.pre} and "
+                    f"stimpar.post={stimpar.post}.")
 
     return data_arr
 
@@ -471,7 +595,6 @@ def dir_data_by_sess(sess, analyspar, stimpar, datatype="roi", integ=False,
         - data_arr (list): list of data arrays structured as 
                            nasal, temp [x ROIs] x seq [x frames]
     """
-
 
     if stimpar.stimtype != "bricks":
         raise ValueError("Cannot get direction data for Gabors.")
@@ -526,6 +649,8 @@ def surp_diff_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype="roi",
                                   "progreg": reg, vs preceeding surp, 
                                       but not locked (e.g., D, vs prev U)
                                       (i.e., pre not necessarily equal to post)
+                                  "stim_onset": stimulus onset vs grayscreen
+                                  "stim_offset": stimulus offset vs grayscreen
                                   default: "bysurp"
         - baseline (bool or num): if not False, number of second to use for 
                                   baseline for bysurp data
@@ -1156,8 +1281,10 @@ def surp_diff_by_sesses(sessions, analyspar, stimpar, permpar, datatype="roi",
                                   default: "roi"
         - surp (str)            : how to split surprise vs reg data, either 
                                   "bysurp"  : all reg vs all surp, or
-                                  "surplock": first surp, vs preceeding reg
-                                  "reglock" : first reg, vs preceeding surp
+                                  "surplock": first surp, vs preceeding reg, or
+                                  "reglock" : first reg, vs preceeding surp, or
+                                  "stim_onset": stimulus onset vs grayscreen
+                                  "stim_offset": stimulus offset vs grayscreen
                                   default: "bysurp"
         - baseline (bool or num): if not False, number of second to use for 
                                   baseline for bysurp data
@@ -1276,7 +1403,9 @@ def surp_diff_by_linpla(sessions, analyspar, stimpar, permpar, datatype="roi",
         - surp (str)             : how to split surprise vs reg data, either 
                                   "bysurp": all reg vs all surp, or
                                   "surplock": first surp, vs preceeding reg, or
-                                  "reglock": first reg, vs preceeding surp, or                           
+                                  "reglock": first reg, vs preceeding surp, or
+                                  "stim_onset": stimulus onset vs grayscreen
+                                  "stim_offset": stimulus offset vs grayscreen
                                   default: "bysurp"
         - baseline (bool or num): if not False, number of second to use for 
                                   baseline for bysurp data
@@ -1342,9 +1471,10 @@ def surp_diff_by_linpla(sessions, analyspar, stimpar, permpar, datatype="roi",
     if permpar.multcomp:
         raise ValueError("Multiple comparisons not implemented for this "
             "analysis.")
-    if surp in ["surplock", "reglock"] and stimpar.pre != stimpar.post:
-        raise ValueError("For surplock or reglock analysis, stimpar.pre and "
-            "stimpar.post must be the same.")
+    if (surp in ["surplock", "reglock", "stim_onset", "stim_offset"] and 
+        stimpar.pre != stimpar.post):
+        raise ValueError("For surplock, reglock, stim_onset or stim_offset "
+            "analysis, stimpar.pre and stimpar.post must be the same.")
     
     # get sessions organized by lin/pla x mouse x session
     linpla_sess, linpla_order = split_by_linpla(sessions, rem_empty=True)
@@ -1554,6 +1684,93 @@ def run_lock_area_diff(sessions, analysis, seed, analyspar, sesspar, stimpar,
     
 
 #############################################
+def run_stim_grayscr_diff(sessions, analysis, seed, analyspar, sesspar, stimpar, 
+                          basepar, permpar, figpar, datatype="roi", 
+                          parallel=False):
+    """
+    run_stim_grayscr_diff(sessions, analysis, analyspar, sesspar, stimpar, 
+                          basepar, permpar, figpar)
+
+    Retrieves area values by session, locked to stimulus onset/offset and plots 
+    statistics across ROIs of difference between regular and surprise.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list)      : nested list of Session objects (mouse x sess)
+        - analysis (str)       : analysis type (e.g., "a")
+        - seed (int)           : seed value to use. (-1 treated as None)
+        - analyspar (AnalysPar): named tuple containing analysis parameters
+        - sesspar (SessPar)    : named tuple containing session parameters
+        - stimpar (StimPar)    : named tuple containing stimulus parameters
+        - basepar (BasePar)    : named tuple containing baseline parameters
+        - permpar (PermPar)    : named tuple containing permutation parameters
+        - figpar (dict)        : dictionary containing figure parameters
+    
+    Optional args:
+        - datatype (str) : type of data (e.g., "roi", "run")
+                           default: "roi"
+        - parallel (bool): if True, some of the analysis is run in parallel 
+                           across CPU cores 
+                           default: False
+    """
+
+    if stimpar.stimtype != "both":
+        raise ValueError("Stimulus grayscreen analysis must include both "
+            "stimulus types.")
+
+    sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
+        sesspar.plane, stimpar.bri_dir, stimpar.bri_size, stimpar.gabk,
+        "print")
+    dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
+        datatype, "print")
+       
+    datastr = sess_str_util.datatype_par_str(datatype)
+
+    logger.info(f"Analysing and plotting {datastr} stimulus onset and offset "
+        f"responses \n({sessstr_pr}{dendstr_pr}).", extra={"spacing": "\n"})
+
+    if permpar.multcomp:
+        warnings.warn("Multiple comparisons not implemented for this analysis. "
+              "Setting to False.")
+        permpar = sess_ntuple_util.get_modif_ntuple(permpar, "multcomp", False)
+
+    if stimpar.pre != stimpar.post:
+        warnings.warn(f"stimpar.post {stimpar.post} will be used for "
+              "pre and post.")
+        stimpar = sess_ntuple_util.get_modif_ntuple(
+            stimpar, "pre", stimpar.post)
+
+    all_diff_info = []
+    all_sess_info = []
+    for lock in ["stim_onset", "stim_offset"]:
+        diff_info, sess_info = surp_diff_by_linpla(
+            sessions, analyspar, stimpar, permpar, datatype, surp=lock, 
+            baseline=basepar.baseline, seed=seed, parallel=parallel)
+        all_diff_info.append(diff_info)
+        all_sess_info.append(sess_info)
+
+    extrapar = {"analysis": analysis,
+                "datatype": datatype,
+                "seed"    : seed,
+                }
+
+    info = {"analyspar": analyspar._asdict(),
+            "sesspar"  : sesspar._asdict(),
+            "stimpar"  : stimpar._asdict(),
+            "basepar"  : basepar._asdict(),
+            "permpar"  : permpar._asdict(),
+            "extrapar" : extrapar,
+            "sess_info": all_sess_info,
+            "diff_info": all_diff_info
+            }
+
+    fulldir, savename = acr_sess_plots.plot_stim_grayscr_diff(
+        figpar=figpar, **info)
+    file_util.saveinfo(info, savename, fulldir, "json")
+    
+
+#############################################
 def surp_traces_by_sesses(sessions, analyspar, stimpar, datatype="roi", 
                           surp="bysurp", baseline=0.1):
     """
@@ -1714,7 +1931,7 @@ def surp_trace_stats_by_sesses(sessions, analyspar, stimpar, datatype="roi",
     trace_st = np.transpose(trace_st, [1, 2, 3, 0]).tolist()
 
     pre = stimpar.pre
-    if surp in ["surplock", "reglock"]:
+    if surp in ["surplock", "reglock", "stim_onset", "stim_offset"]:
         pre = 0
     xran = np.linspace(-pre, stimpar.post, n_fr).tolist()
 
@@ -1803,9 +2020,10 @@ def surp_traces_by_linpla(sessions, analyspar, stimpar, datatype="roi",
                                     exists
     """
 
-    if surp in ["surplock", "reglock"] and stimpar.pre != stimpar.post:
-        raise ValueError("For surplock or reglock analysis, stimpar.pre and "
-            "stimpar.post must be the same.")
+    if (surp in ["surplock", "reglock", "stim_onset", "stim_offset"] and 
+        stimpar.pre != stimpar.post):
+        raise ValueError("For surplock, reglock, stim_onset or stim_offset "
+            "analysis, stimpar.pre and stimpar.post must be the same.")
 
     # get sessions organized by lin/pla x mouse x session
     linpla_sess, linpla_order = split_by_linpla(sessions, rem_empty=True)
@@ -1979,6 +2197,86 @@ def run_lock_traces(sessions, analysis, analyspar, sesspar, stimpar,
             }
 
     fulldir, savename = acr_sess_plots.plot_lock_traces(figpar=figpar, **info)
+    file_util.saveinfo(info, savename, fulldir, "json")
+
+
+#############################################
+def run_stim_grayscr(sessions, analysis, analyspar, sesspar, stimpar, 
+                     basepar, figpar, datatype="roi", parallel=False):
+    """
+    run_stim_grayscr(sessions, analysis, analyspar, sesspar, stimpar, 
+                     basepar, figpar)
+
+    Retrieves area values by session x surp val, locked to stimulus onset, then 
+    offset and plots statistics across ROIs of difference between 
+    regular and surprise.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list)      : nested list of Session objects (mouse x sess)
+        - analysis (str)       : analysis type (e.g., "b")
+        - analyspar (AnalysPar): named tuple containing analysis parameters
+        - sesspar (SessPar)    : named tuple containing session parameters
+        - stimpar (StimPar)    : named tuple containing stimulus parameters
+        - basepar (BasePar)    : named tuple containing baseline parameters
+        - figpar (dict)        : dictionary containing figure parameters
+    
+    Optional args:
+        - datatype (str) : type of data (e.g., "roi", "run")
+                           default: "roi"
+        - parallel (bool): if True, some of the analysis is run in parallel 
+                           across CPU cores 
+                           default: False
+    """
+
+    if stimpar.stimtype != "both":
+        raise ValueError("Stimulus grayscreen analysis must include both "
+            "stimulus types.")
+
+    sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
+        sesspar.plane, stimpar.bri_dir, stimpar.bri_size, stimpar.gabk,
+        "print")
+    dendstr_pr = sess_str_util.dend_par_str(
+        analyspar.dend, sesspar.plane, datatype, "print")
+       
+    datastr = sess_str_util.datatype_par_str(datatype)
+
+    logger.info("Analysing and plotting stimulus onset and offset locked "
+        f"{datastr} traces \n({sessstr_pr}{dendstr_pr}).", 
+        extra={"spacing": "\n"})
+
+    if stimpar.pre != stimpar.post:
+        warnings.warn(f"stimpar.post {stimpar.post} will be used for "
+            "pre and post.")
+        stimpar = sess_ntuple_util.get_modif_ntuple(
+            stimpar, "pre", stimpar.post)
+
+    all_sess_info = []
+    all_trace_info = []
+    for lock in ["stim_onset", "stim_offset"]:
+        trace_info, sess_info = surp_traces_by_linpla(
+            sessions, analyspar, stimpar, datatype, surp=lock, 
+            baseline=basepar.baseline, parallel=parallel)
+        all_sess_info.append(sess_info)
+        all_trace_info.append(trace_info)
+        
+
+    extrapar = {"analysis": analysis,
+                "datatype": datatype,
+                }
+
+    info = {"analyspar" : analyspar._asdict(),
+            "sesspar"   : sesspar._asdict(),
+            "stimpar"   : stimpar._asdict(),
+            "basepar"   : basepar._asdict(),
+            "extrapar"  : extrapar,
+            "sess_info" : all_sess_info,
+            "trace_info": all_trace_info
+            }
+
+    fulldir, savename = acr_sess_plots.plot_stim_grayscr_traces(
+        figpar=figpar, **info)
     file_util.saveinfo(info, savename, fulldir, "json")
 
 

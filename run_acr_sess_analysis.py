@@ -464,36 +464,43 @@ def get_analysis_fcts():
     # across sessions
     fct_dict["l"] = [acr_sess_analys.run_lock_area_diff, ["roi", "run"]]
 
-    # 2. Plots the surprise and regular traces across sessions
+    # 2. Plots the difference between stimulus and grayscreen, locked to onset, 
+    # across sessions
+    fct_dict["a"] = [acr_sess_analys.run_stim_grayscr_diff, ["roi", "run"]]
+
+    # 3. Plots the surprise and regular traces across sessions
     fct_dict["t"] = [acr_sess_analys.run_surp_traces, ["roi", "run"]]
 
-    # 3. Plots the surprise and regular traces locked to surprise across 
+    # 4. Plots the surprise and regular traces locked to surprise across 
     # sessions
     fct_dict["r"] = [acr_sess_analys.run_lock_traces, ["roi", "run"]]
 
-    # 4. Plots progression of surprise or regular responses within and 
+    # 5. Plots the stimulus onset traces across sessions
+    fct_dict["b"] = [acr_sess_analys.run_stim_grayscr, ["roi", "run"]]
+
+    # 6. Plots progression of surprise or regular responses within and 
     # across sessions
     fct_dict["g"] = [acr_sess_analys.run_prog, ["roi", "run"]]
 
-    # 5. Plots surprise or regular position responses across sessions
+    # 7. Plots surprise or regular position responses across sessions
     fct_dict["o"] = [acr_sess_analys.run_position, ["roi", "run"]]
 
-    # 6. Plots surprise indices across sessions
+    # 8. Plots surprise indices across sessions
     fct_dict["i"] = [acr_sess_analys.run_surp_idx, ["roi", "run"]]
 
-    # 7. Plots surprise indices across sessions with matching orientations
+    # 9. Plots surprise indices across sessions with matching orientations
     fct_dict["m"] = [acr_sess_analys.run_surp_idx_match_oris, ["roi", "run"]]
 
-    # 8. Plots direction indices across sessions
+    # 10. Plots direction indices across sessions
     fct_dict["d"] = [acr_sess_analys.run_direction_idx, ["roi", "run"]]
 
-    # 9. Plot surprice index colormaps across stimulus parameters
+    # 11. Plot surprice index colormaps across stimulus parameters
     fct_dict["c"] = [acr_sess_analys.run_surp_idx_cm, ["roi", "run"]]
 
-    # 10. Plots the surprise latencies across sessions
+    # 12. Plots the surprise latencies across sessions
     fct_dict["u"] = [acr_sess_analys.run_surp_latency, ["roi", "run"]]
 
-    # 11. Plots proportion of ROIs responses to both surprise types
+    # 13. Plots proportion of ROIs responses to both surprise types
     fct_dict["p"] = [acr_sess_analys.run_resp_prop, ["roi"]]
 
     return fct_dict

@@ -290,7 +290,6 @@ class Session(object):
         else:
             self._stim_dict_loaded = False
 
-
         if fulldict:
             self.stim_dict = file_util.loadfile(self.stim_pkl)
         else:
@@ -299,9 +298,13 @@ class Session(object):
 
         if not self._stim_dict_loaded:
             self.stim_fps       = self.stim_dict["fps"]
-            self.tot_stim_fr    = self.stim_dict["total_frames"]
             self.pre_blank      = self.stim_dict["pre_blank_sec"]  # seconds
             self.post_blank     = self.stim_dict["post_blank_sec"] # seconds
+            
+            pre_blank_stim_fr   = int(np.around(self.pre_blank * self.stim_fps))
+            post_blank_stim_fr  = int(np.around(self.post_blank * self.stim_fps))
+            self.tot_stim_fr    = (self.stim_dict["total_frames"] + 
+                pre_blank_stim_fr + post_blank_stim_fr)
             self.drop_stim_fr   = self.stim_dict["droppedframes"]
             self.n_drop_stim_fr = len(self.drop_stim_fr[0])
             self.sess_stim_seed = sess_load_util.load_sess_stim_seed(
@@ -846,6 +849,28 @@ class Session(object):
             except Exception as e:
                 warnings.warn(f"{e}.\nAIBS extracted dendritic ROIs "
                     "will be used instead.")
+
+    ############################################
+    def get_stim_twop_fr_ns(self):
+        """
+        get_stim_twop_fr_ns()
+
+        Returns the 2p frame numbers that occur during stimuli (excluding all 
+        grayscreen presentations, including Gabor grayscreen frames)
+        
+        Returns:
+            - all_stim_twop_fr_ns (1D array): 2p frame numbers during which 
+                                              stimuli are presented
+        """
+
+        start_twop_frs = self.stim_df["start2pfr"]
+        end_twop_frs = self.stim_df["end2pfr"]
+
+        all_stim_twop_fr_ns = np.concatenate([
+            np.arange(start, end) 
+            for start, end in zip(start_twop_frs, end_twop_frs)])
+
+        return all_stim_twop_fr_ns
 
 
     #############################################
@@ -4211,20 +4236,20 @@ class Gabors(Stim):
 
         size_ran = copy.deepcopy(gabor_par["size_ran"])
         if self.units == "pix":
-            self.sf = gabor_par["sf"]*self.deg_per_pix 
-            size_ran = [x/self.deg_per_pix for x in size_ran]
+            self.sf = gabor_par["sf"] * self.deg_per_pix 
+            size_ran = [x / self.deg_per_pix for x in size_ran]
         else:
              raise ValueError("Expected self.units to be pix.")
 
         # Convert to size as recorded in PsychoPy
-        gabor_modif = 1./(2*np.sqrt(2*np.log(2))) * gabor_par["sd"]
-        self.size_ran = [np.around(x*gabor_modif) for x in size_ran]
+        gabor_modif = 1. / (2 * np.sqrt(2 * np.log(2))) * gabor_par["sd"]
+        self.size_ran = [np.around(x * gabor_modif) for x in size_ran]
 
         # kappas calculated as 1/std**2
         if self.sess.runtype == "pilot":
-            self.ori_kaps = [1./x**2 for x in self.ori_std] 
+            self.ori_kaps = [1. / x ** 2 for x in self.ori_std] 
         elif self.sess.runtype == "prod":
-            self.ori_kaps = 1./self.ori_std**2
+            self.ori_kaps = 1. / self.ori_std ** 2
 
         # seg sets (hard-coded, based on the repeating structure  we are 
         # interested in, namely: blank, A, B, C, D/U)
