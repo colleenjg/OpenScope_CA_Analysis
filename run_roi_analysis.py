@@ -43,6 +43,21 @@ DEFAULT_FONTDIR = os.path.join("..", "tools", "fonts")
 logger = logging.getLogger(__name__)
 
 
+ANALYSIS_DESCR = {
+    "f": "full ROI traces",
+    "t": "ROI traces by session quintile, split by surprise and regular",
+    "l": "ROI traces by session quintile, locked to surprise or regular onset",
+    "m": "magnitude of ROI differences between surprise and regular",
+    "a": "ROI autocorrelation",
+    "g": "ROIs grouped by change in surprise sensitivity in session",
+    "o": "orientation or direction-locked response colormaps",
+    "c": "ROI tuning curves for Gabor orientations",
+    "v": "Trial PCA trajectories (UNDER DEVELOPMENT)",
+    "p": "ROI responses by Gabor positions and mean orientation ",
+    "r": "Correlations between responses in different sessions",
+}
+
+
 #############################################
 def reformat_args(args):
     """
@@ -428,7 +443,7 @@ def get_analysis_fcts():
     #### UNDER DEVELOPMENT ####
     fct_dict["v"] = [roi_analys.run_trial_pc_traj, False]
 
-    # 9. Analyses and plots ROI responses for positions and mean gabor 
+    # 9. Analyses and plots ROI responses for Gabor positions and mean 
     # orientations
     fct_dict["p"] = [roi_analys.run_posori_resp, False]
 
@@ -494,12 +509,16 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
+    ANALYSIS_STR = " / ".join(
+        [f"{key}: {item}" for key, item in ANALYSIS_DESCR.items()])
+
         # general parameters
     parser.add_argument("--datadir", default=None, 
         help="data directory (if None, uses a directory defined below)")
     parser.add_argument("--output", default=".", help="where to store output")
     parser.add_argument("--analyses", default="all", 
-        help=("analyses to run (see get_analysis_fcts())"))
+        help=("analyses to run, e.g. 'ftl', 'all' or 'all_f' (all save 'f'). "
+            f"ANALYSES: {ANALYSIS_STR}"))
     parser.add_argument("--sess_n", default="all",
         help="session to aim for, e.g. 1, 2, first, last, all")
     parser.add_argument("--dict_path", default=None, 

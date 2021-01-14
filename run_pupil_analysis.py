@@ -42,6 +42,12 @@ DEFAULT_FONTDIR = os.path.join("..", "tools", "fonts")
 logger = logging.getLogger(__name__)
 
 
+ANALYSIS_DESCR = {
+    "c": "correlation between pupil and roi or run surprise-locked changes",
+    "r": "surprise-locked change correlation per ROI between stimuli",
+}
+
+
 #############################################
 def reformat_args(args):
     """
@@ -340,7 +346,8 @@ def get_analysis_fcts():
     # changes for each session
     fct_dict["c"] = [pup_analys.run_pupil_diff_corr, ["roi", "run"]]
 
-    # 1. Calculates difference correlation per ROI between stimuli
+    # 1. Calculates Calculates surprise-locked chnge correlation per ROI 
+    # between stimuli
     fct_dict["r"] = [pup_analys.run_pup_roi_stim_corr, ["roi"]]
 
     return fct_dict
@@ -400,14 +407,16 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
+    ANALYSIS_STR = " / ".join(
+        [f"{key}: {item}" for key, item in ANALYSIS_DESCR.items()])
+
         # general parameters
     parser.add_argument("--datadir", default=None, 
         help="data directory (if None, uses a directory defined below)")
     parser.add_argument("--output", default=".", help="where to store output")
     parser.add_argument("--analyses", default="all", 
-        help=("analyses to run: difference correlation (c), "
-            "ROI diff corr (r), or 'all' or 'all_r' to, for example,"
-            " run all analyses except r"))
+        help=("analyses to run, e.g. 'cr', 'all' or 'all_c' (all save 'c'). "
+            f"ANALYSES: {ANALYSIS_STR}"))
     parser.add_argument("--datatype", default="roi", 
         help="datatype to use (roi or run)")          
     parser.add_argument("--sess_n", default="all",

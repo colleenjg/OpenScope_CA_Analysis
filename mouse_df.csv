@@ -9,15 +9,15 @@ sessid,mouse_n,mouseid,date,depth,plane,line,runtype,nrois_allen,nrois,sess_gen,
 722126561,1,392960,20180719,75,dend,L23-Cux2,pilot,36,424,6,1,8,P,1,1,yes,100,"half stimuli (gab k4, bricks left 128*, bricks right 256)"
 723322122,1,392960,20180719,175,soma,L23-Cux2,pilot,29,29,7,1,9,P,1,1,yes,100,"half stimuli (gab k4, bricks left 128*, bricks right 256)"
 723323411,1,392960,20180723,75,dend,L23-Cux2,pilot,17,425,8,1,10,P,1,1,yes,100,"half stimuli (gab k4, bricks left 128*, bricks right 256)"
-712483302,2,389778,20180621,20,dend,L5-Rbp4,pilot,259,1468,1,1,1,F,1,1,yes,103,"dropped beh and eye tracking frames (7), stim frames (534), 2nd alignment fails"
-712942208,2,389778,20180622,375,soma,L5-Rbp4,pilot,78,78,2,1,2,F,1,1,yes,103,"dropped beh and eye tracking frames (6), stim frames (254), 2nd alignment fails"
+712483302,2,389778,20180621,20,dend,L5-Rbp4,pilot,259,1468,1,1,1,F,1,1,yes,103,"dropped beh and eye tracking frames (7), stim frames (534)"
+712942208,2,389778,20180622,375,soma,L5-Rbp4,pilot,78,78,2,1,2,F,1,1,yes,103,"dropped beh and eye tracking frames (6), stim frames (254)"
 714893802,2,389778,20180627,20,dend,L5-Rbp4,pilot,-1,-1,1,2,3,F,0,1,no,103,missing 2P recordings and ROI traces
 715244457,2,389778,20180628,20,dend,L5-Rbp4,pilot,504,949,1,3,4,P,1,1,yes,103,problematic running values
 716425232,2,389778,20180702,375,soma,L5-Rbp4,pilot,79,79,2,2,5,P,1,1,yes,103,
 716711420,2,389778,20180703,20,dend,L5-Rbp4,pilot,241,920,3,1,6,P,1,1,yes,103,
 717030161,2,389778,20180705,375,soma,L5-Rbp4,pilot,60,60,4,1,7,P,1,1,yes,103,
 724421207,3,396998,20180723,175,soma,L23-Cux2,pilot,50,50,1,1,1,P,1,1,yes,103,"half stimuli (gabors k16*, bricks right)"
-724422062,3,396998,20180725,75,dend,L23-Cux2,pilot,12,513,2,1,2,P,1,1,yes,103,"half stimuli (gabors k16*, bricks right), 2nd alignment fails"
+724422062,3,396998,20180725,75,dend,L23-Cux2,pilot,12,513,2,1,2,P,1,1,yes,103,"half stimuli (gabors k16*, bricks right)"
 725009252,3,396998,20180725,175,soma,L23-Cux2,pilot,45,45,3,1,3,P,1,1,yes,103,"half stimuli (gabors k16*, bricks right)"
 725010342,3,396998,20180726,75,dend,L23-Cux2,pilot,15,497,4,1,4,P,1,1,yes,103,"half stimuli (gabors k16*, bricks right)"
 726837871,3,396998,20180726,175,soma,L23-Cux2,pilot,40,40,5,1,5,P,1,1,yes,103,"half stimuli (gabors k16*, bricks right)"
@@ -35,14 +35,14 @@ sessid,mouse_n,mouseid,date,depth,plane,line,runtype,nrois_allen,nrois,sess_gen,
 758519303,1,408021,20180926,175,soma,L23-Cux2,prod,116,116,1,1,1,P,1,1,yes,30587,
 759189643,1,408021,20180927,175,soma,L23-Cux2,prod,86,86,2,1,2,P,1,1,yes,5730,2nd alignment fails
 759660390,1,408021,20181001,175,soma,L23-Cux2,prod,121,121,3,1,3,P,1,1,yes,36941,
-759666166,2,411400,20181001,20,dend,L5-Rbp4,prod,79,1009,1,1,1,F,1,1,yes,11883,"dropped beh and eye tracking frames (5), stim frames (953), 2nd alignment fails"
-759872185,2,411400,20181002,20,dend,L5-Rbp4,prod,58,309,1,2,2,F,1,1,yes,8005,"dropped beh and eye tracking frames (4), stim frames (1086), 2nd alignment fails"
-760269100,2,411400,20181003,20,dend,L5-Rbp4,prod,86,539,1,3,3,F,1,1,yes,34380,"dropped beh and eye tracking frames (7), stim frames (696), 2nd alignment fails"
+759666166,2,411400,20181001,20,dend,L5-Rbp4,prod,79,1009,1,1,1,F,1,1,yes,11883,"dropped beh and eye tracking frames (5), stim frames (953)"
+759872185,2,411400,20181002,20,dend,L5-Rbp4,prod,58,309,1,2,2,F,1,1,yes,8005,"dropped beh and eye tracking frames (4), stim frames (1086)"
+760269100,2,411400,20181003,20,dend,L5-Rbp4,prod,86,539,1,3,3,F,1,1,yes,34380,"dropped beh and eye tracking frames (7), stim frames (696)"
 761730740,2,411400,20181009,20,dend,L5-Rbp4,prod,65,657,1,4,4,P,1,1,yes,44023,
 762415169,2,411400,20181011,20,dend,L5-Rbp4,prod,31,662,2,1,5,P,1,1,yes,29259,
 763646681,2,411400,20181015,20,dend,L5-Rbp4,prod,44,602,3,1,6,P,1,1,yes,1118,
 761624763,3,411424,20181009,175,soma,L23-Cux2,prod,96,96,1,1,1,P,1,1,yes,997,
-761944562,3,411424,20181010,175,soma,L23-Cux2,prod,94,94,2,1,2,P,1,1,yes,33856,"dropped stim frames (17), 2nd alignment fails"
+761944562,3,411424,20181010,175,soma,L23-Cux2,prod,94,94,2,1,2,P,1,1,yes,33856,dropped stim frames (17)
 762250376,3,411424,20181011,175,soma,L23-Cux2,prod,88,88,3,1,3,P,1,1,yes,23187,
 760260459,4,411771,20181003,375,soma,L5-Rbp4,prod,104,104,1,1,1,P,1,1,yes,33767,
 760659782,4,411771,20181004,375,soma,L5-Rbp4,prod,76,76,2,1,2,P,1,1,yes,32698,
@@ -65,8 +65,7 @@ sessid,mouse_n,mouseid,date,depth,plane,line,runtype,nrois_allen,nrois,sess_gen,
 826187862,9,433414,20190220,75,dend,L23-Cux2,prod,110,736,1,1,1,P,1,1,yes,303,dropped stim frames (133)
 826773996,9,433414,20190221,75,dend,L23-Cux2,prod,99,311,2,1,2,P,1,1,yes,13515,
 827833392,9,433414,20190222,75,dend,L23-Cux2,prod,113,340,3,1,3,P,1,1,yes,32899,
-828754259,9,433414,20190225,75,dend,L23-Cux2,prod,-1,-1,4,1,4,P,0,0,no,-1,viewed different experiment
-826338612,10,433448,20190220,20,dend,L5-Rbp4,prod,163,1728,1,1,1,P,1,1,yes,38171,"dropped stim frames (126), 2nd alignment fails"
+826338612,10,433448,20190220,20,dend,L5-Rbp4,prod,163,1728,1,1,1,P,1,1,yes,38171,dropped stim frames (126)
 826819032,10,433448,20190221,20,dend,L5-Rbp4,prod,339,462,2,1,2,P,1,1,yes,38273,
 828816509,10,433448,20190225,20,dend,L5-Rbp4,prod,320,523,3,1,3,P,1,1,yes,18246,
 829283315,10,433448,20190226,20,dend,L5-Rbp4,prod,288,456,4,1,4,P,1,1,yes,17769,
@@ -75,10 +74,10 @@ sessid,mouse_n,mouseid,date,depth,plane,line,runtype,nrois_allen,nrois,sess_gen,
 825180479,11,433451,20190219,20,dend,L5-Rbp4,prod,47,1022,3,1,3,P,1,1,yes,7754,
 826659257,12,433458,20190221,375,soma,L5-Rbp4,prod,126,126,1,1,1,P,1,1,yes,35969,
 827300090,12,433458,20190222,375,soma,L5-Rbp4,prod,107,107,2,1,2,P,1,1,yes,10378,
-828475005,12,433458,20190225,375,soma,L5-Rbp4,prod,-1,-1,3,1,3,?,0,1,no,10576,"absent from documents, missing ROI data"
+828475005,12,433458,20190225,375,soma,L5-Rbp4,prod,-1,-1,3,1,3,?,0,1,no,10576,missing ROI data
 829520904,12,433458,20190227,375,soma,L5-Rbp4,prod,109,109,4,1,4,P,1,1,yes,42270,
-832883243,13,440889,20190306,175,soma,L23-Cux2,prod,251,251,1,1,1,P,1,1,yes,27797,"dropped stim frames (257), 2nd alignment fails"
-833704570,13,440889,20190307,175,soma,L23-Cux2,prod,251,251,2,1,2,F,1,1,yes,16745,"dropped 2P frames (1), beh and eye tracking frames (5), stim frames (363), 2nd alignment fails"
+832883243,13,440889,20190306,175,soma,L23-Cux2,prod,251,251,1,1,1,P,1,1,yes,27797,dropped stim frames (257)
+833704570,13,440889,20190307,175,soma,L23-Cux2,prod,251,251,2,1,2,F,1,1,yes,16745,"dropped 2P frames (1), beh and eye tracking frames (5), stim frames (363)"
 834403597,13,440889,20190308,175,soma,L23-Cux2,prod,228,228,2,2,3,F,1,1,yes,10210,"dropped beh and eye tracking frames (6), stim frames (166)"
 836968429,13,440889,20190314,175,soma,L23-Cux2,prod,217,217,2,3,4,P,1,1,yes,24253,
 837360280,13,440889,20190315,175,soma,L23-Cux2,prod,244,244,3,1,5,F,1,1,yes,19576,

@@ -41,6 +41,23 @@ DEFAULT_FONTDIR = os.path.join("..", "tools", "fonts")
 
 logger = logging.getLogger(__name__)
 
+ANALYSIS_DESCR = {
+    "s": "difference between surprise and regular",
+    "l": "difference between surprise and regular, locked to surprise and v.v.",
+    "a": "difference between stimulus and grayscreen, locked to onset and v.v.",
+    "t": "traces for surprise and regular",
+    "r": "traces locked to surprise and to regular",
+    "b": "traces locked to stimulus onset and to stimulus offset",
+    "g": "progression of surprise and regular responses",
+    "o": "surprise and regular responses for each position (1st, 2nd, etc.)",
+    "i": "surprise selectivity indices",
+    "m": "surprise selectivity indices with matching orientations",
+    "d": "direction selectivity indices",
+    "c": "surprise seletivity indiex colormaps across stimulus parameters",
+    "u": "surprise latency",
+    "p": "proportion of responsive ROIs for each stimulus type",
+}
+
 
 #############################################
 def reformat_args(args):
@@ -462,11 +479,11 @@ def get_analysis_fcts():
     fct_dict["s"] = [acr_sess_analys.run_surp_area_diff, ["roi", "run"]]
 
     # 1. Plots the difference between surprise and regular locked to surprise
-    # across sessions
+    # and v.v. across sessions
     fct_dict["l"] = [acr_sess_analys.run_lock_area_diff, ["roi", "run"]]
 
-    # 2. Plots the difference between stimulus and grayscreen, locked to onset, 
-    # across sessions
+    # 2. Plots the difference between stimulus and grayscreen, locked to onset 
+    # and v.v., across sessions
     fct_dict["a"] = [acr_sess_analys.run_stim_grayscr_diff, ["roi", "run"]]
 
     # 3. Plots the surprise and regular traces across sessions
@@ -562,15 +579,16 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
+    ANALYSIS_STR = " / ".join(
+        [f"{key}: {item}" for key, item in ANALYSIS_DESCR.items()])
+
         # general parameters
     parser.add_argument("--datadir", default=None, 
         help="data directory (if None, uses a directory defined below)")
     parser.add_argument("--output", default=".", help="where to store output")
     parser.add_argument("--analyses", default="all", 
-        help=("analyses to run: traces (t), locked traces (l), "
-            "roi_grps_qu (q), roi_grps_ch (c), mag (m), autocorr (a), "
-            "ori/dir (o), tuning curves (c) or 'all' or 'all_m' to, "
-            "for example, run all analyses except m"))
+        help=("analyses to run, e.g. 'sla', 'all' or 'all_s' (all save 's'). "
+            f"ANALYSES: {ANALYSIS_STR}"))
     parser.add_argument("--datatype", default="roi", 
         help="datatype to use (roi or run)")  
     parser.add_argument("--sess_n", default="1-3",
@@ -704,5 +722,4 @@ if __name__ == "__main__":
         run_analyses(*analys_pars, analyses=args.analyses, seed=args.seed,
             parallel=args.parallel, datatype=args.datatype)
 
-                
                 
