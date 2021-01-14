@@ -3,10 +3,13 @@
 !/sess_util/
 !/analysis/
 !/plot_fcts/
+!/paper_fig_util/
 !/examples/
-!/prev_scripts/
 !/scripts_under_dev/
+
+/paper_fig_util/intermediate_results
 
 *.pyc
 *.ods
 *.swp
+

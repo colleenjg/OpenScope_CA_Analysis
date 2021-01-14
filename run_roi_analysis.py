@@ -2,7 +2,7 @@
 run_roi_analysis.py
 
 This script runs ROI trace analyses using a Session object with data generated 
-by the AIBS experiments for the Credit Assignment Project.
+by the Allen Institute OpenScope experiments for the Credit Assignment Project.
 
 Authors: Colleen Gillon
 
@@ -36,7 +36,7 @@ from analysis import session, roi_analys, gen_analys
 from plot_fcts import plot_from_dicts_tool as plot_dicts
 
 
-DEFAULT_DATADIR = os.path.join("..", "data", "AIBS")
+DEFAULT_DATADIR = os.path.join("..", "data", "OSCA")
 DEFAULT_MOUSE_DF_PATH = "mouse_df.csv"
 DEFAULT_FONTDIR = os.path.join("..", "tools", "fonts")
 
@@ -57,7 +57,7 @@ def reformat_args(args):
         - Modifies analyses (if "all" or "all_" in parameter)
 
     Adds the following args:
-        - dend (str)     : type of dendrites to use ("aibs" or "extr")
+        - dend (str)     : type of dendrites to use ("allen" or "extr")
         - omit_sess (str): sess to omit
         - omit_mice (str): mice to omit
 
@@ -89,7 +89,7 @@ def reformat_args(args):
 
     args = copy.deepcopy(args)
 
-    if args.plane == "soma": args.dend = "aibs"
+    if args.plane == "soma": args.dend = "allen"
 
     [args.bri_dir, args.bri_size, args.gabfr, 
     args.gabk, args.gab_ori] = sess_gen_util.get_params(
@@ -140,7 +140,7 @@ def init_param_cont(args):
                                      (128, 256 or [128, 256])
             closest (bool)         : if False, only exact session number is 
                                      retained, otherwise the closest.
-            dend (str)             : type of dendrites to use ("aibs" or "dend")
+            dend (str)             : type of dendrites to use ("allen" or "dend")
             error (str)            : error statistic parameter ("std" or "sem")
             fluor (str)            : if "raw", raw ROI traces are used. If 
                                      "dff", dF/F ROI traces are used.
@@ -496,7 +496,7 @@ if __name__ == "__main__":
 
         # general parameters
     parser.add_argument("--datadir", default=None, 
-        help="data directory (if None, uses a directory defined below")
+        help="data directory (if None, uses a directory defined below)")
     parser.add_argument("--output", default=".", help="where to store output")
     parser.add_argument("--analyses", default="all", 
         help=("analyses to run (see get_analysis_fcts())"))
@@ -546,7 +546,7 @@ if __name__ == "__main__":
         help="sem for SEM/MAD, std for std/qu")    
     parser.add_argument("--scale", action="store_true", 
         help="whether to scale ROI data")    
-    parser.add_argument("--dend", default="extr", help="aibs, extr")
+    parser.add_argument("--dend", default="extr", help="allen, extr")
         # session parameters
     parser.add_argument("--line", default="any", help="L23, L5")
     parser.add_argument("--closest", action="store_true", 

@@ -1,4 +1,4 @@
-sessid,mouse_n,mouseid,date,depth,plane,line,runtype,nrois_AIBS,nrois,sess_gen,sess_within,sess_n,pass_fail,all_files,any_files,incl,stim_seed,notes
+sessid,mouse_n,mouseid,date,depth,plane,line,runtype,nrois_allen,nrois,sess_gen,sess_within,sess_n,pass_fail,all_files,any_files,incl,stim_seed,notes
 718921993,1,392960,20180711,175,soma,L23-Cux2,pilot,60,60,1,1,1,F,1,1,yes,100,"half stimuli (gab k4, bricks left 128*, bricks right 256)"
 720115420,1,392960,20180712,75,dend,L23-Cux2,pilot,23,448,2,1,2,F,1,1,yes,100,"half stimuli (gab k4, bricks left 128*, bricks right 256)"
 720519615,1,392960,20180716,175,soma,L23-Cux2,pilot,31,31,1,2,3,P,1,1,yes,100,"half stimuli (gab k4, bricks left 128*, bricks right 256)"

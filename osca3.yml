@@ -1,4 +1,4 @@
-name: aibs3
+name: osca3
 channels:
     - pytorch
     - defaults
@@ -26,4 +26,4 @@ dependencies:
     - pip:
         - tables
         - allensdk
-        - git+https://github.com/colleenjg/util.git@aibs_mult
+        - git+https://github.com/colleenjg/util.git@osca_mult

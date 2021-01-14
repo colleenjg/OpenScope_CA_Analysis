@@ -2,7 +2,8 @@
 sess_str_util.py
 
 This module contains basic math functions for getting strings to print or save
-files for AIBS experiments for the Credit Assignment Project.
+files for Allen Institute OpenScope experiments for the Credit Assignment 
+Project.
 
 Authors: Colleen Gillon
 
