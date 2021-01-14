@@ -24,7 +24,7 @@ Once installed, you simply activate the environment:
 
 All of the appropriate libraries should then be loaded, and the modules can be imported for use in ipython, python scripts, or jupyter notebooks, for example.
 
-**Scripts and modules**:
+## 4. Scripts and modules
 
 * `run_acr_sess_analysis.py`: run and plot specific analyses across sessions
 * `run_roi_analysis.py`: run and plot specific analyses on ROI data
@@ -41,20 +41,20 @@ All of the appropriate libraries should then be loaded, and the modules can be i
 * **`examples`**: example notebook for using Session/Stim objects 
 * **`scripts_under_dev`**: analysis scripts under development
 
-## 4. Data
-The data for this project is available in [NWB](https://www.nwb.org/) format [here](https://dandiarchive.org/dandiset/000037/draft), in the DANDI archive. The associated metadata can be found [here](https://github.com/jeromelecoq/allen_openscope_metadata/tree/master/projects/credit_assignement).   
+## 5. Data
+The data for this project is hosted [here](https://gui.dandiarchive.org/#/dandiset/000037) in the DANDI archive in [NWB](https://www.nwb.org/) format. The associated metadata can be found [here](https://github.com/jeromelecoq/allen_openscope_metadata/tree/master/projects/credit_assignement).   
 **PLEASE NOTE:** We are currently working to update the codebase to interface with the NWB format.
 &nbsp;
 
 Code to generate the stimuli can be found [here](https://github.com/colleenjg/cred_assign_stimuli). 
 
 
-## 5. Authors
+## 6. Authors
 This code was written by:
 
-* Colleen Gillon  (colleen.gillon@mail.utoronto.ca)
+* Colleen Gillon (colleen.gillon@mail.utoronto.ca)
 * Jay Pina (jaypina@yorku.ca)
 * Joel Zylberberg (joelzy@yorku.ca)
-* Blake Richards  (blake.richards@mcgill.ca)
+* Blake Richards (blake.richards@mcgill.ca)
 
 The module `sess_util.Dataset2p.py` contains code shared by authors at the Allen Institute for Brain Science. The authors of the code cannot guarantee support for its usage.

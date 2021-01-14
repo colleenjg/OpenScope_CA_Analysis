@@ -1,5 +1,6 @@
 # ignore all subdirectories, except analysis, plot_fcts, util and sess_util
 /*/ 
+
 !/sess_util/
 !/analysis/
 !/plot_fcts/
@@ -8,6 +9,7 @@
 !/scripts_under_dev/
 
 /paper_fig_util/intermediate_results
+.ipynb_checkpoints
 
 *.pyc
 *.ods

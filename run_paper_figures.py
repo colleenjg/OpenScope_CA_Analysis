@@ -13,13 +13,14 @@ Note: this code uses python 3.7.
 
 import argparse
 import logging
+import os
 
 # try to set cache/config as early as possible (for clusters)
 from util import gen_util 
 gen_util.CC_config_cache()
 
 from util import logger_util
-from sess_util import sess_ntuple_util
+from sess_util import sess_ntuple_util, sess_plot_util
 import paper_organization 
 
 
@@ -32,7 +33,6 @@ logger = logging.getLogger(__name__)
 
 
 def init_analysis(args):
-
 
 
     fig_panel_analysis = paper_organization.FigurePanelAnalysis(

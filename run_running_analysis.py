@@ -41,6 +41,14 @@ DEFAULT_FONTDIR = os.path.join("..", "tools", "fonts")
 
 logger = logging.getLogger(__name__)
 
+ANALYSIS_DESCR = {
+    "f": "full running traces",
+    "t": "running traces by session quintile, split by surprise and regular",
+    "l": "running traces by session quintile, locked to surprise or regular onset",
+    "m": "magnitude of running differences between surprise and regular",
+    "a": "running autocorrelation",
+}
+
 
 #############################################
 def reformat_args(args):
@@ -391,14 +399,16 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
+    ANALYSIS_STR = " / ".join(
+        [f"{key}: {item}" for key, item in ANALYSIS_DESCR.items()])
+
         # general parameters
     parser.add_argument("--datadir", default=None, 
         help="data directory (if None, uses a directory defined below)")
     parser.add_argument("--output", default=".", help="where to store output")
     parser.add_argument("--analyses", default="all", 
-        help=("analyses to run: traces (t), locked traces (l), mag (m), "
-            "autocorr (a) or 'all' or 'all_m' to, for example, run all "
-            "analyses except m"))
+        help=("analyses to run, e.g. 'ftl', 'all' or 'all_f' (all save 'f'). "
+            f"ANALYSES: {ANALYSIS_STR}"))
     parser.add_argument("--sess_n", default="all",
         help="session to aim for, e.g. 1, 2, last, all")
     parser.add_argument("--dict_path", default=None, 
