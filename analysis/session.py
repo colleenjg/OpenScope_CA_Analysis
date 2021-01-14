@@ -1,7 +1,7 @@
 """
 session.py
 
-Classes to store, extract, and analyze an AIBS OpenScope session for
+Classes to store, extract, and analyze an Allen Institute OpenScope session for
 the Credit Assignment Project.
 
 Authors: Colleen Gillon, Blake Richards
@@ -40,7 +40,7 @@ TAB = "    "
 class Session(object):
     """
     The Session object is the top-level object for analyzing a session from the 
-    AIBS OpenScope Credit Assignment Project. All that needs to be provided to 
+    OpenScope Credit Assignment Project. All that needs to be provided to 
     create the object is the directory in which the session data directories 
     are located and the ID for the session to analyze/work with. The Session 
     object that is created will contain all of the information relevant to a 
@@ -131,7 +131,7 @@ class Session(object):
             - pup_video_h5 (str)      : path name of the pupil hdf5 file
             - roi_extract_json (str)  : path name of the ROI extraction json
             - roi_mask_file (str)     : path name of the ROI mask file (None, 
-                                        as AIBS masks must be created during 
+                                        as allen masks must be created during 
                                         loading)
             - roi_objectlist_txt (str): path name of the ROI object list file
             - roi_trace_h5 (str)      : path name of the ROI raw processed 
@@ -238,7 +238,7 @@ class Session(object):
         self.dend()
 
         Returns:
-            - _dend (str): type of dendrites loaded ("aibs" or "extr")
+            - _dend (str): type of dendrites loaded ("allen" or "extr")
         """
 
         if not hasattr(self, "_dend"):
@@ -796,7 +796,7 @@ class Session(object):
 
         Attributes:
             - _dend (str)           : type of dendrites loaded 
-                                      ("aibs" or "extr")
+                                      ("allen" or "extr")
             if EXTRACT dendrites are used, updates:
             - roi_mask_file (str)   : path to ROI mask h5
             - roi_trace_h5 (str)    : full path name of the ROI raw 
@@ -806,7 +806,7 @@ class Session(object):
 
 
         Optional args:
-            - dend (str) : dendritic traces to use ("aibs" for the 
+            - dend (str) : dendritic traces to use ("allen" for the 
                            original extracted traces and "extr" for the
                            ones extracted with Hakan's EXTRACT code, if
                            available)
@@ -827,10 +827,10 @@ class Session(object):
                 f"to {self.dend} traces.")
             return
 
-        if dend not in ["extr", "aibs"]:
-            gen_util.accepted_values_error("dend", dend, ["extr", "aibs"])
+        if dend not in ["extr", "allen"]:
+            gen_util.accepted_values_error("dend", dend, ["extr", "allen"])
 
-        self._dend = "aibs"
+        self._dend = "allen"
         if self.plane == "dend" and dend == "extr":
             try:
                 dend_roi_trace_h5 = sess_file_util.get_dendritic_trace_path(
@@ -847,7 +847,7 @@ class Session(object):
                 self.roi_mask_file    = dend_mask_file
 
             except Exception as e:
-                warnings.warn(f"{e}.\nAIBS extracted dendritic ROIs "
+                warnings.warn(f"{e}.\Allen extracted dendritic ROIs "
                     "will be used instead.")
 
     ############################################
@@ -934,7 +934,7 @@ class Session(object):
                            trace file. If "raw", based on the raw processed 
                            trace file. 
                            default: "dff"
-            - dend (str) : dendritic traces to use ("aibs" for the 
+            - dend (str) : dendritic traces to use ("allen" for the 
                            original extracted traces and "extr" for the
                            ones extracted with Hakan's EXTRACT code, if
                            available)
@@ -1121,7 +1121,7 @@ class Session(object):
                                trace file. If "raw", based on the raw processed 
                                trace file. 
                                default: "dff"
-            - dend (str)     : dendritic traces to use ("aibs" for the 
+            - dend (str)     : dendritic traces to use ("allen" for the 
                                original extracted traces and "extr" for the
                                ones extracted with Hakan's EXTRACT code, if
                                available). Can only be set the first time 

@@ -19,7 +19,7 @@ from sess_util import sess_data_util, sess_plot_util, sess_gen_util, \
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_DATADIR = os.path.join("..", "data", "AIBS")
+DEFAULT_DATADIR = os.path.join("..", "data", "OSCA")
 DEFAULT_MOUSE_DF_PATH = "mouse_df.csv"
 DEFAULT_FONTDIR = os.path.join("..", "tools", "fonts")
 

@@ -2,7 +2,7 @@
 roi_analys.py
 
 This script runs ROI trace analyses using a Session object with data generated 
-by the AIBS experiments for the Credit Assignment Project.
+by the Allen Institute OpenScope experiments for the Credit Assignment Project.
 
 Authors: Colleen Gillon
 

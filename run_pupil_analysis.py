@@ -2,7 +2,7 @@
 run_pupil_analysis.py
 
 This script runs pupil analyses using a Session object with data generated 
-by the AIBS experiments for the Credit Assignment Project.
+by the Allen Institute OpenScope experiments for the Credit Assignment Project.
 
 Authors: Colleen Gillon
 
@@ -35,7 +35,7 @@ from sess_util import sess_gen_util, sess_ntuple_util, sess_plot_util, \
 from analysis import session, pup_analys
 from plot_fcts import plot_from_dicts_tool as plot_dicts
 
-DEFAULT_DATADIR = os.path.join("..", "data", "AIBS")
+DEFAULT_DATADIR = os.path.join("..", "data", "OSCA")
 DEFAULT_MOUSE_DF_PATH = "mouse_df.csv"
 DEFAULT_FONTDIR = os.path.join("..", "tools", "fonts")
 
@@ -55,7 +55,7 @@ def reformat_args(args):
         - Modifies analyses (if "all" or "all_" in parameter)
         
     Adds the following args:
-        - dend (str)     : type of dendrites to use ("aibs", "extr")
+        - dend (str)     : type of dendrites to use ("allen", "extr")
         - omit_sess (str): sess to omit
         - omit_mice (str): mice to omit
 
@@ -92,7 +92,7 @@ def reformat_args(args):
     if args.datatype == "run":
         args.fluor = "n/a"
     if args.plane == "soma":
-        args.dend = "aibs"
+        args.dend = "allen"
 
     args.omit_sess, args.omit_mice = sess_gen_util.all_omit(
         args.stimtype, args.runtype, args.bri_dir, args.bri_size, args.gabk)
@@ -134,7 +134,7 @@ def init_param_cont(args):
                                      (128, 256 or [128, 256])
             closest (bool)         : if False, only exact session number is 
                                      retained, otherwise the closest.
-            dend (str)             : type of dendrites to use ("aibs" or "dend")
+            dend (str)             : type of dendrites to use ("allen" or "dend")
             error (str)            : error statistic parameter ("std" or "sem")
             fontdir (str)          : path to directory containing additional 
                                      fonts
@@ -402,7 +402,7 @@ if __name__ == "__main__":
 
         # general parameters
     parser.add_argument("--datadir", default=None, 
-        help=("data directory (if None, uses a directory defined below"))
+        help="data directory (if None, uses a directory defined below)")
     parser.add_argument("--output", default=".", help="where to store output")
     parser.add_argument("--analyses", default="all", 
         help=("analyses to run: difference correlation (c), "
@@ -453,7 +453,7 @@ if __name__ == "__main__":
         help="sem for SEM/MAD, std for std/qu")
     parser.add_argument("--scale", action="store_true", 
         help="whether to scale data (pupil, ROIs, running data)") 
-    parser.add_argument("--dend", default="extr", help="aibs, extr")
+    parser.add_argument("--dend", default="extr", help="allen, extr")
         # session parameters
     parser.add_argument("--line", default="any", help="L23, L5")
     parser.add_argument("--closest", action="store_true", 

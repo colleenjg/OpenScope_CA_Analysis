@@ -2,7 +2,7 @@
 run_run_analysis.py
 
 This script runs running analyses using a Session object with data generated 
-by the AIBS experiments for the Credit Assignment Project.
+by the Allen Institute OpenScope experiments for the Credit Assignment Project.
 
 Authors: Colleen Gillon
 
@@ -35,7 +35,7 @@ from sess_util import sess_gen_util, sess_ntuple_util, sess_plot_util, \
 from analysis import session, gen_analys
 from plot_fcts import plot_from_dicts_tool as plot_dicts
 
-DEFAULT_DATADIR = os.path.join("..", "data", "AIBS")
+DEFAULT_DATADIR = os.path.join("..", "data", "OSCA")
 DEFAULT_MOUSE_DF_PATH = "mouse_df.csv"
 DEFAULT_FONTDIR = os.path.join("..", "tools", "fonts")
 
@@ -393,7 +393,7 @@ if __name__ == "__main__":
 
         # general parameters
     parser.add_argument("--datadir", default=None, 
-        help=("data directory (if None, uses a directory defined below"))
+        help="data directory (if None, uses a directory defined below)")
     parser.add_argument("--output", default=".", help="where to store output")
     parser.add_argument("--analyses", default="all", 
         help=("analyses to run: traces (t), locked traces (l), mag (m), "
