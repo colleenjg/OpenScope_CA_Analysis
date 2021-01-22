@@ -1,12 +1,12 @@
-# Allen Institute for Brain Science OpenScope Program - Credit Assignment Project Code
+# Credit Assignment Project Code
 
 ## 1. Description
-This is the code for analyzing the Credit Assignment Project data collected as part of the [**Allen Institute for Brain Science OpenScope**](https://alleninstitute.org/what-we-do/brain-science/) project. The analyses are reported in [Gillon _et al._, 2021, _bioRxiv_](https://www.biorxiv.org/content/10.1101/2021.01.15.426915v1).
+This repository contains the code for analyzing the Credit Assignment project, an [**Allen Institute for Brain Science**](https://alleninstitute.org/what-we-do/brain-science/) [**OpenScope**](https://alleninstitute.org/what-we-do/brain-science/news-press/press-releases/openscope-first-shared-observatory-neuroscience) project. 
+
+The experiment details, analyses and results are published in [Gillon _et al._, 2021, _bioRxiv_](https://www.biorxiv.org/content/10.1101/2021.01.15.426915v1).
 
 ## 2. Installation
-The code itself can be obtained by cloning the [OpenScope\_CA\_Analysis Github repo](https://github.com/colleenjg/OpenScope_CA_Analysis.git).
-
-However, to run the code, you should install [Anaconda](https://www.anaconda.com/) or [Miniconda](https://conda.io/miniconda.html), as well as [pip](https://pip.pypa.io/en/stable/).
+To run the code, you should install [Anaconda](https://www.anaconda.com/) or [Miniconda](https://conda.io/miniconda.html), as well as [pip](https://pip.pypa.io/en/stable/).
 
 Once these are installed, you can simply use the appropriate `.yml` 
 file to create a conda environment. For example, if using Ubuntu or Mac OS, open a terminal, go to the repo directory, and enter:
