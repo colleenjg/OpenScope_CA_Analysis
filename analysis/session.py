@@ -72,15 +72,20 @@ class Session(object):
             - sessid (int) : the ID for this session.
 
         Optional args:
-            - runtype (str) : the type of run, either "pilot" or "prod"
-                              default: "prod"
-            - droptol (num) : the tolerance for percentage stimulus frames 
-                              dropped, create a Warning if this condition 
-                              isn't met.
-                              default: 0.0003 
-            - verbose (bool): if True, will log instructions on next steps to 
-                              load all necessary data
-                              default: True
+            - runtype (str)           : the type of run, either "pilot" or 
+                                        "prod"
+                                        default: "prod"
+            - droptol (num)           : the tolerance for percentage stimulus 
+                                        frames dropped, create a Warning if  
+                                        this condition isn't met.
+                                        default: 0.0003 
+            - verbose (bool)          : if True, will log instructions on next 
+                                        steps to load all necessary data
+                                        default: True
+            - only_matched_rois (bool): if True, only data from ROIs matched 
+                                        across sessions (1-3) are included when 
+                                        data is returned
+                                        default: False
         """
 
 
@@ -661,8 +666,15 @@ class Session(object):
             raise UserWarning("ROIs not matched for Allen extracted dendritic "
                 "ROIs.")
 
-        nway_match_path = sess_file_util.get_nway_match_path_from_sessid(
-            self.home, self.sessid, self.runtype, check=True)
+        try:
+            nway_match_path = sess_file_util.get_nway_match_path_from_sessid(
+                self.home, self.sessid, self.runtype, check=True)
+        except Exception as err:
+            if "not exist" in str(err):
+                raise UserWarning(f"No matched ROIs file found for {self}.")
+            else:
+                raise err
+
 
         with open(nway_match_path, 'r') as fp:
             matched_rois_df = pd.DataFrame(json.load(fp)['rois'])
