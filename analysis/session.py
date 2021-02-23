@@ -656,9 +656,6 @@ class Session(object):
             matched_rois_df = pd.DataFrame(json.load(fp)['rois'])
 
         self.matched_rois = matched_rois_df['dff-ordered_roi_index'].values
-        # Below line will produce USIs computed from roi_data_df output from get_roi_data function
-        # that are comparable to those produced by surp_idx_by_sess function
-        # self.matched_rois = np.sort(matched_rois_df['dff-ordered_roi_index'].values)
 
 
     #############################################
@@ -751,7 +748,8 @@ class Session(object):
                 )[0:2]).reshape(-1)
 
         self._set_nanrois(fluor)
-        self._set_matched_rois()
+        if self.only_matched_rois:
+            self._set_matched_rois()
 
 
     #############################################
@@ -1479,7 +1477,7 @@ class Session(object):
         which we have data).
         """
 
-        if not hassattr(self, 'matched_rois'):
+        if not hasattr(self, 'matched_rois'):
             self._set_matched_rois(self)
         
         return self.matched_rois
@@ -1736,7 +1734,7 @@ class Session(object):
 
         # do this BEFORE building dataframe - much faster
         if self.only_matched_rois:
-            ROI_ids = self.matched_rois
+            ROI_ids = self.get_matched_rois()
             traces = traces[ROI_ids]
         else:
             ROI_ids = np.arange(self.nrois)
