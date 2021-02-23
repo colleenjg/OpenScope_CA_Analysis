@@ -13,6 +13,7 @@ Note: this code uses python 3.7.
 """
 import copy
 import glob
+import json
 import logging
 import os
 import sys
@@ -25,7 +26,6 @@ import pandas as pd
 import pickle
 import scipy.stats as st
 import scipy.signal as scsig
-import json
 
 from util import file_util, gen_util, logger_util, math_util
 from sess_util import sess_data_util, sess_file_util, sess_gen_util, \
@@ -72,15 +72,20 @@ class Session(object):
             - sessid (int) : the ID for this session.
 
         Optional args:
-            - runtype (str) : the type of run, either "pilot" or "prod"
-                              default: "prod"
-            - droptol (num) : the tolerance for percentage stimulus frames 
-                              dropped, create a Warning if this condition 
-                              isn't met.
-                              default: 0.0003 
-            - verbose (bool): if True, will log instructions on next steps to 
-                              load all necessary data
-                              default: True
+            - runtype (str)           : the type of run, either "pilot" or 
+                                        "prod"
+                                        default: "prod"
+            - droptol (num)           : the tolerance for percentage stimulus 
+                                        frames dropped, create a Warning if  
+                                        this condition isn't met.
+                                        default: 0.0003 
+            - verbose (bool)          : if True, will log instructions on next 
+                                        steps to load all necessary data
+                                        default: True
+            - only_matched_rois (bool): if True, only data from ROIs matched 
+                                        across sessions (1-3) are included when 
+                                        data is returned
+                                        default: False
         """
 
 
@@ -488,10 +493,12 @@ class Session(object):
             math_util.lin_interp_nan(self.run_data.loc[("frames", ), 
             ("run_velocity", "no", filter_ks, diff_thr)])
         for interp in ["yes", "no"]:
+            run_data_array = gen_util.reshape_df_data(
+                self.run_data.loc[("frames", ), ("run_velocity", interp)], 
+                squeeze_rows=False, squeeze_cols=True)
             subval, divval = math_util.scale_facts(
-                self.run_data.loc[("frames", ), 
-                ("run_velocity", interp)].unstack().to_numpy(), 
-                sc_type=sc_type, extrem=extrem, nanpol="omit")[0:2]
+                run_data_array, sc_type=sc_type, extrem=extrem, nanpol="omit"
+                )[0:2]
             self.run_data.loc[
                 ("factors", f"sub_{sub}"), ("run_velocity", interp)] = subval
             self.run_data.loc[
@@ -656,11 +663,18 @@ class Session(object):
         """
 
         if self.plane == "dend" and self.dend != "extr":
-            raise ValueError("ROIs not matched for Allen extracted dendritic "
+            raise UserWarning("ROIs not matched for Allen extracted dendritic "
                 "ROIs.")
 
-        nway_match_path = sess_file_util.get_nway_match_path_from_sessid(
-            self.home, self.sessid, self.runtype, check=True)
+        try:
+            nway_match_path = sess_file_util.get_nway_match_path_from_sessid(
+                self.home, self.sessid, self.runtype, check=True)
+        except Exception as err:
+            if "not exist" in str(err):
+                raise UserWarning(f"No matched ROIs file found for {self}.")
+            else:
+                raise err
+
 
         with open(nway_match_path, 'r') as fp:
             matched_rois_df = pd.DataFrame(json.load(fp)['rois'])
@@ -1559,7 +1573,11 @@ class Session(object):
         win = [1, 5]
         
         full_data = self.get_roi_traces(None, fluor, remnans)
-        full_data_sm = scsig.medfilt(full_data.unstack().to_numpy(), win)
+
+        full_data_sm = scsig.medfilt(
+            gen_util.reshape_df_data(
+                full_data, squeeze_rows=False, squeeze_cols=True
+                ), win)
         med = np.nanmedian(full_data_sm, axis=1) # smooth full data median
         std = np.nanstd(full_data_sm, axis=1) # smooth full data std
 
@@ -1980,7 +1998,9 @@ class Session(object):
             traces_df["roi_traces"] = traces_flat.values
         else:
             # chop back up into sequences padded with Nans
-            traces_flat = traces_flat.unstack().to_numpy()
+            traces_flat = gen_util.reshape_df_data(
+                traces_flat, squeeze_rows=False, squeeze_cols=True)
+
             traces = np.full((traces_flat.shape[0], len(twop_fr_seqs), 
                 max(pad_seql)), np.nan)
             last_idx = 0
@@ -2496,7 +2516,9 @@ class Stim(object):
             
         # unrecorded stim frames (frame list is only complete for the last 
         # stimulus shown)
-        add_bl_fr = int(self.sess.tot_stim_fr - len(stim_fr))
+        add_bl_fr = int(
+            self.sess.tot_stim_fr - (len(stim_fr) + bl_fr_pre + bl_fr_post)
+            )
 
         # fill out the stimulus segment list to be the same length as running 
         # array
@@ -2666,14 +2688,17 @@ class Stim(object):
         if pupil:
             pup_fr = self.sess.get_pup_fr_by_twop_fr(
                 sub_df["start2pfr"].to_numpy())
-            pup_data = self.get_pup_diam_data(pup_fr, pre, post, 
-                remnans=remnans, scale=scale)["pup_diam"].unstack().to_numpy()
+            pup_data = gen_util.reshape_df_data(
+                self.get_pup_diam_data(
+                    pup_fr, pre, post, remnans=remnans, scale=scale
+                    )["pup_diam"], squeeze_rows=False, squeeze_cols=True)
             sub_df["pup_diam_data"] = math_util.mean_med(
                 pup_data, stats=stats, axis=-1)
         if run:
-            run_data = self.get_run_data(sub_df["start_stim_fr"].to_numpy(), 
-                pre, post, remnans=remnans, scale=scale
-                )["run_velocity"].unstack().to_numpy()
+            run_data = gen_util.reshape_df_data(
+                self.get_run_data(sub_df["start_stim_fr"].to_numpy(), 
+                    pre, post, remnans=remnans, scale=scale
+                    )["run_velocity"], squeeze_rows=False, squeeze_cols=True)
             sub_df["run_data"] = math_util.mean_med(
                 run_data, stats=stats, axis=-1)
         
@@ -3709,7 +3734,9 @@ class Stim(object):
         run_data = self.sess.get_run_velocity_by_fr(
             fr_idx, fr_type="stim", remnans=remnans, scale=scale)
 
-        data_array = run_data.unstack().to_numpy()
+        data_array = gen_util.reshape_df_data(
+            run_data, squeeze_rows=False, squeeze_cols=True
+            )
 
         if remnans:
             nanpol = None 
@@ -3917,8 +3944,9 @@ class Stim(object):
 
         # get dF/F: ROI x seq x fr
         roi_data_df = self.sess.get_roi_seqs(
-            frame_n_df.unstack().to_numpy(), fluor=fluor, remnans=remnans, 
-            scale=scale)
+            gen_util.reshape_df_data(
+                frame_n_df, squeeze_rows=False, squeeze_cols=True
+                ), fluor=fluor, remnans=remnans, scale=scale)
 
         if transients:
             keep_rois = self.sess.get_active_rois(
@@ -4157,7 +4185,7 @@ class Stim(object):
         self.get_segs_by_twopfr(twop_fr)
 
         Returns the stimulus segment numbers for the given two-photon imaging
-        frames using linear interpolation, and round the segment numbers.
+        frames using linear interpolation, and rounds the segment numbers.
 
         Required args:
             - twop_fr (array-like): set of 2p imaging frames for which 
@@ -4593,8 +4621,10 @@ class Gabors(Stim):
                     - "gabor_n"   : gabor number
         """
 
-        twop_fr_seqs = self.sess.get_twop_fr_ran(
-            twop_ref_fr, pre, post)["twop_fr_n"].unstack().to_numpy()
+        twop_fr_seqs = gen_util.reshape_df_data(
+            self.sess.get_twop_fr_ran(
+                twop_ref_fr, pre, post).loc[:, ("twop_fr_n", )], 
+            squeeze_cols=True)
 
         # check whether any of the segments occur during Bricks
         if hasattr(self.sess, "bricks"):

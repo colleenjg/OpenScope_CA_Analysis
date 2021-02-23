@@ -349,10 +349,11 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all",
         tc_nseqs.append(len(segs))
         twopfr = stim.get_twop_fr_by_seg(segs, first=True)["first_twop_fr"]
         # ROI x seq
-        roi_data = stim.get_roi_data(
-            twopfr, stimpar.pre, stimpar.post, analyspar.fluor, integ=True, 
-            remnans=analyspar.remnans, scale=analyspar.scale
-            )["roi_traces"].unstack().to_numpy()[:sess_nrois]
+        roi_data = gen_util.reshape_df_data(
+            stim.get_roi_data(
+                twopfr, stimpar.pre, stimpar.post, analyspar.fluor, integ=True, 
+                remnans=analyspar.remnans, scale=analyspar.scale
+            )["roi_traces"], squeeze_cols=True)[:sess_nrois]
 
         # gab x seq 
         gab_oris = gen_util.reshape_df_data(stim.get_stim_par_by_seg(
