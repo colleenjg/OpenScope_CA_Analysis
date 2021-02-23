@@ -7,6 +7,7 @@
 !/paper_fig_util/
 !/examples/
 !/scripts_under_dev/
+!/nway-matching/
 
 /paper_fig_util/intermediate_results
 .ipynb_checkpoints
