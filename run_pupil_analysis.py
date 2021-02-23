@@ -415,7 +415,7 @@ if __name__ == "__main__":
         help="data directory (if None, uses a directory defined below)")
     parser.add_argument("--output", default=".", help="where to store output")
     parser.add_argument("--analyses", default="all", 
-        help=("analyses to run, e.g. 'cr', 'all' or 'all_c' (all save 'c'). "
+        help=("analyses to run, e.g. 'cr', 'all' or 'all_c' (all, save 'c'). "
             f"ANALYSES: {ANALYSIS_STR}"))
     parser.add_argument("--datatype", default="roi", 
         help="datatype to use (roi or run)")          
