@@ -679,3 +679,47 @@ def get_pupil_data_h5_path(masterdir):
 
     return pup_data_h5
 
+
+#############################################
+def get_nway_match_path_from_sessid(masterdir, sessid, runtype="prod", 
+                                    check=True):
+    """
+    get_nway_match_path_from_sessid(masterdir, sessid)
+
+    Returns the full path name for the nway match file in the master directory 
+    for the specified session.
+
+    Required args:
+        - masterdir (str): master directory
+        - sessid (int)   : session ID
+
+    Optional args:
+        - runtype (str)   : "prod" (production) or "pilot" data
+                            default: "prod"
+        - check (bool)    : if True, checks whether the files in the output 
+                            dictionary exist
+                            default: True
+
+    Returns:
+        - nway_match_path (str): n-way match path
+    """
+
+    sessdir, mouse_dir = get_sess_dir_path(masterdir, sessid, runtype)
+
+    mouseid = get_mouseid(sessdir, mouse_dir)
+
+    expid = get_expid(sessdir)
+    segid = get_segid(sessdir)
+
+    _, _, procdir, _, _ = get_sess_dirs(
+        masterdir, sessid, expid, segid, mouseid, runtype, mouse_dir, check)
+
+    nway_match_path = os.path.join(
+        procdir, f"mouse_{mouseid}__session_{sessid}__nway_matched_rois.json"
+        )
+
+    if check:
+        file_util.checkfile(nway_match_path)
+
+    return nway_match_path
+

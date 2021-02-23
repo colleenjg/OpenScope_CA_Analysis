@@ -647,18 +647,25 @@ class Session(object):
         """
         self._set_matched_rois()
 
-        Sets attribute with the indices of ROIs that have been matched across sessions 
-        (as a Numpy array)
+        Sets attribute with the indices of ROIs that have been matched across 
+        sessions 
+
+        Attributes:
+            - matched_rois (1D array): ordered indices of ROIs matched across 
+                                       sessions
         """
 
-        with open(glob.glob(self.dir + '/ophys_experiment_*/processed/*nway_matched_rois.json') \
-            [0], 'r') as fp:
+        if self.plane == "dend" and self.dend != "extr":
+            raise ValueError("ROIs not matched for Allen extracted dendritic "
+                "ROIs.")
+
+        nway_match_path = sess_file_util.get_nway_match_path_from_sessid(
+            self.home, self.sessid, self.runtype, check=True)
+
+        with open(nway_match_path, 'r') as fp:
             matched_rois_df = pd.DataFrame(json.load(fp)['rois'])
 
         self.matched_rois = matched_rois_df['dff-ordered_roi_index'].values
-        # Below line will produce USIs computed from roi_data_df output from get_roi_data function
-        # that are comparable to those produced by surp_idx_by_sess function
-        # self.matched_rois = np.sort(matched_rois_df['dff-ordered_roi_index'].values)
 
 
     #############################################
@@ -712,6 +719,7 @@ class Session(object):
         Calls:
             - self._init_roi_facts_df()
             - self._set_nanrois()
+            if self.only_matched_rois:
             - self._set_matched_rois()
         """
 
@@ -751,7 +759,9 @@ class Session(object):
                 )[0:2]).reshape(-1)
 
         self._set_nanrois(fluor)
-        self._set_matched_rois()
+
+        if self.only_matched_rois:
+            self._set_matched_rois()
 
 
     #############################################
@@ -872,6 +882,7 @@ class Session(object):
             except Exception as e:
                 warnings.warn(f"{e}.\Allen extracted dendritic ROIs "
                     "will be used instead.")
+
 
     ############################################
     def get_stim_twop_fr_ns(self):
@@ -1479,8 +1490,8 @@ class Session(object):
         which we have data).
         """
 
-        if not hassattr(self, 'matched_rois'):
-            self._set_matched_rois(self)
+        if not hasattr(self, 'matched_rois'):
+            self._set_matched_rois()
         
         return self.matched_rois
 
