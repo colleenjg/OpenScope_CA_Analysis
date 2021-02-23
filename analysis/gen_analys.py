@@ -100,9 +100,10 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
             nanpol = None
             if not analyspar.remnans:
                 nanpol = "omit"
-            all_rois = sess.get_roi_traces(
-                None, analyspar.fluor, analyspar.remnans, analyspar.scale
-                )["roi_traces"].unstack().to_numpy()
+            all_rois = gen_util.reshape_df_data(
+                sess.get_roi_traces(
+                    None, analyspar.fluor, analyspar.remnans, analyspar.scale
+                )["roi_traces"], squeeze_cols=True)
             full_tr = math_util.get_stats(
                 all_rois, analyspar.stats, analyspar.error, axes=0, 
                 nanpol=nanpol).tolist()
@@ -506,9 +507,11 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
             if datatype == "roi":
                 frame_edges = stim.get_twop_fr_by_seg([min(segs), max(segs)])
                 fr = list(range(min(frame_edges[0]), max(frame_edges[1])+1))
-                traces = sess.get_roi_traces(fr, fluor=analyspar.fluor, 
-                    remnans=analyspar.remnans, scale=analyspar.scale
-                    ).unstack().to_numpy()
+                traces = gen_util.reshape_df_data(
+                    sess.get_roi_traces(fr, fluor=analyspar.fluor, 
+                        remnans=analyspar.remnans, scale=analyspar.scale), 
+                    squeeze_cols=True)
+
             elif datatype == "run":
                 if autocorrpar.byitem != False:
                     raise ValueError("autocorrpar.byitem must be False for "
