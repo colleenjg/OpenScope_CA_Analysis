@@ -517,7 +517,7 @@ if __name__ == "__main__":
         help="data directory (if None, uses a directory defined below)")
     parser.add_argument("--output", default=".", help="where to store output")
     parser.add_argument("--analyses", default="all", 
-        help=("analyses to run, e.g. 'ftl', 'all' or 'all_f' (all save 'f'). "
+        help=("analyses to run, e.g. 'ftl', 'all' or 'all_f' (all, save 'f'). "
             f"ANALYSES: {ANALYSIS_STR}"))
     parser.add_argument("--sess_n", default="all",
         help="session to aim for, e.g. 1, 2, first, last, all")
