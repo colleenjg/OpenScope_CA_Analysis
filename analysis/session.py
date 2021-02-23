@@ -759,7 +759,6 @@ class Session(object):
                 )[0:2]).reshape(-1)
 
         self._set_nanrois(fluor)
-
         if self.only_matched_rois:
             self._set_matched_rois()
 
@@ -1747,7 +1746,7 @@ class Session(object):
 
         # do this BEFORE building dataframe - much faster
         if self.only_matched_rois:
-            ROI_ids = self.matched_rois
+            ROI_ids = self.get_matched_rois()
             traces = traces[ROI_ids]
         else:
             ROI_ids = np.arange(self.nrois)
