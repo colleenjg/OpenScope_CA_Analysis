@@ -25,6 +25,7 @@ import pandas as pd
 import pickle
 import scipy.stats as st
 import scipy.signal as scsig
+import json
 
 from util import file_util, gen_util, logger_util, math_util
 from sess_util import sess_data_util, sess_file_util, sess_gen_util, \
@@ -49,7 +50,7 @@ class Session(object):
     """
     
     def __init__(self, datadir, sessid, runtype="prod", droptol=0.0003, 
-                 verbose=False):
+                 verbose=False, only_matched_rois=False):
         """
         self.__init__(datadir, sessid)
 
@@ -91,6 +92,7 @@ class Session(object):
         self.runtype = runtype
         self.droptol = droptol
         self._init_directory()
+        self.only_matched_rois = only_matched_rois
 
         if verbose:
             print("To load mouse database information into the session, "
@@ -640,6 +642,25 @@ class Session(object):
             self.nanrois = nan_rois
 
 
+#############################################
+    def _set_matched_rois(self):
+        """
+        self._set_matched_rois()
+
+        Sets attribute with the indices of ROIs that have been matched across sessions 
+        (as a Numpy array)
+        """
+
+        with open(glob.glob(self.dir + '/ophys_experiment_*/processed/*nway_matched_rois.json') \
+            [0], 'r') as fp:
+            matched_rois_df = pd.DataFrame(json.load(fp)['rois'])
+
+        self.matched_rois = matched_rois_df['dff-ordered_roi_index'].values
+        # Below line will produce USIs computed from roi_data_df output from get_roi_data function
+        # that are comparable to those produced by surp_idx_by_sess function
+        # self.matched_rois = np.sort(matched_rois_df['dff-ordered_roi_index'].values)
+
+
     #############################################
     def _init_roi_facts_df(self, fluor="dff"):
         """
@@ -691,6 +712,7 @@ class Session(object):
         Calls:
             - self._init_roi_facts_df()
             - self._set_nanrois()
+            - self._set_matched_rois()
         """
 
         if not hasattr(self, "nrois"):
@@ -729,6 +751,7 @@ class Session(object):
                 )[0:2]).reshape(-1)
 
         self._set_nanrois(fluor)
+        self._set_matched_rois()
 
 
     #############################################
@@ -1447,6 +1470,22 @@ class Session(object):
 
 
     #############################################
+    def get_matched_rois(self):
+        """
+        self.get_matched_rois()
+
+        Returns as a numpy array the indices of ROIs that have been
+        matched across sessions (currently, across all sessions for
+        which we have data).
+        """
+
+        if not hassattr(self, 'matched_rois'):
+            self._set_matched_rois(self)
+        
+        return self.matched_rois
+
+
+    #############################################
     def get_nrois(self, remnans=True, fluor="dff"):
         """
         self.get_nrois()
@@ -1696,13 +1735,17 @@ class Session(object):
                 div_names[0]].values
 
         # do this BEFORE building dataframe - much faster
-        ROI_ids = np.arange(self.nrois)
-        if remnans:
-            rem_rois = self.get_nanrois(fluor)
-            # remove ROIs with NaNs or Infs in dataframe
-            if len(rem_rois):
-                ROI_ids = np.asarray(sorted(set(ROI_ids) - set(rem_rois)))
-                traces = traces[ROI_ids]
+        if self.only_matched_rois:
+            ROI_ids = self.matched_rois
+            traces = traces[ROI_ids]
+        else:
+            ROI_ids = np.arange(self.nrois)
+            if remnans:
+                rem_rois = self.get_nanrois(fluor)
+                # remove ROIs with NaNs or Infs in dataframe
+                if len(rem_rois):
+                    ROI_ids = np.asarray(sorted(set(ROI_ids) - set(rem_rois)))
+                    traces = traces[ROI_ids]
 
         # initialize the return dataframe
         index_cols = pd.MultiIndex.from_product(
