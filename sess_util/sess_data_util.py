@@ -105,10 +105,12 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
     pars = pars_df.to_numpy().reshape(targ)
 
     if run:
-        twop_fr_seqs = sess.get_twop_fr_ran(twopfr, pre, post).unstack()
-        run_velocity = sess.get_run_velocity_by_fr(
-            twop_fr_seqs, remnans=True, scale=False).unstack().to_numpy()
-        
+        twop_fr_seqs = gen_util.reshape_df_data(
+            sess.get_twop_fr_ran(twopfr, pre, post), squeeze_cols=True)
+        run_velocity = gen_util.reshape_df_data(
+            sess.get_run_velocity_by_fr(
+                twop_fr_seqs, remnans=True, scale=False), squeeze_cols=True)
+
         # scale running array to mean 0 with std 1
         ret_run_stats = False
         if run_mean is None or run_std is None:
