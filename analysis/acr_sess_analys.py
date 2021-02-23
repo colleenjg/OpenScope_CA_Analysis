@@ -3727,7 +3727,8 @@ def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None,
         # padding not implemented for running data
         pad_win = 0
         xran = run_data_df.index.unique("time_values").to_numpy()
-        data_arr = np.expand_dims(run_data_df.unstack().to_numpy(), 0)
+        data_arr = np.expand_dims(
+            gen_util.reshape_df_data(run_data_df, squeeze_cols=True), 0)
     else:
         gen_util.accepted_values_error("datatype", datatype, ["run", "roi"])
 
