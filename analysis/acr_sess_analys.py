@@ -754,7 +754,7 @@ def prog_by_sess(sess, analyspar, stimpar, datatype="roi", surp="progsurp",
 
 #############################################
 def stim_idx_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype="roi", 
-                     feature="bysurp", position=0, op="discr", baseline=0.0, 
+                     feature="bysurp", position=0, op="d-prime", baseline=0.0, 
                      match_oris=False, seed=None, run_random=True):
     """
     stim_idx_by_sess(sess, analyspar, stimpar)
@@ -783,8 +783,8 @@ def stim_idx_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype="roi",
                                   surp is "progsurp" or "progreg"
                                   default: 0
         - op (str)              : operation to use in measuring indices 
-                                  ("diff", "rel_diff", "discr")
-                                  default: "discr"
+                                  ("diff", "rel_diff", "d-prime")
+                                  default: "d-prime"
         - baseline (bool or num): if not False, number of second to use for 
                                   baseline for bysurp data
                                   default: 0.0
@@ -837,7 +837,7 @@ def stim_idx_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype="roi",
             datatype=datatype, surp=feature, integ=True, baseline=baseline, 
             prog_pos=position, match_oris=match_oris)
     
-    if op != "discr":
+    if op != "d-prime":
         # take statistic across sequences
         seq_mes = np.stack([math_util.mean_med(
             arr, stats=analyspar.stats, axis=-1, nanpol=nanpol) 
@@ -879,7 +879,7 @@ def stim_idx_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype="roi",
 #############################################
 def stim_idx_acr_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05, 
                         datatype="roi", feature="bysurp", position=0, 
-                        op="discr", baseline=0.0, match_oris=False, seed=None, 
+                        op="d-prime", baseline=0.0, match_oris=False, seed=None, 
                         parallel=False):
     """
     stim_idx_acr_sesses(sessions, analyspar, stimpar)
@@ -913,8 +913,8 @@ def stim_idx_acr_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05,
                                   surp is "progsurp" or "progreg"
                                   default: 0 
         - op (str)              : operation to use in measuring indices 
-                                  ("diff", "rel_diff", "discr")
-                                  default: "diff"
+                                  ("diff", "rel_diff", "d-prime")
+                                  default: "d-prime"
         - baseline (bool or num): if not False, number of second to use for 
                                   baseline for bysurp data
                                   default: 0.0
@@ -961,7 +961,7 @@ def stim_idx_acr_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05,
 
 #############################################
 def stim_idx_by_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05, 
-                       datatype="roi", feature="bysurp", op="discr", 
+                       datatype="roi", feature="bysurp", op="d-prime", 
                        position=0, baseline=0.0, match_oris=False, seed=None, 
                        parallel=False):
     """
@@ -993,8 +993,8 @@ def stim_idx_by_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05,
                                   "dir": left v right direction
                                   default: "bysurp"
         - op (str)              : operation to use in measuring indices 
-                                  ("diff", "rel_diff", "discr")
-                                  default: "diff"
+                                  ("diff", "rel_diff", "d-prime")
+                                  default: "d-prime"
         - position (int)        : surprise or regular position to retrieve if 
                                   surp is "progsurp" or "progreg"
                                   default: 0
@@ -1085,7 +1085,7 @@ def stim_idx_by_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05,
         all_rand = np.concatenate(all_rand, axis=0)
         div = len(all_rand)/float(len(all_items))
 
-        if op in ["diff", "discr"]:
+        if op in ["diff", "d-prime"]:
             use_bounds = [np.min(all_rand), np.max(all_rand)]
         elif op == "rel_diff":
             # use extrema or outlier bounds, whichever are tighter
@@ -2673,7 +2673,7 @@ def position_by_linpla(sessions, analyspar, stimpar, datatype="roi",
 
 #############################################
 def stim_idx_by_linpla(sessions, analyspar, stimpar, permpar, datatype="roi", 
-                       feature="bysurp", op="discr", position=0, 
+                       feature="bysurp", op="d-prime", position=0, 
                        baseline=0.0, match_oris=False, seed=None, 
                        parallel=False):
     """
@@ -2702,8 +2702,8 @@ def stim_idx_by_linpla(sessions, analyspar, stimpar, permpar, datatype="roi",
                                   "dir": left vs right (Bricks)
                                   default: "bysurp"
         - op (str)              : operation to use in measuring indices 
-                                  ("diff", "rel_diff", "discr")
-                                  default: "discr"
+                                  ("diff", "rel_diff", "d-prime")
+                                  default: "d-prime"
         - position (int)        : surprise or regular position to retrieve if 
                                   surp is "progsurp" or "progreg"
                                   default: 0
@@ -3052,7 +3052,7 @@ def run_direction_idx(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
 #############################################
 def stimpar_surp_idx_acr_sesses(sessions, analyspar, stimpar, datatype="roi", 
-                                feature="bysurp", position=0, op="discr", 
+                                feature="bysurp", position=0, op="d-prime", 
                                 baseline=0.0, parallel=False):
     """
     stim_idx_acr_sesses(sessions, analyspar, stimpar)
@@ -3082,8 +3082,8 @@ def stimpar_surp_idx_acr_sesses(sessions, analyspar, stimpar, datatype="roi",
                                   surp is "progsurp" or "progreg"
                                   default: 0 
         - op (str)              : operation to use in measuring indices 
-                                  ("diff", "rel_diff", "discr")
-                                  default: "diff"
+                                  ("diff", "rel_diff", "d-prime")
+                                  default: "d-prime"
         - baseline (bool or num): if not False, number of second to use for 
                                   baseline for bysurp data
                                   default: 0.0
@@ -3149,7 +3149,7 @@ def stimpar_surp_idx_acr_sesses(sessions, analyspar, stimpar, datatype="roi",
 
 #############################################
 def stimpar_surp_idx_by_sesses(sessions, analyspar, stimpar, datatype="roi", 
-                               feature="bysurp", op="discr", position=0, 
+                               feature="bysurp", op="d-prime", position=0, 
                                baseline=0.0, parallel=False):
     """
     stimpar_surp_idx_by_sesses(sessions, analyspar, stimpar)
@@ -3175,8 +3175,8 @@ def stimpar_surp_idx_by_sesses(sessions, analyspar, stimpar, datatype="roi",
                                   "dir": left v right direction
                                   default: "bysurp"
         - op (str)              : operation to use in measuring indices 
-                                  ("diff", "rel_diff", "discr")
-                                  default: "diff"
+                                  ("diff", "rel_diff", "d-prime")
+                                  default: "d-prime"
         - position (int)        : surprise or regular position to retrieve if 
                                   surp is "progsurp" or "progreg"
                                   default: 0 
@@ -3228,7 +3228,7 @@ def stimpar_surp_idx_by_sesses(sessions, analyspar, stimpar, datatype="roi",
 
 #############################################
 def stimpar_surp_idx_by_linpla(sessions, analyspar, stimpar, datatype="roi", 
-                               feature="bysurp", op="discr", position=0, 
+                               feature="bysurp", op="d-prime", position=0, 
                                baseline=0.0, parallel=False):
     """
     stimpar_surp_idx_by_linpla(sessions, analyspar, stimpar)
@@ -3256,8 +3256,8 @@ def stimpar_surp_idx_by_linpla(sessions, analyspar, stimpar, datatype="roi",
                                   "dir": left vs right (Bricks)
                                   default: "bysurp"
         - op (str)              : operation to use in measuring indices 
-                                  ("diff", "rel_diff", "discr")
-                                  default: "discr"
+                                  ("diff", "rel_diff", "d-prime")
+                                  default: "d-prime"
         - position (int)        : surprise or regular position to retrieve if 
                                   surp is "progsurp" or "progreg"
                                   default: 0

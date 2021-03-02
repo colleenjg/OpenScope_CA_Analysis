@@ -202,7 +202,7 @@ def init_param_cont(args):
             idx_feature (str)      : feature used to calculate index
                                      ("bysurp", "surplock", "progsurp")
             idx_op (str)           : type of index to use 
-                                     ("discr", "rel_diff", "diff")
+                                     ("d-prime", "rel_diff", "diff")
             idx_position (int)     : position to use if using a "prog" feature 
                                      to calculate index (e.g., 0)
             incl (str)             : sessions to include ("yes", "no", "all") 
@@ -670,8 +670,8 @@ if __name__ == "__main__":
     parser.add_argument("--idx_feature", default="bysurp",
         help="type of feature to use as index ('bysurp' or 'surplock' "
             "for either stimulus or 'progsurp'.")
-    parser.add_argument("--idx_op", default="discr",
-        help="type of index to use ('discr', 'diff', 'rel_diff'.")
+    parser.add_argument("--idx_op", default="d-prime",
+        help="type of index to use ('d-prime', 'diff', 'rel_diff'.")
     parser.add_argument("--idx_position", default=0,
         help="if using a prog feature, position of surp/reg to use in "
             "index.")
