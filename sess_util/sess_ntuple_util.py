@@ -447,13 +447,13 @@ def init_basepar(baseline=0.1):
 
 
 #############################################
-def init_idxpar(op="discr", feature="bysurp", position=0):
+def init_idxpar(op="d-prime", feature="bysurp", position=0):
     """
     Returns an index namedtuple with the inputs arguments as named attributes.
 
     Optional args:
         - op (str)      : type of index to use.
-                          default: "discr"
+                          default: "d-prime"
         - feature (str) : stimulus feature to use as index ('bysurp' for 
                           either stimulus or 'progsurp' for gabors or 
                           'surplock' for bricks.
