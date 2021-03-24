@@ -339,8 +339,8 @@ class Session(object):
                                          "start2pfr", "end2pfr", "num2pfr"
             - stimtype_order (list)  : stimulus type order
             - stim2twopfr (1D array) : 2p frame numbers for each stimulus frame, 
-                                       as well as the flanking
-                                       blank screen frames 
+                                       as well as the flanking blank screen 
+                                       frames 
             - twop_fps (num)         : mean 2p frames per second
             - twop_fr_stim (int)     : number of 2p frames recorded while stim
                                        was playing
@@ -366,24 +366,34 @@ class Session(object):
 
 
     #############################################
-    def _load_sync_h5_data(self):
+    def _load_sync_h5_data(self, check_stim2twopfr2=True):
         """
         self._load_sync_h5_data()
 
         Loads the synchronisation hdf5 files for behavior and pupil.
 
+        Optional args:
+            - check_stim2twopfr2 (bool): if True, a second stimulus to 2p frame 
+                                         number alignment is loaded and 
+                                         compared to self.stim2twopfr
+                                         default: False
+
         Attributes:
-            - pup_fps (num)           : average pupil frame rate (frames per 
-                                        sec)
+            - pup_fps (num)            : average pupil frame rate (frames per 
+                                         sec)
             - pup_fr_interv (1D array): interval in sec between each pupil 
                                         frame
-            - tot_pup_fr (int)        : total number of pupil frames
-            - twop2bodyfr (1D array)  : body-tracking video (video-0) frame 
-                                        numbers for each 2p frame
-            - twop2pupfr (1D array)   : eye-tracking video (video-1) frame 
-                                        numbers for each 2p frame
-            - _sync_h5_loaded (bool)  : if True, info from synchronisation hdf5 
-                                        files has already been loaded 
+            - stim2twopfr2 (1D array)  : 2p frame numbers for each stimulus 
+                                         frame, as well as the flanking
+                                         blank screen frames (second alignment 
+                                         version)
+            - tot_pup_fr (int)         : total number of pupil frames
+            - twop2bodyfr (1D array)   : body-tracking video (video-0) frame 
+                                         numbers for each 2p frame
+            - twop2pupfr (1D array)    : eye-tracking video (video-1) frame 
+                                         numbers for each 2p frame
+            - _sync_h5_loaded (bool)   : if True, info from synchronisation 
+                                         hdf5 files has already been loaded 
         """
 
         if hasattr(self, "_sync_h5_data_loaded"):
@@ -391,17 +401,28 @@ class Session(object):
                     extra={"spacing": TAB})
             return
 
-        pup_fr_interv, twop2bodyfr, twop2pupfr, _ = \
+        pup_fr_interv, twop2bodyfr, twop2pupfr, stim2twopfr2 = \
             sess_load_util.load_sync_h5_data(
                 self.pup_video_h5, self.time_sync_h5)
         self.pup_fr_interv = pup_fr_interv
         self.twop2bodyfr   = twop2bodyfr
         self.twop2pupfr    = twop2pupfr
+        self.stim2twopfr2  = stim2twopfr2
 
         self.pup_fps = 1/(np.mean(self.pup_fr_interv))
         self.tot_pup_fr = len(self.pup_fr_interv + 1)
 
         self._sync_h5_loaded = True
+
+        if check_stim2twopfr2:
+            self.stim2twopfr2 = stim2twopfr2
+
+            # trim by 1 frame, if needed
+            if len(self.stim2twopfr2) == len(self.stim2twopfr) + 1:
+                self.stim2twopfr2 = stim2twopfr2[: -1]
+
+            sess_sync_util.compare_alignments(
+                self.stim2twopfr, self.stim2twopfr2)
 
 
     #############################################
