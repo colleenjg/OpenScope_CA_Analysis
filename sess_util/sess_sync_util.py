@@ -588,3 +588,45 @@ def get_twop2stimfr(stim2twopfr, n_twop_fr):
 
     return twop2stimfr
 
+
+#############################################
+def compare_alignments(alignment1, alignment2, tolerance=1, 
+                       alignment_type="stim2twop"):
+    """
+    compare_alignments(alignment1, alignment2)
+
+    Compares alignments and checks for differences above a tolerance threshold.
+
+    Required args:
+        - alignment1 (1D array): first alignment array 
+        - alignment2 (1D array): second alignment array (same length) 
+
+    Optional args:
+        - tolerance (int)     : largest (absolute) disalignment to tolerate
+                                default: 1
+        - alignment_type (str): type of alignment being compared
+                                default: "stim2twop"
+
+    Returns:
+        - twop2stimfr (1D array): Stimulus frame numbers for the beginning
+                                  of each 2p frame (np.nan when no stimulus
+                                  appears)
+    """
+
+    if len(alignment1) != len(alignment2):
+        raise ValueError("'alignment1' and 'alignment2' must be of the same "
+            "length.")
+
+    alignment_diffs = alignment2 - alignment1
+
+    alignment_diff_abs_max = np.max(np.absolute(alignment_diffs))
+    n_alignment_diffs = \
+        len(np.where(np.absolute(alignment_diffs) > tolerance)[0])
+
+    if n_alignment_diffs:
+        logging.warning(f"Comparing {alignment_type} alignments: "
+            f"{n_alignment_diffs} frames show alignment differences "
+            f"(> {tolerance}). The largest (absolute) misalignment "
+            f"is a {alignment_diff_abs_max} frame difference.", 
+            extra={"spacing": TAB})
+
