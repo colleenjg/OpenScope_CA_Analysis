@@ -366,7 +366,7 @@ class Session(object):
 
 
     #############################################
-    def _load_sync_h5_data(self, check_stim2twopfr2=True):
+    def _load_sync_h5_data(self, check_stim2twopfr2=False):
         """
         self._load_sync_h5_data()
 
