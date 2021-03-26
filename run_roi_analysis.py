@@ -186,6 +186,7 @@ def init_param_cont(args):
                                      subfolder named based on the date and time.
             not_byitem (bool)      : if True, autocorrelation statistics are
                                      taken across items (e.g., ROIs)
+            not_save_fig (bool)    : if True, figures are not saved
             op (str)               : operation on values, if plotvals if "both" 
                                      ("ratio" or "diff") 
             output (str)           : general directory in which to save output
@@ -249,6 +250,7 @@ def init_param_cont(args):
                     ["fig_ext"] (str)   : figure extension
                     ["overwrite"] (bool): if True, existing figures can be 
                                           overwritten
+                    ["save_fig"] (bool) : if True, figures are saved
                     ["use_dt"] (str)    : datetime folder to use
 
                 ["dirs"]: dict with the following attributes:
@@ -319,8 +321,9 @@ def init_param_cont(args):
     # figure parameters
     analysis_dict["figpar"] = sess_plot_util.init_figpar(
         ncols=int(args.ncols), datetime=not(args.no_datetime), 
-        overwrite=args.overwrite, runtype=args.runtype, output=args.output, 
-        plt_bkend=args.plt_bkend, fontdir=args.fontdir)
+        overwrite=args.overwrite, save_fig=not(args.not_save_fig), 
+        runtype=args.runtype, output=args.output, plt_bkend=args.plt_bkend, 
+        fontdir=args.fontdir)
 
     return analysis_dict
 
@@ -478,7 +481,7 @@ def run_analyses(sessions, analysis_dict, analyses, seed=None,
     """
 
     if len(sessions) == 0:
-        logger.warning("No sessions fit these criteria.")
+        logger.warning("No sessions meet these criteria.")
         return
 
     comp = True if isinstance(sessions[0], list) else False
@@ -505,11 +508,88 @@ def run_analyses(sessions, analysis_dict, analyses, seed=None,
         fct(sessions=sessions, analysis=analysis, **args_dict_use)
 
 
-if __name__ == "__main__":
+#############################################
+def main(args):
+    """
+    main(args)
+
+    Runs analyses with parser arguments.
+
+    Required args:
+        - args (dict): parser argument dictionary
+    """
+
+    logger_util.set_level(level=args.log_level)
+    
+    args.fontdir = DEFAULT_FONTDIR
+
+    if args.dict_path is not None:
+        source = "modif" if args.modif else "roi"
+        plot_dicts.plot_from_dicts(
+            args.dict_path, source=source, plt_bkend=args.plt_bkend, 
+            fontdir=args.fontdir, plot_tc=not(args.no_plot_tc), 
+            parallel=args.parallel, datetime=not(args.no_datetime))
+
+    else:
+        args = reformat_args(args)
+        if args.datadir is None: args.datadir = DEFAULT_DATADIR
+        mouse_df = DEFAULT_MOUSE_DF_PATH
+
+        # get numbers of sessions to analyse
+        if args.sess_n == "all":
+            all_sess_ns = sess_gen_util.get_sess_vals(
+                mouse_df, "sess_n", runtype=args.runtype, plane=args.plane, 
+                line=args.line, min_rois=args.min_rois, 
+                pass_fail=args.pass_fail, incl=args.incl, 
+                omit_sess=args.omit_sess, omit_mice=args.omit_mice)
+        else:
+            all_sess_ns = gen_util.list_if_not(args.sess_n)
+
+        # get analysis parameters for each session number
+        all_analys_pars = gen_util.parallel_wrap(
+            prep_analyses, all_sess_ns, args_list=[args, mouse_df], 
+            parallel=args.parallel)
+
+        # split analyses between parallel and sequential
+        if args.parallel:
+            run_seq = "oc" # should be run parallel within analysis
+            all_analyses = gen_util.remove_lett(args.analyses, run_seq)
+            sess_parallels = [True, False]
+            analyses_parallels = [False, True]
+        else:
+            all_analyses = [args.analyses]
+            sess_parallels, analyses_parallels = [False], [False]
+
+        for analyses, sess_parallel, analyses_parallel in zip(
+            all_analyses, sess_parallels, analyses_parallels):
+            if len(analyses) == 0:
+                continue
+            args_dict = {
+                "analyses": analyses,
+                "seed"    : args.seed,
+                "parallel": analyses_parallel,
+                "plot_tc": not(args.no_plot_tc)
+                }
+
+            # run analyses for each parameter set
+            gen_util.parallel_wrap(run_analyses, all_analys_pars, 
+                args_dict=args_dict, parallel=sess_parallel, mult_loop=True)
+
+
+#############################################
+def parse_args():
+    """
+    parse_args()
+
+    Returns parser arguments.
+
+    Returns:
+        - args (dict): parser argument dictionary
+    """
 
     parser = argparse.ArgumentParser()
 
-    ANALYSIS_STR = " / ".join(
+    ANALYSIS_STR = " || ".join(
         [f"{key}: {item}" for key, item in ANALYSIS_DESCR.items()])
 
         # general parameters
@@ -622,65 +702,20 @@ if __name__ == "__main__":
         help="create a datetime folder")
     parser.add_argument("--overwrite", action="store_true", 
         help="allow overwriting")
+    parser.add_argument("--not_save_fig", action="store_true", 
+        help="don't save figures")
         # plot using modif_analys_plots (only if plotting from dictionary)
     parser.add_argument("--modif", action="store_true", 
         help="plot from dictionary using modified plot functions")
 
     args = parser.parse_args()
 
-    logger_util.set_level(level=args.log_level)
-    
-    args.fontdir = DEFAULT_FONTDIR
+    return args
 
-    if args.dict_path is not None:
-        source = "modif" if args.modif else "roi"
-        plot_dicts.plot_from_dicts(
-            args.dict_path, source=source, plt_bkend=args.plt_bkend, 
-            fontdir=args.fontdir, plot_tc=not(args.no_plot_tc), 
-            parallel=args.parallel, datetime=not(args.no_datetime))
 
-    else:
-        args = reformat_args(args)
-        if args.datadir is None: args.datadir = DEFAULT_DATADIR
-        mouse_df = DEFAULT_MOUSE_DF_PATH
+#############################################
+if __name__ == "__main__":
 
-        # get numbers of sessions to analyse
-        if args.sess_n == "all":
-            all_sess_ns = sess_gen_util.get_sess_vals(
-                mouse_df, "sess_n", runtype=args.runtype, plane=args.plane, 
-                line=args.line, min_rois=args.min_rois, 
-                pass_fail=args.pass_fail, incl=args.incl, 
-                omit_sess=args.omit_sess, omit_mice=args.omit_mice)
-        else:
-            all_sess_ns = gen_util.list_if_not(args.sess_n)
-
-        # get analysis parameters for each session number
-        all_analys_pars = gen_util.parallel_wrap(
-            prep_analyses, all_sess_ns, args_list=[args, mouse_df], 
-            parallel=args.parallel)
-
-        # split analyses between parallel and sequential
-        if args.parallel:
-            run_seq = "oc" # should be run parallel within analysis
-            all_analyses = gen_util.remove_lett(args.analyses, run_seq)
-            sess_parallels = [True, False]
-            analyses_parallels = [False, True]
-        else:
-            all_analyses = [args.analyses]
-            sess_parallels, analyses_parallels = [False], [False]
-
-        for analyses, sess_parallel, analyses_parallel in zip(
-            all_analyses, sess_parallels, analyses_parallels):
-            if len(analyses) == 0:
-                continue
-            args_dict = {
-                "analyses": analyses,
-                "seed"    : args.seed,
-                "parallel": analyses_parallel,
-                "plot_tc": not(args.no_plot_tc)
-                }
-
-            # run analyses for each parameter set
-            gen_util.parallel_wrap(run_analyses, all_analys_pars, 
-                args_dict=args_dict, parallel=sess_parallel, mult_loop=True)
+    args = parse_args()
+    main(args)
 

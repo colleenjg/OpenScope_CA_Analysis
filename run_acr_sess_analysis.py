@@ -218,6 +218,7 @@ def init_param_cont(args):
             no_datetime (bool)     : if True, figures are not saved in a 
                                      subfolder named based on the date and time.
             no_scale (bool)        : if True, data is not scaled
+            not_save_fig (bool)    : if True, figures are not saved
             not_surp_rois (bool)   : if False, only surprise responsive ROIs 
                                       are used for latency analysis
             output (str)           : general directory in which to save output
@@ -266,6 +267,7 @@ def init_param_cont(args):
                     ["fig_ext"] (str)   : figure extension
                     ["overwrite"] (bool): if True, existing figures can be 
                                           overwritten
+                    ["save_fig"] (bool) : if True, figures are saved
                     ["use_dt"] (str)    : datetime folder to use
                     
                 ["dirs"]: dict with the following attributes:
@@ -326,8 +328,9 @@ def init_param_cont(args):
     # figure parameters
     analysis_dict["figpar"] = sess_plot_util.init_figpar(
         ncols=int(args.ncols), datetime=not(args.no_datetime), 
-        overwrite=args.overwrite, runtype=args.runtype, output=args.output, 
-        plt_bkend=args.plt_bkend, fontdir=args.fontdir)
+        overwrite=args.overwrite, save_fig=not(args.not_save_fig), 
+        runtype=args.runtype, output=args.output, plt_bkend=args.plt_bkend, 
+        fontdir=args.fontdir)
 
     return analysis_dict
 
@@ -549,7 +552,7 @@ def run_analyses(sessions, analysis_dict, analyses, datatype="roi", seed=None,
     """
 
     if len(sessions) == 0:
-        logger.warning("No sessions fit these criteria.")
+        logger.warning("No sessions meet these criteria.")
         return
 
     # changes backend and defaults
@@ -575,11 +578,56 @@ def run_analyses(sessions, analysis_dict, analyses, datatype="roi", seed=None,
         fct(sessions=sessions, analysis=analysis, **args_dict_use)
 
 
-if __name__ == "__main__":
+#############################################
+def main(args):
+    """
+    main(args)
+
+    Runs analyses with parser arguments.
+
+    Required args:
+        - args (dict): parser argument dictionary
+    """
+
+    logger_util.set_level(level=args.log_level)
+
+    args.fontdir = DEFAULT_FONTDIR
+
+    if args.dict_path is not None:
+        source = "acr_sess"
+        if args.modif:
+            source = "modif"
+        plot_dicts.plot_from_dicts(
+            args.dict_path, source=source, plt_bkend=args.plt_bkend, 
+            fontdir=args.fontdir, parallel=args.parallel, 
+            datetime=not(args.no_datetime))
+
+    else:
+        if args.datadir is None: args.datadir = DEFAULT_DATADIR
+        mouse_df = DEFAULT_MOUSE_DF_PATH
+
+        args = reformat_args(args)
+
+        analys_pars = prep_analyses(args.sess_n, args, mouse_df, args.parallel)
+        
+        run_analyses(*analys_pars, analyses=args.analyses, seed=args.seed,
+            parallel=args.parallel, datatype=args.datatype)
+
+
+#############################################
+def parse_args():
+    """
+    parse_args()
+
+    Returns parser arguments.
+
+    Returns:
+        - args (dict): parser argument dictionary
+    """
 
     parser = argparse.ArgumentParser()
 
-    ANALYSIS_STR = " / ".join(
+    ANALYSIS_STR = " || ".join(
         [f"{key}: {item}" for key, item in ANALYSIS_DESCR.items()])
 
         # general parameters
@@ -692,34 +740,20 @@ if __name__ == "__main__":
         help="create a datetime folder")
     parser.add_argument("--overwrite", action="store_true", 
         help="allow overwriting")
+    parser.add_argument("--not_save_fig", action="store_true", 
+        help="don't save figures")
         # plot using modif_analys_plots (only if plotting from dictionary)
     parser.add_argument("--modif", action="store_true", 
         help=("plot from dictionary using modified plot functions"))
 
     args = parser.parse_args()
 
-    logger_util.set_level(level=args.log_level)
+    return args
 
-    args.fontdir = DEFAULT_FONTDIR
 
-    if args.dict_path is not None:
-        source = "acr_sess"
-        if args.modif:
-            source = "modif"
-        plot_dicts.plot_from_dicts(
-            args.dict_path, source=source, plt_bkend=args.plt_bkend, 
-            fontdir=args.fontdir, parallel=args.parallel, 
-            datetime=not(args.no_datetime))
+#############################################
+if __name__ == "__main__":
 
-    else:
-        if args.datadir is None: args.datadir = DEFAULT_DATADIR
-        mouse_df = DEFAULT_MOUSE_DF_PATH
+    args = parse_args()
+    main(args)
 
-        args = reformat_args(args)
-
-        analys_pars = prep_analyses(args.sess_n, args, mouse_df, args.parallel)
-        
-        run_analyses(*analys_pars, analyses=args.analyses, seed=args.seed,
-            parallel=args.parallel, datatype=args.datatype)
-
-                

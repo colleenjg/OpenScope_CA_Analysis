@@ -162,6 +162,7 @@ def init_param_cont(args):
             ncols (int)            : number of columns
             no_datetime (bool)     : if True, figures are not saved in a 
                                      subfolder named based on the date and time.
+            not_save_fig (bool)    : if True, figures are not saved
             output (str)           : general directory in which to save output
             overwrite (bool)       : if False, overwriting existing figures 
                                      is prevented by adding suffix numbers.
@@ -200,6 +201,7 @@ def init_param_cont(args):
                     ["fig_ext"] (str)   : figure extension
                     ["overwrite"] (bool): if True, existing figures can be 
                                           overwritten
+                    ["save_fig"] (bool) : if True, figures are saved
                     ["use_dt"] (str)    : datetime folder to use
 
                 ["dirs"]: dict with the following attributes:
@@ -252,8 +254,9 @@ def init_param_cont(args):
     # figure parameters
     analysis_dict["figpar"] = sess_plot_util.init_figpar(
         ncols=int(args.ncols), datetime=not(args.no_datetime), 
-        overwrite=args.overwrite, runtype=args.runtype, output=args.output, 
-        plt_bkend=args.plt_bkend, fontdir=args.fontdir)
+        overwrite=args.overwrite, save_fig=not(args.not_save_fig), 
+        runtype=args.runtype, output=args.output, plt_bkend=args.plt_bkend, 
+        fontdir=args.fontdir)
 
     return analysis_dict
 
@@ -347,7 +350,7 @@ def run_analyses(sessions, analysis_dict, analyses, seed=None, parallel=False):
     """    
 
     if len(sessions) == 0:
-        logger.warning("No sessions fit these criteria.")
+        logger.warning("No sessions meet these criteria.")
         return
 
     fct_dict = get_analysis_fcts()
@@ -369,82 +372,16 @@ def run_analyses(sessions, analysis_dict, analyses, seed=None, parallel=False):
     return
 
 
-if __name__ == "__main__":
+#############################################
+def main(args):
+    """
+    main(args)
 
-    parser = argparse.ArgumentParser()
+    Runs analyses with parser arguments.
 
-
-        # general parameters
-    parser.add_argument("--datadir", default=None, 
-                        help=("data directory (if None, uses a directory "
-                              "defined below"))
-    parser.add_argument("--output", default="", help="where to store output")
-    parser.add_argument("--analyses", default="all", 
-                        help=("analyses to run: explained variance (v)"))
-    parser.add_argument("--sess_n", default=1,
-                        help="session to aim for, e.g. 1, 2, last, all")
-    parser.add_argument("--dict_path", default="", 
-                        help=("path to info dictionary from which to plot "
-                              "data."))
-
-        # technical parameters
-    parser.add_argument("--plt_bkend", default=None, 
-                        help="switch mpl backend when running on server")
-    parser.add_argument("--parallel", action="store_true", 
-                        help="do runs in parallel.")
-    parser.add_argument("--seed", default=-1, type=int, 
-                        help="random seed (-1 for None)")
-    parser.add_argument("--log_level", default="info", 
-        help="logging level (does not work with --parallel)")
-
-        # session parameters
-    parser.add_argument("--runtype", default="prod", help="prod or pilot")
-    parser.add_argument("--min_rois", default=5, type=int, 
-                        help="min rois criterion")
-
-        # stimulus parameters
-    parser.add_argument("--post", default=0.45, type=float, 
-                        help="sec after reference frames")
-    parser.add_argument("--stimtype", default="gabors", 
-                        help="stimulus to analyse") 
-
-        # analysis parameters
-    parser.add_argument("--fluor", default="dff", help="raw or dff")
-
-        # GLM parameters
-    parser.add_argument("--each_roi", action="store_true", 
-                        help="run for each ROI separately")
-    parser.add_argument("--k", type=int, default=10, help="number of folds")
-    parser.add_argument("--test", action="store_true", 
-                        help="runs on only a few ROIS")
-
-    # generally fixed 
-        # analysis parameters
-    parser.add_argument("--stats", default="mean", help="plot mean or median")
-    parser.add_argument("--error", default="sem", 
-                        help="sem for SEM/MAD, std for std/qu") 
-    parser.add_argument("--dend", default="extr", help="allen, extr")   
-        # session parameters
-    parser.add_argument("--plane", default="any", help="soma, dend")
-    parser.add_argument("--line", default="any", help="L23, L5")
-    parser.add_argument("--pass_fail", default="P", 
-                        help="P to take only passed sessions")
-    parser.add_argument("--incl", default="any",
-                        help="include only 'yes', 'no' or 'any'")
-        # stimulus parameters
-    parser.add_argument("--pre", default=0, type=float, help="sec before frame")
-        # figure parameters
-    parser.add_argument("--ncols", default=4, help="number of columns")
-    parser.add_argument("--no_datetime", action="store_true",
-                        help="create a datetime folder")
-    parser.add_argument("--overwrite", action="store_true", 
-                        help="allow overwriting")
-        # plot using modif_analys_plots (if plotting from dictionary)
-    parser.add_argument("--modif", action="store_true", 
-                        help=("plot from dictionary using modified plot "
-                              "functions"))
-
-    args = parser.parse_args()
+    Required args:
+        - args (dict): parser argument dictionary
+    """
 
     logger_util.set_level(level=args.log_level)
 
@@ -475,4 +412,98 @@ if __name__ == "__main__":
             analys_pars = prep_analyses(sess_n, args, mouse_df)
             run_analyses(*analys_pars, analyses=args.analyses, 
                          parallel=args.parallel)
+
+
+#############################################
+def parse_args():
+    """
+    parse_args()
+
+    Returns parser arguments.
+
+    Returns:
+        - args (dict): parser argument dictionary
+    """
+
+    parser = argparse.ArgumentParser()
+
+        # general parameters
+    parser.add_argument("--datadir", default=None, 
+        help="data directory (if None, uses a directory defined below")
+    parser.add_argument("--output", default="", help="where to store output")
+    parser.add_argument("--analyses", default="all", 
+        help=("analyses to run: explained variance (v)"))
+    parser.add_argument("--sess_n", default=1,
+        help="session to aim for, e.g. 1, 2, last, all")
+    parser.add_argument("--dict_path", default="", 
+        help="path to info dictionary from which to plot data.")
+
+        # technical parameters
+    parser.add_argument("--plt_bkend", default=None, 
+        help="switch mpl backend when running on server")
+    parser.add_argument("--parallel", action="store_true", 
+        help="do runs in parallel.")
+    parser.add_argument("--seed", default=-1, type=int, 
+        help="random seed (-1 for None)")
+    parser.add_argument("--log_level", default="info", 
+        help="logging level (does not work with --parallel)")
+
+        # session parameters
+    parser.add_argument("--runtype", default="prod", help="prod or pilot")
+    parser.add_argument("--min_rois", default=5, type=int, 
+        help="min rois criterion")
+
+        # stimulus parameters
+    parser.add_argument("--post", default=0.45, type=float, 
+        help="sec after reference frames")
+    parser.add_argument("--stimtype", default="gabors", 
+        help="stimulus to analyse") 
+
+        # analysis parameters
+    parser.add_argument("--fluor", default="dff", help="raw or dff")
+
+        # GLM parameters
+    parser.add_argument("--each_roi", action="store_true", 
+        help="run for each ROI separately")
+    parser.add_argument("--k", type=int, default=10, help="number of folds")
+    parser.add_argument("--test", action="store_true", 
+        help="runs on only a few ROIS")
+
+    # generally fixed 
+        # analysis parameters
+    parser.add_argument("--stats", default="mean", help="plot mean or median")
+    parser.add_argument("--error", default="sem", 
+        help="sem for SEM/MAD, std for std/qu") 
+    parser.add_argument("--dend", default="extr", help="allen, extr")   
+        # session parameters
+    parser.add_argument("--plane", default="any", help="soma, dend")
+    parser.add_argument("--line", default="any", help="L23, L5")
+    parser.add_argument("--pass_fail", default="P", 
+        help="P to take only passed sessions")
+    parser.add_argument("--incl", default="any",
+        help="include only 'yes', 'no' or 'any'")
+        # stimulus parameters
+    parser.add_argument("--pre", default=0, type=float, help="sec before frame")
+        # figure parameters
+    parser.add_argument("--ncols", default=4, help="number of columns")
+    parser.add_argument("--no_datetime", action="store_true",
+        help="create a datetime folder")
+    parser.add_argument("--overwrite", action="store_true", 
+        help="allow overwriting")
+    parser.add_argument("--not_save_fig", action="store_true", 
+        help="don't save figures")
+        # plot using modif_analys_plots (if plotting from dictionary)
+    parser.add_argument("--modif", action="store_true", 
+        help="plot from dictionary using modified plot functions")
+
+    args = parser.parse_args()
+
+    return args
+
+
+#############################################
+if __name__ == "__main__":
+
+    args = parse_args()
+    main(args)
 
