@@ -28,8 +28,8 @@ from sess_util import sess_str_util
 #############################################
 def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7, 
                 subplot_wid=7, datetime=True, use_dt=None, fig_ext="svg", 
-                overwrite=False, runtype="prod", output=".", plt_bkend=None, 
-                linclab=True, fontdir=None):
+                overwrite=False, save_fig=True, runtype="prod", output=".", 
+                plt_bkend=None, linclab=True, fontdir=None):
     
     """
     Returns a dictionary containing figure parameter dictionaries for 
@@ -56,6 +56,8 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
         - overwrite (bool) : if False, overwriting existing figures is 
                              prevented by adding suffix numbers.
                              default: False
+        - save_fig (bool)  : if True, figures are saved
+                             default: True
         - runtype (str)    : runtype ("pilot", "prod")
                              default: "prod"
         - output (str)     : general directory in which to save output
@@ -74,7 +76,7 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                            ncols, sharex, sharey, subplot_hei, subplot_wid
             ["save"] : dictionary containing the following inputs as
                        attributes:
-                           datetime, use_dt, fig_ext, overwrite
+                           datetime, use_dt, fig_ext, overwrite, save_fig
             ["dirs"]: dictionary containing the following attributes:
                 ["figdir"] (str)   : main folder in which to save figures
                 ["roi"] (str)      : subdirectory name for ROI analyses
@@ -120,13 +122,14 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                 "sharex"     : sharex,
                 "sharey"     : sharey, 
                 "subplot_hei": subplot_hei,
-                "subplot_wid": subplot_wid
+                "subplot_wid": subplot_wid,
                 }
 
     fig_save = {"datetime" : datetime,
                 "use_dt"   : use_dt,
                 "fig_ext"  : fig_ext,
-                "overwrite": overwrite
+                "overwrite": overwrite,
+                "save_fig" : save_fig,
                 }
     
     fig_mng = {"linclab"  : linclab,
@@ -161,7 +164,7 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
     figpar = {"init" : fig_init,
               "save" : fig_save,
               "dirs" : fig_dirs,
-              "mng"  : fig_mng
+              "mng"  : fig_mng,
               }
     
     return figpar
