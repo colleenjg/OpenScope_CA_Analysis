@@ -91,16 +91,37 @@ def init_analysis(args):
     return analysis_dict
 
 
+#############################################
+def main(args):
+    """
+    main(args)
+
+    Runs analyses with parser arguments.
+
+    Required args:
+        - args (dict): parser argument dictionary
+    """
+
+    logger_util.set_level(level=args.log_level)
+
+    if args.datadir is None: args.datadir = DEFAULT_DATADIR
+    args.fontdir = DEFAULT_FONTDIR
+    args.mouse_df_path = DEFAULT_MOUSE_DF_PATH
+
+    analysis_ntuples = get_analysis_ntuples(
+        args.figure, args.panel, args.lower_power)
 
 
+#############################################
+def parse_args():
+    """
+    parse_args()
 
+    Returns parser arguments.
 
-
-
-
-
-
-if __name__ == "__main__":
+    Returns:
+        - args (dict): parser argument dictionary
+    """
 
     parser = argparse.ArgumentParser()
 
@@ -130,11 +151,14 @@ if __name__ == "__main__":
     parser.add_argument("--log_level", default="info", 
         help="logging level (does not work with --parallel)")
 
-    logger_util.set_level(level=args.log_level)
+    args = parser.parse_args()
 
-    if args.datadir is None: args.datadir = DEFAULT_DATADIR
-    args.fontdir = DEFAULT_FONTDIR
-    args.mouse_df_path = DEFAULT_MOUSE_DF_PATH
+    return args
 
-    analysis_ntuples = get_analysis_ntuples(
-        args.figure, args.panel, args.lower_power)
+
+#############################################
+if __name__ == "__main__":
+
+    args = parse_args()
+    main(args)
+

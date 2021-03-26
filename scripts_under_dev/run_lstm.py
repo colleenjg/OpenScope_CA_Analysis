@@ -295,38 +295,16 @@ def run_sess_lstm(sessid, args):
     fig.savefig(os.path.join(dirname, f"{hyperstr}_traces"))
 
 
+#############################################
+def main(args):
+    """
+    main(args)
 
+    Runs analyses with parser arguments.
 
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-
-        # general parameters
-    parser.add_argument("--datadir", default=None, 
-                        help=("data directory (if None, uses a directory "
-                              "defined below"))
-    parser.add_argument("--output", default="lstm_models", 
-                        help="where to store output")
-    parser.add_argument("--plt_bkend", default=None, 
-                        help="switch mpl backend when running on server")
-    parser.add_argument("--parallel", action="store_true", 
-                        help="do sess_n's in parallel.")
-    parser.add_argument("--seed", default=-1, type=int, 
-                        help="random seed (-1 for None)")
-    parser.add_argument("--log_level", default="info", 
-        help="logging level (does not work with --parallel)")
-
-    parser.add_argument("--n_epochs", default=100, type=int)
-
-    parser.add_argument("--conv", action="store_true")
-    parser.add_argument("--batchsize", default=40, type=int)
-    parser.add_argument("--out_ch", default=10, type=int)
-    parser.add_argument("--hidden_dim", default=15, type=int)
-    parser.add_argument("--num_layers", default=2, type=int)
-    parser.add_argument("--lr_ex", default=3, type=int)
-    parser.add_argument("--dropout", default=0.2, type=float) 
-    
-    args = parser.parse_args()
+    Required args:
+        - args (dict): parser argument dictionary
+    """
 
     logger_util.set_level(level=args.log_level)
 
@@ -359,4 +337,54 @@ if __name__ == "__main__":
 
     gen_util.parallel_wrap(
         run_sess_lstm, all_sessids, args_list=[args], parallel=args.parallel)
+
+
+#############################################
+def parse_args():
+    """
+    parse_args()
+
+    Returns parser arguments.
+
+    Returns:
+        - args (dict): parser argument dictionary
+    """
+
+    parser = argparse.ArgumentParser()
+
+        # general parameters
+    parser.add_argument("--datadir", default=None, 
+                        help=("data directory (if None, uses a directory "
+                              "defined below"))
+    parser.add_argument("--output", default="lstm_models", 
+                        help="where to store output")
+    parser.add_argument("--plt_bkend", default=None, 
+                        help="switch mpl backend when running on server")
+    parser.add_argument("--parallel", action="store_true", 
+                        help="do sess_n's in parallel.")
+    parser.add_argument("--seed", default=-1, type=int, 
+                        help="random seed (-1 for None)")
+    parser.add_argument("--log_level", default="info", 
+        help="logging level (does not work with --parallel)")
+
+    parser.add_argument("--n_epochs", default=100, type=int)
+
+    parser.add_argument("--conv", action="store_true")
+    parser.add_argument("--batchsize", default=40, type=int)
+    parser.add_argument("--out_ch", default=10, type=int)
+    parser.add_argument("--hidden_dim", default=15, type=int)
+    parser.add_argument("--num_layers", default=2, type=int)
+    parser.add_argument("--lr_ex", default=3, type=int)
+    parser.add_argument("--dropout", default=0.2, type=float) 
+    
+    args = parser.parse_args()
+
+    return args
+
+
+#############################################
+if __name__ == "__main__":
+
+    args = parse_args()
+    main(args)
 

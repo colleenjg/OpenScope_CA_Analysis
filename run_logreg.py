@@ -35,6 +35,14 @@ DEFAULT_FONTDIR = os.path.join("..", "tools", "fonts")
 logger = logging.getLogger(__name__)
 
 
+TASK_DESCR = {
+    "run_regr"       : "runs regressions, saving results into individual folders",
+    "analyse"        : "compiles regression results produced by run_regr, and runs statistics",
+    "run_regr_sparse": "runs regressions sparsely, saving results in a csv (UNDER DEV)",
+    "analyse_sparse" : "compiles regression results produced by run_regr_sparse, and runs statistics (UNDER DEV)",
+    "plot"           : "plots statistics produced by analyse or analyse_sparse",
+}
+
 #############################################
 def check_args(comp="surp", stimtype="gabors", q1v4=False, regvsurp=False):
     """
@@ -264,18 +272,93 @@ def run_regr(args):
             extrapar, techpar)
 
 
+#############################################
+def main(args):
+    """
+    main(args)
 
-if __name__ == "__main__":
+    Runs analyses with parser arguments.
+
+    Required args:
+        - args (dict): parser argument dictionary
+    """
+
+    logger_util.set_level(level=args.log_level)
+
+    args.device = gen_util.get_device(args.cuda)
+    args.fontdir = DEFAULT_FONTDIR
+
+
+    if args.comp == "all":
+        comps = logreg.get_comps(args.stimtype, args.q1v4, args.regvsurp)
+    else:
+        check_args(args.comp, args.stimtype, args.q1v4, args.regvsurp)
+        comps = gen_util.list_if_not(args.comp)
+
+    args.output = format_output(
+        args.output, args.runtype, args.q1v4, args.bal, args.regvsurp)
+
+    args_orig = copy.deepcopy(args)
+
+    if args.dict_path is not None:
+        plot_dicts.plot_from_dicts(
+            args.dict_path, source="logreg", plt_bkend=args.plt_bkend, 
+            fontdir=args.fontdir, parallel=args.parallel)
+
+    else:
+        for comp in comps:
+            args = copy.deepcopy(args_orig)
+            args.comp = comp
+            args.not_ctrl = not(set_ctrl(not(args.not_ctrl), comp=args.comp))
+
+            logger.info(f"Task: {args.task}\nStim: {args.stimtype} "
+                f"\nComparison: {args.comp}\n", extra={"spacing": "\n"})
+
+            if args.task == "run_regr":
+                run_regr(args)
+
+            # collates regression runs and analyses accuracy
+            elif args.task == "analyse":
+                logger.info(f"Folder: {args.output}")
+                logreg.run_analysis(
+                    args.output, args.stimtype, args.comp, not(args.not_ctrl), 
+                    args.CI, args.alg, args.parallel)
+
+            elif args.task == "plot":
+                logreg.run_plot(
+                    args.output, args.stimtype, args.comp, not(args.not_ctrl), 
+                    args.bri_dir, args.fluor, not(args.no_scale), args.CI, 
+                    args.alg, args.plt_bkend, args.fontdir, args.modif)
+
+            else:
+                gen_util.accepted_values_error("args.task", args.task, 
+                    ["run_regr", "analyse", "plot"])
+
+
+#############################################
+def parse_args():
+    """
+    parse_args()
+
+    Returns parser arguments.
+
+    Returns:
+        - args (dict): parser argument dictionary
+    """
 
     parser = argparse.ArgumentParser()
+
+    TASK_STR = " || ".join(
+        [f"{key}: {item}" for key, item in TASK_DESCR.items()])
+
     parser.add_argument("--output", 
         default=os.path.join("results", "logreg_models"),
         help="where to store output")
     parser.add_argument("--datadir", default=None, 
         help="data directory (if None, uses a directory defined below)")
     parser.add_argument("--task", default="run_regr", 
-        help="run_regr, analyse or plot")
-
+        help=(f"TASKS: {TASK_STR}"))
+        
         # technical parameters
     parser.add_argument("--plt_bkend", default=None, 
         help="switch mpl backend when running on server")
@@ -354,60 +437,19 @@ if __name__ == "__main__":
     parser.add_argument("--dict_path", default=None, 
         help=("path to info dictionary directories from which "
             "to plot data."))
+
         # plot modif
     parser.add_argument("--modif", action="store_true", 
         help=("run plot task using modified plots."))
 
     args = parser.parse_args()
 
-    logger_util.set_level(level=args.log_level)
-
-    args.device = gen_util.get_device(args.cuda)
-    args.fontdir = DEFAULT_FONTDIR
+    return args
 
 
-    if args.comp == "all":
-        comps = logreg.get_comps(args.stimtype, args.q1v4, args.regvsurp)
-    else:
-        check_args(args.comp, args.stimtype, args.q1v4, args.regvsurp)
-        comps = gen_util.list_if_not(args.comp)
+#############################################
+if __name__ == "__main__":
 
-    args.output = format_output(
-        args.output, args.runtype, args.q1v4, args.bal, args.regvsurp)
-
-    args_orig = copy.deepcopy(args)
-
-    if args.dict_path is not None:
-        plot_dicts.plot_from_dicts(
-            args.dict_path, source="logreg", plt_bkend=args.plt_bkend, 
-            fontdir=args.fontdir, parallel=args.parallel)
-
-    else:
-        for comp in comps:
-            args = copy.deepcopy(args_orig)
-            args.comp = comp
-            args.not_ctrl = not(set_ctrl(not(args.not_ctrl), comp=args.comp))
-
-            logger.info(f"Task: {args.task}\nStim: {args.stimtype} "
-                f"\nComparison: {args.comp}\n", extra={"spacing": "\n"})
-
-            if args.task == "run_regr":
-                run_regr(args)
-
-            # collates regression runs and analyses accuracy
-            elif args.task == "analyse":
-                logger.info(f"Folder: {args.output}")
-                logreg.run_analysis(
-                    args.output, args.stimtype, args.comp, not(args.not_ctrl), 
-                    args.CI, args.alg, args.parallel)
-
-            elif args.task == "plot":
-                logreg.run_plot(
-                    args.output, args.stimtype, args.comp, not(args.not_ctrl), 
-                    args.bri_dir, args.fluor, not(args.no_scale), args.CI, 
-                    args.alg, args.plt_bkend, args.fontdir, args.modif)
-
-            else:
-                gen_util.accepted_values_error("args.task", args.task, 
-                    ["run_regr", "analyse", "plot"])
+    args = parse_args()
+    main(args)
 
