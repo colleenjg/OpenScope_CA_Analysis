@@ -24,10 +24,10 @@ from util import file_util, gen_util, logger_util
 
 
 #############################################
-def get_sess_dirs(masterdir, sessid, expid, segid, mouseid, runtype="prod",
+def get_sess_dirs(maindir, sessid, expid, segid, mouseid, runtype="prod",
                   mouse_dir=True, check=True):
     """
-    get_sess_dirs(masterdir, sessid, expid, segid, mouseid)
+    get_sess_dirs(maindir, sessid, expid, segid, mouseid)
 
     Returns the full path names of the session directory and subdirectories for 
     the specified session and experiment on the given date that can be used for 
@@ -36,12 +36,12 @@ def get_sess_dirs(masterdir, sessid, expid, segid, mouseid, runtype="prod",
     Also checks existence of expected directories.
  
     Required arguments:
-        - masterdir (str): name of the master data directory
-        - sessid (int)   : session ID (9 digits)
-        - expid (str)    : experiment ID (9 digits)
-        - segid (str)    : segmentation ID (9 digits)
-        - mouseid (str)  : mouse 6-digit ID string used for session files
-                           e.g. "389778" 
+        - maindir (str): name of the main data directory
+        - sessid (int) : session ID (9 digits)
+        - expid (str)  : experiment ID (9 digits)
+        - segid (str)  : segmentation ID (9 digits)
+        - mouseid (str): mouse 6-digit ID string used for session files
+                         e.g. "389778" 
 
     Optional arguments
         - runtype (str)   : "prod" (production) or "pilot" data
@@ -64,10 +64,10 @@ def get_sess_dirs(masterdir, sessid, expid, segid, mouseid, runtype="prod",
     
     # get the name of the session and experiment data directories
     if mouse_dir:
-        sessdir = os.path.join(masterdir, runtype, f"mouse_{mouseid}", 
+        sessdir = os.path.join(maindir, runtype, f"mouse_{mouseid}", 
             f"ophys_session_{sessid}")
     else:
-        sessdir = os.path.join(masterdir, runtype, f"ophys_session_{sessid}")
+        sessdir = os.path.join(maindir, runtype, f"ophys_session_{sessid}")
 
     expdir   = os.path.join(sessdir, f"ophys_experiment_{expid}")
     procdir  = os.path.join(expdir, "processed")
@@ -86,22 +86,22 @@ def get_sess_dirs(masterdir, sessid, expid, segid, mouseid, runtype="prod",
 
 
 #############################################
-def get_file_names(masterdir, sessid, expid, segid, date, mouseid, 
+def get_file_names(maindir, sessid, expid, segid, date, mouseid, 
                    runtype="prod", mouse_dir=True, check=True):
     """
-    get_file_names(masterdir, sessionid, expid, date, mouseid)
+    get_file_names(maindir, sessionid, expid, date, mouseid)
 
     Returns the full path names of all of the expected data files in the 
-    master directory for the specified session and experiment on the given date 
+    main directory for the specified session and experiment on the given date 
     that can be used for the Credit Assignment analysis.
  
     Required args:
-        - masterdir (str): name of the master data directory
-        - sessid (int)   : session ID (9 digits)
-        - expid (str)    : experiment ID (9 digits)
-        - segid (str)    : segmentation ID (9 digits)
-        - date (str)     : date for the session in YYYYMMDD, e.g. "20160802"
-        - mouseid (str)  : mouse 6-digit ID string used for session files
+        - maindir (str): name of the main data directory
+        - sessid (int) : session ID (9 digits)
+        - expid (str)  : experiment ID (9 digits)
+        - segid (str)  : segmentation ID (9 digits)
+        - date (str)   : date for the session in YYYYMMDD, e.g. "20160802"
+        - mouseid (str): mouse 6-digit ID string used for session files
 
     Optional args:
         - runtype (str)   : "prod" (production) or "pilot" data
@@ -150,10 +150,10 @@ def get_file_names(masterdir, sessid, expid, segid, date, mouseid,
     """
     
     sessdir, expdir, procdir, demixdir, segdir = get_sess_dirs(
-        masterdir, sessid, expid, segid, mouseid, runtype, mouse_dir, check)
+        maindir, sessid, expid, segid, mouseid, runtype, mouse_dir, check)
 
     roi_trace_paths = get_roi_trace_paths(
-        masterdir, sessid, expid, segid, mouseid, runtype, mouse_dir, 
+        maindir, sessid, expid, segid, mouseid, runtype, mouse_dir, 
         dendritic=False, check=False) # will check below, if required
 
     # set the file names
@@ -203,16 +203,16 @@ def get_file_names(masterdir, sessid, expid, segid, date, mouseid,
 
 
 #############################################
-def get_file_names_from_sessid(masterdir, sessid, runtype="prod", check=True):
+def get_file_names_from_sessid(maindir, sessid, runtype="prod", check=True):
     """
-    get_file_names_from_sessid(masterdir, sessid)
+    get_file_names_from_sessid(maindir, sessid)
 
     Returns the full path names of all of the expected data files in the 
-    master directory for the specified session.
+    main directory for the specified session.
  
     Required args:
-        - masterdir (str): name of the master data directory
-        - sessid (int)   : session ID (9 digits)
+        - maindir (str): name of the main data directory
+        - sessid (int) : session ID (9 digits)
 
     Optional args:
         - runtype (str)   : "prod" (production) or "pilot" data
@@ -227,7 +227,7 @@ def get_file_names_from_sessid(masterdir, sessid, runtype="prod", check=True):
         - filepaths (dict): dictionary of file paths (see get_file_names)
     """
 
-    sessdir, mouse_dir = get_sess_dir_path(masterdir, sessid, runtype)
+    sessdir, mouse_dir = get_sess_dir_path(maindir, sessid, runtype)
 
     mouseid, date = get_mouseid_date(sessdir, sessid)
 
@@ -235,23 +235,23 @@ def get_file_names_from_sessid(masterdir, sessid, runtype="prod", check=True):
     segid = get_segid(sessdir)
 
     dirpaths, filepaths = get_file_names(
-        masterdir, sessid, expid, segid, date, mouseid, runtype, mouse_dir, 
+        maindir, sessid, expid, segid, date, mouseid, runtype, mouse_dir, 
         check)
 
     return dirpaths, filepaths
 
 
 #############################################
-def get_sess_dir_path(masterdir, sessid, runtype="prod"):
+def get_sess_dir_path(maindir, sessid, runtype="prod"):
     """
-    get_sess_dir_path(masterdir, sessid)
+    get_sess_dir_path(maindir, sessid)
 
     Returns the path to the session directory, and whether a mouse directory 
     is included in the path.
 
     Required args:
-        - masterdir (str): master directory
-        - sessid (int)   : session ID
+        - maindir (str): main directory
+        - sessid (int) : session ID
 
     Optional args:
         - runtype (str): "prod" (production) or "pilot" data
@@ -269,13 +269,13 @@ def get_sess_dir_path(masterdir, sessid, runtype="prod"):
 
     # set the session directory (full path)
     wild_dir  = os.path.join(
-        masterdir, runtype, "mouse_*", f"ophys_session_{sessid}")
+        maindir, runtype, "mouse_*", f"ophys_session_{sessid}")
     name_dir  = glob.glob(wild_dir)
     
     # pilot data may not be in a "mouse_" folder
     if len(name_dir) == 0:
         wild_dir  = os.path.join(
-            masterdir, runtype,  f"ophys_session_{sessid}")
+            maindir, runtype,  f"ophys_session_{sessid}")
         name_dir  = glob.glob(wild_dir)
         mouse_dir = False
     else:
@@ -283,10 +283,10 @@ def get_sess_dir_path(masterdir, sessid, runtype="prod"):
 
     if len(name_dir) == 0:
         raise OSError(f"Could not find directory for session {sessid} "
-            f"(runtype {runtype}) in {masterdir} subfolders.")
+            f"(runtype {runtype}) in {maindir} subfolders.")
     elif len(name_dir) > 1:
         raise OSError(f"Found {len(name_dir)} matching session folders in "
-            f"{masterdir} instead of 1.")
+            f"{maindir} instead of 1.")
 
     sess_dir = name_dir[0]
 
@@ -438,21 +438,21 @@ def get_segid(sessdir):
 
 
 #############################################
-def get_dendritic_mask_path(masterdir, sessid, expid, mouseid, runtype="prod", 
+def get_dendritic_mask_path(maindir, sessid, expid, mouseid, runtype="prod", 
                             mouse_dir=True, check=True):
     """
-    get_dendritic_mask_path(masterdir, sessid, expid, mouseid)
+    get_dendritic_mask_path(maindir, sessid, expid, mouseid)
 
     Returns path to dendritic mask file.
 
     Required args:
-        - masterdir (str): name of the master data directory
-        - sessid (int)   : session ID (9 digits), e.g. "712483302"
-        - expid (str)    : experiment ID (9 digits), e.g. "715925563"
-        - date (str)     : date for the session in YYYYMMDD
-                           e.g. "20160802"
-        - mouseid (str)  : mouse 6-digit ID string used for session files
-                           e.g. "389778" 
+        - maindir (str): name of the main data directory
+        - sessid (int) : session ID (9 digits), e.g. "712483302"
+        - expid (str)  : experiment ID (9 digits), e.g. "715925563"
+        - date (str)   : date for the session in YYYYMMDD
+                         e.g. "20160802"
+        - mouseid (str): mouse 6-digit ID string used for session files
+                         e.g. "389778" 
 
     Optional args:
         - runtype (str)   : "prod" (production) or "pilot" data
@@ -468,7 +468,7 @@ def get_dendritic_mask_path(masterdir, sessid, expid, mouseid, runtype="prod",
     """
 
     procdir = get_sess_dirs(
-        masterdir, sessid, expid, None, mouseid, runtype, mouse_dir, 
+        maindir, sessid, expid, None, mouseid, runtype, mouse_dir, 
         check=check)[2]
 
 
@@ -481,16 +481,16 @@ def get_dendritic_mask_path(masterdir, sessid, expid, mouseid, runtype="prod",
 
 
 #############################################
-def get_dendritic_mask_path_from_sessid(masterdir, sessid, runtype="prod", 
+def get_dendritic_mask_path_from_sessid(maindir, sessid, runtype="prod", 
                                         check=True):
     """
-    get_dendritic_mask_path_from_sessid(masterdir, sessid)
+    get_dendritic_mask_path_from_sessid(maindir, sessid)
 
     Returns path to dendritic mask file for the specified session.
 
     Required args:
-        - masterdir (str): master directory
-        - sessid (int)   : session ID
+        - maindir (str): main directory
+        - sessid (int) : session ID
 
     Optional args:
         - runtype (str)   : "prod" (production) or "pilot" data
@@ -503,14 +503,14 @@ def get_dendritic_mask_path_from_sessid(masterdir, sessid, runtype="prod",
         - maskfile (str): full path name of the extract masks hdf5 file
     """
 
-    sessdir, mouse_dir = get_sess_dir_path(masterdir, sessid, runtype)
+    sessdir, mouse_dir = get_sess_dir_path(maindir, sessid, runtype)
 
     mouseid = get_mouseid(sessdir, mouse_dir)
 
     expid = get_expid(sessdir)
 
     maskfile = get_dendritic_mask_path(
-        masterdir, sessid, expid, mouseid, runtype, mouse_dir, check)
+        maindir, sessid, expid, mouseid, runtype, mouse_dir, check)
 
     return maskfile
 
@@ -546,22 +546,22 @@ def get_dendritic_trace_path(orig_file, check=True):
 
 
 #############################################
-def get_roi_trace_paths(masterdir, sessid, expid, segid, mouseid, 
+def get_roi_trace_paths(maindir, sessid, expid, segid, mouseid, 
                         runtype="prod", mouse_dir=True, dendritic=False, 
                         check=True):
     """
-    get_roi_trace_paths(masterdir, sessid, expid, segid, mouseid)
+    get_roi_trace_paths(maindir, sessid, expid, segid, mouseid)
 
     Returns the full path names of all of the expected ROI trace files in the 
-    master directory.
+    main directory.
 
     Required arguments:
-        - masterdir (str): name of the master data directory
-        - sessid (int)   : session ID (9 digits)
-        - expid (str)    : experiment ID (9 digits)
-        - segid (str)    : segmentation ID (9 digits)
-        - mouseid (str)  : mouse 6-digit ID string used for session files
-                           e.g. "389778" 
+        - maindir (str): name of the main data directory
+        - sessid (int) : session ID (9 digits)
+        - expid (str)  : experiment ID (9 digits)
+        - segid (str)  : segmentation ID (9 digits)
+        - mouseid (str): mouse 6-digit ID string used for session files
+                         e.g. "389778" 
 
     Optional arguments
         - runtype (str)   : "prod" (production) or "pilot" data
@@ -590,7 +590,7 @@ def get_roi_trace_paths(masterdir, sessid, expid, segid, mouseid,
     """
 
     _, expdir, procdir, demixdir, _ = get_sess_dirs(
-        masterdir, sessid, expid, segid, mouseid, runtype, mouse_dir, check)
+        maindir, sessid, expid, segid, mouseid, runtype, mouse_dir, check)
 
     roi_trace_paths = {
         "unproc_roi_trace_h5": os.path.join(procdir, "roi_traces.h5"),
@@ -612,17 +612,17 @@ def get_roi_trace_paths(masterdir, sessid, expid, segid, mouseid,
 
 
 #############################################
-def get_roi_trace_paths_from_sessid(masterdir, sessid, runtype="prod", 
+def get_roi_trace_paths_from_sessid(maindir, sessid, runtype="prod", 
                                     dendritic=False, check=True):
     """
-    get_roi_trace_paths_from_sessid(masterdir, sessid)
+    get_roi_trace_paths_from_sessid(maindir, sessid)
 
     Returns the full path names of all of the expected ROI trace files in the 
-    master directory for the specified session.
+    main directory for the specified session.
 
     Required args:
-        - masterdir (str): master directory
-        - sessid (int)   : session ID
+        - maindir (str): main directory
+        - sessid (int) : session ID
 
     Optional args:
         - runtype (str)   : "prod" (production) or "pilot" data
@@ -639,7 +639,7 @@ def get_roi_trace_paths_from_sessid(masterdir, sessid, runtype="prod",
                                   (see get_roi_trace_paths)
     """
 
-    sessdir, mouse_dir = get_sess_dir_path(masterdir, sessid, runtype)
+    sessdir, mouse_dir = get_sess_dir_path(maindir, sessid, runtype)
 
     mouseid = get_mouseid(sessdir, mouse_dir)
 
@@ -647,28 +647,28 @@ def get_roi_trace_paths_from_sessid(masterdir, sessid, runtype="prod",
     segid = get_segid(sessdir)
 
     roi_trace_paths = get_roi_trace_paths(
-        masterdir, sessid, expid, segid, mouseid, runtype, mouse_dir, 
+        maindir, sessid, expid, segid, mouseid, runtype, mouse_dir, 
         dendritic, check)
 
     return roi_trace_paths
 
 
 #############################################
-def get_pupil_data_h5_path(masterdir):
+def get_pupil_data_h5_path(maindir):
     """
-    get_pupil_data_h5_path(masterdir)
+    get_pupil_data_h5_path(maindir)
 
     Returns path to pupil data h5 file.
 
     Required args:
-        - masterdir (str): name of the master data directory
+        - maindir (str): name of the main data directory
 
     Returns:
         - pup_data_h5 (str): if full path name of the pupil h5 file
     """
 
     name_part = "*pupil_data_df.h5"
-    pupil_data_files = glob.glob(os.path.join(masterdir, name_part))
+    pupil_data_files = glob.glob(os.path.join(maindir, name_part))
 
     if len(pupil_data_files) == 1:
         pup_data_h5 = pupil_data_files[0]
@@ -681,17 +681,17 @@ def get_pupil_data_h5_path(masterdir):
 
 
 #############################################
-def get_nway_match_path_from_sessid(masterdir, sessid, runtype="prod", 
+def get_nway_match_path_from_sessid(maindir, sessid, runtype="prod", 
                                     check=True):
     """
-    get_nway_match_path_from_sessid(masterdir, sessid)
+    get_nway_match_path_from_sessid(maindir, sessid)
 
-    Returns the full path name for the nway match file in the master directory 
+    Returns the full path name for the nway match file in the main directory 
     for the specified session.
 
     Required args:
-        - masterdir (str): master directory
-        - sessid (int)   : session ID
+        - maindir (str): main directory
+        - sessid (int) : session ID
 
     Optional args:
         - runtype (str)   : "prod" (production) or "pilot" data
@@ -704,7 +704,7 @@ def get_nway_match_path_from_sessid(masterdir, sessid, runtype="prod",
         - nway_match_path (str): n-way match path
     """
 
-    sessdir, mouse_dir = get_sess_dir_path(masterdir, sessid, runtype)
+    sessdir, mouse_dir = get_sess_dir_path(maindir, sessid, runtype)
 
     mouseid = get_mouseid(sessdir, mouse_dir)
 
@@ -712,7 +712,7 @@ def get_nway_match_path_from_sessid(masterdir, sessid, runtype="prod",
     segid = get_segid(sessdir)
 
     _, _, procdir, _, _ = get_sess_dirs(
-        masterdir, sessid, expid, segid, mouseid, runtype, mouse_dir, check)
+        maindir, sessid, expid, segid, mouseid, runtype, mouse_dir, check)
 
     nway_match_path = os.path.join(
         procdir, f"mouse_{mouseid}__session_{sessid}__nway_matched_rois.json"

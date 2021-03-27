@@ -62,7 +62,7 @@ class Session(object):
 
         Attributes:
             - droptol (num)  : dropped frame tolerance (proportion of total)
-            - home (str)     : path of the master data directory
+            - home (str)     : path of the main data directory
             - runtype (str)  : "prod" (production) or "pilot" data
             - sessid (int)   : session ID (9 digits), e.g. "712483302"
         
