@@ -188,6 +188,11 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
         gs = None
         n_rows = 1
 
+    if datatype == "roi" and not figpar["save"]["save_fig"]:
+        warnings.warn("Figure plotting is being skipped. Since full ROI traces "
+            "are not saved to dictionary, to actually plot traces, analysis "
+            "will have to be rerun with 'save_fig' set to True.")
+
     fig, ax = plot_util.init_fig(n_sess*n_rows, gs=gs, **figpar["init"])
 
     label_height = 0.8
@@ -241,6 +246,7 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
     savename = f"{datatype}_tr_{sessstr}{dendstr}"
     fulldir = plot_util.savefig(
         fig, savename, savedir, dpi=400, **figpar["save"])
+
 
     return fulldir, savename
 
