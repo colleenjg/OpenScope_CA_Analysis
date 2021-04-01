@@ -353,8 +353,9 @@ class Session(object):
 
         [stim_df, stimtype_order, stim2twopfr, twop_fps, twop_fr_stim] = \
             sess_load_util.load_stim_df_info(
-                self.stim_pkl, self.stim_sync_h5, self.align_pkl, self.dir, 
-                self.runtype)
+                self.stim_pkl, self.stim_sync_h5, self.time_sync_h5,
+                self.align_pkl, self.sessid, self.dir, self.runtype
+                )
 
         self.stim_df        = stim_df
         self.stimtype_order = stimtype_order
@@ -366,7 +367,7 @@ class Session(object):
 
 
     #############################################
-    def _load_sync_h5_data(self, check_stim2twopfr2=False):
+    def _load_sync_h5_data(self, check_stim2twopfr2=True):
         """
         self._load_sync_h5_data()
 

@@ -145,10 +145,10 @@ def load_small_stim_pkl(stim_pkl, runtype="prod"):
 
 
 #############################################
-def load_stim_df_info(stim_pkl, stim_sync_h5, align_pkl, sessdir, 
-                      runtype="prod"):
+def load_stim_df_info(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid, 
+                      sessdir, runtype="prod"):
     """
-    load_stim_df_info(stim_pkl, align_pkl, stim_sync_h5)
+    load_stim_df_info(stim_pkl, stim_sync_h5, align_pkl, sessdir, sessid)
 
     Creates the alignment dataframe (stim_df) and saves it as a pickle
     in the session directory, if it does not already exist. Returns dataframe, 
@@ -157,9 +157,14 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, align_pkl, sessdir,
     Required args:
         - stim_pkl (str)    : full path name of the experiment stim pickle 
                               file
+        - stim_sync_h5 (str): full path name of the experiment sync hdf5 file
+        - time_sync_h5 (str): full path name of the time synchronization hdf5 
+                              file
         - align_pkl (str)   : full path name of the output pickle file to 
                               create
-        - stim_sync_h5 (str): full path name of the experiment sync hdf5 file
+        - sessid (int)      : session ID, needed the check whether this session 
+                              needs to be treated differently (e.g., for 
+                              alignment bugs)
         - sessdir (str)     : session directory
 
     Optional args:
@@ -183,7 +188,8 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, align_pkl, sessdir,
     # create stim_df if doesn't exist
     if not os.path.exists(align_pkl):
         sess_sync_util.get_stim_frames(
-            stim_pkl, stim_sync_h5, align_pkl, runtype)
+            stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid, runtype, 
+            )
         
     else:
         logging.info("NOTE: Stimulus alignment pickle already exists in "
@@ -418,6 +424,57 @@ def load_pup_data(pup_data_h5):
 
 
 #############################################
+def load_pup_sync_h5_data(pup_video_h5):
+    """
+    load_pup_sync_h5_data(pup_video_h5)
+
+    Returns pupil synchronization information.
+
+    Required args:
+        - pup_video_h5 (str): path to the pupil video h5 file
+
+    Returns:
+        - pup_fr_interv (1D array): interval in sec between each pupil 
+                                    frame
+    """
+
+    with h5py.File(pup_video_h5, "r") as f:
+        pup_fr_interv = f["frame_intervals"][()].astype("float64")
+
+    return pup_fr_interv
+
+
+#############################################
+def load_beh_sync_h5_data(time_sync_h5):
+    """
+    load_beh_sync_h5_data(time_sync_h5)
+
+    Returns behaviour synchronization information.
+
+    Required args:
+        - time_sync_h5 (str): path to the time synchronization hdf5 file
+
+    Returns:
+        - twop2bodyfr (1D array)  : body-tracking video (video-0) frame 
+                                    numbers for each 2p frame
+        - twop2pupfr (1D array)   : eye-tracking video (video-1) frame 
+                                    numbers for each 2p frame
+        - stim2twopfr2 (1D array) : 2p frame numbers for each stimulus 
+                                    frame, as well as the flanking
+                                    blank screen frames (second 
+                                    version, very similar to stim2twopfr 
+                                    with a few differences)
+    """
+
+    with h5py.File(time_sync_h5, "r") as f:
+        twop2bodyfr  = f["body_camera_alignment"][()].astype("int")
+        twop2pupfr   = f["eye_tracking_alignment"][()].astype("int")
+        stim2twopfr2 = f["stimulus_alignment"][()].astype("int")
+
+    return twop2bodyfr, twop2pupfr, stim2twopfr2
+
+
+#############################################
 def load_sync_h5_data(pup_video_h5, time_sync_h5):
     """
     load_sync_h5_data(pup_video_h5, time_sync_h5)
@@ -442,13 +499,9 @@ def load_sync_h5_data(pup_video_h5, time_sync_h5):
                                     with a few differences)
     """
 
-    with h5py.File(pup_video_h5, "r") as f:
-        pup_fr_interv = f["frame_intervals"][()].astype("float64")
+    pup_fr_interv = load_pup_sync_h5_data(pup_video_h5)
 
-    with h5py.File(time_sync_h5, "r") as f:
-        twop2bodyfr  = f["body_camera_alignment"][()].astype("int")
-        twop2pupfr   = f["eye_tracking_alignment"][()].astype("int")
-        stim2twopfr2 = f["stimulus_alignment"][()].astype("int")
+    twop2bodyfr, twop2pupfr, stim2twopfr2 = load_beh_sync_h5_data(time_sync_h5)
 
     return pup_fr_interv, twop2bodyfr, twop2pupfr, stim2twopfr2
 

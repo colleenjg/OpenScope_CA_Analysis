@@ -47,9 +47,9 @@ sessid,mouse_n,mouseid,date,depth,plane,line,runtype,nrois_allen,nrois,sess_gen,
 760260459,4,411771,20181003,375,soma,L5-Rbp4,prod,104,104,1,1,1,P,1,1,yes,33767,
 760659782,4,411771,20181004,375,soma,L5-Rbp4,prod,76,76,2,1,2,P,1,1,yes,32698,
 761269197,4,411771,20181008,375,soma,L5-Rbp4,prod,99,99,3,1,3,P,1,1,yes,17904,
-763949859,5,412933,20181016,75,dend,L23-Cux2,prod,12,1073,1,1,1,F,1,1,yes,44721,ROI not in retinotopic center
-764897534,5,412933,20181017,75,dend,L23-Cux2,prod,11,992,1,2,2,F,1,1,yes,32579,ROI not in retinotopic center
-765427689,5,412933,20181018,75,dend,L23-Cux2,prod,12,881,1,3,3,F,1,1,yes,26850,ROI not in retinotopic center
+763949859,5,412933,20181016,75,dend,L23-Cux2,prod,12,1073,1,1,1,F,1,1,yes,44721,ROIs not in retinotopic center
+764897534,5,412933,20181017,75,dend,L23-Cux2,prod,11,992,1,2,2,F,1,1,yes,32579,ROIs not in retinotopic center
+765427689,5,412933,20181018,75,dend,L23-Cux2,prod,12,881,1,3,3,F,1,1,yes,26850,ROIs not in retinotopic center
 766755831,5,412933,20181022,50,dend,L23-Cux2,prod,75,350,1,4,4,P,1,1,yes,39002,
 767254594,5,412933,20181023,50,dend,L23-Cux2,prod,84,172,2,1,5,P,1,1,yes,6698,
 768807532,5,412933,20181025,50,dend,L23-Cux2,prod,129,256,3,1,6,P,1,1,yes,8612,
