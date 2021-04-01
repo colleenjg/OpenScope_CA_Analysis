@@ -22,7 +22,8 @@ import json
 import numpy as np
 import pandas as pd
 import pickle
-import scipy
+from scipy import signal as scisig
+from scipy import stats as scist
 from allensdk.brain_observatory import sync_dataset, sync_utilities
 from allensdk.brain_observatory.extract_running_speed import __main__ as running_main
 from allensdk.brain_observatory.behavior import running_processing
@@ -39,6 +40,10 @@ TAB = "    "
 WHEEL_RADIUS = 6.5 * 2.54 / 2 # diameter in inches to radius in cm
 WHEEL_RADIUS = 6.5 * 2.54 / 2 # diameter in inches to radius in cm
 SUBJECT_POSITION = 2 / 3
+
+# for some sessions, the second alignment is needed to adjust the first, as it 
+# is robust to a 2p dropped frame bug that occurred before the stimulus started.
+ADJUST_SECOND_ALIGNMENT = [833704570]
 
 #############################################
 def check_drop_tolerance(n_drop_stim_fr, tot_stim_fr, droptol=0.0003, 
@@ -167,9 +172,11 @@ def get_frame_rate(syn_file_name):
 
 
 #############################################
-def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype="prod"):
+def get_stim_frames(pkl_file_name, syn_file_name, time_sync_h5, df_pkl_name, 
+                    sessid, runtype="prod"):
     """
-    get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name)
+    get_stim_frames(pkl_file_name, syn_file_name, time_sync_h5, df_pkl_name, 
+                    sessid)
 
     Pulls out the stimulus frame information from the stimulus pickle file, as
     well as synchronization information from the stimulus sync file, and stores
@@ -180,12 +187,16 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype="prod"):
         - pkl_file_name (str): full path name of the experiment stim pickle 
                                file
         - syn_file_name (str): full path name of the experiment sync hdf5 file
+        - time_sync_h5 (str) : full path to the time synchronization hdf5 file
         - df_pkl_name (str)  : full path name of the output pickle file to 
                                create
-    
+        - sessid (int)       : session ID, needed the check whether this session 
+                               needs to be treated differently (e.g., for 
+                               alignment bugs)
+
     Optional argument:
-        - runtype (str): the type of run, either "pilot" or "prod"
-                         default: "prod"
+        - runtype (str)  : the type of run, either "pilot" or "prod"
+                           default: "prod"
     """
 
     # check that the pickle file exists
@@ -206,9 +217,26 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype="prod"):
     # get dataset object, sample frequency and vsyncs
     stim_vsync_fall_adj, valid_twop_vsync_fall = get_vsync_falls(syn_file_name)
 
-    # find the alignment
+    # calculate the alignment
     stimulus_alignment = Dataset2p.calculate_stimulus_alignment(
         stim_vsync_fall_adj, valid_twop_vsync_fall)
+
+    # get the second stimulus alignment
+    from sess_util import sess_load_util
+    second_stimulus_alignment = sess_load_util.load_beh_sync_h5_data(
+        time_sync_h5)[2]
+    
+    if len(second_stimulus_alignment) == len(stimulus_alignment) + 1:
+        second_stimulus_alignment = second_stimulus_alignment[:-1]
+
+    if int(sessid) in ADJUST_SECOND_ALIGNMENT:
+        diff = second_stimulus_alignment - stimulus_alignment
+        adjustment = scist.mode(diff)[0][0] # most frequent difference
+        stimulus_alignment += adjustment
+
+    # compare alignments
+    compare_alignments(stimulus_alignment, second_stimulus_alignment)
+
     offset = int(pkl["pre_blank_sec"] * pkl["fps"])
     
     logger.info("Creating the stim_df:")
@@ -247,7 +275,6 @@ def get_stim_frames(pkl_file_name, syn_file_name, df_pkl_name, runtype="prod"):
                 )/frames_per_seg[i]*4./5)]) 
         else:
             raise ValueError(f"{name} stimulus type not recognized.")
-        
         
         # check whether the actual number of frames is within a small range of 
         # expected about two frames per sequence?
@@ -455,8 +482,7 @@ def calculate_running_velocity(stim_fr_timestamps, raw_running_deg,
     linear_velocity[np.isclose(raw_running_rad, 0.0)] = np.nan
 
     if filter_ks != 0:
-        linear_velocity = scipy.signal.medfilt(
-            linear_velocity, kernel_size=filter_ks)
+        linear_velocity = scisig.medfilt(linear_velocity, kernel_size=filter_ks)
 
     return linear_velocity
 
