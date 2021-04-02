@@ -11,16 +11,16 @@ To run the code, you should install [Anaconda](https://www.anaconda.com/) or [Mi
 Once these are installed, you can simply use the appropriate `.yml` 
 file to create a conda environment. For example, if using Ubuntu or Mac OS, open a terminal, go to the repo directory, and enter:
 
-`conda env create -f osca3.yml`
-
-Conda should then handle installing all the necessary dependencies for you.
+1. `conda env create -f osca.yml`  
+2. `source activate osca`  
+3. `pip install pandas==1.1.5` # ignore the warning about a version conflict with the `allensdk` package.
 
 The code is written in `Python 3`. 
 
 ## 3. Use
-Once installed, you simply activate the environment:
+Once installed, when using the codebase, simply activate the environment:
 
-`source activate osca3`
+`source activate osca`
 
 All of the appropriate libraries should then be loaded, and the modules can be imported for use in ipython, python scripts, or jupyter notebooks, for example.
 

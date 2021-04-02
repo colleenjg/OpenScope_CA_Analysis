@@ -99,7 +99,7 @@ def get_monitor_delay(syn_file_name):
 #############################################
 def get_vsync_falls(syn_file_name):
     """
-    get_vsync_falls(stim_sync_file)
+    get_vsync_falls(syn_file_name)
 
     Calculates vsyncs for 2p and stimulus frames. 
 
@@ -145,7 +145,7 @@ def get_vsync_falls(syn_file_name):
 #############################################
 def get_frame_rate(syn_file_name):
     """
-    get_frame_rate(stim_sync_file)
+    get_frame_rate(syn_file_name)
 
     Pulls out the ophys frame times stimulus sync file and returns stats for
     ophys frame rates.

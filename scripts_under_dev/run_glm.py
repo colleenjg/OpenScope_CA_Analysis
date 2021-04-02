@@ -84,19 +84,6 @@ def reformat_args(args):
 
     args = copy.deepcopy(args)
 
-
-    parser.add_argument("--bri_dir", default="both", 
-                        help="brick dir (right, left, or both)") 
-    parser.add_argument("--bri_size", default=128, 
-                        help="brick size (128, 256, or both)")
-    parser.add_argument("--gabfr", default="any", 
-                        help="gabor frames to include")
-    parser.add_argument("--gabk", default=16,
-                        help="kappa value (4, 16, or both)")    
-    parser.add_argument("--gab_ori", default="all",
-                        help="gabor orientation values (0, 45, 90, 135, all)")    
-
-
     [args.bri_dir, args.bri_size, args.gabfr, 
      args.gabk, args.gab_ori] = sess_gen_util.get_params(args.stimtype, 
                                               "both", 128, "any", 16, "any")
