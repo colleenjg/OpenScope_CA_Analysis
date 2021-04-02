@@ -1,0 +1,34 @@
+name: osca
+channels:
+  - defaults
+dependencies:
+  - python==3.6.13
+  - pip
+  - pip:
+      - future
+      - h5py
+      - ipython
+      - jit
+      - jupyter
+      - matplotlib==3.3.1
+      - mkl
+      - numba==0.53.1
+      - numpy==1.18.5
+      - opencv-python
+      - pandas # pandas==1.1.5, allensdk conflict
+      - pyglet
+      - pyyaml
+      - scipy==1.5.4
+      - scikit-learn==0.24.1
+      - seaborn
+      - tables
+      - pillow>=7.2.2
+      - scikit-build==0.10.0
+      - simpleitk
+      - allensdk==1.6.0
+      - pynwb==1.0.2
+      - astropy==4.1
+      - torch==1.8.1
+      - torchaudio
+      - torchvision
+      - pyglm==1.99.3

@@ -35,6 +35,12 @@ logger = logging.getLogger(__name__)
 
 TAB = "    "
 
+# check pandas version
+from packaging import version
+PD_MIN_VERSION = "1.1.1"
+if not version.parse(pd.__version__) >= version.parse(PD_MIN_VERSION):
+    raise OSError(f"Please update pandas package >= {PD_MIN_VERSION}.")
+
 
 #############################################
 #############################################
@@ -367,7 +373,7 @@ class Session(object):
 
 
     #############################################
-    def _load_sync_h5_data(self, check_stim2twopfr2=True):
+    def _load_sync_h5_data(self, check_stim2twopfr2=False):
         """
         self._load_sync_h5_data()
 
@@ -646,12 +652,19 @@ class Session(object):
 
         if rem_noisy:
             min_roi = np.min(traces, axis=1)
-            high_med = ((np.median(traces, axis=1) - min_roi)/\
-                (np.max(traces, axis=1) - min_roi) > 0.5)
 
+            # suppress numpy warnings (empty slice and invalid value)
             nanmean_filt_warn = gen_util.temp_filter_warnings(np.nanmean)
-            sub0_mean = nanmean_filt_warn(traces, axis=1, 
-                msgs=["Mean of empty slice"], categs=[RuntimeWarning]) < 0
+            with np.errstate(invalid='ignore'):
+                high_med = (
+                    ((np.median(traces, axis=1) - min_roi)/
+                    (np.max(traces, axis=1) - min_roi)) 
+                    > 0.5)            
+
+                sub0_mean = nanmean_filt_warn(
+                    traces, axis=1, msgs=["Mean of empty slice"], 
+                    categs=[RuntimeWarning]
+                    ) < 0
             
             warn_str = "None"
             roi_ns = np.where(high_med + sub0_mean)[0]
