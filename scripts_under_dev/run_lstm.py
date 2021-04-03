@@ -5,6 +5,10 @@ import logging
 import multiprocessing
 import sys
 
+# try to set cache/config as early as possible (for clusters)
+from util import gen_util 
+gen_util.CC_config_cache()
+
 from matplotlib import pyplot as plt
 import torch
 import pandas as pd

@@ -251,7 +251,7 @@ def tune_curv_estims(gab_oris, roi_data, ngabs_tot, nrois="all", ngabs="all",
 
 #############################################
 def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all", 
-                    grp2="surp", comb_gabs=True, prev=False, collapse=True, 
+                    grp2="surp", comb_gabs=True, vm_estim=False, collapse=True, 
                     parallel=True):
     """
     calc_tune_curvs(sess, analyspar, stimpar)
@@ -276,8 +276,8 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all",
         - comb_gabs (bool): if True, all gabors have been combined for 
                             gab_oris and roi_data 
                             default: False
-        - prev (bool)     : if True, analysis is run using previous tuning 
-                            estimation method
+        - vm_estim (bool) : if True, analysis is run using a von Mises tuning 
+                            curve estimation method
         - collapse (bool) : if True, opposite orientations in the -180 to 180 
                             range are collapsed to the -90 to 90 range 
         - parallel (bool) : if True, some of the analysis is parallelized 
@@ -293,7 +293,7 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all",
                                       x oris
         - tc_nseqs (list)    : number of sequences per surp
 
-        if prev, also:
+        if vm_estim, also:
         - tc_vm_pars (list)  : nested list of Von Mises parameters for each ROI: 
                                   ROI x surp x gabor (1 if comb_gabs) x par
         - tc_vm_mean (list)  : nested list of mean Von Mises means for each ROI, 
@@ -331,7 +331,8 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all",
         sess_ngabs = np.min([stim.n_patches, ngabs])                
 
     tc_data, tc_oris, tc_nseqs = [], [], []
-    if prev: # PREVIOUS ESTIMATION METHOD
+    # estimate tuning curves by fitting a Von Mises distribution
+    if vm_estim:
         tc_vm_pars, tc_vm_mean, tc_hist_pars = [], [], []
 
     for i, (gf, s) in enumerate(zip(gabfrs, surps)):
@@ -369,7 +370,8 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all",
         tc_oris.append(gab_oris.tolist())
         tc_data.append(roi_data.tolist())
 
-        if prev: # PREVIOUS ESTIMATION METHOD
+        # estimate tuning curves by fitting a Von Mises distribution
+        if vm_estim:
             [gab_tc_oris, gab_tc_data, gab_vm_pars, 
                 gab_vm_mean, gab_hist_pars] = tune_curv_estims(
                     gab_oris, roi_data, ngabs_tot, sess_nrois, sess_ngabs, 
@@ -380,7 +382,7 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all",
             tc_vm_mean.append(gab_vm_mean)
             tc_hist_pars.append(gab_hist_pars)
 
-    if prev:
+    if vm_estim:
         return tc_oris, tc_data, tc_nseqs, tc_vm_pars, tc_vm_mean, tc_hist_pars
     else:
         return tc_oris, tc_data, tc_nseqs

@@ -32,3 +32,4 @@ dependencies:
       - torchaudio
       - torchvision
       - pyglm==1.99.3
+      - git+https://github.com/colleenjg/util.git@osca_mult

@@ -524,16 +524,25 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
                     ).to_numpy().reshape(1, -1)
                 
             sess_traces.append(traces)
-        xran, ac_st = math_util.autocorr_stats(
+
+        # Calculate autocorr stats while filtering some warnings
+        autocorr_filt_warn = gen_util.temp_filter_warnings(
+            math_util.autocorr_stats)
+
+        xran, ac_st = autocorr_filt_warn(
             sess_traces, autocorrpar.lag_s, sess.twop_fps, 
             byitem=autocorrpar.byitem, stats=analyspar.stats, 
-            error=analyspar.error)
+            error=analyspar.error, 
+            msgs=["Degrees of freedom", "invalid value encountered"], 
+            categs=[RuntimeWarning, RuntimeWarning])
+
         if not autocorrpar.byitem: # also add a 10x lag
             lag_fr = 10 * int(autocorrpar.lag_s * sess.twop_fps)
             _, ac_st_10x = math_util.autocorr_stats(
                 sess_traces, lag_fr, byitem=autocorrpar.byitem, 
                 stats=analyspar.stats, error=analyspar.error)
             downsamp = range(0, ac_st_10x.shape[-1], 10)
+
             if len(downsamp) != ac_st.shape[-1]:
                 raise ValueError("Failed to downsample correctly. "
                     "Check implementation.")

@@ -1444,14 +1444,14 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar,
 
 
 #############################################
-def plot_prev_analysis(subax_col, xran, gab_oris, gab_data, gab_vm_pars, 
-                       gab_hist_pars, title_str="", fluor="dff"):
+def plot_vm_estim_analysis(subax_col, xran, gab_oris, gab_data, gab_vm_pars, 
+                           gab_hist_pars, title_str="", fluor="dff"):
     """
-    plot_prev_analysis(subax_col, xran, gab_oris, gab_data, gab_vm_pars, 
-                       gab_hist_pars)
+    plot_vm_estim_analysis(subax_col, xran, gab_oris, gab_data, gab_vm_pars, 
+                           gab_hist_pars)
 
     Plots orientation fluorescence data for a specific ROI, as well as ROI 
-    orientation tuning curves. 
+    orientation tuning curves, estimated by fitting a von Mises distribution.
 
     Required args:
         - subax_col (plt Axis)    : axis column
@@ -1585,7 +1585,7 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
             figpar["dirs"]["roi"], 
             figpar["dirs"]["tune_curv"])
     if roi_vm_pars is not None:
-        savedir = os.path.join(savedir, "prev")
+        savedir = os.path.join(savedir, "vm_estim")
 
     log_dir = False
     if n == 0:
@@ -1610,7 +1610,7 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
         title_str = f" for {seq_info[s]} {gab_str}"
         for g, gab_oris in enumerate(surp_oris):
             if roi_vm_pars is not None:
-                plot_prev_analysis(
+                plot_vm_estim_analysis(
                     ax[:, s], xran, gab_oris, roi_data[s][g], 
                     roi_vm_pars[s][g], roi_hist_pars[s][g], title_str, fluor)
             else:
@@ -1684,7 +1684,7 @@ def plot_tune_curve_regr(vm_means, vm_regr, seq_info, gentitle="",
         savedir = os.path.join(
             figpar["dirs"]["roi"], 
             figpar["dirs"]["tune_curv"], 
-            "prev")
+            "vm_estim")
 
     vm_means = np.asarray(vm_means)
     vm_regr = np.asarray(vm_regr)
@@ -1779,7 +1779,7 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
                                           x oris
             ["nseqs"] (list)        : number of sequences per surp
 
-            if tcurvpar["prev"]:
+            if tcurvpar["vm_estim"]:
             ["vm_pars"] (4D array)  : array of Von Mises parameters for each
                                       ROI: 
                                       ROI x surp x gabor (1 if comb_gabs) 
@@ -1817,7 +1817,6 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
                            CPU cores
                            default: False
         - plot_tc (bool) : if True, tuning curves are plotted for each ROI 
-                           (causes errors on the clusters...)
 
     Returns:
         - fulldir (str)     : final name of the directory in which the figure 
@@ -1889,7 +1888,7 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
     if figpar["save"]["use_dt"] is None:
         figpar["save"]["use_dt"] = gen_util.create_time_str()
 
-    if tcurvpar["prev"]: # plot regression
+    if tcurvpar["vm_estim"]: # plot regression
         plot_tune_curve_regr(tcurv_data["vm_mean"], tcurv_data["vm_regr"], 
             seq_info, gentitle, gen_savename, figpar, savedir)
     else:
@@ -1897,7 +1896,12 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
             None, None, fulldir=savedir, log_dir=False, **figpar["save"])
 
     if plot_tc:
-        if not tcurvpar["prev"]: # send None values if not using previous analysis
+        if not tcurvpar["test"]:
+            logger.warning("Plotting tuning curves for each ROI may take a "
+                "while. To skip plotting, set plot_tc to False.", 
+                extra={"spacing": TAB})
+
+        if not tcurvpar["vm_estim"]: # send None values if not using von Mises analysis
             tcurv_data = copy.deepcopy(tcurv_data)
             tcurv_data ["vm_pars"] = [None] * len(tcurv_data["data"])
             tcurv_data ["hist_pars"] = [None] * len(tcurv_data["data"])
