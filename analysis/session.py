@@ -655,7 +655,7 @@ class Session(object):
 
             # suppress numpy warnings (empty slice and invalid value)
             nanmean_filt_warn = gen_util.temp_filter_warnings(np.nanmean)
-            with np.errstate(invalid='ignore'):
+            with np.errstate(invalid="ignore"):
                 high_med = (
                     ((np.median(traces, axis=1) - min_roi)/
                     (np.max(traces, axis=1) - min_roi)) 

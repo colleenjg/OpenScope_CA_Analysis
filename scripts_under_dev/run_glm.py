@@ -20,6 +20,10 @@ import logging
 import os
 import sys
 
+# try to set cache/config as early as possible (for clusters)
+from util import gen_util 
+gen_util.CC_config_cache()
+
 sys.path.extend([".", "../"])
 from analysis import glm
 from util import gen_util, logger_util
@@ -29,28 +33,10 @@ from plot_fcts import plot_from_dicts_tool as plot_dicts
 
 logger = logging.getLogger(__name__)
 
-
-"""
-GLM is run by session? for all mice? Gabfr would have to be different for each 
-Predict average ROI activity across all ROIs for a segment (0.4 s)
-Weight surprise? Hoooowwwww....
-
-
-
-GLM for fMRI!
-Eventually set sessions to do 1, 2, 3... (continuous)
-Identify ROI sensiivities through F-stat? and false discovery correction for 
-multiple comparisons
-
-Change regression criterion: Baysian information criterion or 
-                             log-likelihood of the data
-
-"""
-
-
 DEFAULT_DATADIR = os.path.join("..", "data", "OSCA")
 DEFAULT_MOUSE_DF_PATH = "mouse_df.csv"
 DEFAULT_FONTDIR = os.path.join("..", "tools", "fonts")
+
 
 #############################################
 def reformat_args(args):
@@ -494,3 +480,18 @@ if __name__ == "__main__":
     args = parse_args()
     main(args)
 
+
+"""
+GLM TODO
+
+GLM is run by session? for all mice? Gabfr would have to be different for each 
+Predict average ROI activity across all ROIs for a segment (0.4 s)
+Weight surprise
+
+Eventually set sessions to do 1, 2, 3... (continuous)
+Identify ROI sensitivities through F-stat and false discovery correction for 
+multiple comparisons
+
+Change regression criterion: Baysian information criterion or 
+                             log-likelihood of the data
+"""
