@@ -3706,7 +3706,7 @@ def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None,
             elif permpar.tails != "up":
                 raise ValueError("permpar.tails must be 'up'.")
             seed = gen_util.seed_all(seed, "cpu", log_seed=False)
-            # full_arr: "urp x ROI x sequences
+            # full_arr: surp x ROI x sequences
             integ_data = [gen_util.reshape_df_data(stim.get_roi_data(
                 twop_fr, pre=pre, post=post, fluor=analyspar.fluor, integ=True,
                 remnans=analyspar.remnans, scale=analyspar.scale)["roi_traces"], 

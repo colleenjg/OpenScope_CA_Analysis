@@ -55,7 +55,7 @@ class Session(object):
     pointers to the 2p data.
     """
     
-    def __init__(self, datadir, sessid, runtype="prod", droptol=0.0003, 
+    def __init__(self, datadir, sessid, runtype="prod", drop_tol=0.0003, 
                  verbose=False, only_matched_rois=False):
         """
         self.__init__(datadir, sessid)
@@ -67,7 +67,7 @@ class Session(object):
             - self._init_directory()
 
         Attributes:
-            - droptol (num)  : dropped frame tolerance (proportion of total)
+            - drop_tol (num) : dropped frame tolerance (proportion of total)
             - home (str)     : path of the main data directory
             - runtype (str)  : "prod" (production) or "pilot" data
             - sessid (int)   : session ID (9 digits), e.g. "712483302"
@@ -81,9 +81,10 @@ class Session(object):
             - runtype (str)           : the type of run, either "pilot" or 
                                         "prod"
                                         default: "prod"
-            - droptol (num)           : the tolerance for percentage stimulus 
-                                        frames dropped, create a Warning if  
-                                        this condition isn't met.
+            - drop_tol (num)          : the tolerance for proportion frames 
+                                        dropped (stimulus or running). Warnings 
+                                        are produced when this condition 
+                                        isn't met.
                                         default: 0.0003 
             - verbose (bool)          : if True, will log instructions on next 
                                         steps to load all necessary data
@@ -101,7 +102,7 @@ class Session(object):
             gen_util.accepted_values_error(
                 "runtype", runtype, ["pilot", "prod"])
         self.runtype = runtype
-        self.droptol = droptol
+        self.drop_tol = drop_tol
         self._init_directory()
         self.only_matched_rois = only_matched_rois
 
@@ -298,7 +299,7 @@ class Session(object):
             if self._stim_dict_loaded == loading:
                 return
             else:
-                logging.info("Stimulus dictionary being reloaded with "
+                logger.info("Stimulus dictionary being reloaded with "
                     f"fulldict as {fulldict}.", extra={"spacing": TAB})
         else:
             self._stim_dict_loaded = False
@@ -323,8 +324,8 @@ class Session(object):
             self.sess_stim_seed = sess_load_util.load_sess_stim_seed(
                 self.stim_dict, runtype=self.runtype)
 
-            sess_sync_util.check_drop_tolerance(
-                self.n_drop_stim_fr, self.tot_stim_fr, self.droptol, 
+            sess_sync_util.check_stim_drop_tolerance(
+                self.n_drop_stim_fr, self.tot_stim_fr, self.drop_tol, 
                 raise_exc=False)
 
         self._stim_dict_loaded = loading
@@ -360,8 +361,7 @@ class Session(object):
         [stim_df, stimtype_order, stim2twopfr, twop_fps, twop_fr_stim] = \
             sess_load_util.load_stim_df_info(
                 self.stim_pkl, self.stim_sync_h5, self.time_sync_h5,
-                self.align_pkl, self.sessid, self.dir, self.runtype
-                )
+                self.align_pkl, self.sessid, self.runtype)
 
         self.stim_df        = stim_df
         self.stimtype_order = stimtype_order
@@ -404,7 +404,7 @@ class Session(object):
         """
 
         if hasattr(self, "_sync_h5_data_loaded"):
-            logging.info("Sync h5 info already loaded.", 
+            logger.info("Sync h5 info already loaded.", 
                     extra={"spacing": TAB})
             return
 
@@ -500,7 +500,8 @@ class Session(object):
                 return
         
         velocity = sess_load_util.load_run_data(
-            self.stim_dict, self.stim_sync_h5, filter_ks, diff_thr)
+            self.stim_dict, self.stim_sync_h5, filter_ks, diff_thr, 
+            self.drop_tol)
         
         row_index = pd.MultiIndex.from_product(
             [["frames"], range(len(velocity))], names=["info", "specific"])
@@ -653,26 +654,25 @@ class Session(object):
         if rem_noisy:
             min_roi = np.min(traces, axis=1)
 
-            # suppress numpy warnings (empty slice and invalid value)
-            nanmean_filt_warn = gen_util.temp_filter_warnings(np.nanmean)
-            with np.errstate(invalid="ignore"):
+            # suppress a few NaN-related warnings
+            msgs = ["Mean of empty slice", "invalid value"]
+            categs = [RuntimeWarning, RuntimeWarning]
+            with gen_util.TempWarningFilter(msgs, categs):
                 high_med = (
                     ((np.median(traces, axis=1) - min_roi)/
                     (np.max(traces, axis=1) - min_roi)) 
                     > 0.5)            
-
-                sub0_mean = nanmean_filt_warn(
-                    traces, axis=1, msgs=["Mean of empty slice"], 
-                    categs=[RuntimeWarning]
-                    ) < 0
+                sub0_mean = np.nanmean(traces, axis=1) < 0
             
-            warn_str = "None"
             roi_ns = np.where(high_med + sub0_mean)[0]
-            if len(roi_ns) != 0:
+
+            n_noisy_rois = len(roi_ns)
+            if n_noisy_rois != 0:
                 warn_str = ", ".join([str(x) for x in roi_ns])
-            logger.warning("Noisy ROIs (mean below 0, median above "
-                "midrange) are also included in NaN ROI attributes "
-                f"(but not set to NaN): {warn_str}.", extra={"spacing": TAB})
+                logger.warning(f"{n_noisy_rois} noisy ROIs (mean below 0 or "
+                    "median above midrange) are also included in the NaN ROI "
+                    f"attributes (but not set to NaN): {warn_str}.", 
+                    extra={"spacing": TAB})
             
             nan_arr += high_med + sub0_mean
 
@@ -798,14 +798,13 @@ class Session(object):
         with h5py.File(roi_trace_use, "r") as f:
             
             # obtain scaling facts while filtering All-NaN warning.
-            scale_facts_filt_warn = gen_util.temp_filter_warnings(
-                math_util.scale_facts)
+            with gen_util.TempWarningFilter("All-NaN", RuntimeWarning):
 
-            self.roi_facts_df[("roi_traces", fluor)] = np.asarray(
-                scale_facts_filt_warn(f[dataset][()], axis=1, 
-                sc_type="stand_rob", extrem="perc", nanpol="omit",
-                allow_0=True, msgs="All-NaN", categs=RuntimeWarning
-                )[0:2]).reshape(-1)
+                self.roi_facts_df[("roi_traces", fluor)] = np.asarray(
+                    math_util.scale_facts(f[dataset][()], axis=1, 
+                    sc_type="stand_rob", extrem="perc", nanpol="omit",
+                    allow_0=True
+                    )[0:2]).reshape(-1)
 
         self._set_nanrois(fluor)
         if self.only_matched_rois:
@@ -872,8 +871,6 @@ class Session(object):
         NOTE: "fluor" parameter should not make a difference to the content of 
         the attributes set. It just allows for the code to run when only "raw" 
         or  "dff" traces are present in the data directory.
-
-        NOTE: Once the 
 
         Attributes:
             - _dend (str)           : type of dendrites loaded 
@@ -1221,14 +1218,10 @@ class Session(object):
             raise ValueError("Session attributes missing to extract info. "
                 "Make sure to run self.extract_sess_attribs() first.")
 
-        # load the stimulus, running, alignment and trace information         
-        logger.info("Loading stimulus dictionary...", extra={"spacing": "\n"})
+        # load the stimulus dictionary, alignment dataframe, sync h5 info         
+        logger.info("Loading stimulus and alignment info...")
         self._load_stim_dict(fulldict=fulldict)
-        
-        logger.info(f"Loading alignment dataframe...")
         self._load_align_df()
-         
-        logger.info("Loading sync h5 info...")
         self._load_sync_h5_data()
 
         logger.info("Creating stimulus objects...")
@@ -1999,7 +1992,7 @@ class Session(object):
         # Warn about removed sequences and update pad_seql and twop_fr_seqs 
         # to remove these sequences
         if len(seq_rem) != 0 :
-            logging.warning("Some of the specified frames for sequences "
+            logger.warning("Some of the specified frames for sequences "
                 f"{seq_rem} are out of range so the sequence will not be "
                 "included.", extra={"spacing": "\n"})
             pad_seql     = np.delete(pad_seql, seq_rem)

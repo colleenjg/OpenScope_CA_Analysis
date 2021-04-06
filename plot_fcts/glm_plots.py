@@ -64,8 +64,6 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, datetime=True):
     # 0. Plots the explained variance
     if analysis == "v": # difference correlation
         plot_glm_expl_var(figpar=figpar, savedir=savedir, **info)
-
-
     else:
         warnings.warn(f"No plotting function for analysis {analysis}")
 
@@ -177,7 +175,7 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
 
         fig.suptitle("Explained variance per ROI", y=1)
     else:
-        logging.info("No plots, as only results across ROIs are included")
+        logger.info("No plots, as only results across ROIs are included")
         fig = None
 
     i = 0
