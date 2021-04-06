@@ -17,6 +17,7 @@ import copy
 import logging
 
 import numpy as np
+import pandas as pd
 
 from util import gen_util, logger_util, math_util
 from sess_util import sess_gen_util, sess_ntuple_util
@@ -337,9 +338,14 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
 
         if not integ:
             xran = trace_df.index.unique("time_values").to_numpy()
+        
         # array: stats [me, err] (x ROI) (x frames)
-        trace_stats = gen_util.reshape_df_data(
-            trace_df.loc["stats", ], squeeze_cols=True)
+        # (catch performance warning for unsorted large dataframes)
+        msg, categ = ["indexing past lexsort", pd.errors.PerformanceWarning]
+        with gen_util.TempWarningFilter(msg, categ):
+            trace_stats = gen_util.reshape_df_data(
+                trace_df.loc["stats", ], squeeze_cols=True)
+
         if datatype == "roi":
             if not byroi:
                 trace_stats = trace_stats.squeeze(0)
@@ -676,7 +682,7 @@ def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar,
         rand_mag_rel, act_mag_me_rel, permpar.tails, permpar.p_val, ret_th=True)
     L2_sign, L2_th   = math_util.id_elem(
         rand_L2_rel, act_L2_rel, permpar.tails, permpar.p_val, ret_th=True)
-    
+
     mag_signif, L2_signif = ["no", "no"]
     if str(permpar.tails) == "2":
         if len(mag_sign[0]) == 1:
@@ -802,16 +808,21 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats="mean", error="sem",
             data_me = np.asarray(
                 [math_util.mean_med(all_data[i][s][q], stats, axis=-1, 
                 nanpol=nanpol) for q in range(n_qu)])
+
             if len(data_me.shape) == 1:
                 # add dummy ROI-like axis, e.g. for run data
                 data_me = data_me[:, np.newaxis]
                 all_data[i][s] = \
                     [qu_data[np.newaxis, :] for qu_data in all_data[i][s]]
-            mags["mag_st"][i, 0, s] = math_util.calc_mag_change(
-                data_me, 0, 1, order="stats", op=op_qu, stats=stats, 
-                error=error)
-            mags["L2"][i, 0, s] = math_util.calc_mag_change(
-                data_me, 0, 1, order=2, op=op_qu)
+
+            msgs = ["Degrees of freedom", "invalid value"]
+            categs = [RuntimeWarning, RuntimeWarning]
+            with gen_util.TempWarningFilter(msgs, categs):
+                mags["mag_st"][i, 0, s] = math_util.calc_mag_change(
+                    data_me, 0, 1, order="stats", op=op_qu, stats=stats, 
+                    error=error)
+                mags["L2"][i, 0, s] = math_util.calc_mag_change(
+                    data_me, 0, 1, order=2, op=op_qu)
             sess_data_me.append(data_me)
         # scale
         sess_data_me = np.asarray(sess_data_me)

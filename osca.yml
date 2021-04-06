@@ -18,8 +18,8 @@ dependencies:
       - pandas # pandas==1.1.5, allensdk conflict
       - pyglet
       - pyyaml
-      - scipy==1.5.4
       - scikit-learn==0.24.1
+      - scipy==1.5.4
       - seaborn
       - tables
       - pillow>=7.2.2

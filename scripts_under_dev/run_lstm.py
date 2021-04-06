@@ -124,7 +124,7 @@ def run_sess_lstm(sessid, args):
     if args.parallel and args.plt_bkend is not None:
         plt.switch_backend(args.plt_bkend) # needs to be repeated within joblib
 
-    args.seed = gen_util.seed_all(args.seed, args.device)
+    args.seed = gen_util.seed_all(args.seed, args.device, seed_torch=True)
 
     train_p = 0.8
     lr = 1. * 10**(-args.lr_ex)

@@ -1056,7 +1056,8 @@ def setup_run(quintpar, extrapar, techpar, sess_data, comp="surp",
             ["shuffle"] (bool): if analysis is on shuffled data
             ["uniqueid"] (str): unique ID for the analysis
         - techpar (dict)       : dictionary with technical parameters
-            ["compdir"] (str) : specific output comparison directory
+            ["alg"] (str)      :  algorithm used ("sklearn" or "pytorch")
+            ["compdir"] (str)  : specific output comparison directory
             ["device"] (str)   : device to use (e.g., "cpu" or "cuda")
             ["fontdir"] (str)  : directory in which additional fonts are 
                                  located
@@ -1105,7 +1106,9 @@ def setup_run(quintpar, extrapar, techpar, sess_data, comp="surp",
     extrapar = copy.deepcopy(extrapar)
     if techpar["reseed"]: # reset seed         
         extrapar["seed"] = None
-    extrapar["seed"] = gen_util.seed_all(extrapar["seed"], techpar["device"])
+    extrapar["seed"] = gen_util.seed_all(
+        extrapar["seed"], techpar["device"], 
+        seed_torch=(techpar["alg"] == "pytorch")) # seed torch, if needed
     extrapar["classes"] = get_classes(comp, gab_ori)
     
     [roi_seqs, seq_classes, n_surps] = copy.deepcopy(sess_data)

@@ -518,7 +518,7 @@ def init_sessions(sessids, datadir, mouse_df, runtype="prod", fulldict=True,
             continue
         if pupil:
             sess.load_pup_data()
-        logger.info(f"Finished session {sessid}.")
+        logger.info(f"Finished creating session {sessid}.")
         sessions.append(sess)
 
     return sessions

@@ -274,9 +274,14 @@ def prep_analyses(sess_n, args, mouse_df):
         sessids, args.datadir, mouse_df, sesspar.runtype, fulldict=False, 
         dend=analyspar.dend, pupil=True, run=True)
 
-    logger.info(f"Analysis of {sesspar.plane} responses to "
-        f"{stimpar.stimtype[:-1]} stimuli ({sesspar.runtype} data)"
-        f"\nSessions: {args.sess_n}", extra={"spacing": "\n"})
+    runtype_str = ""
+    if sesspar.runtype != "prod":
+        runtype_str = f" ({sesspar.runtype} data)"
+
+    logger.info(
+        f"Analysis of {sesspar.plane} responses to {stimpar.stimtype[:-1]} "
+        f"stimuli{runtype_str}.\nSession {sesspar.sess_n}", 
+        extra={"spacing": "\n"})
 
     return sessions, analysis_dict
 

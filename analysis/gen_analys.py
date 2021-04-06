@@ -394,7 +394,7 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
     datastr = sess_str_util.datatype_par_str(datatype)
 
     logger.info(f"Calculating and plotting the magnitude changes in {datastr} "
-        f"activity across quintiles \n({sessstr_pr}{dendstr_pr})", 
+        f"activity across quintiles \n({sessstr_pr}{dendstr_pr}).", 
         extra={"spacing": "\n"})
 
     
@@ -526,15 +526,13 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
             sess_traces.append(traces)
 
         # Calculate autocorr stats while filtering some warnings
-        autocorr_filt_warn = gen_util.temp_filter_warnings(
-            math_util.autocorr_stats)
-
-        xran, ac_st = autocorr_filt_warn(
-            sess_traces, autocorrpar.lag_s, sess.twop_fps, 
-            byitem=autocorrpar.byitem, stats=analyspar.stats, 
-            error=analyspar.error, 
-            msgs=["Degrees of freedom", "invalid value encountered"], 
-            categs=[RuntimeWarning, RuntimeWarning])
+        msgs=["Degrees of freedom", "invalid value encountered"]
+        categs=[RuntimeWarning, RuntimeWarning]
+        with gen_util.TempWarningFilter(msgs, categs):
+            xran, ac_st = math_util.autocorr_stats(
+                sess_traces, autocorrpar.lag_s, sess.twop_fps, 
+                byitem=autocorrpar.byitem, stats=analyspar.stats, 
+                error=analyspar.error)
 
         if not autocorrpar.byitem: # also add a 10x lag
             lag_fr = 10 * int(autocorrpar.lag_s * sess.twop_fps)
