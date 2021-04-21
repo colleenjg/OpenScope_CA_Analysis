@@ -15,10 +15,8 @@ Note: this code uses python 3.7.
 
 import copy
 import logging
-import multiprocessing
 import random
 
-import glm
 from joblib import Parallel, delayed
 import numpy as np
 import pandas as pd
@@ -369,7 +367,8 @@ def run_glm(sessions, analyspar, sesspar, stimpar, glmpar, parallel=False):
         roi_cols = roi_cols[:4]
         roi_nbrs = roi_nbrs[:4]
 
-    if parallel and glmpar.each_roi:
+    # optionally runs in parallel
+    if parallel and glmpar.each_roi and len(roi_cols) > 1:
         n_jobs = gen_util.get_n_jobs(len(roi_cols))
         outs = Parallel(n_jobs=n_jobs)(delayed(run_explained_variance)
             (x_df, full_df[cols], analyspar, stimpar, glmpar.k) 
@@ -418,18 +417,17 @@ def run_glms(sessions, analysis, seed, analyspar, sesspar, stimpar, glmpar,
         sess_batches = [sessions]
         logger.info(f"Across ROIs, {len(sessions)} sessions together.")
 
-    if parallel and not(glmpar.each_roi) and len(sess_batches) != 1:
-        n_jobs = gen_util.get_n_jobs(len(sess_batches))
-        all_expl_var = Parallel(n_jobs=n_jobs)(delayed(run_glm)
-            (sessions, analyspar, sesspar, stimpar, glmpar, parallel=False) 
-            for sessions in sess_batches)
-    else:
-        all_expl_var = []
-        for sessions in sess_batches:
-            expl_var = run_glm(
-                sessions, analyspar, sesspar, stimpar, glmpar, 
-                parallel=parallel)
-            all_expl_var.append(expl_var)
+    # optionally runs in parallel, or propagates parallel to next level
+    parallel_here = (
+        parallel and not(glmpar.each_roi) and (len(sess_batches) != 1)
+        )
+    parallel_after = True if (parallel and not(parallel_here)) else False
+
+    args_list = [analyspar, sesspar, stimpar, glmpar]
+    args_dict = {"parallel": parallel_after} # proactively set next parallel
+    all_expl_var = gen_util.parallel_wrap(
+        run_glm, sess_batches, args_list, args_dict, parallel=parallel_here
+        )
     
     if glmpar.each_roi:
         sessions = sess_batches

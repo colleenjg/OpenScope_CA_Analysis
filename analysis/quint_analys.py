@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 
 from util import gen_util, logger_util, math_util
-from sess_util import sess_gen_util, sess_ntuple_util
+from sess_util import sess_ntuple_util
 
 logger = logging.getLogger(__name__)
 

@@ -14,19 +14,14 @@ Note: this code uses python 3.7.
 """
 
 import logging
-import os
 import warnings
 
-import h5py
-import json
 import numpy as np
 import pandas as pd
-import pickle
 from scipy import signal as scisig
 from scipy import stats as scist
 from allensdk.brain_observatory import sync_dataset, sync_utilities
 from allensdk.brain_observatory.extract_running_speed import __main__ as running_main
-from allensdk.brain_observatory.behavior import running_processing
 
 from util import file_util, gen_util, logger_util
 from sess_util import Dataset2p
@@ -37,7 +32,6 @@ SKIP_LAST_ELEMENT = -1
 TAB = "    "
 
 # from https://allensdk.readthedocs.io/en/latest/_modules/allensdk/brain_observatory/behavior/running_processing.html
-WHEEL_RADIUS = 6.5 * 2.54 / 2 # diameter in inches to radius in cm
 WHEEL_RADIUS = 6.5 * 2.54 / 2 # diameter in inches to radius in cm
 SUBJECT_POSITION = 2 / 3
 
@@ -565,7 +559,7 @@ def get_run_velocity(stim_sync_h5, stim_pkl="", stim_dict=None, filter_ks=5):
         wheel_radius=WHEEL_RADIUS,
         subject_position=SUBJECT_POSITION,
         use_median_duration=False,
-        filter_ks=filter_ks
+        filter_ks=filter_ks,
     )
 
     return running_velocity

@@ -12,12 +12,9 @@ Note: this code uses python 3.7.
 
 """
 
-import copy
 import logging
-import os
 
 import numpy as np
-import pandas as pd
 
 from analysis import session
 from sess_util import sess_str_util

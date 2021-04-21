@@ -19,6 +19,7 @@ import numpy as np
 
 from util import logger_util
 
+
 #############################################
 def get_center_dist_diff(center_x, center_y):
     """

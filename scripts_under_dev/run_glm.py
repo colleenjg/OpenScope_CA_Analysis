@@ -27,9 +27,9 @@ gen_util.CC_config_cache()
 sys.path.extend([".", "../"])
 from analysis import glm
 from util import gen_util, logger_util
-from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util, \
-                      sess_plot_util
+from sess_util import sess_gen_util, sess_ntuple_util, sess_plot_util
 from plot_fcts import plot_from_dicts_tool as plot_dicts
+
 
 logger = logging.getLogger(__name__)
 
@@ -334,8 +334,7 @@ def run_analyses(sessions, analysis_dict, analyses, seed=None, parallel=False):
     fct_dict = get_analysis_fcts()
 
     args_dict = copy.deepcopy(analysis_dict)
-    for key, item in zip(["seed", "parallel"], 
-        [seed, parallel]):
+    for key, item in zip(["seed", "parallel"], [seed, parallel]):
         args_dict[key] = item
 
     # run through analyses

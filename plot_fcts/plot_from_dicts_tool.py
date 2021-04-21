@@ -16,7 +16,6 @@ import inspect
 import logging
 import os
 
-from joblib import Parallel, delayed
 from matplotlib import pyplot as plt
 
 from util import file_util, gen_util, logger_util
@@ -99,13 +98,10 @@ def plot_from_dicts(direc, source="roi", plt_bkend=None, fontdir=None,
     if len(dict_paths) > 1:
         logger.info(f"Plotting from {len(dict_paths)} dictionaries.")
 
-    sub_parallel = parallel * (len(dict_paths) == 1)
-
     args_dict = {
         "plt_bkend": plt_bkend, 
         "fontdir"  : fontdir,
         "plot_tc"  : plot_tc,
-        "parallel" : sub_parallel,
         "datetime" : datetime,
         }
 
@@ -130,6 +126,7 @@ def plot_from_dicts(direc, source="roi", plt_bkend=None, fontdir=None,
     args_dict = gen_util.keep_dict_keys(
         args_dict, inspect.getfullargspec(fct).args)
     gen_util.parallel_wrap(
-        fct, dict_paths, args_dict=args_dict, parallel=parallel)
+        fct, dict_paths, args_dict=args_dict, parallel=parallel, 
+        pass_parallel=True)
 
     plt.close("all")

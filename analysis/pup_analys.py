@@ -402,7 +402,8 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
                 scale=analyspar.scale)
             [pup_diff, roi_diff] = diffs 
             nrois = roi_diff.shape[-1]
-            if parallel:
+            # optionally runs in parallel
+            if parallel and len(corrs) > 1:
                 n_jobs = gen_util.get_n_jobs(nrois)
                 corrs = Parallel(n_jobs=n_jobs)(delayed(np.corrcoef)
                     (roi_diff[:, r], pup_diff) for r in range(nrois))

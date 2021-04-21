@@ -19,8 +19,6 @@ import os
 import h5py
 import numpy as np
 import pandas as pd
-import pickle
-import scipy
 
 from util import file_util, gen_util, logger_util
 from sess_util import sess_gen_util, sess_sync_util
@@ -257,7 +255,7 @@ def _warn_nans_diff_thr(run, min_consec=5, n_pre_existing=None):
     split_str = ""
     if n_pre_existing is not None:
         if n_pre_existing == n_nans:
-            split_str = " (after pre-processing)"
+            split_str = " (in pre-processing)"
         elif n_pre_existing == 0:
             split_str = " (using diff thresh)"
         else:
@@ -421,7 +419,6 @@ def load_pup_data(pup_data_h5):
                                     each pupil frame in pixels
     """
 
-    logger.info("Loading pupil tracking information.")
     if pup_data_h5 == "none":
         raise OSError("No pupil data file found.")
     elif isinstance(pup_data_h5, list):

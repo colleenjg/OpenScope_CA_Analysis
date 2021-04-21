@@ -20,13 +20,12 @@ import os
 import h5py
 import numpy as np
 import pandas as pd
-import pickle
 import scipy.sparse as sparse
 import scipy.linalg as linalg
-from allensdk.brain_observatory import dff, r_neuropil, roi_masks, demixer
+from allensdk.brain_observatory import dff, r_neuropil, roi_masks
 from allensdk.internal.brain_observatory import mask_set
 
-from util import file_util, gen_util, logger_util
+from util import file_util, logger_util
 from sess_util import sess_file_util
 
 logger = logging.getLogger(__name__)
@@ -493,26 +492,26 @@ def save_roi_dataset(data, save_path, roi_names, data_name="data",
             for key, item in excl_dict.items():
                 hf.create_dataset(key, data=np.asarray(item, dtype="u1"))
 
-
+    
 #############################################
-def demix_rois(raw_traces, h5path, masks, excl_dict):
+def demix_rois(raw_traces, h5path, masks, excl_dict, verbose=False):
     """
     demix_rois(raw_traces, h5path, masks, excl_dict)
-
-    Returns time-dependent demixed traces.
+    Returns time-dependent demixed traces (modified from allensdk, demixer.py, 
+    demix_time_dep_masks to allow partial loading of the stack).
 
     Required args:
         - raw_traces (2D array): extracted traces, structured as ROI x frames
         - h5path (str)         : path to full movie, structured as 
                                  time x height x width
         - masks (3D array)     : ROI mask, structured as ROI x height x width
-        - excl_dict (dict)     : dictionary of masks for different exclusion 
-                                 criteria, where ROIs labeled by the exclusion
-                                 criterion are marked as True, with keys:
-            ["duplicate"]    : mask for duplicate ROIs
-            ["empty"]        : mask for empty ROIs
-            ["motion_border"]: mask for motion border overlapping ROIs
-            ["union"]        : mask for union ROIs
+        - excl_dict (dict)     : dictionary of exclusion masks for different 
+                                 criteria
+                                 default: None
+    
+    Optional args:
+        - verbose (bool): if True, singular matrix warning is printed
+                          default: False
 
     Returns:
         - demixed_traces (2D array): demixed traces, with excluded ROIs set to 
@@ -541,15 +540,55 @@ def demix_rois(raw_traces, h5path, masks, excl_dict):
     masks_valid = masks[valid_mask.astype(bool)]
 
     with h5py.File(h5path, "r") as f:
-        demix_traces, drop_frames = demixer.demix_time_dep_masks(
-            raw_traces_valid, f["data"], masks_valid)
+        stack = f["data"]
+
+        N, T = raw_traces_valid.shape
+        _, x, y = masks_valid.shape
+        P = x * y
+
+        num_pixels_in_mask = np.sum(masks_valid, axis=(1, 2))
+        F = raw_traces_valid.T * num_pixels_in_mask  # shape (T,N)
+        F = F.T
+
+        flat_masks = masks_valid.reshape(N, P)
+        flat_masks = sparse.csr_matrix(flat_masks)
+
+        drop_frames = []
+        demix_traces = np.zeros((N, T))
+        for t in range(T):
+            weighted_mask_sum = F[:, t]
+            drop_test = (weighted_mask_sum == 0)
+            if np.sum(drop_test == 0):
+                norm_mat = sparse.diags(num_pixels_in_mask / weighted_mask_sum, 
+                    offsets=0)
+                stack_t = sparse.diags(stack[t].reshape(-1), offsets=0)
+
+                flat_weighted_masks = norm_mat.dot(flat_masks.dot(stack_t))
+
+                # cast to dense numpy array for linear solver because solution 
+                # is dense
+                overlap = flat_masks.dot(flat_weighted_masks.T).toarray()
+                try:
+                    demix_traces[:, t] = linalg.solve(overlap, F[:, t])
+                except linalg.LinAlgError:
+                    if verbose:
+                        logger.warning(
+                            f"Frame {t}: singular matrix, using least squares"
+                            )
+                    x, _, _, _ = linalg.lstsq(overlap, F[:, t])
+                    demix_traces[:, t] = x
+
+                drop_frames.append(False)
+
+            else:
+                drop_frames.append(True)
 
     # put NaNs in for dropped ROIs
     demix_traces_all = np.full(raw_traces.shape, np.nan)
     demix_traces_all[valid_mask.astype(bool)] = demix_traces
 
     return demix_traces_all, drop_frames
-
+    
 
 ############################################
 def get_neuropil_subtracted_traces(roi_traces, neuropil_traces):
@@ -676,7 +715,8 @@ def create_traces_from_masks(datadir, sessid, runtype="prod", h5dir=None,
 
 
     logger.info("Demixing ROI traces.")
-    demixed_traces, _ = demix_rois(roi_traces, h5path, masks_bool, excl_dict)
+    demixed_traces, _ = demix_rois(roi_traces, h5path, masks_bool, excl_dict, 
+        verbose=False)
 
     logger.info("Saving demixed traces.")
     save_roi_dataset(

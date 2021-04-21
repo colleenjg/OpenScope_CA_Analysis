@@ -12,18 +12,15 @@ Note: this code uses python 3.7.
 
 """
 import copy
-import glob
 import json
 import logging
 import os
-import sys
 import warnings
 
 import h5py
 import itertools
 import numpy as np
 import pandas as pd
-import pickle
 import scipy.stats as st
 import scipy.signal as scsig
 
@@ -217,7 +214,7 @@ class Session(object):
 
 
     ############################################
-    @ property
+    @property
     def roi_masks(self):
         """
         self.roi_masks()
@@ -246,7 +243,7 @@ class Session(object):
 
 
     ############################################
-    @ property
+    @property
     def dend(self):
         """
         self.dend()
@@ -3962,6 +3959,10 @@ class Stim(object):
         """
 
         datatype = "roi_traces"
+
+        if not hasattr(self.sess, "nrois"):
+            raise ValueError("Run 'self.load_roi_info()' to set ROI "
+                "attributes correctly.")
 
         use_pad = pad
         if smooth:

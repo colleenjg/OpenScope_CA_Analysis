@@ -17,13 +17,11 @@ import logging
 import os
 import warnings
 
-from joblib import Parallel, delayed
 from matplotlib import pyplot as plt
 import numpy as np
-import scipy.stats as st
 
-from util import file_util, gen_util, logger_util, math_util, plot_util
-from sess_util import sess_gen_util, sess_plot_util, sess_str_util
+from util import file_util, gen_util, logger_util, plot_util
+from sess_util import sess_plot_util, sess_str_util
 
 logger = logging.getLogger(__name__)
 
@@ -351,7 +349,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
 
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
-
+    
     fig, ax = plot_util.init_fig(n_sess, **figpar["init"])
     for i in range(n_sess):
         sub_ax = plot_util.get_subax(ax, i)
