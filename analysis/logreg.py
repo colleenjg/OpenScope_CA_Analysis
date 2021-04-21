@@ -18,7 +18,6 @@ import copy
 import logging
 import warnings
 
-from joblib import Parallel, delayed
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
@@ -1460,15 +1459,14 @@ def run_regr(sess, analyspar, stimpar, logregpar, quintpar, extrapar, techpar):
             extrapar["shuffle"])
         if logregpar.alg == "pytorch":
             techpar["compdir"] = "{}_pt".format(techpar["compdir"])
-            if techpar["parallel"] and n_runs != 0:
-                n_jobs = gen_util.get_n_jobs(n_runs)
-                Parallel(n_jobs=n_jobs)(delayed(single_run_pt)
-                    (run, analyspar, logregpar, quintpar, sesspar, stimpar, 
-                    extrapar, techpar, sess_data) for run in range(n_runs))
-            elif n_runs != 0:
-                for run in range(n_runs):
-                    single_run_pt(run, analyspar, logregpar, quintpar, sesspar, 
-                        stimpar, extrapar, techpar, sess_data)
+            if n_runs == 0:
+                continue
+            # optionally runs in parallel
+            args_list = [analyspar, logregpar, quintpar, sesspar, stimpar, 
+                extrapar, techpar, sess_data]
+            gen_util.parallel_wrap(
+                single_run_pt, range(n_runs), args_list, 
+                parallel=techpar["parallel"])
         elif logregpar.alg == "sklearn":
             all_runs_sk(n_runs, analyspar, logregpar, quintpar, sesspar, 
                 stimpar, extrapar, techpar, sess_data)
@@ -1666,21 +1664,14 @@ def run_collate(output, stimtype="gabors", comp="surp", ctrl=False,
     all_labels = info_dict() + \
         logreg_util.get_sc_labs(True, ext_test_name=ext_test) + ["saved"]
 
-    if parallel:
-        n_jobs = gen_util.get_n_jobs(len(run_dirs))
-        scores_list = Parallel(n_jobs=n_jobs)(delayed(collate_scores)
-            (run_dir, all_labels, alg) for run_dir in run_dirs)
-        # check for repeated run numbers
-        if len(scores_list) != 0:
-            all_scores = pd.concat(scores_list)
-            all_scores = all_scores[all_labels] # reorder
-        else:
-            all_scores = pd.DataFrame(columns=all_labels)
+    scores_list = gen_util.parallel_wrap(
+        collate_scores, run_dirs, [all_labels, alg], parallel=parallel)
+    # check for repeated run numbers
+    if len(scores_list) != 0:
+        all_scores = pd.concat(scores_list)
+        all_scores = all_scores[all_labels] # reorder
     else:
         all_scores = pd.DataFrame(columns=all_labels)
-        for run_dir in run_dirs:
-            scores = collate_scores(run_dir, all_labels, alg)
-            all_scores = all_scores.append(scores)
 
     # check for and adjust duplicate run numbers
     all_scores = all_scores.reset_index(drop=True)

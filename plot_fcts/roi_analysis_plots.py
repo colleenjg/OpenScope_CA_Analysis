@@ -19,12 +19,11 @@ import warnings
 
 from joblib import Parallel, delayed
 from matplotlib import pyplot as plt
-import matplotlib as mpl
 import numpy as np
 import scipy.stats as st
 
 from util import file_util, gen_util, logger_util, plot_util
-from sess_util import sess_gen_util, sess_plot_util, sess_str_util
+from sess_util import sess_plot_util, sess_str_util
 from plot_fcts import gen_analysis_plots as gen_plots
 
 logger = logging.getLogger(__name__)
@@ -370,7 +369,7 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
 
     n_sess = len(mouse_ns)
 
-    xrans       = [np.asarray(xran) for xran in roi_grps["xrans"]]
+    xrans = [np.asarray(xran) for xran in roi_grps["xrans"]]
     
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
@@ -1315,6 +1314,7 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
     fig_types  = ["byplot", "byreg", f"by{oridirs[0]}{deg}", "byfir"]
     fig_last = len(fig_types) - 1
     
+    # optionally runs in parallel
     if parallel:
         n_jobs = gen_util.get_n_jobs(len(fig_types))
         fulldirs = Parallel(n_jobs=n_jobs)(delayed(plot_oridir_colormap)
@@ -1905,14 +1905,16 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
             tcurv_data = copy.deepcopy(tcurv_data)
             tcurv_data ["vm_pars"] = [None] * len(tcurv_data["data"])
             tcurv_data ["hist_pars"] = [None] * len(tcurv_data["data"])
+        # optionally runs in parallel
         if parallel:
             n_jobs = gen_util.get_n_jobs(len(tcurv_data["data"]))
-            fulldir = Parallel(n_jobs=n_jobs)(delayed(plot_roi_tune_curves)
+            fulldirs = Parallel(n_jobs=n_jobs)(delayed(plot_roi_tune_curves)
                 (tcurv_data["oris"], roi_data, n, sess_nrois, seq_info, 
                 tcurv_data["vm_pars"][n], tcurv_data["hist_pars"][n], 
                 analyspar["fluor"], extrapar["comb_gabs"], gentitle, 
                 gen_savename, figpar, savedir)
                 for n, roi_data in enumerate(tcurv_data["data"]))[0]
+            fulldir = fulldirs[-1]
         else:
             for n, roi_data in enumerate(tcurv_data["data"]):
                 fulldir = plot_roi_tune_curves(tcurv_data["oris"], roi_data, 

@@ -21,7 +21,7 @@ import numpy as np
 
 from util import file_util, gen_util, logger_util, math_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
-from analysis import pup_analys, ori_analys, quint_analys, signif_grps
+from analysis import ori_analys, quint_analys, signif_grps
 from plot_fcts import roi_analysis_plots as roi_plots
 
 logger = logging.getLogger(__name__)
@@ -670,7 +670,8 @@ def run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
     mes = [np.asarray(vals) for vals in zip(*mes)]
     counts = [np.asarray(vals) for vals in zip(*counts)]
 
-    if parallel:
+    # optionally runs in parallel
+    if parallel and len(sessions) > 1:
         n_jobs = gen_util.get_n_jobs(len(sessions))
         Parallel(n_jobs=n_jobs)(delayed(run_oridirs_by_qu_sess)
             (sess, oridirs, surps, xrans[se], mes[se], counts[se], analyspar, 
@@ -752,7 +753,8 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar,
     if figpar["save"]["use_dt"] is None:
         figpar["save"]["use_dt"] = gen_util.create_time_str()
 
-    if parallel and len(quintpars) > len(sessions):
+    # optionally runs in parallel
+    if parallel and (len(quintpars) > np.max([1, len(sessions)])):
         n_jobs = gen_util.get_n_jobs(len(quintpars))
         Parallel(n_jobs=n_jobs)(delayed(run_oridirs_by_qu)
             (sessions, oridirs, surps, analyspar, sesspar, stimpar, 
@@ -1105,7 +1107,7 @@ def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar,
             all_traces = all_traces[0]
 
         ################
-        # NOW GET THE PCS!
+        # Incomplete - obtain PCs
 
 
         # extrapar = {"analysis": analysis,

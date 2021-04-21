@@ -20,10 +20,9 @@ import warnings
 from joblib import Parallel, delayed
 from matplotlib import pyplot as plt
 import numpy as np
-import scipy.stats as st
 
 from util import file_util, gen_util, logger_util, plot_util
-from sess_util import sess_gen_util, sess_plot_util, sess_str_util
+from sess_util import sess_plot_util, sess_str_util
 from plot_fcts import roi_analysis_plots as roi_plots
 
 logger = logging.getLogger(__name__)
@@ -1289,6 +1288,7 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
     fig_types = ["byfir"]
     fig_last = len(fig_types) - 1
     
+    # optionally runs in parallel
     if parallel:
         n_jobs = gen_util.get_n_jobs(len(fig_types))
         fulldirs = Parallel(n_jobs=n_jobs)(delayed(plot_oridir_colormap)
