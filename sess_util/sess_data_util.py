@@ -17,7 +17,7 @@ import logging
 
 import numpy as np
 
-from util import data_util, gen_util, logger_util, math_util
+from util import data_util, gen_util, logger_util
 from sess_util import sess_gen_util
 
 logger = logging.getLogger(__name__)

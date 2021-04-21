@@ -20,37 +20,23 @@ import logging
 import os
 import sys
 
+# try to set cache/config as early as possible (for clusters)
+from util import gen_util 
+gen_util.CC_config_cache()
+
 sys.path.extend([".", "../"])
 from analysis import glm
 from util import gen_util, logger_util
-from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util, \
-                      sess_plot_util
+from sess_util import sess_gen_util, sess_ntuple_util, sess_plot_util
 from plot_fcts import plot_from_dicts_tool as plot_dicts
 
+
 logger = logging.getLogger(__name__)
-
-
-"""
-GLM is run by session? for all mice? Gabfr would have to be different for each 
-Predict average ROI activity across all ROIs for a segment (0.4 s)
-Weight surprise? Hoooowwwww....
-
-
-
-GLM for fMRI!
-Eventually set sessions to do 1, 2, 3... (continuous)
-Identify ROI sensiivities through F-stat? and false discovery correction for 
-multiple comparisons
-
-Change regression criterion: Baysian information criterion or 
-                             log-likelihood of the data
-
-"""
-
 
 DEFAULT_DATADIR = os.path.join("..", "data", "OSCA")
 DEFAULT_MOUSE_DF_PATH = "mouse_df.csv"
 DEFAULT_FONTDIR = os.path.join("..", "tools", "fonts")
+
 
 #############################################
 def reformat_args(args):
@@ -83,19 +69,6 @@ def reformat_args(args):
     """
 
     args = copy.deepcopy(args)
-
-
-    parser.add_argument("--bri_dir", default="both", 
-                        help="brick dir (right, left, or both)") 
-    parser.add_argument("--bri_size", default=128, 
-                        help="brick size (128, 256, or both)")
-    parser.add_argument("--gabfr", default="any", 
-                        help="gabor frames to include")
-    parser.add_argument("--gabk", default=16,
-                        help="kappa value (4, 16, or both)")    
-    parser.add_argument("--gab_ori", default="all",
-                        help="gabor orientation values (0, 45, 90, 135, all)")    
-
 
     [args.bri_dir, args.bri_size, args.gabfr, 
      args.gabk, args.gab_ori] = sess_gen_util.get_params(args.stimtype, 
@@ -301,9 +274,14 @@ def prep_analyses(sess_n, args, mouse_df):
         sessids, args.datadir, mouse_df, sesspar.runtype, fulldict=False, 
         dend=analyspar.dend, pupil=True, run=True)
 
-    logger.info(f"Analysis of {sesspar.plane} responses to "
-        f"{stimpar.stimtype[:-1]} stimuli ({sesspar.runtype} data)"
-        f"\nSessions: {args.sess_n}", extra={"spacing": "\n"})
+    runtype_str = ""
+    if sesspar.runtype != "prod":
+        runtype_str = f" ({sesspar.runtype} data)"
+
+    logger.info(
+        f"Analysis of {sesspar.plane} responses to {stimpar.stimtype[:-1]} "
+        f"stimuli{runtype_str}.\nSession {sesspar.sess_n}", 
+        extra={"spacing": "\n"})
 
     return sessions, analysis_dict
 
@@ -356,8 +334,7 @@ def run_analyses(sessions, analysis_dict, analyses, seed=None, parallel=False):
     fct_dict = get_analysis_fcts()
 
     args_dict = copy.deepcopy(analysis_dict)
-    for key, item in zip(["seed", "parallel"], 
-        [seed, parallel]):
+    for key, item in zip(["seed", "parallel"], [seed, parallel]):
         args_dict[key] = item
 
     # run through analyses
@@ -507,3 +484,18 @@ if __name__ == "__main__":
     args = parse_args()
     main(args)
 
+
+"""
+GLM TODO
+
+GLM is run by session? for all mice? Gabfr would have to be different for each 
+Predict average ROI activity across all ROIs for a segment (0.4 s)
+Weight surprise
+
+Eventually set sessions to do 1, 2, 3... (continuous)
+Identify ROI sensitivities through F-stat and false discovery correction for 
+multiple comparisons
+
+Change regression criterion: Baysian information criterion or 
+                             log-likelihood of the data
+"""

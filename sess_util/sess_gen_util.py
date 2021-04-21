@@ -12,12 +12,9 @@ Note: this code uses python 3.7.
 
 """
 
-import copy
 import logging
-import os
 
 import numpy as np
-import pandas as pd
 
 from analysis import session
 from sess_util import sess_str_util
@@ -518,7 +515,7 @@ def init_sessions(sessids, datadir, mouse_df, runtype="prod", fulldict=True,
             continue
         if pupil:
             sess.load_pup_data()
-        logger.info(f"Finished session {sessid}.")
+        logger.info(f"Finished creating session {sessid}.")
         sessions.append(sess)
 
     return sessions

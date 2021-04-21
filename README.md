@@ -11,29 +11,28 @@ To run the code, you should install [Anaconda](https://www.anaconda.com/) or [Mi
 Once these are installed, you can simply use the appropriate `.yml` 
 file to create a conda environment. For example, if using Ubuntu or Mac OS, open a terminal, go to the repo directory, and enter:
 
-`conda env create -f osca3.yml`
-
-Conda should then handle installing all the necessary dependencies for you.
+1. `conda env create -f osca.yml`  
+2. `source activate osca`  
+3. `pip install pandas==1.1.5` # ignore the warning about a version conflict with the `allensdk` package.
 
 The code is written in `Python 3`. 
 
 ## 3. Use
-Once installed, you simply activate the environment:
+Once installed, when using the codebase, simply activate the environment:
 
-`source activate osca3`
+`source activate osca`
 
 All of the appropriate libraries should then be loaded, and the modules can be imported for use in ipython, python scripts, or jupyter notebooks, for example.
 
 ## 4. Scripts and modules
-
-* `run_acr_sess_analysis.py`: run and plot specific analyses across sessions
-* `run_roi_analysis.py`: run and plot specific analyses on ROI data
-* `run_running_analysis.py`: run and plot specific analyses on running data
-* `run_pupil_analysis.py`: run and plot specific analyses on pupil data
-* `run_logreg.py`: run, analyse and plot logistic regressions on the ROI data
 * `run_paper_figures.py`: run, analyse and plot paper figures _(UNDER DEVELOPMENT)_  
-&nbsp;
 
+* **`main_scripts`**: main scripts from which to run and plot specific analyses...
+    * `run_acr_sess_analysis.py`: ... across sessions
+    * `run_roi_analysis.py`: ... on ROI data
+    * `run_running_analysis.py`: ... on running data
+    * `run_pupil_analysis.py`: ... on pupil data
+    * `run_logreg.py`: ... using logistic regressions on the ROI data
 * **`analysis`**: Session object as well as session data analysis module
 * **`plot_fcts`**: module with functions to plot analysis results from saved dictionaries or dataframes 
 * **`sess_util`**: session specific utilities module

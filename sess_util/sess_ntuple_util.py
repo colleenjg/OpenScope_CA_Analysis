@@ -288,7 +288,7 @@ def init_roigrppar(grps="all", add_reg=True, op="diff", plot_vals="surp"):
 
 #############################################
 def init_tcurvpar(gabfr=3, pre=0, post=0.6, grp2="surp", test=False, 
-                  prev=False):
+                  vm_estim=False):
     """
     Returns a TCurvPar namedtuple with the inputs arguments as named 
     attributes.
@@ -310,8 +310,9 @@ def init_tcurvpar(gabfr=3, pre=0, post=0.6, grp2="surp", test=False,
         - test (bool)       : if True, tuning curve analysis is run on a 
                               small subset of ROIs and gabors
                               default: False
-        - prev (bool)       : if True, analysis is run using previous tuning 
+        - vm_estim (bool)   : if True, runs analysis using von Mises parameter 
                               estimation method
+                              default: False
     """
     # break 2 gabfr values into list
     if isinstance(gabfr, list):
@@ -321,8 +322,8 @@ def init_tcurvpar(gabfr=3, pre=0, post=0.6, grp2="surp", test=False,
     else:
         gabfr = int(gabfr)
 
-    tcurv_pars = [gabfr, float(pre), float(post), grp2, test, prev]
-    tcurv_keys = ["gabfr", "pre", "post", "grp2", "test", "prev"]
+    tcurv_pars = [gabfr, float(pre), float(post), grp2, test, vm_estim]
+    tcurv_keys = ["gabfr", "pre", "post", "grp2", "test", "vm_estim"]
     TCurvPar   = namedtuple("TCurvPar", tcurv_keys)
     tcurvpar   = TCurvPar(*tcurv_pars)
     return tcurvpar

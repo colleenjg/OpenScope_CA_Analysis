@@ -21,7 +21,7 @@ import numpy as np
 
 from util import file_util, gen_util, logger_util, math_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
-from analysis import pup_analys, ori_analys, quint_analys, signif_grps
+from analysis import ori_analys, quint_analys, signif_grps
 from plot_fcts import roi_analysis_plots as roi_plots
 
 logger = logging.getLogger(__name__)
@@ -670,7 +670,8 @@ def run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
     mes = [np.asarray(vals) for vals in zip(*mes)]
     counts = [np.asarray(vals) for vals in zip(*counts)]
 
-    if parallel:
+    # optionally runs in parallel
+    if parallel and len(sessions) > 1:
         n_jobs = gen_util.get_n_jobs(len(sessions))
         Parallel(n_jobs=n_jobs)(delayed(run_oridirs_by_qu_sess)
             (sess, oridirs, surps, xrans[se], mes[se], counts[se], analyspar, 
@@ -752,7 +753,8 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar,
     if figpar["save"]["use_dt"] is None:
         figpar["save"]["use_dt"] = gen_util.create_time_str()
 
-    if parallel and len(quintpars) > len(sessions):
+    # optionally runs in parallel
+    if parallel and (len(quintpars) > np.max([1, len(sessions)])):
         n_jobs = gen_util.get_n_jobs(len(quintpars))
         Parallel(n_jobs=n_jobs)(delayed(run_oridirs_by_qu)
             (sessions, oridirs, surps, analyspar, sesspar, stimpar, 
@@ -772,7 +774,7 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
     run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar, 
                     tcurvpar, figpar)
 
-    Calculates and plots ROI orientation tuning curves, as well as a 
+    Calculates and plots estimated ROI orientation tuning curves, as well as a 
     correlation plot for regular vs surprise orientation preferences. 
 
     Required args:
@@ -808,14 +810,19 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
     logger.info("Analysing and plotting ROI tuning curves for orientations "
         f"({sessstr_pr}{dendstr_pr}).", extra={"spacing": "\n"})
 
-    nrois = "all"
-    ngabs = "all"
-    comb_gabs_all = [True, False]
     # small values for testing
     if tcurvpar.test:
         nrois = 8
         ngabs = "all"
         comb_gabs_all = [True]
+    else:
+        nrois = "all"
+        ngabs = "all"
+        comb_gabs_all = [True, False]
+
+        logger.warning("This analysis may take a long time, as each ROI is "
+            "analysed separately. To run on only a few ROIs, "
+            "set tcurvpar.test to True.", extra={"spacing": TAB})
     
     logger.info(f"Number ROIs: {nrois}\nNumber of gabors: {ngabs}")
 
@@ -833,8 +840,8 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
         for sess in sessions:
             returns = ori_analys.calc_tune_curvs(
                 sess, analyspar, stimpar_tc, nrois, ngabs, tcurvpar.grp2, 
-                comb_gabs, tcurvpar.prev, collapse=True, parallel=parallel)
-            if tcurvpar.prev:
+                comb_gabs, tcurvpar.vm_estim, collapse=True, parallel=parallel)
+            if tcurvpar.vm_estim:
                 [tc_oris, tc_data, tc_nseqs, tc_vm_pars, 
                     tc_vm_mean, tc_hist_pars] = returns
             else:
@@ -845,7 +852,8 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
                           "nseqs": tc_nseqs,
                           }
 
-            if tcurvpar.prev: # PREVIOUS ESTIMATION METHOD
+            # estimate tuning curves by fitting a Von Mises distribution
+            if tcurvpar.vm_estim:
                 tcurv_data["vm_pars"] = np.transpose(
                     np.asarray(tc_vm_pars), [1, 0, 2, 3]).tolist()
                 tcurv_data["vm_mean"] = np.transpose(
@@ -1099,7 +1107,7 @@ def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar,
             all_traces = all_traces[0]
 
         ################
-        # NOW GET THE PCS!
+        # Incomplete - obtain PCs
 
 
         # extrapar = {"analysis": analysis,

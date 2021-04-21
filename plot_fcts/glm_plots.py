@@ -17,13 +17,11 @@ import logging
 import os
 import warnings
 
-from joblib import Parallel, delayed
 from matplotlib import pyplot as plt
 import numpy as np
-import scipy.stats as st
 
 from util import file_util, gen_util, logger_util, math_util, plot_util
-from sess_util import sess_gen_util, sess_plot_util, sess_str_util
+from sess_util import sess_plot_util, sess_str_util
 
 logger = logging.getLogger(__name__)
 
@@ -64,8 +62,6 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, datetime=True):
     # 0. Plots the explained variance
     if analysis == "v": # difference correlation
         plot_glm_expl_var(figpar=figpar, savedir=savedir, **info)
-
-
     else:
         warnings.warn(f"No plotting function for analysis {analysis}")
 
@@ -177,7 +173,7 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
 
         fig.suptitle("Explained variance per ROI", y=1)
     else:
-        logging.info("No plots, as only results across ROIs are included")
+        logger.info("No plots, as only results across ROIs are included")
         fig = None
 
     i = 0

@@ -14,19 +14,14 @@ Note: this code uses python 3.7.
 """
 
 import logging
-import os
 import warnings
 
-import h5py
-import json
 import numpy as np
 import pandas as pd
-import pickle
 from scipy import signal as scisig
 from scipy import stats as scist
 from allensdk.brain_observatory import sync_dataset, sync_utilities
 from allensdk.brain_observatory.extract_running_speed import __main__ as running_main
-from allensdk.brain_observatory.behavior import running_processing
 
 from util import file_util, gen_util, logger_util
 from sess_util import Dataset2p
@@ -38,7 +33,6 @@ TAB = "    "
 
 # from https://allensdk.readthedocs.io/en/latest/_modules/allensdk/brain_observatory/behavior/running_processing.html
 WHEEL_RADIUS = 6.5 * 2.54 / 2 # diameter in inches to radius in cm
-WHEEL_RADIUS = 6.5 * 2.54 / 2 # diameter in inches to radius in cm
 SUBJECT_POSITION = 2 / 3
 
 # for some sessions, the second alignment is needed to adjust the first, as it 
@@ -46,10 +40,10 @@ SUBJECT_POSITION = 2 / 3
 ADJUST_SECOND_ALIGNMENT = [833704570]
 
 #############################################
-def check_drop_tolerance(n_drop_stim_fr, tot_stim_fr, droptol=0.0003, 
-                         raise_exc=False):
+def check_stim_drop_tolerance(n_drop_stim_fr, tot_stim_fr, drop_tol=0.0003, 
+                             raise_exc=False):
     """
-    check_drop_tolerance(n_drop_stim_fr, tot_stim_fr)
+    check_stim_drop_tolerance(n_drop_stim_fr, tot_stim_fr)
 
     Logs a warning or raises an exception if dropped stimulus frames 
     tolerance is passed.
@@ -59,15 +53,16 @@ def check_drop_tolerance(n_drop_stim_fr, tot_stim_fr, droptol=0.0003,
         - tot_stim_fr (int)   : total number of stimulus frames
 
     Optional args:
-        - droptol (float) : threshold proportion of dropped stimulus frames at 
+        - drop_tol (float): threshold proportion of dropped stimulus frames at 
                             which to log warning or raise an exception. 
         - raise_exc (bool): if True, an exception is raised if threshold is 
                             passed. Otherwise, a warning is logged.
     """
 
-    if np.float(n_drop_stim_fr)/tot_stim_fr > droptol:
-        warn_str = (f"{n_drop_stim_fr} dropped stimulus "
-            f"frames out of {tot_stim_fr}.")
+    prop = np.float(n_drop_stim_fr) / tot_stim_fr
+    if prop > drop_tol:
+        warn_str = (f"{n_drop_stim_fr} dropped stimulus frames "
+            f"(~{prop * 100:.1f}%).")
         if raise_exc:
             raise OSError(warn_str)
         else:    
@@ -99,7 +94,7 @@ def get_monitor_delay(syn_file_name):
 #############################################
 def get_vsync_falls(syn_file_name):
     """
-    get_vsync_falls(stim_sync_file)
+    get_vsync_falls(syn_file_name)
 
     Calculates vsyncs for 2p and stimulus frames. 
 
@@ -118,9 +113,8 @@ def get_vsync_falls(syn_file_name):
 
     # create a Dataset object with the sync file 
     # (ignore deprecated keys warning)
-    Dataset_filt_warn = gen_util.temp_filter_warnings(sync_dataset.Dataset)
-    sync_data = Dataset_filt_warn(
-        syn_file_name, msgs="The loaded sync file", categs=UserWarning)
+    with gen_util.TempWarningFilter("The loaded sync file", UserWarning):
+        sync_data = sync_dataset.Dataset(syn_file_name)
    
     sample_frequency = sync_data.meta_data["ni_daq"]["counter_output_freq"]
     
@@ -145,7 +139,7 @@ def get_vsync_falls(syn_file_name):
 #############################################
 def get_frame_rate(syn_file_name):
     """
-    get_frame_rate(stim_sync_file)
+    get_frame_rate(syn_file_name)
 
     Pulls out the ophys frame times stimulus sync file and returns stats for
     ophys frame rates.
@@ -565,7 +559,7 @@ def get_run_velocity(stim_sync_h5, stim_pkl="", stim_dict=None, filter_ks=5):
         wheel_radius=WHEEL_RADIUS,
         subject_position=SUBJECT_POSITION,
         use_median_duration=False,
-        filter_ks=filter_ks
+        filter_ks=filter_ks,
     )
 
     return running_velocity
@@ -576,6 +570,7 @@ def get_twop2stimfr(stim2twopfr, n_twop_fr):
     """
     get_twop2stimfr(stim2twopfr, n_twop_fr)
 
+    Old function.
     Returns the stimulus frame alignment for each 2p frame.
         
     Required args:
@@ -596,7 +591,7 @@ def get_twop2stimfr(stim2twopfr, n_twop_fr):
     dropped = np.where(stim2twopfr_diff > 1)[0]
     if len(dropped) > 0:
         logger.warning(f"{len(dropped)} dropped stimulus frames "
-            "sequences (2nd alignment).", extra={"spacing": TAB})
+            "(2nd alignment).", extra={"spacing": TAB})
         # repeat stim idx when frame is dropped
         for drop in dropped[-1:]:
             loc = np.where(stim_idx == drop)[0][0]
@@ -650,7 +645,7 @@ def compare_alignments(alignment1, alignment2, tolerance=1,
         len(np.where(np.absolute(alignment_diffs) > tolerance)[0])
 
     if n_alignment_diffs:
-        logging.warning(f"Comparing {alignment_type} alignments: "
+        logger.warning(f"Comparing {alignment_type} alignments: "
             f"{n_alignment_diffs} frames show alignment differences "
             f"(> {tolerance}). The largest (absolute) misalignment "
             f"is a {alignment_diff_abs_max} frame difference.", 

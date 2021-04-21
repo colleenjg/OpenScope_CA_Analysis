@@ -17,9 +17,8 @@ import logging
 import os
 import warnings
 
-from joblib import Parallel, delayed
 from matplotlib import pyplot as plt
-from matplotlib import ticker, cm
+from matplotlib import cm
 import numpy as np
 import scipy.stats as st
 
@@ -569,7 +568,7 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
                             sess_info, diff_info)
 
     From dictionaries, plots statistics across ROIs or mice of difference 
-    between regular and surprise.
+    between splits.
     
     Returns figure name and save directory path.
     
@@ -1047,7 +1046,7 @@ def plot_stim_grayscr_diff(analyspar, sesspar, stimpar, basepar, permpar,
             ["datatype"] (str): datatype (e.g., "run", "roi")
         - sess_info (list): list of dictionaries containing information from 
                             each session, structured as 
-                            [surp-locked, reg-locked]
+                            [stim-onset, stim-offset]
             ["mouse_ns"] (list)   : mouse numbers
             ["sess_ns"] (list)    : session numbers  
             ["lines"] (list)      : mouse lines
@@ -1167,18 +1166,18 @@ def plot_traces(sub_ax, xran, trace_st, lock=False, col="k", lab=True,
     """
     plot_traces(sub_ax, xran, trace_st)
 
-    Plot regular and surprise data traces (single set).
+    Plot data trace splits (single set).
 
     Required args:
         - sub_ax (plt Axis subplot): subplot
         - xran (array-like)        : second values for each frame
         - trace_st (4D array)      : trace statistics, structured as
-                                         reg/surp x frame x stats
+                                         split x frame x stats
 
     Optional args:
         - lock (bool)   : if True, plotted data is locked 
                           default: False
-        - col  (str)    : colour for surprise data
+        - col  (str)    : colour for non-regular/non-locked data
                           default: "k"
         - lab (bool)    : if True, data label is included for legend
                           default: True
@@ -1241,7 +1240,7 @@ def plot_traces(sub_ax, xran, trace_st, lock=False, col="k", lab=True,
         else:
             xran_use = xran
         if lock in ["reglock", "stim_offset"]:
-            i = 1 - i # data ordered as [surp, reg] instead of vv
+            i = 1 - i # data ordered as [non-reg, reg] instead of vv
         plot_util.plot_traces(sub_ax, xran_use, trace_st[i, :, 0], 
             trace_st[i, :, 1:], label=label, alpha_line=0.8, color=col, 
             xticks=xticks, ls=ls)
@@ -1299,8 +1298,7 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
     plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info, 
                          trace_info)
 
-    From dictionaries, plots traces across ROIs or mice for regular and 
-    surprise sequences.
+    From dictionaries, plots traces across ROIs or mice for split sequences.
     
     Returns figure name and save directory path.
     
@@ -1687,14 +1685,14 @@ def plot_stim_grayscr_traces(analyspar, sesspar, stimpar, basepar, extrapar,
                              [stim-onset, stim_offset]
             ["linpla_ord"] (list) : order list of planes/lines            
             ["trace_stats"] (list): trace statistics, structured as
-                                    plane/line x session x reg/surp x frame 
+                                    plane/line x session x off/on x frame 
                                                x stats
             if datatype == "roi":
                 ["trace_st_grped"] (list): trace statistics across ROIs, 
                                            grouped across mice, structured 
-                                           as session x reg/surp 
+                                           as session x off/on 
                                                       x frame x stats
-                                           (or surp/reg if surp == "reglock")
+                                           (or on/off for stim_offset)
             ["xran"] (list)       : second values for each frame
 
     Optional args:
@@ -2658,8 +2656,9 @@ def plot_stim_idx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
         - feature (str)     : feature on which index is based, 
                               e.g. "surp" or "dir"
                               default: "surp"
-        - match_oris (bool) : if True, Gabor orientations are matched between 
-                              surprise and regular data.
+        - match_oris (bool) : if True, only Gabor stimulus orientations 
+                              shared by D and U frames are included 
+                              ("surp" split only)
                               default: False
 
     Returns:
@@ -2835,8 +2834,9 @@ def plot_perc_sig_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
         - feature (str)     : feature on which index is based, 
                               e.g. "surp" or "dir"
                               default: "surp"
-        - match_oris (bool) : if True, Gabor orientations are matched between 
-                              surprise and regular data.
+        - match_oris (bool) : if True, only Gabor stimulus orientations 
+                              shared by D and U frames are included 
+                              ("surp" split only)
                               default: False
 
     Returns:
@@ -3189,7 +3189,7 @@ def plot_direction_idx(analyspar, sesspar, stimpar, basepar, permpar, idxpar,
     plot_direction_idx(analyspar, sesspar, stimpar, basepar, permpar, idxpar, 
                        extrapar, sess_info, diridx_info)
 
-    From dictionaries, plots surprise indices for all ROIs or running values.
+    From dictionaries, plots direction indices for all ROIs or running values.
     
     Returns figure name and save directory path.
     

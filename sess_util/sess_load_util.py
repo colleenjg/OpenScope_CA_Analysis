@@ -19,8 +19,6 @@ import os
 import h5py
 import numpy as np
 import pandas as pd
-import pickle
-import scipy
 
 from util import file_util, gen_util, logger_util
 from sess_util import sess_gen_util, sess_sync_util
@@ -146,9 +144,9 @@ def load_small_stim_pkl(stim_pkl, runtype="prod"):
 
 #############################################
 def load_stim_df_info(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid, 
-                      sessdir, runtype="prod"):
+                      runtype="prod"):
     """
-    load_stim_df_info(stim_pkl, stim_sync_h5, align_pkl, sessdir, sessid)
+    load_stim_df_info(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid)
 
     Creates the alignment dataframe (stim_df) and saves it as a pickle
     in the session directory, if it does not already exist. Returns dataframe, 
@@ -165,7 +163,6 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid,
         - sessid (int)      : session ID, needed the check whether this session 
                               needs to be treated differently (e.g., for 
                               alignment bugs)
-        - sessdir (str)     : session directory
 
     Optional args:
         - runtype (str): runtype ("prod" or "pilot")
@@ -185,16 +182,16 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid,
                                   was playing
     """
 
+    sessdir = os.path.dirname(align_pkl)
+
     # create stim_df if doesn't exist
     if not os.path.exists(align_pkl):
+        logger.info(f"Stimulus alignment pickle not found in {sessdir}, and "
+            "will be created.", extra={"spacing": TAB})
         sess_sync_util.get_stim_frames(
             stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid, runtype, 
             )
         
-    else:
-        logging.info("NOTE: Stimulus alignment pickle already exists in "
-            f"{sessdir}", extra={"spacing": TAB})
-
     align = file_util.loadfile(align_pkl)
 
     stim_df = align["stim_df"]
@@ -257,8 +254,13 @@ def _warn_nans_diff_thr(run, min_consec=5, n_pre_existing=None):
 
     split_str = ""
     if n_pre_existing is not None:
-        split_str = (f" ({n_pre_existing} from pre-processing, "
-            f"{n_nans - n_pre_existing} from diff thresh)")
+        if n_pre_existing == n_nans:
+            split_str = " (in pre-processing)"
+        elif n_pre_existing == 0:
+            split_str = " (using diff thresh)"
+        else:
+            split_str = (f" ({n_pre_existing} in pre-processing, "
+                f"{n_nans - n_pre_existing} more using diff thresh)")
 
     mask = np.concatenate(([False], np.isnan(run), [False]))
     idx = np.nonzero(mask[1 : ] != mask[ : -1])[0]
@@ -273,14 +275,16 @@ def _warn_nans_diff_thr(run, min_consec=5, n_pre_existing=None):
         n_consec_str = (f"\n{TAB}This includes {n_consec_str} consecutive "
             "dropped running values.")
 
-    logger.warning(f"{n_nans} running values were dropped, i.e., set "
-        f"to NaN{split_str}.{n_consec_str}", extra={"spacing": TAB})
+    prop = n_nans / len(run)
+    logger.warning(f"{n_nans} dropped running frames (~{prop * 100:.1f}%)"
+        f"{split_str}.{n_consec_str}", extra={"spacing": TAB})
 
     return
 
 
 #############################################
-def nan_large_run_differences(run, diff_thr=50, warn_nans=True):
+def nan_large_run_differences(run, diff_thr=50, warn_nans=True, 
+                              drop_tol=0.0003):
     """
     nan_large_run_differences(run)
 
@@ -295,6 +299,10 @@ def nan_large_run_differences(run, diff_thr=50, warn_nans=True):
                               default: 50
         - warn_nans (bool)  : if True, a warning is logged 
                               default: True
+        - drop_tol (num)    : the tolerance for proportion running frames 
+                              dropped. A warning is produced only if this 
+                              condition is not met. 
+                              default: 0.0003 
     Returns:
         - run (1D array): updated array of running velocities in cm/s
     """
@@ -329,15 +337,16 @@ def nan_large_run_differences(run, diff_thr=50, warn_nans=True):
     run = np.empty(original_length) * np.nan
     run[not_nans_idx] = prev_run
 
-    if warn_nans:
+    prop_nans = np.sum(np.isnan(run)) / len(run)
+    if warn_nans and prop_nans > drop_tol:
         _warn_nans_diff_thr(run, min_consec=5, n_pre_existing=n_pre_existing)
-
 
     return run
 
 
 #############################################
-def load_run_data(stim_dict, stim_sync_h5, filter_ks=5, diff_thr=50):
+def load_run_data(stim_dict, stim_sync_h5, filter_ks=5, diff_thr=50, 
+                  drop_tol=0.0003):
     """
     load_run_data(stim_dict, stim_sync_h5)
 
@@ -356,7 +365,10 @@ def load_run_data(stim_dict, stim_sync_h5, filter_ks=5, diff_thr=50):
         - diff_thr (int)    : threshold of difference in running velocity to 
                               identify outliers
                               default: 50
-
+        - drop_tol (num)    : the tolerance for proportion running frames 
+                              dropped. A warning is produced only if this 
+                              condition is not met. 
+                              default: 0.0003 
     Returns:
         - run_velocity (1D array): array of running velocities in cm/s for each 
                                    recorded stimulus frames
@@ -379,7 +391,7 @@ def load_run_data(stim_dict, stim_sync_h5, filter_ks=5, diff_thr=50):
     run_velocity = sess_sync_util.get_run_velocity(**run_kwargs)
 
     run_velocity = nan_large_run_differences(
-        run_velocity, diff_thr, warn_nans=True)
+        run_velocity, diff_thr, warn_nans=True, drop_tol=drop_tol)
 
     return run_velocity
 
@@ -407,7 +419,6 @@ def load_pup_data(pup_data_h5):
                                     each pupil frame in pixels
     """
 
-    logging.info("Loading pupil tracking information.")
     if pup_data_h5 == "none":
         raise OSError("No pupil data file found.")
     elif isinstance(pup_data_h5, list):
