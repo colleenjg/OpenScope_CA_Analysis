@@ -13,12 +13,8 @@ Note: this code uses python 3.7.
 
 """
 
-import os
-
 import glob
-import json
-import pandas as pd
-import pickle
+import os
 
 from util import file_util, gen_util, logger_util
 

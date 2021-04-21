@@ -14,19 +14,16 @@ Note: this code uses python 3.7.
 """
 
 import copy
-import glob
 import logging
-import os
 import warnings
 
-from joblib import Parallel, delayed
 import numpy as np
 import pandas as pd
 import scipy.stats as st
 
 from util import file_util, gen_util, logger_util, math_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
-from analysis import pup_analys, ori_analys, quint_analys, signif_grps
+from analysis import quint_analys
 from plot_fcts import gen_analysis_plots as gen_plots
 
 logger = logging.getLogger(__name__)
@@ -394,7 +391,7 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
     datastr = sess_str_util.datatype_par_str(datatype)
 
     logger.info(f"Calculating and plotting the magnitude changes in {datastr} "
-        f"activity across quintiles \n({sessstr_pr}{dendstr_pr})", 
+        f"activity across quintiles \n({sessstr_pr}{dendstr_pr}).", 
         extra={"spacing": "\n"})
 
     
@@ -524,16 +521,23 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
                     ).to_numpy().reshape(1, -1)
                 
             sess_traces.append(traces)
-        xran, ac_st = math_util.autocorr_stats(
-            sess_traces, autocorrpar.lag_s, sess.twop_fps, 
-            byitem=autocorrpar.byitem, stats=analyspar.stats, 
-            error=analyspar.error)
+
+        # Calculate autocorr stats while filtering some warnings
+        msgs=["Degrees of freedom", "invalid value encountered"]
+        categs=[RuntimeWarning, RuntimeWarning]
+        with gen_util.TempWarningFilter(msgs, categs):
+            xran, ac_st = math_util.autocorr_stats(
+                sess_traces, autocorrpar.lag_s, sess.twop_fps, 
+                byitem=autocorrpar.byitem, stats=analyspar.stats, 
+                error=analyspar.error)
+
         if not autocorrpar.byitem: # also add a 10x lag
             lag_fr = 10 * int(autocorrpar.lag_s * sess.twop_fps)
             _, ac_st_10x = math_util.autocorr_stats(
                 sess_traces, lag_fr, byitem=autocorrpar.byitem, 
                 stats=analyspar.stats, error=analyspar.error)
             downsamp = range(0, ac_st_10x.shape[-1], 10)
+
             if len(downsamp) != ac_st.shape[-1]:
                 raise ValueError("Failed to downsample correctly. "
                     "Check implementation.")

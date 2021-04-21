@@ -18,8 +18,7 @@ import numpy as np
 import scipy.stats as st
 from sklearn import linear_model
 
-from util import gen_util, logger_util, math_util
-from sess_util import sess_gen_util
+from util import gen_util, logger_util
 
 
 #############################################
@@ -52,17 +51,17 @@ def collapse_dir(oris):
 
 
 #############################################
-def estim_vm(x_cuml, data_sort, tc_oris, hist_n=1000):
+def estim_vm(data_sort, x_cuml, tc_oris, hist_n=1000):
     """
-    estim_vm(x_cuml, data_sort, tc_oris)
+    estim_vm(data_sort, x_cuml, tc_oris)
 
     Returns estimates of von Mises distributions for an ROI based on the 
     input orientations and ROI activations.
 
     Required args:
+        - data_sort (1D array): ROI values corresponding to x_cuml mask
         - x_cuml (1D array)   : mask array where values are incremented for 
                                 each new orientation (sorted)
-        - data_sort (1D array): ROI values corresponding to the mask
         - tc_oris (list)      : list of orientation values (sorted and unique)
    
     Optional args:
@@ -133,16 +132,11 @@ def estim_vm_by_roi(oris, roi_data, hist_n=1000, parallel=False):
     x_cuml = np.insert((np.diff(xsort) != 0).cumsum(), 0, 0)
     tc_oris = np.unique(xsort).tolist()
 
-    if parallel:
-        n_jobs = gen_util.get_n_jobs(len(roi_data_sort))
-        returns = Parallel(n_jobs=n_jobs)(delayed(estim_vm)
-            (x_cuml, data_sort, tc_oris, hist_n) for data_sort in roi_data_sort)       
-    else:
-        returns = []
-        for data_sort in roi_data_sort:
-            returns.append(estim_vm(x_cuml, data_sort, tc_oris, hist_n))        
+    # optionally run in parallel
+    args_list = [x_cuml, tc_oris, hist_n]
+    returns = gen_util.parallel_wrap(
+        estim_vm, roi_data_sort, args_list, parallel=parallel, zip_output=True)
 
-    returns = list(zip(*returns))
     tc_data = [list(ret) for ret in returns[0]]
     tc_vm_pars = np.asarray([list(ret) for ret in returns[1]])
     tc_hist_pars = np.asarray([list(ret) for ret in returns[2]])
@@ -218,7 +212,8 @@ def tune_curv_estims(gab_oris, roi_data, ngabs_tot, nrois="all", ngabs="all",
     if nrois == "all":
         roi_data.shape[0]
 
-    if parallel and ngabs > nrois:
+    # optionally runs in parallel
+    if parallel and ngabs > np.max([1, nrois]):
         n_jobs = gen_util.get_n_jobs(ngabs)
         returns = Parallel(n_jobs=n_jobs)(delayed(estim_vm_by_roi)
             (gab_oris[g], roi_data, hist_n, False) for g in range(ngabs))       
@@ -227,8 +222,8 @@ def tune_curv_estims(gab_oris, roi_data, ngabs_tot, nrois="all", ngabs="all",
         for g in range(ngabs):
             returns.append(estim_vm_by_roi(
                 gab_oris[g], roi_data, hist_n, parallel))
-    
     returns = list(zip(*returns))
+
     gab_tc_oris = [list(ret) for ret in returns[0]]
     gab_tc_data = [list(ret) for ret in zip(*returns[1])] # move ROIs to first
     gab_vm_pars = np.transpose(
@@ -251,7 +246,7 @@ def tune_curv_estims(gab_oris, roi_data, ngabs_tot, nrois="all", ngabs="all",
 
 #############################################
 def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all", 
-                    grp2="surp", comb_gabs=True, prev=False, collapse=True, 
+                    grp2="surp", comb_gabs=True, vm_estim=False, collapse=True, 
                     parallel=True):
     """
     calc_tune_curvs(sess, analyspar, stimpar)
@@ -276,8 +271,8 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all",
         - comb_gabs (bool): if True, all gabors have been combined for 
                             gab_oris and roi_data 
                             default: False
-        - prev (bool)     : if True, analysis is run using previous tuning 
-                            estimation method
+        - vm_estim (bool) : if True, analysis is run using a von Mises tuning 
+                            curve estimation method
         - collapse (bool) : if True, opposite orientations in the -180 to 180 
                             range are collapsed to the -90 to 90 range 
         - parallel (bool) : if True, some of the analysis is parallelized 
@@ -293,7 +288,7 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all",
                                       x oris
         - tc_nseqs (list)    : number of sequences per surp
 
-        if prev, also:
+        if vm_estim, also:
         - tc_vm_pars (list)  : nested list of Von Mises parameters for each ROI: 
                                   ROI x surp x gabor (1 if comb_gabs) x par
         - tc_vm_mean (list)  : nested list of mean Von Mises means for each ROI, 
@@ -331,7 +326,8 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all",
         sess_ngabs = np.min([stim.n_patches, ngabs])                
 
     tc_data, tc_oris, tc_nseqs = [], [], []
-    if prev: # PREVIOUS ESTIMATION METHOD
+    # estimate tuning curves by fitting a Von Mises distribution
+    if vm_estim:
         tc_vm_pars, tc_vm_mean, tc_hist_pars = [], [], []
 
     for i, (gf, s) in enumerate(zip(gabfrs, surps)):
@@ -369,7 +365,8 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all",
         tc_oris.append(gab_oris.tolist())
         tc_data.append(roi_data.tolist())
 
-        if prev: # PREVIOUS ESTIMATION METHOD
+        # estimate tuning curves by fitting a Von Mises distribution
+        if vm_estim:
             [gab_tc_oris, gab_tc_data, gab_vm_pars, 
                 gab_vm_mean, gab_hist_pars] = tune_curv_estims(
                     gab_oris, roi_data, ngabs_tot, sess_nrois, sess_ngabs, 
@@ -380,7 +377,7 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all",
             tc_vm_mean.append(gab_vm_mean)
             tc_hist_pars.append(gab_hist_pars)
 
-    if prev:
+    if vm_estim:
         return tc_oris, tc_data, tc_nseqs, tc_vm_pars, tc_vm_mean, tc_hist_pars
     else:
         return tc_oris, tc_data, tc_nseqs
