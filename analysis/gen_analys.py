@@ -574,7 +574,7 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
                             stimpar, figpar, datatype="roi"):
     """
     run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar, 
-                             stimpar, quintpar, figpar)
+                            stimpar, quintpar, figpar)
 
     Retrieves trace statistics by session x surp val and calculates 
     correlations across sessions per surp val.

@@ -240,7 +240,8 @@ def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar,
         for g, g_n in enumerate(grp_ns[i]):
             leg = "{} ({})".format(roi_grps["grp_names"][g], g_n)
             plot_util.plot_errorbars(
-                sub_ax, y=sess_st[:, g, 0], err=sess_st[:, g, 1:], label=leg)
+                sub_ax, y=sess_st[:, g, 0], err=sess_st[:, g, 1:], label=leg, 
+                xticks="auto")
 
         title=(f"Mouse {mouse_ns[i]} - {stimstr_pr} "
             u"{} ".format(statstr_pr) + f"across {dimstr}\n{opstr_pr} "
@@ -403,7 +404,7 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
                     sub_ax, xrans[i], sess_traces[q, g, 0], 
                     sess_traces[q, g, 1:], title=title, 
                     alpha=0.8/len(quintpar["qu_lab"]), 
-                    label=qu_lab.capitalize())
+                    label=qu_lab.capitalize(), xticks="auto")
 
         plot_util.turn_off_extra(ax, n_grps)
 
@@ -863,7 +864,8 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
             me  = np.asarray(tr_data["stats"][key][0])
             err = np.asarray(tr_data["stats"][key][1:])
             plot_util.plot_traces(
-                sub_ax, xran, me, err, title_tr, n_xticks=n, label=lab)
+                sub_ax, xran, me, err, title_tr, n_xticks=n, label=lab, 
+                xticks="auto")
             cols.append(sub_ax.lines[-1].get_color())
             if stimpar["stimtype"] == "bricks":
                 plot_util.add_bars(sub_ax, 0)
@@ -1188,7 +1190,8 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quintpar,
                 sub_ax, fluor=analyspar["fluor"], y_ax="ROIs", datatype="roi")
             im = plot_util.plot_colormap(
                 sub_ax, scaled_sort_me[key], title=title, cmap=cmap,
-                xran=xran_edges, n_xticks=n, yticks_ev=yticks_ev)
+                xran=xran_edges, n_xticks=n, yticks_ev=yticks_ev, 
+                xticks="auto")
             if stimpar["stimtype"] == "bricks":
                 plot_util.add_bars(sub_ax, 0)
 
@@ -1584,8 +1587,8 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
         savedir = os.path.join(
             figpar["dirs"]["roi"], 
             figpar["dirs"]["tune_curv"])
-    if roi_vm_pars is not None:
-        savedir = os.path.join(savedir, "vm_estim")
+        if roi_vm_pars is not None:
+            savedir = os.path.join(savedir, "vm_estim")
 
     log_dir = False
     if n == 0:
@@ -1683,7 +1686,7 @@ def plot_tune_curve_regr(vm_means, vm_regr, seq_info, gentitle="",
     if savedir is None:
         savedir = os.path.join(
             figpar["dirs"]["roi"], 
-            figpar["dirs"]["tune_curv"], 
+            figpar["dirs"]["tune_curv"],
             "vm_estim")
 
     vm_means = np.asarray(vm_means)
@@ -1733,7 +1736,7 @@ def plot_tune_curve_regr(vm_means, vm_regr, seq_info, gentitle="",
             fig, savename, savedir, log_dir=False, **figpar["save"])
         plt.close(fig)
 
-        return fulldir
+    return fulldir
 
 
 #############################################
@@ -1881,6 +1884,8 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
             figpar["dirs"][datatype], 
             figpar["dirs"]["tune_curv"], 
             f"{gabfr_letts[0]}v{rand_str}{gabfr_letts[1]}_seqs")
+        if tcurvpar["vm_estim"]:
+            savedir = os.path.join(savedir, "vm_estim")
 
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
@@ -1889,8 +1894,9 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
         figpar["save"]["use_dt"] = gen_util.create_time_str()
 
     if tcurvpar["vm_estim"]: # plot regression
-        plot_tune_curve_regr(tcurv_data["vm_mean"], tcurv_data["vm_regr"], 
-            seq_info, gentitle, gen_savename, figpar, savedir)
+        fulldir = plot_tune_curve_regr(tcurv_data["vm_mean"], 
+            tcurv_data["vm_regr"], seq_info, gentitle, gen_savename, figpar, 
+            savedir)
     else:
         fulldir = plot_util.savefig(
             None, None, fulldir=savedir, log_dir=False, **figpar["save"])
@@ -1913,7 +1919,7 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
                 tcurv_data["vm_pars"][n], tcurv_data["hist_pars"][n], 
                 analyspar["fluor"], extrapar["comb_gabs"], gentitle, 
                 gen_savename, figpar, savedir)
-                for n, roi_data in enumerate(tcurv_data["data"]))[0]
+                for n, roi_data in enumerate(tcurv_data["data"]))
             fulldir = fulldirs[-1]
         else:
             for n, roi_data in enumerate(tcurv_data["data"]):
