@@ -214,7 +214,8 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
             av_tr = np.asarray(trace_info["all_tr"][i])
             subtitle = u"{} across ROIs".format(statstr_pr)
             plot_util.plot_traces(
-                sub_axs[1], xran, av_tr[0], av_tr[1:], lw=0.2, title=subtitle)
+                sub_axs[1], xran, av_tr[0], av_tr[1:], lw=0.2, title=subtitle, 
+                xticks="auto")
         else:
             xran = range(len(trace_info["all_tr"][i]))
             run_tr = np.asarray(trace_info["all_tr"][i])
@@ -344,9 +345,6 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
 
     surps = ["reg", "surp"]
     n = 6
-    if stimpar["stimtype"] == "bricks":
-        n = 7
-
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
     
@@ -365,7 +363,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
                 plot_util.plot_traces(
                     sub_ax, xrans[i], all_stats[i][s, q, 0], 
                     all_stats[i][s, q, 1:], title, color=col[q], alpha=alpha, 
-                    label=leg, n_xticks=n)
+                    label=leg, n_xticks=n, xticks="auto")
                 sess_plot_util.add_axislabels(
                     sub_ax, fluor=analyspar["fluor"], datatype=datatype)
     
@@ -554,7 +552,8 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         leg = f"reg (no lock) ({reg_counts[i][0]})"
         plot_util.plot_traces(
             sub_ax, xrans[i], reg_stats[i][0][0], reg_stats[i][0][1:], 
-            alpha=alpha, label=leg, alpha_line=0.8, color="darkgray")
+            alpha=alpha, label=leg, alpha_line=0.8, color="darkgray", 
+            xticks="auto")
 
         # get regular data range to adjust y lims
         reg_min = np.min([reg_min, np.nanmin(reg_stats[i][0][0])])
@@ -577,7 +576,8 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                 leg = f"{lab} ({counts[q]})"
                 plot_util.plot_traces(sub_ax, xrans[i], stats[q][0], 
                     stats[q][1:], title, alpha=alpha, label=leg, 
-                    n_xticks=n_ticks, alpha_line=0.8, color=cols[n])
+                    n_xticks=n_ticks, alpha_line=0.8, color=cols[n], 
+                    xticks="auto")
                 n += 1
             if surp_len is not None:
                 plot_util.add_bars(

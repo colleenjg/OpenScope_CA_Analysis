@@ -37,6 +37,11 @@ logger = logging.getLogger(__name__)
 TAB = "    "
 
 
+#### ALWAYS SET TO FALSE - CHANGE ONLY FOR TESTING PURPOSES
+TEST_BRICKS_VARIATIONS = False
+
+
+
 #############################################
 def get_comps(stimtype="gabors", q1v4=False, regvsurp=False):
     """
@@ -234,6 +239,12 @@ def get_stimpar(comp="surp", stimtype="gabors", bri_dir="both", bri_size=128,
             bri_dir = "left"
         stimpar = sess_ntuple_util.init_stimpar(
             stimtype, bri_dir, bri_size, gabfr, gabk, gab_ori, bri_pre, 1.0)
+
+        # for brick logreg test analyses
+        if TEST_BRICKS_VARIATIONS:
+            logger.warning("Setting bricks pre/post to 2 for testing purposes.")
+            stimpar = sess_ntuple_util.init_stimpar(
+                stimtype, bri_dir, bri_size, gabfr, gabk, gab_ori, 2, 2)
 
     return stimpar
 
@@ -590,19 +601,27 @@ def get_data(stim, analyspar, stimpar, quintpar, qu_i=0, surp=[0, 1],
         stim.get_roi_data(twop_fr, stimpar.pre, stimpar.post, 
         analyspar.fluor, remnans=True, scale=False), squeeze_cols=True)
     
-    # if remconsec_surps:
-        # Normalize to first half
-        # mid = roi_data.shape[-1]//2
-        # div = np.median(roi_data[:, :, :mid], axis=-1)
-        # roi_data = roi_data - np.expand_dims(div, -1)
+    # for brick logreg test analyses
+    if TEST_BRICKS_VARIATIONS:
+        if remconsec_surps:
+            # Normalize to first half
+            mid = roi_data.shape[-1]//2
+            div = np.median(roi_data[:, :, :mid], axis=-1)
+            roi_data = roi_data - np.expand_dims(div, -1)
+            
+            # # Mean only
+            if TEST_BRICKS_VARIATIONS == "mean":
+                logger.warning("Using mean across ROIs, for testing purposes.")
+                roi_data = np.expand_dims(np.nanmean(roi_data, axis=0), axis=0)
+
+            # Mean and std
+            elif TEST_BRICKS_VARIATIONS == "mean_std":
+                logger.warning("Using mean and standard deviation across ROIs, "
+                    "for testing purposes.")
+                roi_data = np.stack([np.nanmean(roi_data, axis=0),
+                    np.nanstd(roi_data, axis=0)], axis=0)
         
-        # Mean and std
-        # roi_data = np.stack([np.nanmean(roi_data, axis=0),
-        #     np.nanstd(roi_data, axis=0)], axis=0)
-        
-        # Mean only
-        # roi_data = np.expand_dims(np.nanmean(roi_data, axis=0), axis=0)
-    
+
     # transpose to seqs x frames x ROIs
     roi_data = np.transpose(roi_data, [1, 2, 0])
 
@@ -669,9 +688,13 @@ def get_sess_data(sess, analyspar, stimpar, quintpar, class_var="surps",
     pre_post_err = False
     get_2nd, remconsec_surps = False, False
     if stimpar.pre > 0:
-        if stimpar.stimtype == "bricks" and stimpar.pre == 1:
-            get_2nd = True
-            remconsec_surps = class_var == "surps"
+        if stimpar.stimtype == "bricks":
+            if class_var == "surps":
+                remconsec_surps = True
+            elif stimpar.pre == 1:
+                get_2nd = True
+            else:
+                pre_post_err = True
         else:
             pre_post_err = True
     if stimpar.post > 1.0:
@@ -679,7 +702,8 @@ def get_sess_data(sess, analyspar, stimpar, quintpar, class_var="surps",
             pre_post_err = True
     if pre_post_err:
         raise NotImplementedError("Not implemented to prevent sequence overlap "
-            f"for {stimpar.stimtype}: {stimpar.pre} pre/{stimpar.post} post")
+            f"for {stimpar.stimtype}: {stimpar.pre} pre/{stimpar.post} post "
+            f"for {class_var} classification")
 
     n = 1
     if class_var == "surps":
