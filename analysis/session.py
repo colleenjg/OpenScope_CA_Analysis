@@ -39,6 +39,11 @@ if not version.parse(pd.__version__) >= version.parse(PD_MIN_VERSION):
     raise OSError(f"Please update pandas package >= {PD_MIN_VERSION}.")
 
 
+#### ALWAYS SET TO FALSE - CHANGE ONLY FOR TESTING PURPOSES
+TEST_USE_PLATEAU = False
+
+
+
 #############################################
 #############################################
 class Session(object):
@@ -681,7 +686,7 @@ class Session(object):
             self.nanrois = nan_rois
 
 
-#############################################
+    #############################################
     def _set_matched_rois(self):
         """
         self._set_matched_rois()
@@ -1950,6 +1955,12 @@ class Session(object):
                     - sequences     : sequence numbers
                     - frames        : frame numbers
         """
+
+        # for plateau test analyses
+        if TEST_USE_PLATEAU:
+            logger.warning(
+                "Setting `use_plateau` to True for testing purposes.")
+            use_plateau = True
 
         # extend values with padding
         if padding[0] != 0:

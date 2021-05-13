@@ -660,7 +660,7 @@ def fig_init_linpla(figpar=None, kind="reg", n_sub=1, sharey=False,
     elif kind == "prog":
         ncols *= n_sub
         wid = np.max([9.0/n_sub, 3.0])
-        hei = 2.0
+        hei = 2.3
     elif kind == "idx":
         wid = 5
         hei = np.max([wid * 1.5/n_sub, 1.0])
@@ -903,7 +903,7 @@ def add_linpla_axislabels(ax, fluor="dff", area=False, scale=False,
                         x_str = "Session"
                     x_pos = fig.transFigure.inverted().transform(
                         sub_ax.transAxes.transform([0.5, 0]))[0]
-                    fig.text(x_pos, -0.05, x_str, fontsize="xx-large", 
+                    fig.text(x_pos, 0, x_str, fontsize="xx-large", 
                         horizontalalignment="center", weight="bold")
                 else:
                     sub_ax.set_xlabel(x_str, weight="bold")

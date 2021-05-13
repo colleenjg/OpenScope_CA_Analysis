@@ -39,6 +39,11 @@ SUBJECT_POSITION = 2 / 3
 # is robust to a 2p dropped frame bug that occurred before the stimulus started.
 ADJUST_SECOND_ALIGNMENT = [833704570]
 
+
+#### ALWAYS SET TO FALSE - CHANGE ONLY FOR TESTING PURPOSES
+TEST_RUNNING_BLIPS = False
+
+
 #############################################
 def check_stim_drop_tolerance(n_drop_stim_fr, tot_stim_fr, drop_tol=0.0003, 
                              raise_exc=False):
@@ -553,13 +558,23 @@ def get_run_velocity(stim_sync_h5, stim_pkl="", stim_dict=None, filter_ks=5):
             f"but only {len(raw_running_deg)} rotation samples"
         )
 
+    use_median_duration = False
+    use_filter_ks = filter_ks
+
+    # for running alignement test analyses
+    if TEST_RUNNING_BLIPS:
+        logger.warning("Pre-processing running data using median duration "
+            "and no filter, for testing purposes.")
+        use_median_duration = True
+        use_filter_ks = 0
+
     running_velocity = calculate_running_velocity(
         stim_fr_timestamps=stim_fr_timestamps,
         raw_running_deg=raw_running_deg,
         wheel_radius=WHEEL_RADIUS,
         subject_position=SUBJECT_POSITION,
-        use_median_duration=False,
-        filter_ks=filter_ks,
+        use_median_duration=use_median_duration,
+        filter_ks=use_filter_ks,
     )
 
     return running_velocity

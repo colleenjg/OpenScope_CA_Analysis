@@ -458,7 +458,7 @@ def split_data_by_sess(sess, analyspar, stimpar, datatype="roi",
                 f"surprise, with {stimpar.post}s after gaborframe "
                 f"{stimpar.gabfr}.")
         segs = [stim.get_segs_by_criteria(
-            gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=gab_oris[s],
+            gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=gab_oris[surp],
             bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, surp=surp, 
             by="seg") for surp in [0, 1]]
         pre_posts = [[stimpar.pre, stimpar.post]] * 2        
@@ -716,7 +716,7 @@ def split_diff_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype="roi",
 
 
 #############################################
-def prog_by_sess(sess, analyspar, stimpar, datatype="roi", split="progsurp", 
+def prog_by_sess(sess, analyspar, stimpar, datatype="roi", surp="progsurp", 
                  position=0, baseline=0):
     """
     prog_by_sess(sess, analyspar, stimpar)
@@ -734,7 +734,7 @@ def prog_by_sess(sess, analyspar, stimpar, datatype="roi", split="progsurp",
                                   default: 1000
         - datatype (str)        : type of data (e.g., "roi", "run")
                                   default: "roi"
-        - split (str)           : how to split surprise vs reg data, either 
+        - surp (str)            : how to split surprise vs reg data, either 
                                   "progsurp": surp, vs preceeding reg, 
                                       but not locked (e.g., prog U, vs prev D) 
                                       (i.e., pre not necessarily equal to post)
@@ -756,11 +756,11 @@ def prog_by_sess(sess, analyspar, stimpar, datatype="roi", split="progsurp",
                                     (reg, surp) [x ROIs] x seq
     """
 
-    if split not in ["progsurp", "progreg"]:
-        gen_util.accepted_values_error("split", split, ["progsurp", "progreg"])
+    if surp not in ["progsurp", "progreg"]:
+        gen_util.accepted_values_error("surp", surp, ["progsurp", "progreg"])
 
     data_arr = split_data_by_sess(sess, analyspar, stimpar, datatype=datatype, 
-        split=split, integ=True, baseline=baseline, 
+        split=surp, integ=True, baseline=baseline, 
         prog_pos=position)
 
     data_arr = np.asarray(data_arr)
@@ -2787,7 +2787,7 @@ def stim_idx_by_linpla(sessions, analyspar, stimpar, permpar, datatype="roi",
 
     # optionally runs in parallel
     args_list = [analyspar, stimpar, permpar.n_perms, permpar.p_val, datatype, 
-        feature, op, position, baseline, match_oris, seed, False]
+        feature, op, position, baseline, match_oris, seed]
 
     [lp_item_idxs, lp_item_percs, lp_rand_idxs, lp_perc_pos, 
      lp_bin_edges, sess_info] = \
@@ -3329,8 +3329,7 @@ def stimpar_split_idx_by_linpla(sessions, analyspar, stimpar, datatype="roi",
     linpla_sess, linpla_order = split_by_linpla(sessions, rem_empty=True)
 
     # optionally runs in parallel
-    args_list = [analyspar, stimpar, datatype, feature, op, position, baseline, 
-        False]
+    args_list = [analyspar, stimpar, datatype, feature, op, position, baseline]
 
     [lp_item_idxs, sess_info] = \
         gen_util.parallel_wrap(
