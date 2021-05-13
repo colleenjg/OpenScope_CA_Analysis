@@ -346,7 +346,7 @@ def plot_per_mouse(sub_ax, mouse_st, sess_info, sess_ns=None, col=None,
 
         plot_util.plot_errorbars(sub_ax, mouse_st[m, keep_idx, 0], 
             mouse_st[m, keep_idx, 1:].T, sess_ns[keep_idx], color=col, 
-            label=lab_use, alpha=0.6)
+            label=lab_use, alpha=0.6, xticks="auto")
 
 
 #############################################
@@ -395,7 +395,7 @@ def plot_area_diff_stats(sub_ax, all_diff_st, sess_ns=None, mouse_mes=None,
 
     plot_util.plot_errorbars(sub_ax, all_diff_st[keep_idx, 0], 
         all_diff_st[keep_idx, 1:].T, sess_ns[keep_idx], color=col, 
-        label=lab, alpha=0.8)
+        label=lab, alpha=0.8, xticks="auto")
 
 
 #############################################
@@ -428,7 +428,7 @@ def plot_signif_from_mouse_diffs(sub_ax, signif_idx, st_data, signs,
         sess_ns = range(st_data.shape[1])
     sess_ns = np.asarray(sess_ns)
 
-    if len(signif_idx) == 2: # flatten if 2 tailed                
+    if isinstance(signif_idx[0], list): # flatten if 2 tailed                
         signif_idx = [i for sub in signif_idx for i in sub]
     
     for idx in signif_idx: # each star separately
@@ -1202,19 +1202,24 @@ def plot_traces(sub_ax, xran, trace_st, lock=False, col="k", lab=True,
 
     xran = np.asarray(xran)
 
-    # horizontal and vertical 0 line
+    # horizontal 0 line
     all_rows = True
     if not sub_ax.is_last_row() or all_rows:
         alpha = 0.5
     else:
-        # ensures that if no data is plotted in these subplots, there is at 
-        # least a vertically finite horizontal object to prevent indefinite 
-        # axis limit expansion bug.
+        # to prevent infinite expansion bug
         alpha = 0
     sub_ax.axhline(y=0, ls=HDASH, c="k", lw=3.0, alpha=alpha, zorder=-13)
-    sub_ax.axvline(x=0, ls=VDASH, c="k", lw=3.0, alpha=0.5, zorder=-13)
-        
-    xticks = None
+
+    # vertical 0 line    
+    if lock or (xran.min() <= 0 and xran.max() >= 0):
+        alpha = 0.5
+    else:
+        alpha = 0 # same as before - prevents infinite expansion
+    sub_ax.axvline(x=0, ls=VDASH, c="k", lw=3.0, alpha=alpha, zorder=-13)
+
+    # x ticks
+    xticks = "auto"
     if lock:
         xticks = np.linspace(-np.max(xran), np.max(xran), 5)
 
@@ -1283,7 +1288,7 @@ def plot_single_prog(sub_ax, prog_st, col="k", label=None, alpha_line=0.8):
     sub_ax.axhline(y=0, ls=HDASH, c="k", lw=3.0, alpha=0.5, zorder=-13)
         
     plot_util.plot_traces(sub_ax, xran, prog_st[:, 0], prog_st[:, 1:], 
-        alpha_line=alpha_line, color=col, label=label)
+        alpha_line=alpha_line, color=col, label=label, xticks="auto")
 
     # sets x ticks based on full dataset
     n = len(prog_st)
@@ -2917,7 +2922,8 @@ def plot_perc_sig_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
                 continue
             plot_util.plot_errorbars(
                 sub_ax, perc_sig_info["perc_sig"][l_idx, keep_idx, p], 
-                x=sess_ns[keep_idx], color=cols[p], label=lab, alpha=alphas[p])
+                x=sess_ns[keep_idx], color=cols[p], label=lab, alpha=alphas[p], 
+                xticks="auto")
 
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(ax, datatype=datatype, lines=lines, 
@@ -3334,7 +3340,8 @@ def plot_surp_idx_cm(sub_ax, item_idxs, col="blue"):
             item_idxs[s] = item_idxs[s][order]
 
     im = plot_util.plot_colormap(
-        sub_ax, item_idxs, cmap=cmap, n_xticks=nstims, yticks_ev=nrois//10)
+        sub_ax, item_idxs, cmap=cmap, n_xticks=nstims, yticks_ev=nrois//10, 
+        xticks="auto")
 
     return im
 
@@ -3790,7 +3797,8 @@ def plot_surp_latency(analyspar, sesspar, stimpar, permpar, latpar, extrapar,
             continue
         lat_st = np.asarray(lat_data["lat_stats"][l_idx])
         plot_util.plot_errorbars(
-            sub_ax, lat_st[0], lat_st[1:], sess_ns, color=pla_cols[pl])
+            sub_ax, lat_st[0], lat_st[1:], sess_ns, color=pla_cols[pl], 
+            xticks="auto")
         # plot ROI cloud
         if datatype == "roi":
             maxes[i] = plot_lat_clouds(
@@ -3949,7 +3957,8 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
             prop_st = np.asarray([sess_vals[idx] for sess_vals 
                 in prop_data["prop_stats"][l_idx]]) * 100
             plot_util.plot_errorbars(
-                sub_ax, prop_st[:, 0], prop_st[:, 1:], sess_ns, color=col)
+                sub_ax, prop_st[:, 0], prop_st[:, 1:], sess_ns, color=col, 
+                xticks="auto")
     
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar["fluor"], 

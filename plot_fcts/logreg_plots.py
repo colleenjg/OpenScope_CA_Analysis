@@ -671,7 +671,7 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane,
                 errs = math_util.error_stat(arr[:, :, m_i], axis=0, 
                     stats=stat, error="sem", nanpol="omit")
                 plot_util.plot_errorbars(ax, meds, err=errs, x=x_label, 
-                    color=col, alpha=alphas[m])
+                    color=col, alpha=alphas[m], xticks="auto")
     
     if not modif:
         ax.legend()

@@ -259,7 +259,8 @@ def run_sess_lstm(sessid, args):
     fig, ax = plt.subplots(1)
     for dataset in ["train", "val"]:
         plot_util.plot_traces(ax, range(args.n_epochs), np.asarray(loss_df[dataset]), 
-                  label=dataset, title=f"Average loss (MSE) ({n_rois} ROIs)")
+                  label=dataset, title=f"Average loss (MSE) ({n_rois} ROIs)", 
+                  xticks="auto")
     fig.savefig(os.path.join(dirname, f"{hyperstr}_loss"))
 
     savemod = os.path.join(dirname, f"{hyperstr}_ep{saved_ep}.pth")
@@ -286,7 +287,8 @@ def run_sess_lstm(sessid, args):
         for n in range(n_samples):
             roi_n = np.random.choice(range(data.shape[-1]))
             sub_ax = plot_util.get_subax(ax, n)
-            plot_util.plot_traces(sub_ax, xrans[n], data[n, :, roi_n], label=lab)
+            plot_util.plot_traces(sub_ax, xrans[n], data[n, :, roi_n], 
+                label=lab, xticks="auto")
             plot_util.set_ticks(sub_ax, "x", xran[0], xran[-1], n=7)
 
     sess_plot_util.plot_labels(ax, train_gabfr, plot_vals="reg", pre=roi_train_pre, 
