@@ -21,7 +21,6 @@ import warnings
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
-import pickle as pkl
 import torch
 
 from analysis import quint_analys
@@ -605,13 +604,14 @@ def get_data(stim, analyspar, stimpar, quintpar, qu_i=0, surp=[0, 1],
     if TEST_BRICKS_VARIATIONS:
         if remconsec_surps:
             # Normalize to first half
-            mid = roi_data.shape[-1]//2
-            div = np.median(roi_data[:, :, :mid], axis=-1)
+            mid = roi_data.shape[-1]  // 2
+            div = np.median(roi_data[:, :, : mid], axis=-1)
             roi_data = roi_data - np.expand_dims(div, -1)
             
             # # Mean only
             if TEST_BRICKS_VARIATIONS == "mean":
                 logger.warning("Using mean across ROIs, for testing purposes.")
+                # 1 x seqs x frames
                 roi_data = np.expand_dims(np.nanmean(roi_data, axis=0), axis=0)
 
             # Mean and std
@@ -1572,6 +1572,7 @@ def remove_overlap_comp_dir(gen_dirs, stimtype="gabors", comp="surp"):
                 if other_comp not in gen_dir]
 
     return gen_dirs
+
 
 #############################################
 def adjust_duplicate_runs(all_scores):
