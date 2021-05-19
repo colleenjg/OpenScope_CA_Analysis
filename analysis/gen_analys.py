@@ -619,6 +619,8 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
         logger.warning("Temporarily lowered log level for correlation "
             "analysis results.")
 
+    surps = ["reg", "surp"]
+
     # correlate average traces between sessions for each mouse and each surprise
     # value   
     all_counts = []
@@ -636,9 +638,15 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
         # get mean/median per grp (sess x surp_val x frame)
         grp_me = grp_stats[:, :, 0]
         grp_corrs = []
-        for s, surp in enumerate(["reg", "surp"]):
-            corr = st.pearsonr(grp_me[0, s], grp_me[1, s])
-            logger.info(f"{surp}: {corr[0]:.4f} (p={corr[1]:.2f})", 
+        # collect correlations
+        corrs = [st.pearsonr(grp_me[0, s], grp_me[1, s])
+            for s in range(len(surps))]
+        corr_max = np.argmax([corr[0] for corr in corrs])
+        for s, (surp, corr) in enumerate(zip(surps, corrs)):
+            sig_str = "*" if corr[1] < 0.05 else ""
+            high_str = " +" if corr_max == s else ""
+            logger.info(f"{surp}: {corr[0]:.4f} "
+                f"(p={corr[1]:.2f}{sig_str}){high_str}", 
                 extra={"spacing": TAB})
             corr = corr[0]
             grp_corrs.append(corr)
@@ -660,10 +668,16 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
                     surp_corrs = []
                     logger.info(f"sess {sessions[n][se].sess_n}:", 
                         extra={"spacing": TAB})
-                    for s, surp in enumerate(["reg", "surp"]):
-                        corr = st.pearsonr(m1_s1_me[s], m2_sess_mes[se][s])
+                    # collect correlations
+                    corrs = [st.pearsonr(m1_s1_me[s], m2_sess_mes[se][s])
+                        for s in range(len(surps))]
+                    corr_max = np.argmax([corr[0] for corr in corrs])
+                    for s, (surp, corr) in enumerate(zip(surps, corrs)):
+                        sig_str = "*" if corr[1] < 0.05 else ""
+                        high_str = " +" if corr_max == s else ""
                         logger.info(
-                            f"{surp}: {corr[0]:.4f} (p={corr[1]:.2f})", 
+                            f"{surp}: {corr[0]:.4f} "
+                            f"(p={corr[1]:.2f}{sig_str}){high_str}", 
                             extra={"spacing": f"{TAB}{TAB}"})
                         corr = corr[0]
                         surp_corrs.append(corr)

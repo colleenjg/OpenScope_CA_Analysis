@@ -1524,6 +1524,33 @@ class Session(object):
 
 
     #############################################
+    def get_roi_masks(self, fluor="dff", remnans=True):
+        """
+        self.get_roi_masks()
+
+        Returns ROI masks, optionally removing those that contain NaNs or Infs.
+
+        Optional args:
+            - fluor (str)   : if "dff", remnans is assessed on ROIs using dF/F 
+                              traces. If "raw", on raw processed traces.
+                              default: "dff"
+            - remnans (bool): if True, ROIs containing NaNs/Infs are removed.
+                              default: "dff"
+        Returns:
+            - roi_masks (3D array): boolean ROI masks, structured as 
+                                    ROI x height x width
+        """
+
+        roi_masks = self.roi_masks
+
+        if remnans:
+            rem_idx = self.get_nanrois(fluor)
+            roi_masks = np.delete(roi_masks, rem_idx, axis=0)
+
+        return roi_masks
+
+
+    #############################################
     def get_matched_rois(self):
         """
         self.get_matched_rois()
