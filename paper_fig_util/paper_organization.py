@@ -14,14 +14,12 @@ Note: this code uses python 3.7.
 import logging
 import warnings
 
-from sess_util import sess_ntuple_util
 from paper_fig_util import corr_figs, misc_figs, roi_figs, run_pupil_figs, \
                            seq_figs, usi_figs
 
 logger = logging.getLogger(__name__)
 
 PAPER_SEED = 905
-
 
 ### DEFINE FUNCTION ALERTS
 def no_plot_fct(reason):
@@ -36,73 +34,23 @@ def stats_plot_fct():
         "nicely spaced out.")
 
 
-def get_analysis_dict(roi=True, sess_ns=[1, 2, 3], stimtype="gabors", gabfr=0, 
-    pre=0, post=1.5, n_perms=1e4, p_val=0.05, tails=2, mult_comp=False):
-    """
-    get_analysis_dict()
+def get_specific_params(scale=True, sess_n="1-3", plane="all", line="all", 
+                          stimtype="gabors", gabfr=3, gab_ori="all", pre=0, 
+                          post=0.6):
 
-    Gets an analysis dictionary with ntuple parameters defined as in paper.
+    specific_params = {
+        "scale": scale,
+        "sess_n": sess_n,
+        "plane": plane,
+        "line": line,
+        "stimtype": stimtype,
+        "gabfr": gabfr,
+        "gab_ori": gab_ori,
+        "pre": pre,
+        "post": post,
+    }
 
-    Optional args:
-        - roi (bool)        : whether analysis is for ROIs
-                              default: True
-        - sess_ns (list)    : sessions to analyse
-                              default: [1, 2, 3]
-        - stimtype (str)    : stimulus to analyse
-                              default: "gabors"
-        - gabfr (int or str): reference Gabor frame
-                              default: 0
-        - pre (float)       : number of seconds pre reference for stimulus
-                              default: 0
-        - post (float)      : number of seconds post reference for stimulus
-                              default: 1.5
-        - n_perms (int)     : number of permutations to use in permutation 
-                              analysis
-                              default: 1e4
-        - p_val (float)     : p-value to use in permutation analysis
-                              default: 0.05
-        - tails (int or str): tails to use in permutation analysis
-                              default: 2
-        - mult_comp (bool)  : if True, multiple comparisons are used in 
-                              permutation analysis
-                              default: False
-
-    Returns:
-        - analysis_dict(dict):
-            ["analyspar"] (AnalysPar): analysis parameter ntuple
-            ["sesspar"] (SessPar)    : session parameter ntuple
-            ["stimpar"] (StimPar)    : stimulus parameter ntuple
-            ["permpar"] (PermPar)    : permutation parameter ntuple
-    """
-
-    analysis_dict = dict()
-
-    if roi:
-        fluor = "dff"
-        scale = True
-        remnans = True
-    else:
-        fluor = "n/a"
-        scale = False
-        remnans = False
-
-    # analysis parameters
-    analysis_dict["analyspar"] = sess_ntuple_util.init_analyspar(
-        fluor, remnans, "mean", "sem", scale)
-
-    # session parameters
-    analysis_dict["sesspar"] = sess_ntuple_util.init_sesspar(
-        sess_ns, False, "any", "any", 1, "P", "all", "prod")
-
-    # stimulus parameters
-    analysis_dict["stimpar"] = sess_ntuple_util.init_stimpar(
-        stimtype, "both", "any", gabfr, "any", "any", pre, post)
-
-    # permutation parameters
-    analysis_dict["permpar"] = sess_ntuple_util.init_permpar(
-        n_perms, p_val, tails, mult_comp)
-    
-    return analysis_dict
+    return specific_params
 
 
 class FigurePanelAnalysis():
@@ -113,7 +61,7 @@ class FigurePanelAnalysis():
         self.figure = str(figure)
         self.panel  = str(panel).upper()
 
-        print(f"Fig. {self.figure}{self.panel}.")
+        logger.info(f"Fig. {self.figure}{self.panel}.")
 
         self.datadir       = datadir
         self.mouse_df_path = mouse_df_path
@@ -130,22 +78,22 @@ class FigurePanelAnalysis():
         self.plt_bkend = plt_bkend
         self.fontdir   = fontdir
 
-    @property
-    def plot_fct(self):
-        if not hasattr(self, "_plot_fct"):
-            if self.figure not in self.figure_panel_dict.keys():
-                raise ValueError("Only the following figure values are "
-                    f"accepted: {self.figure_panel_dict.keys()}.")
-            else:
-                existing_panels = self.figure_panel_dict[self.figure].keys()
-                if self.panel not in existing_panels:
-                    existing_panel_strs = ", ".join(existing_panels)
-                    raise ValueError(f"Panel {self.panel} is not recognized for "
-                        f"figure {self.figure}. Existing panels are "
-                        f"{existing_panel_strs}.")
+    def get_plot_info(self):
+        if self.figure not in self.figure_panel_dict.keys():
+            raise ValueError("Only the following figure values are "
+                f"accepted: {self.figure_panel_dict.keys()}.")
+        else:
+            existing_panels = self.figure_panel_dict[self.figure].keys()
+            if self.panel not in existing_panels:
+                existing_panel_strs = ", ".join(existing_panels)
+                raise ValueError(f"Panel {self.panel} is not recognized for "
+                    f"figure {self.figure}. Existing panels are "
+                    f"{existing_panel_strs}.")
 
-            self._plot_fct = self.figure_panel_dict[self.figure][self.panel]
-        return self._plot_fct
+        specific_params, plot_fct = \
+            self.figure_panel_dict[self.figure][self.panel]
+
+        return specific_params, plot_fct
 
     ### DEFINE FUNCTIONS
     ### Figure 1
@@ -168,7 +116,9 @@ class FigurePanelAnalysis():
     def roi_tracking(self):
         partial_plot_fct(message=("Only overlays will be generated, without "
             "additional formatting."))
-        return roi_figs.roi_tracking
+        specific_params = get_specific_params() # most values are not used
+
+        return specific_params, roi_figs.roi_tracking
 
     ### Figure 2
     def gabor_sequences(self):
@@ -181,60 +131,104 @@ class FigurePanelAnalysis():
 
     def gabor_example_roi_usis(self):
         partial_plot_fct(message="Some formatting adjustments will be missing.")
-        return usi_figs.gabor_example_roi_usis
+        specific_params = get_specific_params(
+            sess_n=1,
+            line="L23",
+            pre=0.9,
+        )
+        return specific_params, usi_figs.gabor_example_roi_usis
 
     def gabor_example_roi_usi_sig(self):
         partial_plot_fct(message="Some formatting adjustments will be missing.")
-        return usi_figs.gabor_example_roi_usi_sig
+        specific_params = get_specific_params(
+            sess_n=1,
+            line="L23",
+            plane="soma",
+        )
+        return specific_params, usi_figs.gabor_example_roi_usi_sig
 
     def gabor_roi_usi_distr(self):
-        return usi_figs.gabor_roi_usi_distr
+        specific_params = get_specific_params(
+            sess_n=1,
+        )
+        return specific_params, usi_figs.gabor_roi_usi_distr
 
     def gabor_roi_usi_sig(self):
         stats_plot_fct()
-        return usi_figs.gabor_roi_usi_sig
+        specific_params = get_specific_params(
+            sess_n=1,
+        )
+        return specific_params, usi_figs.gabor_roi_usi_sig
 
     def gabor_roi_usi_sig_matched_oris(self):
         stats_plot_fct()
-        return usi_figs.gabor_roi_usi_sig_matched_oris
+        specific_params = get_specific_params(
+            sess_n=1,
+            gab_ori=[0, 90],
+        )
+        return specific_params, usi_figs.gabor_roi_usi_sig_matched_oris
 
     def pupil_run_responses(self):
         partial_plot_fct(message="Pupil and running images will be missing.")
-        return run_pupil_figs.pupil_run_responses
+        specific_params = get_specific_params(
+            sess_n=1,
+            pre=0.9,
+        )
+        return specific_params, run_pupil_figs.pupil_run_responses
 
     def pupil_run_diffs(self):
-        return run_pupil_figs.pupil_run_diffs
+        specific_params = get_specific_params(
+            sess_n=1,
+        )
+        return specific_params, run_pupil_figs.pupil_run_diffs
 
     ### Figure 3
     def gabor_sequences_sess123(self):
-        return seq_figs.gabor_sequences_sess123
+        specific_params = get_specific_params(
+            pre=0.9,
+        )
+        return specific_params, seq_figs.gabor_sequences_sess123
         
     def gabor_sequence_diffs_sess123(self):
         stats_plot_fct()
-        return seq_figs.gabor_sequence_diffs_sess123
+        specific_params = get_specific_params(
+            pre=0.9,
+        )
+        return specific_params, seq_figs.gabor_sequence_diffs_sess123
 
     def gabor_rel_resp_sess123(self):
         stats_plot_fct()
-        return seq_figs.gabor_rel_resp_sess123
+        specific_params = get_specific_params(
+            pre=0.9,
+        )
+        return specific_params, seq_figs.gabor_rel_resp_sess123
 
     def gabor_tracked_roi_usis_sess123(self):
-        return usi_figs.gabor_tracked_roi_usis_sess123
+        specific_params = get_specific_params()
+        return specific_params, usi_figs.gabor_tracked_roi_usis_sess123
 
     def gabor_tracked_roi_usi_means_sess123(self):
         stats_plot_fct()
-        return usi_figs.gabor_tracked_roi_usi_means_sess123
+        specific_params = get_specific_params()
+        return specific_params, usi_figs.gabor_tracked_roi_usi_means_sess123
 
     ### Figure 4
     def gabor_decoding_sess123(self):
         stats_plot_fct()
-        return misc_figs.gabor_decoding_sess123
+        specific_params = get_specific_params()
+        return specific_params, misc_figs.gabor_decoding_sess123
 
     def gabor_norm_res_corr_example(self):
         partial_plot_fct(message="Some formatting adjustments will be missing.")
-        return corr_figs.gabor_norm_res_corr_example
+        specific_params = get_specific_params(
+           line="L23",
+           plane="soma", 
+        )
+        return specific_params, corr_figs.gabor_norm_res_corr_example
 
     def gabor_norm_res_corrs_sess123_comps(self):
-        return corr_figs.gabor_norm_res_corrs_sess123_comps
+        specific_params = get_specific_params()
+        return specific_params, corr_figs.gabor_norm_res_corrs_sess123_comps
 
     def model_illustration(self):
         no_plot_fct(reason="is a schematic illustration")
@@ -244,7 +238,8 @@ class FigurePanelAnalysis():
     def roi_overlays_sess123(self):
         partial_plot_fct(message=("Only overlays will be generated, without "
             "additional formatting."))
-        return roi_figs.roi_overlays_sess123
+        specific_params = get_specific_params() # most values are not used
+        return specific_params, roi_figs.roi_overlays_sess123
 
     def roi_overlays_sess123_enlarged(self):
         no_plot_fct(reason="was enlarged manually")
@@ -252,32 +247,44 @@ class FigurePanelAnalysis():
 
     ### Figure S2
     def snrs_sess123(self):
-        return misc_figs.snrs_sess123
+        specific_params = get_specific_params()
+        return specific_params, misc_figs.snrs_sess123
 
     def mean_signal_sess123(self):
-        return misc_figs.mean_signal_sess123
+        specific_params = get_specific_params()
+        return specific_params, misc_figs.mean_signal_sess123
 
     def n_rois_sess123(self):
-        return misc_figs.n_rois_sess123
+        specific_params = get_specific_params()
+        return specific_params, misc_figs.n_rois_sess123
 
     ### Figure S3
     def stimulus_onset_sess123(self):
-        return seq_figs.stimulus_onset_sess123
+        specific_params = get_specific_params()
+        return specific_params, seq_figs.stimulus_onset_sess123
 
     def gabor_example_roi_responses_sess1(self):
-        return seq_figs.gabor_example_roi_responses_sess1
+        specific_params = get_specific_params()
+        return specific_params, seq_figs.gabor_example_roi_responses_sess1
 
     ### Figure S4
     def gabor_roi_usi_sig_by_mouse(self):
         stats_plot_fct()
-        return usi_figs.gabor_roi_usi_sig_by_mouse
+        specific_params = get_specific_params(
+            sess_n=1,
+        )
+        return specific_params, usi_figs.gabor_roi_usi_sig_by_mouse
 
     def gabor_rel_resp_tracked_rois_sess123(self):
         stats_plot_fct()
-        return seq_figs.gabor_rel_resp_tracked_rois_sess123
+        specific_params = get_specific_params(
+            pre=0.9,
+        )
+        return specific_params, seq_figs.gabor_rel_resp_tracked_rois_sess123
 
     def gabor_tracked_roi_means_sess123_by_mouse(self):
-        return usi_figs.gabor_tracked_roi_means_sess123_by_mouse
+        specific_params = get_specific_params()
+        return specific_params, usi_figs.gabor_tracked_roi_means_sess123_by_mouse
 
     ### Figure S5
     def visual_flow_stimulus(self):
@@ -285,42 +292,84 @@ class FigurePanelAnalysis():
         return
 
     def visual_flow_sequences_sess123(self):
-        return seq_figs.visual_flow_sequences_sess123
+        specific_params = get_specific_params(
+            stimtype="bricks",
+            pre=2,
+            post=2,
+        )
+        return specific_params, seq_figs.visual_flow_sequences_sess123
 
     def visual_flow_diffs_sess123(self):
-        return seq_figs.visual_flow_diffs_sess123
+        specific_params = get_specific_params(
+            stimtype="bricks",
+            pre=2,
+            post=2,
+        )
+        return specific_params, seq_figs.visual_flow_diffs_sess123
 
     ### Figure S6
     def visual_flow_rel_resp_sess123(self):
         stats_plot_fct()
-        return seq_figs.visual_flow_rel_resp_sess123
+        specific_params = get_specific_params(
+            stimtype="bricks",
+            pre=2,
+            post=2,
+        )
+        return specific_params, seq_figs.visual_flow_rel_resp_sess123
 
     def rel_resp_stimulus_comp_sess1v3(self):
         stats_plot_fct()
-        return seq_figs.rel_resp_stimulus_comp_sess1v3
+        specific_params = get_specific_params(
+            stimtype="both",
+        ) # pre/post times are fixed for this analysis
+        return specific_params, seq_figs.rel_resp_stimulus_comp_sess1v3
 
     def visual_flow_tracked_roi_usis_sess123(self):
-        return usi_figs.visual_flow_tracked_roi_usis_sess123
+        specific_params = get_specific_params(
+            stimtype="bricks",
+            pre=2,
+            post=2,
+        )
+        return specific_params, usi_figs.visual_flow_tracked_roi_usis_sess123
 
     def visual_flow_tracked_roi_usi_means_sess123_by_mouse(self):
-        return usi_figs.visual_flow_tracked_roi_usi_means_sess123_by_mouse
+        specific_params = get_specific_params(
+            stimtype="bricks",
+            pre=2,
+            post=2,
+        )
+        return specific_params, usi_figs.visual_flow_tracked_roi_usi_means_sess123_by_mouse
 
     def tracked_roi_usis_stimulus_comp_sess1v3(self):
-        return usi_figs.tracked_roi_usis_stimulus_comp_sess1v3
+        specific_params = get_specific_params(
+            stimtype="both",
+        ) # pre/post times are fixed for this analysis
+        return specific_params, usi_figs.tracked_roi_usis_stimulus_comp_sess1v3
 
     def visual_flow_norm_res_corrs_sess123_comps(self):
-        return corr_figs.visual_flow_norm_res_corrs_sess123_comps
+        specific_params = get_specific_params(
+            stimtype="bricks",
+            pre=2,
+            post=2,
+        )
+        return specific_params, corr_figs.visual_flow_norm_res_corrs_sess123_comps
 
     ### Figure S7
     def dendritic_roi_tracking_example(self):
         partial_plot_fct(message=("Only overlays will be generated, without "
             "additional formatting."))
-        return roi_figs.dendritic_roi_tracking_example
+        specific_params = get_specific_params(
+            plane="dend"
+        ) # most values are not used
+        return specific_params, roi_figs.dendritic_roi_tracking_example
 
     def somatic_roi_tracking_example(self):
         partial_plot_fct(message=("Only overlays will be generated, without "
             "additional formatting."))
-        return roi_figs.somatic_roi_tracking_example
+        specific_params = get_specific_params(
+            plane="soma"
+        ) # most values are not used
+        return specific_params, roi_figs.somatic_roi_tracking_example
 
     @property
     def figure_panel_dict(self):
