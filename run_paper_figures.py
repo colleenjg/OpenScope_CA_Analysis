@@ -12,6 +12,7 @@ Note: this code uses python 3.7.
 """
 
 import argparse
+import copy
 import logging
 import os
 
@@ -21,7 +22,7 @@ gen_util.CC_config_cache()
 
 from util import logger_util
 from sess_util import sess_ntuple_util, sess_plot_util
-import paper_organization 
+from paper_fig_util import paper_organization 
 
 
 DEFAULT_DATADIR = os.path.join("..", "data", "OSCA")
@@ -49,7 +50,9 @@ def init_analysis(args):
         fontdir=args.fontdir,
         )
     
-    # lower power: produce a warning and amend intermediate dictionary name
+    specific_params, plot_fcts = fig_panel_analysis.get_plot_info()
+
+    # lower power: produce a warning and amends intermediate dictionary name
 
     args = copy.deepcopy(args)
 
@@ -57,36 +60,50 @@ def init_analysis(args):
 
     # analysis parameters
     analysis_dict["analyspar"] = sess_ntuple_util.init_analyspar(
-        "dff", not(args.keepnans), args.stats, args.error, args.scale)
+        fluor="dff", # type of fluorescence data to use (dF/F)
+        remnans=True, # whether to ROIs with NaNs/Infs
+        stats="mean", # type of statistic to measure (mean/median)
+        error="sem", # type of error to measure (std/SEM)
+        scale=args.scale # whether to scale ROIs (robust scaling)
+        )
 
-    # session parameters
+    # session inclusion parameters
     analysis_dict["sesspar"] = sess_ntuple_util.init_sesspar(
-        args.sess_n, args.closest, args.plane, args.line, args.min_rois, 
-        args.pass_fail, args.incl, args.runtype)
+        args.sess_n, # session number(s)
+        plane=args.plane, # recording plane(s)
+        line=args.line, # mouse line(s)
+        pass_fail="P", # include sessions that passed QC
+        incl="all", # include all remaining sessions
+        runtype="prod" # production run data
+        )
 
-    # stimulus parameters
+    # stimulus analysis parameters
     analysis_dict["stimpar"] = sess_ntuple_util.init_stimpar(
-        args.stimtype, args.bri_dir, args.bri_size, args.gabfr, args.gabk, 
-        args.gab_ori, args.pre, args.post)
-
-    # SPECIFIC ANALYSES    
-    # autocorrelation parameters
-    analysis_dict["autocorrpar"] = sess_ntuple_util.init_autocorrpar(
-        args.lag_s, byitem=False)
+        stimtype=args.stimtype, # stimulus to analyse
+        bri_dir=args.bri_dir, # brick directions
+        gab_fr=args.gabfr, # Gabor frame to center analyses on
+        gab_ori=args.gab_ori, # mean Gabor orientations
+        pre=args.pre, # number of seconds pre reference frame
+        post=args.post # number of seconds post reference frame
+        )
     
-    # permutation parameters
+    # permutation analysis parameters
     analysis_dict["permpar"] = sess_ntuple_util.init_permpar(
-        args.n_perms, 0.05, args.tails, False)
-    
-    # quintile parameters
-    analysis_dict["quintpar"] = sess_ntuple_util.init_quintpar(
-        args.n_quints, [0, -1])
+        n_perms=args.n_perms, # number of permutations to run
+        p_val=0.05, # significance threshold to consider
+        tails=2 # number of tails
+        )
 
-    # figure parameters
+    # figure plotting parameters
     analysis_dict["figpar"] = sess_plot_util.init_figpar(
-        ncols=int(args.ncols), datetime=not(args.no_datetime), 
-        overwrite=args.overwrite, runtype=args.runtype, output=args.output, 
-        plt_bkend=args.plt_bkend, fontdir=args.fontdir)
+        ncols=int(args.ncols), 
+        datetime=not(args.no_datetime), 
+        overwrite=args.overwrite, 
+        runtype="prod",
+        output=args.output, 
+        plt_bkend=args.plt_bkend, 
+        fontdir=args.fontdir
+        )
 
     return analysis_dict
 
@@ -145,7 +162,7 @@ def parse_args():
     parser.add_argument("--plt_bkend", default=None, 
         help="switch mpl backend when running on server")
     parser.add_argument("--parallel", action="store_true", 
-        help="do runs in parallel.")
+        help="do analyses in parallel.")
     parser.add_argument("--seed", default="paper", 
         help="paper random seed or a different value")
     parser.add_argument("--log_level", default="info", 
