@@ -15,7 +15,7 @@ Note: this code uses python 3.7.
 
 import copy
 import logging
-import os
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -143,7 +143,7 @@ def get_roi_metrics(roi_extract_dict, objectlist_txt):
 
     Required args:
         - roi_extract_dict (dict): ROI extraction dictionary
-        - objectlist_txt (str)   : path to object list containing ROI metrics
+        - objectlist_txt (Path)  : path to object list containing ROI metrics
     
     Returns:
         - roi_metrics (pd DataFrame): dataframe containing ROI metrics
@@ -186,23 +186,23 @@ def get_roi_masks(mask_file=None, roi_extract_json=None, objectlist_txt=None,
     to boolean.
 
     Optional args:
-        - mask_file (str)       : ROI mask h5. If None, roi_extract_json and
-                                  objectlist_txt are used.
-                                  default: None
-        - roi_extract_json (str): ROI extraction json (only needed is mask_file 
-                                  is None)
-        - objectlist_txt (str)  : ROI object list txt (only needed if mask_file 
-                                  is None)
-                                  default: None
-        - mask_threshold (float): minimum value in non-boolean mask to
-                                  retain a pixel in an ROI mask
-                                  default: 0.1
-        - min_n_pix (int)       : minimum number of pixels in an ROI below 
-                                  which, ROI is set to be empty
-                                  default: 3
-        - make_bool (bool)      : if True, ROIs are converted to boolean 
-                                  before being returned
-                                  default: True 
+        - mask_file (Path)        : ROI mask h5. If None, roi_extract_json and
+                                   objectlist_txt are used.
+                                   default: None
+        - roi_extract_json (Path): ROI extraction json (only needed is 
+                                   mask_file is None)
+        - objectlist_txt (Path)  : ROI object list txt (only needed if 
+                                   mask_file is None)
+                                   default: None
+        - mask_threshold (float) : minimum value in non-boolean mask to
+                                   retain a pixel in an ROI mask
+                                   default: 0.1
+        - min_n_pix (int)        : minimum number of pixels in an ROI below 
+                                   which, ROI is set to be empty
+                                   default: 3
+        - make_bool (bool)       : if True, ROIs are converted to boolean 
+                                   before being returned
+                                   default: True 
         
     Returns:
         - roi_masks (3D array): ROI masks, structured as 
@@ -459,7 +459,7 @@ def save_roi_dataset(data, save_path, roi_names, data_name="data",
 
     Required args:
         - data (nd array)       : ROI data, where first dimension are ROIs
-        - save_path (str)       : path for saving the dataset
+        - save_path (Path)      : path for saving the dataset
         - roi_names (array-like): list of names for each ROI
     
     Optional args:
@@ -479,11 +479,12 @@ def save_roi_dataset(data, save_path, roi_names, data_name="data",
         raise ValueError("'roi_names' must be as long as the first dimension "
             "of 'data'.")
 
-    if os.path.isfile(save_path) and not replace:
+    save_path = Path(save_path)
+    if save_path.is_file() and not replace:
         logger.info("ROI traces already exist.")
         return
 
-    file_util.createdir(os.path.dirname(save_path), log_dir=False)
+    file_util.createdir(save_path.parent, log_dir=False)
 
     with h5py.File(save_path, "w") as hf:
         hf.create_dataset(data_name, data=data, compression=compression)
@@ -502,7 +503,7 @@ def demix_rois(raw_traces, h5path, masks, excl_dict, verbose=False):
 
     Required args:
         - raw_traces (2D array): extracted traces, structured as ROI x frames
-        - h5path (str)         : path to full movie, structured as 
+        - h5path (Path)        : path to full movie, structured as 
                                  time x height x width
         - masks (3D array)     : ROI mask, structured as ROI x height x width
         - excl_dict (dict)     : dictionary of exclusion masks for different 
@@ -634,16 +635,16 @@ def create_traces_from_masks(datadir, sessid, runtype="prod", h5dir=None,
     WARNING: Will replace any existing files.
 
     Required args:
-        - datadir (str): name of the data directory
-        - sessid (int) : session ID (9 digits)
+        - datadir (Path): name of the data directory
+        - sessid (int)  : session ID (9 digits)
 
     Optional args:
         - runtype (str)         : "prod" (production) or "pilot" data
                                   default: "prod"
-        - h5dir (str)           : name of the h5 data directory. If None, 
+        - h5dir (Path)          : path of the h5 data directory. If None, 
                                   datadir is used.
                                   default: None
-        - savedir (str)         : name of the directory in which to save new 
+        - savedir (Path)        : path of the directory in which to save new 
                                   files. If None, datadir is used.
                                   default: "trace_proc_dir"
         - dendritic (bool)      : if True, paths are changed to EXTRACT 
@@ -669,8 +670,7 @@ def create_traces_from_masks(datadir, sessid, runtype="prod", h5dir=None,
 
     # remove extra slashes
     dirnames = [datadir, h5dir, savedir]
-    datadir, h5dir, savedir = [os.path.normpath(dirname) 
-        for dirname in dirnames]
+    datadir, h5dir, savedir = [str(Path(dirname)) for dirname in dirnames]
 
     if h5dir is not None:
         h5path = h5path.replace(datadir, h5dir)
@@ -678,14 +678,14 @@ def create_traces_from_masks(datadir, sessid, runtype="prod", h5dir=None,
     mask_path = None
     if dendritic:
         mask_path = sess_file_util.get_dendritic_mask_path_from_sessid(
-            datadir, sessid, runtype, check=True)
+            Path(datadir), sessid, runtype, check=True)
 
     # use data directory, as requires some files to be present
     roi_trace_dict = sess_file_util.get_roi_trace_paths_from_sessid(
-        datadir, sessid, runtype, dendritic=dendritic, check=False)
+        Path(datadir), sessid, runtype, dendritic=dendritic, check=False)
     if savedir is not None:
         for key, item in roi_trace_dict.items():
-            roi_trace_dict[key] = item.replace(datadir, savedir)
+            roi_trace_dict[key] = Path(str(item).replace(datadir, savedir))
 
     logger.info("Extracting ROI masks.")
     masks_bool, roi_ids = get_roi_masks(
@@ -699,7 +699,7 @@ def create_traces_from_masks(datadir, sessid, runtype="prod", h5dir=None,
     logger.info("Creating ROI and neuropil traces.")
     [roi_traces, 
     neuropil_traces, _] = roi_masks.calculate_roi_and_neuropil_traces(
-        h5path, all_mask_objs, motion_border=motion_border)
+        str(h5path), all_mask_objs, motion_border=motion_border)
     
     excl_dict = validate_masks(all_mask_objs, neuropil_traces=neuropil_traces)
 

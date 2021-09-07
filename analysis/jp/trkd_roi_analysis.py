@@ -14,8 +14,9 @@ import pandas as pd
 import scipy.stats as scist
 import sys, copy, time
 import itertools as it
+from pathlib import Path
 
-sys.path.extend(['../..'])
+sys.path.extend([str(Path('..', '..'))])
 from analysis import session
 from util import gen_util, math_util
 
@@ -170,9 +171,8 @@ def make_usi_df(stimtype, mouse_df, mouse_df_fnm, mouse_ns, datadir,
             # Obtain session object
             sessid = mouse_df[(mouse_df['mouse_n']==mouse_n) & 
                               (mouse_df['sess_n']==sess_n)]['sessid'].values[0]
-            sess = session.Session(datadir, sessid, 
+            sess = session.Session(datadir, sessid, mouse_df=mouse_df_fnm,
                 only_matched_rois=only_matched_rois)
-            sess.extract_sess_attribs(mouse_df=mouse_df_fnm)
             sess.extract_info(fulldict=False, roi=True, run=False, pupil=False) 
             roi_data = []
             # Get expected event data

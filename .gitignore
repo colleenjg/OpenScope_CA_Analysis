@@ -3,11 +3,11 @@
 
 !/sess_util/
 !/analysis/
-!/plot_fcts/
+!/extra/
 !/paper_fig_util/
+!/plots_fcts/
 !/examples/
-!/scripts_under_dev/
-!/nway-matching/
+!/roi_tracking/
 
 /paper_fig_util/intermediate_results
 .ipynb_checkpoints

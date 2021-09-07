@@ -14,7 +14,7 @@ Note: this code uses python 3.7.
 
 import copy
 import logging
-import os
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -29,6 +29,45 @@ TAB = "    "
 
 
 ######################################
+def get_sessid_from_mouse_df(mouse_n=1, sess_n=1, runtype="prod", 
+                             mouse_df="mouse_df.csv"):
+    """
+    get_sessid_from_mouse_df(sessid)
+
+    Returns session ID, based on the mouse number, session number, and runtype,
+    based on the mouse dataframe.
+
+    Optional args:
+        - mouse_n (int)  : mouse number
+                           default: 1
+        - sess_n (int)   : session number
+                           default: 1
+        - runtype (str)  : type of data
+                           default: 1
+        - mouse_df (Path): path name of dataframe containing information on each 
+                           session. Dataframe should have the following columns:
+                               mouse_n, sess_n, runtype
+                           default: "mouse_df.csv"
+
+    Returns:
+        - sessid (int): session ID
+    """
+
+    if isinstance(mouse_df, (str, Path)):
+        mouse_df = file_util.loadfile(mouse_df)
+
+    df_line = gen_util.get_df_vals(
+        mouse_df, ["mouse_n", "sess_n", "runtype"], 
+        [int(mouse_n), int(sess_n), runtype],
+        single=True
+        )
+
+    sessid = int(df_line["sessid"].tolist()[0])
+
+    return sessid
+
+
+######################################
 def load_info_from_mouse_df(sessid, mouse_df="mouse_df.csv"):
     """
     load_info_from_mouse_df(sessid)
@@ -39,12 +78,12 @@ def load_info_from_mouse_df(sessid, mouse_df="mouse_df.csv"):
         - sessid (int): session ID
 
     Optional args:
-        - mouse_df (str): path name of dataframe containing information on each 
-                          session. Dataframe should have the following columns:
-                              sessid, mouse_n, depth, plane, line, sess_gen, 
-                              sess_within, sess_n, pass_fail, all_files, 
-                              any_files, notes
-                          default: "mouse_df.csv"
+        - mouse_df (Path): path name of dataframe containing information on each 
+                           session. Dataframe should have the following columns:
+                               sessid, mouse_n, depth, plane, line, sess_gen, 
+                               sess_within, sess_n, pass_fail, all_files, 
+                               any_files, notes
+                           default: "mouse_df.csv"
 
     Returns:
         - df_dict (dict): dictionary with following keys:
@@ -59,25 +98,21 @@ def load_info_from_mouse_df(sessid, mouse_df="mouse_df.csv"):
             - notes (str)      : notes from the dataframe on the session
             - pass_fail (str)  : whether session passed "P" or failed "F" 
                                  quality control
-            - sess_gen (int)   : general session number (e.g., 1)
-            - sess_within (int): within session number (session number within
-                                 the sess_gen) (e.g., 1)
+
             - sess_n (int)     : overall session number (e.g., 1)
     """
 
-    if isinstance(mouse_df, str):
+    if isinstance(mouse_df, (str, Path)):
         mouse_df = file_util.loadfile(mouse_df)
 
-    df_line = gen_util.get_df_vals(mouse_df, "sessid", sessid)
+    df_line = gen_util.get_df_vals(mouse_df, "sessid", sessid, single=True)
 
     df_dict = {
         "mouse_n"      : int(df_line["mouse_n"].tolist()[0]),
         "depth"        : df_line["depth"].tolist()[0],
         "plane"        : df_line["plane"].tolist()[0],
         "line"         : df_line["line"].tolist()[0],
-        "sess_gen"     : int(df_line["sess_gen"].tolist()[0]),
         "sess_n"       : int(df_line["sess_n"].tolist()[0]),
-        "sess_within"  : int(df_line["sess_within"].tolist()[0]),
         "pass_fail"    : df_line["pass_fail"].tolist()[0],
         "all_files"    : bool(int(df_line["all_files"].tolist()[0])),
         "any_files"    : bool(int(df_line["any_files"].tolist()[0])),
@@ -101,25 +136,22 @@ def load_small_stim_pkl(stim_pkl, runtype="prod"):
     Reduces the pickle size about 10 fold.
 
     Required args:
-        - stim_pkl (str): full path name for the full stimulus
-                          pickle file
+        - stim_pkl (Path): full path name for the full stimulus pickle file
     
     Optional args:
         - runtype (str): runtype ("prod" or "pilot")
     """
 
-    stim_pkl_no_ext = os.path.splitext(stim_pkl)[0]
-    small_stim_pkl_name = f"{stim_pkl_no_ext}_small.pkl"
+    stim_pkl = Path(stim_pkl)
+    stim_pkl_no_ext = Path(stim_pkl.parent, stim_pkl.stem)
+    small_stim_pkl_name = Path(f"{stim_pkl_no_ext}_small.pkl")
     
-    if os.path.exists(small_stim_pkl_name):
+    if small_stim_pkl_name.exists():
         return file_util.loadfile(small_stim_pkl_name)
     else:
         logger.info("Creating smaller stimulus pickle.", extra={"spacing": TAB})
 
-        if isinstance(stim_pkl, str):
-            stim_dict = file_util.loadfile(stim_pkl)
-        else:
-            stim_dict = copy.deepcopy(stim_dict)
+        stim_dict = file_util.loadfile(stim_pkl)
 
         if runtype == "pilot":
             stim_par_key = "stimParams"
@@ -153,16 +185,16 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid,
     alignment arrays, and frame rate.
     
     Required args:
-        - stim_pkl (str)    : full path name of the experiment stim pickle 
-                              file
-        - stim_sync_h5 (str): full path name of the experiment sync hdf5 file
-        - time_sync_h5 (str): full path name of the time synchronization hdf5 
-                              file
-        - align_pkl (str)   : full path name of the output pickle file to 
-                              create
-        - sessid (int)      : session ID, needed the check whether this session 
-                              needs to be treated differently (e.g., for 
-                              alignment bugs)
+        - stim_pkl (Path)    : full path name of the experiment stim pickle 
+                               file
+        - stim_sync_h5 (Path): full path name of the experiment sync hdf5 file
+        - time_sync_h5 (Path): full path name of the time synchronization hdf5 
+                               file
+        - align_pkl (Path)   : full path name of the output pickle file to 
+                               create
+        - sessid (int)       : session ID, needed the check whether this 
+                               session needs to be treated differently 
+                               (e.g., for alignment bugs)
 
     Optional args:
         - runtype (str): runtype ("prod" or "pilot")
@@ -182,10 +214,11 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid,
                                   was playing
     """
 
-    sessdir = os.path.dirname(align_pkl)
+    align_pkl = Path(align_pkl)
+    sessdir = align_pkl.parent
 
     # create stim_df if doesn't exist
-    if not os.path.exists(align_pkl):
+    if not align_pkl.exists():
         logger.info(f"Stimulus alignment pickle not found in {sessdir}, and "
             "will be created.", extra={"spacing": TAB})
         sess_sync_util.get_stim_frames(
@@ -226,7 +259,7 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid,
 
 
 #############################################
-def _warn_nans_diff_thr(run, min_consec=5, n_pre_existing=None):
+def _warn_nans_diff_thr(run, min_consec=5, n_pre_existing=None, sessid=None):
     """
     _warn_nans_diff_thr(run)
 
@@ -245,6 +278,8 @@ def _warn_nans_diff_thr(run, min_consec=5, n_pre_existing=None):
         - n_pre_existing (num): number of pre-existing NaNs (before difference 
                                 thresholding was used)
                                 default: None
+        - sessid (int)        : session ID to include in the log or error
+                                default: None 
     """
 
     n_nans = np.sum(np.isnan(run))
@@ -276,15 +311,17 @@ def _warn_nans_diff_thr(run, min_consec=5, n_pre_existing=None):
             "dropped running values.")
 
     prop = n_nans / len(run)
-    logger.warning(f"{n_nans} dropped running frames (~{prop * 100:.1f}%)"
-        f"{split_str}.{n_consec_str}", extra={"spacing": TAB})
+    sessstr = "" if sessid is None else f"Session {sessid}: "
+    logger.warning(f"{sessstr}{n_nans} dropped running frames "
+        f"(~{prop * 100:.1f}%){split_str}.{n_consec_str}", 
+        extra={"spacing": TAB})
 
     return
 
 
 #############################################
 def nan_large_run_differences(run, diff_thr=50, warn_nans=True, 
-                              drop_tol=0.0003):
+                              drop_tol=0.0003, sessid=None):
     """
     nan_large_run_differences(run)
 
@@ -303,6 +340,9 @@ def nan_large_run_differences(run, diff_thr=50, warn_nans=True,
                               dropped. A warning is produced only if this 
                               condition is not met. 
                               default: 0.0003 
+        - sessid (int)      : session ID to include in the log or error
+                              default: None 
+
     Returns:
         - run (1D array): updated array of running velocities in cm/s
     """
@@ -318,13 +358,11 @@ def nan_large_run_differences(run, diff_thr=50, warn_nans=True,
     at_idx = -1
     for idx in out_idx:
         if idx > at_idx:
-            orig = idx
             if idx == 0:
                 # in case the first value is completely off
                 comp_val = 0
                 if np.absolute(run[0]) > diff_thr:
                     run[0] = np.nan
-                    orig = -1
             else:
                 comp_val = run[idx]
             while np.absolute(run[idx + 1] - comp_val) > diff_thr:
@@ -339,14 +377,16 @@ def nan_large_run_differences(run, diff_thr=50, warn_nans=True,
 
     prop_nans = np.sum(np.isnan(run)) / len(run)
     if warn_nans and prop_nans > drop_tol:
-        _warn_nans_diff_thr(run, min_consec=5, n_pre_existing=n_pre_existing)
+        _warn_nans_diff_thr(
+            run, min_consec=5, n_pre_existing=n_pre_existing, sessid=sessid
+            )
 
     return run
 
 
 #############################################
 def load_run_data(stim_dict, stim_sync_h5, filter_ks=5, diff_thr=50, 
-                  drop_tol=0.0003):
+                  drop_tol=0.0003, sessid=None):
     """
     load_run_data(stim_dict, stim_sync_h5)
 
@@ -354,9 +394,9 @@ def load_run_data(stim_dict, stim_sync_h5, filter_ks=5, diff_thr=50,
     filters the data.
 
     Required args:
-        - stim_dict (str or dict): stimulus dictionary or path to dictionary,
+        - stim_dict (Path or dict): stimulus dictionary or path to dictionary,
                                    containing stimulus information
-        - stim_sync_h5 (str)     : stimulus synchronization file. 
+        - stim_sync_h5 (Path)     : stimulus synchronization file. 
 
     Optional args:
         - filter_ks (int)   : kernel size to use in median filtering the 
@@ -369,6 +409,9 @@ def load_run_data(stim_dict, stim_sync_h5, filter_ks=5, diff_thr=50,
                               dropped. A warning is produced only if this 
                               condition is not met. 
                               default: 0.0003 
+        - sessid (int)      : session ID to include in the log or error
+                              default: None 
+
     Returns:
         - run_velocity (1D array): array of running velocities in cm/s for each 
                                    recorded stimulus frames
@@ -382,7 +425,7 @@ def load_run_data(stim_dict, stim_sync_h5, filter_ks=5, diff_thr=50,
 
     if isinstance(stim_dict, dict):
         run_kwargs["stim_dict"] = stim_dict        
-    elif isinstance(stim_dict, str):
+    elif isinstance(stim_dict, (str, Path)):
         run_kwargs["pkl_file_name"] = stim_dict
     else:
         raise ValueError("'stim_dict' must be a dictionary or a path to a "
@@ -391,7 +434,9 @@ def load_run_data(stim_dict, stim_sync_h5, filter_ks=5, diff_thr=50,
     run_velocity = sess_sync_util.get_run_velocity(**run_kwargs)
 
     run_velocity = nan_large_run_differences(
-        run_velocity, diff_thr, warn_nans=True, drop_tol=drop_tol)
+        run_velocity, diff_thr, warn_nans=True, drop_tol=drop_tol, 
+        sessid=sessid
+        )
 
     return run_velocity
 
@@ -407,7 +452,7 @@ def load_pup_data(pup_data_h5):
     If it doesn't exist or several are found, raises an error.
 
     Required args:
-        - pup_data_h5 (str or list): path to the pupil data h5 file
+        - pup_data_h5 (Path or list): path to the pupil data h5 file
 
     Returns:
         - pup_data (pd DataFrame): pupil data dataframe with columns:
@@ -442,7 +487,7 @@ def load_pup_sync_h5_data(pup_video_h5):
     Returns pupil synchronization information.
 
     Required args:
-        - pup_video_h5 (str): path to the pupil video h5 file
+        - pup_video_h5 (Path): path to the pupil video h5 file
 
     Returns:
         - pup_fr_interv (1D array): interval in sec between each pupil 
@@ -463,7 +508,7 @@ def load_beh_sync_h5_data(time_sync_h5):
     Returns behaviour synchronization information.
 
     Required args:
-        - time_sync_h5 (str): path to the time synchronization hdf5 file
+        - time_sync_h5 (Path): path to the time synchronization hdf5 file
 
     Returns:
         - twop2bodyfr (1D array)  : body-tracking video (video-0) frame 
@@ -493,8 +538,8 @@ def load_sync_h5_data(pup_video_h5, time_sync_h5):
     Returns pupil and behaviour synchronization information.
 
     Required args:
-        - pup_video_h5 (str): path to the pupil video h5 file
-        - time_sync_h5 (str): path to the time synchronization hdf5 file
+        - pup_video_h5 (Path): path to the pupil video h5 file
+        - time_sync_h5 (Path): path to the time synchronization hdf5 file
 
     Returns:
         - pup_fr_interv (1D array): interval in sec between each pupil 

@@ -13,7 +13,7 @@ Note: this code uses python 3.7.
 """
 
 import copy
-import os
+from pathlib import Path
 
 import itertools
 import matplotlib as mpl
@@ -29,7 +29,7 @@ from sess_util import sess_str_util
 def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7, 
                 subplot_wid=7, datetime=True, use_dt=None, fig_ext="svg", 
                 overwrite=False, save_fig=True, runtype="prod", output=".", 
-                plt_bkend=None, linclab=True, fontdir=None):
+                plt_bkend=None, linclab=True, fontdir=None, paper=False):
     
     """
     Returns a dictionary containing figure parameter dictionaries for 
@@ -49,7 +49,7 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                              default: 7
         - datetime (bool)  : if True, figures are saved in a subfolder named 
                              based on the date and time.
-        - use_dt (str)     : datetime folder to use
+        - use_dt (Path)    : datetime folder to use
                              default: None
         - fig_ext (str)    : figure extension
                              default: "svg"
@@ -60,14 +60,18 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                              default: True
         - runtype (str)    : runtype ("pilot", "prod")
                              default: "prod"
-        - output (str)     : general directory in which to save output
+        - output (Path)    : general directory in which to save output
                              default: "."
         - plt_bkend (str)  : mpl backend to use for plotting (e.g., "agg")
                              default: None
         - linclab (bool)   : linclab style setting 
                              default: None
-        - fontdir (str)    : path to directory where additional fonts are stored
+        - fontdir (Path)   : path to directory where additional fonts are stored
                              default: None
+        - paper (bool)     : if True, figures are paper figures, and default 
+                             output folder is modified to paper_figures
+                             default: False 
+                             
 
     Returns:
         - figpar (dict): dictionary containing figure parameters:
@@ -78,43 +82,43 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                        attributes:
                            datetime, use_dt, fig_ext, overwrite, save_fig
             ["dirs"]: dictionary containing the following attributes:
-                ["figdir"] (str)   : main folder in which to save figures
-                ["roi"] (str)      : subdirectory name for ROI analyses
-                ["run"] (str)      : subdirectory name for running analyses
-                ["acr_sess"] (str) : subdirectory name for analyses across 
-                                     sessions
-                ["autocorr"] (str) : subdirectory name for autocorrelation 
-                                     analyses
-                ["colormaps"] (str): subdirectory name for colormap 
-                                     analyses
-                ["dir_idx"] (str)  : subdirectory name for direction index 
-                                     analyses
-                ["full"] (str)     : subdirectory name for full trace plots
-                ["glm"] (str)      : subdirectory name for glm plots
-                ["grped"] (str)    : subdirectory name for ROI grps data
-                ["lat"] (str)      : subdirectory name for latency analyses
-                ["locori"] (str)   : subdirectory name for location and 
-                                     orientation responses
-                ["mags"] (str)     : subdirectory name for magnitude analyses
-                ["posori"] (str)   : subdirectory name for position and 
-                                     orientation plots
-                ["prog"] (str)     : subdirectory name for firsts progression 
-                                     analysis                
-                ["prop"] (str)     : subdirectory name for proportion 
-                                     responsive ROI analyses
-                ["pupil"] (str)    : subdirectory for pupil analyses
-                ["oridir"] (str)   : subdirectory name for 
-                                     orientation/direction analyses
-                ["surp_qu"] (str)  : subdirectory name for surprise, quintile 
-                                     analyses
-                ["surp_idx"] (str) : subdirectory name for surprise index 
-                                     analyses
-                ["tune_curv"] (str): subdirectory name for tuning curves
+                ["figdir"] (Path)   : main folder in which to save figures
+                ["roi"] (Path)      : subdirectory name for ROI analyses
+                ["run"] (Path)      : subdirectory name for running analyses
+                ["acr_sess"] (Path) : subdirectory name for analyses across 
+                                      sessions
+                ["autocorr"] (Path) : subdirectory name for autocorrelation 
+                                      analyses
+                ["colormaps"] (Path): subdirectory name for colormap 
+                                      analyses
+                ["dir_idx"] (Path)  : subdirectory name for direction index 
+                                      analyses
+                ["full"] (Path)     : subdirectory name for full trace plots
+                ["glm"] (Path)      : subdirectory name for glm plots
+                ["grped"] (Path)    : subdirectory name for ROI grps data
+                ["lat"] (Path)      : subdirectory name for latency analyses
+                ["locori"] (Path)   : subdirectory name for location and 
+                                      orientation responses
+                ["mags"] (Path)     : subdirectory name for magnitude analyses
+                ["posori"] (Path)   : subdirectory name for position and 
+                                      orientation plots
+                ["prog"] (Path)     : subdirectory name for firsts progression 
+                                      analysis                
+                ["prop"] (Path)     : subdirectory name for proportion 
+                                      responsive ROI analyses
+                ["pupil"] (Path)    : subdirectory for pupil analyses
+                ["oridir"] (Path)   : subdirectory name for 
+                                      orientation/direction analyses
+                ["surp_qu"] (Path)  : subdirectory name for surprise, quintile 
+                                      analyses
+                ["surp_idx"] (Path) : subdirectory name for surprise index 
+                                      analyses
+                ["tune_curv"] (Path): subdirectory name for tuning curves
                 
             ["mng"]: dictionary containing the following attributes:
                 ["plt_bkend"] (str): mpl backend to use
                 ["linclab"] (bool) : if True, Linclab mpl defaults are used
-                ["fontdir"] (str)  : path to directory containing additional 
+                ["fontdir"] (Path) : path to directory containing additional 
                                      fonts
     """
 
@@ -125,6 +129,7 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                 "subplot_wid": subplot_wid,
                 }
 
+    use_dt = Path(use_dt) if use_dt is not None else use_dt
     fig_save = {"datetime" : datetime,
                 "use_dt"   : use_dt,
                 "fig_ext"  : fig_ext,
@@ -132,16 +137,18 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                 "save_fig" : save_fig,
                 }
     
+    fontdir = Path(fontdir) if fontdir is not None else fontdir
     fig_mng = {"linclab"  : linclab,
                "plt_bkend": plt_bkend,
                "fontdir"  : fontdir,
                 }
 
-    figdir = os.path.join(output, "results", "figures")
+    subdir = Path("paper", "figures") if paper else "figures"
+    figdir = Path(output, "results", subdir)
 
     fig_dirs = {"figdir"   : figdir,
-                "roi"      : os.path.join(figdir, f"{runtype}_roi"),
-                "run"      : os.path.join(figdir, f"{runtype}_run"),
+                "roi"      : Path(figdir, f"{runtype}_roi"),
+                "run"      : Path(figdir, f"{runtype}_run"),
                 "acr_sess" : "acr_sess",
                 "autocorr" : "autocorr",
                 "colormaps": "cms",
@@ -160,6 +167,7 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                 "surp_qu"  : "surp_qu",
                 "tune_curv": "tune_curves",
                }
+    fig_dirs = {key: Path(value) for key, value in fig_dirs.items()}
 
     figpar = {"init" : fig_init,
               "save" : fig_save,
@@ -559,6 +567,9 @@ def get_gab_time_xticks(xran, lock=False):
     Optional args:
         - lock (bool): if True, xran is replicated in the negative
                        default: False
+    
+    Returns:
+        - xticks (list): x tick values
     """
     step = 0.15
     max_tick = int(np.ceil(np.max(xran)/step)) * step
@@ -966,7 +977,7 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind="reg",
     Optional args:
         - xticks (list)    : x tick labels (if None, none are added)
                              default: None
-        - sess_ns (list)   : list of session numbers (inferred if None)
+        - sess_ns (list)   : list of session numbers
                              default: None 
         - kind (str)       : kind of plot 
                              "reg" for single plot per layer/line, 
@@ -1085,7 +1096,7 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
                               default: None
         - xticks (list)     : x tick labels (if None, none are added)
                               default: None
-        - sess_ns (list)    : list of session numbers (inferred if None)
+        - sess_ns (list)    : list of session numbers
                               default: None 
         - ylab (str)        : y axis label (overrides automatic one)
                               default: None
@@ -1169,12 +1180,13 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
     # adds line names (horizontal)
     line_pos = plot_util.get_fig_rel_pos(ax, col_per_grp, dim="x")
     for c, (line, pos) in enumerate(zip(lines, line_pos)):
+        line_name = f"{line} Pyr" if line[1].isdigit() else line
         if kind != "prog":
-            ax[0, c].set_title(f"{line} Pyr", weight="bold") 
+            ax[0, c].set_title(line_name, weight="bold") 
         else:
             # get ypos based on plane positions
             ypos = np.max(plane_pos) + np.absolute(np.diff(plane_pos)) * 0.5
-            fig.text(pos, ypos, f"{line} Pyr", fontsize="xx-large", 
+            fig.text(pos, ypos, line_name, fontsize="xx-large", 
                 horizontalalignment="center", weight="bold")
 
     # add axis labels

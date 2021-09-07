@@ -12,9 +12,12 @@ Note: this code uses python 3.7.
 
 """
 
+import copy
 import logging
+from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 from analysis import session
 from sess_util import sess_str_util
@@ -37,7 +40,7 @@ def depth_vals(plane, line):
         - depths (str or list): depths corresponding to plane and line or "any"
     """
 
-    if plane == "any" and line == "any":
+    if plane in ["any", "all"] and line in ["any", "all"]:
         return "any"
     
     depth_dict = {"L23_dend": [50, 75],
@@ -47,13 +50,13 @@ def depth_vals(plane, line):
                  }
 
     all_planes = ["dend", "soma"]
-    if plane == "any":
+    if plane in ["any", "all"]:
         planes = all_planes
     else:
         planes = gen_util.list_if_not(plane)
     
     all_lines = ["L23", "L5"]
-    if line == "any":
+    if line in ["any", "all"]:
         lines = all_lines
     else:
         lines = gen_util.list_if_not(line)
@@ -61,10 +64,12 @@ def depth_vals(plane, line):
     depths = []
     for plane in planes:
         if plane not in all_planes:
-            gen_util.accepted_values_error("plane", plane, all_planes)
+            allowed_planes = all_planes + ["any", "all"]
+            gen_util.accepted_values_error("plane", plane, allowed_planes)
         for line in lines:
-            if plane not in all_planes:
-                gen_util.accepted_values_error("line", line, all_lines)
+            if line not in all_lines:
+                allowed_lines = all_lines + ["any", "all"]
+                gen_util.accepted_values_error("line", line, allowed_lines)
             depths.extend(depth_dict[f"{line}_{plane}"])
 
     return depths
@@ -168,7 +173,7 @@ def get_sess_vals(mouse_df, returnlab, mouse_n="any", sess_n="any",
     criteria.
 
     Required args:
-        - mouse_df (str)         : path name of dataframe containing 
+        - mouse_df (Path)        : path name of dataframe containing 
                                    information on each session
         - returnlab (str or list): label(s) from which to return values
 
@@ -214,7 +219,7 @@ def get_sess_vals(mouse_df, returnlab, mouse_n="any", sess_n="any",
         - sess_vals (list): values from dataframe that correspond to criteria
     """
 
-    if isinstance(mouse_df, str):
+    if isinstance(mouse_df, (str, Path)):
         mouse_df = file_util.loadfile(mouse_df)
 
     # get depth values corresponding to the plane
@@ -258,8 +263,8 @@ def sess_per_mouse(mouse_df, mouse_n="any", sess_n=1, runtype="prod",
     criteria.
 
     Required args:
-        - mouse_df (str): path name of dataframe containing information 
-                          on each session
+        - mouse_df (Path): path name of dataframe containing information 
+                           on each session
         
     Optional args:
         - mouse_n (int or str)   : mouse number(s) of interest
@@ -300,7 +305,7 @@ def sess_per_mouse(mouse_df, mouse_n="any", sess_n=1, runtype="prod",
         - sessids (list): sessions to analyse (1 per mouse)
     """
     
-    if isinstance(mouse_df, str):
+    if isinstance(mouse_df, (str, Path)):
         mouse_df = file_util.loadfile(mouse_df)
         
     orig_sess_n = int(sess_n)
@@ -359,8 +364,8 @@ def sess_comp_per_mouse(mouse_df, mouse_n="any", sess_n="1v2", runtype="prod",
     specified criteria.
 
     Required args:
-        - mouse_df (str): path name of dataframe containing information 
-                          on each session
+        - mouse_df (Path): path name of dataframe containing information 
+                           on each session
         
     Optional args:
         - mouse_n (int or str)   : mouse number(s) of interest
@@ -461,7 +466,8 @@ def sess_comp_per_mouse(mouse_df, mouse_n="any", sess_n="1v2", runtype="prod",
 
 #############################################
 def init_sessions(sessids, datadir, mouse_df, runtype="prod", fulldict=True, 
-                  dend="extr", omit=False, roi=True, run=False, pupil=False):
+                  fluor="dff", dend="extr", omit=False, roi=True, run=False, 
+                  pupil=False):
     """
     init_sessions(sessids, datadir)
 
@@ -469,8 +475,8 @@ def init_sessions(sessids, datadir, mouse_df, runtype="prod", fulldict=True,
 
     Required args:
         - sessids (int or list): ID or list of IDs of sessions
-        - datadir (str)        : directory where sessions are stored
-        - mouse_df (str)       : path name of dataframe containing information 
+        - datadir (Path)       : directory where sessions are stored
+        - mouse_df (Path)      : path name of dataframe containing information 
                                  on each session
 
     Optional args:
@@ -501,10 +507,12 @@ def init_sessions(sessids, datadir, mouse_df, runtype="prod", fulldict=True,
     for sessid in sessids:
         logger.info(f"Creating session {sessid}...", extra={"spacing": "\n"})
         # creates a session object to work with
-        sess = session.Session(datadir, sessid, runtype=runtype) 
+        sess = session.Session(
+            datadir, sessid, runtype=runtype, mouse_df=mouse_df) 
         # extracts necessary info for analysis
-        sess.extract_sess_attribs(mouse_df)
-        sess.extract_info(fulldict=fulldict, dend=dend, roi=roi, run=run)
+        sess.extract_info(
+            fulldict=fulldict, fluor=fluor, dend=dend, roi=roi, run=run
+            )
         if omit and sess.plane == "dend" and sess.dend != dend:
             logger.info(
                 f"Omitting session {sessid} ({dend} dendrites not found).")
@@ -521,6 +529,49 @@ def init_sessions(sessids, datadir, mouse_df, runtype="prod", fulldict=True,
     return sessions
 
 
+#############################################
+def check_session(session, roi=True, run=False, pupil=False, fluor="dff", 
+                  dend="extr"):
+    """
+    check_session(session, analyspar)
+
+    Checks whether required data is loaded, and returns session with required data loaded.
+
+    Required args:
+        - session (Session): session object
+
+    Optional args:
+        - roi (bool)  : whether ROI information should be loaded
+                        default: True
+        - run (bool)  : whether running data should be loaded
+                        default: False
+        - pupil (bool): whether pupil data should be loaded
+                        default: False
+        - fluor (str) : fluorescence trace type
+                        default: "dff"
+        - dend (str)  : type of dendrites to use ("allen" or "extr")
+                        default: "extr"
+    
+    Returns:
+        - session (Session): session object, with required data loaded
+    """
+
+    session = copy.deepcopy(session)
+
+    roi_loaded, run_loaded, pupil_loaded = session.data_loaded()
+    
+    if roi and not(roi_loaded):
+        session.load_roi_info(fluor=fluor, dend=dend)
+    
+    if run and not(run_loaded):
+        session.load_run_data()
+    
+    if pupil and not(pupil_loaded):
+        session.load_pup_data()    
+            
+    return session
+
+            
 #############################################
 def get_nrois(nrois, n_nanrois=0, n_nanrois_dff=0, remnans=True, fluor="dff"):
     """
@@ -561,7 +612,8 @@ def get_nrois(nrois, n_nanrois=0, n_nanrois_dff=0, remnans=True, fluor="dff"):
 
 
 #############################################
-def get_sess_info(sessions, fluor="dff", add_none=False, incl_roi=True):
+def get_sess_info(sessions, fluor="dff", add_none=False, incl_roi=True, 
+                  return_df=False, remnans=False):
     """
     get_sess_info(sessions)
 
@@ -580,22 +632,24 @@ def get_sess_info(sessions, fluor="dff", add_none=False, incl_roi=True):
                            default: False
         - incl_roi (bool): if True, ROI information is included
                            default: True
+        - remnans (bool) : if True, NaN/Inf ROI information is removed, and the 
+                           number of subtracted from nrois
+                           default: False
 
     Returns:
-        - sess_info (dict): dictionary containing information from each
-                            session 
-                ["mouse_ns"] (list)   : mouse numbers
-                ["mouseids"] (list)   : mouse ids
-                ["sess_ns"] (list)    : session numbers
-                ["sessids"] (list)    : session ids  
-                ["lines"] (list)      : mouse lines
-                ["planes"] (list)     : imaging planes
-                if datatype == "roi":
-                    ["nrois"] (list)      : number of ROIs in session
-                    ["twop_fps"] (list)   : 2p frames per second
-                    ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw
-                                            or dff traces
+        - sess_info (dict or df): dictionary or dataframe containing 
+                                  information from each session, as lists or 
+                                  in dataframe rows, under the following keys 
+                                  or columns
+            "mouse_ns", "mouseids", "sess_ns", "sessids", "lines", "planes"
+            if datatype == "roi":
+                "nrois", "twop_fps"
+            if not remnans: 
+                "nanrois_{}" (depending on fluor)
     """
+
+    if return_df and add_none:
+        raise ValueError("'add_none' cannot be True if 'return_df' is True.")
 
     if add_none and set(sessions) == {None}:
         logger.info("All None value sessions.")
@@ -603,8 +657,10 @@ def get_sess_info(sessions, fluor="dff", add_none=False, incl_roi=True):
     sess_info = dict()
     keys = ["mouse_ns", "mouseids", "sess_ns", "sessids", "lines", "planes"]
     if incl_roi:
-        keys.extend(["nrois", "twop_fps", f"nanrois_{fluor}"])
-
+        keys.extend(["nrois", "twop_fps"])
+        if not remnans:
+            keys.extend([f"nanrois_{fluor}"])
+    
     for key in keys:
         sess_info[key] = []
 
@@ -626,10 +682,19 @@ def get_sess_info(sessions, fluor="dff", add_none=False, incl_roi=True):
             sess_info["planes"].append(sess.plane)
             if not incl_roi:
                 continue
+            
+            nanrois = sess.get_nanrois(fluor)
+            nrois = sess.nrois
+            if remnans:
+                nrois = nrois - len(nanrois)
+            else:
+                sess_info[f"nanrois_{fluor}"].append(nanrois)
 
-            sess_info["nrois"].append(sess.nrois)
-            sess_info["twop_fps"].append(sess.twop_fps)
-            sess_info[f"nanrois_{fluor}"].append(sess.get_nanrois(fluor))            
+            sess_info["nrois"].append(nrois)
+            sess_info["twop_fps"].append(sess.twop_fps)             
+
+    if return_df:
+        sess_info = pd.DataFrame.from_dict(sess_info)
 
     return sess_info
 
@@ -672,14 +737,12 @@ def get_params(stimtype="both", bri_dir="both", bri_size=128, gabfr=0,
     else:
         gabk = int(gabk)
 
-    if gab_ori in ["both", "any", "all"]:
+    if gab_ori in ["any", "all"]:
         gab_ori = [0, 45, 90, 135]
-    elif gab_ori == "shared":
-        gab_ori = [90, 135]
-    else:
+    elif not isinstance(gab_ori, list):
         gab_ori = int(gab_ori)
 
-    if gabfr in ["both", "any", "all"]:
+    if gabfr in ["any", "all"]:
         gabfr = [0, 1, 2, 3, "G"]
     elif gabfr not in ["G", "gray"]:
         gabfr = int(gabfr)
@@ -760,30 +823,33 @@ def gab_adjacent_gabfrs(gab_frs):
 
 
 #############################################
-def gab_oris_shared_U(gab_letters, gab_oris):
+def gab_oris_common_U(gab_letters, gab_oris):
     """
-    gab_oris_shared_U(gab_letters, gab_oris)
+    gab_oris_common_U(gab_letters, gab_oris)
 
-    Returns Gabor orientations that are shared with U frames, for each gabor 
-    letter, ordered together.
+    Returns Gabor orientations that are common to U frames and other frames, 
+    for each gabor letter, ordered together.
 
     Required args:
-        - gab_letters (str): Gabor letters for which to retrieve orientations
-        - gab_oris (list)  : Gabor orientations that can be included
+        - gab_letters (list): Gabor letters for which to retrieve orientations
+        - gab_oris (list)   : Gabor orientations that can be included
 
     Returns:
-        - new_oris (list): list of orientations for each Gabor letter
+        - new_oris (list): list of orientations for each Gabor letter or 
+                           letter group in list
     """
 
-    shared_oris = [90, 135] # from ABCD reference
+    gab_oris = get_params(gab_ori=gab_oris)[-1]
+
+    common_oris = [90, 135] # oris common to ABCD and U frames
 
     new_oris = []
-    for lett in gab_letters:
-        is_U = (lett.upper() == "U")
-        if is_U and len(lett) > 1:
-            raise NotImplementedError("Cannot return shared orientations if "
+    for letters in gab_letters:
+        is_U = (letters.upper() == "U")
+        if is_U and len(letters) > 1:
+            raise NotImplementedError("Cannot return common orientations if "
                 "U Gabors are grouped with other Gabor letters.")
-        oris = [ori - 90 * is_U for ori in shared_oris if ori in gab_oris]
+        oris = [ori - 90 * is_U for ori in common_oris if ori in gab_oris]
         new_oris.append(oris) 
 
     return new_oris
