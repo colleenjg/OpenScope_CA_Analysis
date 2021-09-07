@@ -14,8 +14,9 @@ import pandas as pd
 import scipy.stats as scist
 import sys, copy, time
 import itertools as it
+from pathlib import Path
 
-sys.path.extend(['../..'])
+sys.path.extend([str(Path('..', '..'))])
 from analysis import session
 from util import gen_util, math_util
 
@@ -251,8 +252,8 @@ def get_session_averaged_df_row(dff_df, mouse_df, mouse_df_fnm, datadir,
     unexp_dff = {}
 
     # Obtain session objects
-    sess = session.Session(datadir, sessid, only_matched_rois=only_matched_rois)
-    sess.extract_sess_attribs(mouse_df=mouse_df_fnm)
+    sess = session.Session(datadir, sessid, mouse_df=mouse_df_fnm, 
+        only_matched_rois=only_matched_rois)
     sess.extract_info(fulldict=False, roi=True, run=False, pupil=False) 
     stim = sess.get_stim(stimtype)
 

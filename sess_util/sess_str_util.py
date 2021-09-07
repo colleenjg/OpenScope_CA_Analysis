@@ -666,8 +666,8 @@ def bri_par_str(direc, size, str_type="file"):
     if str_type == "print":
         if len(dirstr) > 6: # specified direction
             if len(sizestr) > 6: # specified size
-                pars = "{}, {}".format(
-                    sizestr.replace(")", ""), dirstr.replace("bricks (", "")) 
+                pars = (f"{sizestr.replace(')', '')}, "
+                    f"{dirstr.replace('bricks (', '')}")
             else:
                 pars = dirstr
         else:
@@ -1006,7 +1006,7 @@ def get_nroi_strs(sess_info, remnans=True, fluor="dff", empty=False,
     else:
         nrois = sess_info["nrois"]
         if remnans:
-            sub_rois = sess_info["nanrois_{}".format(fluor)]
+            sub_rois = sess_info[f"nanrois_{fluor}"]
             sub_vals = [len(rois) for rois in sub_rois]
             nrois = [nrois[i] - sub_vals[i] for i in range(len(nrois))]
         

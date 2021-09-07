@@ -46,7 +46,7 @@ TEST_RUNNING_BLIPS = False
 
 #############################################
 def check_stim_drop_tolerance(n_drop_stim_fr, tot_stim_fr, drop_tol=0.0003, 
-                             raise_exc=False):
+                              sessid=None, raise_exc=False):
     """
     check_stim_drop_tolerance(n_drop_stim_fr, tot_stim_fr)
 
@@ -59,14 +59,20 @@ def check_stim_drop_tolerance(n_drop_stim_fr, tot_stim_fr, drop_tol=0.0003,
 
     Optional args:
         - drop_tol (float): threshold proportion of dropped stimulus frames at 
-                            which to log warning or raise an exception. 
+                            which to log warning or raise an exception.
+                            default: 0.0003
+        - sessid (int)    : session ID to include in the log or error
+                            default: None 
         - raise_exc (bool): if True, an exception is raised if threshold is 
                             passed. Otherwise, a warning is logged.
+                            default: False
     """
+
+    sessstr = "" if sessid is None else f"Session {sessid}: "
 
     prop = np.float(n_drop_stim_fr) / tot_stim_fr
     if prop > drop_tol:
-        warn_str = (f"{n_drop_stim_fr} dropped stimulus frames "
+        warn_str = (f"{sessstr}{n_drop_stim_fr} dropped stimulus frames "
             f"(~{prop * 100:.1f}%).")
         if raise_exc:
             raise OSError(warn_str)
@@ -82,15 +88,15 @@ def get_monitor_delay(syn_file_name):
     Returns monitor delay lag.
 
     Required args:
-        - syn_file_name (str): full path name of the experiment sync hdf5 
-                               file
+        - syn_file_name (Path): full path name of the experiment sync hdf5 
+                                file
     """
 
     # check if exists
     file_util.checkfile(syn_file_name)
 
     # create Dataset2p object which allows delay to be calculated
-    monitor_display_lag = Dataset2p.Dataset2p(syn_file_name).display_lag
+    monitor_display_lag = Dataset2p.Dataset2p(str(syn_file_name)).display_lag
 
     return monitor_display_lag
 
@@ -104,8 +110,8 @@ def get_vsync_falls(syn_file_name):
     Calculates vsyncs for 2p and stimulus frames. 
 
     Required args:
-        - syn_file_name (str): full path name of the experiment sync hdf5 
-                               file
+        - syn_file_name (Path): full path name of the experiment sync hdf5 
+                                file
 
     Returns:
         - stim_vsync_fall_adj (1D array)  : vsyncs for each stimulus frame, 
@@ -119,7 +125,7 @@ def get_vsync_falls(syn_file_name):
     # create a Dataset object with the sync file 
     # (ignore deprecated keys warning)
     with gen_util.TempWarningFilter("The loaded sync file", UserWarning):
-        sync_data = sync_dataset.Dataset(syn_file_name)
+        sync_data = sync_dataset.Dataset(str(syn_file_name))
    
     sample_frequency = sync_data.meta_data["ni_daq"]["counter_output_freq"]
     
@@ -150,8 +156,8 @@ def get_frame_rate(syn_file_name):
     ophys frame rates.
 
     Required args:
-        - syn_file_name (str): full path name of the experiment sync hdf5 
-                               file
+        - syn_file_name (Path): full path name of the experiment sync hdf5 
+                                file
 
     Returns:
         - twop_rate_mean (num)  : mean ophys frame rate
@@ -183,12 +189,12 @@ def get_stim_frames(pkl_file_name, syn_file_name, time_sync_h5, df_pkl_name,
 	with the stimulus alignment array.
 
     Required args:
-        - pkl_file_name (str): full path name of the experiment stim pickle 
-                               file
-        - syn_file_name (str): full path name of the experiment sync hdf5 file
-        - time_sync_h5 (str) : full path to the time synchronization hdf5 file
-        - df_pkl_name (str)  : full path name of the output pickle file to 
-                               create
+        - pkl_file_name (Path): full path name of the experiment stim pickle 
+                                file
+        - syn_file_name (Path): full path name of the experiment sync hdf5 file
+        - time_sync_h5 (Path) : full path to the time synchronization hdf5 file
+        - df_pkl_name (Path)  : full path name of the output pickle file to 
+                                create
         - sessid (int)       : session ID, needed the check whether this session 
                                needs to be treated differently (e.g., for 
                                alignment bugs)
@@ -211,7 +217,7 @@ def get_stim_frames(pkl_file_name, syn_file_name, time_sync_h5, df_pkl_name,
     if len(pkl["stimuli"]) != num_stimtypes:
         raise ValueError(
             f"{num_stimtypes} stimuli types expected, but "
-            "{} found.".format(len(pkl["stimuli"])))
+            f"{len(pkl['stimuli'])} found.")
         
     # get dataset object, sample frequency and vsyncs
     stim_vsync_fall_adj, valid_twop_vsync_fall = get_vsync_falls(syn_file_name)
@@ -495,10 +501,10 @@ def get_run_velocity(stim_sync_h5, stim_pkl="", stim_dict=None, filter_ks=5):
     Loads and calculates the linear running velocity from the raw running data.
 
     Required args:
-        - stim_sync_h5 (str): full path name of the stimulus sync h5 file
+        - stim_sync_h5 (Path): full path name of the stimulus sync h5 file
 
     Optional args:
-        - stim_pkl (str)  : full path name of the experiment stim 
+        - stim_pkl (Path) : full path name of the experiment stim 
                             pickle file
                             default: ""
         - stim_dict (dict): stimulus dictionary, with keys "fps" and 
@@ -532,7 +538,7 @@ def get_run_velocity(stim_sync_h5, stim_pkl="", stim_dict=None, filter_ks=5):
     # check that the sync file exists
     file_util.checkfile(stim_sync_h5)
 
-    dataset = sync_dataset.Dataset(stim_sync_h5)
+    dataset = sync_dataset.Dataset(str(stim_sync_h5))
 
     # Why the rising edge? See Sweepstim.update in camstim. This method does:
     # 1. updates the stimuli
@@ -581,7 +587,7 @@ def get_run_velocity(stim_sync_h5, stim_pkl="", stim_dict=None, filter_ks=5):
 
 
 #############################################
-def get_twop2stimfr(stim2twopfr, n_twop_fr):
+def get_twop2stimfr(stim2twopfr, n_twop_fr, sessid=None):
     """
     get_twop2stimfr(stim2twopfr, n_twop_fr)
 
@@ -594,6 +600,10 @@ def get_twop2stimfr(stim2twopfr, n_twop_fr):
                                     blank screen frames 
         - n_twop_fr (int)       : total number of 2p frames
 
+    Optional args:
+        - sessid (int): session ID to include in the log or error
+                        default: None 
+
     Returns:
         - twop2stimfr (1D array): Stimulus frame numbers for the beginning
                                   of each 2p frame (np.nan when no stimulus
@@ -603,9 +613,11 @@ def get_twop2stimfr(stim2twopfr, n_twop_fr):
     stim2twopfr_diff = np.append(1, np.diff(stim2twopfr))
     stim_idx = np.where(stim2twopfr_diff)[0]
 
+    sessstr = "" if sessid is None else f"Session {sessid}: "
+
     dropped = np.where(stim2twopfr_diff > 1)[0]
     if len(dropped) > 0:
-        logger.warning(f"{len(dropped)} dropped stimulus frames "
+        logger.warning(f"{sessstr}{len(dropped)} dropped stimulus frames "
             "(2nd alignment).", extra={"spacing": TAB})
         # repeat stim idx when frame is dropped
         for drop in dropped[-1:]:
@@ -619,7 +631,7 @@ def get_twop2stimfr(stim2twopfr, n_twop_fr):
     try:
         twop2stimfr[start:end] = stim_idx
     except:
-        warnings.warn("get_twop2stimfr() not working for this "
+        warnings.warn(f"{sessstr}get_twop2stimfr() not working for this "
             "session. twop2stimfr set to all NaNs.", category=RuntimeWarning)
 
     return twop2stimfr

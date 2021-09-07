@@ -184,7 +184,7 @@ def init_permpar(n_perms=10000, p_val=0.05, tails=2, multcomp=False):
         - p_val (num)       : p-value to use for significance thresholding 
                               (0 to 1)
                               default: 0.05
-        - tails (str or int): which tail(s) to test ("up", "lo", 2)
+        - tails (str or int): which tail(s) to test ("hi", "lo", 2)
                               default: 2
         - multcomp (bool)   : if True, multiple comparison correction used to 
                               assess significance
@@ -428,13 +428,13 @@ def init_latpar(method="ttest", p_val_thr=0.005, rel_std=0.5, surp_resp=True):
 
 
 #############################################
-def init_basepar(baseline=0.1):
+def init_basepar(baseline=0):
     """
     Returns a baseline namedtuple with the inputs arguments as named attributes.
 
     Optional args:
         - baseline (float): baseline time
-                            default: 0.1
+                            default: 0
     Returns:
         - basepar (BasePar namedtuple): BasePar with input arguments as 
                                         attributes

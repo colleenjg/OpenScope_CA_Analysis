@@ -14,8 +14,8 @@ Note: this code uses python 3.7.
 import copy
 import json
 import logging
-import os
 import warnings
+from pathlib import Path
 
 import h5py
 import itertools
@@ -30,14 +30,14 @@ from sess_util import sess_data_util, sess_file_util, sess_gen_util, \
 
 logger = logging.getLogger(__name__)
 
-TAB = "    "
-
 # check pandas version
 from packaging import version
 PD_MIN_VERSION = "1.1.1"
 if not version.parse(pd.__version__) >= version.parse(PD_MIN_VERSION):
     raise OSError(f"Please update pandas package >= {PD_MIN_VERSION}.")
 
+DEFAULT_DATADIR = Path("..", "data", "OSCA")
+TAB = "    "
 
 #### ALWAYS SET TO FALSE - CHANGE ONLY FOR TESTING PURPOSES
 TEST_USE_PLATEAU = False
@@ -57,8 +57,9 @@ class Session(object):
     pointers to the 2p data.
     """
     
-    def __init__(self, datadir, sessid, runtype="prod", drop_tol=0.0003, 
-                 verbose=False, only_matched_rois=False):
+    def __init__(self, datadir=None, sessid=None, runtype="prod", 
+                 mouse_df="mouse_df.csv", drop_tol=0.0003, verbose=False, 
+                 only_matched_rois=False, mouse_n=1, sess_n=1):
         """
         self.__init__(datadir, sessid)
 
@@ -66,52 +67,78 @@ class Session(object):
         directory and ID.
 
         Calls:
+            - self._extract_sess_attribs()
             - self._init_directory()
 
         Attributes:
-            - drop_tol (num) : dropped frame tolerance (proportion of total)
-            - home (str)     : path of the main data directory
-            - runtype (str)  : "prod" (production) or "pilot" data
-            - sessid (int)   : session ID (9 digits), e.g. "712483302"
+            - drop_tol (num)          : dropped frame tolerance 
+                                        (proportion of total)
+            - home (Path)             : path of the main data directory
+            - mouse_df (Path)         : path to dataframe containing 
+                                        information on each session.
+            - only_matched_rois (bool): if True, only matched ROIs will be 
+                                        loaded
+            - runtype (str)           : "prod" (production) or "pilot" data
+            - sessid (int)            : session ID (9 digits), e.g. "712483302"
+            if sessid is None:
+            - mouse_n (int)           : mouse number
+            - sess_n (int)            : session number
         
         Required args:
-            - datadir (str): full path to the directory where session 
-                             folders are stored.
-            - sessid (int) : the ID for this session.
-
-        Optional args:
+            - datadir (Path)          : full path to the directory where session 
+                                        folders are stored. If None, default 
+                                        data directory is used.
+                                        default: None
+            - sessid (int)            : the ID for this session.
+                                        default: None
             - runtype (str)           : the type of run, either "pilot" or 
                                         "prod"
                                         default: "prod"
+            - mouse_df (Path)         : path to the mouse dataframe
+                                        default: "mouse_df.csv"
             - drop_tol (num)          : the tolerance for proportion frames 
                                         dropped (stimulus or running). Warnings 
                                         are produced when this condition 
                                         isn't met.
                                         default: 0.0003 
             - verbose (bool)          : if True, will log instructions on next 
-                                        steps to load all necessary data
+                                        steps to load all necessary data.
                                         default: True
             - only_matched_rois (bool): if True, only data from ROIs matched 
                                         across sessions (1-3) are included when 
-                                        data is returned
+                                        data is returned.
                                         default: False
+            - mouse_n (int)           : mouse number, used only if sessid is 
+                                        None.
+                                        default: 1
+            - sess_n (int)            : session number, used only if sessid is 
+                                        None.
+                                        default: 1
         """
 
-
-        self.home   = datadir
-        self.sessid = int(sessid)
+        if datadir is None:
+            datadir = DEFAULT_DATADIR
+        self.home     = Path(datadir)
+        self.mouse_df = Path(mouse_df)
+        
+        self.sessid   = sessid
+        if self.sessid is None:
+            self.mouse_n = mouse_n
+            self.sess_n = sess_n
         if runtype not in ["pilot", "prod"]:
             gen_util.accepted_values_error(
                 "runtype", runtype, ["pilot", "prod"])
         self.runtype = runtype
-        self.drop_tol = drop_tol
-        self._init_directory()
+
         self.only_matched_rois = only_matched_rois
+        self.drop_tol = drop_tol
+
+        self._extract_sess_attribs()
+        self._init_directory()
 
         if verbose:
-            print("To load mouse database information into the session, "
-                "run 'self.extract_sess_attribs()'.\nTo load stimulus, "
-                "behaviour and ophys data, run 'self.extract_info()'")
+            print("To load stimulus, behaviour and ophys data, "
+                "run 'self.extract_info()'")
 
 
     #############################################
@@ -123,6 +150,52 @@ class Session(object):
 
 
     #############################################
+    def _extract_sess_attribs(self):
+        """
+        self._extract_sess_attribs()
+
+        This function loads the dataframe containing information on each 
+        session,and sets attributes.
+
+        Attributes:
+            - all_files (bool) : if True, all files have been acquired for
+                                 the session
+            - any_files (bool) : if True, some files have been acquired for
+                                 the session
+            - depth (int)      : recording depth 
+            - plane (str)      : recording plane ("soma" or "dend")
+            - line (str)       : mouse line (e.g., "L5-Rbp4")
+            - mouse_n (int)    : mouse number (e.g., 1)
+            - notes (str)      : notes from the dataframe on the session
+            - pass_fail (str)  : whether session passed "P" or failed "F" 
+                                 quality control
+            - sess_n (int)     : overall session number (e.g., 1)
+        """
+
+        if self.sessid is None:
+            self.sessid = sess_load_util.get_sessid_from_mouse_df(
+                mouse_n=self.mouse_n, sess_n=self.sess_n, runtype=self.runtype, 
+                mouse_df=self.mouse_df
+                )
+
+        self.sessid = int(self.sessid)
+
+        df_data = sess_load_util.load_info_from_mouse_df(
+            self.sessid, self.mouse_df
+            )
+
+        self.mouse_n      = df_data["mouse_n"]
+        self.depth        = df_data["depth"]
+        self.plane        = df_data["plane"]
+        self.line         = df_data["line"]
+        self.sess_n       = df_data["sess_n"]
+        self.pass_fail    = df_data["pass_fail"]
+        self.all_files    = df_data["all_files"]
+        self.any_files    = df_data["any_files"]
+        self.notes        = df_data["notes"]
+
+
+    #############################################
     def _init_directory(self):
         """
         self._init_directory()
@@ -131,35 +204,35 @@ class Session(object):
         scheme and sets attributes.
 
         Attributes:        
-            - align_pkl (str)         : path name of the stimulus alignment 
-                                        pickle file
-            - behav_video_h5 (str)    : path name of the behavior hdf5 file
-            - correct_data_h5 (str)   : path name of the motion corrected 2p 
-                                        data hdf5 file
-            - date (str)              : session date (i.e., yyyymmdd)
-            - dir (str)               : path of session directory
-            - expdir (str)            : path name of experiment directory
-            - expid (int)             : experiment ID (8 digits)
-            - mouseid (int)           : mouse ID (6 digits)
-            - mouse_dir (bool)        : whether path includes a mouse directory
-            - procdir (str)           : path name of the processed data 
-                                        directory
-            - pup_video_h5 (str)      : path name of the pupil hdf5 file
-            - roi_extract_json (str)  : path name of the ROI extraction json
-            - roi_mask_file (str)     : path name of the ROI mask file (None, 
-                                        as allen masks must be created during 
-                                        loading)
-            - roi_objectlist_txt (str): path name of the ROI object list file
-            - roi_trace_h5 (str)      : path name of the ROI raw processed 
-                                        fluorescence trace hdf5 file
-            - roi_trace_dff_h5 (str)  : path name of the ROI dF/F trace 
-                                        hdf5 file
-            - stim_pkl (str)          : path name of the stimulus pickle file
-            - stim_sync_h5 (str)      : path name of the stimulus 
-                                        synchronisation hdf5 file
-            - time_sync_h5 (str)      : path name of the time synchronization 
-                                        hdf5 file
-            - zstack_h5 (str)         : path name of the z-stack 2p hdf5 file
+            - align_pkl (Path)         : path name of the stimulus alignment 
+                                         pickle file
+            - behav_video_h5 (Path)    : path name of the behavior hdf5 file
+            - correct_data_h5 (Path)   : path name of the motion corrected 2p 
+                                         data hdf5 file
+            - date (Path)              : session date (i.e., yyyymmdd)
+            - dir (Path)               : path of session directory
+            - expdir (Path)            : path name of experiment directory
+            - expid (int)              : experiment ID (8 digits)
+            - mouseid (int)            : mouse ID (6 digits)
+            - mouse_dir (bool)         : whether path includes a mouse directory
+            - procdir (Path)           : path name of the processed data 
+                                         directory
+            - pup_video_h5 (Path)      : path name of the pupil hdf5 file
+            - roi_extract_json (Path)  : path name of the ROI extraction json
+            - roi_mask_file (Path)     : path name of the ROI mask file (None, 
+                                         as allen masks must be created during 
+                                         loading)
+            - roi_objectlist_txt (Path): path name of the ROI object list file
+            - roi_trace_h5 (Path)      : path name of the ROI raw processed 
+                                         fluorescence trace hdf5 file
+            - roi_trace_dff_h5 (Path)  : path name of the ROI dF/F trace 
+                                         hdf5 file
+            - stim_pkl (Path)          : path name of the stimulus pickle file
+            - stim_sync_h5 (Path)      : path name of the stimulus 
+                                         synchronisation hdf5 file
+            - time_sync_h5 (Path)      : path name of the time synchronization 
+                                         hdf5 file
+            - zstack_h5 (Path)         : path name of the z-stack 2p hdf5 file
         """
 
         # check that the high-level home directory exists
@@ -207,9 +280,9 @@ class Session(object):
         self.pup_data_h5
 
         Returns:
-            - _pup_data_h5 (list or str): single pupil data file path if one is 
-                                          found, a list if several are found 
-                                          and "none" if none is found
+            - _pup_data_h5 (list or Path): single pupil data file path if one is 
+                                           found, a list if several are found 
+                                           and "none" if none is found
         """
         
         if not hasattr(self, "_pup_data_h5"):
@@ -327,8 +400,8 @@ class Session(object):
                 self.stim_dict, runtype=self.runtype)
 
             sess_sync_util.check_stim_drop_tolerance(
-                self.n_drop_stim_fr, self.tot_stim_fr, self.drop_tol, 
-                raise_exc=False)
+                self.n_drop_stim_fr, self.tot_stim_fr, 
+                self.drop_tol, self.sessid, raise_exc=False)
 
         self._stim_dict_loaded = loading
 
@@ -435,6 +508,24 @@ class Session(object):
 
 
     #############################################
+    def data_loaded(self):
+        """
+        self.data_loaded
+
+        Returns:
+            - roi_loaded (bool)  : whether ROI data is loaded
+            - run_loaded (bool)  : whether running data is loaded
+            - pupil_loaded (bool): whether pupil data is loaded
+        """
+        
+        roi_loaded = hasattr(self, "_dend")
+        run_loaded = hasattr(self, "run_data")
+        pupil_loaded = hasattr(self, "_pup_data_h5")
+
+        return roi_loaded, run_loaded, pupil_loaded
+
+
+    #############################################
     def load_run_data(self, filter_ks=5, diff_thr=50, replace=False):
         """
         self.load_run_data()
@@ -490,8 +581,8 @@ class Session(object):
             # check if any modifications need to be made, and if they are 
             # allowed
             if len(modifications) > 0:
-                modif_str = "running dataframe using {}".format(
-                    " and ".join(modifications))
+                modif_str = ("running dataframe using "
+                    f"{' and '.join(modifications)}")
                 if not replace:
                     warnings.warn("Running dataframe not updated. Must set "
                         f"'replace' to True to update {modif_str}.")
@@ -503,7 +594,7 @@ class Session(object):
         
         velocity = sess_load_util.load_run_data(
             self.stim_dict, self.stim_sync_h5, filter_ks, diff_thr, 
-            self.drop_tol)
+            self.drop_tol, self.sessid)
         
         row_index = pd.MultiIndex.from_product(
             [["frames"], range(len(velocity))], names=["info", "specific"])
@@ -644,7 +735,7 @@ class Session(object):
         else:
             gen_util.accepted_values_error("fluor", fluor, ["raw", "dff"])
         
-        if not os.path.isfile(full_trace_file):
+        if not full_trace_file.is_file():
             raise ValueError("Specified ROI traces file does not exist: "
                              f"{full_trace_file}")
         
@@ -671,9 +762,10 @@ class Session(object):
             n_noisy_rois = len(roi_ns)
             if n_noisy_rois != 0:
                 warn_str = ", ".join([str(x) for x in roi_ns])
-                logger.warning(f"{n_noisy_rois} noisy ROIs (mean below 0 or "
-                    "median above midrange) are also included in the NaN ROI "
-                    f"attributes (but not set to NaN): {warn_str}.", 
+                logger.warning(f"Session {self.sessid}: {n_noisy_rois} "
+                    "noisy ROIs (mean below 0 or median above midrange) "
+                    "are also included in the NaN ROI attributes (but not "
+                    f"set to NaN): {warn_str}.", 
                     extra={"spacing": TAB})
             
             nan_arr += high_med + sub0_mean
@@ -875,14 +967,14 @@ class Session(object):
         or  "dff" traces are present in the data directory.
 
         Attributes:
-            - _dend (str)           : type of dendrites loaded 
-                                      ("allen" or "extr")
+            - _dend (str)            : type of dendrites loaded 
+                                       ("allen" or "extr")
             if EXTRACT dendrites are used, updates:
-            - roi_mask_file (str)   : path to ROI mask h5
-            - roi_trace_h5 (str)    : full path name of the ROI raw 
-                                      processed fluorescence trace hdf5 file
-            - roi_trace_dff_h5 (str): full path name of the ROI dF/F
-                                      fluorescence trace hdf5 file
+            - roi_mask_file (Path)   : path to ROI mask h5
+            - roi_trace_h5 (Path)    : full path name of the ROI raw 
+                                       processed fluorescence trace hdf5 file
+            - roi_trace_dff_h5 (Path): full path name of the ROI dF/F
+                                       fluorescence trace hdf5 file
 
 
         Optional args:
@@ -1123,50 +1215,29 @@ class Session(object):
         self.grayscr = Grayscr(self)
 
     
-    #############################################
+#############################################
     def extract_sess_attribs(self, mouse_df="mouse_df.csv"):
         """
         self.extract_sess_attribs(mouse_df)
 
-        This function should be run immediately after creating a Session 
-        object. It loads the dataframe containing information on each session,
-        and sets attributes.
+        DEPRECATED: Replaced with a private function called in the __init__.
 
-        Attributes:
-            - all_files (bool) : if True, all files have been acquired for
-                                 the session
-            - any_files (bool) : if True, some files have been acquired for
-                                 the session
-            - depth (int)      : recording depth 
-            - plane (str)      : recording plane ("soma" or "dend")
-            - line (str)       : mouse line (e.g., "L5-Rbp4")
-            - mouse_n (int)    : mouse number (e.g., 1)
-            - notes (str)      : notes from the dataframe on the session
-            - pass_fail (str)  : whether session passed "P" or failed "F" 
-                                 quality control
-            - sess_gen (int)   : general session number (e.g., 1)
-            - sess_within (int): within session number (session number within
-                                 the sess_gen) (e.g., 1)
-            - sess_n (int)     : overall session number (e.g., 1)
-
-        Required args:
-        - mouse_df (str): path name of dataframe containing information on each 
-                          session.
+        Optional args:
+            - mouse_df (Path): path to dataframe containing information on 
+                               each session.
         """
 
-        df_data = sess_load_util.load_info_from_mouse_df(self.sessid, mouse_df)
+        message = ("self.extract_sess_attribs() is deprecated, and has been "
+            "replaced with self._extract_sess_attribs(). The latter is called "
+            "automatically in self.__init__, which takes mouse_df as an input.")
+        warnings.warn(message=message, category=RuntimeWarning)
 
-        self.mouse_n      = df_data["mouse_n"]
-        self.depth        = df_data["depth"]
-        self.plane        = df_data["plane"]
-        self.line         = df_data["line"]
-        self.sess_gen     = df_data["sess_gen"]
-        self.sess_n       = df_data["sess_n"]
-        self.sess_within  = df_data["sess_within"]
-        self.pass_fail    = df_data["pass_fail"]
-        self.all_files    = df_data["all_files"]
-        self.any_files    = df_data["any_files"]
-        self.notes        = df_data["notes"]
+        if Path(mouse_df) != self.mouse_df:
+            raise ValueError(
+                "Requesting a different mouse_df path from the one used in "
+                "self.__init__. Make sure to pass the correct mouse_df path "
+                "when initializing an instance of the 'Session' class."
+                )
 
 
     #############################################
@@ -1176,10 +1247,9 @@ class Session(object):
         self.extract_info()
 
         This function should be run immediately after creating a Session 
-        object and running self.extract_sess_attribs(). It creates the 
-        stimulus objects attached to the Session, and loads the ROI traces, 
-        running data, synchronization data, etc. If stimtypes have not been 
-        initialized, also initializes stimtypes.
+        object. It creates the stimulus objects attached to the Session, and 
+        loads the ROI traces, running data, synchronization data, etc. If 
+        stimtypes have not been initialized, also initializes stimtypes.
 
         Calls:
             self._load_stim_dict()
@@ -1215,10 +1285,6 @@ class Session(object):
             - pup (bool)     : if True, pupil data is loaded
                                default: False
         """
-
-        if not hasattr(self, "plane"):
-            raise ValueError("Session attributes missing to extract info. "
-                "Make sure to run self.extract_sess_attribs() first.")
 
         # load the stimulus dictionary, alignment dataframe, sync h5 info         
         logger.info("Loading stimulus and alignment info...")
@@ -1729,6 +1795,52 @@ class Session(object):
             self.plateau_traces = plateau_traces
 
         return self.plateau_traces
+
+
+    #############################################
+    def get_single_roi_trace(self, n, fluor="dff"):
+        """
+        self.get_single_roi_trace(n)
+
+        Returns a single ROI trace, indexed by n (must index the original 
+        array.)
+
+        Required args:
+            - n (int): ROI index
+
+        Optional args:
+            - fluor (str): if "dff", then dF/F traces are returned, if 
+                           "raw", raw processed traces are returned
+                           default: "dff"
+
+        Returns:
+            - trace (1D array): full ROI trace
+        """
+
+        if not hasattr(self, "nrois"):
+            raise ValueError("Run 'self.load_roi_info()' to set ROI "
+                "attributes correctly.")
+
+        if n >= self.nrois:
+            raise ValueError(f"ROI {n} does not exist.")
+
+        # read the data points into the return array
+        if fluor == "dff":
+            roi_trace_h5 = self.roi_trace_dff_h5
+            dataset_name = "data"
+        elif fluor == "raw":
+            roi_trace_h5 = self.roi_trace_h5
+            dataset_name = "FC"
+        else:
+            gen_util.accepted_values_error("fluor", fluor, ["raw", "dff"])
+
+        with h5py.File(roi_trace_h5, "r") as f:
+            try:
+                trace = f[dataset_name][n]
+            except Exception as err:
+                raise OSError(f"Could not read {self.roi_trace_h5}: {err}")
+
+        return trace
 
 
     #############################################
@@ -2408,7 +2520,6 @@ class Stim(object):
             - self._set_stim_fr()
             - self._set_twop_fr()
 
-
         Attributes:
             - act_n_blocks (int)          : actual number of blocks of the 
                                             stimulus
@@ -2598,6 +2709,15 @@ class Stim(object):
                 min_idx = self.stim_seg_list.index(row["start_seg"][0])
                 max_idx = len(self.stim_seg_list)-1 - \
                     self.stim_seg_list[::-1].index(row["end_seg"][0] - 1) + 1 
+                
+                if self.stimtype == "gabors": # account for final G frames
+                    n_G_stim_frs = int(
+                        np.around(self.seg_len_s * self.stim_fps)
+                        )
+                    max_idx = np.min(
+                        (max_idx + n_G_stim_frs, self.sess.tot_stim_fr)
+                        )
+                
                 self.block_params.loc[(d, b), ("start_stim_fr", )] = min_idx
                 self.block_params.loc[(d, b), ("end_stim_fr", )] = max_idx
                 self.block_params.loc[
@@ -3028,7 +3148,7 @@ class Stim(object):
                              stimSeg="any", gabfr="any", start2pfr="any", 
                              end2pfr="any", num2pfr="any", gabk=None, 
                              gab_ori=None, bri_size=None, bri_dir=None, 
-                             remconsec=False, by="block"):
+                             remconsec=False, by="seg"):
         """
         self.get_segs_by_criteria()
 
@@ -3083,7 +3203,7 @@ class Stim(object):
                                              ("seg"), grouped by block 
                                              ("block"), or further grouped by 
                                              display sequence ("disp")
-                                             default: "block"
+                                             default: "seg"
         
         Returns:
             - segs (list): list of seg numbers that obey the criteria, 
@@ -3131,7 +3251,7 @@ class Stim(object):
                                 start2pfr="any", end2pfr="any", 
                                 num2pfr="any", gabk=None, gab_ori=None, 
                                 bri_size=None, bri_dir=None, first_fr=True, 
-                                remconsec=False, by="block"):
+                                remconsec=False, by="frame"):
         """
         self.get_stim_fr_by_criteria()
 
@@ -3187,7 +3307,7 @@ class Stim(object):
                                              ("frame"), grouped by block 
                                              ("block"), or further grouped by 
                                              display sequence ("disp")
-                                             default: "block"
+                                             default: "frame"
         
         Returns:
             - frames (list): list of stimulus frame numbers that obey the 
@@ -3231,7 +3351,7 @@ class Stim(object):
 
 
     #############################################
-    def get_first_surp_segs(self, by="block"):
+    def get_first_surp_segs(self, by="seg"):
         """
         self.get_first_surp_segs()
 
@@ -3245,7 +3365,7 @@ class Stim(object):
             - by (str): determines whether segment numbers are returned in a 
                         flat list ("seg"), grouped by block ("block"), or 
                         further grouped by display sequence ("disp")
-                        default: "block"
+                        default: "seg"
 
         Returns:
             - reg_segs (list) : list of first regular segment numbers at 
@@ -3263,7 +3383,7 @@ class Stim(object):
 
 
     #############################################
-    def get_all_surp_segs(self, by="block"):
+    def get_all_surp_segs(self, by="seg"):
         """
         self.get_all_surp_segs()
 
@@ -3275,7 +3395,7 @@ class Stim(object):
             - by (str): determines whether segment numbers are returned in a 
                         flat list ("seg"), grouped by block ("block"), or 
                         further grouped by display sequence ("disp")
-                        default: "block"
+                        default: "seg"
 
         Returns:
             - reg_segs (list) : list of regular segment numbers for stimulus 
@@ -3291,7 +3411,7 @@ class Stim(object):
     
 
     #############################################
-    def get_first_surp_stim_fr_trans(self, by="block"):
+    def get_first_surp_stim_fr_trans(self, by="frame"):
         """
         self.get_first_surp_stim_fr_trans()
 
@@ -3305,7 +3425,7 @@ class Stim(object):
             - by (str): determines whether frames are returned in a flat list 
                         ("frame"), grouped by block ("block"), or further 
                         grouped by display sequence ("disp")
-                        default: "block"
+                        default: "frame"
         
         Returns:
             - reg_fr (list) : list of first regular stimulus frame numbers at 
@@ -3321,7 +3441,7 @@ class Stim(object):
 
 
     #############################################
-    def get_all_surp_stim_fr(self, by="block"):
+    def get_all_surp_stim_fr(self, by="frame"):
         """
         self.get_all_surp_stim_fr()
 
@@ -3333,7 +3453,7 @@ class Stim(object):
             - by (str): determines whether frame numbers are returned in a flat 
                         list ("frame"), grouped by block ("block"), or further 
                         grouped by display sequence ("disp")
-                        default: "block"
+                        default: "frame"
 
         Returns:
             - reg_fr (list) : list of all regular frame numbers for stimulus 
@@ -3452,8 +3572,8 @@ class Stim(object):
         # convert dims to axis numbers
         dims = gen_util.list_if_not(dims)
         if set(dims) - set(data_df.index.names):
-            raise ValueError("'dims' can only include: {}".format(
-                ", ".join(data_df.index.names)))
+            raise ValueError("'dims' can only include: "
+                f"{', '.join(data_df.index.names)}")
         else:
             axes = [data_df.index.names.index(val) for val in dims]
             if len(axes) == 0:
@@ -4183,7 +4303,7 @@ class Stim(object):
 
 
     #############################################
-    def get_run(self, by="block", remnans=True, scale=False):
+    def get_run(self, by="frame", remnans=True, scale=False):
         """
         self.get_run()
 
@@ -4193,7 +4313,7 @@ class Stim(object):
             - by (str)      : determines whether run values are returned in a  
                               flat list ("frame"), grouped by block ("block"), 
                               or further grouped by display sequence ("disp")
-                              default: "block"
+                              default: "frame"
             - remnans (bool): if True, NaN values are removed using linear 
                               interpolation.
                               default: True
@@ -4448,7 +4568,7 @@ class Gabors(Stim):
 
 
     #############################################
-    def get_A_segs(self, by="block"):
+    def get_A_segs(self, by="seg"):
         """
         self.get_A_segs()
 
@@ -4458,7 +4578,7 @@ class Gabors(Stim):
             - by (str): determines whether segment numbers are returned in a 
                         flat list ("seg"), grouped by block ("block"), or 
                         further grouped by display sequence ("disp")
-                        default: "block"
+                        default: "seg"
         Returns:
             - A_segs (list): list of A gabor segment numbers.
         """
@@ -4469,7 +4589,7 @@ class Gabors(Stim):
 
 
     #############################################
-    def get_A_frame_1s(self, by="block"):
+    def get_A_frame_1s(self, by="frame"):
         """
         self.get_A_frame_1s()
 
@@ -4479,7 +4599,7 @@ class Gabors(Stim):
             - by (str): determines whether frame numbers are returned in a flat 
                         list ("frame"), grouped by block ("block"), or further 
                         grouped by display sequence ("disp")
-                        default: "block"
+                        default: "frame"
      
         Returns:
             - A_segs (list) : lists of first frame number for each A gabor 
@@ -4616,7 +4736,7 @@ class Gabors(Stim):
                     vals[ref_ns]).reshape(-1)
 
         # create a dataframe organized like 'segs' and transfer data
-        names = ["{}sequence".format("".join(["sub_"] * i)) 
+        names = [f"{''.join(['sub_'] * i)}sequence" 
             for i in range(len(segs.shape) - 1)]
 
         idx_tup = np.asarray(list(itertools.product(*[
@@ -4853,7 +4973,7 @@ class Bricks(Stim):
 
 
     #############################################
-    def get_dir_segs_reg(self, by="block"):
+    def get_dir_segs_reg(self, by="seg"):
         """
         self.get_dir_segs_reg()
 
@@ -4865,7 +4985,7 @@ class Bricks(Stim):
             - by (str): determines whether segment numbers are returned in a 
                         flat list ("seg"), grouped by block ("block"), or 
                         further grouped by display sequence ("disp")
-                        default: "block"  
+                        default: "seg"  
         Returns:
             - temp_segs (list) : list of temporal (head to tail) moving segment 
                                  numbers, excluding surprise segments.
@@ -4928,38 +5048,44 @@ class Grayscr():
         self.get_all_nongab_stim_fr()
 
         Returns a lists of grayscreen stimulus frame numbers, excluding 
-        grayscreen stimulus frames occurring during gabor stimulus blocks, 
-        including grayscreen stimulus frames flanking gabor stimulus blocks.
-        
+        grayscreen stimulus frames occurring during gabor stimulus blocks.
+
+        NOTE: The final G frames of gabor stimulus blocks are not included in 
+        the returned list.
+
         Returns:
-            - grays (list): list of grayscreen stimulus frames.
+            - grayscr_stim_frs (list): list of grayscreen stimulus frames.
         """
 
-        frames = []
-        if self.gabors:
-            frames_gab = np.asarray(self.sess.gabors.stim_seg_list)
-            for b in self.sess.gabors.block_params.index.unique("block_n"):
-                row = self.sess.gabors.block_params.loc[pd.IndexSlice[:, b], ]
-                frames_gab[row["start_stim_fr", ].values[0]: 
-                    row["end_stim_fr", ].values[0]] = 0
-            frames.append(frames_gab)
-        if hasattr(self.sess, "bricks"):
-            frames.append(self.sess.bricks.stim_seg_list)
-        length = len(frames)
-        if length == 0:
+        first_grayscr_stim_fr = [0]
+        last_grayscr_stim_fr = [self.sess.tot_stim_fr]
+
+        for stimtype in ["gabors", "bricks"]:
+            if not hasattr(self.sess, stimtype):
+                continue
+            stim = self.sess.get_stim(stimtype)
+
+            for b in stim.block_params.index.unique("block_n"):
+                row = stim.block_params.loc[pd.IndexSlice[:, b], ]
+                first_grayscr_stim_fr.append(row["end_stim_fr", ].values[0])
+                last_grayscr_stim_fr.append(row["start_stim_fr", ].values[0])
+
+        if len(first_grayscr_stim_fr) == 1:
             raise ValueError("No frame lists were found for either stimulus "
                 " type (gabors, bricks).")
-        elif length == 1:
-            frames_sum = np.asarray(frames)
-        else:
-            frames_sum = np.sum(np.asarray(frames), axis=0)
-        grays = np.where(frames_sum == length * -1)[0].tolist()
 
-        if len(grays) == 0:
-            raise ValueError("No grayscreen frames were found outside of "
-                "gabor stimulus sequences.")
+        first_grayscr_stim_fr = np.sort(first_grayscr_stim_fr)
+        last_grayscr_stim_fr = np.sort(last_grayscr_stim_fr)
 
-        return grays
+        if len(last_grayscr_stim_fr) > len(first_grayscr_stim_fr):
+            last_grayscr_stim_fr = last_grayscr_stim_fr[:-1] 
+
+        grayscr_stim_frs = np.concatenate(
+            [np.arange(first, last) for first, last 
+            in zip(first_grayscr_stim_fr, last_grayscr_stim_fr)]
+        )
+
+        return grayscr_stim_frs
 
 
     #############################################
@@ -4971,49 +5097,83 @@ class Grayscr():
         grayscreen sequence occuring outside of gabor stimulus blocks, and 
         the number of consecutive grayscreen stimulus frames for each sequence. 
                 
-        NOTE: any grayscreen stimulus frames for sequences flanking gabor 
-        stimulus blocks are included in the returned list.
+        NOTE: The final G frames of gabor stimulus blocks are not included in 
+        the returned data.
         
         Returns:
             - first_grays_df (pd DataFrame): dataframe containing stimulus 
                                              frame information on each first 
                                              grayscreen sequence, outside of 
-                                             gabor stimulus blocks, with 
-                columns:
-                    - "first_stim_fr": first stimulus frame number for the 
-                                       grayscreen sequence
-                    - "n_stim_fr"    : length of grayscreen sequence
+                                             gabor stimulus blocks, with cols: 
+                - "first_stim_fr": first stimulus frame number for the 
+                                    grayscreen sequence
+                - "n_stim_fr"    : length of grayscreen sequence
         """
 
         first_grays_df = pd.DataFrame()
         
         grays_all = np.asarray(self.get_all_nongab_stim_fr())
-        first_grays_idx = [0] + \
-            (np.where(np.diff(grays_all) != 1)[0] + 1).tolist() + \
-            [len(grays_all)]
-        
-        first_grays_df["first_stim_fr"] = grays_all[
-            np.asarray(first_grays_idx)[:-1]]
-        
+
+        grays_diff = np.insert(np.diff(grays_all), 0, 0)
+        first_grays_idx = np.where(grays_diff != 1)[0].tolist()
+        first_grays_idx = np.asarray(first_grays_idx + [len(grays_all)])
+
+        first_grays_df["first_stim_fr"] = grays_all[first_grays_idx[:-1]]
         first_grays_df["n_stim_fr"] = np.diff(first_grays_idx).tolist()
 
         return first_grays_df
 
 
     #############################################
-    def get_all_gabG_stim_fr(self, by="block"):
+    def get_last_nongab_stim_fr(self):
+        """
+        self.get_last_nongab_stim_fr()
+
+        Returns every last grayscreen stimulus frame number for every 
+        grayscreen sequence occuring outside of gabor stimulus blocks, and 
+        the number of consecutive grayscreen stimulus frames for each sequence. 
+                
+        NOTE: The final G frames of gabor stimulus blocks are not included in 
+        the returned data.
+        
+        Returns:
+            - last_grays_df (pd DataFrame): dataframe containing stimulus 
+                                            frame information on each last 
+                                            grayscreen sequence, outside of 
+                                            gabor stimulus blocks, with columns 
+                - "last_stim_fr": last stimulus frame number for the 
+                                  grayscreen sequence
+                - "n_stim_fr"   : length of grayscreen sequence
+        """
+
+        last_grays_df = pd.DataFrame()
+        
+        grays_all = np.asarray(self.get_all_nongab_stim_fr())
+        
+        grays_diff = np.insert(np.diff(grays_all[::-1]), 0, 0)[::-1]
+        last_grays_idx = np.where(grays_diff != -1)[0].tolist()
+        last_grays_idx = np.asarray([-1] + last_grays_idx)
+
+        last_grays_df["last_stim_fr"] = grays_all[last_grays_idx[1:]]
+        last_grays_df["n_stim_fr"] = np.diff(last_grays_idx + 1).tolist()
+
+        return last_grays_df
+        
+        
+    #############################################
+    def get_all_gabG_stim_fr(self, by="frame"):
         """
         self.get_all_gabG_stim_fr()
 
         Returns a list of grayscreen stimulus frame numbers for every 
-        grayscreen (G) segment during a gabor block, excluding grayscreen 
-        segments flanking the gabor blocks.
+        grayscreen (G) segment during a gabor block, including the final G 
+        segment  in a block.
 
         Optional args:
             - by (str): determines whether frame numbers are returned in a 
                         flat list ("frame"), grouped by block ("block"), or 
                         further grouped by display sequence ("disp")
-                        default: "block"    
+                        default: "frame"    
 
         Returns:
             - gab_Gs (list): nested list of grayscreen stimulus frame 
@@ -5050,7 +5210,7 @@ class Grayscr():
             
 
     #############################################    
-    def get_gabG_stim_fr(self, by="block"):
+    def get_gabG_stim_fr(self, by="frame"):
         """
         self.get_gabG_stim_fr()
 
@@ -5065,7 +5225,7 @@ class Grayscr():
             - by (str): determines whether frame numbers are returned in a 
                         flat list ("frame"), grouped by block ("block"), or 
                         further grouped by display sequence ("disp")
-                        default: "block"    
+                        default: "frame"    
 
         Returns:
             - first_gabGs_df (pd DataFrame): dataframe containing stimulus 

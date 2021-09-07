@@ -79,6 +79,6 @@ sessid,mouse_n,mouseid,date,depth,plane,line,runtype,nrois_allen,nrois,sess_gen,
 832883243,13,440889,20190306,175,soma,L23-Cux2,prod,251,251,1,1,1,P,1,1,yes,27797,dropped stim frames (257)
 833704570,13,440889,20190307,175,soma,L23-Cux2,prod,251,251,2,1,2,P,1,1,yes,16745,"stim2twop alignment shifted corrected with 2nd alignment method, dropped 2P frames (1), beh and eye tracking frames (5), stim frames (363), passed QC after revision"
 834403597,13,440889,20190308,175,soma,L23-Cux2,prod,228,228,3,1,3,P,1,1,yes,10210,"dropped beh and eye tracking frames (6), stim frames (166), passed QC after revision"
-836968429,13,440889,20190314,175,soma,L23-Cux2,prod,217,217,4,1,4,P,1,1,yes,24253,
+836968429,13,440889,20190314,175,soma,L23-Cux2,prod,217,217,4,1,4,P,1,1,yes,24253,"FOV shifted (poor alignment with previous sessions, so excluded from Roi matching)"
 837360280,13,440889,20190315,175,soma,L23-Cux2,prod,244,244,5,1,5,F,1,1,yes,19576,z-drift (14 um)
 838633305,13,440889,20190318,175,soma,L23-Cux2,prod,256,256,5,2,6,F,1,1,yes,30582,laser wavelength set to 800 um

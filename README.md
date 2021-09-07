@@ -26,19 +26,11 @@ All of the appropriate libraries should then be loaded, and the modules can be i
 
 ## 4. Scripts and modules
 * `run_paper_figures.py`: run, analyse and plot paper figures _(UNDER DEVELOPMENT)_  
-
-* **`main_scripts`**: main scripts from which to run and plot specific analyses...
-    * `run_acr_sess_analysis.py`: ... across sessions
-    * `run_roi_analysis.py`: ... on ROI data
-    * `run_running_analysis.py`: ... on running data
-    * `run_pupil_analysis.py`: ... on pupil data
-    * `run_logreg.py`: ... using logistic regressions on the ROI data
-* **`analysis`**: Session object as well as session data analysis module
-* **`plot_fcts`**: module with functions to plot analysis results from saved dictionaries or dataframes 
+* **`analysis`**: analysis scripts, including Session object
 * **`sess_util`**: session specific utilities module
-* **`paper_fig_util`**: analysis scripts to generate the paper scripts
+* **`plot_fcts`**: plotting scripts
+* **`paper_fig_util`**: scripts to organize and generate the paper figures
 * **`examples`**: example notebook for using Session/Stim objects 
-* **`scripts_under_dev`**: analysis scripts under development
 
 ## 5. Data
 The data for this project is hosted [here](https://gui.dandiarchive.org/#/dandiset/000037) in the DANDI archive in [NWB](https://www.nwb.org/) format. The associated metadata can be found [here](https://github.com/jeromelecoq/allen_openscope_metadata/tree/master/projects/credit_assignement).   
