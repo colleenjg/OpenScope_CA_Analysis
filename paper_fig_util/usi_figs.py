@@ -208,7 +208,7 @@ def gabor_roi_usi_distr(sessions, analyspar, sesspar, stimpar, basepar,
 
     Required args:
         - sessions (list): 
-            Session objects (singleton)
+            Session objects
         - analyspar (AnalysPar): 
             named tuple containing analysis parameters
         - sesspar (SessPar): 
@@ -279,7 +279,7 @@ def gabor_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar,
 
     Required args:
         - sessions (list): 
-            Session objects (singleton)
+            Session objects
         - analyspar (AnalysPar): 
             named tuple containing analysis parameters
         - sesspar (SessPar): 
@@ -313,8 +313,11 @@ def gabor_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar,
         extra={"spacing": "\n"}
         )
 
-    gab_oris = sess_gen_util.gab_oris_common_U(["D", "U"], stimpar.gab_ori)
-    stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, "gab_ori", gab_oris)
+    if common_oris:
+        gab_oris = sess_gen_util.gab_oris_common_U(["D", "U"], stimpar.gab_ori)
+        stimpar = sess_ntuple_util.get_modif_ntuple(
+            stimpar, "gab_ori", gab_oris
+            )
 
     idx_df = usi_analys.get_idx_df(
         sessions, 
@@ -362,7 +365,7 @@ def gabor_roi_usi_sig_common_oris(sessions, analyspar, sesspar, stimpar,
 
     Required args:
         - sessions (list): 
-            Session objects (singleton)
+            Session objects
         - analyspar (AnalysPar): 
             named tuple containing analysis parameters
         - sesspar (SessPar): 
@@ -426,7 +429,7 @@ def gabor_roi_usi_sig_by_mouse(sessions, analyspar, sesspar, stimpar, basepar,
 
     Required args:
         - sessions (list): 
-            Session objects (singleton)
+            Session objects
         - analyspar (AnalysPar): 
             named tuple containing analysis parameters
         - sesspar (SessPar): 
@@ -468,7 +471,9 @@ def gabor_roi_usi_sig_by_mouse(sessions, analyspar, sesspar, stimpar, basepar,
         parallel=parallel,
         )
 
-    permpar = misc_analys.set_multcomp(permpar, sess_df=idx_df)
+    permpar = misc_analys.set_multcomp(
+        permpar, sess_df=idx_df, pairs=False, factor=2
+        )
     
     perc_sig_df = usi_analys.get_perc_sig_df(idx_df, permpar, seed)
 

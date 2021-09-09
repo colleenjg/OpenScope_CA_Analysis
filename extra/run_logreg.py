@@ -360,7 +360,7 @@ def parse_args():
     TASK_STR = " || ".join(
         [f"{key}: {item}" for key, item in TASK_DESCR.items()])
 
-    parser.add_argument("--output", default=Path("results", "logreg_models"), 
+    parser.add_argument("--output", default=Path("results"), 
         type=Path, help="where to store output")
     parser.add_argument("--datadir", default=None, 
         help="data directory (if None, uses a directory defined below)")

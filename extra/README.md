@@ -4,8 +4,8 @@ This folder contains code for additional analyses that were developed and run
 on the Credit Assignment project data.  
 
 Some of these are exploratory or preliminary, and the code has not been 
-systematically tidied up for ease of sharing. Also, although I of course strive 
-to keep my code bug-free, this code has not been as systematically debugged as 
+systematically tidied up for ease of sharing. Also, although we of course strive 
+to keep the code bug-free, this code has not been as systematically debugged as 
 the main paper code.  
 
 Don't hesitate to contact me if you have questions or need any help using these 

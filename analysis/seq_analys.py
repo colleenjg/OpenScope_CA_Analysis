@@ -223,7 +223,7 @@ def get_locked_data(sess, analyspar, stimpar, split="unexp_lock", integ=False):
             sequence data array
             dims: split x ROIs x seq (x frames)
         - time_values (1D array):
-            values for each frame, in seconds
+            values for each frame, in seconds (for 0 to stimpar.post)
     """
 
     if split not in ["unexp_lock", "exp_lock"]:
@@ -232,17 +232,17 @@ def get_locked_data(sess, analyspar, stimpar, split="unexp_lock", integ=False):
 
     stim = sess.get_stim(stimpar.stimtype)
 
-    exp_order = [0, 1] if split == "unexp_lock" else [1, 0]
+    exp = 1 if split == "unexp_lock" else 0
 
     locked_data = []
-    for e, exp in enumerate(exp_order):
+    for i in range(2):
 
         segs = stim.get_segs_by_criteria(
             gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
             bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, surp=exp, 
             remconsec=True, by="seg")
 
-        if e == 0:
+        if i == 0:
             pre, post = [stimpar.pre, 0]
         else:
             pre, post = [0, stimpar.post]
@@ -288,7 +288,7 @@ def get_stim_on_off_data(sess, analyspar, stimpar, split="stim_onset",
             sequence data array
             dims: split x ROIs x seq (x frames)
         - time_values (1D array):
-            values for each frame, in seconds
+            values for each frame, in seconds (for 0 to stimpar.post)
     """
 
     if split not in ["stim_onset", "stim_offset"]:
@@ -382,7 +382,8 @@ def split_data_by_sess(sess, analyspar, stimpar, split="by_exp", integ=False,
             list of data arrays
             dims: split x ROIs x seq (x frames)
         - time_values (1D array):
-            values for each frame, in seconds
+            values for each frame, in seconds 
+            (only 0 to stimpar.post, unless split is "by_exp")
     """
     
 
@@ -449,7 +450,8 @@ def get_sess_roi_trace_stats(sess, analyspar, stimpar, basepar,
             ROI trace statistics for a sessions
             dims: exp, unexp x ROIs x frames x stats
         - time_values (1D array):
-            values for each frame, in seconds
+            values for each frame, in seconds 
+            (only 0 to stimpar.post, unless split is "by_exp")
     """
     
     nanpol = None if analyspar.remnans else "omit"
@@ -510,6 +512,7 @@ def get_sess_roi_trace_df(sessions, analyspar, stimpar, basepar,
                 ROI trace stats (split x ROIs x frames x stat (me, err))
             - time_values (list):
                 values for each frame, in seconds
+                (only 0 to stimpar.post, unless split is "by_exp")
     """
 
     trace_df = misc_analys.get_check_sess_df(sessions, None, analyspar)
@@ -573,6 +576,7 @@ def get_sess_grped_trace_df(sessions, analyspar, stimpar, basepar,
                 trace stats (split x frames x stat (me, err))
             - time_values (list):
                 values for each frame, in seconds
+              (only 0 to stimpar.post, unless split is "by_exp")
     """
 
     nanpol = None if analyspar.remnans else "omit"
@@ -605,7 +609,12 @@ def get_sess_grped_trace_df(sessions, analyspar, stimpar, basepar,
         n_fr = np.min(
             [len(time_values) for time_values in trace_grp_df["time_values"]]
         )
-        time_values = np.linspace(-stimpar.pre, stimpar.post, n_fr)
+        
+        if split == "by_exp":
+            time_values = np.linspace(-stimpar.pre, stimpar.post, n_fr)
+        else:
+            time_values = np.linspace(0, stimpar.post, n_fr)
+
         all_roi_stats = np.concatenate(
             [np.asarray(roi_stats)[..., : n_fr, 0] 
              for roi_stats in trace_grp_df["roi_trace_stats"]], axis=1
@@ -791,7 +800,7 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
                 op="diff", return_CIs=True, p_thresh=permpar.p_val, 
                 tails=permpar.tails, multcomp=permpar.multcomp)
 
-            diffs_df.loc[row_idx, "raw_p_vals"] = p_val
+            diffs_df.loc[row_idx, "p_vals"] = p_val
             diffs_df.at[row_idx, "null_CIs"] = null_CI
 
             sess_diffs.append(diffs)
@@ -803,13 +812,15 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
         p = 0
         for i, sess_n in enumerate(sess_ns):
             for j, sess_n2 in enumerate(sess_ns[i + 1:]):
-                key = f"raw_pvals_{int(sess_n)}v{int(sess_n2)}"
+                key = f"p_vals_{int(sess_n)}v{int(sess_n2)}"
                 diffs_df.loc[row_indices[i], key] = p_vals[p]
                 diffs_df.loc[row_indices[j + 1], key] = p_vals[p]
                 p += 1
 
     # adjust p-values
     diffs_df = misc_analys.add_adj_p_vals(diffs_df, permpar)
+
+    diffs_df["sess_ns"] = diffs_df["sess_ns"].astype(int)
 
     return diffs_df
 
@@ -842,6 +853,7 @@ def get_sess_ex_traces(sess, analyspar, stimpar, basepar):
     Returns:
         - selected_roi_data (dict):
             ["time_values"] (1D array): values for each frame, in seconds
+                (only 0 to stimpar.post, unless split is "by_exp")
             ["roi_ns"] (1D array): selected ROI numbers
             ["roi_traces"] (3D array): selected ROI sequence traces,
                 dims: ROIs x seq x frames
@@ -937,6 +949,7 @@ def get_ex_traces_df(sessions, analyspar, stimpar, basepar, parallel=False,
             dataframe with a row for each ROI, and the following columns, 
             in addition to the basic sess_df columns: 
             - time_values (list): values for each frame, in seconds
+                (only 0 to stimpar.post, unless split is "by_exp")
             - roi_ns (list): selected ROI number
             - traces (list): selected ROI sequence traces, dims: seq x frames
             - trace_stat (list): selected ROI trace mean or median
@@ -982,16 +995,15 @@ def get_ex_traces_df(sessions, analyspar, stimpar, basepar, parallel=False,
     group_columns = ["lines", "planes", "sess_ns"]
     for _, trace_grp_df in retained_traces_df.groupby(group_columns):
         grp_indices = trace_grp_df.index
-        n_per = [len(roi_ns) for roi_ns in trace_grp_df["roi_ns"]]
+        n_per = np.asarray([len(roi_ns) for roi_ns in trace_grp_df["roi_ns"]])
         roi_ns = np.concatenate(trace_grp_df["roi_ns"].tolist())
         concat_idxs = np.sort(
             np.random.choice(len(roi_ns), n_ex, replace=False)
             )
-        n_per_cs = np.cumsum(n_per)
 
         for concat_idx in concat_idxs:
             row_idx = len(selected_traces_df)
-            sess_idx = np.where(concat_idx < n_per_cs)[0][0]
+            sess_idx = np.where(concat_idx < np.cumsum(n_per))[0][0]
             source_row = trace_grp_df.loc[grp_indices[sess_idx]]
             for column in initial_columns:
                 selected_traces_df.at[row_idx, column] = source_row[column]
@@ -999,14 +1011,14 @@ def get_ex_traces_df(sessions, analyspar, stimpar, basepar, parallel=False,
             selected_traces_df.at[row_idx, "time_values"] = \
                 source_row["time_values"].tolist()
             
-            roi_idx = concat_idx - n_per_cs[: sess_idx].sum()
+            roi_idx = concat_idx - n_per[: sess_idx].sum()
             for col in ["roi_ns", "traces", "trace_stat"]: 
                 source_col = col.replace("trace", "roi_trace")
                 selected_traces_df.at[row_idx, col] = \
                     source_row[source_col][roi_idx].tolist()
 
     for column in [
-        "mouse_ns", "mouse_ids", "sess_ns", "sessids", "nrois", "roi_ns"
+        "mouse_ns", "mouseids", "sess_ns", "sessids", "nrois", "roi_ns"
         ]:
         selected_traces_df[column] = selected_traces_df[column].astype(int)
 

@@ -62,6 +62,15 @@ def no_plot_fct(reason):
 def partial_plot_fct(message):
     return message
 
+def manual_warning():
+    message = ("Minor manual formatting adjustments may be missing.")
+    return message
+
+def slow_warning():
+    message = ("This figure panel takes longer to produce, as it requires "
+        "plotting and rasterizing a large number of traces.")
+    return message
+
 def stats_plot_fct():
     message = ("This figure panel includes statistical analyses. "
         "Analysis may take longer, and statistical symbols may not be "
@@ -227,7 +236,7 @@ class FigurePanelAnalysis():
         self.plt_bkend = plt_bkend
         self.fontdir   = fontdir
 
-        self.warnings = []
+        self.warnings = [manual_warning()]
         self.full_power = full_power
         self.seed       = seed
 
@@ -431,11 +440,6 @@ class FigurePanelAnalysis():
         self.n_perms_full = 1e4
         self.analysis_fct = usi_figs.gabor_example_roi_usis
         self.plot_fct = plot_figs.plot_gabor_example_roi_usis
-        self.warnings.append(
-            partial_plot_fct(
-                message="Some manual formatting adjustments will be missing."
-            )
-        )
         
         
     def gabor_example_roi_usi_sig(self):
@@ -450,11 +454,6 @@ class FigurePanelAnalysis():
         self.n_perms_full = 1e4
         self.analysis_fct = usi_figs.gabor_example_roi_usi_sig
         self.plot_fct = plot_figs.plot_gabor_example_roi_usi_sig
-        self.warnings.append(
-            partial_plot_fct(
-                message="Some manual formatting adjustments will be missing."
-            )
-        )
 
 
     def gabor_roi_usi_distr(self):
@@ -465,11 +464,7 @@ class FigurePanelAnalysis():
         self.n_perms_full = 1e4
         self.analysis_fct = usi_figs.gabor_roi_usi_distr
         self.plot_fct = plot_figs.plot_gabor_roi_usi_distr
-        self.warnings.append(
-            partial_plot_fct(
-                message="Some manual formatting adjustments will be missing."
-            )
-        )
+
 
     def gabor_roi_usi_sig(self):
         self.description = "Percentages of significant Gabor USIs."
@@ -505,7 +500,7 @@ class FigurePanelAnalysis():
         )
         self.analysis_fct = run_pupil_figs.pupil_run_responses
         self.plot_fct = plot_figs.plot_pupil_run_responses
-        self.running.append(
+        self.warnings.append(
             partial_plot_fct(
                 message="Running and pupil images will be missing."
             )
@@ -603,11 +598,6 @@ class FigurePanelAnalysis():
         self.n_perms_full = 1e5
         self.analysis_fct = corr_figs.gabor_norm_res_corr_example
         self.plot_fct = plot_figs.plot_gabor_norm_res_corr_example
-        self.warnings.append(
-            partial_plot_fct(
-                message="Some manual formatting adjustments will be missing."
-            )
-        )
 
 
     def gabor_norm_res_corrs_sess123_comps(self):
@@ -697,11 +687,7 @@ class FigurePanelAnalysis():
             )
         self.analysis_fct = seq_figs.gabor_ex_roi_responses_sess1
         self.plot_fct = plot_figs.plot_gabor_ex_roi_responses_sess1
-        self.warnings.append(
-            partial_plot_fct(
-                message="Some manual formatting adjustments will be missing."
-            )
-        )
+        self.warnings.append(slow_warning())
 
     ### Figure S4 ###
     def gabor_roi_usi_sig_by_mouse(self):
