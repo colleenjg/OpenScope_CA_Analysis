@@ -498,7 +498,7 @@ def plot_gabor_sequences_sess123(analyspar, sesspar, stimpar, basepar,
         - savename (str): name under which the figure is saved
     """
 
-    title = "Visual flow sequences"
+    title = "Gabor sequences"
     
     trace_df = pd.DataFrame.from_dict(trace_df)
 
@@ -577,22 +577,20 @@ def plot_gabor_sequence_diffs_sess123(analyspar, sesspar, stimpar, basepar,
         - savename (str): name under which the figure is saved
     """
 
-    title = "Visual flow sequence differences"
+    title = "Gabor sequence differences"
     
     diffs_df = pd.DataFrame.from_dict(diffs_df)
 
-    # ax = seq_plots.plot_sess_diffs(
-    #     diffs_df, 
-    #     analyspar=analyspar, 
-    #     sesspar=sesspar, 
-    #     permpar=permpar, 
-    #     figpar=figpar, 
-    #     title=title, 
-    #     wide=True
-    #     )
-    # fig = ax.reshape(-1)[0].figure
-
-    fig = None
+    ax = seq_plots.plot_sess_diffs(
+        diffs_df, 
+        analyspar=analyspar, 
+        sesspar=sesspar, 
+        permpar=permpar, 
+        figpar=figpar, 
+        title=title, 
+        wide=True
+        )
+    fig = ax.reshape(-1)[0].figure
     
     savedir, savename = helper_fcts.get_save_path(
         figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
@@ -948,7 +946,7 @@ def plot_stimulus_onset_sess123(analyspar, sesspar, stimpar, basepar, extrapar,
             - trace_stats (list): 
                 trace stats (split x frames x stat (me, err))
             - time_values (list):
-                values for each frame, in seconds
+                values for each frame, in seconds (only 0 to stimpar.post)
 
         - figpar (dict): 
             dictionary containing the following figure parameter dictionaries
@@ -1038,7 +1036,13 @@ def plot_gabor_ex_roi_responses_sess1(analyspar, sesspar, stimpar, basepar,
     
     ex_traces_df = pd.DataFrame.from_dict(ex_traces_df)
 
-    fig = None
+    ax = seq_plots.plot_ex_gabor_traces(
+        ex_traces_df, 
+        stimpar=stimpar, 
+        figpar=figpar, 
+        title=title
+        )
+    fig = ax.reshape(-1)[0].figure
     
     savedir, savename = helper_fcts.get_save_path(
         figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
@@ -1220,7 +1224,7 @@ def plot_visual_flow_sequences_sess123(analyspar, sesspar, stimpar, basepar,
             - trace_stats (list): 
                 trace stats (split x frames x stat (me, err))
             - time_values (list):
-                values for each frame, in seconds
+                values for each frame, in seconds (only 0 to stimpar.post)
 
         - figpar (dict): 
             dictionary containing the following figure parameter dictionaries
@@ -1317,17 +1321,16 @@ def plot_visual_flow_diffs_sess123(analyspar, sesspar, stimpar, basepar,
     
     diffs_df = pd.DataFrame.from_dict(diffs_df)
 
-    # ax = seq_plots.plot_sess_diffs(
-    #     diffs_df, 
-    #     analyspar=analyspar, 
-    #     sesspar=sesspar, 
-    #     permpar=permpar, 
-    #     figpar=figpar, 
-    #     title=title, 
-    #     wide=True
-    #     )
-    # fig = ax.reshape(-1)[0].figure
-    fig = None
+    ax = seq_plots.plot_sess_diffs(
+        diffs_df, 
+        analyspar=analyspar, 
+        sesspar=sesspar, 
+        permpar=permpar, 
+        figpar=figpar, 
+        title=title, 
+        wide=True
+        )
+    fig = ax.reshape(-1)[0].figure
     
     savedir, savename = helper_fcts.get_save_path(
         figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]

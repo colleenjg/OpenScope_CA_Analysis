@@ -907,13 +907,13 @@ def plot_summ(output, savename, stimtype="gabors", comp="surp", ctrl=False,
     shuff_stats = ["median"] + math_util.get_percentiles(CI)[1]
 
     q1v4, rvs = False, False
-    if "q1v4" in output:
+    if "q1v4" in str(output):
         q1v4 = True
-    elif "rvs" in output:
+    elif "rvs" in str(output):
         rvs = True
     
     runtype = "prod"
-    if "pilot" in output:
+    if "pilot" in str(output):
         runtype = "pilot"
 
     if stimtype == "gabors":

@@ -1133,6 +1133,7 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
         if n_rows % 2 != 0:
             raise ValueError("Expected even number of rows")
         row_per_grp = int(n_rows/2)
+        col_per_grp = int(n_cols/2)
         n = 4
     elif kind == "prog":
         n = 3
@@ -1181,7 +1182,7 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
     line_pos = plot_util.get_fig_rel_pos(ax, col_per_grp, dim="x")
     for c, (line, pos) in enumerate(zip(lines, line_pos)):
         line_name = f"{line} Pyr" if line[1].isdigit() else line
-        if kind != "prog":
+        if kind != "prog" and col_per_grp == 1:
             ax[0, c].set_title(line_name, weight="bold") 
         else:
             # get ypos based on plane positions

@@ -32,7 +32,7 @@ def gabor_sequences_sess123(sessions, analyspar, sesspar, stimpar, basepar,
 
     Required args:
         - sessions (list): 
-            Session objects (singleton)
+            Session objects
         - analyspar (AnalysPar): 
             named tuple containing analysis parameters
         - sesspar (SessPar): 
@@ -90,7 +90,7 @@ def gabor_sequence_diffs_sess123(sessions, analyspar, sesspar, stimpar,
 
     Required args:
         - sessions (list): 
-            Session objects (singleton)
+            Session objects
         - analyspar (AnalysPar): 
             named tuple containing analysis parameters
         - sesspar (SessPar): 
@@ -160,7 +160,7 @@ def stimulus_onset_sess123(sessions, analyspar, sesspar, stimpar, basepar,
 
     Required args:
         - sessions (list): 
-            Session objects (singleton)
+            Session objects
         - analyspar (AnalysPar): 
             named tuple containing analysis parameters
         - sesspar (SessPar): 
@@ -216,7 +216,7 @@ def gabor_ex_roi_responses_sess1(sessions, analyspar, sesspar, stimpar,
 
     Required args:
         - sessions (list): 
-            Session objects (singleton)
+            Session objects
         - analyspar (AnalysPar): 
             named tuple containing analysis parameters
         - sesspar (SessPar): 
@@ -282,7 +282,7 @@ def visual_flow_sequences_sess123(sessions, analyspar, sesspar, stimpar,
 
     Required args:
         - sessions (list): 
-            Session objects (singleton)
+            Session objects
         - analyspar (AnalysPar): 
             named tuple containing analysis parameters
         - sesspar (SessPar): 
@@ -339,7 +339,7 @@ def visual_flow_diffs_sess123(sessions, analyspar, sesspar, stimpar, basepar,
 
     Required args:
         - sessions (list): 
-            Session objects (singleton)
+            Session objects
         - analyspar (AnalysPar): 
             named tuple containing analysis parameters
         - sesspar (SessPar): 

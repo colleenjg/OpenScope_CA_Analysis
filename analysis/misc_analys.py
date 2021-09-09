@@ -63,7 +63,7 @@ def get_sig_symbol(adj_p_val, ctrl=False, percentile=False, sensitivity=None,
     if percentile:
         if adj_p_val > 50:
             adj_p_val = 100 - adj_p_val
-        adj_p_val = 1 - adj_p_val / 100
+        adj_p_val = adj_p_val / 100
     
     # check if side matches tail
     if str(tails) != "2":
@@ -109,11 +109,16 @@ def get_adjusted_p_val(p_val, permpar):
     if isinstance(permpar, dict):
         permpar = sess_ntuple_util.init_permpar(**permpar)
 
+    if p_val > 0.5:
+        raise ValueError("Raw p-value should not be greater than 0.5.")
+
     n_tails = 1 if permpar.tails in ["lo", "hi"] else int(permpar.tails)
     adj_p_val = p_val * n_tails 
     
     if permpar.multcomp:
         adj_p_val *= permpar.multcomp
+
+    adj_p_val = np.min([adj_p_val, 1])
 
     return adj_p_val
 
@@ -124,12 +129,12 @@ def add_adj_p_vals(df, permpar):
     add_adj_p_vals(df, permpar)
 
     Returns dataframe with p-values, adjusted for tails and multiple 
-    comparisons, are added. Original p-values columns names have "raw" added 
-    in them.
+    comparisons, are added. Original "p_vals" column names are returned as 
+    "raw_p_vals" instead.
     
     Required args:
         - df (pd.DataFrame): 
-            dataframe with p-value columns
+            dataframe with p-value columns ("p_vals" in column names)
         - permpar (PermPar): 
             named tuple containing permutation parameters
 
@@ -143,15 +148,21 @@ def add_adj_p_vals(df, permpar):
 
     p_val_cols = [col for col in df.columns if "p_vals" in col]
 
+    if sum(["raw_p_vals" in col for col in p_val_cols]):
+        raise ValueError(
+            "Function converts 'p_vals' columns to 'raw_p_vals' columns. "
+            "Did not expect dataframe to already contain columns with "
+            "'raw_p_vals' in name.")
+
     new_col_names = {
         col: col.replace("p_vals", "raw_p_vals") for col in p_val_cols
         }
-
+    from util import math_util
     df = df.rename(columns=new_col_names)
 
-    for p_val_col in p_val_cols:
-        adj_p_val_col = p_val_col.replace("raw_p_vals", "p_vals")
-        df[adj_p_val_col] = get_adjusted_p_val(df[p_val_col], permpar)
+    for adj_p_val_col in p_val_cols:
+        raw_p_val_col = adj_p_val_col.replace("p_vals", "raw_p_vals")
+        df[adj_p_val_col] = get_adjusted_p_val(df[raw_p_val_col], permpar)
 
     return df
     

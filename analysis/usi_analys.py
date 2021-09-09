@@ -237,6 +237,7 @@ def choose_roi(target_idx_val, target_idx_sig, roi_idxs, roi_percs,
             selected session number, base on nrois_per_sess
     """
 
+    math_util.check_n_rand(permpar.n_perms, permpar.p_val)
     p_low, p_high = math_util.get_percentiles(
         CI=(1 - permpar.p_val), tails=permpar.tails
         )[0]
@@ -443,6 +444,7 @@ def add_chosen_roi_traces(sessions, chosen_rois_df, analyspar, stimpar, basepar,
                 ROI trace stats (split x frames x stat (me, err))
             - time_values (list):
                 values for each frame, in seconds
+                (only 0 to stimpar.post, unless split is "by_exp")
     """
 
     chosen_rois_df = copy.deepcopy(chosen_rois_df)
@@ -530,6 +532,7 @@ def bin_idxs(roi_idxs, roi_percs, rand_idxs, permpar, n_bins=40):
     """
     
     # gather index histogram information
+    math_util.check_n_rand(rand_idxs.shape[1], permpar.p_val)
     CI_perc = math_util.get_percentiles(1 - permpar.p_val, permpar.tails)[0]
     # check bin size
     CI_wid = np.max([CI_perc[0], 100 - CI_perc[1]])
@@ -635,6 +638,7 @@ def get_ex_idx_df(sess, analyspar, stimpar, basepar, permpar, idxpar,
     # select a significant ROI
     if permpar.tails == "lo":
         raise ValueError("Expected permpar.tails to be 2 or 'hi', not 'lo'.")
+    math_util.check_n_rand(permpar.n_perms, permpar.p_val)
     CI_perc = math_util.get_percentiles(1 - permpar.p_val, permpar.tails)[0]
     possible = np.where((roi_percs > CI_perc[1]) * (roi_percs < 100))[0]
     preferred = np.where(
@@ -879,7 +883,7 @@ def get_perc_sig_df(idx_df, permpar, seed=None):
         perc_sig_df.loc[g, "perc_pos_idxs_stds"] = perc_std
         perc_sig_df.at[g, "perc_pos_idxs_CIs"] = CI.tolist()
         perc_sig_df.at[g, "perc_pos_idxs_null_CIs"] = null_CI.tolist()
-        perc_sig_df.loc[g, "perc_pos_idxs_raw_p_vals"] = p_val
+        perc_sig_df.loc[g, "perc_pos_idxs_p_vals"] = p_val
     
     # get significant ROI index info
     null_perc = 100 * permpar.p_val / 2 # null percentage is 100 * p_val / 2
@@ -899,7 +903,7 @@ def get_perc_sig_df(idx_df, permpar, seed=None):
             perc_sig_df.at[g, f"perc_sig_{sig}_idxs_CIs"] = CI.tolist()
             perc_sig_df.at[g, f"perc_sig_{sig}_idxs_null_CIs"] = \
                 null_CI.tolist()
-            perc_sig_df.loc[g, f"perc_sig_{sig}_idxs_raw_p_vals"] = p_val
+            perc_sig_df.loc[g, f"perc_sig_{sig}_idxs_p_vals"] = p_val
     
     # add adjusted p-values
     perc_sig_df = misc_analys.add_adj_p_vals(perc_sig_df, permpar)

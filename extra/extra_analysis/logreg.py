@@ -1565,7 +1565,7 @@ def remove_overlap_comp_dir(gen_dirs, stimtype="gabors", comp="surp"):
     for other_comp in all_comps:
         if comp != other_comp and comp in other_comp:
             gen_dirs = [gen_dir for gen_dir in gen_dirs 
-                if other_comp not in gen_dir]
+                if other_comp not in str(gen_dir)]
 
     return gen_dirs
 
@@ -1646,7 +1646,7 @@ def run_collate(output, stimtype="gabors", comp="surp", ctrl=False,
         return
 
     ext_test = sess_str_util.ext_test_str(
-        ("q1v4" in output), ("rvs" in output), comp)
+        ("q1v4" in str(output)), ("rvs" in str(output)), comp)
     if ext_test == "":
         ext_test = None
 
