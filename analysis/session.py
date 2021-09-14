@@ -130,11 +130,11 @@ class Session(object):
                 "runtype", runtype, ["pilot", "prod"])
         self.runtype = runtype
 
-        self.only_matched_rois = only_matched_rois
         self.drop_tol = drop_tol
 
         self._extract_sess_attribs()
         self._init_directory()
+        self.set_only_matched_rois(only_matched_rois)
 
         if verbose:
             print("To load stimulus, behaviour and ophys data, "
@@ -308,7 +308,7 @@ class Session(object):
         min_n_pix = 3 # value used in ROI extraction
 
         if not hasattr(self, "_dend"):
-            raise ValueError("Run 'self.load_roi_info()' to set ROI "
+            raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
                 "attributes correctly.")
 
         if not hasattr(self, "_roi_masks"):
@@ -331,10 +331,43 @@ class Session(object):
         """
 
         if not hasattr(self, "_dend"):
-            raise ValueError("Run 'self.load_roi_info()' to set ROI "
+            raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
                 "attributes correctly.")
 
         return self._dend
+
+
+    #############################################
+    @property
+    def only_matched_rois(self):
+        """
+        self.only_matched_rois()
+
+        Returns whether session is currently set to use only matched ROIs.
+        """
+
+        if not hasattr(self, "_only_matched_rois"):
+            raise RuntimeError("self._only_matched_rois does not exist, but "
+                "should be set in __init__.")
+        
+        return self._only_matched_rois
+
+
+    #############################################
+    @property
+    def matched_rois(self):
+        """
+        self.matched_rois()
+
+        Returns as a numpy array the indices of ROIs that have been
+        matched across sessions (currently, across all sessions for
+        which we have data).
+        """
+
+        if not hasattr(self, '_matched_rois'):
+            self._set_matched_rois()
+        
+        return self._matched_rois
 
 
     #############################################
@@ -585,7 +618,8 @@ class Session(object):
                     f"{' and '.join(modifications)}")
                 if not replace:
                     warnings.warn("Running dataframe not updated. Must set "
-                        f"'replace' to True to update {modif_str}.")
+                        f"'replace' to True to update {modif_str}.", 
+                        category=RuntimeWarning, stacklevel=1)
                     return
 
                 logger.info(f"Updating {modif_str}.", extra={"spacing": TAB})
@@ -707,11 +741,11 @@ class Session(object):
 
         Attributes:
             if fluor is "dff":
-                - nanrois_dff (list): list of ROIs containing NaNs or Infs in
-                                      the ROI dF/F traces
+                - _nanrois_dff (list): list of ROIs containing NaNs or Infs in
+                                       the ROI dF/F traces
             if fluor is "raw":
-                - nanrois (list)    : list of ROIs containing NaNs or Infs in
-                                      the ROI raw processed traces
+                - _nanrois (list)    : list of ROIs containing NaNs or Infs in
+                                       the ROI raw processed traces
 
         Optional args:
             - fluor (str): if "dff", a nanrois attribute is added for dF/F 
@@ -723,7 +757,7 @@ class Session(object):
         rem_noisy = True
 
         if not hasattr(self, "_dend"):
-            raise ValueError("Run 'self.load_roi_info()' to set ROI "
+            raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
                 "attributes correctly.")
 
         if fluor == "dff":
@@ -736,8 +770,9 @@ class Session(object):
             gen_util.accepted_values_error("fluor", fluor, ["raw", "dff"])
         
         if not full_trace_file.is_file():
-            raise ValueError("Specified ROI traces file does not exist: "
-                             f"{full_trace_file}")
+            raise OSError(
+                "Specified ROI traces file does not exist: {full_trace_file}"
+                )
         
         with h5py.File(full_trace_file, "r") as f:
             traces = f[dataset_name][()]
@@ -773,9 +808,68 @@ class Session(object):
         nan_rois = np.where(nan_arr)[0].tolist()
 
         if fluor == "dff":
-            self.nanrois_dff = nan_rois
+            self._nanrois_dff = nan_rois
         elif fluor == "raw":
-            self.nanrois = nan_rois
+            self._nanrois = nan_rois
+
+
+    #############################################
+    def _set_nanrois_matched(self):
+        """
+        self._set_nanrois_matched()
+
+        Sets attributes with the indices of matched ROIs containing NaNs or 
+        Infs in the raw and/or dff data.
+
+        Attributes:
+            if fluor is "dff":
+                - _nanrois_dff_matched (list): 
+                                      list of ROIs (indexed for the full ROI 
+                                      list) containing NaNs or Infs in the ROI 
+                                      dF/F traces
+            if fluor is "raw":
+                - nanrois_matched (list): 
+                                      list of ROIs (indexed for the full ROI 
+                                      list) containing NaNs or Infs in the ROI 
+                                      raw processed traces
+        """
+
+        if not hasattr(self, "_nanrois_dff_matched"):
+            if hasattr(self, "_nanrois_dff"):
+                all_nanrois = self.get_nanrois("dff")
+                self._nanrois_dff_matched = [
+                    nanroi for nanroi in all_nanrois 
+                    if nanroi in self.matched_rois
+                    ]
+
+        if not hasattr(self, "_nanrois_matched"):
+            if hasattr(self, "_nanrois"):
+                all_nanrois = self.get_nanrois("raw")
+                self._nanrois_matched = [
+                    nanroi for nanroi in all_nanrois 
+                    if nanroi in self.matched_rois
+                    ]
+    
+
+    #############################################
+    def set_only_matched_rois(self, only_matched_rois=False):
+        """
+        self.set_only_matched_rois()
+
+        Sets only_matched_rois attribute, and updates related attributes.
+
+        Attributes:
+            - matched_rois (1D array): ordered indices of ROIs matched across 
+                                       sessions
+        """
+
+        self._only_matched_rois = bool(only_matched_rois)
+        
+        if not hasattr(self, "_dend"): # ROIs not yet loaded, anyway
+            return
+
+        if self.only_matched_rois:
+            self._set_matched_rois()
 
 
     #############################################
@@ -784,7 +878,7 @@ class Session(object):
         self._set_matched_rois()
 
         Sets attribute with the indices of ROIs that have been matched across 
-        sessions 
+        sessions.
 
         Attributes:
             - matched_rois (1D array): ordered indices of ROIs matched across 
@@ -794,6 +888,10 @@ class Session(object):
         if self.plane == "dend" and self.dend != "extr":
             raise UserWarning("ROIs not matched for Allen extracted dendritic "
                 "ROIs.")
+
+        if hasattr(self, "_matched_rois"):
+            self._set_nanrois_matched()
+            return
 
         try:
             nway_match_path = sess_file_util.get_nway_match_path_from_sessid(
@@ -808,7 +906,8 @@ class Session(object):
         with open(nway_match_path, 'r') as fp:
             matched_rois_df = pd.DataFrame(json.load(fp)['rois'])
 
-        self.matched_rois = matched_rois_df['dff-ordered_roi_index'].values
+        self._matched_rois = matched_rois_df['dff-ordered_roi_index'].values
+        self._set_nanrois_matched()
 
 
     #############################################
@@ -844,7 +943,7 @@ class Session(object):
             col_index = pd.MultiIndex.from_product(
                 [["roi_traces"], fluor], names=["datatype", "fluorescence"])
             row_index = pd.MultiIndex.from_product(
-                [[f"sub_{sub}", f"div_{div}"], range(self.nrois)], 
+                [[f"sub_{sub}", f"div_{div}"], range(self._nrois)], 
                 names=["factors", "ROIs"])
     
             self.roi_facts_df = pd.DataFrame(
@@ -866,8 +965,8 @@ class Session(object):
             - self._set_matched_rois()
         """
 
-        if not hasattr(self, "nrois"):
-            raise ValueError("Run 'self.load_roi_info()' to set ROI "
+        if not hasattr(self, "_nrois"):
+            raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
                 "attributes correctly.")
 
         if hasattr(self, "roi_facts_df"):
@@ -995,8 +1094,10 @@ class Session(object):
 
         if hasattr(self, "_dend"):
             if self.plane == "dend" and self.dend != dend:
-                raise ValueError("Cannot change dendrite type. Already set "
-                f"to {self.dend} traces.")
+                raise NotImplementedError(
+                    "Cannot change dendrite type. "
+                    f"Already set to {self.dend} traces."
+                    )
             return
 
         if dend not in ["extr", "allen"]:
@@ -1020,7 +1121,7 @@ class Session(object):
 
             except Exception as e:
                 warnings.warn(f"{e}.\Allen extracted dendritic ROIs "
-                    "will be used instead.")
+                    "will be used instead.", category=UserWarning, stacklevel=1)
 
 
     ############################################
@@ -1134,7 +1235,7 @@ class Session(object):
                     self.roi_names = f["roi_names"][()].tolist()
 
                     # get the number of rois
-                    self.nrois = f[dataset_name].shape[0]
+                    self._nrois = f[dataset_name].shape[0]
 
                     # get the number of data points in the traces
                     self.tot_twop_fr = f[dataset_name].shape[1]
@@ -1215,7 +1316,7 @@ class Session(object):
         self.grayscr = Grayscr(self)
 
     
-#############################################
+    #############################################
     def extract_sess_attribs(self, mouse_df="mouse_df.csv"):
         """
         self.extract_sess_attribs(mouse_df)
@@ -1230,7 +1331,7 @@ class Session(object):
         message = ("self.extract_sess_attribs() is deprecated, and has been "
             "replaced with self._extract_sess_attribs(). The latter is called "
             "automatically in self.__init__, which takes mouse_df as an input.")
-        warnings.warn(message=message, category=RuntimeWarning)
+        warnings.warn(message=message, category=RuntimeWarning, stacklevel=1)
 
         if Path(mouse_df) != self.mouse_df:
             raise ValueError(
@@ -1333,17 +1434,17 @@ class Session(object):
             if hasattr(self, "gabors"):
                 stim = self.gabors
             else:
-                raise ValueError("Session object has no gabors stimulus.")
+                raise RuntimeError("Session object has no gabors stimulus.")
         elif stimtype == "bricks":
             if hasattr(self, "bricks"):
                 stim = self.bricks
             else:
-                raise ValueError("Session object has no bricks stimulus.")
+                raise RuntimeError("Session object has no bricks stimulus.")
         elif stimtype == "grayscr":
             if hasattr(self, "grayscr"):
                 stim = self.grayscr
             else:
-                raise ValueError("Session object has no grayscr stimulus.")
+                raise RuntimeError("Session object has no grayscr stimulus.")
         else:
             gen_util.accepted_values_error("stimtype", stimtype, 
                 ["gabors", "bricks", "grayscr"])
@@ -1457,7 +1558,7 @@ class Session(object):
         """
 
         if not hasattr(self, "run_data"):
-            raise ValueError("Run 'self.load_run_data()' to load the running "
+            raise RuntimeError("Run 'self.load_run_data()' to load the running "
                 "data correctly.")
 
         interpolated = "no"
@@ -1529,7 +1630,7 @@ class Session(object):
         """
 
         if not hasattr(self, "run_data"):
-            raise ValueError("Run 'self.load_run_data()' to load the running "
+            raise RuntimeError("Run 'self.load_run_data()' to load the running "
                 "data correctly.")
 
         fr = np.asarray(fr)
@@ -1574,19 +1675,31 @@ class Session(object):
                            traces. If "raw", on raw processed traces.
                            default: "dff"
         Returns:
-            - (list): indices of ROIs containing NaNs or Infs
+            - nanrois: indices of ROIs containing NaNs or Infs 
+                       (indexed into full ROI array, even if 
+                       self.only_matched_rois)
         """
 
         if fluor == "dff":
-            if not hasattr(self, "nanrois_dff"):
+            if not hasattr(self, "_nanrois_dff"):
                 self._set_nanrois(fluor)
-            return self.nanrois_dff
+            if self.only_matched_rois and hasattr(self, "_nanrois_dff_matched"):
+                self._set_nanrois_matched()
+                nanrois = self._nanrois_dff_matched
+            else:
+                nanrois = self._nanrois_dff
         elif fluor == "raw":
-            if not hasattr(self, "nanrois"):
+            if not hasattr(self, "_nanrois"):
                 self._set_nanrois(fluor)
-            return self.nanrois
+            if self.only_matched_rois and hasattr(self, "_nanrois_matched"):
+                self._set_nanrois_matched()
+                nanrois = self._nanrois_matched
+            else:
+                nanrois = self._nanrois
         else:
             gen_util.accepted_values_error("fluor", fluor, ["raw", "dff"])
+
+        return nanrois
 
 
     #############################################
@@ -1603,33 +1716,26 @@ class Session(object):
             - remnans (bool): if True, ROIs containing NaNs/Infs are removed.
                               default: "dff"
         Returns:
-            - roi_masks (3D array): boolean ROI masks, structured as 
+            - roi_masks (3D array): boolean ROI masks, restricted to matched 
+                                    ROIs if self.only_matched_rois, and 
+                                    structured as 
                                     ROI x height x width
         """
 
         roi_masks = self.roi_masks
 
-        if remnans:
+        if self.only_matched_rois:
+            roi_masks = roi_masks[self.matched_rois]
+            if remnans and len(self.get_nanrois(fluor)):
+                raise NotImplementedError(
+                    "remnans not implemented for matched ROIs."
+                    )
+
+        elif remnans:
             rem_idx = self.get_nanrois(fluor)
             roi_masks = np.delete(roi_masks, rem_idx, axis=0)
 
         return roi_masks
-
-
-    #############################################
-    def get_matched_rois(self):
-        """
-        self.get_matched_rois()
-
-        Returns as a numpy array the indices of ROIs that have been
-        matched across sessions (currently, across all sessions for
-        which we have data).
-        """
-
-        if not hasattr(self, 'matched_rois'):
-            self._set_matched_rois()
-        
-        return self.matched_rois
 
 
     #############################################
@@ -1651,11 +1757,15 @@ class Session(object):
             - nrois (int): number of ROIs fitting criteria
         """
 
-        if not hasattr(self, "nrois"):
-            raise ValueError("Run 'self.load_roi_info()' to set ROI "
+        if not hasattr(self, "_nrois"):
+            raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
                 "attributes correctly.")
 
-        nrois = self.nrois
+        if self.only_matched_rois:
+            nrois = len(self.matched_rois)
+        else:
+            nrois = self._nrois
+
         if remnans:
             rem_rois = len(self.get_nanrois(fluor))
             nrois = nrois - rem_rois
@@ -1684,14 +1794,15 @@ class Session(object):
                               Infs
                               default: True
         Returns:
-            - active_roi_indices (list): indices of active ROIs
+            - active_roi_indices (list): indices of active ROIs 
+                                         (indexed into the full ROI array)
         """
 
-        if not hasattr(self, "nrois"):
-            raise ValueError("Run 'self.load_roi_info()' to set ROI "
+        if not hasattr(self, "_nrois"):
+            raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
                 "attributes correctly.")
 
-        logger.info("Identifying active ROIs.", extra={"spacing": "\n"})
+        logger.info("Identifying active ROIs...", extra={"spacing": "\n"})
 
         win = [1, 5]
         
@@ -1766,8 +1877,8 @@ class Session(object):
                               median.
         """
 
-        if not hasattr(self, "nrois"):
-            raise ValueError("Run 'self.load_roi_info()' to set ROI "
+        if not hasattr(self, "_nrois"):
+            raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
                 "attributes correctly.")
 
         if not hasattr(self, "plateau_traces"):
@@ -1803,7 +1914,7 @@ class Session(object):
         self.get_single_roi_trace(n)
 
         Returns a single ROI trace, indexed by n (must index the original 
-        array.)
+        array). self.only_matched_rois is ignored here.
 
         Required args:
             - n (int): ROI index
@@ -1817,11 +1928,11 @@ class Session(object):
             - trace (1D array): full ROI trace
         """
 
-        if not hasattr(self, "nrois"):
-            raise ValueError("Run 'self.load_roi_info()' to set ROI "
+        if not hasattr(self, "_nrois"):
+            raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
                 "attributes correctly.")
 
-        if n >= self.nrois:
+        if n >= self._nrois:
             raise ValueError(f"ROI {n} does not exist.")
 
         # read the data points into the return array
@@ -1884,8 +1995,8 @@ class Session(object):
                     - frames          : last frames dimensions
         """
 
-        if not hasattr(self, "nrois"):
-            raise ValueError("Run 'self.load_roi_info()' to set ROI "
+        if not hasattr(self, "_nrois"):
+            raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
                 "attributes correctly.")
 
         # check whether the frames to retrieve are within range
@@ -1924,24 +2035,26 @@ class Session(object):
             factor_names = factors.index.unique(level="factors")
             sub_names =  list(filter(lambda x: "sub" in x, factor_names))
             if len(sub_names) != 1:
-                raise ValueError("Only one factor should contain 'sub'.")
+                raise RuntimeError("Only one factor should contain 'sub'.")
             div_names =  list(filter(lambda x: "div" in x, factor_names))
             if len(div_names) != 1:
-                raise ValueError("Only one row should contain 'div'.")
+                raise RuntimeError("Only one row should contain 'div'.")
             traces = (traces - factors.loc[sub_names[0]].values)/factors.loc[
                 div_names[0]].values
 
         # do this BEFORE building dataframe - much faster
         if self.only_matched_rois:
-            ROI_ids = self.get_matched_rois()
+            ROI_ids = self.matched_rois
             traces = traces[ROI_ids]
+            if remnans and len(self.get_nanrois(fluor)):
+                raise ValueError("remnans not implemented for matched ROIs.")
         else:
-            ROI_ids = np.arange(self.nrois)
+            ROI_ids = np.arange(self._nrois)
             if remnans:
                 rem_rois = self.get_nanrois(fluor)
                 # remove ROIs with NaNs or Infs in dataframe
                 if len(rem_rois):
-                    ROI_ids = np.asarray(sorted(set(ROI_ids) - set(rem_rois)))
+                    ROI_ids = np.delete(ROI_ids, rem_rois)
                     traces = traces[ROI_ids]
 
         # initialize the return dataframe
@@ -1991,7 +2104,7 @@ class Session(object):
         """
 
         if not hasattr(self, "twop_fps"):
-            raise ValueError("Run 'self.load_roi_info()' to load the ROI "
+            raise RuntimeError("Run 'self.load_roi_info()' to load the ROI "
                 "attributes correctly.")    
 
         ran_fr, xran = self.get_frames_timestamps(pre, post, fr_type="twop")
@@ -2005,7 +2118,8 @@ class Session(object):
             if sum(pad) > len(xran)/10.:
                 warnings.warn("Proportionally high padding values may distort "
                     "time values as method is designed to preserve 'pre' and "
-                    "'post' values in time stamps.")
+                    "'post' values in time stamps.", category=RuntimeWarning, 
+                    stacklevel=1)
             pad = [int(val) for val in pad]
             ran_fr = [ran_fr[0] - pad[0], ran_fr[1] + pad[1]]
             diff = np.diff(xran)[0]
@@ -2013,8 +2127,8 @@ class Session(object):
             xran = np.linspace(-pre, post, int(np.diff(ran_fr)[0]))
 
         if len(twop_ref_fr) == 0:
-            raise ValueError("No frames: frames list must include at least 1 "
-                "frame.")
+            raise RuntimeError("No frames: frames list must include at "
+                "least 1 frame.")
 
         if isinstance(twop_ref_fr[0], (list, np.ndarray)):
             raise ValueError("Frames must be passed as a 1D list, not by "
@@ -2032,7 +2146,7 @@ class Session(object):
         num_ran = gen_util.remove_idx(fr_idx, neg_idx + over_idx, axis=0)
 
         if len(num_ran) == 0:
-            raise ValueError("No frames: All frames were removed from list.")
+            raise RuntimeError("No frames: All frames were removed from list.")
 
         row_index = pd.MultiIndex.from_product([range(num_ran.shape[0]), xran], 
             names=["sequences", "time_values"])
@@ -2117,7 +2231,7 @@ class Session(object):
             twop_fr_seqs = [np.concatenate((x, end_padd[i])) 
                 for i, x in enumerate(twop_fr_seqs)]
         if padding[0] < 0 or padding[1] < 0:
-            raise ValueError("Negative padding not supported.")
+            raise NotImplementedError("Negative padding not supported.")
 
         # get length of each padded sequence
         pad_seql = np.array([len(s) for s in twop_fr_seqs])
@@ -2148,8 +2262,9 @@ class Session(object):
         # sanity check that the list is as long as expected
         if last_idx != len(frames_flat):
             if last_idx != len(frames_flat) - sum(seq_rem_l):
-                raise ValueError(f"Concatenated frame array is {last_idx} long "
-                    f"instead of expected {len(frames_flat - sum(seq_rem_l))}.")
+                raise RuntimeError(f"Concatenated frame array is {last_idx} "
+                    "long instead of expected "
+                    f"{len(frames_flat - sum(seq_rem_l))}.")
             else:
                 frames_flat = frames_flat[: last_idx]
 
@@ -2211,7 +2326,7 @@ class Session(object):
         """
 
         if not hasattr(self, "twop_fps"):
-            raise ValueError("Run 'self.load_roi_info()' to load the ROI "
+            raise RuntimeError("Run 'self.load_roi_info()' to load the ROI "
                 "attributes correctly.")
 
         if not isinstance(ch_fl, list) or len(ch_fl) != 2:
@@ -2448,14 +2563,16 @@ class Stim(object):
         """
 
         if self.stimtype != "bricks" or self.sess.runtype != "prod":
-            raise ValueError("Checking whether 2 stimulus dictionaries "
-                             "contain the same parameters is only for "
-                             "production Bricks stimuli.")
+            raise ValueError(
+                "Checking whether 2 stimulus dictionaries contain the same "
+                "parameters is only for production Bricks stimuli."
+                )
         
         stim_n = gen_util.list_if_not(self.stim_n)
         if len(stim_n) != 2:
-            raise ValueError("Expected 2 stimulus numbers, "
-                             f"but got {len(stim_n)}")
+            raise RuntimeError(
+                "Expected 2 stimulus numbers, but got {len(stim_n)}"
+                )
         
         stim_dict_1 = self.sess.stim_dict["stimuli"][self.stim_n[0]]
         stim_dict_2 = self.sess.stim_dict["stimuli"][self.stim_n[1]]
@@ -2495,7 +2612,7 @@ class Stim(object):
             sq_str = ""
 
         if error:
-            raise ValueError("Cannot initialize production Brick stimuli "
+            raise RuntimeError("Cannot initialize production Brick stimuli "
                 f"together, due to:{dict_str}{sweep_str}{sq_str}")
 
 
@@ -3126,6 +3243,13 @@ class Stim(object):
          start2pfr_max, end2pfr_min, end2pfr_max, num2pfr_min, 
          num2pfr_max] = pars
 
+        if "G" in gabfr:
+            msg = "Stimulus dataframe does not contain Gabor G segments."
+            if len(gabfr) == 1:
+                raise NotImplementedError(msg)
+            else:
+                logger.warning(msg)
+
         sub_df = self.sess.stim_df.loc[
             (self.sess.stim_df["stimType"]==self.stimtype[0]) & 
             (self.sess.stim_df["stimPar1"].isin(stimPar1))    &
@@ -3232,7 +3356,7 @@ class Stim(object):
         
         # check for empty
         if len(segs) == 0:
-             raise ValueError("No segments fit these criteria.")
+             raise RuntimeError("No segments fit these criteria.")
 
         # if not returning by disp
         if by == "block" or by == "seg":
@@ -3337,7 +3461,7 @@ class Stim(object):
         
         # check for empty
         if len(frames) == 0:
-             raise ValueError("No segments fit these criteria.")
+             raise RuntimeError("No segments fit these criteria.")
 
         # if not returning by disp
         if by == "block" or by == "frame":
@@ -3529,19 +3653,19 @@ class Stim(object):
                 cum += 1
                 incls.append(True)
             elif req:
-                raise ValueError("'data_df' row indices must include "
+                raise KeyError("'data_df' row indices must include "
                     "'sequences'.")
             else:
                 incls.append(False)
         rois, _, not_integ = incls
 
         if "datatype" not in data_df.columns.names:
-            raise ValueError("data_df column must include 'datatype'.")
+            raise KeyError("data_df column must include 'datatype'.")
 
         # retrieve datatype
         datatypes = data_df.columns.get_level_values("datatype")
         if len(datatypes) != 1:
-            raise ValueError("Expected only one datatype in data_df.")
+            raise RuntimeError("Expected only one datatype in data_df.")
         datatype = datatypes[0]
 
         # get data array from which to get statistics
@@ -3705,7 +3829,7 @@ class Stim(object):
         fr_idx = gen_util.remove_idx(fr_idx, neg_idx + over_idx, axis=0)
 
         if len(fr_idx) == 0:
-            raise ValueError("No frames in list.")
+            raise RuntimeError("No frames in list.")
 
         pup_data = self.sess.get_pup_data(
             datatype=datatype, remnans=remnans, scale=scale)
@@ -3890,8 +4014,8 @@ class Stim(object):
         datatype = "run_velocity"
 
         if not hasattr(self.sess, "run_data"):
-            raise ValueError("Run 'self.load_run_data()' to load the running "
-                "data correctly.")
+            raise RuntimeError("Run 'self.load_run_data()' to load the "
+                "running data correctly.")
 
         ran_fr, xran = self.sess.get_frames_timestamps(
             pre, post, fr_type="stim")
@@ -3912,7 +4036,7 @@ class Stim(object):
         fr_idx = gen_util.remove_idx(fr_idx, neg_idx + over_idx, axis=0)
 
         if len(fr_idx) == 0:
-            raise ValueError("No frames in list.")
+            raise RuntimeError("No frames in list.")
 
         run_data = self.sess.get_run_velocity_by_fr(
             fr_idx, fr_type="stim", remnans=remnans, scale=scale)
@@ -4118,8 +4242,8 @@ class Stim(object):
 
         datatype = "roi_traces"
 
-        if not hasattr(self.sess, "nrois"):
-            raise ValueError("Run 'self.load_roi_info()' to set ROI "
+        if not hasattr(self.sess, "_nrois"):
+            raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
                 "attributes correctly.")
 
         use_pad = pad
@@ -4507,7 +4631,7 @@ class Gabors(Stim):
             self.sf = gabor_par["sf"] * self.deg_per_pix 
             size_ran = [x / self.deg_per_pix for x in size_ran]
         else:
-             raise ValueError("Expected self.units to be pix.")
+             raise RuntimeError("Expected self.units to be pix.")
 
         # Convert to size as recorded in PsychoPy
         gabor_modif = 1. / (2 * np.sqrt(2 * np.log(2))) * gabor_par["sd"]
@@ -4561,7 +4685,7 @@ class Gabors(Stim):
                 # change at each gabor sequence presentation
                 stimPar2 = segs["stimPar2"].unique().tolist()
                 if len(stimPar2) > 1:
-                    raise ValueError(f"Block {b} of {self.stimtype} "
+                    raise RuntimeError(f"Block {b} of {self.stimtype} "
                         "comprises segments with different "
                         f"stimPar2 values: {stimPar2}")
                 self.block_params.loc[(d, b), ("kappa", )] = stimPar2[0]
@@ -4915,7 +5039,7 @@ class Bricks(Stim):
             # recorded in deg, so converting to pix
             self.speed = self.speed/self.deg_per_pix
         else:
-            raise ValueError("Expected self.units to be pix.")
+            raise RuntimeError("Expected self.units to be pix.")
        
         self.flipfrac = sqr_par["flipfrac"]
 
@@ -4954,7 +5078,7 @@ class Bricks(Stim):
                     ["stimPar2", "stimPar1"], ["direction", "size"]):
                     stimPar = segs[source_name].unique().tolist()
                     if len(stimPar) > 1:
-                        raise ValueError(f"Block {b} of {self.stimtype} "
+                        raise RuntimeError(f"Block {b} of {self.stimtype} "
                             "comprises segments with different "
                             f"{source_name} values: {stimPar}")
                     self.block_params.loc[(d, b), (par_name, )] = stimPar[0]
@@ -5071,7 +5195,7 @@ class Grayscr():
                 last_grayscr_stim_fr.append(row["start_stim_fr", ].values[0])
 
         if len(first_grayscr_stim_fr) == 1:
-            raise ValueError("No frame lists were found for either stimulus "
+            raise RuntimeError("No frame lists were found for either stimulus "
                 " type (gabors, bricks).")
 
         first_grayscr_stim_fr = np.sort(first_grayscr_stim_fr)
@@ -5182,7 +5306,7 @@ class Grayscr():
         """
         
         if not self.gabors:
-            raise ValueError("Session does not have a Gabors stimulus.")
+            raise RuntimeError("Session does not have a Gabors stimulus.")
         gabors = self.sess.gabors
         frames_gab = np.asarray(self.sess.gabors.stim_seg_list)
         

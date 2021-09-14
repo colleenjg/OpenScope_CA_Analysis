@@ -18,6 +18,8 @@ import inspect
 import logging
 from pathlib import Path
 
+import numpy as np
+
 # try to set cache/config as early as possible (for clusters)
 from util import gen_util 
 gen_util.CC_config_cache()
@@ -322,6 +324,53 @@ def init_param_cont(args):
 
 
 #############################################
+def init_sessions(sessids, datadir, mouse_df, analyspar, runtype="prod", 
+                  parallel=False):
+    """
+    init_sessions(sessids, datadir, mouse_df, analyspar)
+
+    Initializes sessions.
+
+    Required args:
+        - sessids (list)       : IDs of sessions to load
+        - datadir (Path)       : data directory
+        - mouse_df (pandas df) : path name of dataframe containing information 
+                                 on each session
+        - analyspar (AnalysPar): named tuple containing analysis parameters
+
+    Optional args:
+        - runtype (str)  : runtype ("pilot" or "prod")
+        - parallel (bool): if True, some analyses are parallelized 
+                           across CPU cores 
+                           default: False
+
+    Returns:
+        - sessions (list): list of sessions
+    """
+
+    args_dict = {
+        "datadir" : datadir,
+        "mouse_df": mouse_df,
+        "runtype" : runtype,
+        "fulldict": False,
+        "fluor"   : analyspar.fluor,
+        "dend"    : analyspar.dend,
+        "omit"    : True,
+        "temp_log": "warning",
+    }
+
+    sessions = gen_util.parallel_wrap(
+        sess_gen_util.init_sessions, sessids, args_dict=args_dict, 
+        parallel=parallel, use_tqdm=True
+        )
+
+    # flatten list of sessions
+    sessions = [sess for singles in sessions for sess in singles]
+
+    return sessions
+
+
+#############################################
 def prep_analyses(sess_n, args, mouse_df):
     """
     prep_analyses(sess_n, args, mouse_df)
@@ -362,11 +411,14 @@ def prep_analyses(sess_n, args, mouse_df):
         sessids = sess_gen_util.sess_comp_per_mouse(mouse_df, 
             omit_sess=args.omit_sess, omit_mice=args.omit_mice, 
             **sesspar._asdict())
+        n_sess = np.sum([len(ids) for ids in sessids])
+        logger.info(f"Loading {n_sess} session(s)...", extra={"spacing": "\n"})
         sessions = []
         for ids in sessids:
-            subs = sess_gen_util.init_sessions(ids, args.datadir, mouse_df, 
-                sesspar.runtype, fulldict=False, fluor=analyspar.fluor, 
-                dend=analyspar.dend, omit=True)
+            subs = init_sessions(
+                ids, args.datadir, mouse_df, analyspar, 
+                runtype=sesspar.runtype, parallel=args.parallel
+                )
             if len(subs) == 2:
                 sessions.append(subs)
             else:
@@ -377,12 +429,16 @@ def prep_analyses(sess_n, args, mouse_df):
         sessids = sess_gen_util.sess_per_mouse(mouse_df, 
             omit_sess=args.omit_sess, omit_mice=args.omit_mice, 
             **sesspar._asdict())
-        sessions = sess_gen_util.init_sessions(sessids, args.datadir, mouse_df, 
-            sesspar.runtype, fulldict=False, fluor=analyspar.fluor, 
-            dend=analyspar.dend, omit=True)
+        logger.info(
+            f"Loading {len(sessids)} session(s)...", extra={"spacing": "\n"}
+            )
+        sessions = init_sessions(
+            sessids, args.datadir, mouse_df, analyspar, 
+            runtype=sesspar.runtype, parallel=args.parallel
+            )
 
     if len(sessids) == 0:
-        raise ValueError("No sessions meet the criteria.")
+        raise RuntimeError("No sessions meet the criteria.")
 
     runtype_str = ""
     if sesspar.runtype != "prod":

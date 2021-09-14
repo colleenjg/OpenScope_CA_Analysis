@@ -20,17 +20,47 @@ logger = logging.getLogger(__name__)
 
 
 ############################################
-def gabor_norm_res_corr_example():
+def gabor_norm_res_corr_example(sessions):
+    # 2 n_perms (idx and corrs)
+
+    # if not analyspar.tracked:
+    #     raise ValueError("analyspar.tracked should be set to True.")
+
+    # # remove incomplete session series and warn
+    # sessions = misc_analys.check_sessions_complete(sessions)
+
+    print("NOT YET IMPLEMENTED")
+
     return
 
 
 ############################################
-def gabor_norm_res_corrs_sess123_comps():
+def gabor_norm_res_corrs_sess123_comps(sessions):
+    # 2 n_perms (idx and corrs)
+
+    # if not analyspar.tracked:
+    #     raise ValueError("analyspar.tracked should be set to True.")
+
+    # # remove incomplete session series and warn
+    # sessions = misc_analys.check_sessions_complete(sessions)
+
+    print("NOT YET IMPLEMENTED")
+
     return
 
 
 ############################################
-def visual_flow_norm_res_corrs_sess123_comps():
+def visual_flow_norm_res_corrs_sess123_comps(sessions):
+    # 2 n_perms (idx and corrs)
+
+    # if not analyspar.tracked:
+    #     raise ValueError("analyspar.tracked should be set to True.")
+
+    # # remove incomplete session series and warn
+    # sessions = misc_analys.check_sessions_complete(sessions)
+
+    print("NOT YET IMPLEMENTED")
+
     return
 
     

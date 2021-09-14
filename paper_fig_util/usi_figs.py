@@ -160,7 +160,7 @@ def gabor_example_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar,
 
     target_roi_perc = 99.8
     logger.info(
-        ("Calculating Gabor ROI USIs, and identifying an example at or near "
+        ("Compiling Gabor ROI USIs, and identifying an example at or near "
         f"the {target_roi_perc} percentile."), 
         extra={"spacing": "\n"}
         )
@@ -233,7 +233,7 @@ def gabor_roi_usi_distr(sessions, analyspar, sesspar, stimpar, basepar,
             default: False
     """
 
-    logger.info("Calculating Gabor ROI USI distributions.", 
+    logger.info("Compiling Gabor ROI USI distributions.", 
         extra={"spacing": "\n"}
         )
 
@@ -309,7 +309,7 @@ def gabor_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar,
 
     common_str = ", with common orientations" if common_oris else ""
     logger.info(
-        f"Calculating percentages of significant Gabor USIs{common_str}.", 
+        f"Compiling percentages of significant Gabor USIs{common_str}.", 
         extra={"spacing": "\n"}
         )
 
@@ -406,12 +406,15 @@ def gabor_roi_usi_sig_common_oris(sessions, analyspar, sesspar, stimpar,
 
 
 ############################################
-def gabor_tracked_roi_usis_sess123():
+def gabor_tracked_roi_usis_sess123(sessions):
+    print("NOT YET IMPLEMENTED")
     return
     
 
 ############################################
-def gabor_tracked_roi_usi_means_sess123():
+def gabor_tracked_roi_abs_usi_means_sess123(sessions):
+    # 2 n_perms (idx and comparisons)
+    print("NOT YET IMPLEMENTED")
     return
 
 
@@ -455,7 +458,7 @@ def gabor_roi_usi_sig_by_mouse(sessions, analyspar, sesspar, stimpar, basepar,
     """
 
     logger.info(
-        f"Calculating percentages of significant Gabor USIs by mouse.", 
+        f"Compiling percentages of significant Gabor USIs by mouse.", 
         extra={"spacing": "\n"}
         )
 
@@ -493,21 +496,59 @@ def gabor_roi_usi_sig_by_mouse(sessions, analyspar, sesspar, stimpar, basepar,
 
     
 ############################################
-def gabor_tracked_roi_means_sess123_by_mouse():
+def gabor_tracked_roi_abs_usi_means_sess123_by_mouse(sessions):
+    # 2 n_perms (idx and comparisons)
+
+    # if not analyspar.tracked:
+    #     raise ValueError("analyspar.tracked should be set to True.")
+
+    # # remove incomplete session series and warn
+    # sessions = misc_analys.check_sessions_complete(sessions)
+
+    print("NOT YET IMPLEMENTED")
     return
     
 
 ############################################
-def visual_flow_tracked_roi_usis_sess123():
+def visual_flow_tracked_roi_usis_sess123(sessions):
+    # 2 n_perms (idx and comparisons)
+
+    # if not analyspar.tracked:
+    #     raise ValueError("analyspar.tracked should be set to True.")
+
+    # # remove incomplete session series and warn
+    # sessions = misc_analys.check_sessions_complete(sessions)
+
+    print("NOT YET IMPLEMENTED")
     return
     
 
 ############################################
-def visual_flow_tracked_roi_usi_means_sess123_by_mouse():
+def visual_flow_tracked_roi_abs_usi_means_sess123_by_mouse(sessions):
+    # 2 n_perms (idx and comparisons)
+
+    # if not analyspar.tracked:
+    #     raise ValueError("analyspar.tracked should be set to True.")
+
+    # # remove incomplete session series and warn
+    # sessions = misc_analys.check_sessions_complete(sessions)
+
+
+    print("NOT YET IMPLEMENTED")
     return
 
 
 ############################################
-def tracked_roi_usis_stimulus_comp_sess1v3():
+def tracked_roi_usis_stimulus_comp_sess1v3(sessions):
+    # 2 n_perms (idx and comparisons)
+
+    # if not analyspar.tracked:
+    #     raise ValueError("analyspar.tracked should be set to True.")
+
+    # # remove incomplete session series and warn
+    # sessions = misc_analys.check_sessions_complete(sessions)
+
+
+    print("NOT YET IMPLEMENTED")
     return
     

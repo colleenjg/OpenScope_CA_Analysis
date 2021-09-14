@@ -77,7 +77,8 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False,
         plot_pup_roi_stim_corr(figpar=figpar, savedir=savedir, **info)
 
     else:
-        warnings.warn(f"No plotting function for analysis {analysis}")
+        warnings.warn(f"No plotting function for analysis {analysis}", 
+            category=UserWarning, stacklevel=1)
 
     plt.close("all")
 
@@ -107,8 +108,6 @@ def plot_pup_diff_corr(analyspar, sesspar, stimpar, extrapar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
         - corr_data (dict)    : dictionary containing data to plot:
             ["corrs"] (list): list of correlation values between pupil and 
                               running or ROI differences for each session
@@ -266,8 +265,6 @@ def plot_pup_roi_stim_corr(analyspar, sesspar, stimpar, extrapar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
         - corr_data (dict)    : dictionary containing data to plot:
             ["stim_order"] (list): ordered list of stimtypes
             ["roi_corrs"] (list) : nested list of correlations between pupil 

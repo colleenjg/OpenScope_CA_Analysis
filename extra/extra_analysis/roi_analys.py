@@ -96,7 +96,7 @@ def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
     datastr = sess_str_util.datatype_par_str(extrapar["datatype"])
     
     if extrapar["datatype"] != "roi":
-        raise ValueError("Analysis only implemented for roi datatype.")
+        raise NotImplementedError("Analysis only implemented for roi datatype.")
 
     logger.info(f"Analysing and plotting {opstr_pr} {datastr} average "
         f"response by quintile ({quintpar.n_quints}). \n{sessstr_pr}"
@@ -119,7 +119,9 @@ def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
     roi_grps["grp_st"] = grp_st.tolist()
     roi_grps["grp_ns"] = grp_ns.tolist()
 
-    sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)
+    sess_info = sess_gen_util.get_sess_info(
+        sessions, analyspar.fluor, remnans=analyspar.remnans
+        )
     
     info = {
         "analyspar": analyspar._asdict(),
@@ -221,7 +223,7 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
      
     datastr = sess_str_util.datatype_par_str(extrapar["datatype"])
     if extrapar["datatype"] != "roi":
-        raise ValueError("Analysis only implemented for roi datatype.")
+        raise NotImplementedError("Analysis only implemented for roi datatype.")
 
     logger.info(f"Analysing and plotting {opstr_pr} {datastr} surp vs reg "
         f"traces by quintile ({quintpar.n_quints}). \n{sessstr_pr}{dendstr_pr}.", 
@@ -243,7 +245,9 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
     roi_grps["xrans"] = xrans
     roi_grps["trace_stats"] = grp_stats
 
-    sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)
+    sess_info = sess_gen_util.get_sess_info(
+        sessions, analyspar.fluor, remnans=analyspar.remnans
+        )
 
     info = {"analyspar"  : analyspar._asdict(),
             "sesspar"    : sesspar._asdict(),
@@ -346,7 +350,7 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
      
     datastr = sess_str_util.datatype_par_str(extrapar["datatype"])
     if extrapar["datatype"] != "roi":
-        raise ValueError("Analysis only implemented for roi datatype.")
+        raise NotImplementedError("Analysis only implemented for roi datatype.")
 
     logger.info(f"Analysing and plotting {opstr_pr} {datastr} surp vs reg "
         f"average responses by quintile ({quintpar.n_quints}). \n{sessstr_pr}"
@@ -370,7 +374,9 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
             analyspar.stats, analyspar.error, scale)
         roi_grps[f"area_stats{scale_str}"] = grp_st.tolist()
 
-    sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)
+    sess_info = sess_gen_util.get_sess_info(
+        sessions, analyspar.fluor, remnans=analyspar.remnans
+        )
 
     info = {"analyspar": analyspar._asdict(),
             "sesspar"  : sesspar._asdict(),
@@ -484,7 +490,9 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
             if key not in roi_grps:
                 roi_grps[key] = roi_grps_dict[key]
 
-    sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)
+    sess_info = sess_gen_util.get_sess_info(
+        sessions, analyspar.fluor, remnans=analyspar.remnans
+        )
 
     info = {"analyspar": analyspar._asdict(),
             "sesspar"  : sesspar._asdict(),
@@ -550,7 +558,7 @@ def run_oridirs_by_qu_sess(sess, oridirs, surps, xran, mes, counts,
         analyspar.dend, sesspar.plane, extrapar["datatype"])
        
     if extrapar["datatype"] != "roi":
-        raise ValueError("Analysis only implemented for roi datatype.")
+        raise NotImplementedError("Analysis only implemented for roi datatype.")
 
     qu_str, qu_str_pr = quintpar.qu_lab[0], quintpar.qu_lab[0]
     if qu_str != "":
@@ -588,7 +596,9 @@ def run_oridirs_by_qu_sess(sess, oridirs, surps, xran, mes, counts,
                "roi_sort"  : roi_sort
                }
 
-    sess_info = sess_gen_util.get_sess_info(sess, analyspar.fluor)
+    sess_info = sess_gen_util.get_sess_info(
+        sess, analyspar.fluor, remnans=analyspar.remnans
+        )
 
     info = {"analyspar": analyspar._asdict(),
             "sesspar"  : sesspar._asdict(),
@@ -797,7 +807,8 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
     datatype = "roi"
 
     if stimpar.stimtype == "bricks":
-        warnings.warn("Tuning curve analysis not implemented for bricks.")
+        warnings.warn("Tuning curve analysis not implemented for bricks.", 
+            category=UserWarning, stacklevel=1)
         return
     
     sessstr_pr = sess_str_util.sess_par_str(
@@ -868,7 +879,9 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
                         "comb_gabs": comb_gabs,
                         }
 
-            sess_info = sess_gen_util.get_sess_info(sess, analyspar.fluor)
+            sess_info = sess_gen_util.get_sess_info(
+                sess, analyspar.fluor, remnans=analyspar.remnans
+            )
 
             info = {"analyspar" : analyspar._asdict(),
                     "sesspar"   : sesspar._asdict(),
@@ -909,6 +922,11 @@ def posori_resp(sess, analyspar, stimpar, nrois="all"):
         - nseqs (list)    : number of sequences structured as 
                                 mean orientation x gaborframe
     """
+
+    if sess.only_matched_rois != analyspar.tracked:
+        raise RuntimeError(
+            "sess.only_matched_rois should match analyspar.tracked."
+            )
 
     stim = sess.get_stim(stimpar.stimtype)
     oris = stim.oris
@@ -977,7 +995,9 @@ def run_posori_resp(sessions, analysis, analyspar, sesspar, stimpar, figpar,
     
     if stimpar.stimtype == "bricks":
         warnings.warn(
-            "Location preference analysis not implemented for bricks.")
+            "Location preference analysis not implemented for bricks.", 
+            category=UserWarning, stacklevel=1
+            )
         return
     
     sessstr_pr = sess_str_util.sess_par_str(
@@ -1015,7 +1035,9 @@ def run_posori_resp(sessions, analysis, analyspar, sesspar, stimpar, figpar,
                    "datatype" : datatype,
                    }
 
-        sess_info = sess_gen_util.get_sess_info(sess, analyspar.fluor)
+        sess_info = sess_gen_util.get_sess_info(
+            sess, analyspar.fluor, remnans=analyspar.remnans
+            )
 
         info = {"analyspar"  : analyspar._asdict(),
                 "sesspar"    : sesspar._asdict(),
@@ -1083,6 +1105,10 @@ def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar,
 
     for sess in sessions:
         stim = sess.get_stim(stimpar.stimtype)
+        if sess.only_matched_rois != analyspar.tracked:
+            raise RuntimeError(
+                "sess.only_matched_rois should match analyspar.tracked."
+                )
         all_traces = []
         for surp in surps:        
             all_segs = stim.get_segs_by_criteria(gabfr=stimpar.gabfr,
@@ -1119,8 +1145,9 @@ def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar,
         #                "all_counts": trace_info[2]
         #               }
 
-        # sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor, 
-        #                           incl_roi=(datatype=="roi"))
+        # sess_info = sess_gen_util.get_sess_info(
+        #     sessions, analyspar.fluor, incl_roi=(datatype=="roi"), 
+        #     remnans=analyspar.remnans)
 
         # info = {"analyspar"  : analyspar._asdict(),
         #         "sesspar"    : sesspar._asdict(),

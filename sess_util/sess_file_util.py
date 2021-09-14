@@ -74,9 +74,11 @@ def get_sess_dirs(maindir, sessid, expid, segid, mouseid, runtype="prod",
     if check:
         try:
             file_util.checkdir(sessdir)
-        except OSError:
+        except OSError as err:
             raise OSError(
-                f"{sessdir} does not conform to expected OpenScope structure.")
+                f"{sessdir} does not conform to expected OpenScope "
+                f"structure: {err}."
+                )
 
     return sessdir, expdir, procdir, demixdir, segdir
 

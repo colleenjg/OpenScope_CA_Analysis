@@ -23,21 +23,25 @@ ORDERED_COLORS = ["orange", "crimson", "mediumblue"]
 
 
 ############################################
-def roi_overlays_sess123():
+def roi_overlays_sess123(sessions):
+    print("NOT YET IMPLEMENTED")
     return
 
 
 ############################################
-def roi_tracking(*args, **kwargs):
+def roi_tracking(sessions):
+    print("NOT YET IMPLEMENTED")
     return
 
 
 ############################################
-def dendritic_roi_tracking_example():
+def dendritic_roi_tracking_example(sessions):
+    print("NOT YET IMPLEMENTED")
     return
     
 
 ############################################
-def somatic_roi_tracking_example():
+def somatic_roi_tracking_example(sessions):
+    print("NOT YET IMPLEMENTED")
     return
     

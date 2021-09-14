@@ -592,6 +592,10 @@ def get_data(stim, analyspar, stimpar, quintpar, qu_i=0, surp=[0, 1],
     twop_fr = stim.get_twop_fr_by_seg(segs, first=True)["first_twop_fr"]
     
     # do not scale (scaling factors cannot be based on test data)
+    if stim.sess.only_matched_rois != analyspar.tracked:
+        raise RuntimeError(
+            "stim.sess.only_matched_rois should match analyspar.tracked."
+            )
     roi_data = gen_util.reshape_df_data(
         stim.get_roi_data(twop_fr, stimpar.pre, stimpar.post, 
         analyspar.fluor, remnans=True, scale=False), squeeze_cols=True)
@@ -712,7 +716,7 @@ def get_sess_data(sess, analyspar, stimpar, quintpar, class_var="surps",
             quintpar = sess_ntuple_util.init_quintpar(
                 4, [[1, 2]], [None], [None])
             if len(np.unique(stim.direcs)) != 2:
-                raise ValueError(
+                raise RuntimeError(
                     "Segments do not fit these criteria (missing directions).")
         else:
             quintpar = sess_ntuple_util.init_quintpar(
@@ -900,7 +904,7 @@ def save_tr_stats(plot_data, plot_targ, data_names, analyspar, stimpar, n_rois,
     """
 
     if len(data_names) != len(plot_data):
-        raise ValueError("Not as many 'plot_data' items as 'data_names'.")
+        raise ValueError("Expected as many 'plot_data' items as 'data_names'.")
 
     tr_stats = {"n_rois": n_rois}
     classes = np.unique(plot_targ[0])
@@ -1183,7 +1187,10 @@ def all_runs_sk(n_runs, analyspar, logregpar, quintpar, sesspar, stimpar,
     logregpar = sess_ntuple_util.get_modif_ntuple(
         logregpar, ["batchsize", "lr", "wd"], [None, None, None])
     if techpar["device"] == "cuda":
-        warnings.warn("sklearn method not implemented with GPU.")
+        warnings.warn(
+            "sklearn method not implemented with GPU.", 
+            category=RuntimeWarning, stacklevel=1
+            )
 
     [extrapar, roi_seqs, seq_classes, n_surps] = setup_run(
          quintpar, extrapar, techpar, sess_data, logregpar.comp, 
@@ -1238,7 +1245,7 @@ def all_runs_sk(n_runs, analyspar, logregpar, quintpar, sesspar, stimpar,
             n_splits=cv.n_splits, train_p=0.5, sample=samples[1], 
             bal=logregpar.bal) # since train_p cannot be 1.0
         if extra_name is None:
-            raise ValueError("Extra test dataset not labelled.")
+            raise RuntimeError("Extra test dataset not labelled.")
         set_names.append(extra_name)
 
     mod_cvs = logreg_util.test_logreg_cv_sk(
@@ -1380,7 +1387,7 @@ def single_run_pt(run_n, analyspar, logregpar, quintpar, sesspar, stimpar,
     if len(roi_seqs) == 2:
         idx.append(-1)
         if extra_name == "":
-            raise ValueError("Extra test dataset not labelled.")
+            raise RuntimeError("Extra test dataset not labelled.")
         data_names.append(extra_name)
     plot_data = [dls[i].dataset.data for i in idx]
     plot_targ = [dls[i].dataset.targets for i in idx]
@@ -1456,11 +1463,11 @@ def run_regr(sess, analyspar, stimpar, logregpar, quintpar, extrapar, techpar):
         sess_data = get_sess_data(
             sess, analyspar, stimpar, quintpar, class_var, surps, 
             regvsurp=logregpar.regvsurp, split_oris=split_oris)
-    except ValueError as err:
+    except RuntimeError as err:
         catch_phr = ["fit these criteria", "No frames"]
         catch = sum(phr in str(err) for phr in catch_phr)
         if catch:            
-            warnings.warn(str(err))
+            warnings.warn(str(err), category=RuntimeWarning, stacklevel=1)
             return
         else:
             raise err

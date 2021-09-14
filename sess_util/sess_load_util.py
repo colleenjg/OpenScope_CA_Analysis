@@ -428,8 +428,9 @@ def load_run_data(stim_dict, stim_sync_h5, filter_ks=5, diff_thr=50,
     elif isinstance(stim_dict, (str, Path)):
         run_kwargs["pkl_file_name"] = stim_dict
     else:
-        raise ValueError("'stim_dict' must be a dictionary or a path to a "
-            "pickle.")
+        raise TypeError(
+            "'stim_dict' must be a dictionary or a path to a pickle."
+            )
 
     run_velocity = sess_sync_util.get_run_velocity(**run_kwargs)
 
@@ -597,7 +598,7 @@ def modify_bri_segs(stim_df, runtype="prod"):
     break_idx = np.where(num_fr != bri_num_fr)[0]
     n_br = len(break_idx)
     if n_br != 1:
-        raise ValueError("Expected only one break in the bricks "
+        raise RuntimeError("Expected only one break in the bricks "
             f"stimulus, but found {n_br}.")
     
     # last start frame and seg for the first brick stim
@@ -646,7 +647,7 @@ def load_sess_stim_seed(stim_dict, runtype="prod"):
         seeds.append(stimulus[stim_param_key][sess_param_key]["seed"])
     
     if np.max(seeds) != np.min(seeds):
-        raise ValueError("Unexpectedly found different seeds for different "
+        raise RuntimeError("Unexpectedly found different seeds for different "
         "stimuli for this session.")
     
     seed = seeds[0]

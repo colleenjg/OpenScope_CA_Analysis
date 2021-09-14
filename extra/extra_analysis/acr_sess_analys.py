@@ -64,8 +64,8 @@ def set_multcomp(permpar, sessions=None, n_linpla=4, n_sess=1, factor=1,
             n_linpla = (len(sessions))
             n_sess = [len(m_sess) for lp_sess in sessions for m_sess in lp_sess]
             if len(list(set(n_sess))) != 1:
-                raise ValueError("There should be the same number of sessions "
-                    "for each mouse.")
+                raise RuntimeError("There should be the same number of "
+                    "sessions for each mouse.")
             n_sess = n_sess[0]
 
         n_comps = 0
@@ -126,7 +126,7 @@ def split_by_linpla(sessions, rem_empty=False):
     for mouse_sess in sessions:
         line = list(set([sess.line for sess in mouse_sess if sess is not None]))
         if len(line) != 1:
-            raise ValueError("Error - why multiple lines? (or None?)")
+            raise RuntimeError("Error - why multiple lines? (or None?)")
         else:
             line = line[0][:3].strip("-")
         
@@ -241,7 +241,7 @@ def get_n_comps(all_p_vals, n_sess, lin_p_vals=None):
 
     theor_tot = np.sum(range(n_sess)[1:])
     if theor_tot != len(all_p_vals[0]):
-        raise ValueError("Theoretical number of comparisons within "
+        raise RuntimeError("Theoretical number of comparisons within "
             f"layer/planes is expected to be {theor_tot}, but is "
             f"{len(all_p_vals[0])}.")
 
@@ -343,6 +343,10 @@ def data_from_refs(sess, refs, analyspar, stimpar, datatype="roi",
         else:
             raise ValueError("If 'datatype' is 'roi', must provide either "
                 "'segs' or 'twop_frs' as ref_type.")
+        if stim.sess.only_matched_rois != analyspar.tracked:
+            raise RuntimeError(
+                "stim.sess.only_matched_rois should match analyspar.tracked."
+                )
         fct = stim.get_roi_data
         col = "roi_traces"
         args["fluor"] = analyspar.fluor
@@ -364,7 +368,7 @@ def data_from_refs(sess, refs, analyspar, stimpar, datatype="roi",
         gen_util.accepted_values_error("datatype", datatype, ["run", "roi"])
 
     if len(fr_ns) == 0:
-        raise ValueError("No frames found given flank requirements.")
+        raise RuntimeError("No frames found given flank requirements.")
 
     data_arr = gen_util.reshape_df_data(
         fct(fr_ns, stimpar.pre, stimpar.post, **args)[col], 
@@ -461,8 +465,9 @@ def get_common_oris(stimpar, split="by_exp"):
         raise NotImplementedError("'common_oris' only implemented "
             "with 'split' set to 'bysurp'.")
     if stimpar.stimtype != "gabors":
-        raise ValueError("Index analysis with common "
-            "orientations can only be run on Gabors.")
+        raise ValueError(
+            "Index analysis with common orientations can only be run on Gabors."
+            )
 
     if (isinstance(stimpar.gab_ori, list) and (len(stimpar.gab_ori) == 2) 
         and isinstance(stimpar.gab_ori[0], list) 
@@ -519,7 +524,7 @@ def get_seg_info(sess, stimpar, split="bysurp", prog_pos=0, common_oris=False):
 
     if split not in split_values:
         if split in ["stim_onset", "stim_offset"]:
-            raise ValueError(
+            raise NotImplementedError(
                 "Cannot retrieve segments for stim_onset/stim_offset."
                 )
         else:
@@ -542,7 +547,7 @@ def get_seg_info(sess, stimpar, split="bysurp", prog_pos=0, common_oris=False):
     if split == "bysurp":
         if (stimpar.stimtype == "gabors" and 
             (stimpar.gabfr * 0.3 + stimpar.post) < 0.9):
-            raise ValueError(f"{stimpar.post}s after gaborframe "
+            raise RuntimeError(f"{stimpar.post}s after gaborframe "
                 f"{stimpar.gabfr} is too short to include surprise period.")
         segs = [stim.get_segs_by_criteria(
             gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=gab_oris[surp],
@@ -600,7 +605,7 @@ def get_seg_info(sess, stimpar, split="bysurp", prog_pos=0, common_oris=False):
                 ).reshape(-1)
 
             if len(main_segs) == 0:
-                raise ValueError("No segments meet the criteria for "
+                raise RuntimeError("No segments meet the criteria for "
                     f"'prog_pos' = {prog_pos}.")
             
             # [prev_segs, main_segs]
@@ -691,7 +696,9 @@ def split_data_by_sess(sess, analyspar, stimpar, datatype="roi",
     if split in progs:
         prev_seg_shift = np.unique(refs[1] - refs[0])
         if len(prev_seg_shift) != 1:
-            raise ValueError("Expected both sets of segs to be equally spaced.")
+            raise RuntimeError(
+                "Expected both sets of segs to be equally spaced."
+                )
         prev_seg_shift = prev_seg_shift[0]
 
     data_arr = []
@@ -727,7 +734,7 @@ def split_data_by_sess(sess, analyspar, stimpar, datatype="roi",
         axis = -1 if integ else -2
         if ((split in stim_on_offset) and 
             (data_arr[s].shape[axis] != len(subrefs))):
-            raise ValueError("Not all sequences could be retained for "
+            raise RuntimeError("Not all sequences could be retained for "
                 f"{split} with stimpar.pre={stimpar.pre} and "
                 f"stimpar.post={stimpar.post}.")
 
@@ -770,7 +777,7 @@ def dir_data_by_sess(sess, analyspar, stimpar, datatype="roi", integ=False,
         raise ValueError("Cannot get direction data for Gabors.")
 
     if not remconsec and not (baseline is None or baseline == 0):
-        raise ValueError("Baseline not implemented for Bricks direction " 
+        raise NotImplementedError("Baseline not implemented for Bricks direction " 
             "without 'remconsec'.")
 
     stim = sess.get_stim(stimpar.stimtype)
@@ -1216,10 +1223,6 @@ def stim_idx_by_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois"] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ["nanrois_dff"] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
     """
 
     if len(sessions) == 0:
@@ -1227,7 +1230,7 @@ def stim_idx_by_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05,
 
     n_sess = list(set([len(m_sess) for m_sess in sessions]))
     if len(n_sess) != 1:
-        raise ValueError("There should be the same number of sessions for "
+        raise RuntimeError("There should be the same number of sessions for "
             "each mouse.")
     sessions_zipped = zip(*sessions)
 
@@ -1248,7 +1251,8 @@ def stim_idx_by_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05,
             feature, position, op, baseline, common_oris, seed, parallel)
             
         sess_info.append(sess_gen_util.get_sess_info(
-            sesses, analyspar.fluor, add_none=True, incl_roi=(datatype=="roi")))
+            sesses, analyspar.fluor, add_none=True, 
+            incl_roi=(datatype=="roi"), remnans=analyspar.remnans))
         
         if len(all_rand) == 0:
             use_bounds = [-0.5, 0.5]
@@ -1317,7 +1321,7 @@ def get_grped_roi_stats(all_roi_vals, analyspar, permpar):
         - all_roi_vals (list)  : sequence areas, split across groups 
                                  (e.g., reg, surp) values for each session, 
                                  structured as
-                                    session x splits x ROI x seqs
+                                    session x mice x splits x ROI x seqs
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - permpar (PermPar)    : named tuple containing permutation parameters  
 
@@ -1536,10 +1540,6 @@ def split_diff_by_sesses(sessions, analyspar, stimpar, permpar, datatype="roi",
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois"] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ["nanrois_dff"] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
     """
 
     if len(sessions) == 0:
@@ -1550,7 +1550,7 @@ def split_diff_by_sesses(sessions, analyspar, stimpar, permpar, datatype="roi",
 
     n_sess = list(set([len(m_sess) for m_sess in sessions]))
     if len(n_sess) != 1:
-        raise ValueError("There should be the same number of sessions for "
+        raise RuntimeError("There should be the same number of sessions for "
             "each mouse.")
     n_sess = n_sess[0]
 
@@ -1566,7 +1566,8 @@ def split_diff_by_sesses(sessions, analyspar, stimpar, permpar, datatype="roi",
     for m, m_sess in enumerate(sessions):
         # get the segments
         m_sess_info = sess_gen_util.get_sess_info(
-            m_sess, analyspar.fluor, add_none=True, incl_roi=(datatype=="roi"))
+            m_sess, analyspar.fluor, add_none=True, incl_roi=(datatype=="roi"), 
+            remnans=analyspar.remnans)
         for s, sess in enumerate(m_sess):
             if sess is None:
                 continue
@@ -1680,10 +1681,6 @@ def split_diff_by_linpla(sessions, analyspar, stimpar, permpar, datatype="roi",
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois"] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ["nanrois_dff"] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
         - permpar (PermPar)       : permutation parameters named tuple updated 
                                     with multiple comparisons, if applicable          
     """
@@ -1849,7 +1846,7 @@ def run_lock_area_diff(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
     if stimpar.pre != stimpar.post:
         warnings.warn(f"stimpar.post {stimpar.post} will be used for "
-              "pre and post.")
+              "pre and post.", category=RuntimeWarning, stacklevel=1)
         stimpar = sess_ntuple_util.get_modif_ntuple(
             stimpar, "pre", stimpar.post)
     
@@ -1935,7 +1932,7 @@ def run_stim_grayscr_diff(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
     if stimpar.pre != stimpar.post:
         warnings.warn(f"stimpar.post {stimpar.post} will be used for "
-              "pre and post.")
+              "pre and post.", category=RuntimeWarning, stacklevel=1)
         stimpar = sess_ntuple_util.get_modif_ntuple(
             stimpar, "pre", stimpar.post)
 
@@ -2006,10 +2003,6 @@ def split_traces_by_sesses(sessions, analyspar, stimpar, datatype="roi",
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois"] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ["nanrois_dff"] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
         if datatype == "roi": (
         - traces_acr_rois (list)  : mean traces across sequences, structured as
                                       session x mouse x split1, 2 [x ROI] 
@@ -2031,7 +2024,7 @@ def split_traces_by_sesses(sessions, analyspar, stimpar, datatype="roi",
 
     n_sess = list(set([len(m_sess) for m_sess in sessions]))
     if len(n_sess) != 1:
-        raise ValueError("There should be the same number of sessions for "
+        raise RuntimeError("There should be the same number of sessions for "
             "each mouse.")
     n_sess = n_sess[0]
 
@@ -2041,7 +2034,8 @@ def split_traces_by_sesses(sessions, analyspar, stimpar, datatype="roi",
     for m_sess in sessions:
         # get the segments
         m_sess_info = sess_gen_util.get_sess_info(m_sess, analyspar.fluor, 
-            add_none=True, incl_roi=(datatype=="roi"))
+            add_none=True, incl_roi=(datatype=="roi"), 
+            remnans=analyspar.remnans)
         nan_idx = []
         mouse_traces = []
         for s, sess in enumerate(m_sess):
@@ -2127,10 +2121,6 @@ def split_trace_stats_by_sesses(sessions, analyspar, stimpar, datatype="roi",
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois"] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ["nanrois_dff"] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
     """
 
     returns = split_traces_by_sesses(
@@ -2236,10 +2226,6 @@ def split_traces_by_linpla(sessions, analyspar, stimpar, datatype="roi",
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois"] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ["nanrois_dff"] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
     """
 
     if (split in ["surplock", "reglock", "stim_onset", "stim_offset"] and 
@@ -2377,14 +2363,14 @@ def run_lock_traces(sessions, analysis, analyspar, sesspar, stimpar,
 
     if stimpar.pre != stimpar.post:
         warnings.warn(f"stimpar.post {stimpar.post} will be used for "
-            "pre and post.")
+            "pre and post.", category=RuntimeWarning, stacklevel=1)
         stimpar = sess_ntuple_util.get_modif_ntuple(
             stimpar, "pre", stimpar.post)
 
     if stimpar.stimtype == "gabors":
         n_cycles = stimpar.post/1.5
         if int(n_cycles) != n_cycles:
-            raise ValueError("Locked analysis should not be used for "
+            raise RuntimeError("Locked analysis should not be used for "
                 "incomplete gabor cycles, as different parts of the cycle "
                 "are then compared.")
 
@@ -2463,7 +2449,7 @@ def run_stim_grayscr(sessions, analysis, analyspar, sesspar, stimpar,
 
     if stimpar.pre != stimpar.post:
         warnings.warn(f"stimpar.post {stimpar.post} will be used for "
-            "pre and post.")
+            "pre and post.", category=RuntimeWarning, stacklevel=1)
         stimpar = sess_ntuple_util.get_modif_ntuple(
             stimpar, "pre", stimpar.post)
 
@@ -2551,10 +2537,6 @@ def prog_by_sesses(sessions, analyspar, stimpar, datatype="roi",
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois"] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ["nanrois_dff"] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
     """
 
     if len(sessions) == 0:
@@ -2562,7 +2544,7 @@ def prog_by_sesses(sessions, analyspar, stimpar, datatype="roi",
 
     n_sess = list(set([len(m_sess) for m_sess in sessions]))
     if len(n_sess) != 1:
-        raise ValueError("There should be the same number of sessions for "
+        raise RuntimeError("There should be the same number of sessions for "
             "each mouse.")
     n_sess = n_sess[0]
 
@@ -2585,7 +2567,8 @@ def prog_by_sesses(sessions, analyspar, stimpar, datatype="roi",
     cut_seq = upper_bound
     for m, m_sess in enumerate(sessions):
         m_sess_info = sess_gen_util.get_sess_info(
-            m_sess, analyspar.fluor, add_none=True, incl_roi=(datatype=="roi"))
+            m_sess, analyspar.fluor, add_none=True, incl_roi=(datatype=="roi"), 
+            remnans=analyspar.remnans)
         for s, sess in enumerate(m_sess):
             if sess is None:
                 continue
@@ -2744,10 +2727,6 @@ def prog_by_linpla(sessions, analyspar, stimpar, datatype="roi",
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois"] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ["nanrois_dff"] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
     """
     
     # get sessions organized by lin/pla x mouse x session
@@ -2842,10 +2821,6 @@ def position_by_linpla(sessions, analyspar, stimpar, datatype="roi",
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois"] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ["nanrois_dff"] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
     """
     
     # get sessions organized by lin/pla x mouse x session
@@ -2956,10 +2931,6 @@ def stim_idx_by_linpla(sessions, analyspar, stimpar, permpar, datatype="roi",
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois"] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ["nanrois_dff"] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
     """
     
     # get sessions organized by lin/pla x mouse x session
@@ -3029,7 +3000,8 @@ def run_surp_idx(sessions, analysis, seed, analyspar, sesspar, stimpar,
         analyspar.dend, sesspar.plane, datatype, "print")
 
     if not analyspar.scale:
-        warnings.warn("Setting analyspar.scale to True.")
+        warnings.warn("Setting analyspar.scale to True.", 
+            category=RuntimeWarning, stacklevel=1)
         analyspar = sess_ntuple_util.get_modif_ntuple(analyspar, "scale", True)
 
     datastr = sess_str_util.datatype_par_str(datatype)
@@ -3109,7 +3081,7 @@ def run_surp_idx_common_oris(sessions, analysis, seed, analyspar, sesspar,
 
     if stimpar.stimtype != "gabors":
         warnings.warn("Surprise index analysis with common orientations "
-            "can only be run on Gabors.")
+            "can only be run on Gabors.", category=UserWarning, stacklevel=1)
         return
 
     sessstr_pr = sess_str_util.sess_par_str(
@@ -3119,7 +3091,8 @@ def run_surp_idx_common_oris(sessions, analysis, seed, analyspar, sesspar,
         analyspar.dend, sesspar.plane, datatype, "print")
 
     if not analyspar.scale:
-        warnings.warn("Setting analyspar.scale to True.")
+        warnings.warn("Setting analyspar.scale to True.", 
+            category=RuntimeWarning, stacklevel=1)
         analyspar = sess_ntuple_util.get_modif_ntuple(analyspar, "scale", True)
 
     gab_oris = sess_gen_util.gab_oris_common_U(["D", "U"], stimpar.gab_ori)
@@ -3200,15 +3173,18 @@ def run_direction_idx(sessions, analysis, seed, analyspar, sesspar, stimpar,
     """
 
     if stimpar.stimtype != "bricks":
-        warnings.warn("Direction index analysis can only be run on Bricks.")
+        warnings.warn("Direction index analysis can only be run on Bricks.", 
+            category=UserWarning, stacklevel=1)
         return
 
     if stimpar.bri_dir != "both":
-        warnings.warn("Setting stimpar.bri_dir to 'both'.")
+        warnings.warn("Setting stimpar.bri_dir to 'both'.", 
+            category=RuntimeWarning, stacklevel=1)
         stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, "bri_dir", "both")
 
     if idxpar.feature != "bydir":
-        warnings.warn("Setting idxpar.feature to 'bydir'.")
+        warnings.warn("Setting idxpar.feature to 'bydir'.", 
+            category=RuntimeWarning, stacklevel=1)
         idxpar = sess_ntuple_util.get_modif_ntuple(idxpar, "feature", "bydir")
 
     sessstr_pr = sess_str_util.sess_par_str(
@@ -3218,7 +3194,8 @@ def run_direction_idx(sessions, analysis, seed, analyspar, sesspar, stimpar,
         analyspar.dend, sesspar.plane, datatype, "print")
 
     if not analyspar.scale:
-        warnings.warn("Setting analyspar.scale to True.")
+        warnings.warn("Setting analyspar.scale to True.", 
+            category=RuntimeWarning, stacklevel=1)
         analyspar = sess_ntuple_util.get_modif_ntuple(analyspar, "scale", True)
 
     datastr = sess_str_util.datatype_par_str(datatype)
@@ -3419,10 +3396,6 @@ def stimpar_split_idx_by_sesses(sessions, analyspar, stimpar, datatype="roi",
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois"] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ["nanrois_dff"] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
     """
 
     if len(sessions) == 0:
@@ -3430,7 +3403,7 @@ def stimpar_split_idx_by_sesses(sessions, analyspar, stimpar, datatype="roi",
 
     n_sess = list(set([len(m_sess) for m_sess in sessions]))
     if len(n_sess) != 1:
-        raise ValueError("There should be the same number of sessions for "
+        raise RuntimeError("There should be the same number of sessions for "
             "each mouse.")
     sessions_zipped = zip(*sessions)
 
@@ -3445,7 +3418,8 @@ def stimpar_split_idx_by_sesses(sessions, analyspar, stimpar, datatype="roi",
             )
             
         sess_info.append(sess_gen_util.get_sess_info(
-            sesses, analyspar.fluor, add_none=True, incl_roi=(datatype=="roi")))
+            sesses, analyspar.fluor, add_none=True, incl_roi=(datatype=="roi"), 
+            remnans=analyspar.remnans))
         
     return all_item_idxs, sess_info
 
@@ -3512,10 +3486,6 @@ def stimpar_split_idx_by_linpla(sessions, analyspar, stimpar, datatype="roi",
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois"] (list)    : list of ROIs with NaNs/Infs in raw traces
-            ["nanrois_dff"] (list): list of ROIs with NaNs/Infs in dF/F traces, 
-                                    for sessions for which this attribute 
-                                    exists
     """
     
     # get sessions organized by lin/pla x mouse x session
@@ -3579,7 +3549,8 @@ def run_surp_idx_cm(sessions, analysis, analyspar, sesspar, stimpar, basepar,
         analyspar.dend, sesspar.plane, datatype, "print")
 
     if not analyspar.scale:
-        warnings.warn("Setting analyspar.scale to True.")
+        warnings.warn("Setting analyspar.scale to True.", 
+            category=RuntimeWarning, stacklevel=1)
         analyspar = sess_ntuple_util.get_modif_ntuple(analyspar, "scale", True)
 
     datastr = sess_str_util.datatype_par_str(datatype)
@@ -3924,6 +3895,10 @@ def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None,
         nanpol = "omit"
 
     if datatype == "roi":
+        if stim.sess.only_matched_rois != analyspar.tracked:
+            raise RuntimeError(
+                "stim.sess.only_matched_rois should match analyspar.tracked."
+                )
         twop_frs = [stim.get_twop_fr_by_seg(segs, first=True)["first_twop_fr"]
             for segs in all_segs]
         # array: ROI x sequences x frames
@@ -4021,13 +3996,14 @@ def run_surp_latency(sessions, analysis, seed, analyspar, sesspar, stimpar,
     if latpar.surp_resp:
         if datatype == "run":
             warnings.warn("Setting latpar.surp_resp to False as datatype is "
-                "run.")
+                "run.", category=RuntimeWarning, stacklevel=1)
             latpar = sess_ntuple_util.get_modif_ntuple(
                 latpar, "surp_resp", False)
         elif permpar is None:
             raise ValueError("Must pass a 'permpar' if latpar.surp_resp.")
         elif permpar.tails != "hi":
-            warnings.warn("Setting permpar.tails to 'hi'.")
+            warnings.warn("Setting permpar.tails to 'hi'.", 
+                category=RuntimeWarning, stacklevel=1)
             permpar = sess_ntuple_util.get_modif_ntuple(permpar, "tails", "hi")
 
     sessstr_pr = sess_str_util.sess_par_str(sesspar.sess_n, stimpar.stimtype, 
@@ -4062,7 +4038,7 @@ def run_surp_latency(sessions, analysis, seed, analyspar, sesspar, stimpar,
         for s, sesses in enumerate(l_sesses): # across sessions
             l_sess_info.append(sess_gen_util.get_sess_info(
                 sesses, analyspar.fluor, add_none=True, 
-                incl_roi=(datatype=="roi")))
+                incl_roi=(datatype=="roi"), remnans=analyspar.remnans))
             # for each mouse, optionally runs in parallel
             args_list = [analyspar, stimpar, latpar, permpar, seed, datatype]
             sess_vals = gen_util.parallel_wrap(
@@ -4172,7 +4148,8 @@ def run_resp_prop(sessions, analysis, seed, analyspar, sesspar, stimpar,
         if permpar is None:
             raise ValueError("Must pass a 'permpar' if latpar.surp_resp.")
         elif permpar.tails != "hi":
-            warnings.warn("Setting permpar.tails to 'hi'.")
+            warnings.warn("Setting permpar.tails to 'hi'.", 
+                category=RuntimeWarning, stacklevel=1)
             permpar = sess_ntuple_util.get_modif_ntuple(permpar, "tails", "hi")
 
     dendstr_pr = sess_str_util.dend_par_str(analyspar.dend, sesspar.plane, 
@@ -4202,7 +4179,8 @@ def run_resp_prop(sessions, analysis, seed, analyspar, sesspar, stimpar,
         l_n_sign_rois = []
         for s, sesses in enumerate(l_sesses): # across sessions
             l_sess_info.append(sess_gen_util.get_sess_info(sesses, 
-                analyspar.fluor, add_none=True, incl_roi=(datatype=="roi")))
+                analyspar.fluor, add_none=True, incl_roi=(datatype=="roi"), 
+                remnans=analyspar.remnans))
             # keep only sessions with both stimuli
             sesses = sess_gen_util.check_both_stimuli(sesses)
             nrois = [sess.get_nrois(analyspar.remnans, analyspar.fluor) 

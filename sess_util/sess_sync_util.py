@@ -632,7 +632,8 @@ def get_twop2stimfr(stim2twopfr, n_twop_fr, sessid=None):
         twop2stimfr[start:end] = stim_idx
     except:
         warnings.warn(f"{sessstr}get_twop2stimfr() not working for this "
-            "session. twop2stimfr set to all NaNs.", category=RuntimeWarning)
+            "session. twop2stimfr set to all NaNs.", category=RuntimeWarning, 
+            stacklevel=1)
 
     return twop2stimfr
 

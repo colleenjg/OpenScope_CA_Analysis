@@ -74,7 +74,7 @@ def get_ran_s(ran_s=None, datatype="both"):
     if isinstance(ran_s, dict):
         missing = [key for key in keys if key not in ran_s.keys()]
         if len(missing) > 0:
-            raise ValueError(f"'ran_s' is missing keys: {', '.join(missing)}")
+            raise KeyError(f"'ran_s' is missing keys: {', '.join(missing)}")
     else:
         if ran_s is None:
             vals = 3.5
@@ -100,7 +100,7 @@ def peristim_data(sess, stimpar, ran_s=None, datatype="both",
                   returns="diff", fluor="dff", stats="mean", 
                   remnans=True, scale=False, first_surp=True, trans_all=False):
     """
-    peristim_data(sess)
+    peristim_data(sess, stimpar)
 
     Returns pupil, ROI and run data around surprise onset, or the difference 
     between post and pre surprise onset, or both.
@@ -221,8 +221,9 @@ def peristim_data(sess, stimpar, ran_s=None, datatype="both",
     if returns in ["diff", "both"]:
         for key in ran_s.keys():
             if "pre" in key and ran_s[key] == 0:
-                raise ValueError("Cannot set pre to 0 if returns is "
-                    "'diff' or 'both'.")
+                raise ValueError(
+                    "Cannot set pre to 0 if returns is 'diff' or 'both'."
+                    )
         # get avg for first and second halves
         diffs = []
         for dataset, name in zip(datasets, datanames):
@@ -289,6 +290,10 @@ def run_pupil_diff_corr(sessions, analysis, analyspar, sesspar,
     sess_corr = []
     
     for sess in sessions:
+        if datatype == "roi" and (sess.only_matched_rois != analyspar.tracked):
+            raise RuntimeError(
+                "sess.only_matched_rois should match analyspar.tracked."
+                )
         diffs = peristim_data(
             sess, stimpar, datatype=datatype, returns="diff", 
             scale=analyspar.scale, first_surp=True)
@@ -316,7 +321,8 @@ def run_pupil_diff_corr(sessions, analysis, analyspar, sesspar,
                  }
 
     sess_info = sess_gen_util.get_sess_info(
-        sessions, analyspar.fluor, incl_roi=(datatype=="roi"))
+        sessions, analyspar.fluor, incl_roi=(datatype=="roi"), 
+        remnans=analyspar.remnans)
     
     info = {"analyspar": analyspar._asdict(),
             "sesspar"  : sesspar._asdict(),
@@ -359,13 +365,14 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
     """
 
     if datatype != "roi":
-        raise ValueError("Analysis only implemented for roi datatype.")
-    
+        raise NotImplementedError("Analysis only implemented for roi datatype.")
+
     stimtypes = ["gabors", "bricks"]
     if stimpar.stimtype != "both":
         non_stimtype = stimtypes[1 - stimtypes.index(stimpar.stimtype)]
         warnings.warn("stimpar.stimtype will be set to 'both', but non default "
-            f"{non_stimtype} parameters are lost.")
+            f"{non_stimtype} parameters are lost.", 
+            category=RuntimeWarning, stacklevel=1)
         stimpar_dict = stimpar._asdict()
         for key in list(stimpar_dict.keys()): # remove any "none"s
             if stimpar_dict[key] == "none":
@@ -393,6 +400,10 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
     sess_corrs = []
     sess_roi_corrs = []
     for sess in sessions:
+        if datatype == "roi" and (sess.only_matched_rois != analyspar.tracked):
+            raise RuntimeError(
+                "sess.only_matched_rois should match analyspar.tracked."
+                )
         stim_corrs = []
         for sub_stimpar in stimpars:
             diffs = peristim_data(
@@ -425,7 +436,8 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
                  }
 
     sess_info = sess_gen_util.get_sess_info(
-        sessions, analyspar.fluor, incl_roi=(datatype=="roi"))
+        sessions, analyspar.fluor, incl_roi=(datatype=="roi"), 
+        remnans=analyspar.remnans)
     
     info = {"analyspar": analyspar._asdict(),
             "sesspar"  : sesspar._asdict(),

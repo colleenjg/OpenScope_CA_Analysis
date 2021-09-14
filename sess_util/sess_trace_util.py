@@ -101,7 +101,7 @@ def add_cell_specimen_ids_to_roi_metrics(roi_metrics, roi_locations):
                 msg = f"Multiple ROI matches found ({len(id_vals)})."
             else:
                 msg = "No ROI matches found."
-            raise ValueError(msg)
+            raise OSError(msg)
         ids.append(id_vals[0])
     roi_metrics["cell_specimen_id"] = ids
     
@@ -529,7 +529,7 @@ def demix_rois(raw_traces, h5path, masks, excl_dict, verbose=False):
                 logger.warning("ROIs with empty neuropil not checked for "
                     "before demixing.")
             else:
-                raise ValueError(f"{lab} missing from excl_dict keys.")
+                raise KeyError(f"{lab} missing from excl_dict keys.")
         valid_mask *= ~(excl_dict[lab].astype(bool))
 
     if len(valid_mask) != len(raw_traces):

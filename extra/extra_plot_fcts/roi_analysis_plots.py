@@ -123,7 +123,8 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
         plot_trial_pc_traj(figpar=figpar, savedir=savedir, **info)
 
     else:
-        warnings.warn(f"No plotting function for analysis {analysis}")
+        warnings.warn(f"No plotting function for analysis {analysis}", 
+            category=UserWarning, stacklevel=1)
 
     plt.close("all")
 
@@ -162,8 +163,7 @@ def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - roi_grps (dict) : dictionary containing ROI grps information
             ["all_roi_grps"] (list): nested lists containing ROI numbers 
                                      included in each group, structured as 
@@ -218,7 +218,7 @@ def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar,
 
     datatype = extrapar["datatype"]
     if datatype != "roi":
-        raise ValueError("Function only implemented for roi datatype.")
+        raise NotImplementedError("Function only implemented for roi datatype.")
     dimstr = sess_str_util.datatype_dim_str(datatype)
 
     # extract some info from sess_info
@@ -304,8 +304,7 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - roi_grps (dict) : dictionary containing ROI groups:
             ["all_roi_grps"] (list): nested lists containing ROI numbers 
                                      included in each group, structured 
@@ -360,7 +359,7 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
 
     datatype = extrapar["datatype"]
     if datatype != "roi":
-        raise ValueError("Function only implemented for roi datatype.")
+        raise NotImplementedError("Function only implemented for roi datatype.")
     dimstr = sess_str_util.datatype_dim_str(datatype)
 
     # extract some info from sess_info
@@ -465,8 +464,7 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - roi_grps (dict)  : dictionary containing ROI groups:
             ["all_roi_grps"] (list)           : nested lists containing ROI 
                                                 numbers included in each group, 
@@ -523,7 +521,7 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
 
     datatype = extrapar["datatype"]
     if datatype != "roi":
-        raise ValueError("Function only implemented for roi datatype.")
+        raise NotImplementedError("Function only implemented for roi datatype.")
     dimstr = sess_str_util.datatype_dim_str(datatype)
 
     # extract some info from sess_info
@@ -641,8 +639,7 @@ def plot_rois_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - roi_grps (dict) : dictionary containing ROI groups:
             ["all_roi_grps"] (list)           : nested lists containing ROI  
                                                 numbers included in each group, 
@@ -691,7 +688,7 @@ def plot_rois_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
 
     datatype = extrapar["datatype"]
     if datatype != "roi":
-        raise ValueError("Function only implemented for roi datatype.")
+        raise NotImplementedError("Function only implemented for roi datatype.")
 
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
@@ -749,8 +746,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - tr_data (dict)   : dictionary containing information to plot colormap.
                              Surprise x ori/dir keys are formatted as 
                              [{s}_{od}] for surp in ["reg", "surp"]
@@ -800,7 +796,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
     datatype = extrapar["datatype"]
     if datatype != "roi":
-        raise ValueError("Function only implemented for roi datatype.")
+        raise NotImplementedError("Function only implemented for roi datatype.")
     dimstr = sess_str_util.datatype_dim_str(datatype)
 
     if savedir is None:
@@ -1032,8 +1028,7 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quintpar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - tr_data (dict)   : dictionary containing information to plot colormap.
                              Surprise x ori/dir keys are formatted as 
                              [{s}_{od}] for surp in ["reg", "surp"]
@@ -1249,8 +1244,7 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - tr_data (dict)   : dictionary containing information to plot colormap.
                              Surprise x ori/dir keys are formatted as 
                              [{s}_{od}] for surp in ["reg", "surp"]
@@ -1303,7 +1297,7 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
 
     datatype = extrapar["datatype"]
     if datatype != "roi":
-        raise ValueError("Function only implemented for roi datatype.")
+        raise NotImplementedError("Function only implemented for roi datatype.")
 
     if stimpar["stimtype"] == "gabors":
         oridirs = stimpar["gab_ori"]
@@ -1369,8 +1363,7 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - tr_data (dict)   : dictionary containing information to plot colormap.
                              Surprise x ori/dir keys are formatted as 
                              [{s}_{od}] for surp in ["reg", "surp"]
@@ -1425,7 +1418,7 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar,
 
     datatype = extrapar["datatype"]
     if datatype != "roi":
-        raise ValueError("Function only implemented for roi datatype.")
+        raise NotImplementedError("Function only implemented for roi datatype.")
 
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
@@ -1573,8 +1566,9 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
     if np.max(np.absolute(flat_oris)) > max_val:
         max_val = 180
         if np.max(np.absolute(flat_oris)) > max_val:
-            raise ValueError("Orientations expected to be at most between "
-                "-180 and 180.")
+            raise ValueError(
+                "Orientations expected to be at most between -180 and 180."
+                )
     xran = np.linspace(-max_val, max_val, 360)
 
     if figpar is None:
@@ -1703,7 +1697,8 @@ def plot_tune_curve_regr(vm_means, vm_regr, seq_info, gentitle="",
         max_val = 180
         if np.max(np.absolute(vm_means)) > max_val:
             raise ValueError(
-                "Orientations expected to be at most between -180 and 180.")
+                "Orientations expected to be at most between -180 and 180."
+                )
     xvals = [-max_val, max_val]
 
     deg = u"\u00B0"
@@ -1775,8 +1770,7 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - tcurv_data (dict): tuning curve data 
             ["oris"] (list)         : list of orientation values 
                                       corresponding to the tc_data
@@ -1848,7 +1842,7 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
 
     datatype = extrapar["datatype"]
     if datatype != "roi":
-        raise ValueError("Function only implemented for roi datatype.")
+        raise NotImplementedError("Function only implemented for roi datatype.")
 
     gabfrs = gen_util.list_if_not(stimpar["gabfr"])
     if len(gabfrs) == 1:
@@ -1874,9 +1868,6 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
     # extract some info from sess_info (only one session)
     keys = ["mouse_ns", "sess_ns", "lines", "planes", "nrois"]
     [mouse_n, sess_n, line, plane, nrois] = [sess_info[key][0] for key in keys]
-    
-    n_nans = len(sess_info[f"nanrois_{analyspar['fluor']}"][0])
-    sess_nrois = nrois - n_nans * analyspar["remnans"]
     
     seq_info = [f"{sqt}{ra} {gf} seqs ({nseqs})" for sqt, ra, gf, nseqs in 
         zip(seq_types, rand_str_pr, gabfr_letts, tcurv_data["nseqs"])]
@@ -1921,7 +1912,7 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
         if parallel:
             n_jobs = gen_util.get_n_jobs(len(tcurv_data["data"]))
             fulldirs = Parallel(n_jobs=n_jobs)(delayed(plot_roi_tune_curves)
-                (tcurv_data["oris"], roi_data, n, sess_nrois, seq_info, 
+                (tcurv_data["oris"], roi_data, n, nrois, seq_info, 
                 tcurv_data["vm_pars"][n], tcurv_data["hist_pars"][n], 
                 analyspar["fluor"], extrapar["comb_gabs"], gentitle, 
                 gen_savename, figpar, savedir)
@@ -1930,7 +1921,7 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
         else:
             for n, roi_data in enumerate(tcurv_data["data"]):
                 fulldir = plot_roi_tune_curves(tcurv_data["oris"], roi_data, 
-                    n, sess_nrois, seq_info, tcurv_data["vm_pars"][n], 
+                    n, nrois, seq_info, tcurv_data["vm_pars"][n], 
                     tcurv_data["hist_pars"][n], analyspar["fluor"], 
                     extrapar["comb_gabs"], gentitle, gen_savename, figpar, 
                     savedir)
@@ -1965,8 +1956,7 @@ def plot_posori_resp(analyspar, sesspar, stimpar, extrapar, sess_info,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - posori_data (dict): position and orientation responses
             ["oris"] (list)     : stimulus mean orientations
             ["roi_stats"] (list): ROI statistics, structured as 
@@ -2008,7 +1998,7 @@ def plot_posori_resp(analyspar, sesspar, stimpar, extrapar, sess_info,
 
     datatype = extrapar["datatype"]
     if datatype != "roi":
-        raise ValueError("Function only implemented for roi datatype.")
+        raise NotImplementedError("Function only implemented for roi datatype.")
 
     # extract some info from sess_info (only one session)
     keys = ["mouse_ns", "sess_ns", "lines", "planes"]
@@ -2105,8 +2095,7 @@ def plot_trial_pc_traj(analyspar, sesspar, stimpar, extrapar, sess_info,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - pc_traj_data (dict): trial PC trajectories
 
 

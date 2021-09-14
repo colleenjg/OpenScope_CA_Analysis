@@ -311,10 +311,28 @@ def prep_analyses(sess_n, args, mouse_df):
         mouse_df, omit_sess=args.omit_sess, omit_mice=args.omit_mice, 
         **sesspar._asdict())
 
-    sessions = sess_gen_util.init_sessions(
-        sessids, args.datadir, mouse_df, sesspar.runtype, fulldict=False, 
-        fluor=analyspar.fluor, dend=analyspar.dend, roi=roi, run=run, 
-        pupil=True, omit=roi)
+    logger.info(
+        f"Loading {len(sessids)} session(s)...", extra={"spacing": "\n"}
+        )
+        
+    args_dict = {
+        "datadir" : args.datadir,
+        "mouse_df": mouse_df,
+        "runtype" : sesspar.runtype,
+        "fulldict": False,
+        "fluor"   : analyspar.fluor,
+        "dend"    : analyspar.dend,
+        "roi"     : roi,
+        "run"     : run,
+        "pupil"   : True,
+        "omit"    : roi,
+        "temp_log": "warning",
+    }
+
+    sessions = gen_util.parallel_wrap(
+        sess_gen_util.init_sessions, sessids, args_dict=args_dict, 
+        parallel=args.parallel, use_tqdm=True
+        )
 
     runtype_str = ""
     if sesspar.runtype != "prod":

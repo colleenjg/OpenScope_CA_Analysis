@@ -10,6 +10,7 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
+import inspect
 import logging
 from pathlib import Path
 
@@ -102,6 +103,8 @@ def check_if_data_exists(figpar, filetype="json"):
     Returns:
         - run_analysis (bool): 
             if True, analysis should be run
+        - data_path (Path): 
+            path to data (whether it exists, or not)
     """
     
     fig_panel_analysis = figpar["fig_panel_analysis"]
@@ -116,7 +119,7 @@ def check_if_data_exists(figpar, filetype="json"):
     run_analysis = True
 
     if data_path.exists():
-        warn_str = f"Analysis data already exists at {data_path}."
+        warn_str = f"Analysis data already exists under {data_path}."
         if figpar["save"]["overwrite"]:
             warn_str = f"{warn_str}\nFile will be overwritten."
             logger.warning(warn_str, extra={"spacing": "\n"})
@@ -124,12 +127,12 @@ def check_if_data_exists(figpar, filetype="json"):
             warn_str = (f"{warn_str}\nReplotting from existing file.\n"
                 "To overwrite, run script with the '--overwrite' argument.")
             logger.warning(warn_str, extra={"spacing": "\n"})
-            
+
             info = file_util.loadfile(data_path)
             fig_panel_analysis.plot_fct(figpar=figpar, **info)
             run_analysis = False
 
-    return run_analysis
+    return run_analysis, data_path
 
 
 #############################################
@@ -149,10 +152,11 @@ def plot_save_all(info, figpar):
             ["dirs"] (dict): dictionary with additional figure parameters
             ["fig_panel_analysis"] (FigPanelAnalysis): figure/panel analysis 
                 object
-
     """
 
     fig_plot_fct = figpar["fig_panel_analysis"].plot_fct
+
+
     fulldir, savename = fig_plot_fct(figpar=figpar, **info)
     
     overwrite = figpar["save"]["overwrite"]

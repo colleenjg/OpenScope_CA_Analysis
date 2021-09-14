@@ -40,8 +40,9 @@ def collapse_dir(oris):
 
     oris_nodir = np.copy(oris)
     if (np.absolute(oris) > 180).any():
-        raise ValueError("Only orientations between -180 and 180 are "
-            "accepted.")
+        raise ValueError(
+            "Only orientations between -180 and 180 are accepted."
+            )
 
     ori_ch = np.where(np.absolute(oris) > 90)
     new_vals = oris[ori_ch] - np.sign(oris[ori_ch]) * 180.0
@@ -301,7 +302,12 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all",
                                    ROI x surp x gabor (1 if comb_gabs) x 
                                    param (sub, mult)
     """
-    
+
+    if sess.only_matched_rois != analyspar.tracked:
+        raise RuntimeError(
+            "sess.only_matched_rois should match analyspar.tracked."
+            )
+
     gabfrs = gen_util.list_if_not(stimpar.gabfr)
     if len(gabfrs) == 1:
         gabfrs = gabfrs * 2

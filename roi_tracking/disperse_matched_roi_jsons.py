@@ -70,11 +70,11 @@ def disperse_jsons(datadir, verbose=False):
 
     datadir = Path(datadir)
     if not datadir.exists():
-        raise ValueError(f"{datadir} does not exist.")
+        raise OSError(f"{datadir} does not exist.")
 
     matching_files_direc = Path("nway-matched-dfs--iou-min-0.3")
     if not matching_files_direc.exists():
-        raise ValueError(f"{matching_files_direc} directory is missing.")
+        raise OSError(f"{matching_files_direc} directory is missing.")
 
     matching_file_sources = [Path(file_direc) 
         for file_direc in glob.glob(str(Path(matching_files_direc, "*.json")))

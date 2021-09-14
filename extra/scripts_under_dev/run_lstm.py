@@ -150,7 +150,7 @@ def run_sess_lstm(sessid, args):
 
     sess = sess_gen_util.init_sessions(
         sessid, args.datadir, args.mouse_df, args.runtype, fulldict=False, 
-        fluor="dff", dend="extr", run=True)[0]
+        fluor="dff", dend="extr", run=True, temp_log="warning")[0]
 
     analysdir = sess_gen_util.get_analysdir(
         sess.mouse_n, sess.sess_n, sess.plane, stimtype=args.stimtype, 
@@ -175,7 +175,7 @@ def run_sess_lstm(sessid, args):
 
     logger.warning("Preparing windowed datasets (too slow - to be improved)")
     raise NotImplementedError("Not implemented properly - some error leads "
-        "to far excessive memory requests.")
+        "to excessive memory requests.")
     test_stim_wins = []
     test_roi_wins  = []
     for surp in [0, 1]:

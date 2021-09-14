@@ -16,6 +16,8 @@ import copy
 import inspect
 import logging
 from pathlib import Path
+import time
+import warnings
 
 # try to set cache/config as early as possible (for clusters)
 from util import gen_util 
@@ -31,6 +33,9 @@ DEFAULT_MOUSE_DF_PATH = Path("mouse_df.csv")
 DEFAULT_FONTDIR = Path("..", "tools", "fonts")
 
 logger = logging.getLogger(__name__)
+
+SEP = f"\n{'=' * 80}\n"
+DOUBLE_SEP = f"\n{'_' * 80}\n{'=' * 80}\n"
 
 
 #############################################
@@ -87,7 +92,7 @@ def init_analysis(args):
                 (see sess_plot_util.init_figpar), with fig_panel_analysis 
                 added under the "fig_panel_analysis" key.
     """
-
+    
     args = copy.deepcopy(args)
 
     # Directory with additional fonts
@@ -117,7 +122,8 @@ def init_analysis(args):
         remnans=True, # whether to ROIs with NaNs/Infs
         stats="mean", # type of statistic to measure (mean/median)
         error="sem", # type of error to measure (std/SEM)
-        scale=specific_params["scale"] # whether to scale ROIs (robust scaling)
+        scale=specific_params["scale"], # whether to scale ROIs (robust scaling)
+        tracked=specific_params["tracked"], # whether to use only tracked ROIs
         )
 
     # session inclusion parameters
@@ -164,7 +170,7 @@ def init_analysis(args):
 
     # logistic regression parameters
     analysis_dict["logregpar"] = sess_ntuple_util.init_logregpar(
-        comp=["Dori", "Uori"], # classes
+        comp=specific_params["comp"], # classes
         ctrl=True, # control for dataset size
         n_epochs=1000, # number of training epochs
         batchsize=200, # batch size
@@ -231,6 +237,20 @@ def init_sessions(analyspar, sesspar, mouse_df, datadir, sessions=None,
     # identify sessions needed
     sessids = sess_gen_util.get_sess_vals(mouse_df, "sessid", **sesspar_dict)
 
+
+    # HERE, REMOVE IF PUPIL OR ANALYSPAR.TRACKED ARE NOT YET AVAILABLE
+    if pupil or analyspar.tracked:
+        not_done_yet = [828475005, 832883243, 833704570, 834403597]
+        new_sessids = [sessid for sessid in sessids if sessid not in not_done_yet]
+        if len(new_sessids) != len(sessids):
+            warnings.warn(f"One or more of the following sessions have been "
+                "REMOVED as the pupil and/or tracked ROI information is not "
+                f"yet available: {not_done_yet} ", 
+                category=RuntimeWarning, stacklevel=1)
+            time.sleep(10)
+            sessids = new_sessids
+
+
     if len(sessids) == 0:
         raise ValueError("No sessions meet the criteria.")
 
@@ -278,14 +298,13 @@ def init_sessions(analyspar, sesspar, mouse_df, datadir, sessions=None,
             "roi"     : roi,
             "run"     : run,
             "pupil"   : pupil,
+            "temp_log": "critical" # suppress almost all logs 
         }
 
-        # adjust number of messages logged (does not work with parallel)
-        with logger_util.TempChangeLogLevel(level="warning"):
-            new_sessions = gen_util.parallel_wrap(
-                sess_gen_util.init_sessions, load_sessids, args_dict=args_dict, 
-                parallel=parallel, use_tqdm=True
-                )
+        new_sessions = gen_util.parallel_wrap(
+            sess_gen_util.init_sessions, load_sessids, args_dict=args_dict, 
+            parallel=parallel, use_tqdm=True
+            )
 
         # flatten list of new sessions, and add to full sessions list
         new_sessions = [sess for singles in new_sessions for sess in singles]
@@ -295,11 +314,37 @@ def init_sessions(analyspar, sesspar, mouse_df, datadir, sessions=None,
     sorter = [sessids.index(session.sessid) for session in sessions]
     sessions = [sessions[i] for i in sorter]
 
+    # update ROI tracking parameters
+    for sess in sessions:
+        sess.set_only_matched_rois(analyspar.tracked)
+
     return sessions
 
 
 #############################################
-def run_single_panel(args, sessions=None):
+def run_single_panel(args, sessions=None, new_fig=False):
+    """
+    run_single_panel(args, sessions=None, new_fig=False)
+
+    Runs analyses and plots a single panel.
+
+    Required args:
+        - args (dict): 
+            parser argument dictionary
+
+    Optional args:
+        - sessions (list):
+            preloaded Session objects
+            default: None
+        - new_fig (bool):
+            if True, a new figure is being plotted 
+            (additional separator is logged)
+            default: False
+
+    Returns:
+        - sessions (list):
+            loaded Session objects
+    """
 
     analysis_dict = init_analysis(args)
     fig_panel_analysis = analysis_dict["figpar"]["fig_panel_analysis"]
@@ -308,19 +353,34 @@ def run_single_panel(args, sessions=None):
     plot_util.manage_mpl(cmap=False, **analysis_dict["figpar"]["mng"])
     sess_plot_util.update_plt_linpla()
 
+
+    action = "Running analysis and producing plot"
+    if args.plot_only:
+        action = "Producing plot"
+
+    sep = DOUBLE_SEP if new_fig else SEP
     logger.info(
-        f"Fig. {fig_panel_analysis.figure}{fig_panel_analysis.panel}. "
-        "Running analysis and producing plot: "
-        f"{fig_panel_analysis.description}", 
+        f"{sep}Fig. {fig_panel_analysis.figure}{fig_panel_analysis.panel}. "
+        f"{action}: {fig_panel_analysis.description}", 
         extra={"spacing": "\n"}
         )
 
     # Log any relevant warnings to the console
-    fig_panel_analysis.log_warnings()
+    fig_panel_analysis.log_warnings(plot_only=args.plot_only)
 
-    # Check if analysis needs to be rerun, and if not, replots.
-    run_analysis = helper_fcts.check_if_data_exists(analysis_dict["figpar"])
+    # Check if analysis needs to be rerun, and if not, replots only.
+    run_analysis, data_path = \
+        helper_fcts.check_if_data_exists(analysis_dict["figpar"])
+    
     if not run_analysis:
+        return
+    elif args.plot_only:
+        if analysis_dict["figpar"]["save"]["overwrite"]:
+            raise ValueError("Cannot use '--overwrite' with '--plot_only'.")
+        logger.warning(
+            f"Skipping plot, as no analysis data was found under {data_path}.", 
+            extra={"spacing": "\n"}
+        )
         return
 
     sessions = init_sessions(
@@ -368,23 +428,47 @@ def main(args):
     args.fontdir = DEFAULT_FONTDIR
     args.mouse_df_path = DEFAULT_MOUSE_DF_PATH
 
-    # collect panels for the Figure
-    if args.panel == "all":
-        panels = paper_organization.get_all_panels(args.figure)
+    # warn if parallel is not used
+    if args.overwrite:
+        if args.plot_only:
+            raise ValueError("Cannot use '--overwrite' with '--plot_only'.")
+        if not args.parallel:
+            warnings.warn(
+                "It is strongly recommended that paper analyses be run with the "
+                "'--parallel' argument (enables computations to be distributed "
+                "across available CPU cores). Otherwise, analyses may be very "
+                "slow.", category=UserWarning, stacklevel=1
+                )
+            time.sleep(paper_organization.WARNING_SLEEP)
+
+
+    # run through figure(s) and panel(s)
+    if args.figure == "all":
+        figures = paper_organization.get_all_figures()
     else:
-        panels = [args.panel]
-
-
+        figures = [args.figure]
+    
     sessions = None
-    for args.panel in panels:
-        try: 
-            sessions = run_single_panel(args, sessions=sessions)
-        except Exception as e:
-            if "Cannot plot figure panel" in str(e):
-                lead = f"Fig. {args.figure}{args.panel.upper()}"
-                logger.info(f"{lead}. {e}")
-            else:
-                raise e
+    panel = args.panel
+    for args.figure in figures:
+        if panel == "all":
+            panels = paper_organization.get_all_panels(args.figure)
+        else:
+            panels = [panel]
+
+        for p, args.panel in enumerate(panels):
+            new_fig = (p==0)
+            try: 
+                sessions = run_single_panel(
+                    args, sessions=sessions, new_fig=new_fig
+                    )
+            except Exception as err:
+                sep = DOUBLE_SEP if new_fig else SEP
+                if "Cannot plot figure panel" in str(e):
+                    lead = f"{sep}Fig. {args.figure}{args.panel.upper()}"
+                    logger.info(f"{lead}. {err}")
+                else:
+                    raise err
 
 
 #############################################
@@ -409,6 +493,9 @@ def parse_args():
     parser.add_argument("--overwrite", action="store_true", 
         help=("rerun and overwrite analysis files "
         "(figures are always overwritten)"))
+    parser.add_argument("--plot_only", action="store_true", 
+        help=("only replots panels for which analysis files exist in the "
+            "specified directory."))
 
         # analysis parameter
     parser.add_argument("--full_power", action="store_true", 

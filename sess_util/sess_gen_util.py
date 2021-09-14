@@ -347,7 +347,7 @@ def sess_per_mouse(mouse_df, mouse_n="any", sess_n=1, runtype="prod",
         sessids.append(sessid)
     
     if len(sessids) == 0:
-        raise ValueError("No sessions meet the criteria.")
+        raise RuntimeError("No sessions meet the criteria.")
 
     return sessids
 
@@ -459,7 +459,7 @@ def sess_comp_per_mouse(mouse_df, mouse_n="any", sess_n="1v2", runtype="prod",
         sessids.append(mouse_sessids)
     
     if len(sessids) == 0:
-        raise ValueError("No session combinations meet the criteria.")
+        raise RuntimeError("No session combinations meet the criteria.")
 
     return sessids
 
@@ -467,7 +467,7 @@ def sess_comp_per_mouse(mouse_df, mouse_n="any", sess_n="1v2", runtype="prod",
 #############################################
 def init_sessions(sessids, datadir, mouse_df, runtype="prod", fulldict=True, 
                   fluor="dff", dend="extr", omit=False, roi=True, run=False, 
-                  pupil=False):
+                  pupil=False, temp_log=None):
     """
     init_sessions(sessids, datadir)
 
@@ -497,34 +497,41 @@ def init_sessions(sessids, datadir, mouse_df, runtype="prod", fulldict=True,
         - pupil (bool)     : if True, pupil data is loaded into session and 
                              only sessions with pupil data are included
                              default: False
+        - temp_log (bool)  : temporary log level to set logger to. If None, 
+                             logger is left at current level.
+                             default: None
 
     Returns:
         - sessions (list): list of Session objects
     """
 
-    sessions = []
-    sessids = gen_util.list_if_not(sessids)
-    for sessid in sessids:
-        logger.info(f"Creating session {sessid}...", extra={"spacing": "\n"})
-        # creates a session object to work with
-        sess = session.Session(
-            datadir, sessid, runtype=runtype, mouse_df=mouse_df) 
-        # extracts necessary info for analysis
-        sess.extract_info(
-            fulldict=fulldict, fluor=fluor, dend=dend, roi=roi, run=run
-            )
-        if omit and sess.plane == "dend" and sess.dend != dend:
+    
+    with logger_util.TempChangeLogLevel(level=temp_log):
+        sessions = []
+        sessids = gen_util.list_if_not(sessids)
+        for sessid in sessids:
             logger.info(
-                f"Omitting session {sessid} ({dend} dendrites not found).")
-            continue
-        if pupil and sess.pup_data_h5 == "none":
-            logger.info(
-                f"Omitting session {sessid} as no pupil data h5 was found.")
-            continue
-        if pupil:
-            sess.load_pup_data()
-        logger.info(f"Finished creating session {sessid}.")
-        sessions.append(sess)
+                f"Creating session {sessid}...", extra={"spacing": "\n"}
+                )
+            # creates a session object to work with
+            sess = session.Session(
+                datadir, sessid, runtype=runtype, mouse_df=mouse_df) 
+            # extracts necessary info for analysis
+            sess.extract_info(
+                fulldict=fulldict, fluor=fluor, dend=dend, roi=roi, run=run
+                )
+            if omit and sess.plane == "dend" and sess.dend != dend:
+                logger.info(
+                    f"Omitting session {sessid} ({dend} dendrites not found).")
+                continue
+            if pupil and sess.pup_data_h5 == "none":
+                logger.info(
+                    f"Omitting session {sessid} as no pupil data h5 was found.")
+                continue
+            if pupil:
+                sess.load_pup_data()
+            logger.info(f"Finished creating session {sessid}.")
+            sessions.append(sess)
 
     return sessions
 
@@ -672,7 +679,7 @@ def get_sess_info(sessions, fluor="dff", add_none=False, incl_roi=True,
                  for key in keys:
                      sess_info[key].append(None)
             else:
-                raise ValueError("None sessions not allowed.")
+                raise RuntimeError("None sessions not allowed.")
         else:
             sess_info["mouse_ns"].append(sess.mouse_n)
             sess_info["mouseids"].append(sess.mouseid)
@@ -683,12 +690,9 @@ def get_sess_info(sessions, fluor="dff", add_none=False, incl_roi=True,
             if not incl_roi:
                 continue
             
-            nanrois = sess.get_nanrois(fluor)
-            nrois = sess.nrois
-            if remnans:
-                nrois = nrois - len(nanrois)
-            else:
-                sess_info[f"nanrois_{fluor}"].append(nanrois)
+            nrois = sess.get_nrois(remnans=remnans, fluor=fluor)
+            if not remnans:
+                sess_info[f"nanrois_{fluor}"].append(sess.get_nanrois(fluor))
 
             sess_info["nrois"].append(nrois)
             sess_info["twop_fps"].append(sess.twop_fps)             
@@ -744,7 +748,7 @@ def get_params(stimtype="both", bri_dir="both", bri_size=128, gabfr=0,
 
     if gabfr in ["any", "all"]:
         gabfr = [0, 1, 2, 3, "G"]
-    elif gabfr not in ["G", "gray"]:
+    elif not isinstance(gabfr, list) and gabfr not in ["G", "gray"]:
         gabfr = int(gabfr)
 
     if bri_size in ["both", "any", "all"]:
@@ -1094,21 +1098,21 @@ def get_params_from_str(param_str, no_lists=False):
         elif "left" in param_str:
             params["bri_dir"] = "left"
     else:
-        raise ValueError("Stimtype not identified.")
+        raise RuntimeError("Stimtype not identified.")
 
     if "soma" in param_str:
         params["plane"] = "soma"
     elif "dend" in param_str:
         params["plane"] = "dend"
     else:
-        raise ValueError("plane not identified.")
+        raise RuntimeError("plane not identified.")
 
     if "dff" in param_str:
         params["fluor"] = "dff"
     elif "raw" in param_str:
         params["fluor"] = "raw"
     else:
-        raise ValueError("Fluorescence type not identified.")
+        raise RuntimeError("Fluorescence type not identified.")
 
     params["scale"] = False
     if "scale" in param_str:
