@@ -182,7 +182,7 @@ def plot_class_traces(analyspar, sesspar, stimpar, logregpar, tr_stats,
             fig, ax_tr, False, alg=logregpar["alg"], cols=ext_cols, 
             data_type=test_lab.replace("_", " "))
     elif len(ext_label) > 1:
-        raise ValueError("Did not expect more than 1 extra dataset to plot.")
+        raise RuntimeError("Did not expect more than 1 extra dataset to plot.")
     
     # add plot details
     if stimpar["stimtype"] == "gabors" and logregpar["comp"] == "surp":
@@ -325,7 +325,8 @@ def plot_traces_scores(hyperpars, tr_stats=None, full_scores=None,
         if tr_stats_path.exists():
             tr_stats = file_util.loadfile(tr_stats_path)
         else:
-            warnings.warn("No trace statistics found.")
+            warnings.warn("No trace statistics found.", 
+                category=RuntimeWarning, stacklevel=1)
     
     if full_scores is None:
         full_scores_path = Path(savedir, "scores_df.csv")
@@ -337,7 +338,8 @@ def plot_traces_scores(hyperpars, tr_stats=None, full_scores=None,
                 if len(saved) > 0:
                     plot_wei = saved[0]
         else:
-            warnings.warn("No scores dataframe found.")
+            warnings.warn("No scores dataframe found.", 
+                category=RuntimeWarning, stacklevel=1)
 
     if tr_stats is not None:
         plot_class_traces(analyspar, sesspar, stimpar, logregpar, tr_stats, 
@@ -482,7 +484,7 @@ def mouse_runs_leg(arr, mouse_n=None, shuffle=False, CI=0.95):
 
     else:
         if mouse_n is None:
-            raise IOError("If 'shuffle' is False, Must specify 'mouse_n'.")
+            raise ValueError("If 'shuffle' is False, Must specify 'mouse_n'.")
         
         leg = f"mouse {int(mouse_n)}\n({n_runs_str} runs)"
     
@@ -740,7 +742,8 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
             if data in key:
                 found = True
         if not found:
-            warnings.warn("test_acc_bal was not recorded")
+            warnings.warn("test_acc_bal was not recorded", 
+                category=RuntimeWarning, stacklevel=1)
             return
     
     split_oris = sess_str_util.get_split_oris(comp)
@@ -769,14 +772,16 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
             plot_lines["line"].str.contains(line)], cols, cri)
         cri_str = ", ".join([f"{col}: {crit}" for col, crit in zip(cols, cri)])
         if len(curr_lines) == 0: # no data
-            warnings.warn(f"No data found for {line} {plane}, {cri_str}")
+            warnings.warn(f"No data found for {line} {plane}, {cri_str}", 
+                category=RuntimeWarning, stacklevel=1)
             continue
         else: # shuffle or non shuffle missing
             skip = False
             for shuff in [False, True]:
                 if shuff not in curr_lines["shuffle"].tolist():
                     warnings.warn(f"No shuffle={shuff} data found for {line} "
-                        f"{plane}, {cri_str}")
+                        f"{plane}, {cri_str}", category=RuntimeWarning, 
+                        stacklevel=1)
                     skip = True
             if skip:
                 continue
@@ -786,7 +791,7 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
             dtype=int)
         # mouse x sess x n_vals 
         if -1 not in mouse_ns:
-            raise ValueError("Shuffle data across mice is missing.")
+            raise RuntimeError("Shuffle data across mice is missing.")
         mouse_ns = gen_util.remove_if(mouse_ns, -1)
         data_arr = np.empty((len(mouse_ns), int(max_sess), n_vals)) * np.nan
         shuff_arr = np.empty((1, int(max_sess), n_vals - 1)) * np.nan
@@ -808,7 +813,7 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
                     ["sess_n", "mouse_n", "shuffle"], 
                     [sess_n, mouse_n, mouse_n==-1])
                 if len(curr_line) > 1:
-                    raise ValueError("Several lines correspond to criteria.")
+                    raise RuntimeError("Several lines correspond to criteria.")
                 elif len(curr_line) == 0:
                     continue
                 for st, stat in enumerate(stat_types):
@@ -890,11 +895,13 @@ def plot_summ(output, savename, stimtype="gabors", comp="surp", ctrl=False,
     if summ_scores_file.exists():
         summ_scores = file_util.loadfile(summ_scores_file)
     else:
-        warnings.warn(f"{summ_scores_file} not found.")
+        warnings.warn(f"{summ_scores_file} not found.", 
+            category=RuntimeWarning, stacklevel=1)
         return
 
     if len(summ_scores) == 0:
-        warnings.warn(f"No data in {summ_scores_file}.")
+        warnings.warn(f"No data in {summ_scores_file}.", 
+            category=RuntimeWarning, stacklevel=1)
         return
 
     # drop NaN lines
@@ -942,13 +949,15 @@ def plot_summ(output, savename, stimtype="gabors", comp="surp", ctrl=False,
     plot_lines = gen_util.get_df_vals(summ_scores, cols, cri)
     cri_str = ", ".join([f"{col}: {crit}" for col, crit in zip(cols, cri)])
     if len(plot_lines) == 0: # no data
-        warnings.warn(f"No data found for {cri_str}")
+        warnings.warn(f"No data found for {cri_str}", category=RuntimeWarning, 
+            stacklevel=1)
         return
     else: # shuffle or non shuffle missing
         skip = False
         for shuff in [False, True]:
             if shuff not in plot_lines["shuffle"].tolist():
-                warnings.warn(f"No shuffle={shuff} data found for {cri_str}")
+                warnings.warn(f"No shuffle={shuff} data found for {cri_str}", 
+                    category=RuntimeWarning, stacklevel=1)
                 skip = True
         if skip:
             return

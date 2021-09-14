@@ -375,10 +375,10 @@ def scale_data_df(data_df, datatype, interpolated="no", other_vals=[]):
         level="specific").tolist()
     sub_names =  list(filter(lambda x: "sub" in x, factor_names))
     if len(sub_names) != 1:
-        raise ValueError("Only one factor should contain 'sub'.")
+        raise RuntimeError("Only one factor should contain 'sub'.")
     div_names =  list(filter(lambda x: "div" in x, factor_names))
     if len(div_names) != 1:
-        raise ValueError("Only one row should contain 'div'.")
+        raise RuntimeError("Only one row should contain 'div'.")
 
     sub = data_df.loc[("factors", sub_names[0])].values[0]
     div = data_df.loc[("factors", div_names[0])].values[0]
@@ -452,8 +452,8 @@ def add_G_rows_gabors(df):
     df = df.sort_values("start2pfr").reset_index(drop=True)
 
     if "gabfr" not in df.columns:
-        raise ValueError("Should only be used with dataframes containing "
-                         "gabor frame information")
+        raise KeyError("Should only be used with dataframes containing "
+                       "gabor frame information")
 
     # add in lines for grayscreen (G) with parameters of previous segment
     # except gabfr and start/end frames          

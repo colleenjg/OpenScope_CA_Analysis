@@ -24,6 +24,7 @@ from analysis import misc_analys
 logger = logging.getLogger(__name__)
 
 MAX_SIMULT_RUNS = 25000
+TAB = "    "
 
 
 #############################################
@@ -61,7 +62,7 @@ def get_decoding_data(sess, analyspar, stimpar, comp="Dori", ctrl=False):
     """
 
     if stimpar.stimtype != "gabors":
-        raise ValueError("Expected gabors stimtype.")
+        raise ValueError("Expected stimpar.stimtype to be 'gabors'.")
 
     if comp == "Dori":
         exp = 0
@@ -188,13 +189,13 @@ def add_CI_p_vals(shuffle_df, stats_data_df, permpar):
         raise ValueError("Expected stats_data_df to have length 1.")
 
     multcomp = 1 if not permpar.multcomp else permpar.multcomp
-    p_thresh_adj = permpar.p_val / multcomp
+    p_thresh_corr = permpar.p_val / multcomp
     percs = math_util.get_percentiles(
-        CI=(1 - p_thresh_adj), tails=permpar.tails
+        CI=(1 - p_thresh_corr), tails=permpar.tails
         )[0]
     percs = [percs[0], 50, percs[1]]
 
-    math_util.check_n_rand(len(shuffle_df), p_thresh_adj)
+    math_util.check_n_rand(len(shuffle_df), p_thresh_corr)
 
     stats_df = pd.DataFrame()
     for col in shuffle_df.columns:
@@ -203,7 +204,7 @@ def add_CI_p_vals(shuffle_df, stats_data_df, permpar):
         err_key = f"{col}_err"
         if (stat_key not in stats_data_df.columns or 
             err_key not in stats_data_df.columns):
-            raise ValueError(
+            raise KeyError(
                 f"{stat_key} and {err_key} not found stats_data_df."
                 )
         stats_df[stat_key] = stats_data_df[stat_key]
@@ -233,9 +234,9 @@ def add_CI_p_vals(shuffle_df, stats_data_df, permpar):
 
 
 #############################################
-def collate_results(sess_data_stats_df, shuffle_df, analyspar, permpar):
+def collate_results(sess_data_stats_df, shuffle_dfs, analyspar, permpar):
     """
-    collate_results(sess_data_stats_df, shuffle_df, analyspar, permpar)
+    collate_results(sess_data_stats_df, shuffle_dfs, analyspar, permpar)
 
     Return results collated from real data and shuffled data dataframes, 
     with statistics, null distributions and p-values added.
@@ -246,10 +247,10 @@ def collate_results(sess_data_stats_df, shuffle_df, analyspar, permpar):
             and where columns include data descriptors, and logistic regression 
             scores for different data subsets 
             (e.g. "train", "val", "test").
-        - shuffle_df (pd.DataFrame):
-            dataframe where each row contains data for different data 
-            shuffles, and each column contains data to use to construct null 
-            distributions.
+        - shuffle_dfs (list):
+            dataframes for each session, where each row contains data for 
+            different data shuffles, and each column contains data to use to 
+            construct null distributions.
         - analyspar (AnalysPar): 
             named tuple containing analysis parameters
         - permpar (PermPar): 
@@ -261,30 +262,47 @@ def collate_results(sess_data_stats_df, shuffle_df, analyspar, permpar):
             intervals and p-values for test set data.
     """
 
+    # check shuffle_dfs
+    shuffle_df_lengths = [len(shuffle_df) for shuffle_df in shuffle_dfs]
+    if len(np.unique(shuffle_df_lengths)) != 1:
+        raise ValueError("All shuffle_dfs must have the same length.")
+
     stat_cols = [
-        col for col in shuffle_df.columns 
+        col for col in shuffle_dfs[0].columns 
         if col.split("_")[0] in ["train", "val", "test"]
         ]
 
+    main_cols = [
+        col for col in shuffle_dfs[0].columns 
+        if not (col in stat_cols + ["shuffle"])
+        ]
+
+    # take statistics across session scores
     data_stats_df = pd.DataFrame()
     for stat_col in stat_cols:
         data_stats_df[stat_col] = sess_data_stats_df[f"{stat_col}_stat"]
     data_stats_df = get_df_stats(data_stats_df, analyspar)
 
-    temp_stats_df = add_CI_p_vals(
-        shuffle_df.loc[:, stat_cols], data_stats_df, permpar
-        )
+    # take statistics across session shuffles at the same index
+    shuffle_dfs_concat = pd.concat(shuffle_dfs)
+    stat_shuffle_dfs = shuffle_dfs_concat.loc[:, stat_cols]
+    by_row_index = stat_shuffle_dfs.groupby(stat_shuffle_dfs.index)
+    if analyspar.stats == "mean":
+        shuffle_df = by_row_index.mean()
+    elif analyspar.stats == "median":
+        shuffle_df = by_row_index.median()
+    else:
+        gen_util.accepted_values_error(
+            "analyspar.stats", analyspar.stats, ["mean", "median"]
+            )
+    temp_stats_df = add_CI_p_vals(shuffle_df, data_stats_df, permpar)
     
     # add in main data columns
-    main_cols = [
-        col for col in shuffle_df.columns 
-        if not (col in stat_cols + ["shuffle"])
-        ]
-
     stats_df = pd.DataFrame(columns=main_cols + temp_stats_df.columns.tolist())
+    sort_order = np.argsort(sess_data_stats_df["sessids"].tolist())
     for col in main_cols:
         data_df_values = sess_data_stats_df[col].unique().tolist()
-        shuffle_df_values = shuffle_df[col].unique().tolist()
+        shuffle_df_values = shuffle_dfs_concat[col].unique().tolist()
 
         if data_df_values != shuffle_df_values:
             raise ValueError(
@@ -292,7 +310,9 @@ def collate_results(sess_data_stats_df, shuffle_df, analyspar, permpar):
                 "except shuffle, to contain the same sets of values."
                 )
         
-        stats_df.at[0, col] = sess_data_stats_df[col].tolist()
+        # sort by session ID
+        values = sess_data_stats_df[col].tolist()
+        stats_df.at[0, col] = values = [values[v] for v in sort_order]
 
     for col in temp_stats_df.columns:
         stats_df.at[0, col] = temp_stats_df.loc[0, col]
@@ -355,7 +375,7 @@ def run_sess_log_reg(sess, analyspar, stimpar, logregpar, n_splits=100,
 
     # do checks
     if logregpar.q1v4 or logregpar.regvsurp:
-        raise ValueError("q1v4 and regvsurp are not implemented.")
+        raise NotImplementedError("q1v4 and regvsurp are not implemented.")
     if n_splits <= 0 or n_shuff_splits <= 0:
         raise ValueError("n_splits and n_shuff_splits must be greater than 0.")
 
@@ -458,6 +478,7 @@ def run_sess_log_regs(sessions, analyspar, stimpar, logregpar, permpar,
 
     score_stats_dfs = []
     group_columns = ["lines", "planes", "sess_ns"]
+    s = 0
     for _, lp_grp_df in sess_df.groupby(group_columns):
         lp_sessions = [
             sessions[sessids.index(sessid)] for sessid in lp_grp_df["sessids"]
@@ -465,6 +486,10 @@ def run_sess_log_regs(sessions, analyspar, stimpar, logregpar, permpar,
 
         sess_data_stats_dfs, shuffle_dfs = [], []
         for sess in lp_sessions:
+            logger.info(
+                f"Running decoders for session {s + 1}/{len(sess_df)}...",
+                extra={"spacing": f"\n{TAB}"}
+                )
             sess_data_stats_df, shuffle_df = run_sess_log_reg(
                 sess, 
                 analyspar=analyspar, 
@@ -478,18 +503,18 @@ def run_sess_log_regs(sessions, analyspar, stimpar, logregpar, permpar,
 
             sess_data_stats_dfs.append(sess_data_stats_df)
             shuffle_dfs.append(shuffle_df)
+            s += 1
 
         sess_data_stats_df = pd.concat(sess_data_stats_dfs, ignore_index=True)
-        shuffle_df = pd.concat(shuffle_dfs, ignore_index=True)
 
         # collect data
         lp_df = collate_results(
-            sess_data_stats_df, shuffle_df, analyspar, permpar
+            sess_data_stats_df, shuffle_dfs, analyspar, permpar
             )
         score_stats_dfs.append(lp_df)
         
     score_stats_df = pd.concat(score_stats_dfs, ignore_index=True)
-    score_stats_df = misc_analys.add_adj_p_vals(score_stats_df, permpar)
+    score_stats_df = misc_analys.add_corr_p_vals(score_stats_df, permpar)
 
     # add splits information
     score_stats_df["n_splits_per"] = n_splits

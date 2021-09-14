@@ -11,8 +11,12 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
+from collections import namedtuple
 import logging
 from pathlib import Path
+import time
+
+import numpy as np
 
 from util import gen_util, logger_util
 from sess_util import sess_gen_util
@@ -24,6 +28,28 @@ logger = logging.getLogger(__name__)
 
 PAPER_SEED = 905
 DEFAULT_LOW_POWER = 1e3
+WARNING_SLEEP = 3
+
+WARNING_TUPLE = namedtuple("WarningsTuple", ["message", "analysis_only"])
+
+
+#############################################
+def get_all_figures():
+    """
+    get_all_figures()
+
+    Returns all figures.
+    
+    Returns:
+        - all_figures (list): list of figures
+    """
+
+    # create a dummy object with figure/panel combination that exists.
+    dummy_fig_panel = FigurePanelAnalysis(figure=2, panel="G", datadir="")
+
+    all_figures = dummy_fig_panel.figure_panel_dict.keys()
+    
+    return all_figures
 
 
 #############################################
@@ -54,44 +80,66 @@ def get_all_panels(figure=2):
     return all_panels
 
 
-### DEFINE FUNCTIONS RETURNING ERRORS AND WARNING MESSAGES
+### DEFINE FUNCTIONS RETURNING ERRORS AND WARNING TUPLES
 #############################################
 def no_plot_fct(reason):
     raise ValueError(f"Cannot plot figure panel as it {reason}.")
 
-def partial_plot_fct(message):
-    return message
+def partial_plot_fct_warning(message):
+    warning_tuple = WARNING_TUPLE(message, False)
+    return warning_tuple
 
-def manual_warning():
+def manual_formatting_warning():
     message = ("Minor manual formatting adjustments may be missing.")
-    return message
+    warning_tuple = WARNING_TUPLE(message, False)
+    return warning_tuple
 
-def slow_warning():
-    message = ("This figure panel takes longer to produce, as it requires "
-        "plotting and rasterizing a large number of traces.")
-    return message
+def slow_plot_warning():
+    message = ("This figure panel takes longer to plot, as it requires "
+        "plotting and rasterizing a large number of items.")
+    warning_tuple = WARNING_TUPLE(message, False)
+    return warning_tuple
 
-def stats_plot_fct():
+def stats_plot_fct_warning():
     message = ("This figure panel includes statistical analyses. "
         "Analysis may take longer, and statistical symbols may not be "
         "nicely spaced out.")
-    return message
+    warning_tuple = WARNING_TUPLE(message, False)
+    return warning_tuple
 
 def seed_warning(seed):
     message = ("Using a different seed from the one used in "
         f"the paper: {seed}. Results may differ slightly "
         "from published results. To use paper seed, run script with "
         "default seed argument, i.e., '--seed paper'.")
-    return message
+    warning_tuple = WARNING_TUPLE(message, True)
+    return warning_tuple
 
 def power_warning():
     message = ("Reducing number of permutations/shuffles to reduce "
         "computation time. This weakens statistical power for significance "
-        "testing a bit, potentially producing results that differ slightly "
-        "from published results. To reproduce paper results exactly, run "
-        "script with the '--full_power' argument.")
-    return message
+        "testing a bit, potentially producing results that differ just "
+        "slightly from published results. To reproduce paper results exactly, "
+        "run script with the '--full_power' argument.")
+    warning_tuple = WARNING_TUPLE(message, True)
+    return warning_tuple
 
+def heavy_compute_warning():
+    message = ("Analyses for this figure panel are very computationally "
+        "intensive! Full power analyses should ONLY be run on a machine with "
+        "multiple CPU cores (e.g., 16+) and a substantial amount of RAM "
+        "(e.g., 150+ GB), and may still take 1h or more.")
+    warning_tuple = WARNING_TUPLE(message, True)
+    return warning_tuple
+
+def decoder_warning():
+    message = ("The decoder analyses are very computationally intensive! "
+        "Full power analyses should ONLY be run on a machine with "
+        "multiple CPU cores (e.g., 80+) and a substantial amount of RAM "
+        "(e.g., 150+ GB), and may take 10h or more. This is because the "
+        "paper code is designed to run in one step, on only one machine.")
+    warning_tuple = WARNING_TUPLE(message, True)
+    return warning_tuple
 
 
 ### DEFINE FUNCTION COLLECTING FIGURE/PANEL SPECIFIC PARAMETERS
@@ -99,7 +147,8 @@ def power_warning():
 def get_specific_params(scale=True, sess_n="1-3", mouse_n="any", plane="all", 
                         line="all", stimtype="gabors", gabfr=3, gab_ori="any", 
                         pre=0, post=0.6, tails=2, idx_feature="by_exp", 
-                        roi=True, run=False, pupil=False):
+                        comp="Dori", tracked=False, roi=True, run=False, 
+                        pupil=False):
     """
     get_specific_params()
 
@@ -142,6 +191,12 @@ def get_specific_params(scale=True, sess_n="1-3", mouse_n="any", plane="all",
         - idx_feature (str): 
             type of feature to measure indices on
             default: "by_exp"
+        - comp (str):
+            logistic regression comparison defining classes to decode
+            default: "Dori"
+        - tracked (bool):
+            if True, only tracked ROIs are included
+            default: False
         - roi (bool): 
             whether ROI data needs to be loaded
             default: True
@@ -176,6 +231,8 @@ def get_specific_params(scale=True, sess_n="1-3", mouse_n="any", plane="all",
         "post"       : post,
         "tails"      : tails,
         "idx_feature": idx_feature,
+        "comp"       : comp,  
+        "tracked"    : tracked,
         "roi"        : roi,
         "run"        : run,
         "pupil"      : pupil,
@@ -226,7 +283,7 @@ class FigurePanelAnalysis():
         """
         
         self.figure = str(figure)
-        self.panel  = str(panel).upper()
+        self.panel  = str(panel).capitalize()
 
         self.datadir       = Path(datadir)
         self.mouse_df_path = Path(mouse_df_path)
@@ -236,7 +293,7 @@ class FigurePanelAnalysis():
         self.plt_bkend = plt_bkend
         self.fontdir   = fontdir
 
-        self.warnings = [manual_warning()]
+        self.warnings = [manual_formatting_warning()]
         self.full_power = full_power
         self.seed       = seed
 
@@ -255,7 +312,7 @@ class FigurePanelAnalysis():
                 number of permutations to use if power is not full_power
 
         Sets the following attributes:
-            - n_perms (int): number of permutations that will be used
+            - n_perms (int or list): number of permutations that will be used
             - randomness (bool): whether randomness is involved in the analysis
 
         Updates the following attributes:
@@ -265,7 +322,7 @@ class FigurePanelAnalysis():
         """
 
         if not hasattr(self, "description"):
-            raise ValueError("Must run self._set_plot_info() first.")
+            raise RuntimeError("Must run self._set_plot_info() first.")
 
         self.randomness = False
 
@@ -274,12 +331,20 @@ class FigurePanelAnalysis():
             if self.full_power:
                 self.n_perms = self.n_perms_full
             else:
-                if self.n_perms_full > n_perms_low:
-                    self.n_perms = n_perms_low
+                if np.max(self.n_perms_full) > n_perms_low:
+                    if isinstance(self.n_perms_full, list):
+                        self.n_perms = [n_perms_low] * len(self.n_perms_full)
+                    else:
+                        self.n_perms = n_perms_low
                 else:
                     self.n_perms = self.n_perms_full
                     self.full_power = True
-            self.n_perms = int(self.n_perms)
+            
+            # convert to int
+            if isinstance(self.n_perms, list):
+                self.n_perms = [int(n_perms) for n_perms in self.n_perms]
+            else:
+                self.n_perms = int(self.n_perms)
         else:
             self.full_power = True
             self.n_perms = None
@@ -302,7 +367,7 @@ class FigurePanelAnalysis():
         """
         
         if not hasattr(self, "randomness"):
-            raise ValueError("Must run self._set_power() first.")
+            raise RuntimeError("Must run self._set_power() first.")
 
         if not self.randomness:
             self.seed = None
@@ -350,16 +415,21 @@ class FigurePanelAnalysis():
         self._set_seed()
 
 
-    def log_warnings(self):
+    def log_warnings(self, plot_only=False):
         """
         Logs figure/panel warning messages, stored in self.warnings, to the 
         console.
         """
 
         if len(self.warnings):
-            warn_str = "\n- " + "\n- ".join(self.warnings)
-            logger.warning(warn_str, extra={"spacing": "\n"})
+            messages = [
+                warning.message for warning in self.warnings 
+                if not (plot_only and warning.analysis_only)
+                ]
 
+            warn_str = "\n- " + "\n- ".join(messages)
+            logger.warning(warn_str, extra={"spacing": "\n"})
+            time.sleep(WARNING_SLEEP)
 
 
     ### FUNCTIONS DEFINING FIGURE/PANEL ANALYSIS ATTRIBUTES ###
@@ -406,7 +476,7 @@ class FigurePanelAnalysis():
         self.analysis_fct = tracking_figs.roi_tracking
         self.plot_fct = plot_figs.plot_roi_tracking
         self.warnings.append(
-            partial_plot_fct(
+            partial_plot_fct_warning(
                 message=("Only overlays will be generated, without "
                          "additional manual formatting.")
             )
@@ -474,7 +544,7 @@ class FigurePanelAnalysis():
         self.n_perms_full = 1e4
         self.analysis_fct = usi_figs.gabor_roi_usi_sig
         self.plot_fct = plot_figs.plot_gabor_roi_usi_sig
-        self.warnings.append(stats_plot_fct())
+        self.warnings.append(stats_plot_fct_warning())
 
 
     def gabor_roi_usi_sig_common_oris(self):
@@ -486,7 +556,7 @@ class FigurePanelAnalysis():
         self.n_perms_full = 1e4
         self.analysis_fct = usi_figs.gabor_roi_usi_sig_common_oris
         self.plot_fct = plot_figs.plot_gabor_roi_usi_sig_common_oris
-        self.warnings.append(stats_plot_fct())
+        self.warnings.append(stats_plot_fct_warning())
 
 
     def pupil_run_responses(self):
@@ -501,7 +571,7 @@ class FigurePanelAnalysis():
         self.analysis_fct = run_pupil_figs.pupil_run_responses
         self.plot_fct = plot_figs.plot_pupil_run_responses
         self.warnings.append(
-            partial_plot_fct(
+            partial_plot_fct_warning(
                 message="Running and pupil images will be missing."
             )
         )
@@ -517,7 +587,6 @@ class FigurePanelAnalysis():
             run=True,
             pupil=True,
         )
-        self.n_perms_full = None
         self.analysis_fct = run_pupil_figs.pupil_run_diffs
         self.plot_fct = plot_figs.plot_pupil_run_diffs
 
@@ -541,51 +610,76 @@ class FigurePanelAnalysis():
         self.n_perms_full = 1e5
         self.analysis_fct = seq_figs.gabor_sequence_diffs_sess123
         self.plot_fct = plot_figs.plot_gabor_sequence_diffs_sess123
-        self.warnings.append(stats_plot_fct())
+        self.warnings.append(stats_plot_fct_warning())
+        self.warnings.append(heavy_compute_warning())
         
 
     def gabor_rel_resp_sess123(self):
         self.description = ("ROI responses to regular and unexpected "
             "Gabor sequences, relative to session 1.")
         self.specific_params = get_specific_params(
-            pre=0.9,
+            pre=0,
+            post=0.3,
+            gabfr=[[0, 1, 2], [3, "G"]],
+            scale=False,
         )
         self.n_perms_full = 1e5
         self.analysis_fct = seq_figs.gabor_rel_resp_sess123
         self.plot_fct = plot_figs.plot_gabor_rel_resp_sess123
-        self.warnings.append(stats_plot_fct())
+        self.warnings.append(stats_plot_fct_warning())
 
 
     def gabor_tracked_roi_usis_sess123(self):
         self.description = "Tracked ROI Gabor USIs across sessions."
-        self.specific_params = get_specific_params()
+        self.specific_params = get_specific_params(
+            tracked=True
+        )
         self.n_perms_full = 1e5
         self.analysis_fct = usi_figs.gabor_tracked_roi_usis_sess123
         self.plot_fct = plot_figs.plot_gabor_tracked_roi_usis_sess123
         
 
-    def gabor_tracked_roi_usi_means_sess123(self):
+    def gabor_tracked_roi_abs_usi_means_sess123(self):
         self.description = ("Absolute means of tracked ROI Gabor USIs "
             "across sessions.")
-        self.specific_params = get_specific_params()
-        self.n_perms_full = 1e5
-        self.analysis_fct = usi_figs.gabor_tracked_roi_usi_means_sess123
-        self.plot_fct = plot_figs.plot_gabor_tracked_roi_usi_means_sess123
-        self.warnings.append(stats_plot_fct())
+        self.specific_params = get_specific_params(
+            tracked=True
+        )
+        self.n_perms_full = [1e4, 1e5]
+        self.analysis_fct = usi_figs.gabor_tracked_roi_abs_usi_means_sess123
+        self.plot_fct = plot_figs.plot_gabor_tracked_roi_abs_usi_means_sess123
+        self.warnings.append(stats_plot_fct_warning())
 
 
     ### Figure 4 ###
-    def gabor_decoding_sess123(self):
-        self.description = ("Mean Gabor orientation decoder performances "
+    def gabor_Dori_decoding_sess123(self):
+        self.description = ("Mean Gabor D orientation decoder performances "
             "across sessions.")
         self.specific_params = get_specific_params(
             pre=0,
-            post=0.6
+            post=0.6,
+            comp="Dori",
         )
         self.n_perms_full = 1e5
-        self.analysis_fct = decoding_figs.gabor_decoding_sess123
-        self.plot_fct = plot_figs.plot_gabor_decoding_sess123
-        self.warnings.append(stats_plot_fct())
+        self.analysis_fct = decoding_figs.gabor_Dori_decoding_sess123
+        self.plot_fct = plot_figs.plot_gabor_Dori_decoding_sess123
+        self.warnings.append(stats_plot_fct_warning()) 
+        self.warnings.append(decoder_warning())
+
+
+    def gabor_Uori_decoding_sess123(self):
+        self.description = ("Mean Gabor U orientation decoder performances "
+            "across sessions.")
+        self.specific_params = get_specific_params(
+            pre=0,
+            post=0.6,
+            comp="Uori",
+        )
+        self.n_perms_full = 1e5
+        self.analysis_fct = decoding_figs.gabor_Uori_decoding_sess123
+        self.plot_fct = plot_figs.plot_gabor_Uori_decoding_sess123
+        self.warnings.append(stats_plot_fct_warning())
+        self.warnings.append(decoder_warning())
 
 
     def gabor_norm_res_corr_example(self):
@@ -595,7 +689,7 @@ class FigurePanelAnalysis():
            line="L23",
            plane="soma", 
         )
-        self.n_perms_full = 1e5
+        self.n_perms_full = [1e4, 1e5]
         self.analysis_fct = corr_figs.gabor_norm_res_corr_example
         self.plot_fct = plot_figs.plot_gabor_norm_res_corr_example
 
@@ -604,7 +698,7 @@ class FigurePanelAnalysis():
         self.description = ("Normalized residual Gabor USI correlations "
             "between sessions.")
         self.specific_params = get_specific_params()
-        self.n_perms_full = 1e5
+        self.n_perms_full = [1e4, 1e5]
         self.analysis_fct = corr_figs.gabor_norm_res_corrs_sess123_comps
         self.plot_fct = plot_figs.plot_gabor_norm_res_corrs_sess123_comps
         
@@ -625,7 +719,7 @@ class FigurePanelAnalysis():
         self.analysis_fct = tracking_figs.roi_overlays_sess123
         self.plot_fct = plot_figs.plot_roi_overlays_sess123
         self.warnings.append(
-            partial_plot_fct(
+            partial_plot_fct_warning(
                 message=("Only overlays will be generated, without "
                          "additional manual formatting.")
             )
@@ -687,7 +781,7 @@ class FigurePanelAnalysis():
             )
         self.analysis_fct = seq_figs.gabor_ex_roi_responses_sess1
         self.plot_fct = plot_figs.plot_gabor_ex_roi_responses_sess1
-        self.warnings.append(slow_warning())
+        self.warnings.append(slow_plot_warning())
 
     ### Figure S4 ###
     def gabor_roi_usi_sig_by_mouse(self):
@@ -696,31 +790,37 @@ class FigurePanelAnalysis():
         self.specific_params = get_specific_params(
             sess_n=1,
         )
-        self.n_perms_full = 1e5
+        self.n_perms_full = 1e4
         self.analysis_fct = usi_figs.gabor_roi_usi_sig_by_mouse
         self.plot_fct = plot_figs.plot_gabor_roi_usi_sig_by_mouse
-        self.warnings.append(stats_plot_fct())
+        self.warnings.append(stats_plot_fct_warning())
 
 
     def gabor_rel_resp_tracked_rois_sess123(self):
         self.description = ("Tracked ROI responses to regular and unexpected "
             "Gabor sequences, relative to session 1.")
         self.specific_params = get_specific_params(
-            pre=0.9,
+            pre=0,
+            post=0.3,
+            gabfr=[[0, 1, 2], [3, "G"]],
+            scale=False,
+            tracked=True,
         )
         self.n_perms_full = 1e5
         self.analysis_fct = seq_figs.gabor_rel_resp_tracked_rois_sess123
         self.plot_fct = plot_figs.plot_gabor_rel_resp_tracked_rois_sess123
-        self.warnings.append(stats_plot_fct())
+        self.warnings.append(stats_plot_fct_warning())
 
 
-    def gabor_tracked_roi_means_sess123_by_mouse(self):
+    def gabor_tracked_roi_abs_usi_means_sess123_by_mouse(self):
         self.description = ("Absolute means of tracked ROI Gabor USIs "
             "across sessions for each mouse.")
-        self.specific_params = get_specific_params()
-        self.n_perms_full = 1e5
-        self.analysis_fct = usi_figs.gabor_tracked_roi_means_sess123_by_mouse
-        self.plot_fct = plot_figs.plot_gabor_tracked_roi_means_sess123_by_mouse
+        self.specific_params = get_specific_params(
+            tracked=True
+        )
+        self.n_perms_full = [1e4, 1e5]
+        self.analysis_fct = usi_figs.gabor_tracked_roi_abs_usi_means_sess123_by_mouse
+        self.plot_fct = plot_figs.plot_gabor_tracked_roi_abs_usi_means_sess123_by_mouse
         
 
     ### Figure S5 ###
@@ -751,7 +851,7 @@ class FigurePanelAnalysis():
             pre=2,
             post=2,
         )
-        self.n_perms_full = 1e4
+        self.n_perms_full = 1e5
         self.analysis_fct = seq_figs.visual_flow_diffs_sess123
         self.plot_fct = plot_figs.plot_visual_flow_diffs_sess123
         
@@ -762,13 +862,14 @@ class FigurePanelAnalysis():
             "visual flow sequences, relative to session 1.")
         self.specific_params = get_specific_params(
             stimtype="bricks",
-            pre=2,
-            post=2,
+            pre=0,
+            post=1,
+            scale=False,
         )
         self.n_perms_full = 1e5
         self.analysis_fct = seq_figs.visual_flow_rel_resp_sess123
         self.plot_fct = plot_figs.plot_visual_flow_rel_resp_sess123
-        self.warnings.append(stats_plot_fct())
+        self.warnings.append(stats_plot_fct_warning())
 
 
     def rel_resp_stimulus_comp_sess1v3(self):
@@ -778,11 +879,12 @@ class FigurePanelAnalysis():
             stimtype="both",
             pre=[0, 2],
             post=[0.6, 2],
+            scale=False,
         ) 
         self.n_perms_full = 1e5
         self.analysis_fct = seq_figs.rel_resp_stimulus_comp_sess1v3
         self.plot_fct = plot_figs.plot_rel_resp_stimulus_comp_sess1v3
-        self.warnings.append(stats_plot_fct())
+        self.warnings.append(stats_plot_fct_warning())
 
 
     def visual_flow_tracked_roi_usis_sess123(self):
@@ -791,23 +893,25 @@ class FigurePanelAnalysis():
             stimtype="bricks",
             pre=2,
             post=2,
+            tracked=True,
         )
-        self.n_perms_full = 1e5
+        self.n_perms_full = [1e4, 1e5]
         self.analysis_fct = usi_figs.visual_flow_tracked_roi_usis_sess123
         self.plot_fct = plot_figs.plot_visual_flow_tracked_roi_usis_sess123
         
 
-    def visual_flow_tracked_roi_usi_means_sess123_by_mouse(self):
+    def visual_flow_tracked_roi_abs_usi_means_sess123_by_mouse(self):
         self.description = ("Absolute means of tracked ROI visual flow USIs "
             "across sessions.")
         self.specific_params = get_specific_params(
             stimtype="bricks",
             pre=2,
             post=2,
+            tracked=True,
         )
-        self.n_perms_full = 1e5
-        self.analysis_fct = usi_figs.visual_flow_tracked_roi_usi_means_sess123_by_mouse
-        self.plot_fct = plot_figs.plot_visual_flow_tracked_roi_usi_means_sess123_by_mouse
+        self.n_perms_full = [1e4, 1e5]
+        self.analysis_fct = usi_figs.visual_flow_tracked_roi_abs_usi_means_sess123_by_mouse
+        self.plot_fct = plot_figs.plot_visual_flow_tracked_roi_abs_usi_means_sess123_by_mouse
         
 
     def tracked_roi_usis_stimulus_comp_sess1v3(self):
@@ -817,8 +921,9 @@ class FigurePanelAnalysis():
             stimtype="both",
             pre=[0, 2],
             post=[0.6, 2],
+            tracked=True,
         ) 
-        self.n_perms_full = 1e5
+        self.n_perms_full = [1e4, 1e5]
         self.analysis_fct = usi_figs.tracked_roi_usis_stimulus_comp_sess1v3
         self.plot_fct = plot_figs.plot_tracked_roi_usis_stimulus_comp_sess1v3
         
@@ -831,7 +936,7 @@ class FigurePanelAnalysis():
             pre=2,
             post=2,
         )
-        self.n_perms_full = 1e5
+        self.n_perms_full = [1e4, 1e5]
         self.analysis_fct = corr_figs.visual_flow_norm_res_corrs_sess123_comps
         self.plot_fct = plot_figs.plot_visual_flow_norm_res_corrs_sess123_comps
         
@@ -845,7 +950,7 @@ class FigurePanelAnalysis():
         self.analysis_fct = tracking_figs.dendritic_roi_tracking_example
         self.plot_fct = plot_figs.plot_dendritic_roi_tracking_example
         self.warnings.append(
-            partial_plot_fct(
+            partial_plot_fct_warning(
                 message=("Only overlays will be generated, without "
                          "additional manual formatting.")
             )
@@ -860,7 +965,7 @@ class FigurePanelAnalysis():
         self.analysis_fct = tracking_figs.somatic_roi_tracking_example
         self.plot_fct = plot_figs.plot_somatic_roi_tracking_example
         self.warnings.append(
-            partial_plot_fct(
+            partial_plot_fct_warning(
                 message=("Only overlays will be generated, without "
                          "additional manual formatting.")
             )
@@ -898,10 +1003,11 @@ class FigurePanelAnalysis():
                     "B": self.gabor_sequence_diffs_sess123,
                     "C": self.gabor_rel_resp_sess123,
                     "D": self.gabor_tracked_roi_usis_sess123,
-                    "E": self.gabor_tracked_roi_usi_means_sess123,
+                    "E": self.gabor_tracked_roi_abs_usi_means_sess123,
                     },
                 "4": {
-                    "A": self.gabor_decoding_sess123,
+                    "A_left": self.gabor_Dori_decoding_sess123,
+                    "A_right": self.gabor_Uori_decoding_sess123,
                     "B": self.gabor_norm_res_corr_example,
                     "C": self.gabor_norm_res_corrs_sess123_comps,
                     "D": self.model_illustration,
@@ -922,7 +1028,7 @@ class FigurePanelAnalysis():
                 "S4": {
                     "A": self.gabor_roi_usi_sig_by_mouse,
                     "B": self.gabor_rel_resp_tracked_rois_sess123,
-                    "C": self.gabor_tracked_roi_means_sess123_by_mouse,
+                    "C": self.gabor_tracked_roi_abs_usi_means_sess123_by_mouse,
                     },
                 "S5": {
                     "A": self.visual_flow_stimulus,
@@ -933,7 +1039,7 @@ class FigurePanelAnalysis():
                     "A": self.visual_flow_rel_resp_sess123,
                     "B": self.rel_resp_stimulus_comp_sess1v3,
                     "C": self.visual_flow_tracked_roi_usis_sess123,
-                    "D": self.visual_flow_tracked_roi_usi_means_sess123_by_mouse,
+                    "D": self.visual_flow_tracked_roi_abs_usi_means_sess123_by_mouse,
                     "E": self.tracked_roi_usis_stimulus_comp_sess1v3,
                     "F": self.visual_flow_norm_res_corrs_sess123_comps,
                     },

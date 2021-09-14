@@ -325,10 +325,10 @@ def plot_gabor_roi_usi_sig(analyspar, sesspar, stimpar, basepar, permpar,
                 percent pos. ROIs 
             - perc_pos_idxs_null_CIs (list): adjusted null CI for percent pos. 
                 ROIs
-            - perc_pos_idxs_raw_p_vals (num): unadjusted p-value for percent 
+            - perc_pos_idxs_raw_p_vals (num): uncorrected p-value for percent 
                 pos. ROIs
             - perc_pos_idxs_p_vals (num): p-value for percent pos. ROIs, 
-                adjusted for multiple comparisons and tails
+                corrected for multiple comparisons and tails
 
             for sig in ["lo", "hi"]: for low vs high ROI indices
             - perc_sig_{sig}_idxs (num): percent significant ROIs (0-100)
@@ -337,10 +337,10 @@ def plot_gabor_roi_usi_sig(analyspar, sesspar, stimpar, basepar, permpar,
             - perc_sig_{sig}_idxs_CIs (list): adjusted CI for percent sig. ROIs 
             - perc_sig_{sig}_idxs_null_CIs (list): adjusted null CI for percent 
                 sig. ROIs
-            - perc_sig_{sig}_idxs_raw_p_vals (num): unadjusted p-value for 
+            - perc_sig_{sig}_idxs_raw_p_vals (num): uncorrected p-value for 
                 percent sig. ROIs
             - perc_sig_{sig}_idxs_p_vals (num): p-value for percent sig. 
-                ROIs, adjusted for multiple comparisons and tails
+                ROIs, corrected for multiple comparisons and tails
 
         - figpar (dict): 
             dictionary containing the following figure parameter dictionaries
@@ -467,14 +467,14 @@ def plot_gabor_sequences_sess123(analyspar, sesspar, stimpar, basepar,
     Returns figure name and save directory path.
     
     Required args:
-        - analyspar (AnalysPar): 
-            named tuple containing analysis parameters
-        - sesspar (SessPar): 
-            named tuple containing session parameters
-        - stimpar (StimPar): 
-            named tuple containing stimulus parameters
-        - basepar (BasePar): 
-            named tuple containing baseline parameters
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - basepar (dict): 
+            dictionary with keys of BasePar namedtuple
         - extrapar (dict): 
             dictionary containing additional analysis parameters
             ["seed"] (int): seed
@@ -539,14 +539,14 @@ def plot_gabor_sequence_diffs_sess123(analyspar, sesspar, stimpar, basepar,
     Returns figure name and save directory path.
     
     Required args:
-        - analyspar (AnalysPar): 
-            named tuple containing analysis parameters
-        - sesspar (SessPar): 
-            named tuple containing session parameters
-        - stimpar (StimPar): 
-            named tuple containing stimulus parameters
-        - basepar (BasePar): 
-            named tuple containing baseline parameters
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - basepar (dict): 
+            dictionary with keys of BasePar namedtuple
         - extrapar (dict): 
             dictionary containing additional analysis parameters
             ["seed"] (int): seed
@@ -555,15 +555,15 @@ def plot_gabor_sequence_diffs_sess123(analyspar, sesspar, stimpar, basepar,
             columns, in addition to the basic sess_df columns: 
             - diff_stats (list): split difference stats (me, err)
             - null_CIs (list): adjusted null CI for split differences
-            - raw_p_vals (float): unadjusted p-value for differences within 
+            - raw_p_vals (float): uncorrected p-value for differences within 
                 sessions
             - p_vals (float): p-value for differences within sessions, 
-                adjusted for multiple comparisons and tails
+                corrected for multiple comparisons and tails
             for session comparisons, e.g. 1v2:
-            - raw_p_vals_{}v{} (float): unadjusted p-value for differences
+            - raw_p_vals_{}v{} (float): uncorrected p-value for differences
                 between sessions 
             - p_vals_{}v{} (float): p-value for differences between sessions, 
-                adjusted for multiple comparisons and tails
+                corrected for multiple comparisons and tails
 
         - figpar (dict): 
             dictionary containing the following figure parameter dictionaries
@@ -581,7 +581,7 @@ def plot_gabor_sequence_diffs_sess123(analyspar, sesspar, stimpar, basepar,
     
     diffs_df = pd.DataFrame.from_dict(diffs_df)
 
-    ax = seq_plots.plot_sess_diffs(
+    ax = seq_plots.plot_sess_data(
         diffs_df, 
         analyspar=analyspar, 
         sesspar=sesspar, 
@@ -604,16 +604,67 @@ def plot_gabor_sequence_diffs_sess123(analyspar, sesspar, stimpar, basepar,
 
 
 #############################################
-def plot_gabor_rel_resp_sess123(figpar, **kwargs):
+def plot_gabor_rel_resp_sess123(analyspar, sesspar, stimpar, permpar, extrapar, 
+                                rel_resp_df, figpar):
     """
-    """
+    plot_gabor_rel_resp_sess123(analyspar, sesspar, stimpar, permpar, extrapar, 
+                                rel_resp_df, figpar)
 
-    title = ""
+    From dictionaries, plots regular and unexpected Gabor responses, relative 
+    to session 1. 
     
-    # df = pd.DataFrame.from_dict(df)
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - permpar (dict): 
+            dictionary with keys of PermPar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+            ["seed"] (int): seed
+        - rel_resp_df (pd.DataFrame):
+            dataframe with one row per session/line/plane, and the following 
+            columns, in addition to the basic sess_df columns: 
+            - rel_reg (list): data stats for regular data (me, err)
+            - rel_unexp (list): data stats for unexpected data (me, err)
+            for reg/exp/unexp data types, session comparisons, e.g. 1v2:
+            - {data_type}_raw_p_vals_{}v{} (float): uncorrected p-value for 
+                data differences between sessions 
+            - {data_type}_p_vals_{}v{} (float): p-value for data between 
+                sessions, corrected for multiple comparisons and tails
 
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
 
-    fig = None
+    Returns:
+        - fulldir (Path): final path of the directory in which the figure 
+                          is saved
+        - savename (str): name under which the figure is saved
+    """
+
+    title = "Gabor ABC vs UG, relative to session 1"
+    
+    rel_resp_df = pd.DataFrame.from_dict(rel_resp_df)
+
+    ax = seq_plots.plot_rel_resp_data(
+        rel_resp_df, 
+        analyspar=analyspar, 
+        sesspar=sesspar, 
+        stimpar=stimpar, 
+        permpar=permpar, 
+        figpar=figpar, 
+        title=title, 
+        wide=True
+        )
+    fig = ax.reshape(-1)[0].figure
     
     savedir, savename = helper_fcts.get_save_path(
         figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
@@ -650,7 +701,7 @@ def plot_gabor_tracked_roi_usis_sess123(figpar, **kwargs):
 
 
 #############################################
-def plot_gabor_tracked_roi_usi_means_sess123(figpar, **kwargs):
+def plot_gabor_tracked_roi_abs_usi_means_sess123(figpar, **kwargs):
     """
     """
  
@@ -673,17 +724,134 @@ def plot_gabor_tracked_roi_usi_means_sess123(figpar, **kwargs):
 
 
 #############################################
-def plot_gabor_decoding_sess123(figpar, **kwargs):
+def plot_gabor_Dori_decoding_sess123(analyspar, sesspar, stimpar, logregpar, 
+                                     permpar, extrapar, scores_df, figpar):
     """
+    plot_gabor_Dori_decoding_sess123(analyspar, sesspar, stimpar, logregpar, 
+                                     permpar, extrapar, scores_df, figpar)
+
+    From dictionaries, plots Gabor D orientation decoding scores across 
+    sessions. 
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - logregpar (dict): 
+            dictionary with keys of LogRegPar namedtuple
+        - permpar (dict): 
+            dictionary with keys of PermPar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+            ["seed"] (int): seed
+        - scores_df (pd.DataFrame):
+            dataframe with logistic regression score statistics, shuffled score 
+            confidence intervals, and test set p-values for each 
+            line/plane/session, in addition to the basic sess_df columns
+
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+
+    Returns:
+        - fulldir (Path): final path of the directory in which the figure 
+                          is saved
+        - savename (str): name under which the figure is saved
     """
  
-    title = ""
-    
-    # df = pd.DataFrame.from_dict(df)
+    comp_str = logregpar["comp"].replace("ori", " orientation")
+    title = f"{comp_str} decoding (test set)"
+
+    scores_df = pd.DataFrame.from_dict(scores_df)
+
+    ax = misc_plots.plot_decoder_data(
+        scores_df, 
+        analyspar=analyspar, 
+        sesspar=sesspar, 
+        permpar=permpar, 
+        figpar=figpar, 
+        title=title,
+    )
+
+    fig = ax.reshape(-1)[0].figure
+
+    savedir, savename = helper_fcts.get_save_path(
+        figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
+    )
+
+    fulldir = plot_util.savefig(
+        fig, savename, savedir, log_dir=True, **figpar["save"]
+    )
+
+    return fulldir, savename
 
 
-    fig = None
+#############################################
+def plot_gabor_Uori_decoding_sess123(analyspar, sesspar, stimpar, logregpar, 
+                                     permpar, extrapar, scores_df, figpar):
+    """
+    plot_gabor_Uori_decoding_sess123(analyspar, sesspar, stimpar, logregpar, 
+                                     permpar, extrapar, scores_df, figpar)
+
+    From dictionaries, plots Gabor U orientation decoding scores across 
+    sessions. 
     
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - logregpar (dict): 
+            dictionary with keys of LogRegPar namedtuple
+        - permpar (dict): 
+            dictionary with keys of PermPar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+            ["seed"] (int): seed
+        - scores_dfs (pd.DataFrame):
+            dataframe with logistic regression score statistics, shuffled score 
+            confidence intervals, and test set p-values for each 
+            line/plane/session, in addition to the basic sess_df columns
+
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+
+    Returns:
+        - fulldir (Path): final path of the directory in which the figure 
+                          is saved
+        - savename (str): name under which the figure is saved
+    """
+ 
+    comp_str = logregpar["comp"].replace("ori", " orientation")
+    title = f"{comp_str} decoding (test set)"
+
+    scores_df = pd.DataFrame.from_dict(scores_df)
+
+    ax = misc_plots.plot_decoder_data(
+        scores_df, 
+        analyspar=analyspar, 
+        sesspar=sesspar, 
+        permpar=permpar, 
+        figpar=figpar, 
+        title=title,
+    )
+
+    fig = ax.reshape(-1)[0].figure
+
     savedir, savename = helper_fcts.get_save_path(
         figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
     )
@@ -797,7 +965,7 @@ def plot_snrs_sess123(analyspar, sesspar, extrapar, snr_df, figpar):
             name under which the figure is saved
     """
 
-    title = "ROI SNR"
+    title = "ROI SNRs"
     snr_df = pd.DataFrame.from_dict(snr_df)
     ax = misc_plots.plot_snr_sigmeans_nrois(
         snr_df, figpar, datatype="snrs", title=title
@@ -848,7 +1016,7 @@ def plot_mean_signal_sess123(analyspar, sesspar, extrapar, sig_mean_df, figpar):
             name under which the figure is saved
     """
 
-    title = "Mean ROI signal"
+    title = "Mean ROI signals"
     sig_mean_df = pd.DataFrame.from_dict(sig_mean_df)
     ax = misc_plots.plot_snr_sigmeans_nrois(
         sig_mean_df, figpar, datatype="signal_means", title=title
@@ -929,14 +1097,14 @@ def plot_stimulus_onset_sess123(analyspar, sesspar, stimpar, basepar, extrapar,
     Returns figure name and save directory path.
     
     Required args:
-        - analyspar (AnalysPar): 
-            named tuple containing analysis parameters
-        - sesspar (SessPar): 
-            named tuple containing session parameters
-        - stimpar (StimPar): 
-            named tuple containing stimulus parameters
-        - basepar (BasePar): 
-            named tuple containing baseline parameters
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - basepar (dict): 
+            dictionary with keys of BasePar namedtuple
         - extrapar (dict): 
             dictionary containing additional analysis parameters
             ["seed"] (int): seed
@@ -1002,14 +1170,14 @@ def plot_gabor_ex_roi_responses_sess1(analyspar, sesspar, stimpar, basepar,
     Returns figure name and save directory path.
     
     Required args:
-        - analyspar (AnalysPar): 
-            named tuple containing analysis parameters
-        - sesspar (SessPar): 
-            named tuple containing session parameters
-        - stimpar (StimPar): 
-            named tuple containing stimulus parameters
-        - basepar (BasePar): 
-            named tuple containing baseline parameters
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - basepar (dict): 
+            dictionary with keys of BasePar namedtuple
         - extrapar (dict): 
             dictionary containing additional analysis parameters
             ["seed"] (int): seed
@@ -1040,7 +1208,7 @@ def plot_gabor_ex_roi_responses_sess1(analyspar, sesspar, stimpar, basepar,
         ex_traces_df, 
         stimpar=stimpar, 
         figpar=figpar, 
-        title=title
+        title=title,
         )
     fig = ax.reshape(-1)[0].figure
     
@@ -1064,17 +1232,21 @@ def plot_gabor_roi_usi_sig_by_mouse(analyspar, sesspar, stimpar, basepar,
                                     permpar, idxpar, extrapar, perc_sig_df, 
                                     figpar)
 
+    From dictionaries, plots percentage significant Gabor USIs per mouse. 
+    
+    Returns figure name and save directory path.
+
     Required args:
-        - analyspar (AnalysPar): 
-            named tuple containing analysis parameters
-        - sesspar (SessPar): 
-            named tuple containing session parameters
-        - stimpar (StimPar): 
-            named tuple containing stimulus parameters
-        - basepar (BasePar): 
-            named tuple containing baseline parameters
-        - permpar (PermPar): 
-            named tuple containing permutation parameters
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - basepar (dict): 
+            dictionary with keys of BasePar namedtuple
+        - permpar (dict): 
+            dictionary with keys of PermPar namedtuple
         - idxpar (dict): 
             dictionary with keys of IdxPar namedtuple
         - extrapar (dict): 
@@ -1094,10 +1266,10 @@ def plot_gabor_roi_usi_sig_by_mouse(analyspar, sesspar, stimpar, basepar,
                 percent pos. ROIs 
             - perc_pos_idxs_null_CIs (list): adjusted null CI for percent pos. 
                 ROIs
-            - perc_pos_idxs_raw_p_vals (num): unadjusted p-value for percent 
+            - perc_pos_idxs_raw_p_vals (num): uncorrected p-value for percent 
                 pos. ROIs
             - perc_pos_idxs_p_vals (num): p-value for percent pos. ROIs, 
-                adjusted for multiple comparisons and tails
+                corrected for multiple comparisons and tails
 
             for sig in ["lo", "hi"]: for low vs high ROI indices
             - perc_sig_{sig}_idxs (num): percent significant ROIs (0-100)
@@ -1106,10 +1278,10 @@ def plot_gabor_roi_usi_sig_by_mouse(analyspar, sesspar, stimpar, basepar,
             - perc_sig_{sig}_idxs_CIs (list): adjusted CI for percent sig. ROIs 
             - perc_sig_{sig}_idxs_null_CIs (list): adjusted null CI for percent 
                 sig. ROIs
-            - perc_sig_{sig}_idxs_raw_p_vals (num): unadjusted p-value for 
+            - perc_sig_{sig}_idxs_raw_p_vals (num): uncorrected p-value for 
                 percent sig. ROIs
             - perc_sig_{sig}_idxs_p_vals (num): p-value for percent sig. 
-                ROIs, adjusted for multiple comparisons and tails
+                ROIs, corrected for multiple comparisons and tails
 
         - figpar (dict): 
             dictionary containing the following figure parameter dictionaries
@@ -1150,16 +1322,69 @@ def plot_gabor_roi_usi_sig_by_mouse(analyspar, sesspar, stimpar, basepar,
 
 
 #############################################
-def plot_gabor_rel_resp_tracked_rois_sess123(figpar, **kwargs):
+def plot_gabor_rel_resp_tracked_rois_sess123(analyspar, sesspar, stimpar, 
+                                             permpar, extrapar, rel_resp_df, 
+                                             figpar):
     """
-    """
- 
-    title = ""
+    plot_gabor_rel_resp_tracked_rois_sess123(analyspar, sesspar, stimpar, 
+                                             permpar, extrapar, rel_resp_df, 
+                                             figpar)
+
+    From dictionaries, plots regular and unexpected Gabor responses, relative 
+    to session 1, for tracked ROIs. 
     
-    # df = pd.DataFrame.from_dict(df)
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - permpar (dict): 
+            dictionary with keys of PermPar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+            ["seed"] (int): seed
+        - rel_resp_df (pd.DataFrame):
+            dataframe with one row per session/line/plane, and the following 
+            columns, in addition to the basic sess_df columns: 
+            - rel_reg (list): data stats for regular data (me, err)
+            - rel_unexp (list): data stats for unexpected data (me, err)
+            for reg/exp/unexp data types, session comparisons, e.g. 1v2:
+            - {data_type}_raw_p_vals_{}v{} (float): uncorrected p-value for 
+                data differences between sessions 
+            - {data_type}_p_vals_{}v{} (float): p-value for data between 
+                sessions, corrected for multiple comparisons and tails
 
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
 
-    fig = None
+    Returns:
+        - fulldir (Path): final path of the directory in which the figure 
+                          is saved
+        - savename (str): name under which the figure is saved
+    """
+
+    title = "Gabor ABC vs UG, relative to session 1\n(tracked ROIs)"
+    
+    rel_resp_df = pd.DataFrame.from_dict(rel_resp_df)
+
+    ax = seq_plots.plot_rel_resp_data(
+        rel_resp_df, 
+        analyspar=analyspar, 
+        sesspar=sesspar, 
+        stimpar=stimpar, 
+        permpar=permpar, 
+        figpar=figpar, 
+        title=title, 
+        wide=False
+        )
+    fig = ax.reshape(-1)[0].figure
     
     savedir, savename = helper_fcts.get_save_path(
         figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
@@ -1173,7 +1398,7 @@ def plot_gabor_rel_resp_tracked_rois_sess123(figpar, **kwargs):
 
 
 #############################################
-def plot_gabor_tracked_roi_means_sess123_by_mouse(figpar, **kwargs):
+def plot_gabor_tracked_roi_abs_usi_means_sess123_by_mouse(figpar, **kwargs):
     """
     """
  
@@ -1207,14 +1432,14 @@ def plot_visual_flow_sequences_sess123(analyspar, sesspar, stimpar, basepar,
     Returns figure name and save directory path.
     
     Required args:
-        - analyspar (AnalysPar): 
-            named tuple containing analysis parameters
-        - sesspar (SessPar): 
-            named tuple containing session parameters
-        - stimpar (StimPar): 
-            named tuple containing stimulus parameters
-        - basepar (BasePar): 
-            named tuple containing baseline parameters
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - basepar (dict): 
+            dictionary with keys of BasePar namedtuple
         - extrapar (dict): 
             dictionary containing additional analysis parameters
             ["seed"] (int): seed
@@ -1279,14 +1504,14 @@ def plot_visual_flow_diffs_sess123(analyspar, sesspar, stimpar, basepar,
     Returns figure name and save directory path.
     
     Required args:
-        - analyspar (AnalysPar): 
-            named tuple containing analysis parameters
-        - sesspar (SessPar): 
-            named tuple containing session parameters
-        - stimpar (StimPar): 
-            named tuple containing stimulus parameters
-        - basepar (BasePar): 
-            named tuple containing baseline parameters
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - basepar (dict): 
+            dictionary with keys of BasePar namedtuple
         - extrapar (dict): 
             dictionary containing additional analysis parameters
             ["seed"] (int): seed
@@ -1295,15 +1520,15 @@ def plot_visual_flow_diffs_sess123(analyspar, sesspar, stimpar, basepar,
             columns, in addition to the basic sess_df columns: 
             - diff_stats (list): split difference stats (me, err)
             - null_CIs (list): adjusted null CI for split differences
-            - raw_p_vals (float): unadjusted p-value for differences within 
+            - raw_p_vals (float): uncorrected p-value for differences within 
                 sessions
             - p_vals (float): p-value for differences within sessions, 
-                adjusted for multiple comparisons and tails
+                corrected for multiple comparisons and tails
             for session comparisons, e.g. 1v2:
-            - raw_p_vals_{}v{} (float): unadjusted p-value for differences
+            - raw_p_vals_{}v{} (float): uncorrected p-value for differences
                 between sessions 
             - p_vals_{}v{} (float): p-value for differences between sessions, 
-                adjusted for multiple comparisons and tails
+                corrected for multiple comparisons and tails
 
         - figpar (dict): 
             dictionary containing the following figure parameter dictionaries
@@ -1321,14 +1546,14 @@ def plot_visual_flow_diffs_sess123(analyspar, sesspar, stimpar, basepar,
     
     diffs_df = pd.DataFrame.from_dict(diffs_df)
 
-    ax = seq_plots.plot_sess_diffs(
+    ax = seq_plots.plot_sess_data(
         diffs_df, 
         analyspar=analyspar, 
         sesspar=sesspar, 
         permpar=permpar, 
         figpar=figpar, 
         title=title, 
-        wide=True
+        wide=False
         )
     fig = ax.reshape(-1)[0].figure
     
@@ -1344,16 +1569,68 @@ def plot_visual_flow_diffs_sess123(analyspar, sesspar, stimpar, basepar,
 
 
 #############################################
-def plot_visual_flow_rel_resp_sess123(figpar, **kwargs):
+def plot_visual_flow_rel_resp_sess123(analyspar, sesspar, stimpar, permpar, 
+                                      extrapar, rel_resp_df, figpar):
     """
+    plot_visual_flow_rel_resp_sess123(analyspar, sesspar, stimpar, permpar, 
+                                      extrapar, rel_resp_df, figpar)
+
+    From dictionaries, plots expected and unexpected visual flow responses, 
+    relative to session 1. 
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - permpar (dict): 
+            dictionary with keys of PermPar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+            ["seed"] (int): seed
+        - rel_resp_df (pd.DataFrame):
+            dataframe with one row per session/line/plane, and the following 
+            columns, in addition to the basic sess_df columns: 
+            - rel_exp (list): data stats for expected data (me, err)
+            - rel_unexp (list): data stats for unexpected data (me, err)
+            for reg/exp/unexp data types, session comparisons, e.g. 1v2:
+            - {data_type}_raw_p_vals_{}v{} (float): uncorrected p-value for 
+                data differences between sessions 
+            - {data_type}_p_vals_{}v{} (float): p-value for data between 
+                sessions, corrected for multiple comparisons and tails
+
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+
+    Returns:
+        - fulldir (Path): final path of the directory in which the figure 
+                          is saved
+        - savename (str): name under which the figure is saved
+
     """
  
-    title = ""
+    title = "Expected vs unexpected visual flow, relative to session 1"
     
-    # df = pd.DataFrame.from_dict(df)
+    rel_resp_df = pd.DataFrame.from_dict(rel_resp_df)
 
-
-    fig = None
+    ax = seq_plots.plot_rel_resp_data(
+        rel_resp_df, 
+        analyspar=analyspar, 
+        sesspar=sesspar, 
+        stimpar=stimpar, 
+        permpar=permpar, 
+        figpar=figpar, 
+        title=title, 
+        wide=True
+        )
+    fig = ax.reshape(-1)[0].figure
     
     savedir, savename = helper_fcts.get_save_path(
         figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
@@ -1413,7 +1690,7 @@ def plot_visual_flow_tracked_roi_usis_sess123(figpar, **kwargs):
 
     
 #############################################
-def plot_visual_flow_tracked_roi_usi_means_sess123_by_mouse(figpar, **kwargs):
+def plot_visual_flow_tracked_roi_abs_usi_means_sess123_by_mouse(figpar, **kwargs):
     """
     """
  

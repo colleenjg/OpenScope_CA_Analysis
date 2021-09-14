@@ -45,7 +45,7 @@ ANALYSIS_DESCR = {
     "r": "traces locked to surprise and to regular",
     "b": "traces locked to stimulus onset and to stimulus offset",
     "i": "surprise selectivity indices",
-    "m": "surprise selectivity indices with matching orientations",
+    "m": "surprise selectivity indices with common orientations",
     "d": "direction selectivity indices",
     "c": "surprise seletivity index colormaps across stimulus parameters",
     "g": "progression of surprise and regular responses",
@@ -391,13 +391,14 @@ def init_mouse_sess(mouse_n, all_sess_ns, sesspar, mouse_df, datadir,
         if len(sessid) == 0:
             sess = [None]
         elif len(sessid) > 1:
-            raise ValueError("Unexpected error. Should not give more "
-                "than 1 session.")
+            raise RuntimeError(
+                "Expected no more than 1 session per mouse/session number."
+                )
         else:
             sess = sess_gen_util.init_sessions(
                 sessid[0], datadir, mouse_df, sesspar.runtype, fulldict=False, 
                 fluor=fluor, dend=dend, omit=roi, roi=roi, run=run, 
-                pupil=pupil)
+                pupil=pupil, temp_log="warning")
             if len(sess) == 0:
                 sess = [None]
         mouse_sesses.append(sess[0])
@@ -458,14 +459,21 @@ def prep_analyses(sess_n, args, mouse_df, parallel=False):
 
     # get session IDs and create Sessions
     all_mouse_ns = sorted(set(all_mouse_ns))
+
+    logger.info(
+        f"Loading sessions for {len(all_mouse_ns)} mice...", 
+        extra={"spacing": "\n"}
+        )
     args_list = [all_sess_ns, sesspar, mouse_df, args.datadir, args.omit_sess, 
         analyspar.fluor, analyspar.dend, roi, run]
     sessions = gen_util.parallel_wrap(
-        init_mouse_sess, all_mouse_ns, args_list=args_list, parallel=parallel)
+        init_mouse_sess, all_mouse_ns, args_list=args_list, parallel=parallel, 
+        use_tqdm=True
+        )
 
     check_all = set([sess for m_sess in sessions for sess in m_sess])
     if len(sessions) == 0 or check_all == {None}:
-        raise ValueError("No sessions meet the criteria.")
+        raise RuntimeError("No sessions meet the criteria.")
 
     runtype_str = ""
     if sesspar.runtype != "prod":
@@ -519,8 +527,8 @@ def get_analysis_fcts():
     # 6. Plots surprise indices across sessions
     fct_dict["i"] = [acr_sess_analys.run_surp_idx, ["roi", "run"]]
 
-    # 7. Plots surprise indices across sessions with matching orientations
-    fct_dict["m"] = [acr_sess_analys.run_surp_idx_match_oris, ["roi", "run"]]
+    # 7. Plots surprise indices across sessions with common orientations
+    fct_dict["m"] = [acr_sess_analys.run_surp_idx_common_oris, ["roi", "run"]]
 
     # 8. Plots direction indices across sessions
     fct_dict["d"] = [acr_sess_analys.run_direction_idx, ["roi", "run"]]

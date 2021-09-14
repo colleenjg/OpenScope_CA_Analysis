@@ -131,13 +131,11 @@ def quint_segs(stim, stimpar, n_quints=4, qu_idx="all", surp="any",
     try:
         all_segs = stim.get_segs_by_criteria(gabk=stimpar.gabk, 
             bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, by="seg")
-                        
-    except ValueError as err:
-        if empty_ok:
+    except RuntimeError as err:
+        if empty_ok and "fit these criteria" in str(err):
             all_segs = []
         else:
             raise err
-
     # get seg ranges for each quintile [[start, end], [start, end], etc.] 
     qu_segs = []
     qu_counts = []
@@ -159,11 +157,11 @@ def quint_segs(stim, stimpar, n_quints=4, qu_idx="all", surp="any",
             gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
             bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size,
             surp=surp, by="seg", remconsec=remconsec)
-    except ValueError as err:
-        if empty_ok:
+    except RuntimeError as err:
+        if empty_ok and  "fit these criteria" in str(err):
             all_segs = []
         else:
-            raise err                                         
+            raise err                                     
     
     if by_surp_len:
         all_segs, n_consec = gen_util.consec(all_segs)
@@ -219,8 +217,9 @@ def samp_quint_segs(qu_segs, seg_pre=0, seg_post=0):
     qu_segs_flat = [seg for segs in qu_segs for seg in segs]
 
     if min(np.diff(qu_segs_flat)) not in [1, 4]:
-        raise ValueError("No consecutive segments (1 or 4 interval) found in "
-                         " qu_segs.")
+        raise ValueError(
+            "No consecutive segments (1 or 4 interval) found in qu_segs."
+            )
 
     all_segs, n_consec = gen_util.consec(qu_segs_flat, smallest=True)
 
@@ -301,7 +300,12 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
                                         (ROIs x) sequences 
                                         (x frames if not integ)
     """
-  
+    
+    if datatype == "roi" and (stim.sess.only_matched_rois != analyspar.tracked):
+        raise RuntimeError(
+            "stim.sess.only_matched_rois should match analyspar.tracked."
+            )
+
     qu_stats, qu_array = [], []
     xran = None
     for segs in qu_segs:
@@ -329,7 +333,7 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
                     gen_util.accepted_values_error(
                         "datatype", datatype, ["roi", "run"])
                 break # break out of for loop if successful
-            except ValueError as err:
+            except RuntimeError as err:
                 if nan_empty and "No frames" in str(err):
                     segs = [10]     # dummy segment to use
                     rep_nan = True # later, replace values with NaNs

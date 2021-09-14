@@ -21,11 +21,15 @@ logger = logging.getLogger(__name__)
 
 
 ############################################
-def pupil_run_responses():
+def pupil_run_responses(sessions):
+
+    print("NOT YET IMPLEMENTED")
     return
 
 
 ############################################
-def pupil_run_diffs():
+def pupil_run_diffs(sessions):
+
+    print("NOT YET IMPLEMENTED")
     return
 

@@ -98,7 +98,7 @@ def plot_from_dicts(direc, source="roi", plt_bkend=None, fontdir=None,
             dict_paths = [Path(dp).parent for dp in dict_paths]
 
         if len(dict_paths) == 0:
-            raise ValueError(f"No jsons found in {direc} at "
+            raise OSError(f"No jsons found in {direc} at "
                 f"depth {depth} with pattern '{pattern}'.")
     
     elif ".json" not in str(direc):

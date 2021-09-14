@@ -75,7 +75,7 @@ def pupil_run_responses():
 #             data = data * MM_PER_PIXEL
 #         if baseline:
 #             if stimtype == "bricks":
-#                 raise ValueError("Baseline not applied for bricks, as the data "
+#                 raise NotImplementedError("Baseline not applied for bricks, as the data "
 #                     "to baseline from is not available.")
 #             baseline_mean = np.nanmean(data[:, base_idx[0] : base_idx[1]], axis=1)
 #             data = data - baseline_mean.reshape(-1, 1)

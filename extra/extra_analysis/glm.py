@@ -433,7 +433,9 @@ def run_glms(sessions, analysis, seed, analyspar, sesspar, stimpar, glmpar,
     else:
         sessions = sess_batches[0]
 
-    sess_info = sess_gen_util.get_sess_info(sessions, analyspar.fluor)
+    sess_info = sess_gen_util.get_sess_info(
+        sessions, analyspar.fluor, remnans=analyspar.remnans
+        )
 
     extrapar = {"analysis": analysis,
                 "seed"    : seed,

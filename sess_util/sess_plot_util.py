@@ -242,7 +242,7 @@ def get_axislabels(fluor="dff", area=False, scale=False, datatype="roi",
     area_str = ""
     if area:
         area_str = " area"
-
+    
     scale_str = ""
     if scale:
         scale_str = " (scaled)"
@@ -555,7 +555,7 @@ def plot_gabfr_pattern(sub_ax, x_ran, alpha=0.1, offset=0, bars_omit=[],
 
 
 #############################################
-def get_gab_time_xticks(xran, lock=False):
+def get_gab_time_xticks(xran, lock=False, step=0.15):
     """
     get_gab_time_xticks(xran)
 
@@ -567,18 +567,20 @@ def get_gab_time_xticks(xran, lock=False):
     Optional args:
         - lock (bool): if True, xran is replicated in the negative
                        default: False
+        - step (num) : step size
+                       default: 0.15
     
     Returns:
         - xticks (list): x tick values
     """
-    step = 0.15
-    max_tick = int(np.ceil(np.max(xran)/step)) * step
+
+    max_tick = int(np.ceil(np.max(xran) / step)) * step
     if lock:
         min_tick = - max_tick
         if min_tick > max_tick:
             raise ValueError("If 'lock' is True, 'xran' should be positive.")
     else:
-        min_tick = int(np.min(xran)/step) * step
+        min_tick = int(np.min(xran) / step) * step
     if max_tick - min_tick == 0:
         n_ticks = 1
     else:
@@ -591,7 +593,7 @@ def get_gab_time_xticks(xran, lock=False):
         diff = np.min(np.diff(xticks))
         n_dig = - np.floor(np.log10(np.absolute(diff))).astype(int) + 1
         xticks = [np.around(v, n_dig) for v in xticks]
-    
+
     return xticks
 
 
@@ -657,7 +659,7 @@ def fig_init_linpla(figpar=None, kind="reg", n_sub=1, sharey=False,
         figpar = init_figpar()
 
     if "init" not in figpar.keys():
-        raise ValueError("figpar should have 'init' subdictionary.")
+        raise KeyError("figpar should have 'init' subdictionary.")
 
     if sharey in [False, "rows"]:
         wspace = 0.5
@@ -764,7 +766,7 @@ def adjust_linpla_y_axis_sharing(ax, kind="reg"):
     to_share = []
     if kind in ["traces", "idx"]:
         if n_rows % 2 != 0:
-            raise ValueError("Expected even number of rows")
+            raise RuntimeError("Expected even number of rows")
         row_per_grp = int(n_rows/2)
         if row_per_grp > 1:
             to_share = [[ax[i * row_per_grp + r, c] 
@@ -772,7 +774,7 @@ def adjust_linpla_y_axis_sharing(ax, kind="reg"):
                 for i in range(2) for c in range(2)]
     elif kind == "prog":
         if n_cols % 2 != 0:
-            raise ValueError("Expected even number of columns")
+            raise RuntimeError("Expected even number of columns")
         col_per_grp = int(n_cols/2)
         if col_per_grp > 1:
             to_share = [[ax[r, i * col_per_grp + c] 
@@ -816,33 +818,27 @@ def get_yticklabel_info(ax, kind="reg"):
 
     Returns:
         - add_yticks (list) : list of subplots that should have ytick labels
-        - move_ylabel (bool): if True, y axis label should be shifted over
     """
 
     # establish which subplots should have y tick labels
     axgrps = plot_util.get_shared_axes(ax, axis="y")
     if len(axgrps) == 4: # sharing by group
         add_idx = -1
-        move_ylabel = (np.min([len(grp) for grp in axgrps]) == 1)
         if kind == "prog":
             add_idx = 0
-            move_ylabel = True
         add_yticks = [axg[add_idx] for axg in axgrps]
 
     elif len(axgrps) == 0: # no sharing
         add_yticks = ax.reshape(-1)
-        move_ylabel = True
     elif len(axgrps) == 1: # all sharing
         add_yticks = ax[-1, 0:]
-        move_ylabel = False
     elif len(axgrps) == ax.shape[0]: # sharing by row
         add_yticks = ax[:, 0].reshape(-1)
-        move_ylabel = True
     else:
         raise NotImplementedError(f"Condition for {len(axgrps)} subplots in "
             "shared axis groups not implemented.")
 
-    return add_yticks, move_ylabel
+    return add_yticks
 
 
 #############################################
@@ -884,7 +880,7 @@ def add_linpla_axislabels(ax, fluor="dff", area=False, scale=False,
                              "idx" for surprise index plot per session (rows)
     """
 
-    add_yticks, move_ylabel = get_yticklabel_info(ax, kind=kind)
+    add_yticks = get_yticklabel_info(ax, kind=kind)
 
     # get axis labels if not already provided
     x_str, y_str = get_axislabels(fluor, area, scale, datatype, x_ax, y_ax)
@@ -892,7 +888,7 @@ def add_linpla_axislabels(ax, fluor="dff", area=False, scale=False,
     fig = ax.reshape(-1)[0].figure
     n_rows, n_cols = ax.shape
     if n_rows % 2 != 0 or n_cols % 2 != 0:
-        raise ValueError("Expected even number of rows and columns.")
+        raise RuntimeError("Expected even number of rows and columns.")
     row_per_grp = int(n_rows/2)
     col_per_grp = int(n_cols/2)
     
@@ -924,17 +920,11 @@ def add_linpla_axislabels(ax, fluor="dff", area=False, scale=False,
     if single_lab:
         add_y_pos = add_y_pos[:1] # top only
 
-    # move labels for long y axis labels
-    if (len(y_str) > 6 and kind in ["traces", "idx"] and 
-        (ax.size / len(add_yticks) < 5)):
-        move_ylabel = True
-
-    y_lab_xpos = 0.02 - 0.09 * (move_ylabel or not(single_lab))
-    if kind in ["traces", "idx"]:
-        y_lab_xpos = 0.03 - 0.05 * (move_ylabel or not(single_lab))
-    elif kind == "prog":
-        y_lab_xpos = 0.01 - 0.02 * (move_ylabel or not(single_lab))
-
+    ax[0, 0].set_ylabel(".", labelpad=5, color="white") # dummy label
+    fig.canvas.draw() # must draw to get axis extent
+    fig_transform = fig.transFigure.inverted().transform
+    y_lab_xpos = fig_transform(ax[0, 0].yaxis.label.get_window_extent())[0, 0]
+    
     for y_pos in add_y_pos:
         fig.text(y_lab_xpos, y_pos, y_str, rotation=90, fontsize="xx-large", 
             verticalalignment="center", weight="bold")
@@ -1000,12 +990,14 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind="reg",
     if kind == "reg":
         if xticks is not None:
             div = len(xticks)
-            pad_p = 1.0/div
+            pad_p = 1.0 / div
         if n_rows != 2 or n_cols != 2:
-            raise ValueError("Regular plots should have 2 rows and 2 columns.")
+            raise RuntimeError(
+                "Regular plots should have 2 rows and 2 columns."
+                )
     elif kind == "prog":
         if n_cols % 2 != 0:
-            raise ValueError("Expected even number of columns")
+            raise RuntimeError("Expected even number of columns")
         col_per_grp = int(n_cols/2)
     elif kind not in ["traces", "idx"]:
         gen_util.accepted_values_error("kind", kind, ["reg", "traces", "prog"])
@@ -1127,11 +1119,13 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
         fig_xpos = 0.9 # for plane names (x pos)
         n = 4
         if n_rows != 2 or n_cols != 2:
-            raise ValueError("Regular plots should have 2 rows and 2 columns.")
+            raise RuntimeError(
+                "Regular plots should have 2 rows and 2 columns."
+                )
     elif kind in ["traces", "idx"]:
         fig_xpos = 1.0 # for plane names (x pos)
         if n_rows % 2 != 0:
-            raise ValueError("Expected even number of rows")
+            raise RuntimeError("Expected even number of rows")
         row_per_grp = int(n_rows/2)
         col_per_grp = int(n_cols/2)
         n = 4
@@ -1139,7 +1133,7 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
         n = 3
         fig_xpos = 1.0 # for plane names (x pos)            
         if n_cols % 2 != 0:
-            raise ValueError("Expected even number of columns")
+            raise RuntimeError("Expected even number of columns")
         col_per_grp = int(n_cols/2)
     else:
         gen_util.accepted_values_error(
@@ -1163,7 +1157,7 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
         planes = ["dendrites", "somata"]
     for l, name in zip([lines, planes], ["lines", "planes"]):
         if len(l) != 2:
-            raise ValueError(f"2 {name} expected.")
+            raise RuntimeError(f"2 {name} expected.")
 
     fig = ax[0, 0].figure
 

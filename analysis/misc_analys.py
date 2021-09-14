@@ -11,6 +11,7 @@ Note: this code uses python 3.7.
 """
 
 import logging
+import warnings
 
 import numpy as np
 import scipy.stats as scist
@@ -23,16 +24,16 @@ logger = logging.getLogger(__name__)
 
 
 #############################################
-def get_sig_symbol(adj_p_val, ctrl=False, percentile=False, sensitivity=None, 
+def get_sig_symbol(corr_p_val, ctrl=False, percentile=False, sensitivity=None, 
                    side=1, tails=2):
     """
-    get_sig_symbol(adj_p_val)
+    get_sig_symbol(corr_p_val)
 
     Return significance symbol.
 
     Required args:
-        - adj_p_val (float): 
-            adjusted p-value (e.g., corrected for multiple comparisons and 
+        - corr_p_val (float): 
+            corrected p-value (e.g., corrected for multiple comparisons and 
             tails)
 
     Optional args:
@@ -40,7 +41,7 @@ def get_sig_symbol(adj_p_val, ctrl=False, percentile=False, sensitivity=None,
             if True, control symbol ("+") is used instead of "*"
             default: False
         - percentile (bool):
-            if True, adj_p_val is a percentile (0-100) instead of a 
+            if True, corr_p_val is a percentile (0-100) instead of a 
             p-value (0-1)
             default: False
         - sensitivity (float): 
@@ -61,25 +62,25 @@ def get_sig_symbol(adj_p_val, ctrl=False, percentile=False, sensitivity=None,
     """
     
     if percentile:
-        if adj_p_val > 50:
-            adj_p_val = 100 - adj_p_val
-        adj_p_val = adj_p_val / 100
+        if corr_p_val > 50:
+            corr_p_val = 100 - corr_p_val
+        corr_p_val = corr_p_val / 100
     
     # check if side matches tail
     if str(tails) != "2":
         if (tails == "hi" and side == -1) or (tails == "lo" and side == 1):
             return ""
 
-    # adjust for sensitivity
+    # corrected for sensitivity
     if sensitivity is not None:
-        adj_p_val = np.max([adj_p_val, sensitivity])
+        corr_p_val = np.max([corr_p_val, sensitivity])
 
     sig_symbol = ""
-    if adj_p_val < 0.001:
+    if corr_p_val < 0.001:
         sig_symbol = "***"
-    elif adj_p_val < 0.01:
+    elif corr_p_val < 0.01:
         sig_symbol = "**"
-    elif adj_p_val < 0.05:
+    elif corr_p_val < 0.05:
         sig_symbol = "*"
     if ctrl:
         sig_symbol = sig_symbol.replace("*", "+")
@@ -88,9 +89,9 @@ def get_sig_symbol(adj_p_val, ctrl=False, percentile=False, sensitivity=None,
 
 
 #############################################
-def get_adjusted_p_val(p_val, permpar):
+def get_corrected_p_val(p_val, permpar):
     """
-    get_adjusted_p_val(p_val, permpar)
+    get_corrected_p_val(p_val, permpar)
 
     Returns p-value, Bonferroni corrected for number of tails and multiple 
     comparisons.
@@ -102,8 +103,8 @@ def get_adjusted_p_val(p_val, permpar):
             named tuple containing permutation parameters
 
     Returns:
-        - adj_p_val (float): 
-            adjusted or corrected p-value
+        - corr_p_val (float): 
+            corrected p-value
     """
 
     if isinstance(permpar, dict):
@@ -113,22 +114,22 @@ def get_adjusted_p_val(p_val, permpar):
         raise ValueError("Raw p-value should not be greater than 0.5.")
 
     n_tails = 1 if permpar.tails in ["lo", "hi"] else int(permpar.tails)
-    adj_p_val = p_val * n_tails 
+    corr_p_val = p_val * n_tails 
     
     if permpar.multcomp:
-        adj_p_val *= permpar.multcomp
+        corr_p_val *= permpar.multcomp
 
-    adj_p_val = np.min([adj_p_val, 1])
+    corr_p_val = np.min([corr_p_val, 1])
 
-    return adj_p_val
+    return corr_p_val
 
 
 #############################################
-def add_adj_p_vals(df, permpar):
+def add_corr_p_vals(df, permpar):
     """
-    add_adj_p_vals(df, permpar)
+    add_corr_p_vals(df, permpar)
 
-    Returns dataframe with p-values, adjusted for tails and multiple 
+    Returns dataframe with p-values, corrected for tails and multiple 
     comparisons, are added. Original "p_vals" column names are returned as 
     "raw_p_vals" instead.
     
@@ -140,7 +141,7 @@ def add_adj_p_vals(df, permpar):
 
     Returns:
         - df (pd.DataFrame): 
-            dataframe with adjusted p-value columns added
+            dataframe with corrected p-value columns added
     """
 
     if isinstance(permpar, dict):
@@ -157,12 +158,14 @@ def add_adj_p_vals(df, permpar):
     new_col_names = {
         col: col.replace("p_vals", "raw_p_vals") for col in p_val_cols
         }
-    from util import math_util
     df = df.rename(columns=new_col_names)
 
-    for adj_p_val_col in p_val_cols:
-        raw_p_val_col = adj_p_val_col.replace("p_vals", "raw_p_vals")
-        df[adj_p_val_col] = get_adjusted_p_val(df[raw_p_val_col], permpar)
+    # define function with arguments for use with .map()
+    correct_p_val_fct = lambda x: get_corrected_p_val(x, permpar)
+
+    for corr_p_val_col in p_val_cols:
+        raw_p_val_col = corr_p_val_col.replace("p_vals", "raw_p_vals")
+        df[corr_p_val_col] = df[raw_p_val_col].map(correct_p_val_fct)
 
     return df
     
@@ -308,7 +311,87 @@ def get_check_sess_df(sessions, sess_df=None, analyspar=None, roi=True):
 
 
 #############################################
-def set_multcomp(permpar, sess_df, pairs=True, factor=1):
+def check_sessions_complete(sessions, raise_err=False):
+    """
+    check_sessions_complete(sessions)
+
+    Checks for mice for which session series are incomplete and removes them, 
+    raising a warning.
+
+    Required args:
+        - sessions (list):
+            Session objects
+
+    Optional args:
+        - raise_err (bool):
+            if True, an error is raised if any mouse has missing sessions.
+            default: False
+
+    Returns:
+        - sessions (list):
+            Session objects, with sessions belonging to incomplete series 
+            removed
+    """
+
+    mouse_ns = [sess.mouse_n for sess in sessions]
+    sess_ns = [sess.sess_n for sess in sessions]
+
+    unique_sess_ns = set(sess_ns)
+    unique_mouse_ns = set(mouse_ns)
+
+    remove_mouse = []
+    remove_idxs = []
+    for m in list(unique_mouse_ns):
+        mouse_idxs = [i for i, mouse_n in enumerate(mouse_ns) if mouse_n == m]
+        mouse_sess_ns = [sess_ns[i] for i in mouse_idxs]
+        if set(mouse_sess_ns) != unique_sess_ns:
+            remove_mouse.append(m)
+            remove_idxs.extend(mouse_idxs)
+    
+    if len(remove_idxs):
+        mice_str = ", ".join([str(m) for m in remove_mouse])
+        sessions = [
+            sess for i, sess in enumerate(sessions) if i not in remove_idxs
+            ]
+        message = f"missing sessions: {mice_str}"
+        if raise_err:
+            raise RuntimeError("The following mice have {}")
+        warnings.warn(f"Removing the following mice, as they have {message}", 
+            category=UserWarning)
+    
+    if len(sessions) == 0:
+        raise RuntimeError(
+            "All mice were removed, as all have missing sessions."
+            )
+
+    return sessions
+
+
+#############################################
+def aggreg_columns(source_df, targ_df, aggreg_cols, row_idx=0, 
+                   sort_by_sessid=True, in_place=False, by_mouse=False):
+
+    if not in_place:
+        targ_df = targ_df.copy(deep=True)
+
+    sort_order = None
+    if "sessids" in aggreg_cols:
+        sessids = source_df["sessids"].tolist()
+        sort_order = np.argsort(sessids)
+
+    for column in aggreg_cols:
+        values = source_df[column].tolist()
+        if by_mouse and len(values) == 1:
+            values = values[0]
+        elif sort_order is not None:
+            values = [values[v] for v in sort_order]
+        targ_df.at[row_idx, column] = values
+
+    return targ_df
+
+
+#############################################
+def set_multcomp(permpar, sess_df, CIs=True, pairs=True, factor=1):
     """
     set_multcomp(permpar)
 
@@ -323,6 +406,9 @@ def set_multcomp(permpar, sess_df, pairs=True, factor=1):
             keys: "sess_ns", "lines", "planes"
     
     Optional args:
+        - CIs (bool):
+            include comparisons to CIs comparisons
+            default: True
         - pairs (bool):
             include paired comparisons
             default: True
@@ -345,7 +431,8 @@ def set_multcomp(permpar, sess_df, pairs=True, factor=1):
         n_sess = len(sess_df_grp)
 
         # sessions compared to CIs
-        n_comps += n_sess
+        if CIs:
+            n_comps += n_sess
 
         # session pair comparisons
         if pairs:
@@ -362,8 +449,8 @@ def set_multcomp(permpar, sess_df, pairs=True, factor=1):
         )
 
     return permpar
-    
-    
+
+
 #############################################
 def get_snr(session, analyspar, datatype="snrs"):
     """
@@ -386,14 +473,26 @@ def get_snr(session, analyspar, datatype="snrs"):
             data, depending on datatype, for each ROI in a session
     """
     
-    keep_rois = np.arange(session.nrois)
-    if analyspar.remnans:
-        nanrois = session.get_nanrois(analyspar.fluor)
-        keep_rois = np.delete(keep_rois, np.asarray(nanrois)).astype(int)
-    
+    if session.only_matched_rois != analyspar.tracked:
+        raise RuntimeError(
+            "session.only_matched_rois should match analyspar.tracked."
+            )
+
     if analyspar.scale:
         raise ValueError("analyspar.scale must be False for SNR analysis.")
 
+    if analyspar.tracked:
+        keep_rois = session.matched_rois
+        if analyspar.remnans and len(session.get_nanrois(fluor=analyspar.fluor)):
+            raise NotImplementedError(
+                "remnans not implemented for matched ROIs."
+                )
+    else:
+        keep_rois = np.arange(session.get_nrois(remnans=False))
+        if analyspar.remnans:
+            nanrois = session.get_nanrois(analyspar.fluor)
+            keep_rois = np.delete(keep_rois, np.asarray(nanrois)).astype(int)
+    
     datatypes = ["snrs", "signal_means"]
     if datatype not in datatypes:
         gen_util.accepted_values_error("datatype", datatype, datatypes)

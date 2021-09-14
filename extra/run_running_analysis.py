@@ -299,14 +299,33 @@ def prep_analyses(sess_n, args, mouse_df):
     analysis_dict = init_param_cont(args)
     sesspar, stimpar = [analysis_dict[key] for key in ["sesspar", "stimpar"]]
     
-    # get session IDs and create Sessions
+    # get session IDs and load Sessions
     sessids = sess_gen_util.sess_per_mouse(
         mouse_df, omit_sess=args.omit_sess, omit_mice=args.omit_mice, 
         **sesspar._asdict())
-    sessions = sess_gen_util.init_sessions(
-        sessids, args.datadir, mouse_df, sesspar.runtype, roi=False, run=True, 
-        fulldict=False)
 
+    logger.info(
+        f"Loading {len(sessids)} session(s)...", extra={"spacing": "\n"}
+        )
+        
+    args_dict = {
+        "datadir" : args.datadir,
+        "mouse_df": mouse_df,
+        "runtype" : sesspar.runtype,
+        "fulldict": False,
+        "roi"     : False,
+        "run"     : True,
+        "temp_log": "warning",
+    }
+
+    sessions = gen_util.parallel_wrap(
+        sess_gen_util.init_sessions, sessids, args_dict=args_dict, 
+        parallel=args.parallel, use_tqdm=True
+        )
+
+    # flatten list of sessions
+    sessions = [sess for singles in sessions for sess in singles]
+    
     runtype_str = ""
     if sesspar.runtype != "prod":
         runtype_str = f" ({sesspar.runtype} data)"

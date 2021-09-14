@@ -93,6 +93,10 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
                     f"{stim.stimtype.capitalize()}\n{pars_str}"))
             
         if datatype == "roi":
+            if sess.only_matched_rois != analyspar.tracked:
+                raise RuntimeError(
+                    "sess.only_matched_rois should match analyspar.tracked."
+                    )
             nanpol = None
             if not analyspar.remnans:
                 nanpol = "omit"
@@ -123,7 +127,8 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
                   }
 
     sess_info = sess_gen_util.get_sess_info(
-        sessions, analyspar.fluor, incl_roi=(datatype=="roi"))
+        sessions, analyspar.fluor, incl_roi=(datatype=="roi"), 
+        remnans=analyspar.remnans)
 
     info = {"analyspar" : analyspar._asdict(),
             "sesspar"   : sesspar._asdict(),
@@ -206,7 +211,8 @@ def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar,
                       }
 
         sess_info = sess_gen_util.get_sess_info(
-            sessions, analyspar.fluor, incl_roi=(datatype=="roi"))
+            sessions, analyspar.fluor, incl_roi=(datatype=="roi"), 
+            remnans=analyspar.remnans)
 
         info = {"analyspar"  : analyspar._asdict(),
                 "sesspar"    : sesspar._asdict(),
@@ -338,7 +344,8 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
                     trace_stats["surp_lens"] = trace_info[3]
 
                 sess_info = sess_gen_util.get_sess_info(
-                    sessions, analyspar.fluor, incl_roi=(datatype=="roi"))
+                    sessions, analyspar.fluor, incl_roi=(datatype=="roi"), 
+                    remnans=analyspar.remnans)
 
                 info = {"analyspar"  : analyspar._asdict(),
                         "sesspar"    : sesspar._asdict(),
@@ -427,7 +434,9 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
         mags[key] = mags[key].tolist()
 
     sess_info = sess_gen_util.get_sess_info(
-        sessions, analyspar.fluor, incl_roi=(datatype=="roi"))
+        sessions, analyspar.fluor, incl_roi=(datatype=="roi"), 
+        remnans=analyspar.remnans)
+        
     extrapar  = {"analysis": analysis,
                  "datatype": datatype,
                  "seed"    : seed
@@ -486,6 +495,10 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
     xrans = []
     stats = []
     for sess in sessions:
+        if datatype == "roi" and (sess.only_matched_rois != analyspar.tracked):
+            raise RuntimeError(
+                "sess.only_matched_rois should match analyspar.tracked."
+                )
         stim = sess.get_stim(stimpar.stimtype)
         all_segs = stim.get_segs_by_criteria(
             bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, 
@@ -537,7 +550,7 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
             downsamp = range(0, ac_st_10x.shape[-1], 10)
 
             if len(downsamp) != ac_st.shape[-1]:
-                raise ValueError("Failed to downsample correctly. "
+                raise RuntimeError("Failed to downsample correctly. "
                     "Check implementation.")
             ac_st = np.stack([ac_st, ac_st_10x[:, downsamp]], axis=1)
         xrans.append(xran)
@@ -548,7 +561,9 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
                      }
 
     sess_info = sess_gen_util.get_sess_info(
-        sessions, analyspar.fluor, incl_roi=(datatype=="roi"))
+        sessions, analyspar.fluor, incl_roi=(datatype=="roi"), 
+        remnans=analyspar.remnans)
+
     extrapar  = {"analysis": analysis,
                  "datatype": datatype,
                  }
@@ -698,8 +713,11 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
     
     # sess_info = []
     # for sess_grp in sessions:
-    #     sess_info.append(sess_gen_util.get_sess_info(sess_grp, analyspar.fluor, 
-    #                                    incl_roi=(datatype=="roi")))
+    #     sess_info.append(
+    #           sess_gen_util.get_sess_info(
+    #               sess_grp, analyspar.fluor, incl_roi=(datatype=="roi"), 
+    #               remnans=analyspar.remnans)
+    #     )
 
     # info = {"analyspar": analyspar._asdict(),
     #         "sesspar"  : sesspar._asdict(),

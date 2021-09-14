@@ -18,6 +18,7 @@ from paper_fig_util import helper_fcts
 
 logger = logging.getLogger(__name__)
 
+TAB = "    "
 
 
 #############################################
@@ -45,9 +46,11 @@ def snrs_sess123(sessions, analyspar, sesspar, figpar, parallel=False):
             default: False
     """
 
-    logger.info("Calculating ROI SNRs from session 1 to 3.", 
+    logger.info("Compiling ROI SNRs from session 1 to 3.", 
         extra={"spacing": "\n"})
 
+    logger.info("Calculating ROI SNRs for each session...", 
+        extra={"spacing": TAB})
     all_snrs = gen_util.parallel_wrap(
         misc_analys.get_snr, sessions, [analyspar, "snrs"], parallel=parallel
         )
@@ -92,9 +95,12 @@ def mean_signal_sess123(sessions, analyspar, sesspar, figpar, parallel=False):
             default: False
     """
 
-    logger.info("Calculating ROI signal means from session 1 to 3.", 
+    logger.info("Compiling ROI signal means from session 1 to 3.", 
         extra={"spacing": "\n"})
 
+
+    logger.info("Calculating ROI signal means for each session...", 
+        extra={"spacing": TAB})
     all_signal_means = gen_util.parallel_wrap(
         misc_analys.get_snr, sessions, [analyspar, "signal_means"], 
         parallel=parallel

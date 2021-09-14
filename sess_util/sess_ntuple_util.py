@@ -27,34 +27,37 @@ from util import gen_util, logger_util
 
 #############################################
 def init_analyspar(fluor="dff", remnans=True, stats="mean", error="sem", 
-                   scale=False, dend="extr"):
+                   scale=False, dend="extr", tracked=False):
     """
     Returns a AnalysPar namedtuple with the inputs arguments as named 
     attributes.
 
     Optional args:
-        - fluor (str)  : whether "raw" or processed fluorescence traces 
-                         "dff" are used  
-                         default: "dff"
-        - remnans (str): if True, ROIs with NaN/Inf values are removed in
-                         the analyses.
-                         default: True
-        - stats (str)  : statistic parameter ("mean" or "median")
-                         default: "mean"
-        - error (str)  : error statistic parameter, ("std" or "sem")
-                         default: "sem"
-        - scale (bool) : if True, data is scaled
-                         default: False
-        - dend (str)   : dendrites to use ("allen" or "extr")
-                         default: "extr"
+        - fluor (str)   : whether "raw" or processed fluorescence traces 
+                          "dff" are used  
+                          default: "dff"
+        - remnans (str) : if True, ROIs with NaN/Inf values are removed in
+                          the analyses.
+                          default: True
+        - stats (str)   : statistic parameter ("mean" or "median")
+                          default: "mean"
+        - error (str)   : error statistic parameter, ("std" or "sem")
+                          default: "sem"
+        - scale (bool)  : if True, data is scaled
+                          default: False
+        - dend (str)    : dendrites to use ("allen" or "extr")
+                          default: "extr"
+        - tracked (bool): whether to use only tracked ROIs
+                          default: False
 
     Returns:
         - analyspar (AnalysPar namedtuple): AnalysPar with input arguments as 
                                             attributes
     """
 
-    analys_pars = [fluor, remnans, stats, error, scale, dend]
-    analys_keys = ["fluor", "remnans", "stats", "error", "scale", "dend"]
+    analys_pars = [fluor, remnans, stats, error, scale, dend, tracked]
+    analys_keys = \
+        ["fluor", "remnans", "stats", "error", "scale", "dend", "tracked"]
     AnalysPar   = namedtuple("AnalysPar", analys_keys)
     analyspar   = AnalysPar(*analys_pars)
     return analyspar
@@ -535,7 +538,7 @@ def get_modif_ntuple(ntuple, keys, key_vals):
 
     for key, val in zip(keys, key_vals):
         if key not in ntuple_dict.keys():
-            raise ValueError(f"{key} not in ntuple dictionary keys.")
+            raise KeyError(f"{key} not in ntuple dictionary keys.")
         ntuple_dict[key] = val
 
     if ntuple_name in ntuple_init_dict.keys():

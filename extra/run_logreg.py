@@ -276,7 +276,7 @@ def run_regr(args):
     for sessid in sessids:
         sess = sess_gen_util.init_sessions(sessid, args.datadir, mouse_df, 
             args.runtype, fulldict=False, fluor=analyspar.fluor, 
-            dend=analyspar.dend)[0]
+            dend=analyspar.dend, temp_log="warning")[0]
         logreg.run_regr(sess, analyspar, stimpar, logregpar, quintpar, 
             extrapar, techpar)
 

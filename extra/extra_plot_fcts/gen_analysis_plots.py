@@ -89,7 +89,8 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False,
         plot_autocorr(figpar=figpar, savedir=savedir, **info)
 
     else:
-        warnings.warn(f"No plotting function for analysis {analysis}")
+        warnings.warn(f"No plotting function for analysis {analysis}", 
+            category=UserWarning, stacklevel=1)
 
     plt.close("all")
 
@@ -117,8 +118,7 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - trace_info (dict): dictionary containing trace information
             ["all_tr"] (nested list): trace values structured as
                                           sess x 
@@ -191,7 +191,8 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
     if datatype == "roi" and not figpar["save"]["save_fig"]:
         warnings.warn("Figure plotting is being skipped. Since full ROI traces "
             "are not saved to dictionary, to actually plot traces, analysis "
-            "will have to be rerun with 'save_fig' set to True.")
+            "will have to be rerun with 'save_fig' set to True.", 
+            stacklevel=1)
 
     fig, ax = plot_util.init_fig(n_sess*n_rows, gs=gs, **figpar["init"])
 
@@ -282,8 +283,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
             ["planes"] (list)     : imaging planes
             if extrapar["datatype"] == "roi":
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - trace_stats (dict): dictionary containing trace stats information
             ["xrans"] (list)           : time values for the frames, for each 
                                          session
@@ -422,8 +422,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             ["planes"] (list)     : imaging planes
             if datatype == 
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - trace_stats (dict): dictionary containing trace stats information
             ["xrans"] (list)           : time values for the 2p frames for each 
                                          session
@@ -540,9 +539,9 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             sub_ax, fluor=analyspar["fluor"], datatype=datatype)
         plot_util.add_bars(sub_ax, hbars=0)
         n_lines = quintpar["n_quints"] * len(surp_lens[i])
-        try: 
+        if col_idx < n_lines:
             cols = sess_plot_util.get_quint_cols(n_lines)[0][col_idx]
-        except:
+        else:
             cols = [None] * n_lines
         alpha = np.min([0.4, 0.8/n_lines])
         if stimpar["stimtype"] == "gabors":
@@ -639,8 +638,7 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - mags (dict)     : dictionary containing magnitude data to plot
             ["L2"] (array-like)    : nested list containing L2 norms, 
                                      structured as: 
@@ -804,8 +802,7 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - autocorr_data (dict): dictionary containing data to plot:
             ["xrans"] (list): list of lag values in seconds for each session
             ["stats"] (list): list of 3D arrays (or nested lists) of

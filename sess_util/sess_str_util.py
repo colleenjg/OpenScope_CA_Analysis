@@ -216,7 +216,7 @@ def stat_par_str(stats="mean", error="sem", str_type="file"):
         stat_str = stats
     else:
         if str_type == "print":
-            sep = u"\u00B1" # +- symbol
+            sep = u" \u00B1 " # +- symbol
         elif str_type == "file":
             sep = "_"
         else:
@@ -224,12 +224,14 @@ def stat_par_str(stats="mean", error="sem", str_type="file"):
                 "str_type", str_type, ["print", "file"])
 
         if stats == "mean":
+            if error == "sem":
+                error = "SEM"
             stat_str = u"{}{}{}".format(stats, sep, error)
         elif stats == "median":
             if error == "std":
                 stat_str = u"{}{}qu".format(stats, sep)
             elif error == "sem":
-                stat_str = u"{}{}mad".format(stats, sep)
+                stat_str = u"{}{}MAD".format(stats, sep)
             else:
                 gen_util.accepted_values_error(
                     "error", error, ["std", "sem", "None", "none"])
@@ -1071,7 +1073,7 @@ def get_position_name(position):
         "nineteenth", "twentieth"]
 
     if not int(position) == float(position):
-        raise ValueError("position must be of type int.")
+        raise TypeError("position must be of type int.")
     if position >= len(position_names):
         raise ValueError(
             f"Only values smaller than {len(position_names)} allowed for "

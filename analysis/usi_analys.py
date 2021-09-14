@@ -19,6 +19,7 @@ import scipy.stats as scist
 
 from util import gen_util, math_util, logger_util
 from analysis import misc_analys, seq_analys
+from plot_fcts import plot_helper_fcts
 
 logger = logging.getLogger(__name__)
 
@@ -346,6 +347,9 @@ def get_chosen_roi_df(sessions, analyspar, stimpar, basepar, permpar, idxpar,
         "seed"     : seed
     }
 
+    logger.info(
+        f"Calculating ROI USIs for each session...", extra={"spacing": TAB}
+        )
     returns = gen_util.parallel_wrap(
         get_idx_info, sessions, args_dict=args_dict, 
         parallel=parallel, zip_output=True
@@ -357,7 +361,14 @@ def get_chosen_roi_df(sessions, analyspar, stimpar, basepar, permpar, idxpar,
 
     # for each group, select an ROI for each target
     loop_args = list(zip(target_idx_vals, target_idx_sigs))
-    for _, idx_df_grp in idx_df.groupby(["lines", "planes", "sess_ns"]):
+    group_columns = ["lines", "planes", "sess_ns"]
+    for idx_df_vals, idx_df_grp in idx_df.groupby(group_columns):
+        line, plane, sess_n = idx_df_vals
+        lp_name = plot_helper_fcts.get_line_plane_name(line, plane)
+        logger.info(
+            f"Selecting ROIs for {lp_name}, session {sess_n}...", 
+            extra={"spacing": TAB}
+            )
 
         roi_idxs = np.concatenate(idx_df_grp["all_roi_idxs"].tolist())
         roi_percs = np.concatenate(idx_df_grp["all_roi_percs"].tolist())
@@ -504,9 +515,9 @@ def bin_idxs(roi_idxs, roi_percs, rand_idxs, permpar, n_bins=40):
         - roi_percs (1D array): 
             ROI index percentiles for the session, based on each ROI's 
             random permutations
-        - all_rand (2D array): 
+        - all_rand (1 or 2D array): 
             ROI indices calculated through randomized permutation
-            dims: item x n_perms
+            dims: (item x) n_perms
         - permpar (PermPar): 
             named tuple containing permutation parameters
 
@@ -532,7 +543,7 @@ def bin_idxs(roi_idxs, roi_percs, rand_idxs, permpar, n_bins=40):
     """
     
     # gather index histogram information
-    math_util.check_n_rand(rand_idxs.shape[1], permpar.p_val)
+    math_util.check_n_rand(rand_idxs.shape[-1], permpar.p_val)
     CI_perc = math_util.get_percentiles(1 - permpar.p_val, permpar.tails)[0]
     # check bin size
     CI_wid = np.max([CI_perc[0], 100 - CI_perc[1]])
@@ -675,6 +686,100 @@ def get_ex_idx_df(sess, analyspar, stimpar, basepar, permpar, idxpar,
 
 
 #############################################
+def get_idx_only_df(sessions, analyspar, stimpar, basepar, idxpar, 
+                    by_mouse=False, parallel=False):
+    """
+    get_idx_only_df(sessions, analyspar, stimpar, basepar)
+
+    Returns indices for each line/plane, without significance information
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - basepar (BasePar): 
+            named tuple containing baseline parameters
+        - idxpar (IdxPar): 
+            named tuple containing index parameters
+    
+    Optional args:
+        - by_mouse (bool): 
+            if True, data is kept separated by mouse
+            default: False
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+    
+    Returns:
+        - idx_df (pd.DataFrame):
+            dataframe with one row per (mouse/)session/line/plane, and the 
+            following columns, in addition to the basic sess_df columns:
+            - roi_idxs (list): index for each ROI
+    """
+
+    full_idx_df = misc_analys.get_check_sess_df(sessions, analyspar=analyspar)
+    initial_columns = full_idx_df.columns
+
+    args_dict = {
+        "analyspar"  : analyspar, 
+        "stimpar"    : stimpar, 
+        "split"      : idxpar.feature, 
+        "op"         : idxpar.op, 
+        "baseline"   : basepar.baseline, 
+        "run_random" : False
+    }    
+
+    logger.info(
+        ("Calculating ROI USIs for each session..."), extra={"spacing": TAB}
+        )
+    roi_idxs = gen_util.parallel_wrap(
+        sess_stim_idxs, sessions, args_dict=args_dict, parallel=parallel
+        )
+    
+    full_idx_df["roi_idxs"] = roi_idxs
+
+    if not by_mouse:
+
+        idx_df = pd.DataFrame(columns=initial_columns)
+        # join within line/plane
+        group_columns = ["lines", "planes", "sess_ns"]
+        aggreg_cols = [col for col in initial_columns if col not in group_columns]
+        if by_mouse:
+            group_columns.append("mouse_ns")
+        for grp_vals, grp_df in full_idx_df.groupby(group_columns):
+            row_idx = len(idx_df)
+            for g, group_column in enumerate(group_columns):
+                idx_df.loc[row_idx, group_column] = grp_vals[g]
+
+                # add aggregated values for initial columns
+                misc_analys.aggreg_columns(
+                    grp_df, idx_df, aggreg_cols, row_idx=row_idx, in_place=True, 
+                    by_mouse=by_mouse
+                    )
+
+            roi_idxs = np.concatenate(grp_df["roi_idxs"].tolist())
+            
+            for key, value in binned_idxs.items():
+                if isinstance(value, np.ndarray):
+                    value = value.tolist()
+                if (key not in idx_df.columns) and (isinstance(value, list)):
+                    idx_df[key] = np.nan
+                    idx_df[key] = idx_df[key].astype(object)
+                idx_df.at[row_idx, key] = value
+        
+        for key in ["sess_ns", "n_pos", "n_signif_lo", "n_signif_hi"]:
+            idx_df[key] = idx_df[key].astype(int)
+    
+    else:
+        idx_df["mouse_ns"] = idx_df["mouse_ns"].astype(int)
+
+    return idx_df
+    
+    
+#############################################
 def get_idx_df(sessions, analyspar, stimpar, basepar, permpar, idxpar, 
                seed=None, n_bins=40, common_oris=False, by_mouse=False, 
                parallel=False):
@@ -743,6 +848,10 @@ def get_idx_df(sessions, analyspar, stimpar, basepar, permpar, idxpar,
         "seed"       : seed,
     }    
 
+    logger.info(
+        ("Calculating ROI USIs and their null distributions for each "
+        "session..."), extra={"spacing": TAB}
+        )
     roi_idxs, roi_percs, rand_idxs = gen_util.parallel_wrap(
         sess_stim_idxs, sessions, args_dict=args_dict, parallel=parallel, 
         zip_output=True
@@ -755,6 +864,7 @@ def get_idx_df(sessions, analyspar, stimpar, basepar, permpar, idxpar,
     idx_df = pd.DataFrame(columns=initial_columns)
     # join within line/plane
     group_columns = ["lines", "planes", "sess_ns"]
+    aggreg_cols = [col for col in initial_columns if col not in group_columns]
     if by_mouse:
         group_columns.append("mouse_ns")
     for grp_vals, grp_df in full_idx_df.groupby(group_columns):
@@ -762,12 +872,11 @@ def get_idx_df(sessions, analyspar, stimpar, basepar, permpar, idxpar,
         for g, group_column in enumerate(group_columns):
             idx_df.loc[row_idx, group_column] = grp_vals[g]
 
-        for column in initial_columns:
-            if column not in group_columns:
-                values = grp_df[column].tolist()
-                if by_mouse and len(values) == 1: 
-                    values = values[0]
-                idx_df.at[row_idx, column] = values
+            # add aggregated values for initial columns
+            misc_analys.aggreg_columns(
+                grp_df, idx_df, aggreg_cols, row_idx=row_idx, in_place=True, 
+                by_mouse=by_mouse
+                )
 
         roi_idxs = np.concatenate(grp_df["roi_idxs"].tolist())
         roi_percs = np.concatenate(grp_df["roi_percs"].tolist())
@@ -832,10 +941,10 @@ def get_perc_sig_df(idx_df, permpar, seed=None):
                 percent pos. ROIs 
             - perc_pos_idxs_null_CIs (list): adjusted null CI for percent pos. 
                 ROIs
-            - perc_pos_idxs_raw_p_vals (num): unadjusted p-value for percent 
+            - perc_pos_idxs_raw_p_vals (num): uncorrected p-value for percent 
                 pos. ROIs
             - perc_pos_idxs_p_vals (num): p-value for percent pos. ROIs, 
-                adjusted for multiple comparisons and tails
+                corrected for multiple comparisons and tails
 
             for sig in ["lo", "hi"]: for low vs high ROI indices
             - perc_sig_{sig}_idxs (num): percent significant ROIs (0-100)
@@ -844,10 +953,10 @@ def get_perc_sig_df(idx_df, permpar, seed=None):
             - perc_sig_{sig}_idxs_CIs (list): adjusted CI for percent sig. ROIs 
             - perc_sig_{sig}_idxs_null_CIs (list): adjusted null CI for percent 
                 sig. ROIs
-            - perc_sig_{sig}_idxs_raw_p_vals (num): unadjusted p-value for 
+            - perc_sig_{sig}_idxs_raw_p_vals (num): uncorrected p-value for 
                 percent sig. ROIs
             - perc_sig_{sig}_idxs_p_vals (num): p-value for percent sig. 
-                ROIs, adjusted for multiple comparisons and tails
+                ROIs, corrected for multiple comparisons and tails
     """    
 
     seed = gen_util.seed_all(seed, "cpu", log_seed=False)
@@ -905,8 +1014,8 @@ def get_perc_sig_df(idx_df, permpar, seed=None):
                 null_CI.tolist()
             perc_sig_df.loc[g, f"perc_sig_{sig}_idxs_p_vals"] = p_val
     
-    # add adjusted p-values
-    perc_sig_df = misc_analys.add_adj_p_vals(perc_sig_df, permpar)
+    # add corrected p-values
+    perc_sig_df = misc_analys.add_corr_p_vals(perc_sig_df, permpar)
 
     return perc_sig_df
 

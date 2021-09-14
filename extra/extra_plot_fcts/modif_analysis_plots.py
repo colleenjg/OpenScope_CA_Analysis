@@ -95,7 +95,8 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
         plot_oridirs(figpar=figpar, savedir=savedir, parallel=parallel, **info)
 
     else:
-        warnings.warn(f"No modified plotting function for analysis {analysis}")
+        warnings.warn(f"No modified plotting function for analysis {analysis}", 
+            category=UserWarning, stacklevel=1)
 
     plt.close("all")
 
@@ -123,8 +124,7 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - trace_info (dict): dictionary containing trace information
             ["all_tr"] (nested list): trace values structured as
                                           sess x 
@@ -266,8 +266,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - trace_stats (dict): dictionary containing trace stats information
             ["xrans"] (list)           : time values for the 2p frames, for 
                                          each session
@@ -417,8 +416,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - trace_stats (dict): dictionary containing trace stats information
             ["xrans"] (list)           : time values for the 2p frames, for 
                                          each session
@@ -572,9 +570,9 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             sub_ax, fluor=analyspar["fluor"], datatype=datatype, y_ax=y_ax)
         plot_util.add_bars(sub_ax, hbars=0)
         n_lines = quintpar["n_quints"] * len(surp_lens[i])
-        try: 
+        if col_idx < n_lines:
             cols = sess_plot_util.get_quint_cols(n_lines)[0][col_idx]
-        except:
+        else:
             cols = [None] * n_lines
         alpha = np.min([0.4, 0.8/n_lines])
         if stimpar["stimtype"] == "gabors":
@@ -582,7 +580,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                 offset=offset, bars_omit=[0] + surp_lens[i])
         # plot regular data
         if reg_stats[i].shape[0] != 1:
-            raise ValueError("Expected only one quintile for reg_stats.")
+            raise RuntimeError("Expected only one quintile for reg_stats.")
         
         leg = None
         if i == 0:
@@ -680,8 +678,7 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - autocorr_data (dict): dictionary containing data to plot:
             ["xrans"] (list): list of lag values in seconds for each session
             ["stats"] (list): list of 3D arrays (or nested lists) of
@@ -831,8 +828,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - tr_data (dict)   : dictionary containing information to plot colormap.
                              Surprise x ori/dir keys are formatted as 
                              [{s}_{od}] for surp in ["reg", "surp"]
@@ -883,8 +879,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
 
     datatype = extrapar["datatype"]
     if datatype != "roi":
-        raise ValueError("Function only implemented for roi datatype.")
-    dimstr = sess_str_util.datatype_dim_str(datatype)
+        raise NotImplementedError("Function only implemented for roi datatype.")
 
     if savedir is None:
         savedir = Path(
@@ -990,8 +985,7 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - tr_data (dict)   : dictionary containing information to plot colormap.
                              Surprise x ori/dir keys are formatted as 
                              [{s}_{od}] for surp in ["reg", "surp"]
@@ -1226,8 +1220,7 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - tr_data (dict)   : dictionary containing information to plot colormap.
                              Surprise x ori/dir keys are formatted as 
                              [{s}_{od}] for surp in ["reg", "surp"]
@@ -1279,7 +1272,7 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
 
     datatype = extrapar["datatype"]
     if datatype != "roi":
-        raise ValueError("Function only implemented for roi datatype.")
+        raise NotImplementedError("Function only implemented for roi datatype.")
 
     if stimpar["stimtype"] == "gabors":
         oridirs = stimpar["gab_ori"]
@@ -1346,8 +1339,7 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - tr_data (dict)   : dictionary containing information to plot colormap.
                              Surprise x ori/dir keys are formatted as 
                              [{s}_{od}] for surp in ["reg", "surp"]
@@ -1401,7 +1393,7 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar,
 
     datatype = extrapar["datatype"]
     if datatype != "roi":
-        raise ValueError("Function only implemented for roi datatype.")
+        raise NotImplementedError("Function only implemented for roi datatype.")
 
     if figpar is None:
         figpar = sess_plot_util.init_figpar()

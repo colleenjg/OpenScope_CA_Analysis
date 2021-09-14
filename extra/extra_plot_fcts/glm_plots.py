@@ -65,7 +65,8 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, datetime=True):
     if analysis == "v": # difference correlation
         plot_glm_expl_var(figpar=figpar, savedir=savedir, **info)
     else:
-        warnings.warn(f"No plotting function for analysis {analysis}")
+        warnings.warn(f"No plotting function for analysis {analysis}", 
+            category=UserWarning, stacklevel=1)
 
     plt.close("all")
 
@@ -94,8 +95,7 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in raw or dF/F 
-                                    traces ("raw", "dff")
+
         - all_expl_var (list) : list of dictionaries with explained variance 
                                 for each session set, with each glm 
                                 coefficient as a key:
@@ -187,7 +187,7 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
         rs = np.where(np.asarray(expl_var["rois"]) != -1)[0]
         all_rs = np.where(np.asarray(expl_var["rois"]) == -1)[0]
         if len(all_rs) != 1:
-            raise ValueError("Expected only one results for all ROIs.")
+            raise RuntimeError("Expected only one result for all ROIs.")
         else:
             all_rs = all_rs[0]
             full_ev = expl_var["full"][all_rs]
