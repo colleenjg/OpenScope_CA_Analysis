@@ -569,7 +569,7 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane,
         - CI (num)         : CI for shuffled data (e.g., 0.95)
                              default: 0.95
         - q1v4 (bool)      : if True, analysis is separated across first and 
-                             last quintiles
+                             last quartiles
                              default: False
         - rvs (bool)       : if True, the first dataset will include regular 
                              sequences and the second will include surprise 
@@ -707,7 +707,7 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
         - CI (num)      : CI for shuffled data (e.g., 0.95)
                           default: 0.95
         - q1v4 (bool)   : if True, analysis is separated across first and 
-                          last quintiles
+                          last quartiles
                           default: False
         - rvs (bool)    : if True, the first dataset will include regular 
                           sequences and the second will include surprise 

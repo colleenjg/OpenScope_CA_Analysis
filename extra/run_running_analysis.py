@@ -38,8 +38,8 @@ logger = logging.getLogger(__name__)
 
 ANALYSIS_DESCR = {
     "f": "full running traces",
-    "t": "running traces by session quintile, split by surprise and regular",
-    "l": "running traces by session quintile, locked to surprise or regular onset",
+    "t": "running traces by session quantile, split by surprise and regular",
+    "l": "running traces by session quantile, locked to surprise or regular onset",
     "m": "magnitude of running differences between surprise and regular",
     "a": "running autocorrelation",
 }
@@ -121,7 +121,7 @@ def init_param_cont(args):
 
     Returns args:
         - in the following nametuples: analyspar, sesspar, stimpar, autocorr, 
-                                       permpar, quintpar
+                                       permpar, quantpar
         - in the following dictionary: figpar 
 
     Required args:
@@ -150,7 +150,7 @@ def init_param_cont(args):
             line (str)             : line ("L23", "L5", "any")
             min_rois (int)         : min number of ROIs
             n_perms (int)          : nbr of permutations to run
-            n_quints (int)         : number of quintiles
+            n_quants (int)         : number of quantiles
             ncols (int)            : number of columns
             no_datetime (bool)     : if True, figures are not saved in a 
                                      subfolder named based on the date and time.
@@ -182,7 +182,7 @@ def init_param_cont(args):
             ["autocorrpar"] (AutocorrPar): named tuple of autocorrelation 
                                            parameters
             ["permpar"] (PermPar)        : named tuple of permutation parameters
-            ["quintpar"] (QuintPar)      : named tuple of quintile parameters
+            ["quantpar"] (QuantPar)      : named tuple of quantile parameters
             ["figpar"] (dict)            : dictionary containing following 
                                            subdictionaries:
                 ["init"]: dict with following inputs as attributes:
@@ -215,7 +215,7 @@ def init_param_cont(args):
                     ["oridir"] (str)   : subdirectory name for 
                                          orientation/direction analyses
                     ["surp_qu"] (str)  : subdirectory name for surprise, 
-                                         quintile analyses
+                                         quantile analyses
                     ["tune_curv"] (str): subdirectory name for tuning curves
                     ["grped"] (str)    : subdirectory name for ROI grps data
                     ["mags"] (str)     : subdirectory name for magnitude 
@@ -255,9 +255,9 @@ def init_param_cont(args):
     analysis_dict["permpar"] = sess_ntuple_util.init_permpar(
         args.n_perms, 0.05, args.tails, False)
     
-    # quintile parameters
-    analysis_dict["quintpar"] = sess_ntuple_util.init_quintpar(
-        args.n_quints, [0, -1])
+    # quantile parameters
+    analysis_dict["quantpar"] = sess_ntuple_util.init_quantpar(
+        args.n_quants, [0, -1])
 
     # figure parameters
     analysis_dict["figpar"] = sess_plot_util.init_figpar(
@@ -355,16 +355,16 @@ def get_analysis_fcts():
     # 0. Plots the full traces for each session
     fct_dict["f"] = gen_analys.run_full_traces
 
-    # 1. Analyses and plots average running by quintile x surprise for each 
+    # 1. Analyses and plots average running by quantile x surprise for each 
     # session 
     fct_dict["t"] = gen_analys.run_traces_by_qu_surp_sess
 
-    # 2. Analyses and plots average running locked to surprise by quintile x 
+    # 2. Analyses and plots average running locked to surprise by quantile x 
     # surprise for each session 
     fct_dict["l"] = gen_analys.run_traces_by_qu_lock_sess
 
     # 3. Analyses and plots magnitude of change in dF/F area from first to last 
-    # quintile of surprise vs no surprise sequences, for each session
+    # quantile of surprise vs no surprise sequences, for each session
     fct_dict["m"] = gen_analys.run_mag_change
 
     # 4. Analyses and plots autocorrelation
@@ -574,9 +574,9 @@ def parse_args():
         help="nbr of permutations")
     parser.add_argument("--tails", default="2", 
         help="tails for perm analysis (2, lo, up)")
-        # quintile parameters
-    parser.add_argument("--n_quints", default=4, type=int, 
-        help="nbr of quintiles")
+        # quantile parameters
+    parser.add_argument("--n_quants", default=4, type=int, 
+        help="nbr of quantiles")
         # autocorrelation parameters
     parser.add_argument("--lag_s", default=4, type=float,
         help="lag for autocorrelation (in sec)")

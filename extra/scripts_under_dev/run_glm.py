@@ -105,7 +105,7 @@ def init_param_cont(args):
 
     Returns args:
         - in the following nametuples: analyspar, sesspar, stimpar, autocorr, 
-                                       permpar, quintpar
+                                       permpar, quantpar
         - in the following dictionary: figpar 
 
     Required args:
@@ -187,7 +187,7 @@ def init_param_cont(args):
                     ["oridir"] (str)   : subdirectory name for 
                                          orientation/direction analyses
                     ["surp_qu"] (str)  : subdirectory name for surprise, 
-                                         quintile analyses
+                                         quantile analyses
                     ["tune_curv"] (str): subdirectory name for tuning curves
                     ["grped"] (str)    : subdirectory name for ROI grps data
                     ["mags"] (str)     : subdirectory name for magnitude 

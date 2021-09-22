@@ -71,15 +71,15 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False,
     if analysis == "f": # full traces
         plot_full_traces(figpar=figpar, savedir=savedir, **info)
 
-    # 1. Plot average traces by quintile x surprise for each session 
+    # 1. Plot average traces by quantile x surprise for each session 
     elif analysis == "t": # traces
         plot_traces_by_qu_surp_sess(figpar=figpar, savedir=savedir, **info)
 
-    # 2. Plot average traces by quintile, locked to surprise for each session 
+    # 2. Plot average traces by quantile, locked to surprise for each session 
     elif analysis == "l": # surprise locked traces
         plot_traces_by_qu_lock_sess(figpar=figpar, savedir=savedir, **info)
 
-    # 3. Plot magnitude of change in dF/F area from first to last quintile of 
+    # 3. Plot magnitude of change in dF/F area from first to last quantile of 
     # surprise vs no surprise sequences, for each session
     elif analysis == "m": # mag
         plot_mag_change(figpar=figpar, savedir=savedir, **info)
@@ -253,13 +253,13 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
 
 #############################################
 def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar, 
-                                quintpar, sess_info, trace_stats, figpar=None, 
+                                quantpar, sess_info, trace_stats, figpar=None, 
                                 savedir=None):
     """
     plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar, 
-                                quintpar, sess_info, trace_stats)
+                                quantpar, sess_info, trace_stats)
 
-    From dictionaries, plots traces by quintile/surprise with each session in a 
+    From dictionaries, plots traces by quantile/surprise with each session in a 
     separate subplot.
     
     Returns figure name and save directory path.
@@ -272,7 +272,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
                               parameters
             ["analysis"] (str): analysis type (e.g., "t")
             ["datatype"] (str): datatype (e.g., "run", "roi")
-        - quintpar (dict)   : dictionary with keys of QuintPar namedtuple
+        - quantpar (dict)   : dictionary with keys of QuantPar namedtuple
         - sess_info (dict)  : dictionary containing information from each
                               session 
             ["mouse_ns"] (list)   : mouse numbers
@@ -288,10 +288,10 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
             ["all_stats"] (list)       : list of 4D arrays or lists of trace 
                                          data statistics across ROIs for each
                                          session, structured as:
-                                            sess x surp x quintiles x
+                                            sess x surp x quantiles x
                                             stats (me, err) x frames
             ["all_counts"] (array-like): number of sequences, structured as:
-                                                sess x surp x quintiles
+                                                sess x surp x quantiles
                 
     Optional args:
         - figpar (dict): dictionary containing the following figure parameter 
@@ -338,8 +338,8 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
     all_stats  = [np.asarray(sessst) for sessst in trace_stats["all_stats"]]
     all_counts = trace_stats["all_counts"]
 
-    cols, lab_cols = sess_plot_util.get_quint_cols(quintpar["n_quints"])
-    alpha = np.min([0.4, 0.8/quintpar["n_quints"]])
+    cols, lab_cols = sess_plot_util.get_quant_cols(quantpar["n_quants"])
+    alpha = np.min([0.4, 0.8/quantpar["n_quants"]])
 
     surps = ["reg", "surp"]
     n = 6
@@ -350,7 +350,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
     for i in range(n_sess):
         sub_ax = plot_util.get_subax(ax, i)
         for s, [col, leg_ext] in enumerate(zip(cols, surps)):
-            for q, qu_lab in enumerate(quintpar["qu_lab"]):
+            for q, qu_lab in enumerate(quantpar["qu_lab"]):
                 if qu_lab != "":
                     qu_lab = f"{qu_lab.capitalize()} "
                 title=(f"Mouse {mouse_ns[i]} - {stimstr_pr} " 
@@ -378,8 +378,8 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
             figpar["dirs"][datatype], 
             figpar["dirs"]["surp_qu"])
 
-    qu_str = f"_{quintpar['n_quints']}q"
-    if quintpar["n_quints"] == 1:
+    qu_str = f"_{quantpar['n_quants']}q"
+    if quantpar["n_quants"] == 1:
         qu_str = ""
 
     savename = f"{datatype}_av_{sessstr}{dendstr}{qu_str}"
@@ -390,13 +390,13 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
 
 #############################################
 def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar, 
-                                quintpar, sess_info, trace_stats, 
+                                quantpar, sess_info, trace_stats, 
                                 figpar=None, savedir=None):
     """
     plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar, 
-                                quintpar, sess_info, trace_stats)
+                                quantpar, sess_info, trace_stats)
 
-    From dictionaries, plots traces by quintile, locked to transitions from 
+    From dictionaries, plots traces by quantile, locked to transitions from 
     surprise to regular or v.v. with each session in a separate subplot.
     
     Returns figure name and save directory path.
@@ -409,7 +409,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                               parameters
             ["analysis"] (str): analysis type (e.g., "l")
             ["datatype"] (str): datatype (e.g., "run", "roi")
-        - quintpar (dict)   : dictionary with keys of QuintPar namedtuple
+        - quantpar (dict)   : dictionary with keys of QuantPar namedtuple
         - sess_info (dict)  : dictionary containing information from each
                               session 
             ["mouse_ns"] (list)   : mouse numbers
@@ -425,10 +425,10 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             ["all_stats"] (list)       : list of 4D arrays or lists of trace 
                                          data statistics across ROIs for each 
                                          session, structured as:
-                                            (surp_len x) quintiles x
+                                            (surp_len x) quantiles x
                                             stats (me, err) x frames
             ["all_counts"] (array-like): number of sequences, structured as:
-                                                sess x (surp_len x) quintiles
+                                                sess x (surp_len x) quantiles
             ["lock"] (str)             : value to which segments are locked:
                                          "surp", "reg" or "surp_split"
             ["baseline"] (num)         : number of seconds used for baseline
@@ -436,11 +436,11 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                                          data statistics across ROIs for
                                          regular sampled sequences, 
                                          structured as:
-                                            quintiles (1) x stats (me, err) 
+                                            quantiles (1) x stats (me, err) 
                                             x frames
             ["reg_counts"] (array-like): number of sequences corresponding to
                                          reg_stats, structured as:
-                                            sess x quintiles (1)
+                                            sess x quantiles (1)
             
             if data is by surp_len:
             ["surp_lens"] (list)       : number of consecutive segments for
@@ -532,9 +532,9 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         sess_plot_util.add_axislabels(
             sub_ax, fluor=analyspar["fluor"], datatype=datatype)
         plot_util.add_bars(sub_ax, hbars=0)
-        n_lines = quintpar["n_quints"] * len(surp_lens[i])
+        n_lines = quantpar["n_quants"] * len(surp_lens[i])
         if col_idx < n_lines:
-            cols = sess_plot_util.get_quint_cols(n_lines)[0][col_idx]
+            cols = sess_plot_util.get_quant_cols(n_lines)[0][col_idx]
         else:
             cols = [None] * n_lines
         alpha = np.min([0.4, 0.8/n_lines])
@@ -543,7 +543,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                 sub_ax, xrans[i], offset=offset, bars_omit=[0] + surp_lens[i])
         # plot regular data
         if reg_stats[i].shape[0] != 1:
-            raise ValueError("Expected only one quintile for reg_stats.")
+            raise ValueError("Expected only one quantile for reg_stats.")
         leg = f"reg (no lock) ({reg_counts[i][0]})"
         plot_util.plot_traces(
             sub_ax, xrans[i], reg_stats[i][0][0], reg_stats[i][0][1:], 
@@ -562,7 +562,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                 surp_lab = f"surp len {surp_len+0.3*offset}"
             else:
                 surp_lab = f"{lock} lock"
-            for q, qu_lab in enumerate(quintpar["qu_lab"]):
+            for q, qu_lab in enumerate(quantpar["qu_lab"]):
                 if qu_lab != "":
                     qu_lab = f"{qu_lab.capitalize()} "
                 lab = f"{qu_lab}{surp_lab}"
@@ -590,8 +590,8 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
     if stimpar["stimtype"] == "bricks":
         plot_util.rel_confine_ylims(sub_ax, [reg_min, reg_max], 5)
 
-    qu_str = f"_{quintpar['n_quints']}q"
-    if quintpar["n_quints"] == 1:
+    qu_str = f"_{quantpar['n_quants']}q"
+    if quantpar["n_quants"] == 1:
         qu_str = ""
  
     savename = (f"{datatype}_av_{lock}lock{len_ext}{basestr}_{sessstr}"
@@ -602,14 +602,14 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
 
 
 ############################################
-def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quintpar, 
+def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quantpar, 
                     sess_info, mags, figpar=None, savedir=None):
     """
-    plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quintpar, 
+    plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quantpar, 
                     sess_info, mags) 
 
     From dictionaries, plots magnitude of change in surprise and regular
-    responses across quintiles.
+    responses across quantiles.
 
     Returns figure name and save directory path.
 
@@ -623,7 +623,7 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
             ["datatype"] (str): datatype (e.g., "run", "roi")
             ["seed"]     (int): seed value used
         - permpar (dict)  : dictionary with keys of PermPar namedtuple 
-        - quintpar (dict) : dictionary with keys of QuintPar namedtuple
+        - quantpar (dict) : dictionary with keys of QuantPar namedtuple
         - roigrppar (dict): dictionary with keys of RoiGrpPar namedtuple
         - sess_info (dict): dictionary containing information from each
                             session 
@@ -689,10 +689,10 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
 
     n_sess = len(mouse_ns)
 
-    qu_ns = [gen_util.pos_idx(q, quintpar["n_quints"]) + 1 
-        for q in quintpar["qu_idx"]]
+    qu_ns = [gen_util.pos_idx(q, quantpar["n_quants"]) + 1 
+        for q in quantpar["qu_idx"]]
     if len(qu_ns) != 2:
-        raise ValueError(f"Expected 2 quintiles, not {len(qu_ns)}.")
+        raise ValueError(f"Expected 2 quantiles, not {len(qu_ns)}.")
     
     mag_st = np.asarray(mags["mag_st"])
 

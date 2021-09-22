@@ -109,7 +109,7 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                 ["pupil"] (Path)    : subdirectory for pupil analyses
                 ["oridir"] (Path)   : subdirectory name for 
                                       orientation/direction analyses
-                ["surp_qu"] (Path)  : subdirectory name for surprise, quintile 
+                ["surp_qu"] (Path)  : subdirectory name for surprise, quantile 
                                       analyses
                 ["surp_idx"] (Path) : subdirectory name for surprise index 
                                       analyses
@@ -179,15 +179,15 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
 
 
 #############################################
-def get_quint_cols(n_quints=4):
+def get_quant_cols(n_quants=4):
     """
-    get_quint_cols()
+    get_quant_cols()
 
-    Returns regular and surprise colors for quintiles, as well as label colors
+    Returns regular and surprise colors for quantiles, as well as label colors
     for regular and surprise.
 
     Required args:
-        - n_quints (int): number of quintiles
+        - n_quants (int): number of quantiles
 
     Returns:
         - cols (list)    : nested list of colors, 
@@ -195,8 +195,8 @@ def get_quint_cols(n_quints=4):
         - lab_cols (list): label colors for regular and surprise data
     """
 
-    col_reg  = plot_util.get_color_range(n_quints, "blue")
-    col_surp = plot_util.get_color_range(n_quints, "red")
+    col_reg  = plot_util.get_color_range(n_quants, "blue")
+    col_surp = plot_util.get_color_range(n_quants, "red")
 
     lab_reg = plot_util.get_color_range(1, "blue")[0]
     lab_surp = plot_util.get_color_range(1, "red")[0]

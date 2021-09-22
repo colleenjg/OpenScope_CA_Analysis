@@ -78,11 +78,11 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
     if analysis == "f": # full traces
         plot_full_traces(figpar=figpar, savedir=savedir, **info)
 
-    # 1. Plot average traces by quintile x surprise for each session 
+    # 1. Plot average traces by quantile x surprise for each session 
     elif analysis == "t": # traces
         plot_traces_by_qu_surp_sess(figpar=figpar, savedir=savedir, **info)
 
-    # 2. Plot average traces by quintile, locked to surprise for each session 
+    # 2. Plot average traces by quantile, locked to surprise for each session 
     elif analysis == "l": # surprise locked traces
         plot_traces_by_qu_lock_sess(figpar=figpar, savedir=savedir, **info)
 
@@ -237,13 +237,13 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
 
 #############################################
 def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar, 
-                                quintpar, sess_info, trace_stats, figpar=None, 
+                                quantpar, sess_info, trace_stats, figpar=None, 
                                 savedir=None):
     """
     plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar, 
-                                quintpar, sess_info, trace_stats)
+                                quantpar, sess_info, trace_stats)
 
-    From dictionaries, plots traces by quintile/surprise with each session in a 
+    From dictionaries, plots traces by quantile/surprise with each session in a 
     separate subplot.
     
     Returns figure name and save directory path.
@@ -256,7 +256,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
                               parameters
             ["analysis"] (str): analysis type (e.g., "t")
             ["datatype"] (str): datatype (e.g., "run", "roi")
-        - quintpar (dict)   : dictionary with keys of QuintPar namedtuple
+        - quantpar (dict)   : dictionary with keys of QuantPar namedtuple
         - sess_info (dict)  : dictionary containing information from each
                               session 
             ["mouse_ns"] (list)   : mouse numbers
@@ -271,10 +271,10 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
             ["all_stats"] (list)       : list of 4D arrays or lists of trace 
                                          data statistics across ROIs, 
                                          structured as:
-                                            surp x quintiles x
+                                            surp x quantiles x
                                             stats (me, err) x frames
             ["all_counts"] (array-like): number of sequences, structured as:
-                                                sess x surp x quintiles
+                                                sess x surp x quantiles
                 
     Optional args:
         - figpar (dict) : dictionary containing the following figure parameter 
@@ -323,8 +323,8 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
     all_stats  = [np.asarray(sessst) for sessst in trace_stats["all_stats"]]
     all_counts = trace_stats["all_counts"]
 
-    cols, lab_cols = sess_plot_util.get_quint_cols(quintpar["n_quints"])
-    alpha = np.min([0.4, 0.8/quintpar["n_quints"]])
+    cols, lab_cols = sess_plot_util.get_quant_cols(quantpar["n_quants"])
+    alpha = np.min([0.4, 0.8/quantpar["n_quants"]])
 
     surps = ["reg", "surp"]
     n = 6
@@ -335,7 +335,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
     for i in range(n_sess):
         sub_ax = plot_util.get_subax(ax, i)
         for s, [col, leg_ext] in enumerate(zip(cols, surps)):
-            for q, qu_lab in enumerate(quintpar["qu_lab"]):
+            for q, qu_lab in enumerate(quantpar["qu_lab"]):
                 if qu_lab != "":
                     qu_lab = f"{qu_lab.capitalize()} "
                 line, plane = "5", "dendrites"
@@ -375,8 +375,8 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
             figpar["dirs"][datatype], 
             figpar["dirs"]["surp_qu"])
 
-    qu_str = f"_{quintpar['n_quints']}q"
-    if quintpar["n_quints"] == 1:
+    qu_str = f"_{quantpar['n_quants']}q"
+    if quantpar["n_quants"] == 1:
         qu_str = ""
 
     savename = f"{datatype}_av_{sessstr}{dendstr}{qu_str}"
@@ -387,13 +387,13 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
 
 #############################################
 def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar, 
-                                quintpar, sess_info, trace_stats, 
+                                quantpar, sess_info, trace_stats, 
                                 figpar=None, savedir=None):
     """
     plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar, 
-                                quintpar, sess_info, trace_stats)
+                                quantpar, sess_info, trace_stats)
 
-    From dictionaries, plots traces by quintile, locked to transitions from 
+    From dictionaries, plots traces by quantile, locked to transitions from 
     surprise to regular or v.v. with each session in a separate subplot.
     
     Returns figure name and save directory path.
@@ -406,7 +406,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                               parameters
             ["analysis"] (str): analysis type (e.g., "l")
             ["datatype"] (str): datatype (e.g., "run", "roi")
-        - quintpar (dict)   : dictionary with keys of QuintPar namedtuple
+        - quantpar (dict)   : dictionary with keys of QuantPar namedtuple
         - sess_info (dict)  : dictionary containing information from each
                               session 
             ["mouse_ns"] (list)   : mouse numbers
@@ -421,10 +421,10 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             ["all_stats"] (list)       : list of 4D arrays or lists of trace 
                                          data statistics across ROIs, 
                                          structured as:
-                                            (surp_len x) quintiles x
+                                            (surp_len x) quantiles x
                                             stats (me, err) x frames
             ["all_counts"] (array-like): number of sequences, structured as:
-                                                sess x (surp_len x) quintiles
+                                                sess x (surp_len x) quantiles
             ["lock"] (str)             : value to which segments are locked:
                                          "surp", "reg" or "surp_split"
             ["baseline"] (num)         : number of seconds used for baseline
@@ -432,11 +432,11 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                                          data statistics across ROIs for
                                          regular sampled sequences, 
                                          structured as:
-                                            quintiles (1) x stats (me, err) 
+                                            quantiles (1) x stats (me, err) 
                                             x frames
             ["reg_counts"] (array-like): number of sequences corresponding to
                                          reg_stats, structured as:
-                                            sess x quintiles (1)
+                                            sess x quantiles (1)
             
             if data is by surp_len:
             ["surp_lens"] (list)       : number of consecutive segments for
@@ -567,9 +567,9 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         sess_plot_util.add_axislabels(
             sub_ax, fluor=analyspar["fluor"], datatype=datatype, y_ax=y_ax)
         plot_util.add_bars(sub_ax, hbars=0)
-        n_lines = quintpar["n_quints"] * len(surp_lens[i])
+        n_lines = quantpar["n_quants"] * len(surp_lens[i])
         if col_idx < n_lines:
-            cols = sess_plot_util.get_quint_cols(n_lines)[0][col_idx]
+            cols = sess_plot_util.get_quant_cols(n_lines)[0][col_idx]
         else:
             cols = [None] * n_lines
         alpha = np.min([0.4, 0.8/n_lines])
@@ -578,7 +578,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                 offset=offset, bars_omit=[0] + surp_lens[i])
         # plot regular data
         if reg_stats[i].shape[0] != 1:
-            raise RuntimeError("Expected only one quintile for reg_stats.")
+            raise RuntimeError("Expected only one quantile for reg_stats.")
         
         leg = None
         if i == 0:
@@ -612,7 +612,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             else:
                 # surp_lab = "surp lock"
                 surp_lab = "surp"
-            for q, qu_lab in enumerate(quintpar["qu_lab"]):
+            for q, qu_lab in enumerate(quantpar["qu_lab"]):
                 if qu_lab != "":
                     qu_lab = f"{qu_lab.capitalize()} "
                 lab = f"{qu_lab}{surp_lab}"
@@ -640,8 +640,8 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             figpar["dirs"]["surp_qu"], 
             f"{lock}_lock", basestr.replace("_", ""))
 
-    qu_str = f"_{quintpar['n_quints']}q"
-    if quintpar["n_quints"] == 1:
+    qu_str = f"_{quantpar['n_quants']}q"
+    if quantpar["n_quants"] == 1:
         qu_str = ""
  
     savename = (f"{datatype}_av_{lock}lock{len_ext}{basestr}_{sessstr}"
@@ -800,15 +800,15 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
 
 
 #############################################
-def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar, 
+def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quantpar, 
                         tr_data, sess_info, figpar=None, savedir=None):
     """
-    plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar, 
+    plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quantpar, 
                        tr_data, sess_info)
 
     From dictionaries, plots average activity across gabor orientations or 
     brick directions per ROI as colormaps for a single session and optionally
-    a single quintile. 
+    a single quantile. 
 
     Required args:
         - analyspar (dict): dictionary with keys of AnalysPar namedtuple
@@ -818,7 +818,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
                             parameters
             ["analysis"] (str): analysis type (e.g., "o")
             ["datatype"] (str): datatype (e.g., "roi")
-        - quintpar (dict) : dictionary with keys of QuintPar namedtuple
+        - quantpar (dict) : dictionary with keys of QuantPar namedtuple
         - sess_info (dict): dictionary containing information from each
                             session (only first session used)
             ["mouse_ns"] (list)   : mouse numbers
@@ -904,7 +904,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
         oridirs = stimpar["bri_dir"]
         n = 7
 
-    qu_str, qu_str_pr = quintpar["qu_lab"][0], quintpar["qu_lab_pr"][0]
+    qu_str, qu_str_pr = quantpar["qu_lab"][0], quantpar["qu_lab_pr"][0]
     if qu_str != "":
         qu_str    = f"_{qu_str}"      
     if qu_str_pr != "":
@@ -959,22 +959,22 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
 
 
 #############################################
-def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data, 
+def plot_oridir_colormap(fig_type, analyspar, stimpar, quantpar, tr_data, 
                          sess_info, figpar=None, savedir=None, log_dir=True):
     """
-    plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data, 
+    plot_oridir_colormap(fig_type, analyspar, stimpar, quantpar, tr_data, 
                          sess_info)
 
     From dictionaries, plots average activity across gabor orientations or 
     brick directions per ROI for a single session and optionally a single 
-    quintile. (Single figure type) 
+    quantile. (Single figure type) 
 
     Required args:
         - fig_type (str)  : type of figure to plot, i.e., "byplot", "byreg", 
                             "byfir" or "by{}{}" (ori/dir, deg)
         - analyspar (dict): dictionary with keys of AnalysPar namedtuple
         - stimpar (dict)  : dictionary with keys of StimPar namedtuple
-        - quintpar (dict) : dictionary with keys of QuintPar namedtuple
+        - quantpar (dict) : dictionary with keys of QuantPar namedtuple
         - sess_info (dict): dictionary containing information from each
                             session (only first session used)
             ["mouse_ns"] (list)   : mouse numbers
@@ -1073,7 +1073,7 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
         oridirs = stimpar["bri_dir"]
         n = 7
     
-    qu_str, qu_str_pr = quintpar["qu_lab"][0], quintpar["qu_lab_pr"][0]
+    qu_str, qu_str_pr = quantpar["qu_lab"][0], quantpar["qu_lab_pr"][0]
     if qu_str != "":
         qu_str    = f"_{qu_str}"      
     if qu_str_pr != "":
@@ -1190,16 +1190,16 @@ def plot_oridir_colormap(fig_type, analyspar, stimpar, quintpar, tr_data,
 
 
 #############################################
-def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar, 
+def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quantpar, 
                           tr_data, sess_info, figpar=None, savedir=None, 
                           parallel=False):
     """
-    plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar, 
+    plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quantpar, 
                           tr_data, sess_info)
 
     From dictionaries, plots average activity across gabor orientations or 
     brick directions per ROI as colormaps for a single session and optionally
-    a single quintile. 
+    a single quantile. 
 
     Required args:
         - analyspar (dict): dictionary with keys of AnalysPar namedtuple
@@ -1209,7 +1209,7 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
                             parameters
             ["analysis"] (str): analysis type (e.g., "o")
             ["datatype"] (str): datatype (e.g., "roi")
-        - quintpar (dict) : dictionary with keys of QuintPar namedtuple
+        - quantpar (dict) : dictionary with keys of QuantPar namedtuple
         - sess_info (dict): dictionary containing information from each
                             session (only first session used)
             ["mouse_ns"] (list)   : mouse numbers
@@ -1294,7 +1294,7 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
     if parallel:
         n_jobs = gen_util.get_n_jobs(len(fig_types))
         fulldirs = Parallel(n_jobs=n_jobs)(delayed(plot_oridir_colormap)
-            (fig_type, analyspar, stimpar, quintpar, tr_data, sess_info, 
+            (fig_type, analyspar, stimpar, quantpar, tr_data, sess_info, 
             figpar, savedir, (f == fig_last)) 
             for f, fig_type in enumerate(fig_types)) 
         fulldir = fulldirs[-1]
@@ -1302,23 +1302,23 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
         for f, fig_type in enumerate(fig_types):
             log_dir = (f == fig_last)
             fulldir = plot_oridir_colormap(
-                fig_type, analyspar, stimpar, quintpar, tr_data, sess_info, 
+                fig_type, analyspar, stimpar, quantpar, tr_data, sess_info, 
                 figpar, savedir, log_dir)
 
     return fulldir
 
 
 #############################################
-def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar, 
+def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quantpar, 
                  tr_data, sess_info, figpar=None, savedir=None, 
                  parallel=False):
     """
-    plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar, 
+    plot_oridirs(analyspar, sesspar, stimpar, extrapar, quantpar, 
                  tr_data, sess_info)
 
     From dictionaries, plots average activity across gabor orientations or 
     brick directions per ROI as colormaps, as well as traces across ROIs for a 
-    single session and optionally a single quintile. 
+    single session and optionally a single quantile. 
 
     Required args:
         - analyspar (dict): dictionary with keys of AnalysPar namedtuple
@@ -1328,7 +1328,7 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar,
                             parameters
             ["analysis"] (str): analysis type (e.g., "o")
             ["datatype"] (str): datatype (e.g., "roi")
-        - quintpar (dict) : dictionary with keys of QuintPar namedtuple
+        - quantpar (dict) : dictionary with keys of QuantPar namedtuple
         - sess_info (dict): dictionary containing information from each
                             session (one first session used) 
             ["mouse_ns"] (list)   : mouse numbers
@@ -1403,7 +1403,7 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar,
                  "sesspar"  : sesspar,
                  "stimpar"  : stimpar,
                  "extrapar" : extrapar,
-                 "quintpar" : quintpar,
+                 "quantpar" : quantpar,
                  "sess_info": sess_info,
                  "tr_data" : tr_data,
                  "figpar"   : figpar,

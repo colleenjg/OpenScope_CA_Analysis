@@ -30,12 +30,12 @@ def sep_grps(sign_rois, nrois, grps="all", tails="2", add_reg=False):
     """
     sep_grps(sign_rois, nrois)
 
-    Separate ROIs into groups based on whether their first/last quintile was
+    Separate ROIs into groups based on whether their first/last quantile was
     significant in a specific tail.
 
     Required args:
         - sign_rois (nested list): list of significant ROIs, structured as:
-                                       quintile (x tail) 
+                                       quantile (x tail) 
         - nrois (int)            : total number of ROIs in data (signif or not)
     Optional args:
         - grps (str or list): set of groups or list of sets of groups to 
@@ -162,14 +162,14 @@ def grp_stats(integ_stats, grps, plot_vals="both", op="diff", stats="mean",
     """
     grp_stats(integ_stats, grps)
 
-    Calculate statistics (e.g. mean + sem) across quintiles for each group 
+    Calculate statistics (e.g. mean + sem) across quantiles for each group 
     and session.
 
     Required args:
         - integ_stats (list): list of 3D arrays of mean/medians of integrated
                               sequences, for each session structured as:
                                  surp if bysurp x
-                                 quintiles x
+                                 quantiles x
                                  ROIs if byroi
         - grps (list)       : list of sublists per session, each containing
                               sublists per roi grp with ROI numbers included in 
@@ -185,21 +185,21 @@ def grp_stats(integ_stats, grps, plot_vals="both", op="diff", stats="mean",
                            default: "mean"
         - error (str)    : error statistic parameter, i.e. "std" or "sem"
                            default: "std"
-        - scale (bool)   : if True, data is scaled using first quintile
+        - scale (bool)   : if True, data is scaled using first quantile
     Returns:
         - all_grp_st (4D array): array of group stats (mean/median, error) 
                                  structured as:
-                                  session x quintile x grp x stat 
+                                  session x quantile x grp x stat 
         - all_ns (2D array)    : array of group ns, structured as:
                                   session x grp
     """
 
     n_sesses = len(integ_stats)
-    n_quints = integ_stats[0].shape[1]
+    n_quants = integ_stats[0].shape[1]
     n_stats  = 2 + (stats == "median" and error == "std")
     n_grps   = len(grps[0])
 
-    all_grp_st = np.empty([n_sesses, n_quints, n_grps, n_stats])
+    all_grp_st = np.empty([n_sesses, n_quants, n_grps, n_stats])
     all_ns = np.empty([n_sesses, n_grps], dtype=int)
 
     for i, [sess_data, sess_grps] in enumerate(zip(integ_stats, grps)):
@@ -230,7 +230,7 @@ def grp_traces_by_qu_surp_sess(trace_data, analyspar, roigrppar, all_roi_grps):
     Required args:
         - trace_data (list)    : list of 4D array of mean/medians traces 
                                  for each session, structured as:
-                                    surp x quintiles x ROIs x frames
+                                    surp x quantiles x ROIs x frames
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - roigrppar (RoiGrpPar): named tuple containing roi grouping parameters
         - all_roi_grps (list)  : list of sublists per session, each containing
@@ -250,21 +250,21 @@ def grp_traces_by_qu_surp_sess(trace_data, analyspar, roigrppar, all_roi_grps):
     data_me = [math_util.calc_op(sess_me, op, dim=0) for sess_me in trace_data]
     
     n_sesses = len(data_me)
-    n_quints = data_me[0].shape[0]
+    n_quants = data_me[0].shape[0]
     n_stats  = 2 + (analyspar.stats == "median" and analyspar.error == "std")
 
     n_frames = [me.shape[2] for me in data_me]
 
-    # sess x quintile (first/last) x ROI grp
+    # sess x quantile (first/last) x ROI grp
     empties = [np.empty([n_stats, n_fr]) * np.nan for n_fr in n_frames]
-    grp_stats = [[[] for _ in range(n_quints)] for _ in range(n_sesses)]
+    grp_stats = [[[] for _ in range(n_quants)] for _ in range(n_sesses)]
     for i, sess in enumerate(data_me):
-        for q, quint in enumerate(sess): 
+        for q, quant in enumerate(sess): 
             for g, grp_rois in enumerate(all_roi_grps[i]):
                 # leave NaNs if no ROIs in group
                 if len(grp_rois) != 0:
                     grp_st = math_util.get_stats(
-                        quint[grp_rois], analyspar.stats, analyspar.error, 
+                        quant[grp_rois], analyspar.stats, analyspar.error, 
                         axes=0)
                 else:
                     grp_st = empties[i]
@@ -279,7 +279,7 @@ def get_signif_rois(integ_data, permpar, stats="mean", op="diff", nanpol=None,
     """
     get_signif_rois(integ_data, permpar)
 
-    Identifies ROIs showing significant surprise in specified quintiles,
+    Identifies ROIs showing significant surprise in specified quantiles,
     groups accordingly and retrieves statistics for each group.
 
     Required args:
@@ -312,7 +312,7 @@ def get_signif_rois(integ_data, permpar, stats="mean", op="diff", nanpol=None,
         math_util.mean_med(integ_data[1], stats, axis=1, nanpol=nanpol)]
     # ROI x seq
     qu_data_res = math_util.calc_op(np.asarray(data), op, dim=0)
-    # concatenate surp and reg from quintile
+    # concatenate surp and reg from quantile
     qu_data_all = np.concatenate(integ_data, axis=1)
     # run permutation to identify significant ROIs
     all_rand_res = math_util.permute_diff_ratio(
@@ -325,26 +325,26 @@ def get_signif_rois(integ_data, permpar, stats="mean", op="diff", nanpol=None,
 
 #############################################
 def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,  
-                            qu_labs=["first quint", "last quint"], 
+                            qu_labs=["first quant", "last quant"], 
                             stats="mean", nanpol=None):
     """
-    signif_rois_by_grp_sess(sessids, integ_data, permpar, quintpar, roigrppar)
+    signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar)
 
-    Identifies ROIs showing significant surprise in specified quintiles,
+    Identifies ROIs showing significant surprise in specified quantiles,
     groups accordingly and retrieves statistics for each group.
 
     Required args:
         - sessids (list)       : list of Session IDs
         - integ_data (list)    : list of 2D array of ROI activity integrated 
-                                 across frames. Should only include quintiles
+                                 across frames. Should only include quantiles
                                  retained for analysis:
-                                    sess x surp (0, 1) x quintiles x 
+                                    sess x surp (0, 1) x quantiles x 
                                     array[ROI x sequences]
         - permpar (PermPar)    : named tuple containing permutation parameters
         - roigrppar (RoiGrpPar): named tuple containing roi grouping parameters
 
     Optional args:
-        - qu_labs (list): quintiles being compared
+        - qu_labs (list): quantiles being compared
                           default: ["first Q", "last Q"]
         - stats (str)   : statistic parameter, i.e. "mean" or "median"
                           default: "mean"
@@ -365,7 +365,7 @@ def signif_rois_by_grp_sess(sessids, integ_data, permpar, roigrppar,
 
     if len(qu_labs) != 2:
         raise ValueError("Identifying significant ROIs is only implemented "
-            "for 2 quintiles.")
+            "for 2 quantiles.")
 
     logger.info("Identifying ROIs showing significant surprise in "
         f"{qu_labs[0].capitalize()} and/or {qu_labs[1].capitalize()}.", 

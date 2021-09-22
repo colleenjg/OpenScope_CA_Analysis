@@ -58,7 +58,7 @@ def check_args(comp="surp", stimtype="gabors", q1v4=False, regvsurp=False):
         - stimtype (str) : stimtype
                            default: "gabors"
         - q1v4 (bool)    : if True, analysis is trained on first and tested on 
-                           last quintiles
+                           last quartiles
                            default: False
         - regvsurp (bool): if True, analysis is trained on regular and tested 
                            on regular sequences
@@ -121,7 +121,7 @@ def format_output(output, runtype="prod", q1v4=False, bal=False,
         - runtype (str)  : runtype
                            default: "prod"
         - q1v4 (bool)    : if True, analysis is trained on first and tested on 
-                           last quintiles
+                           last quartiles
                            default: False
         - bal (bool)     : if True, all classes are balanced
                            default: False
@@ -176,7 +176,7 @@ def run_regr(args):
             ep_freq (int)         : frequency at which to log loss to 
                                     console
             error (str)           : error to take, i.e., "std" (for std 
-                                    or quintiles) or "sem" (for SEM or MAD)
+                                    or quantiles) or "sem" (for SEM or MAD)
             fluor (str)           : fluorescence trace type
             fontdir (str)         : directory in which additional fonts are 
                                     located
@@ -196,7 +196,7 @@ def run_regr(args):
             parallel (bool)       : if True, runs are done in parallel
             plt_bkend (str)       : pyplot backend to use
             q1v4 (bool)           : if True, analysis is trained on first and 
-                                    tested on last quintiles
+                                    tested on last quartiles
             regvsurp (bool)       : if True, analysis is trained on 
                                     regular and tested on surprise sequences
             runtype (str)         : type of run ("prod" or "pilot")
@@ -253,9 +253,9 @@ def run_regr(args):
         error=args.error, scale=not(args.no_scale), dend=args.dend)  
     
     if args.q1v4:
-        quintpar = sess_ntuple_util.init_quintpar(4, [0, -1])
+        quantpar = sess_ntuple_util.init_quantpar(4, [0, -1])
     else:
-        quintpar = sess_ntuple_util.init_quintpar(1)
+        quantpar = sess_ntuple_util.init_quantpar(1)
     
     logregpar = sess_ntuple_util.init_logregpar(args.comp, not(args.not_ctrl), 
         args.q1v4, args.regvsurp, args.n_epochs, args.batchsize, args.lr, 
@@ -277,7 +277,7 @@ def run_regr(args):
         sess = sess_gen_util.init_sessions(sessid, args.datadir, mouse_df, 
             args.runtype, fulldict=False, fluor=analyspar.fluor, 
             dend=analyspar.dend, temp_log="warning")[0]
-        logreg.run_regr(sess, analyspar, stimpar, logregpar, quintpar, 
+        logreg.run_regr(sess, analyspar, stimpar, logregpar, quantpar, 
             extrapar, techpar)
 
 
@@ -397,7 +397,7 @@ def parse_args():
     parser.add_argument("--wd", default=0, type=float, 
         help="weight decay to use")
     parser.add_argument("--q1v4", action="store_true", 
-        help="run on 1st quintile and test on last")
+        help="run on 1st quartile and test on last")
     parser.add_argument("--regvsurp", action="store_true", 
         help="use with dir_reg to run on reg and test on surp")
     parser.add_argument("--bal", action="store_true", 
