@@ -79,17 +79,17 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
     if analysis == "f": # full traces
         gen_plots.plot_full_traces(figpar=figpar, savedir=savedir, **info)
 
-    # 1. Plot average traces by quintile x surprise for each session 
+    # 1. Plot average traces by quantile x surprise for each session 
     if analysis == "t": # traces
         gen_plots.plot_traces_by_qu_surp_sess(
             figpar=figpar, savedir=savedir, **info)
 
-    # 2. Plot average traces by quintile, locked to surprise for each session 
+    # 2. Plot average traces by quantile, locked to surprise for each session 
     elif analysis == "l": # surprise locked traces
         gen_plots.plot_traces_by_qu_lock_sess(
             figpar=figpar, savedir=savedir, **info)
 
-    # 3. Plot magnitude of change in dF/F area from first to last quintile of 
+    # 3. Plot magnitude of change in dF/F area from first to last quantile of 
     # surprise vs no surprise sequences, for each session
     elif analysis == "m": # mag
         gen_plots.plot_mag_change(figpar=figpar, savedir=savedir, **info)
@@ -98,8 +98,8 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
     elif analysis == "a": # autocorr
         gen_plots.plot_autocorr(figpar=figpar, savedir=savedir, **info)
     
-    # 5. Plots: a) trace areas by quintile, b) average traces, c) trace areas 
-    # by suprise for first vs last quintile, for each ROI group, for each 
+    # 5. Plots: a) trace areas by quantile, b) average traces, c) trace areas 
+    # by suprise for first vs last quantile, for each ROI group, for each 
     # session
     elif analysis == "g": # roi_grps_ch
         plot_rois_by_grp(figpar=figpar, savedir=savedir, **info)
@@ -131,15 +131,15 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
 
 #############################################
 def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar, 
-                             quintpar, roigrppar, sess_info, roi_grps, 
+                             quantpar, roigrppar, sess_info, roi_grps, 
                              figpar=None, savedir=None):
     """
     plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar, 
-                             quintpar, roigrppar, sess_info, roi_grps)
+                             quantpar, roigrppar, sess_info, roi_grps)
 
     From dictionaries, plots average integrated surprise, no surprise or 
     difference between surprise and no surprise activity per group of ROIs 
-    showing significant surprise in first and/or last quintile. Each session is 
+    showing significant surprise in first and/or last quantile. Each session is 
     in a different plot.
 
     Returns figure name and save directory path.
@@ -154,7 +154,7 @@ def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar,
             ["datatype"] (str): datatype (e.g., "roi")
             ["seed"]     (int): seed value used
         - permpar (dict)  : dictionary with keys of PermPar namedtuple 
-        - quintpar (dict) : dictionary with keys of QuintPar namedtuple
+        - quantpar (dict) : dictionary with keys of QuantPar namedtuple
         - roigrppar (dict): dictionary with keys of RoiGrpPar namedtuple 
         - sess_info (dict): dictionary containing information from each
                             session 
@@ -177,7 +177,7 @@ def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar,
             ["grp_st"] (array-like): nested list or array of group stats 
                                      (mean/median, error) across ROIs, 
                                      structured as:
-                                         session x quintile x grp x stat
+                                         session x quantile x grp x stat
             ["grp_ns"] (array-like): nested list of group ns, structured as: 
                                          session x grp
 
@@ -249,7 +249,7 @@ def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar,
             f"{permpar['tails']} tail{nroi_strs[i]})")
         
         sess_plot_util.add_axislabels(
-            sub_ax, fluor=analyspar["fluor"], area=True, x_ax="Quintiles", 
+            sub_ax, fluor=analyspar["fluor"], area=True, x_ax="quantiles", 
             datatype=datatype)
         sub_ax.set_title(title)
 
@@ -262,7 +262,7 @@ def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar,
             figpar["dirs"]["grped"])
     
     savename = (f"{datatype}_{sessstr}{dendstr}_grps_{opstr}_" + 
-        f"{quintpar['n_quints']}q_{permpar['tails']}tail")
+        f"{quantpar['n_quants']}q_{permpar['tails']}tail")
 
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar["save"])
 
@@ -271,14 +271,14 @@ def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar,
 
 #############################################
 def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, 
-                           quintpar, roigrppar, sess_info, roi_grps, 
+                           quantpar, roigrppar, sess_info, roi_grps, 
                            figpar=None, savedir=None):
     """
     plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, 
-                           quintpar, roigrppar, sess_info, roi_grps)
+                           quantpar, roigrppar, sess_info, roi_grps)
 
     From dictionaries, plots ROI traces by group across surprise, no surprise or 
-    difference between surprise and no surprise activity per quintile 
+    difference between surprise and no surprise activity per quantile 
     (first/last) with each group in a separate subplot and each session in a 
     different figure.
 
@@ -294,7 +294,7 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
             ["datatype"] (str): datatype (e.g., "roi")
             ["seed"]     (int): seed value used
         - permpar (dict)  : dictionary with keys of PermPar namedtuple 
-        - quintpar (dict) : dictionary with keys of QuintPar namedtuple
+        - quantpar (dict) : dictionary with keys of QuantPar namedtuple
         - roigrppar (dict): dictionary with keys of RoiGrpPar namedtuple 
         - sess_info (dict): dictionary containing information from each
                             session 
@@ -397,11 +397,11 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
             sub_ax = plot_util.get_subax(ax, g)
             sess_plot_util.add_axislabels(
                 sub_ax, fluor=analyspar["fluor"], datatype=datatype)
-            for q, qu_lab in enumerate(quintpar["qu_lab"]):
+            for q, qu_lab in enumerate(quantpar["qu_lab"]):
                 plot_util.plot_traces(
                     sub_ax, xrans[i], sess_traces[q, g, 0], 
                     sess_traces[q, g, 1:], title=title, 
-                    alpha=0.8/len(quintpar["qu_lab"]), 
+                    alpha=0.8/len(quantpar["qu_lab"]), 
                     label=qu_lab.capitalize(), xticks="auto")
 
         plot_util.turn_off_extra(ax, n_grps)
@@ -420,7 +420,7 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
         fig.suptitle(suptitle, y=1)
 
         savename = (f"{datatype}_tr_m{mouse_ns[i]}_{sessstr}{dendstr}_"
-            f"grps_{opstr}_{quintpar['n_quints']}q_{permpar['tails']}tail")
+            f"grps_{opstr}_{quantpar['n_quants']}q_{permpar['tails']}tail")
         
         fulldir = plot_util.savefig(
             fig, savename, savedir, log_dir=log_dir, **figpar["save"])
@@ -430,14 +430,14 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
 
 #############################################
 def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, 
-                          quintpar, roigrppar, sess_info, roi_grps, 
+                          quantpar, roigrppar, sess_info, roi_grps, 
                           figpar=None, savedir=None):
     """
     plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, 
-                          quintpar, roigrppar, sess_info, roi_grps)
+                          quantpar, roigrppar, sess_info, roi_grps)
 
     From dictionaries, plots ROI traces by group across surprise, no surprise 
-    or difference between surprise and no surprise activity per quintile 
+    or difference between surprise and no surprise activity per quantile 
     (first/last) with each group in a separate subplot and each session in a 
     different figure.
 
@@ -453,7 +453,7 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
             ["datatype"] (str): datatype (e.g., "roi")
             ["seed"]     (int): seed value used
         - permpar (dict)  : dictionary with keys of PermPar namedtuple 
-        - quintpar (dict) : dictionary with keys of QuintPar namedtuple
+        - quantpar (dict) : dictionary with keys of QuantPar namedtuple
         - roigrppar (dict): dictionary with keys of RoiGrpPar namedtuple 
         - sess_info (dict): dictionary containing information from each
                             session 
@@ -477,10 +477,10 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
             ["area_stats"] (array-like)       : ROI group stats (mean/median,  
                                                 error) across ROIs, structured
                                                 as:
-                                                  session x quintile x 
+                                                  session x quantile x 
                                                   grp x stat
             ["area_stats_scaled"] (array-like): same as "area_stats", but 
-                                                with last quintile scaled 
+                                                with last quantile scaled 
                                                 relative to first
 
     Optional args:
@@ -543,7 +543,7 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
     # for spacing the bars on the graph
     barw = 0.75
     _, bar_pos, xlims = plot_util.get_barplot_xpos(
-        1, len(quintpar["qu_idx"]), barw, btw_grps=1.5)
+        1, len(quantpar["qu_idx"]), barw, btw_grps=1.5)
     bar_pos = bar_pos[0] # only one grp
 
     log_dir = False
@@ -564,7 +564,7 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
                 sub_ax.spines["bottom"].set_visible(False)
                 sess_plot_util.add_axislabels(
                     sub_ax, area=True, scale=scale, x_ax="", datatype=datatype)
-                for q, qu_lab in enumerate(quintpar["qu_lab"]):
+                for q, qu_lab in enumerate(quantpar["qu_lab"]):
                     vals = roi_grps[f"area_stats{sc_str}"]
                     vals = np.asarray(vals)[i, q, g]
                     plot_util.plot_bars(
@@ -580,7 +580,7 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
             f"{planes[i]}{dendstr_pr}, {permpar['tails']} tail{nroi_strs[i]})")
 
         savename = (f"{datatype}_area_m{mouse_ns[i]}_{sessstr}{dendstr}_grps_"
-            f"{opstr}_{quintpar['n_quints']}q_{permpar['tails']}tail")
+            f"{opstr}_{quantpar['n_quants']}q_{permpar['tails']}tail")
         
         # figure directories
         if savedir is None:
@@ -602,14 +602,14 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
 
 
 #############################################
-def plot_rois_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, quintpar, 
+def plot_rois_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, quantpar, 
                      roigrppar, sess_info, roi_grps, figpar=None, savedir=None):
     """
-    plot_rois_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, quintpar, 
+    plot_rois_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, quantpar, 
                      roigrppar, sess_info, roi_grps)
 
     From dictionaries, plots ROI data by group across surprise, no surprise 
-    or difference between surprise and no surprise activity per quintile 
+    or difference between surprise and no surprise activity per quantile 
     (first/last) with each group in a separate subplot and each session in a 
     different figure.
 
@@ -627,7 +627,7 @@ def plot_rois_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
             ["datatype"] (str): datatype (e.g., "roi")
             ["seed"]     (int): seed value used
         - permpar (dict)  : dictionary with keys of PermPar namedtuple 
-        - quintpar (dict) : dictionary with keys of QuintPar namedtuple
+        - quantpar (dict) : dictionary with keys of QuantPar namedtuple
         - roigrppar (dict): dictionary with keys of RoiGrpPar namedtuple
         - sess_info (dict): dictionary containing information from each
                             session 
@@ -651,7 +651,7 @@ def plot_rois_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
             ["grp_st"] (array-like)           : nested list or array of group 
                                                 stats (mean/median, error) 
                                                 across ROIs, structured as:
-                                                    session x quintile x grp x 
+                                                    session x quantile x grp x 
                                                     stat
             ["grp_ns"] (array-like)           : nested list of group ns, 
                                                 structured as: 
@@ -666,10 +666,10 @@ def plot_rois_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
             ["area_stats"] (array-like)       : ROI group stats (mean/median, 
                                                 error) across ROIs, structured 
                                                 as:
-                                                    session x quintile x grp x 
+                                                    session x quantile x grp x 
                                                     stat
             ["area_stats_scaled"] (array-like): same as "area_stats", but 
-                                                with last quintile scaled
+                                                with last quantile scaled
                                                 relative to first
     
     Optional args:
@@ -699,7 +699,7 @@ def plot_rois_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
                  "stimpar"  : stimpar,
                  "extrapar" : extrapar,
                  "permpar"  : permpar,
-                 "quintpar" : quintpar,
+                 "quantpar" : quantpar,
                  "roigrppar": roigrppar,
                  "sess_info": sess_info,
                  "roi_grps" : roi_grps,
@@ -717,15 +717,15 @@ def plot_rois_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
 
 
 #############################################
-def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar, 
+def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quantpar, 
                         tr_data, sess_info, figpar=None, savedir=None):
     """
-    plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar, 
+    plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quantpar, 
                        tr_data, sess_info)
 
     From dictionaries, plots average activity across gabor orientations or 
     brick directions per ROI as colormaps for a single session and optionally
-    a single quintile. 
+    a single quantile. 
 
     Required args:
         - analyspar (dict): dictionary with keys of AnalysPar namedtuple
@@ -735,7 +735,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
                             parameters
             ["analysis"] (str): analysis type (e.g., "o")
             ["datatype"] (str): datatype (e.g., "roi")
-        - quintpar (dict) : dictionary with keys of QuintPar namedtuple
+        - quantpar (dict) : dictionary with keys of QuantPar namedtuple
         - sess_info (dict): dictionary containing information from each
                             session (only first session used)
             ["mouse_ns"] (list)   : mouse numbers
@@ -820,7 +820,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
         oridirs = stimpar["bri_dir"]
         n = 7
 
-    qu_str, qu_str_pr = quintpar["qu_lab"][0], quintpar["qu_lab_pr"][0]
+    qu_str, qu_str_pr = quantpar["qu_lab"][0], quantpar["qu_lab_pr"][0]
     if qu_str != "":
         qu_str    = f"_{qu_str}"
     if qu_str_pr != "":
@@ -999,16 +999,16 @@ def scale_sort_trace_data(tr_data, fig_type="byplot", surps=["reg", "surp"],
 
 
 #############################################
-def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quintpar, 
+def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quantpar, 
                          tr_data, sess_info, figpar=None, savedir=None, 
                          log_dir=True):
     """
-    plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quintpar,  
+    plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quantpar,  
                          tr_data, sess_info)
 
     From dictionaries, plots average activity across gabor orientations or 
     brick directions per ROI for a single session and optionally a single 
-    quintile. (Single figure type) 
+    quantile. (Single figure type) 
 
     Required args:
         - fig_type (str)  : type of figure to plot, i.e., "byplot", "byreg", 
@@ -1016,7 +1016,7 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quintpar,
         - analyspar (dict): dictionary with keys of AnalysPar namedtuple
         - sesspar (dict)  : dictionary with keys of SessPar namedtuple 
         - stimpar (dict)  : dictionary with keys of StimPar namedtuple
-        - quintpar (dict) : dictionary with keys of QuintPar namedtuple
+        - quantpar (dict) : dictionary with keys of QuantPar namedtuple
         - sess_info (dict): dictionary containing information from each
                             session (only first session used)
             ["mouse_ns"] (list)   : mouse numbers
@@ -1120,7 +1120,7 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quintpar,
         oridirs = stimpar["bri_dir"]
         n = 7
     
-    qu_str, qu_str_pr = quintpar["qu_lab"][0], quintpar["qu_lab_pr"][0]
+    qu_str, qu_str_pr = quantpar["qu_lab"][0], quantpar["qu_lab_pr"][0]
     if qu_str != "":
         qu_str    = f"_{qu_str}"      
     if qu_str_pr != "":
@@ -1213,16 +1213,16 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quintpar,
 
 
 #############################################
-def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar, 
+def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quantpar, 
                           tr_data, sess_info, figpar=None, savedir=None, 
                           parallel=False):
     """
-    plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar, 
+    plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quantpar, 
                           tr_data, sess_info)
 
     From dictionaries, plots average activity across gabor orientations or 
     brick directions per ROI as colormaps for a single session and optionally
-    a single quintile. 
+    a single quantile. 
 
     Required args:
         - analyspar (dict): dictionary with keys of AnalysPar namedtuple
@@ -1232,7 +1232,7 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
                             parameters
             ["analysis"] (str): analysis type (e.g., "o")
             ["datatype"] (str): datatype (e.g., "roi")
-        - quintpar (dict) : dictionary with keys of QuintPar namedtuple
+        - quantpar (dict) : dictionary with keys of QuantPar namedtuple
         - sess_info (dict): dictionary containing information from each
                             session (only first session used)
             ["mouse_ns"] (list)   : mouse numbers
@@ -1317,7 +1317,7 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
     if parallel:
         n_jobs = gen_util.get_n_jobs(len(fig_types))
         fulldirs = Parallel(n_jobs=n_jobs)(delayed(plot_oridir_colormap)
-            (fig_type, analyspar, sesspar, stimpar, quintpar, tr_data, 
+            (fig_type, analyspar, sesspar, stimpar, quantpar, tr_data, 
             sess_info, figpar, savedir, (f == fig_last)) 
             for f, fig_type in enumerate(fig_types)) 
         fulldir = fulldirs[-1]
@@ -1325,23 +1325,23 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quintpar,
         for f, fig_type in enumerate(fig_types):
             log_dir = (f == fig_last)
             fulldir = plot_oridir_colormap(
-                fig_type, analyspar, sesspar, stimpar, quintpar, tr_data, 
+                fig_type, analyspar, sesspar, stimpar, quantpar, tr_data, 
                 sess_info, figpar, savedir, log_dir)
 
     return fulldir
 
 
 #############################################
-def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar, 
+def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quantpar, 
                  tr_data, sess_info, figpar=None, savedir=None, 
                  parallel=False):
     """
-    plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar, 
+    plot_oridirs(analyspar, sesspar, stimpar, extrapar, quantpar, 
                  tr_data, sess_info)
 
     From dictionaries, plots average activity across gabor orientations or 
     brick directions per ROI as colormaps, as well as traces across ROIs for a 
-    single session and optionally a single quintile. 
+    single session and optionally a single quantile. 
 
     Required args:
         - analyspar (dict): dictionary with keys of AnalysPar namedtuple
@@ -1351,7 +1351,7 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar,
                             parameters
             ["analysis"] (str): analysis type (e.g., "o")
             ["datatype"] (str): datatype (e.g., "roi")
-        - quintpar (dict) : dictionary with keys of QuintPar namedtuple
+        - quantpar (dict) : dictionary with keys of QuantPar namedtuple
         - sess_info (dict): dictionary containing information from each
                             session (one first session used) 
             ["mouse_ns"] (list)   : mouse numbers
@@ -1427,7 +1427,7 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quintpar,
                  "sesspar"  : sesspar,
                  "stimpar"  : stimpar,
                  "extrapar" : extrapar,
-                 "quintpar" : quintpar,
+                 "quantpar" : quantpar,
                  "sess_info": sess_info,
                  "tr_data"  : tr_data,
                  "figpar"   : figpar,

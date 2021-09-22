@@ -916,7 +916,7 @@ def ext_test_str(q1v4=False, rvs=False, comp="surp", str_type="file"):
 
     Optional args:
         - q1v4 (bool)    : if True, analysis is separated across first and last 
-                           quintiles
+                           quartiles
                            default: False
         - rvs (bool)     : if True, analysis is separated across regular and 
                            surprise sequences 

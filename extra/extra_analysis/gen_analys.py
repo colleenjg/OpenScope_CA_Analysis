@@ -22,7 +22,7 @@ import scipy.stats as st
 
 from util import file_util, gen_util, logger_util, math_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
-from extra_analysis import quint_analys
+from extra_analysis import quant_analys
 from extra_plot_fcts import gen_analysis_plots as gen_plots
 
 logger = logging.getLogger(__name__)
@@ -144,16 +144,16 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
 
 #############################################
 def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar, 
-                               stimpar, quintpar, figpar, datatype="roi"):
+                               stimpar, quantpar, figpar, datatype="roi"):
     """
     run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar, 
-                               stimpar, quintpar, figpar)
+                               stimpar, quantpar, figpar)
 
-    Retrieves trace statistics by session x surp val x quintile and
-    plots traces across ROIs by quintile/surprise with each session in a 
+    Retrieves trace statistics by session x surp val x quantile and
+    plots traces across ROIs by quantile/surprise with each session in a 
     separate subplot.
     
-    Also runs analysis for one quintile (full data).
+    Also runs analysis for one quantile (full data).
     
     Saves results and parameters relevant to analysis in a dictionary.
 
@@ -163,7 +163,7 @@ def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar,
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
-        - quintpar (QuintPar)  : named tuple containing quintile analysis 
+        - quantpar (QuantPar)  : named tuple containing quantile analysis 
                                  parameters
         - figpar (dict)        : dictionary containing figure parameters
     
@@ -180,23 +180,23 @@ def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar,
     datastr = sess_str_util.datatype_par_str(datatype)
 
     logger.info(f"Analysing and plotting surprise vs non surprise {datastr} "
-        f"traces by quintile ({quintpar.n_quints}) \n({sessstr_pr}"
+        f"traces by quantile ({quantpar.n_quants}) \n({sessstr_pr}"
         f"{dendstr_pr}).", extra={"spacing": "\n"})
     
-    # modify quintpar to retain all quintiles
-    quintpar_one  = sess_ntuple_util.init_quintpar(1, 0, "", "")
-    n_quints      = quintpar.n_quints
-    quintpar_mult = sess_ntuple_util.init_quintpar(n_quints, "all")
+    # modify quantpar to retain all quantiles
+    quantpar_one  = sess_ntuple_util.init_quantpar(1, 0, "", "")
+    n_quants      = quantpar.n_quants
+    quantpar_mult = sess_ntuple_util.init_quantpar(n_quants, "all")
 
     figpar = copy.deepcopy(figpar)
     if figpar["save"]["use_dt"] is None:
         figpar["save"]["use_dt"] = gen_util.create_time_str()
         
-    for quintpar in [quintpar_one, quintpar_mult]:
-        logger.info(f"{quintpar.n_quints} quint", extra={"spacing": "\n"})
-        # get the stats (all) separating by session, surprise and quintiles    
-        trace_info = quint_analys.trace_stats_by_qu_sess(sessions, analyspar, 
-            stimpar, quintpar.n_quints, quintpar.qu_idx, byroi=False, 
+    for quantpar in [quantpar_one, quantpar_mult]:
+        logger.info(f"{quantpar.n_quants} quant", extra={"spacing": "\n"})
+        # get the stats (all) separating by session, surprise and quantiles    
+        trace_info = quant_analys.trace_stats_by_qu_sess(sessions, analyspar, 
+            stimpar, quantpar.n_quants, quantpar.qu_idx, byroi=False, 
             bysurp=True, datatype=datatype)
         
         extrapar = {"analysis": analysis,
@@ -217,7 +217,7 @@ def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar,
         info = {"analyspar"  : analyspar._asdict(),
                 "sesspar"    : sesspar._asdict(),
                 "stimpar"    : stimpar._asdict(),
-                "quintpar"   : quintpar._asdict(),
+                "quantpar"   : quantpar._asdict(),
                 "extrapar"   : extrapar,
                 "sess_info"  : sess_info,
                 "trace_stats": trace_stats
@@ -230,16 +230,16 @@ def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar,
       
 #############################################
 def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar, 
-                               stimpar, quintpar, figpar, datatype="roi"):
+                               stimpar, quantpar, figpar, datatype="roi"):
     """
     run_traces_by_qu_lock_sess(sessions, analysis, analyspar, sesspar, 
-                               stimpar, quintpar, figpar)
+                               stimpar, quantpar, figpar)
 
-    Retrieves trace statistics by session x quintile at the transition of
+    Retrieves trace statistics by session x quantile at the transition of
     regular to surprise sequences (or v.v.) and plots traces across ROIs by 
-    quintile with each session in a separate subplot.
+    quantile with each session in a separate subplot.
     
-    Also runs analysis for one quintile (full data) with different surprise 
+    Also runs analysis for one quantile (full data) with different surprise 
     lengths grouped separated 
     
     Saves results and parameters relevant to analysis in a dictionary.
@@ -251,7 +251,7 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
-        - quintpar (QuintPar)  : named tuple containing quintile analysis 
+        - quantpar (QuantPar)  : named tuple containing quantile analysis 
                                  parameters
         - figpar (dict)        : dictionary containing figure parameters
     
@@ -269,15 +269,15 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
     datastr = sess_str_util.datatype_par_str(datatype)
 
     logger.info(f"Analysing and plotting surprise vs non surprise {datastr} "
-        f"traces locked to surprise onset by quintile ({quintpar.n_quints}) "
+        f"traces locked to surprise onset by quantile ({quantpar.n_quants}) "
         f"\n({sessstr_pr}{dendstr_pr}).", extra={"spacing": "\n"})
 
     seed = gen_util.seed_all(seed, "cpu", log_seed=False)
 
-    # modify quintpar to retain all quintiles
-    quintpar_one  = sess_ntuple_util.init_quintpar(1, 0, "", "")
-    n_quints      = quintpar.n_quints
-    quintpar_mult = sess_ntuple_util.init_quintpar(n_quints, "all")
+    # modify quantpar to retain all quantiles
+    quantpar_one  = sess_ntuple_util.init_quantpar(1, 0, "", "")
+    n_quants      = quantpar.n_quants
+    quantpar_mult = sess_ntuple_util.init_quantpar(n_quants, "all")
 
     if stimpar.stimtype == "bricks":
         pre_post = [2.0, 6.0]
@@ -297,30 +297,30 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
         
     for baseline in [None, stimpar.pre]:
         basestr_pr = sess_str_util.base_par_str(baseline, "print")
-        for quintpar in [quintpar_one, quintpar_mult]:
+        for quantpar in [quantpar_one, quantpar_mult]:
             locks = ["surp", "reg"]
-            if quintpar.n_quints == 1:
+            if quantpar.n_quants == 1:
                 locks.append("surp_split")
-            # get the stats (all) separating by session and quintiles
+            # get the stats (all) separating by session and quantiles
             for lock in locks:
                 logger.info(
-                    f"{quintpar.n_quints} quint, {lock} lock{basestr_pr}", 
+                    f"{quantpar.n_quants} quant, {lock} lock{basestr_pr}", 
                     extra={"spacing": "\n"})
                 if lock == "surp_split":
-                    trace_info = quint_analys.trace_stats_by_surp_len_sess(
-                        sessions, analyspar, stimpar, quintpar.n_quints, 
-                        quintpar.qu_idx, byroi=False, nan_empty=True, 
+                    trace_info = quant_analys.trace_stats_by_surp_len_sess(
+                        sessions, analyspar, stimpar, quantpar.n_quants, 
+                        quantpar.qu_idx, byroi=False, nan_empty=True, 
                         baseline=baseline, datatype=datatype)
                 else:
-                    trace_info = quint_analys.trace_stats_by_qu_sess(
-                        sessions, analyspar, stimpar, quintpar.n_quints, 
-                        quintpar.qu_idx, byroi=False, lock=lock, nan_empty=True, 
+                    trace_info = quant_analys.trace_stats_by_qu_sess(
+                        sessions, analyspar, stimpar, quantpar.n_quants, 
+                        quantpar.qu_idx, byroi=False, lock=lock, nan_empty=True, 
                         baseline=baseline, datatype=datatype)
 
-                # for comparison, locking to middle of regular sample (1 quint)
-                reg_samp = quint_analys.trace_stats_by_qu_sess(
-                    sessions, analyspar, stimpar, quintpar_one.n_quints, 
-                    quintpar_one.qu_idx, byroi=False, lock="regsamp", 
+                # for comparison, locking to middle of regular sample (1 quant)
+                reg_samp = quant_analys.trace_stats_by_qu_sess(
+                    sessions, analyspar, stimpar, quantpar_one.n_quants, 
+                    quantpar_one.qu_idx, byroi=False, lock="regsamp", 
                     nan_empty=True, baseline=baseline, datatype=datatype)
 
                 extrapar = {"analysis": analysis,
@@ -350,7 +350,7 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
                 info = {"analyspar"  : analyspar._asdict(),
                         "sesspar"    : sesspar._asdict(),
                         "stimpar"    : stimpar._asdict(),
-                        "quintpar"   : quintpar._asdict(),
+                        "quantpar"   : quantpar._asdict(),
                         "extrapar"   : extrapar,
                         "sess_info"  : sess_info,
                         "trace_stats": trace_stats
@@ -363,13 +363,13 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
       
 #############################################
 def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar, 
-                   permpar, quintpar, figpar, datatype="roi"):
+                   permpar, quantpar, figpar, datatype="roi"):
     """
     run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar, 
-                   permpar, quintpar, figpar)
+                   permpar, quantpar, figpar)
 
     Calculates and plots the magnitude of change in activity of ROIs between 
-    the first and last quintile for non surprise vs surprise sequences.
+    the first and last quantile for non surprise vs surprise sequences.
     Saves results and parameters relevant to analysis in a dictionary.
 
     Required args:
@@ -380,7 +380,7 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
         - permpar (PermPar)    : named tuple containing permutation parameters
-        - quintpar (QuintPar)  : named tuple containing quintile analysis 
+        - quantpar (QuantPar)  : named tuple containing quantile analysis 
                                  parameters
         - figpar (dict)        : dictionary containing figure parameters   
 
@@ -397,7 +397,7 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
     datastr = sess_str_util.datatype_par_str(datatype)
 
     logger.info(f"Calculating and plotting the magnitude changes in {datastr} "
-        f"activity across quintiles \n({sessstr_pr}{dendstr_pr}).", 
+        f"activity across quantiles \n({sessstr_pr}{dendstr_pr}).", 
         extra={"spacing": "\n"})
 
     if permpar.multcomp:
@@ -405,9 +405,9 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
             permpar, "multcomp", len(sessions)
             )
 
-    # get full data: session x surp x quints of interest x [ROI x seq]
-    integ_info = quint_analys.trace_stats_by_qu_sess(
-        sessions, analyspar, stimpar, quintpar.n_quints, quintpar.qu_idx, 
+    # get full data: session x surp x quants of interest x [ROI x seq]
+    integ_info = quant_analys.trace_stats_by_qu_sess(
+        sessions, analyspar, stimpar, quantpar.n_quants, quantpar.qu_idx, 
         bysurp=True, integ=True, ret_arr=True, datatype=datatype)
     all_counts = integ_info[-2]
     qu_data = integ_info[-1]
@@ -423,7 +423,7 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
     seed = gen_util.seed_all(seed, "cpu", log_seed=False)
 
-    mags = quint_analys.qu_mags(
+    mags = quant_analys.qu_mags(
         qu_data, permpar, mouse_ns, lines, analyspar.stats, analyspar.error, 
         nanpol=nanpol, op_qu="diff", op_surp="diff")
 
@@ -447,7 +447,7 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
             "stimpar": stimpar._asdict(),
             "extrapar": extrapar,
             "permpar": permpar._asdict(),
-            "quintpar": quintpar._asdict(),
+            "quantpar": quantpar._asdict(),
             "mags": mags,
             "sess_info": sess_info
             }
@@ -587,7 +587,7 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
                             stimpar, figpar, datatype="roi"):
     """
     run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar, 
-                            stimpar, quintpar, figpar)
+                            stimpar, quantpar, figpar)
 
     Retrieves trace statistics by session x surp val and calculates 
     correlations across sessions per surp val.
@@ -643,9 +643,9 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
     for sess_grp in sessions:
         logger.info(f"Mouse {sess_grp[0].mouse_n}, sess {sess_grp[0].sess_n} "
             f"vs {sess_grp[1].sess_n} corr:")
-        trace_info = quint_analys.trace_stats_by_qu_sess(sess_grp, analyspar, 
+        trace_info = quant_analys.trace_stats_by_qu_sess(sess_grp, analyspar, 
             stimpar, 1, [0], byroi=False, bysurp=True, datatype=datatype)
-        # remove quint dim
+        # remove quant dim
         grp_stats = np.asarray(trace_info[1]).squeeze(2) 
         all_counts.append([[qu_c[0] for qu_c in c] for c in trace_info[2]])
         # get mean/median per grp (sess x surp_val x frame)

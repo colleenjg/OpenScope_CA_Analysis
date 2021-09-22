@@ -206,40 +206,40 @@ def init_permpar(n_perms=10000, p_val=0.05, tails=2, multcomp=False):
 
 
 #############################################
-def init_quintpar(n_quints=4, qu_idx="all", qu_lab=None, qu_lab_pr=None):
+def init_quantpar(n_quants=4, qu_idx="all", qu_lab=None, qu_lab_pr=None):
     """
-    Returns a QuintPar namedtuple with the inputs arguments as named attributes.
+    Returns a QuantPar namedtuple with the inputs arguments as named attributes.
 
     Optional args:
-        - n_quints (int)   : nbr of quintiles
+        - n_quants (int)   : nbr of quantiles
                              default: 4
-        - qu_idx (list)    : indices of quintiles used in analyses 
+        - qu_idx (list)    : indices of quantiles used in analyses 
                              default: "all"
-        - qu_lab (list)    : labels of quintiles used in analyses
+        - qu_lab (list)    : labels of quantiles used in analyses
                              if None, labels are created in format: "q1"
                              default: None
-        - qu_lab_pr (list) : labels for printing of quintiles used in analyses
+        - qu_lab_pr (list) : labels for printing of quantiles used in analyses
                              if None, labels are created in format: "qu 1/1"
                              default: None
     
     Returns:
-        - quintpar (QuintPar namedtuple): QuintPar with input arguments as 
+        - quantpar (QuantPar namedtuple): QuantPar with input arguments as 
                                           attributes
     """
 
     if qu_idx == "all":
-        qu_idx = list(range(n_quints))
+        qu_idx = list(range(n_quants))
     
     qu_idx = gen_util.list_if_not(qu_idx)
 
-    # Quintile labels
+    # Quantile labels
     if qu_lab is None:
-        qu_lab = [f"q{list(range(n_quints))[q]+1}" for q in qu_idx]
+        qu_lab = [f"q{list(range(n_quants))[q]+1}" for q in qu_idx]
     else:
         qu_lab = gen_util.list_if_not(qu_lab)
 
     if qu_lab_pr is None:
-        qu_lab_pr = [f"qu {list(range(n_quints))[q]+1}/{n_quints}" 
+        qu_lab_pr = [f"qu {list(range(n_quants))[q]+1}/{n_quants}" 
             for q in qu_idx]
     else:
         qu_lab_pr = gen_util.list_if_not(qu_lab_pr)
@@ -247,11 +247,11 @@ def init_quintpar(n_quints=4, qu_idx="all", qu_lab=None, qu_lab_pr=None):
     if len(qu_idx) != len(qu_lab) or len(qu_idx) != len(qu_lab_pr):
         raise ValueError("Must pass as many indices as labels.")
 
-    quint_pars = [n_quints, qu_idx, qu_lab, qu_lab_pr]
-    quint_keys = ["n_quints", "qu_idx", "qu_lab", "qu_lab_pr"]
-    QuintPar   = namedtuple("QuintPar", quint_keys)
-    quintpar   = QuintPar(*quint_pars)
-    return quintpar
+    quant_pars = [n_quants, qu_idx, qu_lab, qu_lab_pr]
+    quant_keys = ["n_quants", "qu_idx", "qu_lab", "qu_lab_pr"]
+    quantPar   = namedtuple("QuantPar", quant_keys)
+    quantpar   = QuantPar(*quant_pars)
+    return quantpar
 
 
 #############################################
@@ -347,8 +347,8 @@ def init_logregpar(comp="surp", ctrl=False, q1v4=False, regvsurp=False,
         - ctrl (bool)    : if True, regression is run as a control for surp 
                            comparison
                            default: False
-        - q1v4 (bool)    : if True, regression is run on quintile 1 and tested 
-                           on quintile 4
+        - q1v4 (bool)    : if True, regression is run on quartile 1 and tested 
+                           on quartile 4
                            default: False
         - regvsurp (bool): if True, regression is run on regular bricks 
                            direction and tested on surprise trials

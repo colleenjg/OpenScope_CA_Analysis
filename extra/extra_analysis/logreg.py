@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from extra_analysis import quint_analys
+from extra_analysis import quant_analys
 from util import data_util, file_util, gen_util, logger_util, logreg_util, \
     math_util, plot_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
@@ -51,7 +51,7 @@ def get_comps(stimtype="gabors", q1v4=False, regvsurp=False):
         - stimtype (str) : stimtype
                            default: "gabors"
         - q1v4 (bool)    : if True, analysis is trained on first and tested on 
-                           last quintiles
+                           last quartiles
                            default: False
         - regvsurp (bool): if True, analysis is trained on regular and tested 
                            on regular sequences
@@ -545,10 +545,10 @@ def get_classes(comp="surp", gab_ori="all"):
 
 
 #############################################
-def get_data(stim, analyspar, stimpar, quintpar, qu_i=0, surp=[0, 1], 
+def get_data(stim, analyspar, stimpar, quantpar, qu_i=0, surp=[0, 1], 
              n=1, remconsec_surps=False, get_2nd=False):
     """
-    get_data(sess, quintpar, stimpar)
+    get_data(sess, quantpar, stimpar)
 
     Returns ROI data based on specified criteria. 
 
@@ -556,10 +556,10 @@ def get_data(stim, analyspar, stimpar, quintpar, qu_i=0, surp=[0, 1],
         - stim (Stim)          : stimulus object
         - analyspar (AnalysPar): named tuple containing analysis parameters        
         - stimpar (StimPar)    : named tuple containing stimulus parameters
-        - quintpar (QuintPar)  : named tuple containing quintile parameters
+        - quantpar (QuantPar)  : named tuple containing quantile parameters
     
     Optional args:
-        - qu_i (int)            : quintile index
+        - qu_i (int)            : quartile index
                                   default: 0
         - surp (list)           : surprise values
                                   default: [0, 1]
@@ -577,12 +577,12 @@ def get_data(stim, analyspar, stimpar, quintpar, qu_i=0, surp=[0, 1],
         - surp_n (int)       : Number of surprise sequences
     """
    
-    # data for single quintile
+    # data for single quartile
     # first number of surprises, then segs
     for t, surp_use in enumerate([1, surp]):
         remconsec = (remconsec_surps and surp_use == 1)
-        segs = quint_analys.quint_segs(
-            stim, stimpar, quintpar.n_quints, qu_i, surp_use, 
+        segs = quant_analys.quant_segs(
+            stim, stimpar, quantpar.n_quants, qu_i, surp_use, 
             remconsec=remconsec)[0][0]
         # get alternating for consecutive segments
         if get_2nd and not remconsec: 
@@ -629,10 +629,10 @@ def get_data(stim, analyspar, stimpar, quintpar, qu_i=0, surp=[0, 1],
 
 
 #############################################
-def get_sess_data(sess, analyspar, stimpar, quintpar, class_var="surps", 
+def get_sess_data(sess, analyspar, stimpar, quantpar, class_var="surps", 
                   surps=[0, 1], regvsurp=False, split_oris=False):
     """
-    get_sess_data(sess, analyspar, stimpar, quintpar)
+    get_sess_data(sess, analyspar, stimpar, quantpar)
 
     Logs session information and returns ROI trace segments, target classes 
     and class information and number of surprise segments in the dataset.
@@ -641,7 +641,7 @@ def get_sess_data(sess, analyspar, stimpar, quintpar, class_var="surps",
         - sess (Session)       : session
         - analyspar (AnalysPar): named tuple containing analysis parameters        
         - stimpar (StimPar)    : named tuple containing stimulus parameters
-        - quintpar (QuintPar)  : named tuple containing quintile parameters
+        - quantpar (QuantPar)  : named tuple containing quantile parameters
 
     Optional args:
         - class_var (str)          : class determining variable ("surps" or 
@@ -673,13 +673,13 @@ def get_sess_data(sess, analyspar, stimpar, quintpar, class_var="surps",
 
     split_oris = split_oris is not False # set to boolean
 
-    if (regvsurp + (len(quintpar.qu_idx) > 1) + ("half" in class_var)
+    if (regvsurp + (len(quantpar.qu_idx) > 1) + ("half" in class_var)
         + split_oris) > 1:
         raise ValueError("Cannot combine any of the following: separating "
-            "quintiles, regvsurp, half comparisons, multiple Gabor frame "
+            "quartiles, regvsurp, half comparisons, multiple Gabor frame "
             "orientation comparisons.")
-    elif len(quintpar.qu_idx) > 2:
-        raise ValueError("Max of 2 quintiles expected.")
+    elif len(quantpar.qu_idx) > 2:
+        raise ValueError("Max of 2 quartiles expected.")
     elif split_oris and len(stimpar.gabfr) > 2:
         raise ValueError("Max of 2 Gabor frame sets expected for orientation "
             "classification.")
@@ -713,35 +713,35 @@ def get_sess_data(sess, analyspar, stimpar, quintpar, class_var="surps",
         # DOUBLE surp ns to compensate for shorter blocks, if using control
         n = 2
         if "diff" in class_var:
-            quintpar = sess_ntuple_util.init_quintpar(
+            quantpar = sess_ntuple_util.init_quantpar(
                 4, [[1, 2]], [None], [None])
             if len(np.unique(stim.direcs)) != 2:
                 raise RuntimeError(
                     "Segments do not fit these criteria (missing directions).")
         else:
-            quintpar = sess_ntuple_util.init_quintpar(
+            quantpar = sess_ntuple_util.init_quantpar(
                 2, [[0, 1]], [None], [None])
     else:
         n_cl = len(stimpar._asdict()[class_var])
 
     # modify surps, qu_idx, gabfr to cycle through datasets
-    if len(quintpar.qu_idx) == 2:
+    if len(quantpar.qu_idx) == 2:
         surps = [surps, surps]
         gabfr_idxs = ["ignore", "ignore"]
         if regvsurp:
             raise ValueError(
-                "Cannot set regvsurp to True if more than 1 quintile.")
+                "Cannot set regvsurp to True if more than 1 quantile.")
         if "part" in class_var:
-            raise ValueError("Cannot do half comparisons with quintiles.")
+            raise ValueError("Cannot do half comparisons with quartiles.")
     elif regvsurp:
         surps = [surps, 1-surps]
         gabfr_idxs = ["ignore", "ignore"]
-        quintpar = sess_ntuple_util.init_quintpar(
+        quantpar = sess_ntuple_util.init_quantpar(
             1, [0, 0], [None, None], [None, None])
     elif split_oris:
         surps = surps
         gabfr_idxs = [0, 1]
-        quintpar = sess_ntuple_util.init_quintpar(
+        quantpar = sess_ntuple_util.init_quantpar(
             1, [0, 0], [None, None], [None, None])
     else:
         surps = [surps]
@@ -749,13 +749,13 @@ def get_sess_data(sess, analyspar, stimpar, quintpar, class_var="surps",
     gabfr_idxs = [0, 1] if split_oris else ["ignore", "ignore"]
 
     # cycle through classes
-    roi_seqs    = [[] for _ in range(len(quintpar.qu_idx))]
-    seq_classes = [[] for _ in range(len(quintpar.qu_idx))]
-    surp_ns     = [[] for _ in range(len(quintpar.qu_idx))]
+    roi_seqs    = [[] for _ in range(len(quantpar.qu_idx))]
+    seq_classes = [[] for _ in range(len(quantpar.qu_idx))]
+    surp_ns     = [[] for _ in range(len(quantpar.qu_idx))]
 
-    # cycle through data groups (quint or regvsurp or gabfr for oris)        
+    # cycle through data groups (quant or regvsurp or gabfr for oris)        
     for d, (qu_i, subsurps, gabfr_idx) in enumerate(
-        zip(quintpar.qu_idx, surps, gabfr_idxs)):
+        zip(quantpar.qu_idx, surps, gabfr_idxs)):
         for cl in range(n_cl):
             use_qu_i = [qu_i]
             surp = subsurps
@@ -776,7 +776,7 @@ def get_sess_data(sess, analyspar, stimpar, quintpar, class_var="surps",
                     stimpar, keys, vals)
 
             roi_data, surp_n = get_data(
-                stim, analyspar, stimpar_sp, quintpar, qu_i=use_qu_i, 
+                stim, analyspar, stimpar_sp, quantpar, qu_i=use_qu_i, 
                 surp=surp, remconsec_surps=remconsec_surps, n=n,  
                 get_2nd=get_2nd)
 
@@ -1065,15 +1065,15 @@ def save_scores(info, scores, key_order=None, dirname="."):
 
 
 #############################################
-def setup_run(quintpar, extrapar, techpar, sess_data, comp="surp", 
+def setup_run(quantpar, extrapar, techpar, sess_data, comp="surp", 
               gab_ori="all"):
     """
-    setup_run(quintpar, extrapar, techpar, sess_data)
+    setup_run(quantpar, extrapar, techpar, sess_data)
     
     Sets up run(s) by setting seed, getting classes and number of ROIs.
 
     Required args:
-        - quintpar (QuintPar)  : named tuple containing quintile parameters
+        - quantpar (QuantPar)  : named tuple containing quantile parameters
         - extrapar (dict)      : dictionary with extra parameters
             ["seed"] (int)    : seed to use
             ["shuffle"] (bool): if analysis is on shuffled data
@@ -1141,10 +1141,10 @@ def setup_run(quintpar, extrapar, techpar, sess_data, comp="surp",
 
 
 #############################################
-def all_runs_sk(n_runs, analyspar, logregpar, quintpar, sesspar, stimpar, 
+def all_runs_sk(n_runs, analyspar, logregpar, quantpar, sesspar, stimpar, 
                  extrapar, techpar, sess_data):
     """
-    all_runs_sk(n_runs, analyspar, logregpar, quintpar, sesspar, stimpar, 
+    all_runs_sk(n_runs, analyspar, logregpar, quantpar, sesspar, stimpar, 
                  extrapar, techpar, sess_data)
 
     Does all runs of a logistic regression on the specified comparison
@@ -1156,7 +1156,7 @@ def all_runs_sk(n_runs, analyspar, logregpar, quintpar, sesspar, stimpar,
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - logregpar (LogRegPar): named tuple containing logistic regression 
                                  parameters
-        - quintpar (QuintPar)  : named tuple containing quintile parameters
+        - quantpar (QuantPar)  : named tuple containing quantile parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
         - extrapar (dict)      : dictionary with extra parameters
@@ -1193,7 +1193,7 @@ def all_runs_sk(n_runs, analyspar, logregpar, quintpar, sesspar, stimpar,
             )
 
     [extrapar, roi_seqs, seq_classes, n_surps] = setup_run(
-         quintpar, extrapar, techpar, sess_data, logregpar.comp, 
+         quantpar, extrapar, techpar, sess_data, logregpar.comp, 
          gab_ori=stimpar.gab_ori)
     main_data = [roi_seqs[0], seq_classes[0]]
 
@@ -1295,10 +1295,10 @@ def all_runs_sk(n_runs, analyspar, logregpar, quintpar, sesspar, stimpar,
 
 
 #############################################
-def single_run_pt(run_n, analyspar, logregpar, quintpar, sesspar, stimpar, 
+def single_run_pt(run_n, analyspar, logregpar, quantpar, sesspar, stimpar, 
                   extrapar, techpar, sess_data):
     """
-    single_run_pt(run_n, analyspar, logregpar, quintpar, sesspar, stimpar, 
+    single_run_pt(run_n, analyspar, logregpar, quantpar, sesspar, stimpar, 
                   extrapar, techpar, sess_data)
 
     Does a single run of a logistic regression using PyTorch on the specified 
@@ -1310,7 +1310,7 @@ def single_run_pt(run_n, analyspar, logregpar, quintpar, sesspar, stimpar,
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - logregpar (LogRegPar): named tuple containing logistic regression 
                                  parameters
-        - quintpar (QuintPar)  : named tuple containing quintile parameters
+        - quantpar (QuantPar)  : named tuple containing quantile parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
         - extrapar (dict)      : dictionary with extra parameters
@@ -1335,14 +1335,14 @@ def single_run_pt(run_n, analyspar, logregpar, quintpar, sesspar, stimpar,
                                   included), each structured as 
                                       class values x 1
             - n_surps (list)    : number of surprise sequences, listed by 
-                                  quintile, (doubled if "half" comparison)
+                                  quantile, (doubled if "half" comparison)
     """
     
     extrapar = copy.deepcopy(extrapar)
     extrapar["seed"] *= run_n + 1 # ensure different seed for each run
 
     [extrapar, roi_seqs, seq_classes, n_surps] = setup_run(
-        quintpar, extrapar, techpar, sess_data, logregpar.comp, 
+        quantpar, extrapar, techpar, sess_data, logregpar.comp, 
         gab_ori=stimpar.gab_ori)
 
     extrapar["run_n"] = run_n
@@ -1420,7 +1420,7 @@ def single_run_pt(run_n, analyspar, logregpar, quintpar, sesspar, stimpar,
 
 
 #############################################
-def run_regr(sess, analyspar, stimpar, logregpar, quintpar, extrapar, techpar):
+def run_regr(sess, analyspar, stimpar, logregpar, quantpar, extrapar, techpar):
     """
     Does runs of a logistic regressions on the specified comparison on a 
     session.
@@ -1431,7 +1431,7 @@ def run_regr(sess, analyspar, stimpar, logregpar, quintpar, extrapar, techpar):
         - stimpar (StimPar)    : named tuple containing stimulus parameters
         - logregpar (LogRegPar): named tuple containing logistic regression 
                                  analysis parameters
-        - quintpar (QuintPar)  : named tuple containing quintile analysis 
+        - quantpar (QuantPar)  : named tuple containing quantile analysis 
                                  parameters
         - extrapar (dict)      : dictionary containing additional analysis 
                                  parameters
@@ -1461,7 +1461,7 @@ def run_regr(sess, analyspar, stimpar, logregpar, quintpar, extrapar, techpar):
 
     try:
         sess_data = get_sess_data(
-            sess, analyspar, stimpar, quintpar, class_var, surps, 
+            sess, analyspar, stimpar, quantpar, class_var, surps, 
             regvsurp=logregpar.regvsurp, split_oris=split_oris)
     except RuntimeError as err:
         catch_phr = ["fit these criteria", "No frames"]
@@ -1489,13 +1489,13 @@ def run_regr(sess, analyspar, stimpar, logregpar, quintpar, extrapar, techpar):
             if n_runs == 0:
                 continue
             # optionally runs in parallel
-            args_list = [analyspar, logregpar, quintpar, sesspar, stimpar, 
+            args_list = [analyspar, logregpar, quantpar, sesspar, stimpar, 
                 extrapar, techpar, sess_data]
             gen_util.parallel_wrap(
                 single_run_pt, range(n_runs), args_list, 
                 parallel=techpar["parallel"])
         elif logregpar.alg == "sklearn":
-            all_runs_sk(n_runs, analyspar, logregpar, quintpar, sesspar, 
+            all_runs_sk(n_runs, analyspar, logregpar, quantpar, sesspar, 
                 stimpar, extrapar, techpar, sess_data)
         else:
             gen_util.accepted_values_error("logregpar.alg", logregpar.alg, 

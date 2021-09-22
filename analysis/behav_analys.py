@@ -217,6 +217,65 @@ def get_pupil_run_trace_stats_df(sessions, analyspar, stimpar, basepar,
 
 
 #############################################
+def get_block_data(sess, analyspar, stimpar, datatype="run"):
+    """
+    get_by_exp_data(sess, analyspar, stimpar)
+
+    Returns data split into expected and unexpected sequences.
+
+    Required args:
+        - sess (Session):
+            Session object
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+
+    Optional args:
+        - datatype (str):
+            type of data to return ("roi", "run" or "pupil")
+            default: "roi"
+
+    Returns:
+        - data_arr (nested list):
+            sequence data array
+            dims: split (x ROIs) x seq (x frames)
+    """
+
+    # stim = sess.get_stim(stimpar.stimtype)
+
+    # by_exp_segs = []
+    # by_exp_ns = []
+    # for e, exp in enumerate([0, 1]):
+    #     segs = stim.get_segs_by_criteria(
+    #         gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
+    #         bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, surp=exp, 
+    #         remconsec=False, by="seg")
+    #     by_exp_segs.append(np.asarray(segs))
+    #     by_exp_ns.append(len(segs))
+    
+    # # split into blocks
+    # sort_all = np.argsort(np.concatenate(segs))
+    # sort_exp = sort_all[: by_exp_ns[0]]
+    # sort_unexp = sort_all[by_exp_ns[0] :]
+    # unexp_seg_blocks = []
+    # exp_seg_blocks = []
+    # for unexp_s
+
+
+    #     data, time_values = get_data(
+    #         stim, segs, analyspar, pre=stimpar.pre, post=stimpar.post, 
+    #         integ=integ, datatype=datatype, ref_type="segs"
+    #         )
+    #     by_exp_data.append(data.tolist())
+
+    # return by_exp_data, time_values
+
+
+
+
+
+
 def pupil_run_diffs():
 
     return

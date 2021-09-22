@@ -21,7 +21,7 @@ import numpy as np
 
 from util import file_util, gen_util, logger_util, math_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
-from extra_analysis import ori_analys, quint_analys, signif_grps
+from extra_analysis import ori_analys, quant_analys, signif_grps
 from extra_plot_fcts import roi_analysis_plots as roi_plots
 
 logger = logging.getLogger(__name__)
@@ -31,15 +31,15 @@ TAB = "    "
 
 #############################################
 def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
-                            permpar, quintpar, roigrppar, roi_grps, figpar, 
+                            permpar, quantpar, roigrppar, roi_grps, figpar, 
                             savedict=True):
 
     """
     run_roi_areas_by_grp_qu(sessions, analysis, analyspar, sesspar, stimpar, 
-                            permpar, quintpar, roigrppar, roi_grps, figpar)
+                            permpar, quantpar, roigrppar, roi_grps, figpar)
 
     Plots average integrated surprise, no surprise or difference between 
-    surprise and no surprise activity across ROIs per group for each quintiles
+    surprise and no surprise activity across ROIs per group for each quantiles
     with each session in a separate subplot.
 
     Returns save directory path and results in roi_grps dictionary.
@@ -53,7 +53,7 @@ def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
                                  parameters
             ["datatype"] (str): datatype (e.g., "roi")
         - permpar (PermPar)    : named tuple containing permutation parameters
-        - quintpar (QuintPar)  : named tuple containing quintile analysis 
+        - quantpar (QuantPar)  : named tuple containing quantile analysis 
                                  parameters
         - roigrppar (RoiGrpPar): named tuple containing ROI grouping parameters
         - roi_grps (dict)      : dictionary containing ROI grps information:
@@ -81,7 +81,7 @@ def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
             ["grp_st"] (array-like): nested list or array of group stats 
                                      (mean/median, error) across ROIs, 
                                      structured as:
-                                         session x quintile x grp x stat
+                                         session x quantile x grp x stat
             ["grp_ns"] (array-like): nested list of group ns, structured as: 
                                          session x grp
     """
@@ -99,12 +99,12 @@ def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
         raise NotImplementedError("Analysis only implemented for roi datatype.")
 
     logger.info(f"Analysing and plotting {opstr_pr} {datastr} average "
-        f"response by quintile ({quintpar.n_quints}). \n{sessstr_pr}"
+        f"response by quantile ({quantpar.n_quants}). \n{sessstr_pr}"
         f"{dendstr_pr}.", extra={"spacing": "\n"})
     
     # get full data for qu of interest: session x surp x [seq x ROI]
-    integ_info = quint_analys.trace_stats_by_qu_sess(
-        sessions, analyspar, stimpar, quintpar.n_quints, "all", bysurp=True, 
+    integ_info = quant_analys.trace_stats_by_qu_sess(
+        sessions, analyspar, stimpar, quantpar.n_quants, "all", bysurp=True, 
         integ=True)
 
     # retrieve only mean/medians per ROI
@@ -128,7 +128,7 @@ def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
         "sesspar"  : sesspar._asdict(),
         "stimpar"  : stimpar._asdict(),
         "extrapar" : extrapar,
-        "quintpar" : quintpar._asdict(),
+        "quantpar" : quantpar._asdict(),
         "permpar"  : permpar._asdict(),
         "roigrppar": roigrppar._asdict(),
         "sess_info": sess_info,
@@ -147,16 +147,16 @@ def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
 
 #############################################
 def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar, 
-                          permpar, quintpar, roigrppar, roi_grps, figpar, 
+                          permpar, quantpar, roigrppar, roi_grps, figpar, 
                           savedict=True):
                            
     """
     run_roi_traces_by_grp(sessions, analysis, sesspar, stimpar, extrapar, 
-                          permpar, quintpar, roigrppar, roi_grps, figpar)
+                          permpar, quantpar, roigrppar, roi_grps, figpar)
 
     Calculates and plots ROI traces across ROIs by group for surprise, no 
     surprise or difference between surprise and no surprise activity per 
-    quintile (first/last) with each group in a separate subplot and each 
+    quantile (first/last) with each group in a separate subplot and each 
     session in a different figure.
 
     Optionally saves results and parameters relevant to analysis in a 
@@ -173,7 +173,7 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
                                  parameters
             ["datatype"] (str): datatype (e.g., "roi")
         - permpar (PermPar)    : named tuple containing permutation parameters
-        - quintpar (QuintPar)  : named tuple containing quintile analysis 
+        - quantpar (QuantPar)  : named tuple containing quantile analysis 
                                 parameters
         - roigrppar (RoiGrpPar): named tuple containing ROI grouping parameters
         - roi_grps (dict) : dictionary containing ROI grps information:
@@ -201,7 +201,7 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
             ["xrans"] (list)            : list of time values for the
                                           frame chunks, for each session
             ["trace_stats"] (array-like): array or nested list of statistics of
-                                          ROI groups for quintiles of interest
+                                          ROI groups for quantiles of interest
                                           structured as:
                                               sess x qu x ROI grp x stats 
                                               x frame
@@ -226,13 +226,13 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
         raise NotImplementedError("Analysis only implemented for roi datatype.")
 
     logger.info(f"Analysing and plotting {opstr_pr} {datastr} surp vs reg "
-        f"traces by quintile ({quintpar.n_quints}). \n{sessstr_pr}{dendstr_pr}.", 
+        f"traces by quantile ({quantpar.n_quants}). \n{sessstr_pr}{dendstr_pr}.", 
         extra={"spacing": "\n"})
 
-    # get sess x surp x quint x stats x ROIs x frames
-    trace_info = quint_analys.trace_stats_by_qu_sess(
-        sessions, analyspar, stimpar, n_quints=quintpar.n_quints, 
-        qu_idx=quintpar.qu_idx, byroi=True, bysurp=True)
+    # get sess x surp x quant x stats x ROIs x frames
+    trace_info = quant_analys.trace_stats_by_qu_sess(
+        sessions, analyspar, stimpar, n_quants=quantpar.n_quants, 
+        qu_idx=quantpar.qu_idx, byroi=True, bysurp=True)
     xrans = [xran.tolist() for xran in trace_info[0]]
 
     # retain mean/median from trace stats
@@ -254,7 +254,7 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
             "stimpar"    : stimpar._asdict(),
             "extrapar"   : extrapar,
             "permpar"    : permpar._asdict(),
-            "quintpar"   : quintpar._asdict(),
+            "quantpar"   : quantpar._asdict(),
             "roigrppar"  : roigrppar._asdict(),
             "sess_info"  : sess_info,
             "roi_grps"   : roi_grps
@@ -264,7 +264,7 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
 
     if savedict:
         infoname = (f"roi_tr_{sessstr}{dendstr}_grps_{opstr}_"
-            f"{quintpar.n_quints}quint_{permpar.tails}tail")
+            f"{quantpar.n_quants}quant_{permpar.tails}tail")
 
         file_util.saveinfo(info, infoname, fulldir, "json")
 
@@ -273,15 +273,15 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
 
 #############################################
 def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,  
-                         permpar, quintpar, roigrppar, roi_grps, figpar, 
+                         permpar, quantpar, roigrppar, roi_grps, figpar, 
                          savedict=False):
     """
     run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar, 
-                         permpar, quintpar, roigrppar, roi_grps, fig_par)
+                         permpar, quantpar, roigrppar, roi_grps, fig_par)
 
     Calculates and plots ROI traces across ROIs by group for surprise, no 
     surprise or difference between surprise and no surprise activity per 
-    quintile (first/last) with each group in a separate subplot and each 
+    quantile (first/last) with each group in a separate subplot and each 
     session in a different figure. 
 
     Optionally saves results and parameters relevant to analysis in a 
@@ -298,7 +298,7 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
                                  parameters
             ["datatype"] (str): datatype (e.g., "roi")
         - permpar (PermPar)    : named tuple containing permutation parameters
-        - quintpar (QuintPar)  : named tuple containing quintile analysis 
+        - quantpar (QuantPar)  : named tuple containing quantile analysis 
                                  parameters
         - roigrppar (RoiGrpPar): named tuple containing ROI grouping parameters
         - roi_grps (dict)      : dictionary containing ROI grps information:
@@ -324,12 +324,12 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
             ["all_roi_grps"] (list)          : see above
             ["grp_names"] (list)             : see above
             ["area_stats"] (array-like)      : ROI group stats (mean/median,      
-                                               error) for quintiles of interest,
+                                               error) for quantiles of interest,
                                                structured as:
-                                                 session x quintile x grp x 
+                                                 session x quantile x grp x 
                                                  stat
             ["area_stats_scale"] (array-like): same as "area_stats", but with 
-                                              last quintile scaled relative to 
+                                              last quantile scaled relative to 
                                               first
     """
     
@@ -353,12 +353,12 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
         raise NotImplementedError("Analysis only implemented for roi datatype.")
 
     logger.info(f"Analysing and plotting {opstr_pr} {datastr} surp vs reg "
-        f"average responses by quintile ({quintpar.n_quints}). \n{sessstr_pr}"
+        f"average responses by quantile ({quantpar.n_quants}). \n{sessstr_pr}"
         f"{dendstr_pr}.", extra={"spacing": "\n"})
 
     # get full data for qu of interest: session x surp x [seq x ROI]
-    integ_info = quint_analys.trace_stats_by_qu_sess(
-        sessions, analyspar, stimpar, quintpar.n_quints, quintpar.qu_idx, 
+    integ_info = quant_analys.trace_stats_by_qu_sess(
+        sessions, analyspar, stimpar, quantpar.n_quants, quantpar.qu_idx, 
         bysurp=True, integ=True)     
 
     # retrieve only mean/medians per ROI
@@ -368,7 +368,7 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
     # get statistics per group and number of ROIs per group
     for scale in [False, True]:
         scale_str = sess_str_util.scale_par_str(scale)
-        # sess x quint x grp x stat
+        # sess x quant x grp x stat
         grp_st, _ = signif_grps.grp_stats(
             all_me, roi_grps["all_roi_grps"], roigrppar.plot_vals, roigrppar.op, 
             analyspar.stats, analyspar.error, scale)
@@ -383,7 +383,7 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
             "stimpar"  : stimpar._asdict(),
             "extrapar" : extrapar,
             "permpar"  : permpar._asdict(),
-            "quintpar" : quintpar._asdict(),
+            "quantpar" : quantpar._asdict(),
             "roigrppar": roigrppar._asdict(),
             "sess_info": sess_info,
             "roi_grps" : roi_grps
@@ -393,7 +393,7 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
 
     if savedict:
         infoname = (f"roi_area_{sessstr}{dendstr}_grps_{opstr}_"
-            f"{quintpar.n_quints}quint_{permpar.tails}tail")
+            f"{quantpar.n_quants}quant_{permpar.tails}tail")
         file_util.saveinfo(info, infoname, fulldir, "json")
     
     return fulldir, roi_grps
@@ -401,15 +401,15 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
 
 #############################################
 def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar, 
-                    permpar, quintpar, roigrppar, figpar):
+                    permpar, quantpar, roigrppar, figpar):
     """
     run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar, 
-                    permpar, quintpar, roigrppar, figpar)
+                    permpar, quantpar, roigrppar, figpar)
 
-    Identifies ROIs showing significant surprise in first and/or last quintile,
+    Identifies ROIs showing significant surprise in first and/or last quantile,
     group accordingly and plots traces and areas across ROIs for surprise, 
     no surprise or difference between surprise and no surprise activity per 
-    quintile (first/last) with each group in a separate subplot and each 
+    quantile (first/last) with each group in a separate subplot and each 
     session in a different figure. 
     
     Saves results and parameters relevant to analysis in a dictionary.
@@ -422,7 +422,7 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
         - permpar (PermPar)    : named tuple containing permutation parameters
-        - quintpar (QuintPar)  : named tuple containing quintile analysis 
+        - quantpar (QuantPar)  : named tuple containing quantile analysis 
                                  parameters
         - roigrppar (RoiGrpPar): named tuple containing ROI grouping parameters
         - figpar (dict)        : dictionary containing figure parameters
@@ -440,8 +440,8 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
     sessids = [sess.sessid for sess in sessions]
     
     # get full data for qu of interest: session x surp x [seq x ROI]
-    integ_info = quint_analys.trace_stats_by_qu_sess(
-        sessions, analyspar, stimpar, quintpar.n_quints, quintpar.qu_idx, 
+    integ_info = quant_analys.trace_stats_by_qu_sess(
+        sessions, analyspar, stimpar, quantpar.n_quants, quantpar.qu_idx, 
         bysurp=True, integ=True, ret_arr=True)
 
     _, _, _, qu_data = integ_info     
@@ -456,7 +456,7 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
     # identify significant ROIs 
     # (returns all_roi_grps, grp_names)
     all_roi_grps, grp_names = signif_grps.signif_rois_by_grp_sess(
-        sessids, qu_data, permpar, roigrppar, quintpar.qu_lab, 
+        sessids, qu_data, permpar, roigrppar, quantpar.qu_lab, 
         stats=analyspar.stats, nanpol=nanpol)
 
     roi_grps = {"all_roi_grps": all_roi_grps,
@@ -473,15 +473,15 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
         figpar["save"]["use_dt"] = gen_util.create_time_str()
 
     _, roi_grps_q = run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, 
-        stimpar, extrapar, permpar, quintpar, roigrppar, roi_grps, 
+        stimpar, extrapar, permpar, quantpar, roigrppar, roi_grps, 
         figpar, savedict=False)    
 
     _, roi_grps_t = run_roi_traces_by_grp(sessions, analyspar, sesspar, 
-        stimpar, extrapar, permpar, quintpar, roigrppar, roi_grps, figpar, 
+        stimpar, extrapar, permpar, quantpar, roigrppar, roi_grps, figpar, 
         savedict=False)
 
     fulldir, roi_grps_a = run_roi_areas_by_grp(sessions, analyspar, sesspar, 
-        stimpar, extrapar, permpar, quintpar, roigrppar, roi_grps,
+        stimpar, extrapar, permpar, quantpar, roigrppar, roi_grps,
         figpar, savedict=False)
 
     # add roi_grps_t and roi_grps_a keys to roi_grps dictionary
@@ -499,13 +499,13 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
             "stimpar"  : stimpar._asdict(),
             "extrapar" : extrapar,
             "permpar"  : permpar._asdict(),
-            "quintpar" : quintpar._asdict(),
+            "quantpar" : quantpar._asdict(),
             "roigrppar": roigrppar._asdict(),
             "sess_info": sess_info,
             "roi_grps" : roi_grps
             }
      
-    infoname = (f"roi_{sessstr}{dendstr}_grps_{opstr}_{quintpar.n_quints}q_"
+    infoname = (f"roi_{sessstr}{dendstr}_grps_{opstr}_{quantpar.n_quants}q_"
         f"{permpar.tails}tail")
 
     file_util.saveinfo(info, infoname, fulldir, "json")
@@ -513,17 +513,17 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
 #############################################
 def run_oridirs_by_qu_sess(sess, oridirs, surps, xran, mes, counts, 
-                           analyspar, sesspar, stimpar, extrapar, quintpar, 
+                           analyspar, sesspar, stimpar, extrapar, quantpar, 
                            figpar, parallel=False):
     """
 
     run_oridirs_by_qu_sess(sess, oridirs, surps, xrans, mes, counts, 
-                           analyspar, sesspar, stimpar, extrapar, quintpar, 
+                           analyspar, sesspar, stimpar, extrapar, quantpar, 
                            figpar)
 
     Plots average activity across gabor orientations or across brick directions,
     locked to surprise/regular transition per ROI as colormaps, and across ROIs 
-    as traces for a single session and specified quintile.
+    as traces for a single session and specified quantile.
     Saves results and parameters relevant to analysis in a dictionary. 
 
     Required args:
@@ -542,7 +542,7 @@ def run_oridirs_by_qu_sess(sess, oridirs, surps, xran, mes, counts,
                                  parameters
             ["analysis"] (str): analysis type (e.g., "o")
             ["datatype"] (str): datatype (e.g., "roi")
-        - quintpar (QuintPar)  : named tuple containing quintile analysis 
+        - quantpar (QuantPar)  : named tuple containing quantile analysis 
                                  parameters
         - figpar (dict)        : dictionary containing figure parameters
 
@@ -560,7 +560,7 @@ def run_oridirs_by_qu_sess(sess, oridirs, surps, xran, mes, counts,
     if extrapar["datatype"] != "roi":
         raise NotImplementedError("Analysis only implemented for roi datatype.")
 
-    qu_str, qu_str_pr = quintpar.qu_lab[0], quintpar.qu_lab[0]
+    qu_str, qu_str_pr = quantpar.qu_lab[0], quantpar.qu_lab[0]
     if qu_str != "":
         qu_str_pr = f", {qu_str_pr.capitalize()}"
         qu_str    = f"_{qu_str}"
@@ -604,7 +604,7 @@ def run_oridirs_by_qu_sess(sess, oridirs, surps, xran, mes, counts,
             "sesspar"  : sesspar._asdict(),
             "stimpar"  : stimpar._asdict(),
             "extrapar" : extrapar,
-            "quintpar" : quintpar._asdict(),
+            "quantpar" : quantpar._asdict(),
             "tr_data"  : tr_data,
             "sess_info": sess_info
             }
@@ -621,14 +621,14 @@ def run_oridirs_by_qu_sess(sess, oridirs, surps, xran, mes, counts,
 
 #############################################
 def run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar, 
-                      extrapar, quintpar, figpar, parallel=False):
+                      extrapar, quantpar, figpar, parallel=False):
     """
     run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
-                      extrapar, quintpar, figpar)
+                      extrapar, quantpar, figpar)
 
     Plots average activity across gabor orientations or across brick directions,
     locked to surprise/regular transition per ROI as colormaps, and across ROIs 
-    as traces for a specified quintile.
+    as traces for a specified quantile.
     Saves results and parameters relevant to analysis in a dictionary. 
 
     Required args:
@@ -642,7 +642,7 @@ def run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
                                  parameters
             ["analysis"] (str): analysis type (e.g., "o")
             ["datatype"] (str): datatype (e.g., "roi")
-        - quintpar (QuintPar)  : named tuple containing quintile analysis 
+        - quantpar (QuantPar)  : named tuple containing quantile analysis 
                                  parameters
         - figpar (dict)        : dictionary containing figure parameters
     
@@ -664,15 +664,15 @@ def run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
         stimpar_od = sess_ntuple_util.get_modif_ntuple(stimpar, key, od)
         # NaN stats if no segments fit criteria
         nan_empty = True
-        trace_info = quint_analys.trace_stats_by_qu_sess(
-            sessions, analyspar, stimpar_od, quintpar.n_quints, 
-            quintpar.qu_idx, byroi=True, bysurp=True, lock=lock, 
+        trace_info = quant_analys.trace_stats_by_qu_sess(
+            sessions, analyspar, stimpar_od, quantpar.n_quants, 
+            quantpar.qu_idx, byroi=True, bysurp=True, lock=lock, 
             nan_empty=nan_empty)
         xrans = trace_info[0]
-        # retrieve mean/medians and single quintile data:
+        # retrieve mean/medians and single quantile data:
         # sess x [surp x ROIs x frames]
         mes.append([sess_stats[:, 0, 0] for sess_stats in trace_info[1]]) 
-        # retrieve single quintile counts: sess x surp
+        # retrieve single quantile counts: sess x surp
         counts.append(
             [[surp_c[0] for surp_c in sess_c] for sess_c in trace_info[2]])
 
@@ -684,21 +684,21 @@ def run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
         n_jobs = gen_util.get_n_jobs(len(sessions))
         Parallel(n_jobs=n_jobs)(delayed(run_oridirs_by_qu_sess)
             (sess, oridirs, surps, xrans[se], mes[se], counts[se], analyspar, 
-            sesspar, stimpar, extrapar, quintpar, figpar, False) 
+            sesspar, stimpar, extrapar, quantpar, figpar, False) 
             for se, sess in enumerate(sessions))
     else:
         for se, sess in enumerate(sessions):
             run_oridirs_by_qu_sess(
                 sess, oridirs, surps, xrans[se], mes[se], counts[se], 
-                analyspar, sesspar, stimpar, extrapar, quintpar, figpar, 
+                analyspar, sesspar, stimpar, extrapar, quantpar, figpar, 
                 parallel)
 
 
 #############################################
-def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar, 
+def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quantpar, 
                 figpar, parallel=False):
     """
-    run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar, 
+    run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quantpar, 
                 figpar)
 
     Plots average activity across gabor orientations or brick directions 
@@ -711,7 +711,7 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar,
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
-        - quintpar (QuintPar)  : named tuple containing quintile analysis 
+        - quantpar (QuantPar)  : named tuple containing quantile analysis 
                                  parameters
         - figpar (dict)        : dictionary containing figure parameters
     
@@ -741,14 +741,14 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar,
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar.dend, sesspar.plane, datatype, "print")
   
-    # split quintiles apart and add a quint=1
-    quintpar_one  = sess_ntuple_util.init_quintpar(1, 0, "", "")
-    quintpars = [quintpar_one]
+    # split quantiles apart and add a quant=1
+    quantpar_one  = sess_ntuple_util.init_quantpar(1, 0, "", "")
+    quantpars = [quantpar_one]
     for qu_idx, qu_lab, qu_lab_pr in zip(
-        quintpar.qu_idx, quintpar.qu_lab, quintpar.qu_lab_pr):
-        qp = sess_ntuple_util.init_quintpar(
-            quintpar.n_quints, qu_idx, qu_lab, qu_lab_pr)
-        quintpars.append(qp)
+        quantpar.qu_idx, quantpar.qu_lab, quantpar.qu_lab_pr):
+        qp = sess_ntuple_util.init_quantpar(
+            quantpar.n_quants, qu_idx, qu_lab, qu_lab_pr)
+        quantpars.append(qp)
 
     logger.info("Analysing and plotting colormaps and traces "
           f"({sessstr_pr}{dendstr_pr}).", extra={"spacing": "\n"})
@@ -763,17 +763,17 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quintpar,
         figpar["save"]["use_dt"] = gen_util.create_time_str()
 
     # optionally runs in parallel
-    if parallel and (len(quintpars) > np.max([1, len(sessions)])):
-        n_jobs = gen_util.get_n_jobs(len(quintpars))
+    if parallel and (len(quantpars) > np.max([1, len(sessions)])):
+        n_jobs = gen_util.get_n_jobs(len(quantpars))
         Parallel(n_jobs=n_jobs)(delayed(run_oridirs_by_qu)
             (sessions, oridirs, surps, analyspar, sesspar, stimpar, 
-            extrapar, quintpar, figpar, False) 
-            for quintpar in quintpars)
+            extrapar, quantpar, figpar, False) 
+            for quantpar in quantpars)
     else:
-        for quintpar in quintpars:
+        for quantpar in quantpars:
             run_oridirs_by_qu(
                 sessions, oridirs, surps, analyspar, sesspar, stimpar, 
-                extrapar, quintpar, figpar, parallel)
+                extrapar, quantpar, figpar, parallel)
 
 
 #############################################
@@ -1152,7 +1152,7 @@ def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar,
         # info = {"analyspar"  : analyspar._asdict(),
         #         "sesspar"    : sesspar._asdict(),
         #         "stimpar"    : stimpar._asdict(),
-        #         "quintpar"   : quintpar._asdict(),
+        #         "quantpar"   : quantpar._asdict(),
         #         "extrapar"   : extrapar,
         #         "sess_info"  : sess_info,
         #         "trace_stats": trace_stats

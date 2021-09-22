@@ -21,7 +21,7 @@ import scipy.stats as scist
 
 from util import file_util, gen_util, logger_util, math_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
-from extra_analysis import quint_analys, signif_grps
+from extra_analysis import quant_analys, signif_grps
 from extra_plot_fcts import acr_sess_analysis_plots as acr_sess_plots
 
 logger = logging.getLogger(__name__)
@@ -327,7 +327,7 @@ def data_from_refs(sess, refs, analyspar, stimpar, datatype="roi",
             use_ch_fl = [0, 0]
         if base_pre is None:
             base_pre = stimpar.pre
-        base_pre, base_post = quint_analys.define_transition_baseline(
+        base_pre, base_post = quant_analys.define_transition_baseline(
             stimpar.stimtype, stimpar.gabfr, baseline, base_pre, stimpar.post)
         # expand flank checking as needed
         use_ch_fl = [np.max([p, b]) 
