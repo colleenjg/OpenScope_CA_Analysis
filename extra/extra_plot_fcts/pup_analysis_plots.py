@@ -169,8 +169,8 @@ def plot_pup_diff_corr(analyspar, sesspar, stimpar, extrapar,
 
     n_sess = len(mouse_ns)
     nroi_strs = sess_str_util.get_nroi_strs(
-        sess_info, analyspar["remnans"], analyspar["fluor"], 
-        empty=(datatype!="roi"), style="par")
+        sess_info, empty=(datatype!="roi"), style="par"
+        ) 
 
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
@@ -316,8 +316,7 @@ def plot_pup_roi_stim_corr(analyspar, sesspar, stimpar, extrapar,
     [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
 
     n_sess = len(mouse_ns)
-    nroi_strs = sess_str_util.get_nroi_strs(
-        sess_info, analyspar["remnans"], analyspar["fluor"], style="par")
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info, style="par")
 
     if figpar is None:
         figpar = sess_plot_util.init_figpar()

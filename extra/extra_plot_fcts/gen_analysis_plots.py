@@ -164,9 +164,7 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
     # extract some info from sess_info
     keys = ["mouse_ns", "sess_ns", "lines", "planes"]
     [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
-    nroi_strs = sess_str_util.get_nroi_strs(
-        sess_info, analyspar["remnans"], fluor=analyspar["fluor"], 
-        empty=(datatype!="roi")) 
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info, empty=(datatype!="roi")) 
     n_sess = len(mouse_ns)
 
     if figpar is None:
@@ -332,9 +330,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
     # extract some info from sess_info
     keys = ["mouse_ns", "sess_ns", "lines", "planes"]
     [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
-    nroi_strs = sess_str_util.get_nroi_strs(
-        sess_info, analyspar["remnans"], fluor=analyspar["fluor"], 
-        empty=(datatype!="roi"))
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info, empty=(datatype!="roi")) 
 
     n_sess = len(mouse_ns)
 
@@ -490,9 +486,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
     # extract some info from sess_info
     keys = ["mouse_ns", "sess_ns", "lines", "planes"]
     [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
-    nroi_strs = sess_str_util.get_nroi_strs(
-        sess_info, analyspar["remnans"], fluor=analyspar["fluor"], 
-        empty=(datatype!="roi"))
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info, empty=(datatype!="roi")) 
 
     n_sess = len(mouse_ns)
 
@@ -690,8 +684,8 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quintpar,
     keys = ["mouse_ns", "sess_ns", "lines", "planes"]
     [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
     nroi_strs = sess_str_util.get_nroi_strs(
-        sess_info, analyspar["remnans"], fluor=analyspar["fluor"], 
-        empty=(datatype!="roi"), style="par")    
+        sess_info, empty=(datatype!="roi"), style="par"
+        )    
 
     n_sess = len(mouse_ns)
 
@@ -862,9 +856,7 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
     # extract some info from sess_info
     keys = ["mouse_ns", "sess_ns", "lines", "planes"]
     [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
-    nroi_strs = sess_str_util.get_nroi_strs(
-        sess_info, analyspar["remnans"], fluor=analyspar["fluor"], 
-        empty=(datatype!="roi"))
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info, empty=(datatype!="roi")) 
 
     n_sess = len(mouse_ns)
 

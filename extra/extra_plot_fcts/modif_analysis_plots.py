@@ -172,9 +172,7 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
     [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
     
     n_sess = len(mouse_ns)
-    nroi_strs = sess_str_util.get_nroi_strs(
-        sess_info, analyspar["remnans"], analyspar["fluor"], 
-        empty=(datatype!="roi"))
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info, empty=(datatype!="roi")) 
 
     n_rows = 1
     if datatype == "roi":
@@ -318,8 +316,8 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
     
     n_sess = len(mouse_ns)
     nroi_strs = sess_str_util.get_nroi_strs(
-        sess_info, analyspar["remnans"], analyspar["fluor"], 
-        empty=(datatype!="roi"), style="par")
+        sess_info, empty=(datatype!="roi"), style="par"
+        )
 
     xrans      = [np.asarray(xran) for xran in trace_stats["xrans"]]
     all_stats  = [np.asarray(sessst) for sessst in trace_stats["all_stats"]]
@@ -487,8 +485,8 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
     
     n_sess = len(mouse_ns)
     nroi_strs = sess_str_util.get_nroi_strs(
-        sess_info, analyspar["remnans"], analyspar["fluor"], 
-        empty=(datatype!="roi"), style="par")
+        sess_info, empty=(datatype!="roi"), style="par"
+        )
 
     xrans      = [np.asarray(xran) for xran in trace_stats["xrans"]]
     all_stats  = [np.asarray(sessst) for sessst in trace_stats["all_stats"]]
@@ -742,8 +740,8 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
     
     n_sess = len(mouse_ns)
     nroi_strs = sess_str_util.get_nroi_strs(
-        sess_info, analyspar["remnans"], analyspar["fluor"], 
-        empty=(datatype!="roi"), style="par")
+        sess_info, empty=(datatype!="roi"), style="par"
+        )
 
     xrans = autocorr_data["xrans"]
     stats = [np.asarray(stat) for stat in autocorr_data["stats"]]
@@ -890,8 +888,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
     keys = ["mouse_ns", "sess_ns", "lines", "planes"]
     [mouse_n, sess_n, line, plane] = [sess_info[key][0] for key in keys]
 
-    nroi_str = sess_str_util.get_nroi_strs(
-        sess_info, analyspar["remnans"], analyspar["fluor"], style="par")[0]
+    nroi_str = sess_str_util.get_nroi_strs(sess_info, style="par")[0] 
 
     xran = tr_data["xran"]
 

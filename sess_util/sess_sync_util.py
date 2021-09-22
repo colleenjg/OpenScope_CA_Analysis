@@ -22,6 +22,7 @@ from scipy import signal as scisig
 from scipy import stats as scist
 from allensdk.brain_observatory import sync_dataset, sync_utilities
 from allensdk.brain_observatory.extract_running_speed import __main__ as running_main
+from allensdk.internal.brain_observatory.eye_calibration import CM_PER_PIXEL
 
 from util import file_util, gen_util, logger_util
 from sess_util import Dataset2p
@@ -34,6 +35,9 @@ TAB = "    "
 # from https://allensdk.readthedocs.io/en/latest/_modules/allensdk/brain_observatory/behavior/running_processing.html
 WHEEL_RADIUS = 6.5 * 2.54 / 2 # diameter in inches to radius in cm
 SUBJECT_POSITION = 2 / 3
+
+# pupil in pixels
+MM_PER_PIXEL = CM_PER_PIXEL * 10
 
 # for some sessions, the second alignment is needed to adjust the first, as it 
 # is robust to a 2p dropped frame bug that occurred before the stimulus started.

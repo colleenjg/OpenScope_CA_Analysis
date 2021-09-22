@@ -768,7 +768,7 @@ def get_params(stimtype="both", bri_dir="both", bri_size=128, gabfr=0,
         gabfr = "none"
         gabk = "none"
         gab_ori = "none"
-    elif stimtype != "both":
+    elif stimtype != "both" and set(stimtype) != set(["gabors", "bricks"]):
         gen_util.accepted_values_error(
             "stim argument", stimtype, ["gabors", "bricks"])
 

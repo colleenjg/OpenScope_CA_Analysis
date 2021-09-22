@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 
 
 #############################################
-def gabor_decoding_sess123(sessions, analyspar, sesspar, stimpar, permpar, 
-                           logregpar, figpar, seed=None, parallel=False):
+def gabor_decoding_sess123(sessions, analyspar, sesspar, stimpar, logregpar, 
+                           permpar, figpar, seed=None, parallel=False):
     """
-    gabor_decoding_sess123(sessions, analyspar, sesspar, stimpar, permpar, 
-                           logregpar, figpar)
+    gabor_decoding_sess123(sessions, analyspar, sesspar, stimpar, logregpar, 
+                           permpar, figpar)
 
     Runs decoding analyses (D and U orientations).
         
@@ -42,10 +42,10 @@ def gabor_decoding_sess123(sessions, analyspar, sesspar, stimpar, permpar,
             named tuple containing session parameters
         - stimpar (StimPar): 
             named tuple containing stimulus parameters
-        - permpar (PermPar): 
-            named tuple containing permutation parameters
         - logregpar (LogRegPar): 
             named tuple containing logistic regression parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
         - figpar (dict): 
             dictionary containing figure parameters
     
@@ -74,18 +74,22 @@ def gabor_decoding_sess123(sessions, analyspar, sesspar, stimpar, permpar,
         permpar, sess_df=dummy_df, pairs=False, factor=2
         )
 
+    n_splits = 100
     score_df = decoding_analys.run_sess_log_regs(
         sessions, 
         analyspar=analyspar, 
         stimpar=stimpar,
         logregpar=logregpar, 
         permpar=permpar, 
-        n_splits=100,
+        n_splits=n_splits,
         seed=seed, 
         parallel=parallel,
         )
 
-    extrapar = {"seed": seed}
+    extrapar = {
+        "n_splits": n_splits,
+        "seed"    : seed,
+        }
 
     info = {"analyspar": analyspar._asdict(),
             "sesspar"  : sesspar._asdict(),
@@ -100,11 +104,12 @@ def gabor_decoding_sess123(sessions, analyspar, sesspar, stimpar, permpar,
 
 
 #############################################
-def gabor_Dori_decoding_sess123(sessions, analyspar, sesspar, stimpar, permpar, 
-                                logregpar, figpar, seed=None, parallel=False):
+def gabor_Dori_decoding_sess123(sessions, analyspar, sesspar, stimpar, 
+                                logregpar, permpar, figpar, seed=None, 
+                                parallel=False):
     """
-    gabor_Dori_decoding_sess123(sessions, analyspar, sesspar, stimpar, permpar, 
-                                logregpar, figpar)
+    gabor_Dori_decoding_sess123(sessions, analyspar, sesspar, stimpar, 
+                                logregpar, permpar, figpar)
 
     Runs decoding analyses (D orientations).
         
@@ -119,10 +124,10 @@ def gabor_Dori_decoding_sess123(sessions, analyspar, sesspar, stimpar, permpar,
             named tuple containing session parameters
         - stimpar (StimPar): 
             named tuple containing stimulus parameters
-        - permpar (PermPar): 
-            named tuple containing permutation parameters
         - logregpar (LogRegPar): 
             named tuple containing logistic regression parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
         - figpar (dict): 
             dictionary containing figure parameters
     
@@ -143,8 +148,8 @@ def gabor_Dori_decoding_sess123(sessions, analyspar, sesspar, stimpar, permpar,
         analyspar=analyspar, 
         sesspar=sesspar, 
         stimpar=stimpar, 
-        permpar=permpar, 
         logregpar=logregpar, 
+        permpar=permpar, 
         figpar=figpar, 
         seed=seed, 
         parallel=parallel
@@ -152,11 +157,12 @@ def gabor_Dori_decoding_sess123(sessions, analyspar, sesspar, stimpar, permpar,
 
 
 #############################################
-def gabor_Uori_decoding_sess123(sessions, analyspar, sesspar, stimpar, permpar, 
-                                logregpar, figpar, seed=None, parallel=False):
+def gabor_Uori_decoding_sess123(sessions, analyspar, sesspar, stimpar, 
+                                logregpar, permpar, figpar, seed=None, 
+                                parallel=False):
     """
-    gabor_Uori_decoding_sess123(sessions, analyspar, sesspar, stimpar, permpar, 
-                                logregpar, figpar)
+    gabor_Uori_decoding_sess123(sessions, analyspar, sesspar, stimpar, 
+                                logregpar, permpar, figpar)
 
     Runs decoding analyses (U orientations).
         
@@ -171,10 +177,10 @@ def gabor_Uori_decoding_sess123(sessions, analyspar, sesspar, stimpar, permpar,
             named tuple containing session parameters
         - stimpar (StimPar): 
             named tuple containing stimulus parameters
-        - permpar (PermPar): 
-            named tuple containing permutation parameters
         - logregpar (LogRegPar): 
             named tuple containing logistic regression parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
         - figpar (dict): 
             dictionary containing figure parameters
     
@@ -198,8 +204,8 @@ def gabor_Uori_decoding_sess123(sessions, analyspar, sesspar, stimpar, permpar,
         analyspar=analyspar, 
         sesspar=sesspar, 
         stimpar=stimpar, 
-        permpar=permpar, 
         logregpar=logregpar, 
+        permpar=permpar, 
         figpar=figpar, 
         seed=seed, 
         parallel=parallel

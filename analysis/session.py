@@ -1471,7 +1471,7 @@ class Session(object):
                               default: True
             - scale (bool)  : if True, pupil data is scaled using full 
                               data array
-                              default: False      
+                              default: False
 
         Returns:
             - pup_data_df (pd DataFrame): dataframe containing pupil diameter 
@@ -3751,7 +3751,7 @@ class Stim(object):
     #############################################
     def get_pup_diam_data(self, pup_ref_fr, pre, post, integ=False, 
                            remnans=False, baseline=None, stats="mean", 
-                           scale=False):
+                           scale=False, metric="mm"):
         """
         self.get_pup_diam_data(pup_ref_fr, pre, post)
 
@@ -3786,6 +3786,9 @@ class Stim(object):
             - scale (bool)    : if True, pupil diameter is scaled using 
                                 full data array
                                 default: False      
+            - metric (str)    : metric to return data in, e.g., "pixel" or "mm".
+                                Only applies if scale is False.
+                                default: "mm"
 
         Returns:
             - pup_data_df (pd DataFrame): dataframe containing pupil diameter 
@@ -3836,6 +3839,14 @@ class Stim(object):
 
         data_array = pup_data.to_numpy().squeeze()[fr_idx]
 
+        if not scale:
+            if metric == "mm":
+                data_array = data_array * sess_sync_util.MM_PER_PIXEL
+            elif metric != "pixel":
+                gen_util.accepted_values_error(
+                    "metric", metric, ["pixel", "mm"]
+                    )
+
         if remnans:
             nanpol = None 
         else:
@@ -3850,7 +3861,7 @@ class Stim(object):
                 baseline_data, stats=stats, axis=-1, nanpol=nanpol
                 )[:, np.newaxis]
             data_array = data_array - data_array_base
-
+        
         row_indices = [range(len(data_array))]
         row_names = ["sequences"]
         if integ:
@@ -3880,7 +3891,8 @@ class Stim(object):
     #############################################
     def get_pup_diam_stats_df(self, pup_ref_fr, pre, post, integ=False, 
                               remnans=False, ret_arr=False, stats="mean", 
-                              error="std", baseline=None, scale=False):
+                              error="std", baseline=None, scale=False, 
+                              metric="mm"):
         """
         self.get_pup_diam_stats_df(pup_ref_fr, pre, post)
 
@@ -3920,6 +3932,9 @@ class Stim(object):
             - scale (bool)    : if True, pupil diameter is scaled using 
                                 full data array
                                 default: False      
+            - metric (str)    : metric to return data in, e.g., "pixel" or "mm"
+                                Only applies if scale is False.
+                                default: "mm"
 
         Returns:
             - stats_df (pd DataFrame): dataframe containing pupil diameter 
@@ -3940,7 +3955,7 @@ class Stim(object):
 
         pup_data_df = self.get_pup_diam_data(
             pup_ref_fr, pre, post, integ, remnans=remnans, baseline=baseline, 
-            stats=stats, scale=scale)
+            stats=stats, scale=scale, metric=metric)
 
         if remnans:
             nanpol = None 

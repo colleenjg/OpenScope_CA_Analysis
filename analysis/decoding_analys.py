@@ -527,6 +527,6 @@ def run_sess_log_regs(sessions, analyspar, stimpar, logregpar, permpar,
         score_stats_df[col] = score_stats_df[col].apply(lambda x: x[0])
     
     score_stats_df["sess_ns"] = score_stats_df["sess_ns"].astype(int)
-
+    
     return score_stats_df
 
