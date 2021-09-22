@@ -1,5 +1,5 @@
 """
-corr_figs.py
+seq_figs.py
 
 This script contains functions defining sequence figure panel analyses.
 
@@ -11,6 +11,7 @@ Note: this code uses python 3.7.
 """
 
 import logging
+from sess_util import sess_ntuple_util
 
 from util import logger_util
 from analysis import seq_analys, misc_analys
@@ -53,16 +54,19 @@ def gabor_sequences_sess123(sessions, analyspar, sesspar, stimpar, basepar,
     logger.info("Compiling Gabor sequences from session 1 to 3.", 
         extra={"spacing": "\n"})
 
+    split = "by_exp"
     trace_df = seq_analys.get_sess_grped_trace_df(
         sessions, 
         analyspar=analyspar, 
         stimpar=stimpar, 
         basepar=basepar, 
-        split="by_exp", 
+        split=split, 
         parallel=parallel
         )
-
-    extrapar = dict()
+   
+    extrapar = {
+        "split": split,
+    }
 
     info = {"analyspar": analyspar._asdict(),
             "sesspar"  : sesspar._asdict(),
@@ -122,19 +126,21 @@ def gabor_sequence_diffs_sess123(sessions, analyspar, sesspar, stimpar,
             subset=["lines", "planes", "sess_ns"])
     permpar = misc_analys.set_multcomp(permpar, sess_df=dummy_df)
 
+    split = "by_exp"
     diffs_df = seq_analys.get_sess_grped_diffs_df(
         sessions, 
         analyspar=analyspar, 
         stimpar=stimpar, 
         basepar=basepar, 
         permpar=permpar,
-        split="by_exp", 
-        parallel=parallel,
+        split=split, 
         seed=seed,
+        parallel=parallel,
         )
     
     extrapar = {
-        "seed": seed
+        "split": split,
+        "seed" : seed,
     }
 
     info = {"analyspar": analyspar._asdict(),
@@ -151,7 +157,7 @@ def gabor_sequence_diffs_sess123(sessions, analyspar, sesspar, stimpar,
 
 #############################################
 def gabor_rel_resp_sess123(sessions, analyspar, sesspar, stimpar, permpar, 
-                           figpar, parallel=False, seed=None):
+                           figpar, seed=None, parallel=False):
     """
     gabor_rel_resp_sess123(sessions, analyspar, sesspar, stimpar, permpar, 
                            figpar)
@@ -187,6 +193,9 @@ def gabor_rel_resp_sess123(sessions, analyspar, sesspar, stimpar, permpar,
     logger.info("Compiling ROI Gabor responses relative to session 1.", 
         extra={"spacing": "\n"})
 
+    if analyspar.scale:
+        raise ValueError("analyspar.scale should be set to False.")
+
     # calculate multiple comparisons
     dummy_df = misc_analys.get_check_sess_df(
         sessions, None, analyspar).drop_duplicates(
@@ -195,18 +204,20 @@ def gabor_rel_resp_sess123(sessions, analyspar, sesspar, stimpar, permpar,
         permpar, sess_df=dummy_df, CIs=False, factor=2
         )
 
-    rel_resp_df = seq_analys.get_relative_resp_df(
+    rel_sess = 1
+    rel_resp_df = seq_analys.get_rel_resp_stats_df(
         sessions, 
         analyspar=analyspar, 
         stimpar=stimpar, 
         permpar=permpar,
-        rel_sess=1,
-        parallel=parallel,
+        rel_sess=rel_sess,
         seed=seed,
+        parallel=parallel,
         )
 
     extrapar = {
-        "seed": seed
+        "rel_sess": rel_sess,
+        "seed"    : seed,
     }
 
     info = {"analyspar"  : analyspar._asdict(),
@@ -254,16 +265,19 @@ def stimulus_onset_sess123(sessions, analyspar, sesspar, stimpar, basepar,
     logger.info("Compiling stimulus onset sequences from session 1 to 3.", 
         extra={"spacing": "\n"})
 
+    split = "stim_onset"
     trace_df = seq_analys.get_sess_grped_trace_df(
         sessions, 
         analyspar=analyspar, 
         stimpar=stimpar, 
         basepar=basepar, 
-        split="stim_onset", 
+        split=split, 
         parallel=parallel
         )
 
-    extrapar = dict()
+    extrapar = {
+        "split": split,
+    }
 
     info = {"analyspar": analyspar._asdict(),
             "sesspar"  : sesspar._asdict(),
@@ -314,17 +328,20 @@ def gabor_ex_roi_responses_sess1(sessions, analyspar, sesspar, stimpar,
         "Compiling example ROI Gabor sequence responses from session 1.", 
         extra={"spacing": "\n"})
 
+    n_ex = 6
     ex_traces_df = seq_analys.get_ex_traces_df(
         sessions, 
         analyspar, 
         stimpar, 
         basepar, 
-        parallel=parallel,
+        n_ex=n_ex,
         seed=seed,
+        parallel=parallel,
         )
 
     extrapar = {
-        "seed": seed
+        "n_ex": n_ex,
+        "seed": seed,
     }
 
     info = {"analyspar"   : analyspar._asdict(),
@@ -340,8 +357,8 @@ def gabor_ex_roi_responses_sess1(sessions, analyspar, sesspar, stimpar,
 
 #############################################
 def gabor_rel_resp_tracked_rois_sess123(sessions, analyspar, sesspar, stimpar, 
-                                        permpar, figpar, parallel=False, 
-                                        seed=None):
+                                        permpar, figpar, seed=None, 
+                                        parallel=False):
     """
     gabor_rel_resp_tracked_rois_sess123(sessions, analyspar, sesspar, stimpar, 
                                         permpar, figpar)
@@ -380,6 +397,9 @@ def gabor_rel_resp_tracked_rois_sess123(sessions, analyspar, sesspar, stimpar,
     if not analyspar.tracked:
         raise ValueError("analyspar.tracked should be set to True.")
 
+    if analyspar.scale:
+        raise ValueError("analyspar.scale should be set to False.")
+
     # remove incomplete session series and warn
     sessions = misc_analys.check_sessions_complete(sessions)
 
@@ -392,18 +412,20 @@ def gabor_rel_resp_tracked_rois_sess123(sessions, analyspar, sesspar, stimpar,
         permpar, sess_df=dummy_df, CIs=False, factor=2
         )
 
-    rel_resp_df = seq_analys.get_relative_resp_df(
+    rel_sess = 1
+    rel_resp_df = seq_analys.get_rel_resp_stats_df(
         sessions, 
         analyspar=analyspar, 
         stimpar=stimpar, 
         permpar=permpar,
-        rel_sess=1,
-        parallel=parallel,
+        rel_sess=rel_sess,
         seed=seed,
+        parallel=parallel,
         )
 
     extrapar = {
-        "seed": seed
+        "rel_sess": rel_sess,
+        "seed"    : seed,
     }
 
     info = {"analyspar"  : analyspar._asdict(),
@@ -451,16 +473,19 @@ def visual_flow_sequences_sess123(sessions, analyspar, sesspar, stimpar,
     logger.info("Compiling visual flow sequences from session 1 to 3.", 
         extra={"spacing": "\n"})
 
+    split = "unexp_lock"
     trace_df = seq_analys.get_sess_grped_trace_df(
         sessions, 
         analyspar=analyspar, 
         stimpar=stimpar, 
         basepar=basepar, 
-        split="unexp_lock", 
+        split=split, 
         parallel=parallel
         )
 
-    extrapar = dict()
+    extrapar = {
+        "split": split
+    }
 
     info = {"analyspar": analyspar._asdict(),
             "sesspar"  : sesspar._asdict(),
@@ -520,19 +545,21 @@ def visual_flow_diffs_sess123(sessions, analyspar, sesspar, stimpar, basepar,
             subset=["lines", "planes", "sess_ns"])
     permpar = misc_analys.set_multcomp(permpar, sess_df=dummy_df)
 
+    split = "unexp_lock"
     diffs_df = seq_analys.get_sess_grped_diffs_df(
         sessions, 
         analyspar=analyspar, 
         stimpar=stimpar, 
         basepar=basepar, 
         permpar=permpar,
-        split="unexp_lock", 
-        parallel=parallel,
+        split=split, 
         seed=seed,
+        parallel=parallel,
         )
     
     extrapar = {
-        "seed": seed
+        "split": split,
+        "seed" : seed,
     }
 
     info = {"analyspar": analyspar._asdict(),
@@ -549,10 +576,10 @@ def visual_flow_diffs_sess123(sessions, analyspar, sesspar, stimpar, basepar,
 
 #############################################
 def visual_flow_rel_resp_sess123(sessions, analyspar, sesspar, stimpar, 
-                                 permpar, figpar, parallel=False, seed=None):
+                                 permpar, figpar, seed=None, parallel=False):
     """
     visual_flow_rel_resp_sess123(sessions, analyspar, sesspar, stimpar, 
-                                 permpar, figpar
+                                 permpar, figpar)
 
     Retrieves ROI responses to expected and unexpected visual flow, relative 
     to session 1.
@@ -585,6 +612,9 @@ def visual_flow_rel_resp_sess123(sessions, analyspar, sesspar, stimpar,
     logger.info("Compiling ROI visual flow responses relative to session 1.", 
         extra={"spacing": "\n"})
 
+    if analyspar.scale:
+        raise ValueError("analyspar.scale should be set to False.")
+
     # calculate multiple comparisons
     dummy_df = misc_analys.get_check_sess_df(
         sessions, None, analyspar).drop_duplicates(
@@ -593,18 +623,20 @@ def visual_flow_rel_resp_sess123(sessions, analyspar, sesspar, stimpar,
         permpar, sess_df=dummy_df, CIs=False, factor=2
         )
 
-    rel_resp_df = seq_analys.get_relative_resp_df(
+    rel_sess = 1
+    rel_resp_df = seq_analys.get_rel_resp_stats_df(
         sessions, 
         analyspar=analyspar, 
         stimpar=stimpar, 
         permpar=permpar,
-        rel_sess=1,
-        parallel=parallel,
+        rel_sess=rel_sess,
         seed=seed,
+        parallel=parallel,
         )
 
     extrapar = {
-        "seed": seed
+        "rel_sess": rel_sess,
+        "seed"    : seed,
     }
 
     info = {"analyspar"  : analyspar._asdict(),
@@ -617,10 +649,3 @@ def visual_flow_rel_resp_sess123(sessions, analyspar, sesspar, stimpar,
 
     helper_fcts.plot_save_all(info, figpar)
 
-
-############################################
-def rel_resp_stimulus_comp_sess1v3(sessions):
-
-    print("NOT YET IMPLEMENTED")
-    return
-    

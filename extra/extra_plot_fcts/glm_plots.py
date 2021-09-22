@@ -143,8 +143,7 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
 
     n_sess = len(mouse_ns)
     
-    nroi_strs = sess_str_util.get_nroi_strs(
-        sess_info, analyspar["remnans"], analyspar["fluor"], style="par")
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info, style="par")
 
     plot_bools = [ev["rois"] != [-1] for ev in all_expl_var]
     n_sess = sum(plot_bools)

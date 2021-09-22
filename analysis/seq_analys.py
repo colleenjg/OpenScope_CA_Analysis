@@ -27,8 +27,93 @@ TAB = "    "
 
 
 #############################################
+def get_frame_numbers(stim, refs, ch_fl=None, ref_type="segs", datatype="roi"):
+    """
+    get_frame_numbers(stim, refs)
+
+    Returns frame numbers for the data type.
+
+    Required args:
+        - stim (Stim):
+            Stimulus object
+        - refs (1D array):
+            Sequences references (either segments or frames, specified by 
+            ref_type)
+
+    Optional args:
+        - ch_fl (list):
+            flanks to check for discarding refs with insufficient flanks
+            default: None
+        - ref_type (str):
+            type of references provided ("segs", "twop_frs", "stim_frs)
+            default: "segs"
+        - datatype (str):
+            type of data to return ("roi", "run" or "pupil")
+            default: "roi"
+
+    Returns:
+        - fr_ns (1D array):
+            frame numbers
+    """
+
+    if datatype not in ["roi", "run", "pupil"]:
+        gen_util.accepted_values_error(
+            "datatype", datatype, ["roi", "run", "pupil"]
+            )
+
+    # convert frames to correct type for ROI or pupil data
+    ch_fl = [0, 0] if ch_fl is None else ch_fl
+    if ref_type == "segs":
+        if datatype == "run":
+            fr_ns = stim.get_stim_fr_by_seg(
+                refs, first=True, ch_fl=ch_fl)["first_stim_fr"]
+        elif datatype == "pupil":
+            fr_ns = stim.get_twop_fr_by_seg(refs, first=True)["first_twop_fr"]
+            fr_ns = stim.sess.get_pup_fr_by_twop_fr(fr_ns, ch_fl=ch_fl)
+        elif datatype == "roi":
+            fr_ns = stim.get_twop_fr_by_seg(
+                refs, first=True, ch_fl=ch_fl)["first_twop_fr"]
+
+        if len(fr_ns) == 0:
+            raise RuntimeError("No frames found given flank requirements.")
+    
+    elif ref_type == "stim_frs":
+        if np.max(refs) >= stim.sess.tot_stim_fr: 
+            raise ValueError("Some refs values are out of bounds.")
+        elif np.min(refs) < 0:
+            raise ValueError("refs cannot include negative values.")
+        if datatype == "run":
+            fr_ns = stim.sess.check_flanks(refs, ch_fl, fr_type="stim")
+        else:
+            fr_ns = stim.sess.stim2twopfr[np.asarray(refs)]
+            if datatype == "pupil":
+                fr_ns = stim.sess.get_pup_fr_by_twop_fr(fr_ns, ch_fl=ch_fl)
+            elif datatype == "roi":
+                fr_ns = stim.sess.check_flanks(fr_ns, ch_fl, fr_type="twop")
+    
+    elif ref_type == "twop_frs":
+        if datatype == "run":
+            raise NotImplementedError(
+                "Converting twop_frs to stim_frs for running data is not "
+                "implemented."
+                )
+        elif datatype == "pupil":
+            fr_ns = stim.sess.get_pup_fr_by_twop_fr(refs, ch_fl=ch_fl)
+        elif datatype == "roi":
+            fr_ns = stim.sess.check_flanks(refs, ch_fl, fr_type="twop")
+    else:
+        gen_util.accepted_values_error(
+            "ref_type", ref_type, ["segs", "twop_frs", "stim_frs"]
+            )
+
+    fr_ns = np.asarray(fr_ns)
+
+    return fr_ns
+
+
+#############################################
 def get_data(stim, refs, analyspar, pre=0, post=1, ch_fl=None, integ=False,
-             ref_type="segs"):
+             ref_type="segs", datatype="roi"):
     """
     get_data(stim, refs, analyspar)
 
@@ -57,50 +142,66 @@ def get_data(stim, refs, analyspar, pre=0, post=1, ch_fl=None, integ=False,
             if True, sequence data is integrated
             default: False
         - ref_type (str):
-            type of references provided ("segs", "twop_frs",)
+            type of references provided ("segs", "twop_frs", "stim_frs)
             default: "segs"
+        - datatype (str):
+            type of data to return ("roi", "run" or "pupil")
+            default: "roi"
 
     Returns:
-        - data_arr (2-3D array):
+        - data_arr (1-3D array):
             sequence data array
-            dims: ROIs x seq (x frames)
+            dims: (ROIs x) seq (x frames)
         - time_values (1D array):
             values for each frame, in seconds
     """
-
+    
     if stim.sess.only_matched_rois != analyspar.tracked:
         raise RuntimeError(
             "stim.sess.only_matched_rois should match analyspar.tracked."
             )
 
-    ch_fl = [0, 0] if ch_fl is None else ch_fl
-    if ref_type == "segs":
-        fr_ns = stim.get_twop_fr_by_seg(
-            refs, first=True, last=True, ch_fl=ch_fl)["first_twop_fr"]
+    fr_ns = get_frame_numbers(
+        stim, 
+        refs, 
+        ch_fl=ch_fl, 
+        ref_type=ref_type, 
+        datatype=datatype
+        )
 
-        if len(fr_ns) == 0:
-            raise RuntimeError("No frames found given flank requirements.")
-    elif ref_type == "twop_frs":
-        fr_ns = stim.sess.check_flanks(refs, ch_fl, fr_type="twop")
+    # obtain data
+    if datatype == "roi":
+        data_df = stim.get_roi_data(
+            fr_ns, pre, post, remnans=analyspar.remnans, scale=analyspar.scale
+            )
+        col_name = "roi_traces"
+        integ_dt = stim.sess.twop_fps
+    elif datatype == "run":
+        data_df = stim.get_run_data(
+            fr_ns, pre, post, remnans=analyspar.remnans, scale=analyspar.scale
+        )
+        col_name = "run_velocity"
+        integ_dt = stim.sess.stim_fps
+    elif datatype == "pupil":
+        data_df = stim.get_pup_diam_data(
+            fr_ns, pre, post, remnans=analyspar.remnans, scale=analyspar.scale
+        )
+        col_name = "pup_diam"
+        integ_dt = stim.sess.pup_fps
     else:
         gen_util.accepted_values_error(
-            "ref_type", ref_type, ["segs", "twop_frs"]
+            "datatype", datatype, ["roi", "run", "pupil"]
             )
-
-    data_df = stim.get_roi_data(
-        fr_ns, pre, post, remnans=analyspar.remnans, scale=analyspar.scale
-        )
     
     time_values = data_df.index.unique("time_values").to_numpy()
 
-    data_arr = gen_util.reshape_df_data(
-        data_df["roi_traces"], squeeze_cols=True
-        )
+    data_arr = gen_util.reshape_df_data(data_df[col_name], squeeze_cols=True)
 
     if integ:
         nanpol = None if analyspar.remnans else "omit"
         data_arr = math_util.integ(
-            data_arr, 1. / stim.sess.twop_fps, axis=-1, nanpol=nanpol)
+            data_arr, 1. / integ_dt, axis=-1, nanpol=nanpol
+            )
     
     return data_arr, time_values
     
@@ -147,7 +248,8 @@ def get_common_oris(stimpar, split="by_exp"):
 
 
 #############################################
-def get_by_exp_data(sess, analyspar, stimpar, integ=False, common_oris=False):
+def get_by_exp_data(sess, analyspar, stimpar, integ=False, common_oris=False, 
+                    datatype="roi"):
     """
     get_by_exp_data(sess, analyspar, stimpar)
 
@@ -169,11 +271,14 @@ def get_by_exp_data(sess, analyspar, stimpar, integ=False, common_oris=False):
             if True, only Gabor stimulus orientations common to D and U frames 
             are included ("by_exp" split only)
             default: False
+        - datatype (str):
+            type of data to return ("roi", "run" or "pupil")
+            default: "roi"
 
     Returns:
         - data_arr (nested list):
             sequence data array
-            dims: split x ROIs x seq (x frames)
+            dims: split (x ROIs) x seq (x frames)
         - time_values (1D array):
             values for each frame, in seconds
     """
@@ -194,7 +299,7 @@ def get_by_exp_data(sess, analyspar, stimpar, integ=False, common_oris=False):
 
         data, time_values = get_data(
             stim, segs, analyspar, pre=stimpar.pre, post=stimpar.post, 
-            integ=integ
+            integ=integ, datatype=datatype, ref_type="segs"
             )
         by_exp_data.append(data.tolist())
 
@@ -202,7 +307,8 @@ def get_by_exp_data(sess, analyspar, stimpar, integ=False, common_oris=False):
 
 
 #############################################
-def get_locked_data(sess, analyspar, stimpar, split="unexp_lock", integ=False):
+def get_locked_data(sess, analyspar, stimpar, split="unexp_lock", integ=False, 
+                    datatype="roi"):
     """
     get_locked_data(sess, analyspar, stimpar)
 
@@ -225,11 +331,14 @@ def get_locked_data(sess, analyspar, stimpar, split="unexp_lock", integ=False):
         - integ (bool)
             if True, sequence data is integrated
             default: False
+        - datatype (str):
+            type of data to return ("roi", "run" or "pupil")
+            default: "roi"
 
     Returns:
         - data_arr (nested list):
             sequence data array
-            dims: split x ROIs x seq (x frames)
+            dims: split (x ROIs) x seq (x frames)
         - time_values (1D array):
             values for each frame, in seconds (for 0 to stimpar.post)
     """
@@ -257,7 +366,8 @@ def get_locked_data(sess, analyspar, stimpar, split="unexp_lock", integ=False):
 
         data, time_values = get_data(
             stim, segs, analyspar, pre=pre, post=post, 
-            ch_fl=[stimpar.pre, stimpar.post], integ=integ
+            ch_fl=[stimpar.pre, stimpar.post], integ=integ, datatype=datatype,
+            ref_type="segs",
             )
         
         locked_data.append(data.tolist())
@@ -267,7 +377,7 @@ def get_locked_data(sess, analyspar, stimpar, split="unexp_lock", integ=False):
 
 #############################################
 def get_stim_on_off_data(sess, analyspar, stimpar, split="stim_onset", 
-                         integ=False):
+                         integ=False, datatype="roi"):
     """
     get_stim_on_off_data(sess, analyspar, stimpar)
 
@@ -290,11 +400,14 @@ def get_stim_on_off_data(sess, analyspar, stimpar, split="stim_onset",
         - integ (bool)
             if True, sequence data is integrated
             default: False
+        - datatype (str):
+            type of data to return ("roi", "run" or "pupil")
+            default: "roi"
 
     Returns:
         - data_arr (nested list):
             sequence data array
-            dims: split x ROIs x seq (x frames)
+            dims: split (x ROIs) x seq (x frames)
         - time_values (1D array):
             values for each frame, in seconds (for 0 to stimpar.post)
     """
@@ -319,8 +432,6 @@ def get_stim_on_off_data(sess, analyspar, stimpar, split="stim_onset",
     elif split == "stim_offset":
         stim_fr = sess.grayscr.get_first_nongab_stim_fr()["first_stim_fr"][1:]
 
-    twop_fr = sess.stim2twopfr[stim_fr]
-
     stim_on_off_data = []
     for i in range(2):
 
@@ -331,13 +442,14 @@ def get_stim_on_off_data(sess, analyspar, stimpar, split="stim_onset",
 
         # ROI x seq (x frames)
         data, time_values = get_data(
-            stim, twop_fr, analyspar, pre=pre, post=post, 
-            ch_fl=[stimpar.pre, stimpar.post], integ=integ, ref_type="twop_frs"
+            stim, stim_fr, analyspar, pre=pre, post=post, 
+            ch_fl=[stimpar.pre, stimpar.post], integ=integ, ref_type="stim_frs", 
+            datatype=datatype,
             )
         
         # very few stim onset/offset sequences, so best to retain all
         axis = -1 if integ else -2
-        if data.shape[axis] != len(twop_fr):
+        if data.shape[axis] != len(stim_fr):
             raise RuntimeError("Not all sequences could be retained for "
                 f"{split} with stimpar.pre={stimpar.pre} and "
                 f"stimpar.post={stimpar.post}.")
@@ -349,10 +461,11 @@ def get_stim_on_off_data(sess, analyspar, stimpar, split="stim_onset",
 
 
 #############################################
-def split_data_by_sess(sess, analyspar, stimpar, split="by_exp", integ=False, 
-                       baseline=0.0, common_oris=False):
+def get_split_data_by_sess(sess, analyspar, stimpar, split="by_exp", 
+                           integ=False, baseline=0.0, common_oris=False, 
+                           datatype="roi"):
     """
-    split_data_by_sess(sess, analyspar, stimpar)
+    get_split_data_by_sess(sess, analyspar, stimpar)
 
     Returns data for the session, split as requested.
 
@@ -384,11 +497,14 @@ def split_data_by_sess(sess, analyspar, stimpar, split="by_exp", integ=False,
             if True, only Gabor stimulus orientations common to D and U frames 
             are included ("by_exp" split only)
             default: False
+        - datatype (str):
+            type of data to return ("roi", "run" or "pupil")
+            default: "roi"
 
     Returns:
         - data (nested list): 
             list of data arrays
-            dims: split x ROIs x seq (x frames)
+            dims: split (x ROIs) x seq (x frames)
         - time_values (1D array):
             values for each frame, in seconds 
             (only 0 to stimpar.post, unless split is "by_exp")
@@ -409,6 +525,7 @@ def split_data_by_sess(sess, analyspar, stimpar, split="by_exp", integ=False,
         "analyspar" : analyspar,
         "stimpar"   : stimpar,
         "integ"     : integ,
+        "datatype"  : datatype,
     }
 
     if split == "by_exp":
@@ -464,8 +581,9 @@ def get_sess_roi_trace_stats(sess, analyspar, stimpar, basepar,
     
     nanpol = None if analyspar.remnans else "omit"
 
-    split_data, time_values = split_data_by_sess(
-        sess, analyspar, stimpar, split=split, baseline=basepar.baseline
+    split_data, time_values = get_split_data_by_sess(
+        sess, analyspar, stimpar, split=split, baseline=basepar.baseline, 
+        datatype="roi"
         )
     
     stats = []
@@ -511,6 +629,9 @@ def get_sess_roi_trace_df(sessions, analyspar, stimpar, basepar,
             "stim_onset" (grayscr, stim on), 
             "stim_offset" (stim off, grayscr)
             default: "by_exp"
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
 
     Returns:
         - trace_df (pd.DataFrame):
@@ -575,6 +696,9 @@ def get_sess_grped_trace_df(sessions, analyspar, stimpar, basepar,
             "stim_onset" (grayscr, stim on), 
             "stim_offset" (stim off, grayscr)
             default: "by_exp"
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
 
     Returns:
         - trace_df (pd.DataFrame):
@@ -650,7 +774,7 @@ def get_sess_roi_split_stats(sess, analyspar, stimpar, basepar, split="by_exp",
     """
     get_sess_roi_split_stats(sess, analyspar, stimpar, basepar)
 
-    Returns ROI split stats for a specific session.
+    Returns ROI split stats for a specific session (integrated data).
 
     Required args:
         - sess (Session):
@@ -686,7 +810,7 @@ def get_sess_roi_split_stats(sess, analyspar, stimpar, basepar, split="by_exp",
     
     nanpol = None if analyspar.remnans else "omit"
 
-    split_data, _ = split_data_by_sess(
+    split_data, _ = get_split_data_by_sess(
         sess, analyspar, stimpar, split=split, baseline=basepar.baseline, 
         integ=True
         )
@@ -759,7 +883,7 @@ def get_rand_split_data(split_data, analyspar, permpar, seed=None):
 
 #############################################
 def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
-                            split="by_exp", parallel=False, seed=None):
+                            split="by_exp", seed=None, parallel=False):
     """
     get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar)
 
@@ -787,12 +911,12 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
             "stim_onset" (grayscr, stim on), 
             "stim_offset" (stim off, grayscr)
             default: "by_exp"
-        - parallel (bool): 
-            if True, some of the analysis is run in parallel across CPU cores 
-            default: False
         - seed (int): 
             seed value to use. (-1 treated as None)
             default: None
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
 
     Returns:
         - diffs_df (pd.DataFrame):
@@ -815,6 +939,9 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
     nanpol = None if analyspar.remnans else "omit"
 
     seed = gen_util.seed_all(seed, "cpu", log_seed=False)
+
+    if analyspar.tracked:
+        misc_analys.check_sessions_complete(sessions, raise_err=True)
 
     sess_diffs_df = misc_analys.get_check_sess_df(sessions, None, analyspar)
     initial_columns = sess_diffs_df.columns.tolist()
@@ -871,7 +998,7 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
                 diffs_df.loc[row_idx, group_column] = grp_vals[g]
 
             # add aggregated values for initial columns
-            misc_analys.aggreg_columns(
+            diffs_df = misc_analys.aggreg_columns(
                 sess_grp_df, diffs_df, aggreg_cols, row_idx=row_idx, 
                 in_place=True
                 )
@@ -914,6 +1041,7 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
         # calculate p-values between sessions (0-1, 0-2, 1-2...)
         p_vals = math_util.comp_vals_acr_groups(
             sess_diffs, n_perms=permpar.n_perms, stats=analyspar.stats,
+            paired=analyspar.tracked
             )
         p = 0
         for i, sess_n in enumerate(sess_ns):
@@ -979,7 +1107,7 @@ def get_sess_ex_traces(sess, analyspar, stimpar, basepar):
     snrs = misc_analys.get_snr(sess, snr_analyspar, "snrs")
     snr_median = np.median(snrs)
 
-    traces, time_values = split_data_by_sess(
+    traces, time_values = get_split_data_by_sess(
         sess,
         analyspar=analyspar,
         stimpar=stimpar,
@@ -1028,8 +1156,8 @@ def get_sess_ex_traces(sess, analyspar, stimpar, basepar):
 
 
 #############################################
-def get_ex_traces_df(sessions, analyspar, stimpar, basepar, parallel=False, 
-                     seed=None, n_ex=6):
+def get_ex_traces_df(sessions, analyspar, stimpar, basepar, n_ex=6, 
+                     seed=None, parallel=False):
     """
     get_ex_traces_df(sessions, analyspar, stimpar, basepar)
 
@@ -1046,15 +1174,15 @@ def get_ex_traces_df(sessions, analyspar, stimpar, basepar, parallel=False,
             named tuple containing baseline parameters
     
     Optional args:
-        - parallel (bool): 
-            if True, some of the analysis is run in parallel across CPU cores 
-            default: False
-        - seed (int): 
-            seed value to use. (-1 treated as None)
-            default: None
         - n_ex (int):
             number of example traces to retain
             default: 6
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
 
     Returns:
         - selected_roi_data (pd.DataFrame):
@@ -1304,12 +1432,11 @@ def add_relative_resp_data(resp_data_df, analyspar, rel_sess=1, in_place=False):
     
     return resp_data_df 
     
-    
+
 ############################################
-def get_relative_resp_df(sessions, analyspar, stimpar, permpar, rel_sess=1, 
-                         parallel=False, seed=None):
+def get_resp_df(sessions, analyspar, stimpar, rel_sess=1, parallel=False):
     """
-    get_relative_resp_df(sessions, analyspar, stimpar, permpar)
+    get_resp_df(sessions, analyspar, stimpar)
 
     Returns relative response dataframe for requested sessions.
 
@@ -1320,43 +1447,31 @@ def get_relative_resp_df(sessions, analyspar, stimpar, permpar, rel_sess=1,
             named tuple containing analysis parameters
         - stimpar (StimPar): 
             named tuple containing stimulus parameters
-        - permpar (PermPar): 
-            named tuple containing permutation parameters
 
     Optional args:
         - rel_sess (int):
             number of session relative to which data should be scaled, for each 
-            mouse
+            mouse. If None, relative data is not added.
             default: 1
         - parallel (bool): 
             if True, some of the analysis is run in parallel across CPU cores 
             default: False
-        - seed (int): 
-            seed value to use. (-1 treated as None)
-            default: None
 
     Returns:
-            dataframe with one row per session/line/plane, and the following 
-            columns, in addition to the basic sess_df columns: 
-            - rel_reg or rel_exp (list): data stats for regular data (me, err)
-            - rel_unexp (list): data stats for unexpected data (me, err)
-            for reg/exp/unexp data types, session comparisons, e.g. 1v2:
-            - {data_type}_raw_p_vals_{}v{} (float): uncorrected p-value for 
-                data differences between sessions 
-            - {data_type}_p_vals_{}v{} (float): p-value for data between 
-                sessions, corrected for multiple comparisons and tails
+        - resp_data_df (pd.DataFrame):
+            data dictionary with response stats (2D array, ROI x stats) under 
+            keys for expected ("exp") and unexpected ("unexp") data, 
+            separated by Gabor frame (e.g., "exp_3", "unexp_G") 
+            if stimpar.stimtype == "gabors", and 
+            with "rel_{}" columns added for each input column with "exp" in its 
+            name if rel_sess is not None.
     """
     
-    seed = gen_util.seed_all(seed, "cpu", log_seed=False)
-
-    nanpol = None if analyspar.remnans else "omit"
-
     if analyspar.tracked:
         misc_analys.check_sessions_complete(sessions, raise_err=True)
 
     sessids = [sess.sessid for sess in sessions]
     resp_data_df = misc_analys.get_check_sess_df(sessions, analyspar=analyspar) 
-    initial_columns = resp_data_df.columns.to_list()
 
     # double check that sessions are in correct order
     if resp_data_df["sessids"].tolist() != sessids:
@@ -1383,8 +1498,64 @@ def get_relative_resp_df(sessions, analyspar, stimpar, permpar, rel_sess=1,
             resp_data_df.at[idx, key] = value[:, 0] # retain stat only, not error
     
     # add relative data
-    resp_data_df = add_relative_resp_data(
-        resp_data_df, analyspar, rel_sess=rel_sess, in_place=True
+    if rel_sess is not None:
+        resp_data_df = add_relative_resp_data(
+            resp_data_df, analyspar, rel_sess=rel_sess, in_place=True
+            )
+
+    return resp_data_df
+
+
+############################################
+def get_rel_resp_stats_df(sessions, analyspar, stimpar, permpar, rel_sess=1, 
+                          seed=None, parallel=False):
+    """
+    get_rel_resp_stats_df(sessions, analyspar, stimpar, permpar)
+
+    Returns relative response stats dataframe for requested sessions.
+
+    Required args:
+        - sessions (list): 
+            session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
+
+    Optional args:
+        - rel_sess (int):
+            number of session relative to which data should be scaled, for each 
+            mouse
+            default: 1
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+
+    Returns:
+            dataframe with one row per session/line/plane, and the following 
+            columns, in addition to the basic sess_df columns: 
+            - rel_reg or rel_exp (list): data stats for regular data (me, err)
+            - rel_unexp (list): data stats for unexpected data (me, err)
+            for reg/exp/unexp data types, session comparisons, e.g. 1v2:
+            - {data_type}_raw_p_vals_{}v{} (float): uncorrected p-value for 
+                data differences between sessions 
+            - {data_type}_p_vals_{}v{} (float): p-value for data between 
+                sessions, corrected for multiple comparisons and tails
+    """
+    
+    seed = gen_util.seed_all(seed, "cpu", log_seed=False)
+
+    nanpol = None if analyspar.remnans else "omit"
+ 
+    initial_columns = misc_analys.get_sess_df_columns(sessions[0], analyspar)
+
+    resp_data_df = get_resp_df(
+        sessions, analyspar, stimpar, rel_sess=rel_sess, parallel=parallel
         )
 
     # prepare target dataframe
@@ -1418,7 +1589,7 @@ def get_relative_resp_df(sessions, analyspar, stimpar, permpar, rel_sess=1,
                         rel_resp_data_df.loc[row_idx, group_column] = grp_vals[g]
 
                     # add aggregated values for initial columns
-                    misc_analys.aggreg_columns(
+                    rel_resp_data_df = misc_analys.aggreg_columns(
                         sess_grp_df, rel_resp_data_df, aggreg_cols, 
                         row_idx=row_idx, in_place=True)
                 else:
@@ -1471,4 +1642,3 @@ def get_relative_resp_df(sessions, analyspar, stimpar, permpar, rel_sess=1,
 
     return rel_resp_data_df
 
-    

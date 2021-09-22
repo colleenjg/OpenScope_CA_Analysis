@@ -969,8 +969,7 @@ def ext_test_str(q1v4=False, rvs=False, comp="surp", str_type="file"):
 
 
 #############################################
-def get_nroi_strs(sess_info, remnans=True, fluor="dff", empty=False, 
-                  style="comma"):
+def get_nroi_strs(sess_info, empty=False, style="comma"):
     """
     get_nroi_strs(sess_info)
 
@@ -982,16 +981,6 @@ def get_nroi_strs(sess_info, remnans=True, fluor="dff", empty=False,
             ["mouse_ns"] (list)   : mouse numbers
             if not empty:
             ["nrois"] (list)      : number of ROIs in session
-            if remnans:
-            ["nanrois_{}"] (list) : list of ROIs with NaNs/Infs in traces 
-                                    ("raw" or "dff")
-        - remnans (bool)  : if True, the number of ROIs with NaN/Infs is  
-                            removed from the total
-                            default: True
-        - fluor (str)     : if "raw", number of ROIs is calculated with 
-                            n_nanrois. If "dff", it is calculated with 
-                            n_nanrois_dff  
-                            default: "dff"
         - empty (bool)    : if True, empty strings are returned for each session
                             default: False
         - style (str)     : style to use (following a comma ("comma") or in 
@@ -1007,10 +996,6 @@ def get_nroi_strs(sess_info, remnans=True, fluor="dff", empty=False,
 
     else:
         nrois = sess_info["nrois"]
-        if remnans:
-            sub_rois = sess_info[f"nanrois_{fluor}"]
-            sub_vals = [len(rois) for rois in sub_rois]
-            nrois = [nrois[i] - sub_vals[i] for i in range(len(nrois))]
         
         if style == "comma":
             nroi_strs = [f", n={nroi}" for nroi in nrois]

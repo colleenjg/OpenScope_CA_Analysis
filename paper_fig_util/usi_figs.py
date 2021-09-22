@@ -24,10 +24,10 @@ TAB = "    "
 
 ############################################
 def gabor_example_roi_usis(sessions, analyspar, sesspar, stimpar, basepar, 
-                           permpar, idxpar, figpar, seed=None, parallel=False):
+                           idxpar, permpar, figpar, seed=None, parallel=False):
     """
     gabor_example_roi_usis(sessions, analyspar, sesspar, stimpar, basepar, 
-                           permpar, idxpar, figpar)
+                           idxpar, permpar, figpar)
 
     Retrieves example ROI Gabor USI traces.
         
@@ -44,10 +44,10 @@ def gabor_example_roi_usis(sessions, analyspar, sesspar, stimpar, basepar,
             named tuple containing stimulus parameters
         - basepar (BasePar): 
             named tuple containing baseline parameters
-        - permpar (PermPar): 
-            named tuple containing permutation parameters
         - idxpar (IdxPar): 
             named tuple containing index parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
         - figpar (dict): 
             dictionary containing figure parameters
     
@@ -83,8 +83,8 @@ def gabor_example_roi_usis(sessions, analyspar, sesspar, stimpar, basepar,
         analyspar=analyspar, 
         stimpar=stimpar_idx, 
         basepar=basepar, 
-        permpar=permpar,
         idxpar=idxpar,
+        permpar=permpar,
         target_idx_vals = [0.5, 0, -0.5],
         target_idx_sigs = ["sig", "not_sig", "sig"],
         seed=seed,
@@ -113,8 +113,8 @@ def gabor_example_roi_usis(sessions, analyspar, sesspar, stimpar, basepar,
         "stimpar": stimpar._asdict(),
         "sesspar": sesspar._asdict(),
         "basepar": basepar._asdict(),
-        "permpar": permpar._asdict(),
         "idxpar": idxpar._asdict(),
+        "permpar": permpar._asdict(),
         "extrapar": extrapar,
         "chosen_rois_df": chosen_rois_df.to_dict()
     }
@@ -124,10 +124,10 @@ def gabor_example_roi_usis(sessions, analyspar, sesspar, stimpar, basepar,
 
 ############################################
 def gabor_example_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar, 
-                              permpar, idxpar, figpar, seed=None):
+                              idxpar, permpar, figpar, seed=None):
     """
     gabor_example_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar, 
-                              permpar, idxpar, figpar)
+                              idxpar, permpar, figpar)
 
     Retrieves example ROI Gabor USI null distribution for significance 
     assessment.
@@ -145,10 +145,10 @@ def gabor_example_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar,
             named tuple containing stimulus parameters
         - basepar (BasePar): 
             named tuple containing baseline parameters
-        - permpar (PermPar): 
-            named tuple containing permutation parameters
         - idxpar (IdxPar): 
             named tuple containing index parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
         - figpar (dict): 
             dictionary containing figure parameters
     
@@ -173,8 +173,8 @@ def gabor_example_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar,
         analyspar=analyspar, 
         stimpar=stimpar, 
         basepar=basepar, 
-        permpar=permpar, 
         idxpar=idxpar, 
+        permpar=permpar, 
         seed=seed, 
         target_roi_perc=target_roi_perc
         )
@@ -186,8 +186,8 @@ def gabor_example_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar,
         "stimpar"  : stimpar._asdict(),
         "sesspar"  : sesspar._asdict(),
         "basepar"  : basepar._asdict(),
-        "permpar"  : permpar._asdict(),
         "idxpar"   : idxpar._asdict(),
+        "permpar"  : permpar._asdict(),
         "extrapar" : extrapar,
         "ex_idx_df": ex_idx_df.to_dict()
     }
@@ -197,10 +197,10 @@ def gabor_example_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar,
 
 ############################################
 def gabor_roi_usi_distr(sessions, analyspar, sesspar, stimpar, basepar, 
-                        permpar, idxpar, figpar, seed=None, parallel=False):
+                        idxpar, permpar, figpar, seed=None, parallel=False):
     """
     gabor_roi_usi_distr(sessions, analyspar, sesspar, stimpar, basepar, 
-                        permpar, idxpar, figpar)
+                        idxpar, permpar, figpar)
 
     Retrieves ROI Gabor USI percentile distributions.
         
@@ -217,10 +217,10 @@ def gabor_roi_usi_distr(sessions, analyspar, sesspar, stimpar, basepar,
             named tuple containing stimulus parameters
         - basepar (BasePar): 
             named tuple containing baseline parameters
-        - permpar (PermPar): 
-            named tuple containing permutation parameters
         - idxpar (IdxPar): 
             named tuple containing index parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
         - figpar (dict): 
             dictionary containing figure parameters
     
@@ -243,21 +243,24 @@ def gabor_roi_usi_distr(sessions, analyspar, sesspar, stimpar, basepar,
         analyspar=analyspar, 
         stimpar=stimpar, 
         basepar=basepar, 
-        permpar=permpar, 
         idxpar=idxpar, 
+        permpar=permpar, 
         n_bins=n_bins,
         seed=seed, 
         parallel=parallel
         )
 
-    extrapar = {"seed": seed}
+    extrapar = {
+        "n_bins"  : n_bins,
+        "seed"    : seed,
+        }
 
     info = {"analyspar": analyspar._asdict(),
             "sesspar"  : sesspar._asdict(),
             "stimpar"  : stimpar._asdict(),
             "basepar"  : basepar._asdict(),
-            "permpar"  : permpar._asdict(),
             "idxpar"   : idxpar._asdict(),
+            "permpar"  : permpar._asdict(),
             "extrapar" : extrapar,
             "idx_df"   : idx_df.to_dict()
             }
@@ -267,11 +270,11 @@ def gabor_roi_usi_distr(sessions, analyspar, sesspar, stimpar, basepar,
 
 ############################################
 def gabor_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar, 
-                      permpar, idxpar, figpar, seed=None, parallel=False, 
-                      common_oris=False):
+                      idxpar, permpar, figpar, common_oris=False, seed=None, 
+                      parallel=False):
     """
     gabor_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar, 
-                      permpar, idxpar, figpar)
+                      idxpar, permpar, figpar)
 
     Retrieves percentage of signifiant ROI Gabor USIs.
         
@@ -288,22 +291,22 @@ def gabor_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar,
             named tuple containing stimulus parameters
         - basepar (BasePar): 
             named tuple containing baseline parameters
-        - permpar (PermPar): 
-            named tuple containing permutation parameters
         - idxpar (IdxPar): 
             named tuple containing index parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
         - figpar (dict): 
             dictionary containing figure parameters
     
     Optional args:
+        - common_oris (bool): 
+            if True, data is for common orientations
+            default: False
         - seed (int): 
             seed value to use. (-1 treated as None)
             default: None
         - parallel (bool): 
             if True, some of the analysis is run in parallel across CPU cores 
-            default: False
-        - common_oris (bool): 
-            if True, data is for common orientations
             default: False
     """
 
@@ -319,30 +322,36 @@ def gabor_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar,
             stimpar, "gab_ori", gab_oris
             )
 
+    by_mouse = False
     idx_df = usi_analys.get_idx_df(
         sessions, 
         analyspar=analyspar, 
         stimpar=stimpar, 
         basepar=basepar, 
-        permpar=permpar, 
         idxpar=idxpar, 
-        seed=seed, 
+        permpar=permpar, 
         common_oris=common_oris,
+        by_mouse=by_mouse,
+        seed=seed, 
         parallel=parallel,
         )
 
     permpar = misc_analys.set_multcomp(permpar, sess_df=idx_df, factor=2)
     
-    perc_sig_df = usi_analys.get_perc_sig_df(idx_df, permpar, seed)
+    perc_sig_df = usi_analys.get_perc_sig_df(idx_df, analyspar, permpar, seed)
 
-    extrapar = {"seed": seed}
+    extrapar = {
+        "common_oris": common_oris,
+        "by_mouse"   : by_mouse,
+        "seed"       : seed,
+        }
 
     info = {"analyspar"  : analyspar._asdict(),
             "sesspar"    : sesspar._asdict(),
             "stimpar"    : stimpar._asdict(),
             "basepar"    : basepar._asdict(),
-            "permpar"    : permpar._asdict(),
             "idxpar"     : idxpar._asdict(),
+            "permpar"    : permpar._asdict(),
             "extrapar"   : extrapar,
             "perc_sig_df": perc_sig_df.to_dict()
             }
@@ -352,11 +361,11 @@ def gabor_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar,
 
 ############################################
 def gabor_roi_usi_sig_common_oris(sessions, analyspar, sesspar, stimpar, 
-                                  basepar, permpar, idxpar, figpar, seed=None, 
+                                  basepar, idxpar, permpar, figpar, seed=None, 
                                   parallel=False):
     """
     gabor_roi_usi_sig_common_oris(sessions, analyspar, sesspar, stimpar, 
-                                  basepar, permpar, idxpar, figpar)
+                                  basepar, idxpar, permpar, figpar)
 
     Retrieves percentage of signifiant ROI Gabor USIs, measured using sequences 
     with mean orientation common to D and U sequences.
@@ -374,10 +383,10 @@ def gabor_roi_usi_sig_common_oris(sessions, analyspar, sesspar, stimpar,
             named tuple containing stimulus parameters
         - basepar (BasePar): 
             named tuple containing baseline parameters
-        - permpar (PermPar): 
-            named tuple containing permutation parameters
         - idxpar (IdxPar): 
             named tuple containing index parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
         - figpar (dict): 
             dictionary containing figure parameters
     
@@ -396,35 +405,180 @@ def gabor_roi_usi_sig_common_oris(sessions, analyspar, sesspar, stimpar,
         sesspar=sesspar,
         stimpar=stimpar, 
         basepar=basepar, 
-        permpar=permpar, 
         idxpar=idxpar, 
+        permpar=permpar, 
         figpar=figpar,
+        common_oris=True,
         seed=seed, 
         parallel=parallel,
-        common_oris=True
         )
 
 
 ############################################
-def gabor_tracked_roi_usis_sess123(sessions):
-    print("NOT YET IMPLEMENTED")
-    return
+def gabor_tracked_roi_usis_sess123(sessions, analyspar, sesspar, stimpar, 
+                                   basepar, idxpar, figpar, parallel=False):
+    """
+    gabor_tracked_roi_usis_sess123(sessions, analyspar, sesspar, stimpar, 
+                                   basepar, idxpar, figpar)
+
+    Retrieves tracked ROI Gabor USIs for session 1 to 3.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - basepar (BasePar): 
+            named tuple containing baseline parameters
+        - idxpar (IdxPar): 
+            named tuple containing index parameters
+        - figpar (dict): 
+            dictionary containing figure parameters
+    
+    Optional args:
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+    """
+
+
+    logger.info("Compiling tracked ROI Gabor USIs for sessions 1 to 3.", 
+        extra={"spacing": "\n"})
+
+    if not analyspar.tracked:
+        raise ValueError("analyspar.tracked should be set to True.")
+
+    # remove incomplete session series and warn
+    sessions = misc_analys.check_sessions_complete(sessions)
+
+    idx_only_df = usi_analys.get_idx_only_df(
+        sessions, 
+        analyspar=analyspar,
+        stimpar=stimpar, 
+        basepar=basepar, 
+        idxpar=idxpar, 
+        parallel=parallel
+        )
+        
+    extrapar = dict()
+
+    info = {"analyspar"  : analyspar._asdict(),
+            "sesspar"    : sesspar._asdict(),
+            "stimpar"    : stimpar._asdict(),
+            "basepar"    : basepar._asdict(),
+            "idxpar"     : idxpar._asdict(),
+            "extrapar"   : extrapar,
+            "idx_only_df": idx_only_df.to_dict()
+            }
+
+    helper_fcts.plot_save_all(info, figpar)
     
 
 ############################################
-def gabor_tracked_roi_abs_usi_means_sess123(sessions):
-    # 2 n_perms (idx and comparisons)
-    print("NOT YET IMPLEMENTED")
-    return
+def gabor_tracked_roi_abs_usi_means_sess123(
+        sessions, analyspar, sesspar, stimpar, basepar, idxpar, permpar, 
+        figpar, seed=None, parallel=False):
+    """
+    gabor_tracked_roi_abs_usi_means_sess123(
+        sessions, analyspar, sesspar, stimpar, basepar, idxpar, permpar, 
+        figpar)
+
+    Retrieves mean absolute for tracked ROI Gabor USIs for session 1 to 3.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - basepar (BasePar): 
+            named tuple containing baseline parameters
+        - idxpar (IdxPar): 
+            named tuple containing index parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
+        - figpar (dict): 
+            dictionary containing figure parameters
+    
+    Optional args:
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+    """
+
+    logger.info(
+        ("Compiling absolute means of tracked ROI Gabor USIs for "
+        "sessions 1 to 3."), 
+        extra={"spacing": "\n"})
+
+    if not analyspar.tracked:
+        raise ValueError("analyspar.tracked should be set to True.")
+
+    # remove incomplete session series and warn
+    sessions = misc_analys.check_sessions_complete(sessions)
+
+    # calculate multiple comparisons
+    dummy_df = misc_analys.get_check_sess_df(
+        sessions, None, analyspar).drop_duplicates(
+            subset=["lines", "planes", "sess_ns"])
+
+    permpar = misc_analys.set_multcomp(permpar, sess_df=dummy_df, CIs=False)
+
+    absolute = True
+    by_mouse = False
+    idx_stats_df = usi_analys.get_idx_stats_df(
+        sessions, 
+        analyspar=analyspar, 
+        stimpar=stimpar, 
+        basepar=basepar, 
+        idxpar=idxpar, 
+        permpar=permpar, 
+        absolute=absolute, 
+        by_mouse=by_mouse, 
+        seed=seed,
+        parallel=parallel, 
+        )
+
+    extrapar = {
+        "absolute": absolute,
+        "by_mouse": by_mouse,
+        "seed"    : seed,
+        }
+
+    info = {"analyspar"   : analyspar._asdict(),
+            "sesspar"     : sesspar._asdict(),
+            "stimpar"     : stimpar._asdict(),
+            "basepar"     : basepar._asdict(),
+            "idxpar"      : idxpar._asdict(),
+            "permpar"     : permpar._asdict(),
+            "extrapar"    : extrapar,
+            "idx_stats_df": idx_stats_df.to_dict()
+            }
+
+    helper_fcts.plot_save_all(info, figpar)
 
 
 ############################################
 def gabor_roi_usi_sig_by_mouse(sessions, analyspar, sesspar, stimpar, basepar, 
-                               permpar, idxpar, figpar, seed=None, 
+                               idxpar, permpar, figpar, seed=None, 
                                parallel=False):
     """
     gabor_roi_usi_sig_by_mouse(sessions, analyspar, sesspar, stimpar, basepar, 
-                               permpar, idxpar, figpar)
+                               idxpar, permpar, figpar)
 
     Retrieves percentage of signifiant ROI Gabor USIs by mouse.
         
@@ -441,10 +595,10 @@ def gabor_roi_usi_sig_by_mouse(sessions, analyspar, sesspar, stimpar, basepar,
             named tuple containing stimulus parameters
         - basepar (BasePar): 
             named tuple containing baseline parameters
-        - permpar (PermPar): 
-            named tuple containing permutation parameters
         - idxpar (IdxPar): 
             named tuple containing index parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
         - figpar (dict): 
             dictionary containing figure parameters
     
@@ -462,15 +616,16 @@ def gabor_roi_usi_sig_by_mouse(sessions, analyspar, sesspar, stimpar, basepar,
         extra={"spacing": "\n"}
         )
 
+    by_mouse = True
     idx_df = usi_analys.get_idx_df(
         sessions, 
         analyspar=analyspar, 
         stimpar=stimpar, 
         basepar=basepar, 
-        permpar=permpar, 
         idxpar=idxpar, 
+        permpar=permpar, 
+        by_mouse=by_mouse,
         seed=seed, 
-        by_mouse=True,
         parallel=parallel,
         )
 
@@ -478,16 +633,19 @@ def gabor_roi_usi_sig_by_mouse(sessions, analyspar, sesspar, stimpar, basepar,
         permpar, sess_df=idx_df, pairs=False, factor=2
         )
     
-    perc_sig_df = usi_analys.get_perc_sig_df(idx_df, permpar, seed)
+    perc_sig_df = usi_analys.get_perc_sig_df(idx_df, analyspar, permpar, seed)
 
-    extrapar = {"seed": seed}
+    extrapar = {
+        "by_mouse": by_mouse,
+        "seed"    : seed,
+        }
 
     info = {"analyspar"  : analyspar._asdict(),
             "sesspar"    : sesspar._asdict(),
             "stimpar"    : stimpar._asdict(),
             "basepar"    : basepar._asdict(),
-            "permpar"    : permpar._asdict(),
             "idxpar"     : idxpar._asdict(),
+            "permpar"    : permpar._asdict(),
             "extrapar"   : extrapar,
             "perc_sig_df": perc_sig_df.to_dict()
             }
@@ -496,59 +654,235 @@ def gabor_roi_usi_sig_by_mouse(sessions, analyspar, sesspar, stimpar, basepar,
 
     
 ############################################
-def gabor_tracked_roi_abs_usi_means_sess123_by_mouse(sessions):
-    # 2 n_perms (idx and comparisons)
+def gabor_tracked_roi_abs_usi_means_sess123_by_mouse(
+        sessions, analyspar, sesspar, stimpar, basepar, idxpar, figpar, 
+        parallel=False):
+    """
+    gabor_tracked_roi_abs_usi_means_sess123_by_mouse(
+        sessions, analyspar, sesspar, stimpar, basepar, idxpar, figpar)
 
-    # if not analyspar.tracked:
-    #     raise ValueError("analyspar.tracked should be set to True.")
+    Retrieves mean absolute for tracked ROI Gabor USIs, for each mouse, for 
+    session 1 to 3.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
 
-    # # remove incomplete session series and warn
-    # sessions = misc_analys.check_sessions_complete(sessions)
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - basepar (BasePar): 
+            named tuple containing baseline parameters
+        - idxpar (IdxPar): 
+            named tuple containing index parameters
+        - figpar (dict): 
+            dictionary containing figure parameters
+    
+    Optional args:
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+    """
 
-    print("NOT YET IMPLEMENTED")
-    return
+    logger.info(
+        ("Compiling absolute means per mouse of tracked ROI Gabor USIs for "
+        "sessions 1 to 3."), 
+        extra={"spacing": "\n"})
+
+    if not analyspar.tracked:
+        raise ValueError("analyspar.tracked should be set to True.")
+
+    # remove incomplete session series and warn
+    sessions = misc_analys.check_sessions_complete(sessions)
+
+    absolute = True
+    by_mouse = True
+    idx_stats_df = usi_analys.get_idx_stats_df(
+        sessions, 
+        analyspar=analyspar, 
+        stimpar=stimpar, 
+        basepar=basepar, 
+        idxpar=idxpar, 
+        absolute=absolute, 
+        by_mouse=by_mouse, 
+        parallel=parallel, 
+        )
+
+    extrapar = {
+        "absolute": absolute,
+        "by_mouse": by_mouse,
+        }
+
+    info = {"analyspar"   : analyspar._asdict(),
+            "sesspar"     : sesspar._asdict(),
+            "stimpar"     : stimpar._asdict(),
+            "basepar"     : basepar._asdict(),
+            "idxpar"      : idxpar._asdict(),
+            "extrapar"    : extrapar,
+            "idx_stats_df": idx_stats_df.to_dict()
+            }
+
+    helper_fcts.plot_save_all(info, figpar)
+
+
+############################################
+def visual_flow_tracked_roi_usis_sess123(sessions, analyspar, sesspar, stimpar, 
+                                         basepar, idxpar, figpar, 
+                                         parallel=False):
+    """
+    visual_flow_tracked_roi_usis_sess123(sessions, analyspar, sesspar, stimpar, 
+                                         basepar, idxpar, figpar)
+
+    Retrieves tracked ROI visual flow USIs for session 1 to 3.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - basepar (BasePar): 
+            named tuple containing baseline parameters
+        - idxpar (IdxPar): 
+            named tuple containing index parameters
+        - figpar (dict): 
+            dictionary containing figure parameters
+    
+    Optional args:
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+    """
+
+    logger.info("Compiling tracked ROI visual flow USIs for sessions 1 to 3.", 
+        extra={"spacing": "\n"})
+
+    if not analyspar.tracked:
+        raise ValueError("analyspar.tracked should be set to True.")
+
+    # remove incomplete session series and warn
+    sessions = misc_analys.check_sessions_complete(sessions)
+
+    idx_only_df = usi_analys.get_idx_only_df(
+        sessions, 
+        analyspar=analyspar,
+        stimpar=stimpar, 
+        basepar=basepar, 
+        idxpar=idxpar, 
+        parallel=parallel
+        )
+        
+    extrapar = dict()
+
+    info = {"analyspar"  : analyspar._asdict(),
+            "sesspar"    : sesspar._asdict(),
+            "stimpar"    : stimpar._asdict(),
+            "basepar"    : basepar._asdict(),
+            "idxpar"     : idxpar._asdict(),
+            "extrapar"   : extrapar,
+            "idx_only_df": idx_only_df.to_dict()
+            }
+
+    helper_fcts.plot_save_all(info, figpar)
     
 
 ############################################
-def visual_flow_tracked_roi_usis_sess123(sessions):
-    # 2 n_perms (idx and comparisons)
+def visual_flow_tracked_roi_abs_usi_means_sess123(
+        sessions, analyspar, sesspar, stimpar, basepar, idxpar, permpar, 
+        figpar, seed=None, parallel=False):
+    """
+    visual_flow_tracked_roi_abs_usi_means_sess123(
+        sessions, analyspar, sesspar, stimpar, basepar, idxpar, permpar, 
+        figpar)
 
-    # if not analyspar.tracked:
-    #     raise ValueError("analyspar.tracked should be set to True.")
+    Retrieves mean absolute for tracked ROI visual flow USIs for session 1 to 3.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
 
-    # # remove incomplete session series and warn
-    # sessions = misc_analys.check_sessions_complete(sessions)
-
-    print("NOT YET IMPLEMENTED")
-    return
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - basepar (BasePar): 
+            named tuple containing baseline parameters
+        - idxpar (IdxPar): 
+            named tuple containing index parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
+        - figpar (dict): 
+            dictionary containing figure parameters
     
+    Optional args:
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+    """
 
-############################################
-def visual_flow_tracked_roi_abs_usi_means_sess123_by_mouse(sessions):
-    # 2 n_perms (idx and comparisons)
+    logger.info(
+        ("Compiling absolute means of tracked ROI Gabor USIs for "
+        "sessions 1 to 3."), 
+        extra={"spacing": "\n"})
 
-    # if not analyspar.tracked:
-    #     raise ValueError("analyspar.tracked should be set to True.")
+    if not analyspar.tracked:
+        raise ValueError("analyspar.tracked should be set to True.")
 
-    # # remove incomplete session series and warn
-    # sessions = misc_analys.check_sessions_complete(sessions)
+    # remove incomplete session series and warn
+    sessions = misc_analys.check_sessions_complete(sessions)
 
+    # calculate multiple comparisons
+    dummy_df = misc_analys.get_check_sess_df(
+        sessions, None, analyspar).drop_duplicates(
+            subset=["lines", "planes", "sess_ns"])
 
-    print("NOT YET IMPLEMENTED")
-    return
+    permpar = misc_analys.set_multcomp(permpar, sess_df=dummy_df, CIs=False)
 
+    absolute = True
+    by_mouse = False
+    idx_stats_df = usi_analys.get_idx_stats_df(
+        sessions, 
+        analyspar=analyspar, 
+        stimpar=stimpar, 
+        basepar=basepar, 
+        idxpar=idxpar, 
+        permpar=permpar, 
+        absolute=absolute, 
+        by_mouse=by_mouse, 
+        seed=seed,
+        parallel=parallel, 
+        )
 
-############################################
-def tracked_roi_usis_stimulus_comp_sess1v3(sessions):
-    # 2 n_perms (idx and comparisons)
+    extrapar = {
+        "absolute": absolute,
+        "by_mouse": by_mouse,
+        "seed": seed,
+        }
 
-    # if not analyspar.tracked:
-    #     raise ValueError("analyspar.tracked should be set to True.")
+    info = {"analyspar"   : analyspar._asdict(),
+            "sesspar"     : sesspar._asdict(),
+            "stimpar"     : stimpar._asdict(),
+            "basepar"     : basepar._asdict(),
+            "idxpar"      : idxpar._asdict(),
+            "permpar"     : permpar._asdict(),
+            "extrapar"    : extrapar,
+            "idx_stats_df": idx_stats_df.to_dict()
+            }
 
-    # # remove incomplete session series and warn
-    # sessions = misc_analys.check_sessions_complete(sessions)
+    helper_fcts.plot_save_all(info, figpar)
 
-
-    print("NOT YET IMPLEMENTED")
-    return
-    

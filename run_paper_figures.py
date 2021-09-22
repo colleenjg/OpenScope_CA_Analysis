@@ -83,11 +83,13 @@ def init_analysis(args):
         - analysis_dict (dict): 
             dictionary of analysis parameters
             ["analyspar"] (AnalysPar): named tuple of analysis parameters
-            ["sesspar"] (SessPar): named tuple of session parameters
-            ["stimpar"] (StimPar): named tuple of stimulus parameters
-            ["permpar"] (PermPar): named tuple of permutation parameters
-            ["idxpar"] (PermPar): named tuple of surprise index parameters
-            ["basepar"] (LatPar): named tuple of latency parameters
+            ["sesspar"] (SessPar): named tuple with session parameters
+            ["stimpar"] (StimPar): named tuple with stimulus parameters
+            ["basepar"] (LatPar): named tuple with latency parameters
+            ["idxpar"] (PermPar): named tuple with surprise index parameters
+            ["logregpar"] (LogRegPar): 
+                named tuple with logistic regression parameters
+            ["permpar"] (PermPar): named tuple with permutation parameters
             ["figpar"] (dict): dictionary containing subdictionaries 
                 (see sess_plot_util.init_figpar), with fig_panel_analysis 
                 added under the "fig_panel_analysis" key.
@@ -119,9 +121,9 @@ def init_analysis(args):
     # analysis parameters
     analysis_dict["analyspar"] = sess_ntuple_util.init_analyspar(
         fluor="dff", # type of fluorescence data to use (dF/F)
-        remnans=True, # whether to ROIs with NaNs/Infs
+        remnans=specific_params["remnans"], # whether to remove invalid ROIs OR interpolate missing run or pupil data
         stats="mean", # type of statistic to measure (mean/median)
-        error="sem", # type of error to measure (std/SEM)
+        error=specific_params["error"], # type of error to measure (std/SEM)
         scale=specific_params["scale"], # whether to scale ROIs (robust scaling)
         tracked=specific_params["tracked"], # whether to use only tracked ROIs
         )
@@ -160,14 +162,6 @@ def init_analysis(args):
         feature=specific_params["idx_feature"], # how to select sequences
         )
 
-    # permutation analysis parameters
-    analysis_dict["permpar"] = sess_ntuple_util.init_permpar(
-        n_perms=fig_panel_analysis.n_perms, # number of permutations to run
-        p_val=0.05, # significance threshold to consider
-        tails=specific_params["tails"], # number of tails
-        multcomp=True # multiple comparisons
-        )
-
     # logistic regression parameters
     analysis_dict["logregpar"] = sess_ntuple_util.init_logregpar(
         comp=specific_params["comp"], # classes
@@ -177,6 +171,14 @@ def init_analysis(args):
         lr=0.0001, # learning rate
         train_p=0.75, # train:test split
         wd=0, # weight decay to use (None)
+        )
+
+    # permutation analysis parameters
+    analysis_dict["permpar"] = sess_ntuple_util.init_permpar(
+        n_perms=fig_panel_analysis.n_perms, # number of permutations to run
+        p_val=0.05, # significance threshold to consider
+        tails=specific_params["tails"], # number of tails
+        multcomp=True # multiple comparisons
         )
 
     # figure plotting parameters
@@ -268,13 +270,13 @@ def init_sessions(analyspar, sesspar, mouse_df, datadir, sessions=None,
         filter(lambda sessid: sessid not in loaded_sessids, sessids)
         )
 
-    # check that previously loaded sessions have roi/run/pupil data loaded
+    # remove sessions that are not needed
     if len(sessions):
-        # remove sessions that are not needed
         sessions = [
             session for session in sessions if session.sessid in sessids
             ]
 
+        # check that previously loaded sessions have roi/run/pupil data loaded
         args_list = [roi, run, pupil, analyspar.fluor, analyspar.dend]
         with logger_util.TempChangeLogLevel(level="warning"):
             sessions = gen_util.parallel_wrap(
@@ -459,12 +461,13 @@ def main(args):
         for p, args.panel in enumerate(panels):
             new_fig = (p==0)
             try: 
-                sessions = run_single_panel(
-                    args, sessions=sessions, new_fig=new_fig
-                    )
+                with gen_util.TimeIt():
+                    sessions = run_single_panel(
+                        args, sessions=sessions, new_fig=new_fig
+                        )
             except Exception as err:
                 sep = DOUBLE_SEP if new_fig else SEP
-                if "Cannot plot figure panel" in str(e):
+                if "Cannot plot figure panel" in str(err):
                     lead = f"{sep}Fig. {args.figure}{args.panel.upper()}"
                     logger.info(f"{lead}. {err}")
                 else:

@@ -20,8 +20,8 @@ import numpy as np
 
 from util import gen_util, logger_util
 from sess_util import sess_gen_util
-from paper_fig_util import corr_figs, decoding_figs, misc_figs, \
-    run_pupil_figs, seq_figs, tracking_figs, usi_figs, plot_figs
+from paper_fig_util import behav_figs, corr_figs, decoding_figs, misc_figs, \
+    seq_figs, stim_figs, tracking_figs, usi_figs, plot_figs
 
 logger = logging.getLogger(__name__)
 
@@ -144,20 +144,17 @@ def decoder_warning():
 
 ### DEFINE FUNCTION COLLECTING FIGURE/PANEL SPECIFIC PARAMETERS
 #############################################
-def get_specific_params(scale=True, sess_n="1-3", mouse_n="any", plane="all", 
-                        line="all", stimtype="gabors", gabfr=3, gab_ori="any", 
-                        pre=0, post=0.6, tails=2, idx_feature="by_exp", 
-                        comp="Dori", tracked=False, roi=True, run=False, 
-                        pupil=False):
+def get_specific_params(sess_n="1-3", mouse_n="any", plane="all", line="all", 
+                        stimtype="gabors", gabfr=3, gab_ori="any", pre=0, 
+                        post=0.6, tails=2, idx_feature="by_exp", comp="Dori", 
+                        error="sem", scale=True, tracked=False, remnans=True,
+                        roi=True, run=False, pupil=False):
     """
     get_specific_params()
 
     Returns specific parameters for the analysis.
 
     Optional args:
-        - scale (bool): 
-            whether to use ROI scaling
-            default: True
         - sess_n (str): 
             which sessions numbers to include
             default: "1-3"
@@ -194,9 +191,19 @@ def get_specific_params(scale=True, sess_n="1-3", mouse_n="any", plane="all",
         - comp (str):
             logistic regression comparison defining classes to decode
             default: "Dori"
+        - error (str):
+            type of error statistic to calculate for analyses
+            default: "sem"
+        - scale (bool): 
+            whether to use ROI scaling
+            default: True
         - tracked (bool):
             if True, only tracked ROIs are included
             default: False
+        - remnans (bool):
+            if True, invalid ROIs are removed, or for pupil/running data, 
+            missing data is interpolated
+            default: True
         - roi (bool): 
             whether ROI data needs to be loaded
             default: True
@@ -216,7 +223,6 @@ def get_specific_params(scale=True, sess_n="1-3", mouse_n="any", plane="all",
         )
 
     specific_params = {
-        "scale"      : scale,
         "sess_n"     : sess_n,
         "mouse_n"    : mouse_n,
         "plane"      : plane,
@@ -232,7 +238,10 @@ def get_specific_params(scale=True, sess_n="1-3", mouse_n="any", plane="all",
         "tails"      : tails,
         "idx_feature": idx_feature,
         "comp"       : comp,  
+        "error"      : error,
+        "scale"      : scale,
         "tracked"    : tracked,
+        "remnans"    : remnans,
         "roi"        : roi,
         "run"        : run,
         "pupil"      : pupil,
@@ -331,20 +340,13 @@ class FigurePanelAnalysis():
             if self.full_power:
                 self.n_perms = self.n_perms_full
             else:
-                if np.max(self.n_perms_full) > n_perms_low:
-                    if isinstance(self.n_perms_full, list):
-                        self.n_perms = [n_perms_low] * len(self.n_perms_full)
-                    else:
-                        self.n_perms = n_perms_low
+                if self.n_perms_full > n_perms_low:
+                    self.n_perms = n_perms_low
                 else:
                     self.n_perms = self.n_perms_full
                     self.full_power = True
             
-            # convert to int
-            if isinstance(self.n_perms, list):
-                self.n_perms = [int(n_perms) for n_perms in self.n_perms]
-            else:
-                self.n_perms = int(self.n_perms)
+            self.n_perms = int(self.n_perms)
         else:
             self.full_power = True
             self.n_perms = None
@@ -540,6 +542,7 @@ class FigurePanelAnalysis():
         self.description = "Percentages of significant Gabor USIs."
         self.specific_params = get_specific_params(
             sess_n=1,
+            error="std",
         )
         self.n_perms_full = 1e4
         self.analysis_fct = usi_figs.gabor_roi_usi_sig
@@ -552,6 +555,7 @@ class FigurePanelAnalysis():
             "sequences with orientations common to D/U.")
         self.specific_params = get_specific_params(
             sess_n=1,
+            error="std",
         )
         self.n_perms_full = 1e4
         self.analysis_fct = usi_figs.gabor_roi_usi_sig_common_oris
@@ -564,11 +568,14 @@ class FigurePanelAnalysis():
         self.specific_params = get_specific_params(
             sess_n=1,
             pre=0.9,
+            post=0.6,
+            remnans=False, # do not interpolate missing data
+            scale=False,
             roi=False,
             run=True,
             pupil=True,
         )
-        self.analysis_fct = run_pupil_figs.pupil_run_responses
+        self.analysis_fct = behav_figs.pupil_run_responses
         self.plot_fct = plot_figs.plot_pupil_run_responses
         self.warnings.append(
             partial_plot_fct_warning(
@@ -583,11 +590,13 @@ class FigurePanelAnalysis():
         self.specific_params = get_specific_params(
             sess_n=1,
             tails="hi",
+            remnans=False, # do not interpolate missing data
+            scale=False,
             roi=False,
             run=True,
             pupil=True,
         )
-        self.analysis_fct = run_pupil_figs.pupil_run_diffs
+        self.analysis_fct = behav_figs.pupil_run_diffs
         self.plot_fct = plot_figs.plot_pupil_run_diffs
 
 
@@ -634,7 +643,6 @@ class FigurePanelAnalysis():
         self.specific_params = get_specific_params(
             tracked=True
         )
-        self.n_perms_full = 1e5
         self.analysis_fct = usi_figs.gabor_tracked_roi_usis_sess123
         self.plot_fct = plot_figs.plot_gabor_tracked_roi_usis_sess123
         
@@ -645,7 +653,7 @@ class FigurePanelAnalysis():
         self.specific_params = get_specific_params(
             tracked=True
         )
-        self.n_perms_full = [1e4, 1e5]
+        self.n_perms_full = 1e5
         self.analysis_fct = usi_figs.gabor_tracked_roi_abs_usi_means_sess123
         self.plot_fct = plot_figs.plot_gabor_tracked_roi_abs_usi_means_sess123
         self.warnings.append(stats_plot_fct_warning())
@@ -689,7 +697,7 @@ class FigurePanelAnalysis():
            line="L23",
            plane="soma", 
         )
-        self.n_perms_full = [1e4, 1e5]
+        self.n_perms_full = 1e5
         self.analysis_fct = corr_figs.gabor_norm_res_corr_example
         self.plot_fct = plot_figs.plot_gabor_norm_res_corr_example
 
@@ -698,7 +706,7 @@ class FigurePanelAnalysis():
         self.description = ("Normalized residual Gabor USI correlations "
             "between sessions.")
         self.specific_params = get_specific_params()
-        self.n_perms_full = [1e4, 1e5]
+        self.n_perms_full = 1e5
         self.analysis_fct = corr_figs.gabor_norm_res_corrs_sess123_comps
         self.plot_fct = plot_figs.plot_gabor_norm_res_corrs_sess123_comps
         
@@ -789,6 +797,7 @@ class FigurePanelAnalysis():
             "each mouse.")
         self.specific_params = get_specific_params(
             sess_n=1,
+            error="std",
         )
         self.n_perms_full = 1e4
         self.analysis_fct = usi_figs.gabor_roi_usi_sig_by_mouse
@@ -818,7 +827,6 @@ class FigurePanelAnalysis():
         self.specific_params = get_specific_params(
             tracked=True
         )
-        self.n_perms_full = [1e4, 1e5]
         self.analysis_fct = usi_figs.gabor_tracked_roi_abs_usi_means_sess123_by_mouse
         self.plot_fct = plot_figs.plot_gabor_tracked_roi_abs_usi_means_sess123_by_mouse
         
@@ -872,18 +880,20 @@ class FigurePanelAnalysis():
         self.warnings.append(stats_plot_fct_warning())
 
 
-    def rel_resp_stimulus_comp_sess1v3(self):
+    def unexp_resp_stimulus_comp_sess1v3(self):
         self.description = ("Change in ROI responses to unexpected sequences "
             "for the Gabor vs visual flow stimulus.")
         self.specific_params = get_specific_params(
-            stimtype="both",
-            pre=[0, 2],
-            post=[0.6, 2],
+            stimtype=["gabors", "bricks"],
+            pre=[0, 0],
+            post=[0.3, 1],
+            gabfr=[[0, 1, 2], [3, "G"]],
             scale=False,
+            error="std",
         ) 
         self.n_perms_full = 1e5
-        self.analysis_fct = seq_figs.rel_resp_stimulus_comp_sess1v3
-        self.plot_fct = plot_figs.plot_rel_resp_stimulus_comp_sess1v3
+        self.analysis_fct = stim_figs.unexp_resp_stimulus_comp_sess1v3
+        self.plot_fct = plot_figs.plot_unexp_resp_stimulus_comp_sess1v3
         self.warnings.append(stats_plot_fct_warning())
 
 
@@ -893,38 +903,41 @@ class FigurePanelAnalysis():
             stimtype="bricks",
             pre=2,
             post=2,
+            idx_feature="unexp_lock",
             tracked=True,
         )
-        self.n_perms_full = [1e4, 1e5]
         self.analysis_fct = usi_figs.visual_flow_tracked_roi_usis_sess123
         self.plot_fct = plot_figs.plot_visual_flow_tracked_roi_usis_sess123
         
 
-    def visual_flow_tracked_roi_abs_usi_means_sess123_by_mouse(self):
+    def visual_flow_tracked_roi_abs_usi_means_sess123(self):
         self.description = ("Absolute means of tracked ROI visual flow USIs "
             "across sessions.")
         self.specific_params = get_specific_params(
             stimtype="bricks",
             pre=2,
             post=2,
+            idx_feature="unexp_lock",
             tracked=True,
         )
-        self.n_perms_full = [1e4, 1e5]
-        self.analysis_fct = usi_figs.visual_flow_tracked_roi_abs_usi_means_sess123_by_mouse
-        self.plot_fct = plot_figs.plot_visual_flow_tracked_roi_abs_usi_means_sess123_by_mouse
+        self.n_perms_full = 1e5
+        self.analysis_fct = usi_figs.visual_flow_tracked_roi_abs_usi_means_sess123
+        self.plot_fct = plot_figs.plot_visual_flow_tracked_roi_abs_usi_means_sess123
         
 
     def tracked_roi_usis_stimulus_comp_sess1v3(self):
         self.description = ("Change in tracked ROI USIs for the Gabor vs "
             "visual flow stimulus.")
         self.specific_params = get_specific_params(
-            stimtype="both",
+            stimtype=["gabors", "bricks"],
             pre=[0, 2],
             post=[0.6, 2],
+            idx_feature=["by_exp", "unexp_lock"],
+            error="std",
             tracked=True,
         ) 
-        self.n_perms_full = [1e4, 1e5]
-        self.analysis_fct = usi_figs.tracked_roi_usis_stimulus_comp_sess1v3
+        self.n_perms_full = 1e5
+        self.analysis_fct = stim_figs.tracked_roi_usis_stimulus_comp_sess1v3
         self.plot_fct = plot_figs.plot_tracked_roi_usis_stimulus_comp_sess1v3
         
 
@@ -935,8 +948,9 @@ class FigurePanelAnalysis():
             stimtype="bricks",
             pre=2,
             post=2,
+            idx_feature="unexp_lock",
         )
-        self.n_perms_full = [1e4, 1e5]
+        self.n_perms_full = 1e5
         self.analysis_fct = corr_figs.visual_flow_norm_res_corrs_sess123_comps
         self.plot_fct = plot_figs.plot_visual_flow_norm_res_corrs_sess123_comps
         
@@ -1037,9 +1051,9 @@ class FigurePanelAnalysis():
                     },
                 "S6":  {
                     "A": self.visual_flow_rel_resp_sess123,
-                    "B": self.rel_resp_stimulus_comp_sess1v3,
+                    "B": self.unexp_resp_stimulus_comp_sess1v3,
                     "C": self.visual_flow_tracked_roi_usis_sess123,
-                    "D": self.visual_flow_tracked_roi_abs_usi_means_sess123_by_mouse,
+                    "D": self.visual_flow_tracked_roi_abs_usi_means_sess123,
                     "E": self.tracked_roi_usis_stimulus_comp_sess1v3,
                     "F": self.visual_flow_norm_res_corrs_sess123_comps,
                     },

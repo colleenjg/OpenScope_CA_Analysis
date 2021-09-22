@@ -94,7 +94,7 @@ def sess_stim_idxs(sess, analyspar, stimpar, n_perms=1000, split="by_exp",
 
     nanpol = None if analyspar.remnans else "omit"
 
-    data_arr, _ = seq_analys.split_data_by_sess(
+    data_arr, _ = seq_analys.get_split_data_by_sess(
         sess, analyspar, stimpar, split=split, integ=True, baseline=baseline, 
         common_oris=common_oris
         )
@@ -137,10 +137,10 @@ def sess_stim_idxs(sess, analyspar, stimpar, n_perms=1000, split="by_exp",
     
     
 #############################################
-def get_idx_info(sess, analyspar, stimpar, basepar, permpar, idxpar,  
+def get_idx_info(sess, analyspar, stimpar, basepar, idxpar, permpar,  
                  seed=None):
     """
-    get_idx_info(sess, analyspar, stimpar, basepar, permpar, idxpar)
+    get_idx_info(sess, analyspar, stimpar, basepar, idxpar, permpar)
 
     Returns ROI index values and ROI trace smoothness measure for a session's 
     ROIs.
@@ -154,10 +154,10 @@ def get_idx_info(sess, analyspar, stimpar, basepar, permpar, idxpar,
             named tuple containing stimulus parameters
         - basepar (BasePar): 
             named tuple containing baseline parameters
-        - permpar (PermPar): 
-            named tuple containing permutation parameters
         - idxpar (IdxPar): 
             named tuple containing index parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
 
     Optional args:
         - seed (int): 
@@ -272,11 +272,11 @@ def choose_roi(target_idx_val, target_idx_sig, roi_idxs, roi_percs,
 
 
 #############################################
-def get_chosen_roi_df(sessions, analyspar, stimpar, basepar, permpar, idxpar, 
+def get_chosen_roi_df(sessions, analyspar, stimpar, basepar, idxpar, permpar, 
                       target_idx_vals=None, target_idx_sigs=None, seed=None, 
                       parallel=False):
     """
-    get_chosen_roi_df(sessions, analyspar, stimpar, basepar, permpar, idxpar)
+    get_chosen_roi_df(sessions, analyspar, stimpar, basepar, idxpar, permpar)
 
     Selects ROIs that meet the targets amongst sessions with the same session 
     number and line/plane, and returns their information.
@@ -290,10 +290,10 @@ def get_chosen_roi_df(sessions, analyspar, stimpar, basepar, permpar, idxpar,
             named tuple containing stimulus parameters
         - basepar (BasePar): 
             named tuple containing baseline parameters
-        - permpar (PermPar): 
-            named tuple containing permutation parameters
         - idxpar (IdxPar): 
             named tuple containing index parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
 
     Optional args:
         - target_idx_vals (list): 
@@ -342,8 +342,8 @@ def get_chosen_roi_df(sessions, analyspar, stimpar, basepar, permpar, idxpar,
         "analyspar": analyspar, 
         "stimpar"  : stimpar, 
         "basepar"  : basepar, 
-        "permpar"  : permpar, 
         "idxpar"   : idxpar, 
+        "permpar"  : permpar, 
         "seed"     : seed
     }
 
@@ -591,10 +591,10 @@ def bin_idxs(roi_idxs, roi_percs, rand_idxs, permpar, n_bins=40):
 
 
 #############################################
-def get_ex_idx_df(sess, analyspar, stimpar, basepar, permpar, idxpar, 
+def get_ex_idx_df(sess, analyspar, stimpar, basepar, idxpar, permpar, 
                   seed=None, target_roi_perc=99.8):
     """
-    get_ex_idx_df(sess, analyspar, stimpar, basepar, permpar, idxpar)
+    get_ex_idx_df(sess, analyspar, stimpar, basepar, idxpar, permpar)
 
     Returns information for a selected significant ROI feature index.
 
@@ -607,10 +607,10 @@ def get_ex_idx_df(sess, analyspar, stimpar, basepar, permpar, idxpar,
             named tuple containing stimulus parameters
         - basepar (BasePar): 
             named tuple containing baseline parameters
-        - permpar (PermPar): 
-            named tuple containing permutation parameters
         - idxpar (IdxPar): 
             named tuple containing index parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
     
     Optional args:
         - seed (int): 
@@ -687,11 +687,11 @@ def get_ex_idx_df(sess, analyspar, stimpar, basepar, permpar, idxpar,
 
 #############################################
 def get_idx_only_df(sessions, analyspar, stimpar, basepar, idxpar, 
-                    by_mouse=False, parallel=False):
+                    parallel=False):
     """
     get_idx_only_df(sessions, analyspar, stimpar, basepar)
 
-    Returns indices for each line/plane, without significance information
+    Returns indices for each session, without significance information
 
     Required args:
         - sessions (list): 
@@ -706,22 +706,18 @@ def get_idx_only_df(sessions, analyspar, stimpar, basepar, idxpar,
             named tuple containing index parameters
     
     Optional args:
-        - by_mouse (bool): 
-            if True, data is kept separated by mouse
-            default: False
         - parallel (bool): 
             if True, some of the analysis is run in parallel across CPU cores 
             default: False
     
     Returns:
-        - idx_df (pd.DataFrame):
-            dataframe with one row per (mouse/)session/line/plane, and the 
-            following columns, in addition to the basic sess_df columns:
+        - idx_only_df (pd.DataFrame):
+            dataframe with one row per session, and the following columns, in 
+            addition to the basic sess_df columns:
             - roi_idxs (list): index for each ROI
     """
 
-    full_idx_df = misc_analys.get_check_sess_df(sessions, analyspar=analyspar)
-    initial_columns = full_idx_df.columns
+    idx_only_df = misc_analys.get_check_sess_df(sessions, analyspar=analyspar)
 
     args_dict = {
         "analyspar"  : analyspar, 
@@ -739,54 +735,21 @@ def get_idx_only_df(sessions, analyspar, stimpar, basepar, idxpar,
         sess_stim_idxs, sessions, args_dict=args_dict, parallel=parallel
         )
     
-    full_idx_df["roi_idxs"] = roi_idxs
+    idx_only_df["roi_idxs"] = [
+        sess_roi_idxs.tolist() for sess_roi_idxs in roi_idxs
+        ]
 
-    if not by_mouse:
-
-        idx_df = pd.DataFrame(columns=initial_columns)
-        # join within line/plane
-        group_columns = ["lines", "planes", "sess_ns"]
-        aggreg_cols = [col for col in initial_columns if col not in group_columns]
-        if by_mouse:
-            group_columns.append("mouse_ns")
-        for grp_vals, grp_df in full_idx_df.groupby(group_columns):
-            row_idx = len(idx_df)
-            for g, group_column in enumerate(group_columns):
-                idx_df.loc[row_idx, group_column] = grp_vals[g]
-
-                # add aggregated values for initial columns
-                misc_analys.aggreg_columns(
-                    grp_df, idx_df, aggreg_cols, row_idx=row_idx, in_place=True, 
-                    by_mouse=by_mouse
-                    )
-
-            roi_idxs = np.concatenate(grp_df["roi_idxs"].tolist())
-            
-            for key, value in binned_idxs.items():
-                if isinstance(value, np.ndarray):
-                    value = value.tolist()
-                if (key not in idx_df.columns) and (isinstance(value, list)):
-                    idx_df[key] = np.nan
-                    idx_df[key] = idx_df[key].astype(object)
-                idx_df.at[row_idx, key] = value
-        
-        for key in ["sess_ns", "n_pos", "n_signif_lo", "n_signif_hi"]:
-            idx_df[key] = idx_df[key].astype(int)
-    
-    else:
-        idx_df["mouse_ns"] = idx_df["mouse_ns"].astype(int)
-
-    return idx_df
+    return idx_only_df
     
     
 #############################################
-def get_idx_df(sessions, analyspar, stimpar, basepar, permpar, idxpar, 
-               seed=None, n_bins=40, common_oris=False, by_mouse=False, 
+def get_idx_df(sessions, analyspar, stimpar, basepar, idxpar, permpar, 
+               n_bins=40, common_oris=False, by_mouse=False, seed=None, 
                parallel=False):
     """
-    get_idx_df(sessions, analyspar, stimpar, basepar, permpar, idxpar)
+    get_idx_df(sessions, analyspar, stimpar, basepar, idxpar, permpar)
 
-    Returns indices for each line/plane.
+    Returns index information for each line/plane.
 
     Required args:
         - sessions (list): 
@@ -797,15 +760,12 @@ def get_idx_df(sessions, analyspar, stimpar, basepar, permpar, idxpar,
             named tuple containing stimulus parameters
         - basepar (BasePar): 
             named tuple containing baseline parameters
-        - permpar (PermPar): 
-            named tuple containing permutation parameters
         - idxpar (IdxPar): 
             named tuple containing index parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
     
     Optional args:
-        - seed (int): 
-            seed value to use. (-1 treated as None)
-            default: None
         - n_bins (int):
             number of bins
             default: 40
@@ -815,6 +775,9 @@ def get_idx_df(sessions, analyspar, stimpar, basepar, permpar, idxpar,
         - by_mouse (bool): 
             if True, data is kept separated by mouse
             default: False
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
         - parallel (bool): 
             if True, some of the analysis is run in parallel across CPU cores 
             default: False
@@ -864,19 +827,19 @@ def get_idx_df(sessions, analyspar, stimpar, basepar, permpar, idxpar,
     idx_df = pd.DataFrame(columns=initial_columns)
     # join within line/plane
     group_columns = ["lines", "planes", "sess_ns"]
-    aggreg_cols = [col for col in initial_columns if col not in group_columns]
     if by_mouse:
         group_columns.append("mouse_ns")
+    aggreg_cols = [col for col in initial_columns if col not in group_columns]
     for grp_vals, grp_df in full_idx_df.groupby(group_columns):
         row_idx = len(idx_df)
         for g, group_column in enumerate(group_columns):
             idx_df.loc[row_idx, group_column] = grp_vals[g]
 
-            # add aggregated values for initial columns
-            misc_analys.aggreg_columns(
-                grp_df, idx_df, aggreg_cols, row_idx=row_idx, in_place=True, 
-                by_mouse=by_mouse
-                )
+        # add aggregated values for initial columns
+        idx_df = misc_analys.aggreg_columns(
+            grp_df, idx_df, aggreg_cols, row_idx=row_idx, in_place=True, 
+            by_mouse=by_mouse
+            )
 
         roi_idxs = np.concatenate(grp_df["roi_idxs"].tolist())
         roi_percs = np.concatenate(grp_df["roi_percs"].tolist())
@@ -904,7 +867,7 @@ def get_idx_df(sessions, analyspar, stimpar, basepar, permpar, idxpar,
 
 
 #############################################
-def get_perc_sig_df(idx_df, permpar, seed=None):
+def get_perc_sig_df(idx_df, analyspar, permpar, seed=None):
     """
     get_perc_sig_df(idx_df, permpar)
 
@@ -912,14 +875,16 @@ def get_perc_sig_df(idx_df, permpar, seed=None):
     significant or positive ROI feature indices.
 
     Required args:
-        - permpar (PermPar): 
-            named tuple containing permutation parameters
         - idx_df (pd.DataFrame):
             dataframe with one row per (mouse/)session/line/plane, and the 
             following columns, in addition to the basic sess_df columns:
             - n_pos (int): number of positive ROIs
             - n_signif_lo (int): number of significant ROIs (low) 
             - n_signif_hi (int): number of significant ROIs (high)
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
 
     Optional args:
         - seed (int): 
@@ -961,6 +926,12 @@ def get_perc_sig_df(idx_df, permpar, seed=None):
 
     seed = gen_util.seed_all(seed, "cpu", log_seed=False)
 
+    if analyspar.stats != "mean" or analyspar.error != "std":
+        raise NotImplementedError(
+            "analyspar.stats must be set to 'mean', and "
+            "analyspar.error must be set to 'std'."
+            )
+
     perc_sig_df = idx_df.copy(deep=True)
 
     # trim
@@ -977,16 +948,19 @@ def get_perc_sig_df(idx_df, permpar, seed=None):
 
     nrois = np.asarray([np.sum(nrois) for nrois in idx_df["nrois"]])
     n_pos = np.asarray(idx_df["n_pos"])
+    n_bootstr = int(1e4)
 
     # get positive ROI index info
     null_perc = 50 # null percentage is 50%
     for g, (grp_n_pos, grp_nroi) in enumerate(zip(n_pos, nrois)):
         perc_pos = grp_n_pos / grp_nroi * 100
         CI, null_CI, p_val = math_util.binom_CI(
-            permpar.p_val, perc_pos, grp_nroi, null_perc, permpar.multcomp
+            permpar.p_val, perc_pos, grp_nroi, null_perc, permpar.tails, 
+            permpar.multcomp
             )
         perc_std = 100 * math_util.bootstrapped_std(
-            perc_pos / 100, n=grp_nroi, proportion=True)
+            perc_pos / 100, n=grp_nroi, n_samples=n_bootstr, proportion=True
+            )
 
         perc_sig_df.loc[g, "perc_pos_idxs"] = perc_pos
         perc_sig_df.loc[g, "perc_pos_idxs_stds"] = perc_std
@@ -1002,10 +976,13 @@ def get_perc_sig_df(idx_df, permpar, seed=None):
         for g, (grp_n_sig, grp_nroi) in enumerate(zip(n_signifs, nrois)):
             perc_sig = grp_n_sig / grp_nroi * 100
             CI, null_CI, p_val = math_util.binom_CI(
-                permpar.p_val, perc_sig, grp_nroi, null_perc, permpar.multcomp
+                permpar.p_val, perc_sig, grp_nroi, null_perc, permpar.tails, 
+                permpar.multcomp
                 )
             perc_std = 100 * math_util.bootstrapped_std(
-                perc_sig / 100, n=grp_nroi, proportion=True)
+                perc_sig / 100, n=grp_nroi, n_samples=n_bootstr, 
+                proportion=True
+                )
 
             perc_sig_df.loc[g, f"perc_sig_{sig}_idxs"] = perc_sig
             perc_sig_df.loc[g, f"perc_sig_{sig}_idxs_stds"] = perc_std
@@ -1020,3 +997,146 @@ def get_perc_sig_df(idx_df, permpar, seed=None):
     return perc_sig_df
 
 
+#############################################
+def get_idx_stats_df(sessions, analyspar, stimpar, basepar, idxpar, 
+                     permpar=None, absolute=True, by_mouse=False, seed=None, 
+                     parallel=False):
+    """
+    get_idx_stats_df(sessions, analyspar, stimpar, basepar)
+
+    Returns statistics over ROI indices for each line/plane/session.
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - basepar (BasePar): 
+            named tuple containing baseline parameters
+        - idxpar (IdxPar): 
+            named tuple containing index parameters
+    
+    Optional args:
+        - permpar (PermPar): 
+            named tuple containing permutation parameters. If None, no 
+            significance testing is done.
+            default: None
+        - absolute (bool):
+            if True, statistics are taken across 
+        - by_mouse (bool): 
+            if True, data is kept separated by mouse
+            default: False
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+   
+    Returns:
+        - idx_stats_df (pd.DataFrame):
+            dataframe with one row per (mouse/)session/line/plane, and the 
+            following columns, in addition to the basic sess_df columns:
+            - roi_idxs or abs_roi_idxs (list): 
+                USI statistics or absolute USI statistics
+            for session comparisons, e.g. 1v2 (if permpar is not None):
+            - raw_p_vals_{}v{} (float): uncorrected p-value for differences
+                between sessions 
+            - p_vals_{}v{} (float): p-value for differences between sessions, 
+                corrected for multiple comparisons and tails
+    """
+
+    nanpol = None if analyspar.remnans else "omit"
+
+    if permpar is not None:
+        seed = gen_util.seed_all(seed, "cpu", log_seed=False)
+
+    if analyspar.tracked:
+        misc_analys.check_sessions_complete(sessions, raise_err=True)
+
+    initial_columns = misc_analys.get_sess_df_columns(sessions[0], analyspar)
+
+    idx_only_df = get_idx_only_df(
+        sessions, 
+        analyspar=analyspar, 
+        stimpar=stimpar, 
+        basepar=basepar, 
+        idxpar=idxpar, 
+        parallel=parallel
+        )
+    
+    # remove roi_idxs
+    data_col = "roi_idx_stats"
+    if absolute: 
+        data_col = f"abs_{data_col}"
+    columns = initial_columns + [data_col]
+
+    # initialize new dataframe
+    idx_stats_df = pd.DataFrame(columns=columns)
+
+    # join within line/plane
+    group_columns = ["lines", "planes"]
+    if by_mouse:
+        group_columns.append("mouse_ns")
+    aggreg_cols = [
+        col for col in initial_columns if col not in group_columns + ["sess_ns"]
+        ]
+    for grp_vals, grp_df in idx_only_df.groupby(group_columns):
+        sess_ns = sorted(grp_df["sess_ns"].unique())
+        row_indices = []
+        sess_roi_idxs = []
+        for sess_n in sess_ns:
+            sess_grp_df = grp_df.loc[grp_df["sess_ns"] == sess_n]
+            row_idx = len(idx_stats_df)
+            row_indices.append(row_idx)
+
+            idx_stats_df.loc[row_idx, "sess_ns"] = sess_n
+            for g, group_column in enumerate(group_columns):
+                idx_stats_df.loc[row_idx, group_column] = grp_vals[g]
+
+            # add aggregated values for initial columns
+            idx_stats_df = misc_analys.aggreg_columns(
+                sess_grp_df, idx_stats_df, aggreg_cols, row_idx=row_idx, 
+                in_place=True, by_mouse=by_mouse
+                )
+
+            # collect indices
+            roi_idxs = np.concatenate(sess_grp_df["roi_idxs"].tolist())
+            if absolute:
+                roi_idxs = np.absolute(roi_idxs)
+
+            # take statistics
+            roi_idx_stats = math_util.get_stats(
+                roi_idxs, stats=analyspar.stats, error=analyspar.error, 
+                nanpol=nanpol
+                )
+            idx_stats_df.at[row_idx, data_col] = roi_idx_stats.tolist()
+
+            sess_roi_idxs.append(roi_idxs)
+
+        # calculate p-values between sessions (0-1, 0-2, 1-2...)
+        if permpar is not None:
+            p_vals = math_util.comp_vals_acr_groups(
+                sess_roi_idxs, n_perms=permpar.n_perms, stats=analyspar.stats, 
+                paired=analyspar.tracked
+                )
+            p = 0
+            for i, sess_n in enumerate(sess_ns):
+                for j, sess_n2 in enumerate(sess_ns[i + 1:]):
+                    key = f"p_vals_{int(sess_n)}v{int(sess_n2)}"
+                    idx_stats_df.loc[row_indices[i], key] = p_vals[p]
+                    idx_stats_df.loc[row_indices[j + 1], key] = p_vals[p]
+                    p += 1
+
+    idx_stats_df["sess_ns"] = idx_stats_df["sess_ns"].astype(int)
+    if by_mouse:
+        idx_stats_df["mouse_ns"] = idx_stats_df["mouse_ns"].astype(int)
+
+    # correct p-values
+    if permpar is not None:
+        idx_stats_df = misc_analys.add_corr_p_vals(idx_stats_df, permpar)
+
+    return idx_stats_df
+    

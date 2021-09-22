@@ -224,8 +224,7 @@ def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar,
     # extract some info from sess_info
     keys = ["mouse_ns", "sess_ns", "lines", "planes"]
     [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
-    nroi_strs = sess_str_util.get_nroi_strs(
-        sess_info, analyspar["remnans"], fluor=analyspar["fluor"])
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info) 
 
     n_sess = len(mouse_ns)
 
@@ -365,8 +364,7 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
     # extract some info from sess_info
     keys = ["mouse_ns", "sess_ns", "lines", "planes"]
     [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
-    nroi_strs = sess_str_util.get_nroi_strs(
-        sess_info, analyspar["remnans"], fluor=analyspar["fluor"])
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info) 
 
     n_sess = len(mouse_ns)
 
@@ -527,8 +525,7 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
     # extract some info from sess_info
     keys = ["mouse_ns", "sess_ns", "lines", "planes"]
     [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
-    nroi_strs = sess_str_util.get_nroi_strs(
-        sess_info, analyspar["remnans"], fluor=analyspar["fluor"], style="par")
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info, style="par")
 
     n_sess = len(mouse_ns)
 
@@ -807,8 +804,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quintpar,
     # extract some info from dictionaries
     keys = ["mouse_ns", "sess_ns", "lines", "planes"]
     [mouse_n, sess_n, line, plane] = [sess_info[key][0] for key in keys]
-    nroi_str = sess_str_util.get_nroi_strs(
-        sess_info, analyspar["remnans"], fluor=analyspar["fluor"])[0]
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info)[0]
 
     xran = tr_data["xran"]
 

@@ -62,11 +62,11 @@ def get_sig_symbol(corr_p_val, ctrl=False, percentile=False, sensitivity=None,
     """
     
     if percentile:
-        if corr_p_val > 50:
+        if corr_p_val > 50 and str(tails) in ["hi", "2"]:
             corr_p_val = 100 - corr_p_val
         corr_p_val = corr_p_val / 100
     
-    # check if side matches tail
+    # double check if side matches tail
     if str(tails) != "2":
         if (tails == "hi" and side == -1) or (tails == "lo" and side == 1):
             return ""
@@ -99,7 +99,7 @@ def get_corrected_p_val(p_val, permpar):
     Required args:
         - p_val (float): 
             raw p-value
-        - permpar (PermPar): 
+        - permpar (PermPar or dict): 
             named tuple containing permutation parameters
 
     Returns:
@@ -107,11 +107,10 @@ def get_corrected_p_val(p_val, permpar):
             corrected p-value
     """
 
+    from util import math_util
+
     if isinstance(permpar, dict):
         permpar = sess_ntuple_util.init_permpar(**permpar)
-
-    if p_val > 0.5:
-        raise ValueError("Raw p-value should not be greater than 0.5.")
 
     n_tails = 1 if permpar.tails in ["lo", "hi"] else int(permpar.tails)
     corr_p_val = p_val * n_tails 
@@ -136,7 +135,7 @@ def add_corr_p_vals(df, permpar):
     Required args:
         - df (pd.DataFrame): 
             dataframe with p-value columns ("p_vals" in column names)
-        - permpar (PermPar): 
+        - permpar (PermPar or dict): 
             named tuple containing permutation parameters
 
     Returns:
@@ -228,7 +227,7 @@ def get_sensitivity(permpar):
     corrections for number of tails and multiple comparisons.
     
     Required args:
-        - permpar (PermPar): 
+        - permpar (PermPar or dict): 
             named tuple containing permutation parameters
 
     Returns:
@@ -247,6 +246,42 @@ def get_sensitivity(permpar):
 
 
     return sensitivity
+
+
+#############################################
+def get_comp_info(permpar):
+    """
+    get_comp_info(permpar)
+
+    Returns p-value correction information.
+    
+    Required args:
+        - permpar (PermPar or dict): 
+            named tuple containing permutation parameters
+
+    Returns:
+        - comp_info (str): 
+            string containing tails and multiple comparisons information
+    """
+
+    if isinstance(permpar, dict):
+        permpar = sess_ntuple_util.init_permpar(**permpar)
+
+    if permpar.tails == "lo":
+        comp_info = "one-tailed"
+    elif permpar.tails == "hi":
+        comp_info = "one-tailed"
+    elif int(permpar.tails) == 2:
+        comp_info = "two-tailed"
+    else:
+        gen_util.accepted_values_error(
+            "permpar.tails", permpar.tails, ["lo", "hi", 2]
+            )
+
+    if isinstance(permpar.multcomp, (int, float)):
+        comp_info = f"{int(permpar.multcomp)} comparisons, {comp_info}"        
+
+    return comp_info
 
 
 #############################################
@@ -311,6 +346,39 @@ def get_check_sess_df(sessions, sess_df=None, analyspar=None, roi=True):
 
 
 #############################################
+def get_sess_df_columns(session, analyspar, roi=True): 
+    """
+    get_sess_df_columns(session, analyspar)
+
+    Returns basic session dataframe columns.
+
+    Required args:
+        - session (Session):
+            Session object
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters, used if sess_df is None
+
+    Optional args:
+        - roi (bool):
+            if True, ROI data is included in sess_df, used if sess_df is None
+
+
+    Returns:
+        - sess_df_cols (list):
+            session dataframe columns
+    """
+
+    sess_df = sess_gen_util.get_sess_info(
+        [session], fluor=analyspar.fluor, incl_roi=roi, return_df=True, 
+        remnans=analyspar.remnans
+        )
+
+    sess_df_cols = sess_df.columns.tolist()
+
+    return sess_df_cols
+
+
+#############################################
 def check_sessions_complete(sessions, raise_err=False):
     """
     check_sessions_complete(sessions)
@@ -370,24 +438,98 @@ def check_sessions_complete(sessions, raise_err=False):
 #############################################
 def aggreg_columns(source_df, targ_df, aggreg_cols, row_idx=0, 
                    sort_by_sessid=True, in_place=False, by_mouse=False):
+    """
+    aggreg_columns(source_df, targ_df, aggreg_cols)
 
+    Required args:
+        - source_df (pd.DataFrame):
+            source dataframe
+        - targ_df (pd.DataFrame):
+            target dataframe
+        - aggreg_cols
+            columns to aggregate from source dataframe
+
+    Optional args:
+        - row_idx (int or str):
+            target dataframe row to add values to
+            default: 0
+        - sort_by_sessid (bool):
+            if True, aggregated data is sorted by session ID, if session ID is 
+            in the columns to aggregate
+            default: True
+        - in_place (bool):
+            if True, targ_df is modified in place. Otherwise, a deep copy is 
+            modified. targ_df is returned in either case.
+            default: False
+        - by_mouse (bool):
+            if True, data is understood to be aggregated by mouse. So, if 
+            source_df contains only one row, its values are not placed in a 
+            list.
+            default: False
+
+    Returns:
+        - targ_df ()
+    """
+    
     if not in_place:
         targ_df = targ_df.copy(deep=True)
 
+    retain_single = False
+    if by_mouse:
+        if "mouse_ns" in aggreg_cols:
+            raise ValueError(
+                "If 'by_mouse', 'mouse_ns' should not be a column in "
+                "'aggreg_cols'.")
+        if len(source_df) == 1:
+            retain_single = True
+
     sort_order = None
-    if "sessids" in aggreg_cols:
+    if "sessids" in aggreg_cols and sort_by_sessid:
         sessids = source_df["sessids"].tolist()
         sort_order = np.argsort(sessids)
 
     for column in aggreg_cols:
         values = source_df[column].tolist()
-        if by_mouse and len(values) == 1:
+        if retain_single:
             values = values[0]
         elif sort_order is not None:
             values = [values[v] for v in sort_order]
         targ_df.at[row_idx, column] = values
 
     return targ_df
+
+
+#############################################
+def get_sess_ns(sesspar, data_df):
+    """
+    get_sess_ns(sesspar, data_df)
+
+    Returns array of session numbers, inferred from sesspar, if possible, or 
+    from a dataframe.
+
+    Required args:
+        - sesspar (SessPar or dict): 
+            named tuple containing session parameters
+        - data_df (pd.DataFrame):
+            dataframe with a 'sess_ns' column containing individual session 
+            numbers for each row in the dataframe
+
+    Returns:
+        - sess_ns (1D array):
+            array of session numbers, in order
+    """
+
+    if isinstance(sesspar, dict):
+        sesspar = sess_ntuple_util.init_sesspar(**sesspar)
+
+    if sesspar.sess_n in ["any", "all"]:
+        if "sess_ns" not in data_df.columns:
+            raise KeyError("data_df is expected to contain a 'sess_ns' column.")
+        sess_ns = np.arange(data_df.sess_ns.min(), data_df.sess_ns.max() + 1)
+    else:
+        sess_ns = np.asarray(sesspar.sess_n).reshape(-1)
+
+    return sess_ns
 
 
 #############################################
