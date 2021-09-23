@@ -18,7 +18,7 @@ import pandas as pd
 import scipy.stats as scist
 
 from util import gen_util, math_util, logger_util
-from analysis import misc_analys, seq_analys
+from analysis import basic_analys, misc_analys
 from plot_fcts import plot_helper_fcts
 
 logger = logging.getLogger(__name__)
@@ -94,7 +94,7 @@ def sess_stim_idxs(sess, analyspar, stimpar, n_perms=1000, split="by_exp",
 
     nanpol = None if analyspar.remnans else "omit"
 
-    data_arr, _ = seq_analys.get_split_data_by_sess(
+    data_arr, _ = basic_analys.get_split_data_by_sess(
         sess, analyspar, stimpar, split=split, integ=True, baseline=baseline, 
         common_oris=common_oris
         )
@@ -187,7 +187,7 @@ def get_idx_info(sess, analyspar, stimpar, basepar, idxpar, permpar,
         )
 
     # split x ROIs x frames
-    roi_trace_stats, _ = seq_analys.get_sess_roi_trace_stats(
+    roi_trace_stats, _ = basic_analys.get_sess_roi_trace_stats(
         sess, 
         analyspar=analyspar, 
         stimpar=stimpar, 
@@ -355,6 +355,7 @@ def get_chosen_roi_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
         parallel=parallel, zip_output=True
         )
 
+    misc_analys.get_check_sess_df(sessions, idx_df)
     idx_columns = ["all_roi_idxs", "all_roi_percs", "all_roi_mses"]
     for c, column in enumerate(idx_columns):
         idx_df[column] = returns[c]
@@ -481,7 +482,7 @@ def add_chosen_roi_traces(sessions, chosen_rois_df, analyspar, stimpar, basepar,
 
     # sess x split x ROIs x frames
     roi_trace_stats, all_timevalues = gen_util.parallel_wrap(
-        seq_analys.get_sess_roi_trace_stats, sessions_to_use, 
+        basic_analys.get_sess_roi_trace_stats, sessions_to_use, 
         args_dict=args_dict, parallel=parallel, zip_output=True
         )
 
@@ -735,6 +736,7 @@ def get_idx_only_df(sessions, analyspar, stimpar, basepar, idxpar,
         sess_stim_idxs, sessions, args_dict=args_dict, parallel=parallel
         )
     
+    misc_analys.get_check_sess_df(sessions, idx_only_df)
     idx_only_df["roi_idxs"] = [
         sess_roi_idxs.tolist() for sess_roi_idxs in roi_idxs
         ]
@@ -820,6 +822,7 @@ def get_idx_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
         zip_output=True
         )
     
+    misc_analys.get_check_sess_df(sessions, full_idx_df)
     full_idx_df["roi_idxs"] = roi_idxs
     full_idx_df["roi_percs"] = roi_percs
     full_idx_df["rand_idxs"] = rand_idxs

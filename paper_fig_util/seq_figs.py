@@ -11,7 +11,6 @@ Note: this code uses python 3.7.
 """
 
 import logging
-from sess_util import sess_ntuple_util
 
 from util import logger_util
 from analysis import seq_analys, misc_analys

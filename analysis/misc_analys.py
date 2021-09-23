@@ -124,13 +124,13 @@ def get_corrected_p_val(p_val, permpar):
 
 
 #############################################
-def add_corr_p_vals(df, permpar):
+def add_corr_p_vals(df, permpar, raise_multcomp=True):
     """
     add_corr_p_vals(df, permpar)
 
     Returns dataframe with p-values, corrected for tails and multiple 
-    comparisons, are added. Original "p_vals" column names are returned as 
-    "raw_p_vals" instead.
+    comparisons, added, if permpar.multcomp is True. If any case, original 
+    "p_vals" column names are returned as "raw_p_vals" instead.
     
     Required args:
         - df (pd.DataFrame): 
@@ -138,9 +138,14 @@ def add_corr_p_vals(df, permpar):
         - permpar (PermPar or dict): 
             named tuple containing permutation parameters
 
+    Optional args:
+        - raise_multcomp (bool):
+            if True, an error is raised if permpar.multcomp is False
+
     Returns:
         - df (pd.DataFrame): 
-            dataframe with corrected p-value columns added
+            dataframe with raw p-value columns names changed to "raw_{}", 
+            and corrected p-value columns added, if permpar.multcomp
     """
 
     if isinstance(permpar, dict):
@@ -159,12 +164,16 @@ def add_corr_p_vals(df, permpar):
         }
     df = df.rename(columns=new_col_names)
 
-    # define function with arguments for use with .map()
-    correct_p_val_fct = lambda x: get_corrected_p_val(x, permpar)
+    if permpar.multcomp:
+        # define function with arguments for use with .map()
+        correct_p_val_fct = lambda x: get_corrected_p_val(x, permpar)
 
-    for corr_p_val_col in p_val_cols:
-        raw_p_val_col = corr_p_val_col.replace("p_vals", "raw_p_vals")
-        df[corr_p_val_col] = df[raw_p_val_col].map(correct_p_val_fct)
+        for corr_p_val_col in p_val_cols:
+            raw_p_val_col = corr_p_val_col.replace("p_vals", "raw_p_vals")
+            df[corr_p_val_col] = df[raw_p_val_col].map(correct_p_val_fct)
+    
+    elif raise_multcomp:
+        raise ValueError("permpar.multcomp is set to False.")
 
     return df
     
