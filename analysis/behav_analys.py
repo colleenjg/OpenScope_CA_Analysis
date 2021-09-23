@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 
 from util import logger_util, gen_util, math_util
-from analysis import misc_analys, seq_analys
+from analysis import basic_analys, misc_analys
 
 logger = logging.getLogger(__name__)
 
@@ -80,24 +80,18 @@ def get_pupil_run_trace_df(sessions, analyspar, stimpar, basepar,
         "split"    : split,
     }
 
+    misc_analys.get_check_sess_df(sessions, trace_df)
     for datatype in ["pupil", "run"]:
         args_dict["datatype"] = datatype
         # sess x split x seq x frames
         split_traces, all_time_values = gen_util.parallel_wrap(
-            seq_analys.get_split_data_by_sess, sessions, 
+            basic_analys.get_split_data_by_sess, sessions, 
             args_dict=args_dict, parallel=parallel, zip_output=True
             )
         
         # add columns to dataframe
-        for col in [f"{datatype}_traces", f"{datatype}_time_values"]:
-            trace_df[col] = np.nan
-            trace_df[col] = trace_df[col].astype(object)
-
-        # add data to dataframe
-        for s, sess in enumerate(sessions):
-            row_idx = trace_df.loc[trace_df["sessids"] == sess.sessid].index[0]
-            trace_df.at[row_idx, f"{datatype}_traces"] = split_traces[s]
-            trace_df.at[row_idx, f"{datatype}_time_values"] = all_time_values[s]
+        trace_df[f"{datatype}_traces"] = split_traces
+        trace_df[f"{datatype}_time_values"] = all_time_values
 
     return trace_df
 
@@ -216,187 +210,71 @@ def get_pupil_run_trace_stats_df(sessions, analyspar, stimpar, basepar,
     return grped_trace_df
 
 
-#############################################
-def get_block_data(sess, analyspar, stimpar, datatype="run"):
-    """
-    get_by_exp_data(sess, analyspar, stimpar)
 
-    Returns data split into expected and unexpected sequences.
+#############################################
+def get_pupil_run_block_diffs_df(sessions, analyspar, stimpar, parallel=False):
+    """
+    get_pupil_run_block_diffs_df(sessions, analyspar, stimpar)
+
+    Returns pupil and running statistic differences (unexp - exp) by block.
 
     Required args:
-        - sess (Session):
-            Session object
+        - sessions (list): 
+            session objects
         - analyspar (AnalysPar): 
             named tuple containing analysis parameters
         - stimpar (StimPar): 
             named tuple containing stimulus parameters
 
-    Optional args:
-        - datatype (str):
-            type of data to return ("roi", "run" or "pupil")
-            default: "roi"
-
     Returns:
-        - data_arr (nested list):
-            sequence data array
-            dims: split (x ROIs) x seq (x frames)
+        - block_df (pd.DataFrame):
+            dataframe with a row for each session, and the following 
+            columns, in addition to the basic sess_df columns: 
+            - run_block_stats (3D array): 
+                block statistics (split x block x stats (me, err))
+            - run_block_diffs (1D array):
+                split differences per block
+            - pupil_block_stats (3D array): 
+                block statistics (split x block x stats (me, err))
+            - pupil_block_diffs (1D array):
+                split differences per block
     """
 
-    # stim = sess.get_stim(stimpar.stimtype)
+    block_df = misc_analys.get_check_sess_df(
+        sessions, None, analyspar, roi=False
+        )
 
-    # by_exp_segs = []
-    # by_exp_ns = []
-    # for e, exp in enumerate([0, 1]):
-    #     segs = stim.get_segs_by_criteria(
-    #         gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
-    #         bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, surp=exp, 
-    #         remconsec=False, by="seg")
-    #     by_exp_segs.append(np.asarray(segs))
-    #     by_exp_ns.append(len(segs))
-    
-    # # split into blocks
-    # sort_all = np.argsort(np.concatenate(segs))
-    # sort_exp = sort_all[: by_exp_ns[0]]
-    # sort_unexp = sort_all[by_exp_ns[0] :]
-    # unexp_seg_blocks = []
-    # exp_seg_blocks = []
-    # for unexp_s
+    # retrieve ROI index information
+    args_dict = {
+        "analyspar": analyspar, 
+        "stimpar"  : stimpar, 
+    }
 
-
-    #     data, time_values = get_data(
-    #         stim, segs, analyspar, pre=stimpar.pre, post=stimpar.post, 
-    #         integ=integ, datatype=datatype, ref_type="segs"
-    #         )
-    #     by_exp_data.append(data.tolist())
-
-    # return by_exp_data, time_values
-
-
-
-
-
-
-def pupil_run_diffs():
-
-    return
-
-#     data_df = "summary-behav-sel-df.h5" # no baseline
-#     summ_behav_sel_df = pd.read_hdf(data_df)
-#     fig = plot_behav_sel(summ_behav_sel_df, stimtype_list=["gab"], with_pval=True)
-
-# def plot_behav_sel(df, stimtype_list=["brk", "gab"], norm=False, with_pval=False):
-#     """
-#     Plots the behvaioural selectivity as seaborn violin and strip plots.
-    
-#     Returns the figure handle.
-    
-#     Parameters:
-#     ------------
-#     df : pandas data frams
-#         Summary behavioural data frame with trial differences
-#         organized by stimulus and compartment
-#     stimtype_list : array_like, optional
-#         stimulus types to plot ("brk" or "gab")
-#     norm : boolean, optional
-#         True: you"re plotting behavioural data that has been 
-#         normalized to be between 0 and 1 (so that differences
-#         are between -1 and 1)
-#         False: you"re plotting raw values
-#     with_pval : boolean, optional
-#         Determines whether to annotate p-values for each compartment
-    
-    
-#     Returns:
-#     ---------
-#     fig : figure handle
+    misc_analys.get_check_sess_df(sessions, block_df)
+    for datatype in ["pupil", "run"]:
+        args_dict["datatype"] = datatype
+        # sess x split x block x stats
+        block_stats = gen_util.parallel_wrap(
+            basic_analys.get_block_data, sessions, args_dict=args_dict, 
+            parallel=parallel
+            )
         
-#     """
-#     stim_str = ["Visual flow", "Gabor seq."]
-#     layers = {"L23-Cux2":"L2/3", "L5-Rbp4":"L5"}
-#     lc = list(itertools.product(layers.values(), ["dend", "soma"]))
-
-
-#     [_, planes, _, 
-#      _, pla_col_names, _] = sess_plot_util.fig_linpla_pars(n_grps=4)
-    
-#     colors = []
-#     for linpla in lc:
-#         pla = "dendrites" if linpla[1] == "dend" else "somata"
-#         pl = planes.index(pla)
-#         color = get_colors(pla_col_names[pl], line=linpla[0])
-#         colors.append(color)
+        block_diffs = []
+        for sess_block_data in block_stats:
+            # take difference (unexp - exp statistic) for each block
+            stat_diffs = sess_block_data[1, ..., 0] - sess_block_data[0, ..., 0]
+            block_diffs.append(stat_diffs)
         
-#     # switching dictionaries
-#     behav_dict = {"run speed":"run_sel__diff", "pupil diameter":"pd_sel__diff"}
-#     pval_dict = {"run speed":"run_pval", "pupil diameter":"pd_pval"}
-#     stim_title_dict = {"gab":"Gabor seq.", "brk":"Visual flow"}
-#     ylabel_raw_dict = \
-#         {"run speed":
-#          "Velocity diff (cm/s)\nfor DvU frames",
-#          "pupil diameter":
-#          "Pupil diam. diff (mm)\nfor DvU frames"}
+        block_df[f"{datatype}_block_stats"] = block_stats
+        block_df[f"{datatype}_block_diffs"] = block_diffs
 
-#     n_stims = len(stimtype_list)
-#     fig, ax = plt.subplots(n_stims, 2, figsize=(11.2 * n_stims, 4.7))
 
-#     for i, which_behav in enumerate(["run speed", "pupil diameter"]):
-#         for j, stim in enumerate(stimtype_list):
-#             mask = df["stim"] == stim
-#             mouse_ns = df["mouse_ns"]
+    return block_df
 
-#             plot_row = i
-#             plot_col = j
-#             if len(stimtype_list) > 1:
-#                 plot_idx = (i, j)
-#             else:
-#                 plot_idx = 2 * j + i
 
-#             sub_ax = ax[plot_idx]
-#             linpla = [linplas[0] for linplas in df[mask]["layer_compartment_array"]]
 
-#             x = range(len(lc))    
-#             x0 = np.hstack(df[mask]["layer_compartment_array"].values)
-#             y0 = np.hstack(df[mask][behav_dict[which_behav]].values)
-#             if "pupil" in which_behav: # convert to mm
-#                 y0 *= MM_PER_PIXEL
-#             pval = np.hstack(df[mask][pval_dict[which_behav]])
+##### FUNCTION THAT AGGREGATES BLOCK DIFFS BY LINE/PLANE/SESS/DATATYPE
+##### AND OBTAINS RAW P-VALUES PER LINE/PLANE/SESS/DATATYPE
+##### AND ADDS CORRECTED P-VALUES
 
-#             bplot = sns.violinplot(x=x0, y=y0, inner=None, linewidth=3.5, 
-#                            color="white", ax=sub_ax)
-#             # set violin edgecolors to black
-#             NEARBLACK = "#656565"
-#             for c, collec in enumerate(bplot.collections):
-#                 collec.set_edgecolor(NEARBLACK)
-#                 if lc[c][0] == "L5": 
-#                     collec.set_linestyle(plot_acr.VDASH)
-#             sns.stripplot(x=x0, y=y0, size=9, jitter=0.2,
-#                 alpha=0.3, palette=colors, ax=sub_ax)
-#             sub_ax.axhline(y=0, ls=plot_acr.HDASH, c="k", lw=3.0, alpha=0.5)
-
-#             # p-values are 2-tailed, but already corrected 
-#             # i.e., if pval < 0.5: pval = 1-pval; pval *= 2 in the initial calculation
-#             n_comps = len(x) # for correction
-#             alpha = 0.05
-#             p_val_str = f"{which_behav}, {stim}: "
-#             if with_pval:
-#                 for i_x, xval in enumerate(x):
-#                     p_val_str = f"{p_val_str}: {pval[i_x] * n_comps:.5f} ({linpla[i_x]:6})"
-#                     lead = ""
-#                     if i_x == 0:
-#                         lead = "raw p = "
-#                         xval = xval - 0.5
-#                     if pval[i_x] <= alpha:
-#                         text = "{}{:.2f}*".format(lead, pval[i_x])
-#                     else:
-#                         text = "{}{:.2f}".format(lead, pval[i_x])                        
-#                     sub_ax.text(xval, sub_ax.get_ylim()[1], text, fontsize=20, 
-#                                 weight="bold", ha="center")
-#             print(p_val_str)
-#             sub_ax.set_title("{} {}".format(stim_title_dict[stim], which_behav), y=1.1)
-#             if norm:
-#                 sub_ax.set_ylabel("Norm. {} violation \n changes for all trials".format(
-#                     which_behav))
-#             else:
-#                 sub_ax.set_ylabel(ylabel_raw_dict[which_behav])
-                
 

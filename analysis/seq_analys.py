@@ -11,595 +11,19 @@ Note: this code uses python 3.7.
 """
 
 import logging
-from sess_util import sess_gen_util, sess_ntuple_util
+from sess_util import sess_ntuple_util
 
 import numpy as np
 import pandas as pd
 import scipy.stats as scist
 
 from util import logger_util, gen_util, math_util
-from analysis import misc_analys
+from analysis import basic_analys, misc_analys
 from plot_fcts import plot_helper_fcts
 
 logger = logging.getLogger(__name__)
 
 TAB = "    "
-
-
-#############################################
-def get_frame_numbers(stim, refs, ch_fl=None, ref_type="segs", datatype="roi"):
-    """
-    get_frame_numbers(stim, refs)
-
-    Returns frame numbers for the data type.
-
-    Required args:
-        - stim (Stim):
-            Stimulus object
-        - refs (1D array):
-            Sequences references (either segments or frames, specified by 
-            ref_type)
-
-    Optional args:
-        - ch_fl (list):
-            flanks to check for discarding refs with insufficient flanks
-            default: None
-        - ref_type (str):
-            type of references provided ("segs", "twop_frs", "stim_frs)
-            default: "segs"
-        - datatype (str):
-            type of data to return ("roi", "run" or "pupil")
-            default: "roi"
-
-    Returns:
-        - fr_ns (1D array):
-            frame numbers
-    """
-
-    if datatype not in ["roi", "run", "pupil"]:
-        gen_util.accepted_values_error(
-            "datatype", datatype, ["roi", "run", "pupil"]
-            )
-
-    # convert frames to correct type for ROI or pupil data
-    ch_fl = [0, 0] if ch_fl is None else ch_fl
-    if ref_type == "segs":
-        if datatype == "run":
-            fr_ns = stim.get_stim_fr_by_seg(
-                refs, first=True, ch_fl=ch_fl)["first_stim_fr"]
-        elif datatype == "pupil":
-            fr_ns = stim.get_twop_fr_by_seg(refs, first=True)["first_twop_fr"]
-            fr_ns = stim.sess.get_pup_fr_by_twop_fr(fr_ns, ch_fl=ch_fl)
-        elif datatype == "roi":
-            fr_ns = stim.get_twop_fr_by_seg(
-                refs, first=True, ch_fl=ch_fl)["first_twop_fr"]
-
-        if len(fr_ns) == 0:
-            raise RuntimeError("No frames found given flank requirements.")
-    
-    elif ref_type == "stim_frs":
-        if np.max(refs) >= stim.sess.tot_stim_fr: 
-            raise ValueError("Some refs values are out of bounds.")
-        elif np.min(refs) < 0:
-            raise ValueError("refs cannot include negative values.")
-        if datatype == "run":
-            fr_ns = stim.sess.check_flanks(refs, ch_fl, fr_type="stim")
-        else:
-            fr_ns = stim.sess.stim2twopfr[np.asarray(refs)]
-            if datatype == "pupil":
-                fr_ns = stim.sess.get_pup_fr_by_twop_fr(fr_ns, ch_fl=ch_fl)
-            elif datatype == "roi":
-                fr_ns = stim.sess.check_flanks(fr_ns, ch_fl, fr_type="twop")
-    
-    elif ref_type == "twop_frs":
-        if datatype == "run":
-            raise NotImplementedError(
-                "Converting twop_frs to stim_frs for running data is not "
-                "implemented."
-                )
-        elif datatype == "pupil":
-            fr_ns = stim.sess.get_pup_fr_by_twop_fr(refs, ch_fl=ch_fl)
-        elif datatype == "roi":
-            fr_ns = stim.sess.check_flanks(refs, ch_fl, fr_type="twop")
-    else:
-        gen_util.accepted_values_error(
-            "ref_type", ref_type, ["segs", "twop_frs", "stim_frs"]
-            )
-
-    fr_ns = np.asarray(fr_ns)
-
-    return fr_ns
-
-
-#############################################
-def get_data(stim, refs, analyspar, pre=0, post=1, ch_fl=None, integ=False,
-             ref_type="segs", datatype="roi"):
-    """
-    get_data(stim, refs, analyspar)
-
-    Returns data for a specific stimulus around sequence references provided.
-
-    Required args:
-        - stim (Stim):
-            Stimulus object
-        - refs (1D array):
-            Sequences references (either segments or frames, specified by 
-            ref_type)
-        - analyspar (AnalysPar): 
-            named tuple containing analysis parameters
-
-    Optional args:
-        - pre (num): 
-            number of seconds to keep before refs
-            default: 0
-        - post (num): 
-            number of seconds to keep after refs
-            default: 1
-        - ch_fl (list):
-            flanks to check for discarding refs with insufficient flanks
-            default: None
-        - integ (bool):
-            if True, sequence data is integrated
-            default: False
-        - ref_type (str):
-            type of references provided ("segs", "twop_frs", "stim_frs)
-            default: "segs"
-        - datatype (str):
-            type of data to return ("roi", "run" or "pupil")
-            default: "roi"
-
-    Returns:
-        - data_arr (1-3D array):
-            sequence data array
-            dims: (ROIs x) seq (x frames)
-        - time_values (1D array):
-            values for each frame, in seconds
-    """
-    
-    if stim.sess.only_matched_rois != analyspar.tracked:
-        raise RuntimeError(
-            "stim.sess.only_matched_rois should match analyspar.tracked."
-            )
-
-    fr_ns = get_frame_numbers(
-        stim, 
-        refs, 
-        ch_fl=ch_fl, 
-        ref_type=ref_type, 
-        datatype=datatype
-        )
-
-    # obtain data
-    if datatype == "roi":
-        data_df = stim.get_roi_data(
-            fr_ns, pre, post, remnans=analyspar.remnans, scale=analyspar.scale
-            )
-        col_name = "roi_traces"
-        integ_dt = stim.sess.twop_fps
-    elif datatype == "run":
-        data_df = stim.get_run_data(
-            fr_ns, pre, post, remnans=analyspar.remnans, scale=analyspar.scale
-        )
-        col_name = "run_velocity"
-        integ_dt = stim.sess.stim_fps
-    elif datatype == "pupil":
-        data_df = stim.get_pup_diam_data(
-            fr_ns, pre, post, remnans=analyspar.remnans, scale=analyspar.scale
-        )
-        col_name = "pup_diam"
-        integ_dt = stim.sess.pup_fps
-    else:
-        gen_util.accepted_values_error(
-            "datatype", datatype, ["roi", "run", "pupil"]
-            )
-    
-    time_values = data_df.index.unique("time_values").to_numpy()
-
-    data_arr = gen_util.reshape_df_data(data_df[col_name], squeeze_cols=True)
-
-    if integ:
-        nanpol = None if analyspar.remnans else "omit"
-        data_arr = math_util.integ(
-            data_arr, 1. / integ_dt, axis=-1, nanpol=nanpol
-            )
-    
-    return data_arr, time_values
-    
-
-#############################################
-def get_common_oris(stimpar, split="by_exp"):
-    """
-    get_common_oris(stimpar)
-
-    Returns Gabor orientations for common orientations, and checks parameters. 
-
-    Required args:
-        - stimpar (StimPar): 
-            named tuple containing stimulus parameters
-
-    Optional args:
-        - split (str): 
-            how to split data:
-            "by_exp" (all exp, all unexp)
-            default: "by_exp"
-
-    Returns:
-        - gab_oris (list):
-            Gabor orientations for [exp, unexp] sequences, respectively
-    """
-
-    if split != "by_exp":
-        raise NotImplementedError("'common_oris' only implemented "
-            "with 'split' set to 'by_exp'.")
-    if stimpar.stimtype != "gabors":
-        raise ValueError("Exp/unexp index analysis with common "
-            "orientations can only be run on Gabors.")
-
-    if (isinstance(stimpar.gab_ori, list) and (len(stimpar.gab_ori) == 2) 
-        and isinstance(stimpar.gab_ori[0], list) 
-        and isinstance(stimpar.gab_ori[1], list)):
-        gab_oris = stimpar.gab_ori
-
-    else:
-        gab_oris = sess_gen_util.get_params(gab_ori=stimpar.gab_ori)
-        gab_oris = sess_gen_util.gab_oris_common_U("D", "all")
-
-    return gab_oris
-
-
-#############################################
-def get_by_exp_data(sess, analyspar, stimpar, integ=False, common_oris=False, 
-                    datatype="roi"):
-    """
-    get_by_exp_data(sess, analyspar, stimpar)
-
-    Returns data split into expected and unexpected sequences.
-
-    Required args:
-        - sess (Session):
-            Session object
-        - analyspar (AnalysPar): 
-            named tuple containing analysis parameters
-        - stimpar (StimPar): 
-            named tuple containing stimulus parameters
-
-    Optional args:
-        - integ (bool)
-            if True, sequence data is integrated
-            default: False
-        - common_oris (bool): 
-            if True, only Gabor stimulus orientations common to D and U frames 
-            are included ("by_exp" split only)
-            default: False
-        - datatype (str):
-            type of data to return ("roi", "run" or "pupil")
-            default: "roi"
-
-    Returns:
-        - data_arr (nested list):
-            sequence data array
-            dims: split (x ROIs) x seq (x frames)
-        - time_values (1D array):
-            values for each frame, in seconds
-    """
-
-    stim = sess.get_stim(stimpar.stimtype)
-
-    gab_oris = [stimpar.gab_ori] * 2
-    if common_oris:
-        gab_oris = get_common_oris(stimpar, split="by_exp")
-
-    by_exp_data = []
-    for e, exp in enumerate([0, 1]):
-        
-        segs = stim.get_segs_by_criteria(
-            gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=gab_oris[e],
-            bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, surp=exp, 
-            remconsec=False, by="seg")
-
-        data, time_values = get_data(
-            stim, segs, analyspar, pre=stimpar.pre, post=stimpar.post, 
-            integ=integ, datatype=datatype, ref_type="segs"
-            )
-        by_exp_data.append(data.tolist())
-
-    return by_exp_data, time_values
-
-
-#############################################
-def get_locked_data(sess, analyspar, stimpar, split="unexp_lock", integ=False, 
-                    datatype="roi"):
-    """
-    get_locked_data(sess, analyspar, stimpar)
-
-    Returns data locked to unexpected sequence onset or expected sequence onset.
-
-    Required args:
-        - sess (Session):
-            Session object
-        - analyspar (AnalysPar): 
-            named tuple containing analysis parameters
-        - stimpar (StimPar): 
-            named tuple containing stimulus parameters
-
-    Optional args:
-        - split (str): 
-            how to split data:
-            "unexp_lock" (unexp, preceeding exp), 
-            "exp_lock" (exp, preceeding unexp),
-            default: "unexp_lock"
-        - integ (bool)
-            if True, sequence data is integrated
-            default: False
-        - datatype (str):
-            type of data to return ("roi", "run" or "pupil")
-            default: "roi"
-
-    Returns:
-        - data_arr (nested list):
-            sequence data array
-            dims: split (x ROIs) x seq (x frames)
-        - time_values (1D array):
-            values for each frame, in seconds (for 0 to stimpar.post)
-    """
-
-    if split not in ["unexp_lock", "exp_lock"]:
-        gen_util.accepted_values_error(
-            "split", split, ["unexp_lock", "exp_lock"])
-
-    stim = sess.get_stim(stimpar.stimtype)
-
-    exp = 1 if split == "unexp_lock" else 0
-
-    locked_data = []
-    for i in range(2):
-
-        segs = stim.get_segs_by_criteria(
-            gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
-            bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, surp=exp, 
-            remconsec=True, by="seg")
-
-        if i == 0:
-            pre, post = [stimpar.pre, 0]
-        else:
-            pre, post = [0, stimpar.post]
-
-        data, time_values = get_data(
-            stim, segs, analyspar, pre=pre, post=post, 
-            ch_fl=[stimpar.pre, stimpar.post], integ=integ, datatype=datatype,
-            ref_type="segs",
-            )
-        
-        locked_data.append(data.tolist())
-
-    return locked_data, time_values
-
-
-#############################################
-def get_stim_on_off_data(sess, analyspar, stimpar, split="stim_onset", 
-                         integ=False, datatype="roi"):
-    """
-    get_stim_on_off_data(sess, analyspar, stimpar)
-
-    Returns data locked to stimulus onset or stimulus offset.
-
-    Required args:
-        - sess (Session):
-            Session object
-        - analyspar (AnalysPar): 
-            named tuple containing analysis parameters
-        - stimpar (StimPar): 
-            named tuple containing stimulus parameters
-
-    Optional args:
-        - split (str): 
-            how to split data:
-            "stim_onset" (grayscr, stim on), 
-            "stim_offset" (stim off, grayscr),
-            default: "stim_onset"
-        - integ (bool)
-            if True, sequence data is integrated
-            default: False
-        - datatype (str):
-            type of data to return ("roi", "run" or "pupil")
-            default: "roi"
-
-    Returns:
-        - data_arr (nested list):
-            sequence data array
-            dims: split (x ROIs) x seq (x frames)
-        - time_values (1D array):
-            values for each frame, in seconds (for 0 to stimpar.post)
-    """
-
-    if split not in ["stim_onset", "stim_offset"]:
-        gen_util.accepted_values_error(
-            "split", split, ["stim_onset", "stim_offset"]
-            )
-
-    if stimpar.stimtype != "both":
-        raise ValueError("stimpar.stimtype must be 'both', if analysing "
-            "stimulus on/off data.")
-
-    stim = None
-    for stimtype in ["gabors", "bricks"]: # use any stimulus to retrieve data
-        if hasattr(sess, stimtype):
-            stim = sess.get_stim(stimtype)
-            break
-    
-    if split == "stim_onset":
-        stim_fr = sess.grayscr.get_last_nongab_stim_fr()["last_stim_fr"][:-1] + 1
-    elif split == "stim_offset":
-        stim_fr = sess.grayscr.get_first_nongab_stim_fr()["first_stim_fr"][1:]
-
-    stim_on_off_data = []
-    for i in range(2):
-
-        if i == 0:
-            pre, post = [stimpar.pre, 0]
-        else:
-            pre, post = [0, stimpar.post]
-
-        # ROI x seq (x frames)
-        data, time_values = get_data(
-            stim, stim_fr, analyspar, pre=pre, post=post, 
-            ch_fl=[stimpar.pre, stimpar.post], integ=integ, ref_type="stim_frs", 
-            datatype=datatype,
-            )
-        
-        # very few stim onset/offset sequences, so best to retain all
-        axis = -1 if integ else -2
-        if data.shape[axis] != len(stim_fr):
-            raise RuntimeError("Not all sequences could be retained for "
-                f"{split} with stimpar.pre={stimpar.pre} and "
-                f"stimpar.post={stimpar.post}.")
-
-
-        stim_on_off_data.append(data.tolist())
-        
-    return stim_on_off_data, time_values
-
-
-#############################################
-def get_split_data_by_sess(sess, analyspar, stimpar, split="by_exp", 
-                           integ=False, baseline=0.0, common_oris=False, 
-                           datatype="roi"):
-    """
-    get_split_data_by_sess(sess, analyspar, stimpar)
-
-    Returns data for the session, split as requested.
-
-    Required args:
-        - sess (Session): 
-            Session object
-        - analyspar (AnalysPar): 
-            named tuple containing analysis parameters
-        - stimpar (StimPar): 
-            named tuple containing stimulus parameters
-
-    Optional args:
-        - split (str): 
-            how to split data:
-            "by_exp" (all exp, all unexp), 
-            "unexp_lock" (unexp, preceeding exp), 
-            "exp_lock" (exp, preceeding unexp),
-            "stim_onset" (grayscr, stim on), 
-            "stim_offset" (stim off, grayscr)
-            default: "by_exp"
-        - integ (bool)
-            if True, sequence data is integrated
-            default: False
-        - baseline (bool or num): 
-            if not False, number of second to use for baseline 
-            (not implemented)
-            default: 0.0
-        - common_oris (bool): 
-            if True, only Gabor stimulus orientations common to D and U frames 
-            are included ("by_exp" split only)
-            default: False
-        - datatype (str):
-            type of data to return ("roi", "run" or "pupil")
-            default: "roi"
-
-    Returns:
-        - data (nested list): 
-            list of data arrays
-            dims: split (x ROIs) x seq (x frames)
-        - time_values (1D array):
-            values for each frame, in seconds 
-            (only 0 to stimpar.post, unless split is "by_exp")
-    """
-    
-
-    locks = ["exp_lock", "unexp_lock"]
-    stim_on_offs = ["stim_onset", "stim_offset"] 
-
-    if baseline != 0:
-        raise NotImplementedError("Baselining not implemented here.")
-
-    if common_oris:
-        get_common_oris(stimpar, split=split) # checks if permitted
-
-    arg_dict = {
-        "sess"      : sess,
-        "analyspar" : analyspar,
-        "stimpar"   : stimpar,
-        "integ"     : integ,
-        "datatype"  : datatype,
-    }
-
-    if split == "by_exp":
-        data, time_values = get_by_exp_data(common_oris=common_oris, **arg_dict)
-    elif split in locks:
-        data, time_values = get_locked_data(split=split, **arg_dict)
-    elif split in stim_on_offs:
-        data, time_values = get_stim_on_off_data(split=split, **arg_dict)
-    else:
-        gen_util.accepted_values_error(
-            "split", split, ["by_exp"] + locks + stim_on_offs
-            )
-
-    return data, time_values
-
-
-#############################################
-def get_sess_roi_trace_stats(sess, analyspar, stimpar, basepar, 
-                             split="by_exp"):
-    """
-    get_sess_roi_trace_stats(sess, analyspar, stimpar, basepar)
-
-    Returns ROI trace statistics for a specific session, split as requested.
-
-    Required args:
-        - sess (Session):
-            Session object
-        - analyspar (AnalysPar): 
-            named tuple containing analysis parameters
-        - stimpar (StimPar): 
-            named tuple containing stimulus parameters
-        - basepar (BasePar): 
-            named tuple containing baseline parameters
-
-    Optional args:
-        - split (str): 
-            how to split data:
-            "by_exp" (all exp, all unexp), 
-            "unexp_lock" (unexp, preceeding exp), 
-            "exp_lock" (exp, preceeding unexp),
-            "stim_onset" (grayscr, stim on), 
-            "stim_offset" (stim off, grayscr)
-            default: "by_exp"
-
-    Returns:
-        - stats (4D array): 
-            ROI trace statistics for a sessions
-            dims: exp, unexp x ROIs x frames x stats
-        - time_values (1D array):
-            values for each frame, in seconds 
-            (only 0 to stimpar.post, unless split is "by_exp")
-    """
-    
-    nanpol = None if analyspar.remnans else "omit"
-
-    split_data, time_values = get_split_data_by_sess(
-        sess, analyspar, stimpar, split=split, baseline=basepar.baseline, 
-        datatype="roi"
-        )
-    
-    stats = []
-    # split x ROIs x frames x stats
-    for data in split_data:
-        stats.append(
-            np.transpose(
-                math_util.get_stats(
-                    data, stats=analyspar.stats, error=analyspar.error, 
-                    axes=1, nanpol=nanpol
-                    ), 
-                [1, 2, 0])
-            )
-    stats = np.asarray(stats)
-
-    return stats, time_values
 
 
 #############################################
@@ -656,10 +80,11 @@ def get_sess_roi_trace_df(sessions, analyspar, stimpar, basepar,
 
     # sess x split x ROIs x frames
     roi_trace_stats, all_time_values = gen_util.parallel_wrap(
-        get_sess_roi_trace_stats, sessions, 
+        basic_analys.get_sess_roi_trace_stats, sessions, 
         args_dict=args_dict, parallel=parallel, zip_output=True
         )
 
+    misc_analys.get_check_sess_df(sessions, trace_df)
     trace_df["roi_trace_stats"] = [stats.tolist() for stats in roi_trace_stats]
     trace_df["time_values"] = [
         time_values.tolist() for time_values in all_time_values
@@ -810,7 +235,7 @@ def get_sess_roi_split_stats(sess, analyspar, stimpar, basepar, split="by_exp",
     
     nanpol = None if analyspar.remnans else "omit"
 
-    split_data, _ = get_split_data_by_sess(
+    split_data, _ = basic_analys.get_split_data_by_sess(
         sess, analyspar, stimpar, split=split, baseline=basepar.baseline, 
         integ=True
         )
@@ -961,6 +386,7 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
         args_dict=args_dict, parallel=parallel, zip_output=True
         )
 
+    misc_analys.get_check_sess_df(sessions, sess_diffs_df)
     sess_diffs_df["roi_split_stats"] = list(split_stats)
     sess_diffs_df["roi_split_data"] = list(split_data)
 
@@ -1107,7 +533,7 @@ def get_sess_ex_traces(sess, analyspar, stimpar, basepar):
     snrs = misc_analys.get_snr(sess, snr_analyspar, "snrs")
     snr_median = np.median(snrs)
 
-    traces, time_values = get_split_data_by_sess(
+    traces, time_values = basic_analys.get_split_data_by_sess(
         sess,
         analyspar=analyspar,
         stimpar=stimpar,
@@ -1352,7 +778,7 @@ def get_sess_integ_resp_dict(sess, analyspar, stimpar):
                         )
             
             # ROI x seq
-            data, _ = get_data(
+            data, _ = basic_analys.get_data(
                 stim, refs, analyspar, pre=stimpar.pre, post=stimpar.post, 
                 integ=True, ref_type=ref_type
                 )
@@ -1490,6 +916,7 @@ def get_resp_df(sessions, analyspar, stimpar, rel_sess=1, parallel=False):
     )
 
     # add data to df
+    misc_analys.get_check_sess_df(sessions, resp_data_df)
     for i, idx in enumerate(resp_data_df.index):
         for key, value in data_dicts[i].items():
             if i == 0:
