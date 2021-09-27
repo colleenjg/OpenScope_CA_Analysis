@@ -249,7 +249,7 @@ def init_quantpar(n_quants=4, qu_idx="all", qu_lab=None, qu_lab_pr=None):
 
     quant_pars = [n_quants, qu_idx, qu_lab, qu_lab_pr]
     quant_keys = ["n_quants", "qu_idx", "qu_lab", "qu_lab_pr"]
-    quantPar   = namedtuple("QuantPar", quant_keys)
+    QuantPar   = namedtuple("QuantPar", quant_keys)
     quantpar   = QuantPar(*quant_pars)
     return quantpar
 

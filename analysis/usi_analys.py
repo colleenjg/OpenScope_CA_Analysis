@@ -197,7 +197,7 @@ def get_idx_info(sess, analyspar, stimpar, basepar, idxpar, permpar,
 
     stats_me = roi_trace_stats[..., 0] # retain mean/median only
     stats_me_smoothed = math_util.rolling_mean(stats_me, win=3)
-    roi_mses = np.mean((stats_me - stats_me_smoothed) ** 2, axis=(0, 2))
+    roi_mses = np.nanmean((stats_me - stats_me_smoothed) ** 2, axis=(0, 2))
 
     return roi_idxs, roi_percs, roi_mses
 
@@ -237,6 +237,9 @@ def choose_roi(target_idx_val, target_idx_sig, roi_idxs, roi_percs,
         - sess_n (int): 
             selected session number, base on nrois_per_sess
     """
+
+    if np.isnan(roi_idxs).any() or np.isnan(roi_mses).any():
+        raise NotImplementedError("Function not implemented if NaNs in data.")
 
     math_util.check_n_rand(permpar.n_perms, permpar.p_val)
     p_low, p_high = math_util.get_percentiles(
@@ -543,6 +546,9 @@ def bin_idxs(roi_idxs, roi_percs, rand_idxs, permpar, n_bins=40):
                 percentiles
     """
     
+    if np.isnan(roi_idxs).any() or np.isnan(rand_idxs).any():
+        raise NotImplementedError("Function not implemented if NaNs in data.")
+
     # gather index histogram information
     math_util.check_n_rand(rand_idxs.shape[-1], permpar.p_val)
     CI_perc = math_util.get_percentiles(1 - permpar.p_val, permpar.tails)[0]
@@ -647,6 +653,9 @@ def get_ex_idx_df(sess, analyspar, stimpar, basepar, idxpar, permpar,
 
     ex_idx_df = misc_analys.get_check_sess_df(sess, analyspar=analyspar)
 
+    if np.isnan(roi_idxs).any() or np.isnan(rand_idxs).any():
+        raise NotImplementedError("Function not implemented if NaNs in data.")
+
     # select a significant ROI
     if permpar.tails == "lo":
         raise ValueError("Expected permpar.tails to be 2 or 'hi', not 'lo'.")
@@ -665,8 +674,7 @@ def get_ex_idx_df(sess, analyspar, stimpar, basepar, idxpar, permpar,
     
     # gather index histogram information
     binned_idxs = bin_idxs(
-        roi_idxs[roi_n], roi_percs[roi_n], rand_idxs[roi_n], permpar, 
-        n_bins=40
+        roi_idxs[roi_n], roi_percs[roi_n], rand_idxs[roi_n], permpar, n_bins=40
         )
 
     ex_idx_df.loc[0, "roi_ns"]         = roi_n
@@ -1123,7 +1131,7 @@ def get_idx_stats_df(sessions, analyspar, stimpar, basepar, idxpar,
         if permpar is not None:
             p_vals = math_util.comp_vals_acr_groups(
                 sess_roi_idxs, n_perms=permpar.n_perms, stats=analyspar.stats, 
-                paired=analyspar.tracked
+                paired=analyspar.tracked, nanpol=nanpol
                 )
             p = 0
             for i, sess_n in enumerate(sess_ns):

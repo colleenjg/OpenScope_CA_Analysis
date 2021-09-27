@@ -638,7 +638,7 @@ def split_seqs_by_block(by_exp_fr_ns):
         raise ValueError("")
 
     for fr_ns in by_exp_fr_ns:
-        if (np.sorted(fr_ns[0]) != np.asarray(fr_ns)).all():
+        if (np.sort(fr_ns) != np.asarray(fr_ns)).any():
             raise ValueError(
                 "All frames within each by_exp_fr_ns list or array should "
                 "be sorted."
@@ -664,7 +664,7 @@ def split_seqs_by_block(by_exp_fr_ns):
 
     exp_seq_block_idxs = []
     unexp_seq_block_idxs = []
-    for i in len(new_exp_blocks) - 1:
+    for i in range(len(new_exp_blocks) - 1):
         exp_seq_block_idxs.append(
             np.arange(new_exp_blocks[i], new_exp_blocks[i + 1])
             )
@@ -676,7 +676,7 @@ def split_seqs_by_block(by_exp_fr_ns):
 
 
 #############################################
-def get_block_data(sess, analyspar, stimpar, datatype="roi"):
+def get_block_data(sess, analyspar, stimpar, datatype="roi", integ=False):
     """
     get_block_data(sess, analyspar, stimpar)
 
@@ -696,6 +696,10 @@ def get_block_data(sess, analyspar, stimpar, datatype="roi"):
         - datatype (str):
             type of data to return ("roi", "run" or "pupil")
             default: "roi"
+        - integ (bool):
+            if True, data is integrated across frames, instead of a statistic 
+            being taken
+            default: False
 
     Returns:
         - block_data (3 or 4D array):
@@ -745,8 +749,15 @@ def get_block_data(sess, analyspar, stimpar, datatype="roi"):
 
         data, _ = get_data(
             stim, fr_ns, analyspar, pre=stimpar.pre, post=stimpar.post, 
-            integ=True, datatype=datatype, ref_type=frame_type
+            integ=integ, datatype=datatype, ref_type=frame_type
             )
+        
+        if not integ: # take statistic across frames
+            with gen_util.TempWarningFilter("Mean of empty", RuntimeWarning):
+                data = math_util.mean_med(
+                    data, stats=analyspar.stats, axis=-1, nanpol=nanpol
+                )
+
         by_exp_data.append(data)
     
     # take means per block
@@ -764,7 +775,7 @@ def get_block_data(sess, analyspar, stimpar, datatype="roi"):
         targ_shape = (n_splits, n_blocks, n_rois, n_stats)
 
     block_data = np.full(targ_shape, np.nan)
-    for b, seq_idxs in enumerate(zip(block_idxs)):
+    for b, seq_idxs in enumerate(zip(*block_idxs)):
         for d, data_seq_idxs in enumerate(seq_idxs): 
             # take stats across sequences within each split/block
             block_data[d, b] = math_util.get_stats(
@@ -772,7 +783,7 @@ def get_block_data(sess, analyspar, stimpar, datatype="roi"):
                 stats=analyspar.stats,
                 error=analyspar.error,
                 nanpol=nanpol, 
-                axis=-1 # sequences within 
+                axes=-1 # sequences within 
             ).T
 
 

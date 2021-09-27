@@ -73,6 +73,8 @@ def collect_base_data(sessions, analyspar, stimpar, datatype="unexp_rel_resp",
             - {datatype} (1D array): data per ROI
     """
     
+    nanpol = None if analyspar.remnans else "omit"
+
     if datatype == "unexp_rel_resp":
         data_df = seq_analys.get_resp_df(
             sessions, analyspar, stimpar, rel_sess=rel_sess, parallel=parallel
@@ -81,7 +83,7 @@ def collect_base_data(sessions, analyspar, stimpar, datatype="unexp_rel_resp",
             unexp_gabfrs = stimpar.gabfr[1]
             unexp_data = [data_df[f"rel_unexp_{fr}"] for fr in unexp_gabfrs]
             data_df[datatype] = [
-                math_util.get_stats(data, axes=0)[0] 
+                math_util.get_stats(data, axes=0, nanpol=nanpol)[0] 
                 for data in zip(*unexp_data)
                 ]
         else:
@@ -413,7 +415,8 @@ def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
 
                 # get bootstrapped data 
                 _, btstrap_data = math_util.bootstrapped_std(
-                    data, randst=seed, n_samples=n_bootstrp, return_rand=True
+                    data, randst=seed, n_samples=n_bootstrp, return_rand=True, 
+                    nanpol=nanpol
                     )
                 btstrap_comp_data.append(btstrap_data)
                 full_comp_data[s].append(data) # retain full data
@@ -440,7 +443,8 @@ def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
             rand_concat = np.stack(rand_concat).T
             rand_stats = math_util.permute_diff_ratio(
                 rand_concat, div=None, n_perms=permpar.n_perms, 
-                stats=analyspar.stats, op="none", paired=True # pair stimuli
+                stats=analyspar.stats, op="none", paired=True, # pair stimuli
+                nanpol=nanpol
                 ).squeeze()
             sess_rand_stats.append(rand_stats)
         
@@ -455,7 +459,8 @@ def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
 
         # calculate p-value
         p_val = math_util.get_p_val_from_rand(
-            stim_stat_diff, all_rand_stat_diffs[i], tails=permpar.tails
+            stim_stat_diff, all_rand_stat_diffs[i], tails=permpar.tails,
+            nanpol=nanpol
             )
         stim_stats_df.loc[row_idx, "p_vals"] = p_val
     
@@ -477,7 +482,7 @@ def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
         stim_stats_df.at[row_idx, stimtype] = [stat[s], error]
 
     p_val = math_util.get_p_val_from_rand(
-        stat[1] - stat[0], rand_stat_diffs, tails=permpar.tails
+        stat[1] - stat[0], rand_stat_diffs, tails=permpar.tails, nanpol=nanpol
         )
     stim_stats_df.loc[row_idx, "p_vals"] = p_val
 
@@ -585,7 +590,8 @@ def add_stim_roi_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
 
         # obtain p-values
         stim_stats_df.loc[row_idx, "p_vals"] = math_util.get_diff_p_val(
-            comp_data, permpar.n_perms, stats=analyspar.stats, paired=True
+            comp_data, permpar.n_perms, stats=analyspar.stats, paired=True,
+            nanpol=nanpol
             )
 
     # remove full data columns

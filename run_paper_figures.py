@@ -178,7 +178,7 @@ def init_analysis(args):
         n_perms=fig_panel_analysis.n_perms, # number of permutations to run
         p_val=0.05, # significance threshold to consider
         tails=specific_params["tails"], # number of tails
-        multcomp=True # multiple comparisons
+        multcomp=False # multiple comparisons
         )
 
     # figure plotting parameters

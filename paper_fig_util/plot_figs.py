@@ -440,8 +440,6 @@ def plot_pupil_run_responses(analyspar, sesspar, stimpar, basepar, extrapar,
         - trace_df (pd.DataFrame):
             dataframe with one row per session number, and the following 
             columns, in addition to the basic sess_df columns: 
-            dataframe with a row for each session, and the following 
-            columns, in addition to the basic sess_df columns: 
             - run_trace_stats (list): 
                 running velocity trace stats (split x frames x stats (me, err))
             - run_time_values (list):
@@ -482,16 +480,62 @@ def plot_pupil_run_responses(analyspar, sesspar, stimpar, basepar, extrapar,
 
 
 #############################################
-def plot_pupil_run_diffs(figpar, **kwargs):
+def plot_pupil_run_block_diffs(analyspar, sesspar, stimpar, permpar, extrapar, 
+                               block_df, figpar):
     """
-    """
+    plot_pupil_run_block_diffs(analyspar, sesspar, stimpar, permpar, extrapar, 
+                               block_df, figpar)
 
-    title = ""
+    From dictionaries, plots running and pupil block response differences.
     
-    # df = pd.DataFrame.from_dict(df)
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+            ["split"] (str): data split
+        - block_df (pd.DataFrame):
+            dataframe with one row per session/line/plane, and the following 
+            columns, in addition to the basic sess_df columns: 
+            - run_block_diffs (list): 
+                running velocity differences per block
+            - run_raw_p_vals (float):
+                uncorrected p-value for differences within sessions
+            - run_p_vals (float):
+                p-value for differences within sessions, 
+                corrected for multiple comparisons and tails
+            - pupil_block_diffs (list): 
+                for pupil diameter differences per block
+            - pupil_raw_p_vals (list):
+                uncorrected p-value for differences within sessions
+            - pupil_p_vals (list):
+                p-value for differences within sessions, 
+                corrected for multiple comparisons and tails
 
+        - figpar (dict): 
+            dictionary containing figure parameters
+    """
 
-    fig = None
+    title = "Running and pupil block response differences"
+    
+    block_df = pd.DataFrame.from_dict(block_df)
+
+    ax = behav_plots.plot_pupil_run_block_diffs(
+        block_df, 
+        analyspar=analyspar,
+        permpar=permpar,
+        figpar=figpar, 
+        title=title,
+        )
+    fig = ax.reshape(-1)[0].figure
     
     savedir, savename = helper_fcts.get_save_path(
         figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
