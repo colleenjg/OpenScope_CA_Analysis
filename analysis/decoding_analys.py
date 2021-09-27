@@ -195,8 +195,6 @@ def add_CI_p_vals(shuffle_df, stats_data_df, permpar):
         )[0]
     percs = [percs[0], 50, percs[1]]
 
-    math_util.check_n_rand(len(shuffle_df), p_thresh_corr)
-
     stats_df = pd.DataFrame()
     for col in shuffle_df.columns:
         # add real data
@@ -212,7 +210,10 @@ def add_CI_p_vals(shuffle_df, stats_data_df, permpar):
 
         # get and add null CI data
         shuffle_data = shuffle_df[col].to_numpy()
-        null_CI = [np.nanpercentile(shuffle_data, p) for p in percs]
+        shuffle_data = shuffle_data[~np.isnan(shuffle_data)] # remove NaN data
+        
+        math_util.check_n_rand(len(shuffle_data), p_thresh_corr)
+        null_CI = [np.percentile(shuffle_data, p) for p in percs]
 
         null_key = f"{col}_null_CIs"
         stats_df[null_key] = np.nan

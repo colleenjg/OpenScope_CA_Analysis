@@ -584,20 +584,20 @@ class FigurePanelAnalysis():
         )
 
 
-    def pupil_run_diffs(self):
+    def pupil_run_block_diffs(self):
         self.description = ("Trial differences in running and pupil "
             "responses U-G vs D-G Gabor sequences.")
         self.specific_params = get_specific_params(
             sess_n=1,
-            tails="hi",
             remnans=False, # do not interpolate missing data
             scale=False,
             roi=False,
             run=True,
             pupil=True,
         )
-        self.analysis_fct = behav_figs.pupil_run_diffs
-        self.plot_fct = plot_figs.plot_pupil_run_diffs
+        self.n_perms_full = 1e4
+        self.analysis_fct = behav_figs.pupil_run_block_diffs
+        self.plot_fct = plot_figs.plot_pupil_run_block_diffs
 
 
     ### Figure 3 ###
@@ -1010,7 +1010,7 @@ class FigurePanelAnalysis():
                     "F": self.gabor_roi_usi_sig,
                     "G": self.gabor_roi_usi_sig_common_oris,
                     "H": self.pupil_run_responses,
-                    "I": self.pupil_run_diffs,
+                    "I": self.pupil_run_block_diffs,
                     },
                 "3": {
                     "A": self.gabor_sequences_sess123,

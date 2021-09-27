@@ -51,6 +51,9 @@ def get_pupil_run_trace_df(sessions, analyspar, stimpar, basepar,
             "stim_onset" (grayscr, stim on), 
             "stim_offset" (stim off, grayscr)
             default: "by_exp"
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
 
     Returns:
         - trace_df (pd.DataFrame):
@@ -102,8 +105,8 @@ def get_pupil_run_trace_stats_df(sessions, analyspar, stimpar, basepar,
     """
     get_pupil_run_trace_stats_df(sessions, analyspar, stimpar, basepar)
 
-    Returns pupil and running trace statistics for specific sessions, split as 
-    requested.
+    Returns pupil and running trace statistics for specific sessions, grouped 
+    across mice, split as requested.
 
     Required args:
         - sessions (list): 
@@ -124,12 +127,13 @@ def get_pupil_run_trace_stats_df(sessions, analyspar, stimpar, basepar,
             "stim_onset" (grayscr, stim on), 
             "stim_offset" (stim off, grayscr)
             default: "by_exp"
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
 
     Returns:
         - trace_df (pd.DataFrame):
             dataframe with one row per session number, and the following 
-            columns, in addition to the basic sess_df columns: 
-            dataframe with a row for each session, and the following 
             columns, in addition to the basic sess_df columns: 
             - run_trace_stats (list): 
                 running velocity trace stats (split x frames x stats (me, err))
@@ -145,7 +149,7 @@ def get_pupil_run_trace_stats_df(sessions, analyspar, stimpar, basepar,
 
     nanpol = None if analyspar.remnans else "omit"
 
-    trace_df = get_pupil_run_trace_df(
+    all_trace_df = get_pupil_run_trace_df(
         sessions, 
         analyspar=analyspar, 
         stimpar=stimpar, 
@@ -156,23 +160,23 @@ def get_pupil_run_trace_stats_df(sessions, analyspar, stimpar, basepar,
     
     datatypes = ["pupil", "run"]
 
-    columns = trace_df.columns.tolist()
+    columns = all_trace_df.columns.tolist()
     for datatype in datatypes:
         columns[columns.index(f"{datatype}_traces")] = f"{datatype}_trace_stats"
-    grped_trace_df = pd.DataFrame(columns=columns)
+    trace_df = pd.DataFrame(columns=columns)
 
     group_columns = ["sess_ns"]
-    for grp_vals, trace_grp_df in trace_df.groupby(group_columns):
-        row_idx = len(grped_trace_df)
-        grp_vals = gen_util.list_if_not(grp_vals)
+    for grp_vals, trace_grp_df in all_trace_df.groupby(group_columns):
+        row_idx = len(trace_df)
+        grp_vals = list(grp_vals)
         for g, group_column in enumerate(group_columns):
-            grped_trace_df.loc[row_idx, group_column] = grp_vals[g]
+            trace_df.loc[row_idx, group_column] = grp_vals[g]
 
         for column in columns:
-            skip = np.sum([datatype in column for datatype in datatypes])
+            skip = np.max([datatype in column for datatype in datatypes])
             if column not in group_columns and not skip:
                 values = trace_grp_df[column].tolist()
-                grped_trace_df.at[row_idx, column] = values
+                trace_df.at[row_idx, column] = values
 
         for datatype in datatypes:
             # group sequences across mice
@@ -200,14 +204,14 @@ def get_pupil_run_trace_stats_df(sessions, analyspar, stimpar, basepar,
             all_split_stats = np.asarray(all_split_stats)
 
             # trace stats (split x frames x stat (me, err))
-            grped_trace_df.at[row_idx, f"{datatype}_trace_stats"] = \
+            trace_df.at[row_idx, f"{datatype}_trace_stats"] = \
                 all_split_stats.tolist()
-            grped_trace_df.at[row_idx, f"{datatype}_time_values"] = \
+            trace_df.at[row_idx, f"{datatype}_time_values"] = \
                 time_values.tolist()
 
-    grped_trace_df["sess_ns"] = grped_trace_df["sess_ns"].astype(int)
+    trace_df["sess_ns"] = trace_df["sess_ns"].astype(int)
 
-    return grped_trace_df
+    return trace_df
 
 
 
@@ -230,14 +234,14 @@ def get_pupil_run_block_diffs_df(sessions, analyspar, stimpar, parallel=False):
         - block_df (pd.DataFrame):
             dataframe with a row for each session, and the following 
             columns, in addition to the basic sess_df columns: 
-            - run_block_stats (3D array): 
-                block statistics (split x block x stats (me, err))
             - run_block_diffs (1D array):
                 split differences per block
-            - pupil_block_stats (3D array): 
+            - run_block_stats (3D array): 
                 block statistics (split x block x stats (me, err))
             - pupil_block_diffs (1D array):
                 split differences per block
+            - pupil_block_stats (3D array): 
+                block statistics (split x block x stats (me, err))
     """
 
     block_df = misc_analys.get_check_sess_df(
@@ -272,9 +276,111 @@ def get_pupil_run_block_diffs_df(sessions, analyspar, stimpar, parallel=False):
     return block_df
 
 
+#############################################
+def get_pupil_run_block_stats_df(sessions, analyspar, stimpar, permpar, 
+                                 seed=None, parallel=False):
+    """
+    get_pupil_run_block_stats_df(sessions, analyspar, stimpar, permpar)
 
-##### FUNCTION THAT AGGREGATES BLOCK DIFFS BY LINE/PLANE/SESS/DATATYPE
-##### AND OBTAINS RAW P-VALUES PER LINE/PLANE/SESS/DATATYPE
-##### AND ADDS CORRECTED P-VALUES
+    Returns pupil and running block difference statistics for specific 
+    sessions, grouped across mice.
 
+    Required args:
+        - sessions (list): 
+            session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
+
+    Optional args:
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+
+    Returns:
+        - block_df (pd.DataFrame):
+            dataframe with one row per session/line/plane, and the following 
+            columns, in addition to the basic sess_df columns: 
+            - run_block_diffs (list): 
+                running velocity differences per block
+            - run_raw_p_vals (float):
+                uncorrected p-value for differences within sessions
+            - run_p_vals (float):
+                p-value for differences within sessions, 
+                corrected for multiple comparisons and tails
+            - pupil_block_diffs (list): 
+                for pupil diameter differences per block
+            - pupil_raw_p_vals (list):
+                uncorrected p-value for differences within sessions
+            - pupil_p_vals (list):
+                p-value for differences within sessions, 
+                corrected for multiple comparisons and tails
+    """
+
+    nanpol = None if analyspar.remnans else "omit"
+
+    seed = gen_util.seed_all(seed, log_seed=False)
+
+    all_block_df = get_pupil_run_block_diffs_df(
+        sessions, 
+        analyspar=analyspar, 
+        stimpar=stimpar, 
+        parallel=parallel
+        )
+    
+    datatypes = ["pupil", "run"]
+
+    columns = all_block_df.columns.tolist()
+    for datatype in datatypes:
+        columns.remove(f"{datatype}_block_stats")
+    block_df = pd.DataFrame(columns=columns)
+
+    group_columns = ["lines", "planes", "sess_ns"]
+    for grp_vals, block_grp_df in all_block_df.groupby(group_columns):
+        row_idx = len(block_df)
+        for g, group_column in enumerate(group_columns):
+            block_df.loc[row_idx, group_column] = grp_vals[g]
+
+        for column in columns:
+            skip = np.max([datatype in column for datatype in datatypes])
+            if column not in group_columns and not skip:
+                values = block_grp_df[column].tolist()
+                block_df.at[row_idx, column] = values
+
+        for datatype in datatypes:
+            # group blocks across mice
+            all_diffs = np.concatenate(
+                block_grp_df[f"{datatype}_block_diffs"].tolist()
+                )
+            block_df.at[row_idx, f"{datatype}_block_diffs"] = all_diffs.tolist()
+
+            # concatenate blocks per split, across mice: split x block
+            all_split_block = np.concatenate(
+                block_grp_df[f"{datatype}_block_stats"].tolist(),
+                axis=1
+            )[..., 0] # keep mean/median only
+
+            block_df.loc[row_idx, f"{datatype}_p_vals"] = \
+                math_util.get_diff_p_val(
+                    all_split_block, 
+                    n_perms=permpar.n_perms, 
+                    stats=analyspar.stats, 
+                    paired=True,
+                    nanpol=nanpol
+                )
+
+    # add corrected p-values
+    block_df = misc_analys.add_corr_p_vals(
+        block_df, permpar, raise_multcomp=False
+        )
+
+    block_df["sess_ns"] = block_df["sess_ns"].astype(int)
+
+    return block_df
 

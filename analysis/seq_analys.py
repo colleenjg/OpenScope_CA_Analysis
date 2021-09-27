@@ -450,14 +450,14 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
             ]
             rand_diffs = math_util.mean_med(
                 np.concatenate([lp_rand_diffs[r] for r in rand_idxs], axis=0), 
-                axis=0, stats=analyspar.stats
+                axis=0, stats=analyspar.stats, nanpol=nanpol
                 )
 
             # get CIs and p-values
             p_val, null_CI = math_util.get_p_val_from_rand(
                 diff_stats[0], rand_diffs, return_CIs=True, 
                 p_thresh=permpar.p_val, tails=permpar.tails, 
-                multcomp=permpar.multcomp
+                multcomp=permpar.multcomp, nanpol=nanpol
                 )
             diffs_df.loc[row_idx, "p_vals"] = p_val
             diffs_df.at[row_idx, "null_CIs"] = null_CI
@@ -467,7 +467,7 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
         # calculate p-values between sessions (0-1, 0-2, 1-2...)
         p_vals = math_util.comp_vals_acr_groups(
             sess_diffs, n_perms=permpar.n_perms, stats=analyspar.stats,
-            paired=analyspar.tracked
+            paired=analyspar.tracked, nanpol=nanpol
             )
         p = 0
         for i, sess_n in enumerate(sess_ns):
@@ -1052,7 +1052,7 @@ def get_rel_resp_stats_df(sessions, analyspar, stimpar, permpar, rel_sess=1,
             # calculate p-values between sessions (0-1, 0-2, 1-2...)
             p_vals = math_util.comp_vals_acr_groups(
                 sess_data, n_perms=permpar.n_perms, stats=analyspar.stats, 
-                paired=analyspar.tracked
+                paired=analyspar.tracked, nanpol=nanpol
                 )
             p = 0
             for i, sess_n in enumerate(sess_ns):

@@ -89,7 +89,7 @@ def get_sig_symbol(corr_p_val, ctrl=False, percentile=False, sensitivity=None,
 
 
 #############################################
-def get_corrected_p_val(p_val, permpar):
+def get_corrected_p_val(p_val, permpar, raise_multcomp=True):
     """
     get_corrected_p_val(p_val, permpar)
 
@@ -102,12 +102,15 @@ def get_corrected_p_val(p_val, permpar):
         - permpar (PermPar or dict): 
             named tuple containing permutation parameters
 
+    Optional args:
+        - raise_multcomp (bool):
+            if True, an error is raised if permpar.multcomp is False
+            default: True
+
     Returns:
         - corr_p_val (float): 
             corrected p-value
     """
-
-    from util import math_util
 
     if isinstance(permpar, dict):
         permpar = sess_ntuple_util.init_permpar(**permpar)
@@ -117,6 +120,8 @@ def get_corrected_p_val(p_val, permpar):
     
     if permpar.multcomp:
         corr_p_val *= permpar.multcomp
+    elif raise_multcomp:
+        raise ValueError("permpar.multcomp is set to False.")
 
     corr_p_val = np.min([corr_p_val, 1])
 
@@ -141,6 +146,7 @@ def add_corr_p_vals(df, permpar, raise_multcomp=True):
     Optional args:
         - raise_multcomp (bool):
             if True, an error is raised if permpar.multcomp is False
+            default: True
 
     Returns:
         - df (pd.DataFrame): 
@@ -156,25 +162,22 @@ def add_corr_p_vals(df, permpar, raise_multcomp=True):
     if sum(["raw_p_vals" in col for col in p_val_cols]):
         raise ValueError(
             "Function converts 'p_vals' columns to 'raw_p_vals' columns. "
-            "Did not expect dataframe to already contain columns with "
-            "'raw_p_vals' in name.")
+            "Dataframe should not already contain columns with 'raw_p_vals' "
+            "in name.")
 
     new_col_names = {
         col: col.replace("p_vals", "raw_p_vals") for col in p_val_cols
         }
     df = df.rename(columns=new_col_names)
+    # define function with arguments for use with .map()
+    correct_p_val_fct = lambda x: get_corrected_p_val(
+        x, permpar, raise_multcomp
+        )
 
-    if permpar.multcomp:
-        # define function with arguments for use with .map()
-        correct_p_val_fct = lambda x: get_corrected_p_val(x, permpar)
-
-        for corr_p_val_col in p_val_cols:
-            raw_p_val_col = corr_p_val_col.replace("p_vals", "raw_p_vals")
-            df[corr_p_val_col] = df[raw_p_val_col].map(correct_p_val_fct)
+    for corr_p_val_col in p_val_cols:
+        raw_p_val_col = corr_p_val_col.replace("p_vals", "raw_p_vals")
+        df[corr_p_val_col] = df[raw_p_val_col].map(correct_p_val_fct)
     
-    elif raise_multcomp:
-        raise ValueError("permpar.multcomp is set to False.")
-
     return df
     
     
@@ -287,7 +290,7 @@ def get_comp_info(permpar):
             "permpar.tails", permpar.tails, ["lo", "hi", 2]
             )
 
-    if isinstance(permpar.multcomp, (int, float)):
+    if permpar.multcomp:
         comp_info = f"{int(permpar.multcomp)} comparisons, {comp_info}"        
 
     return comp_info
@@ -345,10 +348,13 @@ def get_check_sess_df(sessions, sess_df=None, analyspar=None, roi=True):
         sessids = np.asarray([sess.sessid for sess in sessions]).astype(int)
         sess_df_sessids = sess_df.sessids.to_numpy().astype(int)
 
-        if np.sort(sessids) != np.sort(sess_df_sessids):
+        if len(sessids) != len(sess_df_sessids):
+            raise ValueError("'sess_df' is not the same length at 'sessions'.")
+
+        elif (np.sort(sessids) != np.sort(sess_df_sessids)).any():
             raise ValueError("Sessions do not match ids in 'sess_df'.")
 
-        elif sessids != sess_df_sessids:
+        elif (sessids != sess_df_sessids).any():
             raise ValueError("Sessions do not appear in order in 'sess_df'.")
 
     return sess_df
