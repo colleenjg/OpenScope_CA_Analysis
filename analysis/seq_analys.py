@@ -348,7 +348,7 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
             dataframe with one row per session/line/plane, and the following 
             columns, in addition to the basic sess_df columns: 
             - diff_stats (list): split difference stats (me, err)
-            - null_CIs (list): adjusted null CI for split differences
+            - null_CIs (list): adjusted null CI for split differences 
             - raw_p_vals (float): uncorrected p-value for differences within 
                 sessions
             - p_vals (float): p-value for differences within sessions, 

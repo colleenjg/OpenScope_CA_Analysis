@@ -359,7 +359,9 @@ def add_between_sess_sig(ax, data_df, permpar, data_col="diff_stats",
 
                     sig_str = misc_analys.get_sig_symbol(
                         p_val, sensitivity=sensitivity, side=side, 
-                        tails=permpar["tails"], ctrl=ctrl)
+                        tails=permpar["tails"], p_thresh=permpar["p_val"], 
+                        ctrl=ctrl
+                        )
 
                     if len(sig_str):
                         sig_p_vals.append(p_val)
@@ -551,7 +553,8 @@ def plot_sess_data(data_df, analyspar, sesspar, permpar, figpar,
                 for s, sess_n in enumerate(lp_sess_ns):
                     sig_str = misc_analys.get_sig_symbol(
                         p_vals_corr[s], sensitivity=sensitivity, side=sides[s], 
-                        tails=permpar["tails"])
+                        tails=permpar["tails"], p_thresh=permpar["p_val"]
+                        )
 
                     if len(sig_str):
                         plot_util.add_signif_mark(sub_ax, sess_n, y_maxes[s], 

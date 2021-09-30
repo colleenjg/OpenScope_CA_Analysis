@@ -721,27 +721,20 @@ def get_block_data(sess, analyspar, stimpar, datatype="roi", integ=False):
             bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, surp=exp, 
             remconsec=False, by="seg")
 
+        fr_ns = get_frame_numbers(
+            stim, segs, ch_fl=ch_fl, ref_type="segs", datatype=datatype
+            )
+
         # MUST obtain frame numbers and check flanks for 
         # to ensure later data indexing is correct
         if datatype == "run":
             frame_type = "stim_frs"
-            fr_ns = stim.get_stim_fr_by_seg(
-                segs, first=True, ch_fl=ch_fl
-                )["first_stim_fr"]
-        
         elif datatype == "pupil":
             frame_type = "pup_frs"
-            fr_ns = stim.get_twop_fr_by_seg(segs, first=True)["first_twop_fr"]
-            fr_ns = stim.sess.get_pup_fr_by_twop_fr(fr_ns, ch_fl=ch_fl)
-        
         elif datatype == "roi":
             frame_type = "twop_frs"
-            fr_ns = stim.get_twop_fr_by_seg(
-                segs, first=True, ch_fl=ch_fl
-                )["first_twop_fr"]
         else:
             gen_util.accepted_values_error(
-                
                 "datatype", datatype, ["roi", "run", "pupil"]
                 )
 

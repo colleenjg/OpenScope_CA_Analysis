@@ -302,7 +302,7 @@ def plot_pupil_run_block_diffs(block_df, analyspar, permpar, figpar,
                 )
             sig_str = misc_analys.get_sig_symbol(
                 p_val_corr, sensitivity=sensitivity, side=side, 
-                tails=permpar["tails"]
+                tails=permpar["tails"], p_thresh=permpar["p_val"]
                 )
 
             p_val_text = f"{p_val_corr:.2f}{sig_str}"
