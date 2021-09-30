@@ -21,11 +21,12 @@ from sess_util import sess_ntuple_util, sess_gen_util
 
 logger = logging.getLogger(__name__)
 
+N_BOOTSTRP = int(1e4)
 
 
 #############################################
 def get_sig_symbol(corr_p_val, ctrl=False, percentile=False, sensitivity=None, 
-                   side=1, tails=2):
+                   side=1, tails=2, p_thresh=0.05):
     """
     get_sig_symbol(corr_p_val)
 
@@ -76,11 +77,12 @@ def get_sig_symbol(corr_p_val, ctrl=False, percentile=False, sensitivity=None,
         corr_p_val = np.max([corr_p_val, sensitivity])
 
     sig_symbol = ""
-    if corr_p_val < 0.001:
+    levels = [50, 5, 1]
+    if corr_p_val < p_thresh / levels[0]: # 0.001 if p_thresh = 0.05
         sig_symbol = "***"
-    elif corr_p_val < 0.01:
+    elif corr_p_val < p_thresh / levels[1]: # 0.01 if p_thresh = 0.05
         sig_symbol = "**"
-    elif corr_p_val < 0.05:
+    elif corr_p_val < p_thresh / levels[2]: # 0.05 if p_thresh = 0.05
         sig_symbol = "*"
     if ctrl:
         sig_symbol = sig_symbol.replace("*", "+")
@@ -452,7 +454,7 @@ def check_sessions_complete(sessions, raise_err=False):
 
 #############################################
 def aggreg_columns(source_df, targ_df, aggreg_cols, row_idx=0, 
-                   sort_by_sessid=True, in_place=False, by_mouse=False):
+                   sort_by="sessids", in_place=False, by_mouse=False):
     """
     aggreg_columns(source_df, targ_df, aggreg_cols)
 
@@ -468,10 +470,10 @@ def aggreg_columns(source_df, targ_df, aggreg_cols, row_idx=0,
         - row_idx (int or str):
             target dataframe row to add values to
             default: 0
-        - sort_by_sessid (bool):
-            if True, aggregated data is sorted by session ID, if session ID is 
-            in the columns to aggregate
-            default: True
+        - sort_by (str):
+            column to sort by (must be on the columns to aggregate).
+            False or None, for no sorting
+            default: "sessids"
         - in_place (bool):
             if True, targ_df is modified in place. Otherwise, a deep copy is 
             modified. targ_df is returned in either case.
@@ -499,9 +501,13 @@ def aggreg_columns(source_df, targ_df, aggreg_cols, row_idx=0,
             retain_single = True
 
     sort_order = None
-    if "sessids" in aggreg_cols and sort_by_sessid:
-        sessids = source_df["sessids"].tolist()
-        sort_order = np.argsort(sessids)
+    if sort_by:
+        if sort_by not in aggreg_cols:
+            raise ValueError(
+                "If sort_by is not False or None, it must be in aggreg_cols."
+                )
+        sorter = source_df[sort_by].tolist()
+        sort_order = np.argsort(sorter)
 
     for column in aggreg_cols:
         values = source_df[column].tolist()
@@ -509,7 +515,7 @@ def aggreg_columns(source_df, targ_df, aggreg_cols, row_idx=0,
             values = values[0]
         elif sort_order is not None:
             values = [values[v] for v in sort_order]
-        targ_df.at[row_idx, column] = values
+        targ_df.at[row_idx, column] = values # may throw an error if row doesn't yet exist
 
     return targ_df
 
@@ -553,7 +559,7 @@ def set_multcomp(permpar, sess_df, CIs=True, pairs=True, factor=1):
     set_multcomp(permpar)
 
     Returns permpar updated with the number of comparisons computed from the 
-    sessions, if permpar.multcomp is True.
+    sessions.
 
     Required args:
         - permpar (PermPar): 
@@ -574,14 +580,12 @@ def set_multcomp(permpar, sess_df, CIs=True, pairs=True, factor=1):
             default: 1
 
     Returns:
-        - permpar (PermPar): updated permutation parameter named tuple
+        - permpar (PermPar): 
+            updated permutation parameter named tuple
     """
 
     if isinstance(permpar, dict):
         permpar = sess_ntuple_util.init_permpar(**permpar)
-
-    if not permpar.multcomp:
-        return permpar
 
     n_comps = 0    
     for _, sess_df_grp in sess_df.groupby(["lines", "planes"]):

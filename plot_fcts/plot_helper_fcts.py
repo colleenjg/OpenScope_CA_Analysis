@@ -78,7 +78,7 @@ def get_line_plane_name(line="L2/3-Cux2", plane="soma"):
 
 
 #############################################
-def get_line_plane_idxs(line="L2/3-Cux2", plane="soma", flat=False):
+def get_line_plane_idxs(line="L23-Cux2", plane="soma", flat=False):
     """
     get_line_plane_idxs()
 

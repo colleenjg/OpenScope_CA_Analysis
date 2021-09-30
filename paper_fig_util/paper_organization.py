@@ -664,8 +664,6 @@ class FigurePanelAnalysis():
         self.description = ("Mean Gabor D orientation decoder performances "
             "across sessions.")
         self.specific_params = get_specific_params(
-            pre=0,
-            post=0.6,
             comp="Dori",
         )
         self.n_perms_full = 1e5
@@ -679,8 +677,6 @@ class FigurePanelAnalysis():
         self.description = ("Mean Gabor U orientation decoder performances "
             "across sessions.")
         self.specific_params = get_specific_params(
-            pre=0,
-            post=0.6,
             comp="Uori",
         )
         self.n_perms_full = 1e5
@@ -705,7 +701,10 @@ class FigurePanelAnalysis():
     def gabor_norm_res_corrs_sess123_comps(self):
         self.description = ("Normalized residual Gabor USI correlations "
             "between sessions.")
-        self.specific_params = get_specific_params()
+        self.specific_params = get_specific_params(
+            error="std",
+            tracked=True,
+        )
         self.n_perms_full = 1e5
         self.analysis_fct = corr_figs.gabor_norm_res_corrs_sess123_comps
         self.plot_fct = plot_figs.plot_gabor_norm_res_corrs_sess123_comps
@@ -949,6 +948,8 @@ class FigurePanelAnalysis():
             pre=2,
             post=2,
             idx_feature="unexp_lock",
+            error="std",
+            tracked=True,
         )
         self.n_perms_full = 1e5
         self.analysis_fct = corr_figs.visual_flow_norm_res_corrs_sess123_comps

@@ -959,7 +959,6 @@ def get_perc_sig_df(idx_df, analyspar, permpar, seed=None):
 
     nrois = np.asarray([np.sum(nrois) for nrois in idx_df["nrois"]])
     n_pos = np.asarray(idx_df["n_pos"])
-    n_bootstr = int(1e4)
 
     # get positive ROI index info
     null_perc = 50 # null percentage is 50%
@@ -970,7 +969,8 @@ def get_perc_sig_df(idx_df, analyspar, permpar, seed=None):
             permpar.multcomp
             )
         perc_std = 100 * math_util.bootstrapped_std(
-            perc_pos / 100, n=grp_nroi, n_samples=n_bootstr, proportion=True
+            perc_pos / 100, n=grp_nroi, n_samples=misc_analys.N_BOOTSTRP, 
+            proportion=True
             )
 
         perc_sig_df.loc[g, "perc_pos_idxs"] = perc_pos
@@ -991,7 +991,7 @@ def get_perc_sig_df(idx_df, analyspar, permpar, seed=None):
                 permpar.multcomp
                 )
             perc_std = 100 * math_util.bootstrapped_std(
-                perc_sig / 100, n=grp_nroi, n_samples=n_bootstr, 
+                perc_sig / 100, n=grp_nroi, n_samples=misc_analys.N_BOOTSTRP, 
                 proportion=True
                 )
 

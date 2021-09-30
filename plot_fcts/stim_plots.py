@@ -93,7 +93,8 @@ def add_between_stim_sig(ax, sub_ax_all, data_df, permpar):
         side = np.sign(y[1] - y[0])
 
         sig_str = misc_analys.get_sig_symbol(
-            p_val, sensitivity=sensitivity, side=side, tails=permpar["tails"]
+            p_val, sensitivity=sensitivity, side=side, tails=permpar["tails"], 
+            p_thresh=permpar["p_val"]
             )
         stim_sig_str = \
             f"{stim_sig_str}{TAB}{linpla_name}: {p_val:.5f}{sig_str:3}"

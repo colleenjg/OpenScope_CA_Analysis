@@ -168,7 +168,7 @@ def get_pupil_run_trace_stats_df(sessions, analyspar, stimpar, basepar,
     group_columns = ["sess_ns"]
     for grp_vals, trace_grp_df in all_trace_df.groupby(group_columns):
         row_idx = len(trace_df)
-        grp_vals = list(grp_vals)
+        grp_vals = [grp_vals]
         for g, group_column in enumerate(group_columns):
             trace_df.loc[row_idx, group_column] = grp_vals[g]
 
@@ -367,7 +367,7 @@ def get_pupil_run_block_stats_df(sessions, analyspar, stimpar, permpar,
             )[..., 0] # keep mean/median only
 
             block_df.loc[row_idx, f"{datatype}_p_vals"] = \
-                math_util.get_diff_p_val(
+                math_util.get_op_p_val(
                     all_split_block, 
                     n_perms=permpar.n_perms, 
                     stats=analyspar.stats, 

@@ -1175,7 +1175,7 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
     # adds line names (horizontal)
     line_pos = plot_util.get_fig_rel_pos(ax, col_per_grp, dim="x")
     for c, (line, pos) in enumerate(zip(lines, line_pos)):
-        line_name = f"{line} Pyr" if line[1].isdigit() else line
+        line_name = f"{line} Pyr" if len(line) and line[1].isdigit() else line
         if kind != "prog" and col_per_grp == 1:
             ax[0, c].set_title(line_name, weight="bold") 
         else:

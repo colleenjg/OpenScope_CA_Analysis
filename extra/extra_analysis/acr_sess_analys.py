@@ -204,7 +204,7 @@ def comp_vals_acr_planes(linpla_ord, vals, n_perms=None, normal=True,
                     continue
                                 
                 if n_perms is not None:                    
-                    p_vals[li, s] = math_util.get_diff_p_val(
+                    p_vals[li, s] = math_util.get_op_p_val(
                         data, n_perms, stats=stats, op="diff")
                 elif normal:
                     p_vals[li, s] = scist.ttest_ind(

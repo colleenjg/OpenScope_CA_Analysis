@@ -381,21 +381,21 @@ def get_perc_sig_ylims(perc_sig_df, low_pt_max=90, high_pt_min=10):
     """  
 
     low_pts, high_pts = [], []
-    for key in ["lo", "hi"]:
-        data_key = f"perc_sig_{key}_idxs"
+    for col in ["lo", "hi"]:
+        data_col = f"perc_sig_{col}_idxs"
         
         null_CI_low = np.min(
-            [null_CI[0] for null_CI in perc_sig_df[f"{data_key}_null_CIs"]]
+            [null_CI[0] for null_CI in perc_sig_df[f"{data_col}_null_CIs"]]
         )
         null_CI_high = np.max(
-            [null_CI[2] for null_CI in perc_sig_df[f"{data_key}_null_CIs"]]
+            [null_CI[2] for null_CI in perc_sig_df[f"{data_col}_null_CIs"]]
         )
 
         perc_low = (
-            perc_sig_df[data_key] - perc_sig_df[f"{data_key}_stds"]
+            perc_sig_df[data_col] - perc_sig_df[f"{data_col}_stds"]
             ).min()
         perc_high = (
-            perc_sig_df[data_key] + perc_sig_df[f"{data_key}_stds"]
+            perc_sig_df[data_col] + perc_sig_df[f"{data_col}_stds"]
             ).max()
 
         low_pts.extend([null_CI_low, perc_low])
@@ -529,9 +529,9 @@ def plot_perc_sig_usis(perc_sig_df, analyspar, permpar, figpar, by_mouse=False,
                 mouse_data_mean = math_util.mean_med(
                     mouse_data, stats=analyspar["stats"], nanpol=nanpol
                     )
-                CI_dummy = np.repeat(mouse_data_mean, 2).reshape(2, 1)
-                plot_util.plot_CI(sub_ax, CI_dummy, med=[mouse_data_mean], 
-                    x=[x_index], width=0.4, med_col=col, med_rat=0.01)
+                CI_dummy = np.repeat(mouse_data_mean, 2)
+                plot_util.plot_CI(sub_ax, CI_dummy, med=mouse_data_mean, 
+                    x=x_index, width=0.4, med_col=col, med_rat=0.01)
             else:
                 # collect confidence interval data
                 row = lp_df.loc[df_indices[0]]
@@ -570,7 +570,8 @@ def plot_perc_sig_usis(perc_sig_df, analyspar, permpar, figpar, by_mouse=False,
                     )                
                 sig_str = misc_analys.get_sig_symbol(
                     p_val, sensitivity=sensitivity, side=side, 
-                    tails=permpar["tails"])
+                    tails=permpar["tails"], p_thresh=permpar["p_val"]
+                    )
 
                 if len(sig_str):
                     perc_high = perc + err if err is not None else perc
@@ -605,8 +606,7 @@ def plot_perc_sig_usis(perc_sig_df, analyspar, permpar, figpar, by_mouse=False,
                 )
         else:
             plot_util.plot_CI(sub_ax, CIs.T, med=CI_meds, 
-                x=np.arange(n_linpla), width=0.45, color="lightgrey", 
-                med_col="gray", med_rat=0.025, zorder=-12)
+                x=np.arange(n_linpla), width=0.45, med_rat=0.025, zorder=-12)
 
         logger.info(tail_sig_str, extra={"spacing": TAB})
     
@@ -707,7 +707,8 @@ def plot_ex_roi_hists(ex_idx_df, sesspar, permpar, figpar, title=None):
 
         sensitivity = misc_analys.get_sensitivity(permpar)
         sig_str = misc_analys.get_sig_symbol(
-            ex_perc, percentile=True, sensitivity=sensitivity
+            ex_perc, percentile=True, sensitivity=sensitivity, 
+            p_thresh=permpar["p_val"]
             )
 
         sub_ax.axvline(

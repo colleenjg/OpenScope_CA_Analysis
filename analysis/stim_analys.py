@@ -320,6 +320,26 @@ def get_stim_data_df(sessions, analyspar, stimpar, stim_data_df=None,
 
     return stim_data_df
 
+############################################
+def abs_fractional_diff(data):
+    """
+    add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar)
+    """
+
+    if len(data) != 2:
+        raise ValueError("'data' must have length 2.")
+    
+    data_0, data_1 = data
+    data_0 = np.asarray(data_0)
+    data_1 = np.asarray(data_1)
+
+    if data_0.shape != data_1.shape:
+        raise ValueError("'data' must contain two arrays of the same size.")
+
+    abs_fraction_diff = np.absolute((data_1 - data_0) / data_0)
+
+    return abs_fraction_diff
+
 
 ############################################
 def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar, 
@@ -395,7 +415,7 @@ def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
     # initialize arrays for all data
     n_linpla = len(stim_stats_df)
     n_stims = len(stimpar.stimtype)
-    n_bootstrp = int(1e4)
+    n_bootstrp = misc_analys.N_BOOTSTRP
 
     all_stats = np.full((n_linpla, n_stims), np.nan)
     all_btstrap_stats = np.full((n_linpla, n_stims, n_bootstrp), np.nan)
@@ -405,29 +425,35 @@ def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
         full_comp_data = [[], []]
         for s, stimtype in enumerate(stimpar.stimtype):
             comp_data, btstrap_comp_data = [], []
+            choices = None
             for n in comp_sess:
                 data_col = f"{stimtype}_s{n}"
+
+                # get absolute data
                 data = stim_stats_df.loc[row_idx, data_col]
+
                 # get session stats
                 comp_data.append(
                     math_util.mean_med(data, analyspar.stats, nanpol=nanpol)
                 )
 
                 # get bootstrapped data 
-                _, btstrap_data = math_util.bootstrapped_std(
+                returns = math_util.bootstrapped_std(
                     data, randst=seed, n_samples=n_bootstrp, return_rand=True, 
+                    return_choices=analyspar.tracked, choices=choices, 
                     nanpol=nanpol
                     )
+                
+                btstrap_data = returns[1]
+                if analyspar.tracked:
+                    choices = returns[-1] # use same choices across sessions
+                
                 btstrap_comp_data.append(btstrap_data)
                 full_comp_data[s].append(data) # retain full data
 
             # compute absolute fractional change stats (bootstrapped std)
-            all_stats[i, s] = \
-                np.absolute((comp_data[1] - comp_data[0]) / comp_data[0])
-            all_btstrap_stats[i, s] = np.absolute(
-                (btstrap_comp_data[1] - btstrap_comp_data[0]) / 
-                btstrap_comp_data[0]
-                )
+            all_stats[i, s] = abs_fractional_diff(comp_data)
+            all_btstrap_stats[i, s] = abs_fractional_diff(btstrap_comp_data)
             error = np.std(all_btstrap_stats[i, s])
 
             # add to dataframe
@@ -445,16 +471,14 @@ def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
                 rand_concat, div=None, n_perms=permpar.n_perms, 
                 stats=analyspar.stats, op="none", paired=True, # pair stimuli
                 nanpol=nanpol
-                ).squeeze()
+                )
             sess_rand_stats.append(rand_stats)
         
         # obtain stats per stimtypes, then differences between stimtypes
         stim_rand_stats = list(zip(*sess_rand_stats)) # stim x sess
         all_rand_stats = []
         for rand_stats in stim_rand_stats:
-            all_rand_stats.append(
-                np.absolute((rand_stats[1] - rand_stats[0]) / rand_stats[0])
-            )
+            all_rand_stats.append(abs_fractional_diff(rand_stats))
         all_rand_stat_diffs[i] = all_rand_stats[1] - all_rand_stats[0]
 
         # calculate p-value
@@ -574,12 +598,11 @@ def add_stim_roi_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
     for row_idx in stim_stats_df.index:
         comp_data = [None, None]
         for s, stimtype in enumerate(stimpar.stimtype):
+            stim_data = []
             for n in comp_sess:
                 data_col = f"{stimtype}_s{n}"
-                comp_data[s].append(stim_stats_df.loc[row_idx, data_col])
-            comp_data[s] = np.absolute(
-                (comp_data[1] - comp_data[0]) / comp_data[0]
-            )
+                stim_data.append(stim_stats_df.loc[row_idx, data_col])
+                abs_fractional_diff(stim_data)
 
             # get stats and add to dataframe
             stim_stats_df.at[row_idx, stimtype] = \
@@ -589,7 +612,7 @@ def add_stim_roi_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
                     ).tolist()
 
         # obtain p-values
-        stim_stats_df.loc[row_idx, "p_vals"] = math_util.get_diff_p_val(
+        stim_stats_df.loc[row_idx, "p_vals"] = math_util.get_op_p_val(
             comp_data, permpar.n_perms, stats=analyspar.stats, paired=True,
             nanpol=nanpol
             )
