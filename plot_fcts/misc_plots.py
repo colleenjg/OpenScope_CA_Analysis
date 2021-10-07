@@ -118,10 +118,12 @@ def plot_snr_sigmeans_nrois(data_df, figpar, datatype="snrs", title="ROI SNRs"):
     figpar = sess_plot_util.fig_init_linpla(figpar, kind="reg")
     figpar["init"]["sharey"] = "row"
     
+    figpar["init"]["subplot_hei"] = 4.4
+    figpar["init"]["gs"] = {"wspace": 0.2, "hspace": 0.2}
     if datatype != "nrois":
-        figpar["init"]["subplot_wid"] = 3.7
+        figpar["init"]["subplot_wid"] = 3.2        
     else:
-        figpar["init"]["subplot_wid"] = 2.8
+        figpar["init"]["subplot_wid"] = 2.5
         
     fig, ax = plot_util.init_fig(4, **figpar["init"])
     if title is not None:

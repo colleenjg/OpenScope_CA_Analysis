@@ -85,7 +85,7 @@ def unexp_resp_stimulus_comp_sess1v3(sessions, analyspar, sesspar, stimpar,
         datatype=datatype,
         rel_sess=rel_sess,
         pop_stats=pop_stats,
-        seed=seed,
+        randst=seed,
         parallel=parallel,
         )
 
@@ -178,7 +178,7 @@ def tracked_roi_usis_stimulus_comp_sess1v3(sessions, analyspar, sesspar,
         comp_sess=comp_sess,
         datatype=datatype,
         pop_stats=pop_stats,
-        seed=seed,
+        randst=seed,
         parallel=parallel,
         )
 

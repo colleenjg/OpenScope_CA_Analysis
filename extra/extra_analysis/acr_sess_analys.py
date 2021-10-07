@@ -19,7 +19,7 @@ import warnings
 import numpy as np
 import scipy.stats as scist
 
-from util import file_util, gen_util, logger_util, math_util
+from util import file_util, gen_util, logger_util, math_util, rand_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
 from extra_analysis import quant_analys, signif_grps
 from extra_plot_fcts import acr_sess_analysis_plots as acr_sess_plots
@@ -204,7 +204,7 @@ def comp_vals_acr_planes(linpla_ord, vals, n_perms=None, normal=True,
                     continue
                                 
                 if n_perms is not None:                    
-                    p_vals[li, s] = math_util.get_op_p_val(
+                    p_vals[li, s] = rand_util.get_op_p_val(
                         data, n_perms, stats=stats, op="diff")
                 elif normal:
                     p_vals[li, s] = scist.ttest_ind(
@@ -879,7 +879,7 @@ def split_diff_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype="roi",
     
     all_rand = None
     if n_perms is not None:
-        all_rand = math_util.mean_med(math_util.permute_diff_ratio(
+        all_rand = math_util.mean_med(rand_util.permute_diff_ratio(
             np.concatenate(data_arr, axis=-1).reshape(targ), div=div, 
             n_perms=n_perms, stats=analyspar.stats, nanpol=nanpol, op="diff"), 
             stats=analyspar.stats, axis=0, nanpol=nanpol)
@@ -998,7 +998,7 @@ def stim_idx_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype="roi",
                                     structured as item x n_perms
     """
 
-    seed = gen_util.seed_all(seed, "cpu", log_seed=False)
+    seed = rand_util.seed_all(seed, "cpu", log_seed=False)
 
     nanpol = "omit"
     if analyspar.remnans:
@@ -1050,7 +1050,7 @@ def stim_idx_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype="roi",
         # get CI
         div = data_arr[0].shape[-1] # length of reg
         # perms (items x perms)
-        all_rand = math_util.permute_diff_ratio(
+        all_rand = rand_util.permute_diff_ratio(
             np.concatenate(data_arr, axis=-1).reshape(targ), div=div, 
             n_perms=n_perms, stats=analyspar.stats, nanpol=nanpol, op=op)
 
@@ -1372,7 +1372,7 @@ def get_grped_roi_stats(all_roi_vals, analyspar, permpar):
             # get CI
             div = mouse_vals[0].shape[-1] # length of reg
             # perms
-            sess_rands.append(math_util.permute_diff_ratio(
+            sess_rands.append(rand_util.permute_diff_ratio(
                 np.concatenate(mouse_vals, axis=1), div=div, 
                 n_perms=permpar.n_perms, stats=analyspar.stats, 
                 nanpol=nanpol, op="diff"))
@@ -1393,7 +1393,7 @@ def get_grped_roi_stats(all_roi_vals, analyspar, permpar):
         all_diffs.append(sess_mean_med_diffs.tolist())
 
     # get p-values for comparisons between sessions
-    p_vals_grped = math_util.comp_vals_acr_groups(all_diffs, permpar.n_perms, 
+    p_vals_grped = rand_util.comp_vals_acr_groups(all_diffs, permpar.n_perms, 
         stats=analyspar.stats).tolist()
     
     # get CI (sess x percs)
@@ -1401,7 +1401,7 @@ def get_grped_roi_stats(all_roi_vals, analyspar, permpar):
         [np.percentile(all_rand, p, axis=-1) for p in percs]).T.tolist()
 
     # get significant session numbers (optionally by tails)
-    sign_sess, p_vals_sess = math_util.id_elem(all_rand, all_diff_st[:, 0], 
+    sign_sess, p_vals_sess = rand_util.id_elem(all_rand, all_diff_st[:, 0], 
         tails=permpar.tails, p_val=permpar.p_val, min_n=MIN_N, nanpol="omit", 
         ret_pval=True)
 
@@ -1460,7 +1460,7 @@ def get_mouse_stats(mouse_diff_st, all_rand, analyspar, permpar):
         [np.percentile(all_rand, p, axis=-1) for p in percs]).T.tolist()
 
     # get significant session numbers (optionally by tails)
-    sign_sess, p_vals_sess = math_util.id_elem(
+    sign_sess, p_vals_sess = rand_util.id_elem(
         all_rand, all_diff_st[:, 0], tails=permpar.tails, p_val=permpar.p_val, 
         min_n=MIN_N, nanpol="omit", ret_pval=True)
     
@@ -1556,7 +1556,7 @@ def split_diff_by_sesses(sessions, analyspar, stimpar, permpar, datatype="roi",
 
     st_len = 2 + (analyspar.stats == "median" and analyspar.error == "std")
 
-    seed = gen_util.seed_all(seed, "cpu", log_seed=False)
+    seed = rand_util.seed_all(seed, "cpu", log_seed=False)
 
     n_mice = len(sessions)
     mouse_diff_st = np.empty([n_mice, n_sess, st_len]) * np.nan
@@ -3918,7 +3918,7 @@ def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None,
                 raise ValueError("Must pass a 'permpar' if latpar.surp_resp.")
             elif permpar.tails != "hi":
                 raise ValueError("permpar.tails must be 'hi'.")
-            seed = gen_util.seed_all(seed, "cpu", log_seed=False)
+            seed = rand_util.seed_all(seed, "cpu", log_seed=False)
             # full_arr: surp x ROI x sequences
             integ_data = [gen_util.reshape_df_data(stim.get_roi_data(
                 twop_fr, pre=pre, post=post, fluor=analyspar.fluor, integ=True,
@@ -4018,7 +4018,7 @@ def run_surp_latency(sessions, analysis, seed, analyspar, sesspar, stimpar,
     logger.info(f"Analysing and plotting surprise latency for {datastr} traces "
         f" \n({sessstr_pr}{dendstr_pr}).", extra={"spacing": "\n"})
 
-    seed = gen_util.seed_all(seed, "cpu", log_seed=False)
+    seed = rand_util.seed_all(seed, "cpu", log_seed=False)
 
     # get sessions organized by lin/pla x mouse x session
     linpla_sess, linpla_ord = split_by_linpla(sessions, rem_empty=True)
@@ -4061,7 +4061,7 @@ def run_surp_latency(sessions, analysis, seed, analyspar, sesspar, stimpar,
             if latpar.surp_resp:
                 l_n_sign_rois.append(sess_n_sign_rois)
 
-        p_vals = math_util.comp_vals_acr_groups(
+        p_vals = rand_util.comp_vals_acr_groups(
             l_lat_vals_flat, n_perms=permpar.n_perms, 
             stats=analyspar.stats).tolist()
 
@@ -4090,7 +4090,7 @@ def run_surp_latency(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
     extrapar = {"analysis": analysis,
                 "datatype": datatype,
-                "seed": seed,
+                "seed"    : seed,
                 }
 
     info = {"analyspar": analyspar._asdict(),

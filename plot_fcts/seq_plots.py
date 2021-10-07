@@ -199,10 +199,15 @@ def plot_sess_traces(data_df, analyspar, sesspar, figpar,
 
     if size == "small":
         figpar["init"]["subplot_hei"] = 1.5
-        figpar["init"]["subplot_wid"] = 3.5
+        figpar["init"]["subplot_wid"] = 3.7
     elif size == "wide":
-        figpar["init"]["subplot_wid"] = 4
-    elif size != "reg":
+        figpar["init"]["subplot_hei"] = 1.35
+        figpar["init"]["subplot_wid"] = 4.8
+        figpar["init"]["gs"] = {"wspace": 0.3, "hspace": 0.5}
+    elif size == "reg":
+        figpar["init"]["subplot_hei"] = 1.35
+        figpar["init"]["subplot_wid"] = 3.4
+    else:
         gen_util.accepted_values_error("size", size, ["small", "wide", "reg"])
 
     fig, ax = plot_util.init_fig(len(row_order) * 4, **figpar["init"])
@@ -485,10 +490,14 @@ def plot_sess_data(data_df, analyspar, sesspar, permpar, figpar,
     
     sharey = True if decoder_data else "row"
     figpar["init"]["sharey"] = sharey
-    figpar["init"]["subplot_hei"] = 4.0
-    figpar["init"]["subplot_wid"] = 2.8
+    figpar["init"]["subplot_hei"] = 4.4
+    figpar["init"]["gs"] = {"hspace": 0.2}
     if wide:
-        figpar["init"]["subplot_wid"] = 3.7
+        figpar["init"]["subplot_wid"] = 3.4
+        figpar["init"]["gs"]["wspace"] = 0.3
+    else:
+        figpar["init"]["subplot_wid"] = 2.6
+        figpar["init"]["gs"]["wspace"] = 0.3
 
     fig, ax = plot_util.init_fig(plot_helper_fcts.N_LINPLA, **figpar["init"])
 
@@ -688,8 +697,8 @@ def plot_ex_gabor_traces(ex_traces_df, stimpar, figpar, title=None):
     figpar = sess_plot_util.fig_init_linpla(
         figpar, kind="traces", n_sub=per_rows
         )
-    figpar["init"]["subplot_hei"] = 1.45
-    figpar["init"]["subplot_wid"] = 2.85
+    figpar["init"]["subplot_hei"] = 1.35
+    figpar["init"]["subplot_wid"] = 2.45
     figpar["init"]["ncols"] = per_cols * 2
 
     fig, ax = plot_util.init_fig(
@@ -721,9 +730,14 @@ def plot_ex_gabor_traces(ex_traces_df, stimpar, figpar, title=None):
         modif_share=False)
 
    # fix x ticks and lims
-    plot_util.set_interm_ticks(ax, 3, dim="x", fontweight="bold")
-    sub_ax.set_xlim([time_values.min(), time_values.max()])
-
+    for sub_ax in ax.reshape(-1):
+        xlims = [time_values[0], time_values[-1]]
+        xticks = np.linspace(*xlims, 6)
+        sub_ax.set_xticks(xticks)
+    plot_util.set_interm_ticks(ax, 3, dim="x", fontweight="bold", skip=False)
+    for sub_ax in ax.reshape(-1):
+        sub_ax.set_xlim(xlims)
+    
     # reset y limits
     for r in range(ax.shape[0]):
         for c in range(ax.shape[1]):
@@ -796,15 +810,17 @@ def plot_rel_resp_data(rel_resp_df, analyspar, sesspar, stimpar, permpar,
     figpar = sess_plot_util.fig_init_linpla(figpar)
     
     figpar["init"]["sharey"] = "row"
-    figpar["init"]["subplot_hei"] = 4.0
-    figpar["init"]["subplot_wid"] = 3.0
+    figpar["init"]["subplot_hei"] = 4.1
+    figpar["init"]["subplot_wid"] = 2.6
+    figpar["init"]["gs"] = {"wspace": 0.25, "hspace": 0.2}
     if wide:
-        figpar["init"]["subplot_wid"] = 3.7
+        figpar["init"]["subplot_wid"] = 3.3
+        figpar["init"]["gs"]["wspace"] = 0.25
 
     fig, ax = plot_util.init_fig(plot_helper_fcts.N_LINPLA, **figpar["init"])
 
     if title is not None:
-        fig.suptitle(title, y=1.0, weight="bold")
+        fig.suptitle(title, y=0.98, weight="bold")
 
     if stimpar["stimtype"] == "gabors":
         data_types = ["rel_reg", "rel_unexp"]
@@ -850,7 +866,6 @@ def plot_rel_resp_data(rel_resp_df, analyspar, sesspar, stimpar, permpar,
             highest = add_between_sess_sig(
                 ax, rel_resp_df, permpar, data_col=data_type, highest=highest, 
                 ctrl=ctrl, p_val_prefix=True, dry_run=dry_run)
-            # print(highest)
             if not dry_run:
                 highest = [val * 1.05 for val in highest] # increment a bit
             

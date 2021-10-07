@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import scipy.stats as scist
 
-from util import gen_util, math_util, logger_util
+from util import gen_util, math_util, logger_util, rand_util
 from analysis import basic_analys, misc_analys
 from plot_fcts import plot_helper_fcts
 
@@ -28,7 +28,7 @@ TAB = "    "
 
 #############################################
 def sess_stim_idxs(sess, analyspar, stimpar, n_perms=1000, split="by_exp", 
-                   op="d-prime", baseline=0.0, common_oris=False, seed=None, 
+                   op="d-prime", baseline=0.0, common_oris=False, randst=None, 
                    run_random=True):
     """
     sess_stim_idxs(sess, analyspar, stimpar)
@@ -69,8 +69,8 @@ def sess_stim_idxs(sess, analyspar, stimpar, n_perms=1000, split="by_exp",
             if True, only Gabor stimulus orientations common to D and U frames 
             are included ("by_exp" feature only)
             default: False
-        - seed (int): 
-            seed value to use. (-1 treated as None)
+        - randst (int or np.random.RandomState): 
+            random state or seed value to use. (-1 treated as None)
             default: None
         - run_random (bool): 
             if True, randomization is run and results are returns 
@@ -89,8 +89,6 @@ def sess_stim_idxs(sess, analyspar, stimpar, n_perms=1000, split="by_exp",
             ROI indices calculated through randomized permutation
             dims: item x n_perms
     """
-
-    seed = gen_util.seed_all(seed, "cpu", log_seed=False)
 
     nanpol = None if analyspar.remnans else "omit"
 
@@ -122,9 +120,9 @@ def sess_stim_idxs(sess, analyspar, stimpar, n_perms=1000, split="by_exp",
     data_concat = np.concatenate(data_arr, axis=-1).reshape(-1, last_dim)
 
     div = np.asarray(data_arr[0]).shape[-1] # length of first data split
-    all_rand = math_util.permute_diff_ratio(
+    all_rand = rand_util.permute_diff_ratio(
         data_concat, div=div, n_perms=n_perms, stats=analyspar.stats, 
-        nanpol=nanpol, op=op
+        nanpol=nanpol, op=op, randst=randst
         )
 
     # true index percentiles wrt randomized indices
@@ -138,7 +136,7 @@ def sess_stim_idxs(sess, analyspar, stimpar, n_perms=1000, split="by_exp",
     
 #############################################
 def get_idx_info(sess, analyspar, stimpar, basepar, idxpar, permpar,  
-                 seed=None):
+                 randst=None):
     """
     get_idx_info(sess, analyspar, stimpar, basepar, idxpar, permpar)
 
@@ -160,8 +158,8 @@ def get_idx_info(sess, analyspar, stimpar, basepar, idxpar, permpar,
             named tuple containing permutation parameters
 
     Optional args:
-        - seed (int): 
-            seed value to use. (-1 treated as None)
+        - randst (int or np.random.RandomState): 
+            random state or seed value to use. (-1 treated as None)
             default: None
 
     Returns:
@@ -183,7 +181,7 @@ def get_idx_info(sess, analyspar, stimpar, basepar, idxpar, permpar,
         split=idxpar.feature, 
         op=idxpar.op, 
         baseline=basepar.baseline, 
-        seed=seed
+        randst=randst
         )
 
     # split x ROIs x frames
@@ -241,7 +239,7 @@ def choose_roi(target_idx_val, target_idx_sig, roi_idxs, roi_percs,
     if np.isnan(roi_idxs).any() or np.isnan(roi_mses).any():
         raise NotImplementedError("Function not implemented if NaNs in data.")
 
-    math_util.check_n_rand(permpar.n_perms, permpar.p_val)
+    rand_util.check_n_rand(permpar.n_perms, permpar.p_val)
     p_low, p_high = math_util.get_percentiles(
         CI=(1 - permpar.p_val), tails=permpar.tails
         )[0]
@@ -276,7 +274,7 @@ def choose_roi(target_idx_val, target_idx_sig, roi_idxs, roi_percs,
 
 #############################################
 def get_chosen_roi_df(sessions, analyspar, stimpar, basepar, idxpar, permpar, 
-                      target_idx_vals=None, target_idx_sigs=None, seed=None, 
+                      target_idx_vals=None, target_idx_sigs=None, randst=None, 
                       parallel=False):
     """
     get_chosen_roi_df(sessions, analyspar, stimpar, basepar, idxpar, permpar)
@@ -305,7 +303,8 @@ def get_chosen_roi_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
         - target_idx_sigs (list): 
             target ROI index significance. If None, default values are used.
             default: None
-        - seed (int): seed value to use. (-1 treated as None)
+        - randst (int or np.random.RandomState): 
+            random state or seed value to use. (-1 treated as None)
             default: None
         - parallel (bool): if True, some of the analysis is run in parallel 
             across CPU cores 
@@ -347,7 +346,7 @@ def get_chosen_roi_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
         "basepar"  : basepar, 
         "idxpar"   : idxpar, 
         "permpar"  : permpar, 
-        "seed"     : seed
+        "randst"   : randst,
     }
 
     logger.info(
@@ -417,10 +416,11 @@ def get_chosen_roi_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
 
 
 #############################################
-def add_chosen_roi_traces(sessions, chosen_rois_df, analyspar, stimpar, basepar, 
-                          split="by_exp", parallel=False):
+def add_chosen_roi_traces(sessions, chosen_rois_df, analyspar, stimpar, 
+                          basepar, split="by_exp", parallel=False):
     """
-    add_chosen_roi_traces(sessions, chosen_rois_df, analyspar, stimpar, basepar)
+    add_chosen_roi_traces(sessions, chosen_rois_df, analyspar, stimpar, 
+                          basepar)
 
     Adds ROI traces to chosen_rois_df.
 
@@ -491,9 +491,9 @@ def add_chosen_roi_traces(sessions, chosen_rois_df, analyspar, stimpar, basepar,
 
     # add traces to correct rows
     new_columns = ["roi_trace_stats", "time_values"]
-    for column in new_columns:
-        chosen_rois_df[column] = np.nan
-        chosen_rois_df[column] = chosen_rois_df[column].astype(object)
+    chosen_rois_df = gen_util.set_object_columns(
+        chosen_rois_df, new_columns, in_place=True
+    )
 
     for s, sessid in enumerate(sessids_df):
         sessid_loc = (chosen_rois_df["sessids"] == sessid)
@@ -550,7 +550,7 @@ def bin_idxs(roi_idxs, roi_percs, rand_idxs, permpar, n_bins=40):
         raise NotImplementedError("Function not implemented if NaNs in data.")
 
     # gather index histogram information
-    math_util.check_n_rand(rand_idxs.shape[-1], permpar.p_val)
+    rand_util.check_n_rand(rand_idxs.shape[-1], permpar.p_val)
     CI_perc = math_util.get_percentiles(1 - permpar.p_val, permpar.tails)[0]
     # check bin size
     CI_wid = np.max([CI_perc[0], 100 - CI_perc[1]])
@@ -599,7 +599,7 @@ def bin_idxs(roi_idxs, roi_percs, rand_idxs, permpar, n_bins=40):
 
 #############################################
 def get_ex_idx_df(sess, analyspar, stimpar, basepar, idxpar, permpar, 
-                  seed=None, target_roi_perc=99.8):
+                  randst=None, target_roi_perc=99.8):
     """
     get_ex_idx_df(sess, analyspar, stimpar, basepar, idxpar, permpar)
 
@@ -620,8 +620,8 @@ def get_ex_idx_df(sess, analyspar, stimpar, basepar, idxpar, permpar,
             named tuple containing permutation parameters
     
     Optional args:
-        - seed (int): 
-            seed value to use. (-1 treated as None)
+        - randst (int or np.random.RandomState): 
+            random state or seed value to use. (-1 treated as None)
             default: None
         - target_roi_perc (float): 
             target ROI feature index percentile
@@ -648,7 +648,7 @@ def get_ex_idx_df(sess, analyspar, stimpar, basepar, idxpar, permpar,
         split=idxpar.feature, 
         op=idxpar.op, 
         baseline=basepar.baseline, 
-        seed=seed
+        randst=randst
         )
 
     ex_idx_df = misc_analys.get_check_sess_df(sess, analyspar=analyspar)
@@ -659,7 +659,7 @@ def get_ex_idx_df(sess, analyspar, stimpar, basepar, idxpar, permpar,
     # select a significant ROI
     if permpar.tails == "lo":
         raise ValueError("Expected permpar.tails to be 2 or 'hi', not 'lo'.")
-    math_util.check_n_rand(permpar.n_perms, permpar.p_val)
+    rand_util.check_n_rand(permpar.n_perms, permpar.p_val)
     CI_perc = math_util.get_percentiles(1 - permpar.p_val, permpar.tails)[0]
     possible = np.where((roi_percs > CI_perc[1]) * (roi_percs < 100))[0]
     preferred = np.where(
@@ -681,12 +681,12 @@ def get_ex_idx_df(sess, analyspar, stimpar, basepar, idxpar, permpar,
     ex_idx_df.loc[0, "roi_idxs"]       = roi_idxs[roi_n]
     ex_idx_df.loc[0, "roi_idx_percs"]  = roi_percs[roi_n]
 
-    for column in ["rand_idx_binned", "bin_edges", "CI_edges", "CI_perc"]:
+    columns = ["rand_idx_binned", "bin_edges", "CI_edges", "CI_perc"]
+    ex_idx_df = gen_util.set_object_columns(ex_idx_df, columns, in_place=True)
+    for column in columns:
         data = binned_idxs[column]
         if isinstance(data, np.ndarray):
             data = data.tolist()
-        ex_idx_df[column] = np.nan
-        ex_idx_df[column] = ex_idx_df[column].astype(object)
         ex_idx_df.at[0, column] = data
     
     ex_idx_df["roi_ns"] = ex_idx_df["roi_ns"].astype(int)
@@ -754,7 +754,7 @@ def get_idx_only_df(sessions, analyspar, stimpar, basepar, idxpar,
     
 #############################################
 def get_idx_df(sessions, analyspar, stimpar, basepar, idxpar, permpar, 
-               n_bins=40, common_oris=False, by_mouse=False, seed=None, 
+               n_bins=40, common_oris=False, by_mouse=False, randst=None, 
                parallel=False):
     """
     get_idx_df(sessions, analyspar, stimpar, basepar, idxpar, permpar)
@@ -785,8 +785,8 @@ def get_idx_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
         - by_mouse (bool): 
             if True, data is kept separated by mouse
             default: False
-        - seed (int): 
-            seed value to use. (-1 treated as None)
+        - randst (int or np.random.RandomState): 
+            random state or seed value to use. (-1 treated as None)
             default: None
         - parallel (bool): 
             if True, some of the analysis is run in parallel across CPU cores 
@@ -818,7 +818,7 @@ def get_idx_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
         "op"         : idxpar.op, 
         "baseline"   : basepar.baseline, 
         "common_oris": common_oris,
-        "seed"       : seed,
+        "randst"     : randst,
     }    
 
     logger.info(
@@ -864,8 +864,9 @@ def get_idx_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
             if isinstance(value, np.ndarray):
                 value = value.tolist()
             if (key not in idx_df.columns) and (isinstance(value, list)):
-                idx_df[key] = np.nan
-                idx_df[key] = idx_df[key].astype(object)
+                idx_df = gen_util.set_object_columns(
+                    idx_df, [key], in_place=True
+                    )
             idx_df.at[row_idx, key] = value
     
     for key in ["sess_ns", "n_pos", "n_signif_lo", "n_signif_hi"]:
@@ -878,7 +879,7 @@ def get_idx_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
 
 
 #############################################
-def get_perc_sig_df(idx_df, analyspar, permpar, seed=None):
+def get_perc_sig_df(idx_df, analyspar, permpar, randst=None):
     """
     get_perc_sig_df(idx_df, permpar)
 
@@ -898,8 +899,8 @@ def get_perc_sig_df(idx_df, analyspar, permpar, seed=None):
             named tuple containing permutation parameters
 
     Optional args:
-        - seed (int): 
-            seed value to use. (-1 treated as None)
+        - randst (int or np.random.RandomState): 
+            random state or seed value to use. (-1 treated as None)
             default: None
 
     Returns:
@@ -935,8 +936,6 @@ def get_perc_sig_df(idx_df, analyspar, permpar, seed=None):
                 ROIs, corrected for multiple comparisons and tails
     """    
 
-    seed = gen_util.seed_all(seed, "cpu", log_seed=False)
-
     if analyspar.stats != "mean" or analyspar.error != "std":
         raise NotImplementedError(
             "analyspar.stats must be set to 'mean', and "
@@ -954,8 +953,9 @@ def get_perc_sig_df(idx_df, analyspar, permpar, seed=None):
     for grp in ["pos", "sig_lo", "sig_hi"]:
         for data in ["CIs", "null_CIs"]:
             column_name = f"perc_{grp}_idxs_{data}"
-            perc_sig_df[column_name] = np.nan
-            perc_sig_df[column_name] = perc_sig_df[column_name].astype(object)
+            perc_sig_df = gen_util.set_object_columns(
+                perc_sig_df, [column_name], in_place=True
+            )
 
     nrois = np.asarray([np.sum(nrois) for nrois in idx_df["nrois"]])
     n_pos = np.asarray(idx_df["n_pos"])
@@ -968,9 +968,9 @@ def get_perc_sig_df(idx_df, analyspar, permpar, seed=None):
             permpar.p_val, perc_pos, grp_nroi, null_perc, permpar.tails, 
             permpar.multcomp
             )
-        perc_std = 100 * math_util.bootstrapped_std(
+        perc_std = 100 * rand_util.bootstrapped_std(
             perc_pos / 100, n=grp_nroi, n_samples=misc_analys.N_BOOTSTRP, 
-            proportion=True
+            proportion=True, randst=randst
             )
 
         perc_sig_df.loc[g, "perc_pos_idxs"] = perc_pos
@@ -990,9 +990,9 @@ def get_perc_sig_df(idx_df, analyspar, permpar, seed=None):
                 permpar.p_val, perc_sig, grp_nroi, null_perc, permpar.tails, 
                 permpar.multcomp
                 )
-            perc_std = 100 * math_util.bootstrapped_std(
+            perc_std = 100 * rand_util.bootstrapped_std(
                 perc_sig / 100, n=grp_nroi, n_samples=misc_analys.N_BOOTSTRP, 
-                proportion=True
+                proportion=True, randst=randst
                 )
 
             perc_sig_df.loc[g, f"perc_sig_{sig}_idxs"] = perc_sig
@@ -1010,7 +1010,7 @@ def get_perc_sig_df(idx_df, analyspar, permpar, seed=None):
 
 #############################################
 def get_idx_stats_df(sessions, analyspar, stimpar, basepar, idxpar, 
-                     permpar=None, absolute=True, by_mouse=False, seed=None, 
+                     permpar=None, absolute=True, by_mouse=False, randst=None, 
                      parallel=False):
     """
     get_idx_stats_df(sessions, analyspar, stimpar, basepar)
@@ -1039,8 +1039,8 @@ def get_idx_stats_df(sessions, analyspar, stimpar, basepar, idxpar,
         - by_mouse (bool): 
             if True, data is kept separated by mouse
             default: False
-        - seed (int): 
-            seed value to use. (-1 treated as None)
+        - randst (int or np.random.RandomState): 
+            random state or seed value to use. (-1 treated as None)
             default: None
         - parallel (bool): 
             if True, some of the analysis is run in parallel across CPU cores 
@@ -1060,9 +1060,6 @@ def get_idx_stats_df(sessions, analyspar, stimpar, basepar, idxpar,
     """
 
     nanpol = None if analyspar.remnans else "omit"
-
-    if permpar is not None:
-        seed = gen_util.seed_all(seed, "cpu", log_seed=False)
 
     if analyspar.tracked:
         misc_analys.check_sessions_complete(sessions, raise_err=True)
@@ -1129,9 +1126,9 @@ def get_idx_stats_df(sessions, analyspar, stimpar, basepar, idxpar,
 
         # calculate p-values between sessions (0-1, 0-2, 1-2...)
         if permpar is not None:
-            p_vals = math_util.comp_vals_acr_groups(
+            p_vals = rand_util.comp_vals_acr_groups(
                 sess_roi_idxs, n_perms=permpar.n_perms, stats=analyspar.stats, 
-                paired=analyspar.tracked, nanpol=nanpol
+                paired=analyspar.tracked, nanpol=nanpol, randst=randst
                 )
             p = 0
             for i, sess_n in enumerate(sess_ns):

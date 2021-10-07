@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import scipy.stats as scist
 
-from util import logger_util, gen_util, logreg_util, math_util
+from util import logger_util, gen_util, logreg_util, math_util, rand_util
 from sess_util import sess_gen_util
 from analysis import misc_analys
 
@@ -151,8 +151,9 @@ def get_df_stats(scores_df, analyspar):
         
         if isinstance(err, np.ndarray):
             err = err.tolist()
-            stats_df[f"{col}_err"] = np.nan
-            stats_df[f"{col}_err"] = stats_df[f"{col}_err"].astype(object)
+            stats_df = gen_util.set_object_columns(
+                stats_df, [f"{col}_err"], in_place=True
+                )
 
         stats_df.loc[0, f"{col}_stat"] = stat
         stats_df.at[0, f"{col}_err"] = err
@@ -212,12 +213,13 @@ def add_CI_p_vals(shuffle_df, stats_data_df, permpar):
         shuffle_data = shuffle_df[col].to_numpy()
         shuffle_data = shuffle_data[~np.isnan(shuffle_data)] # remove NaN data
         
-        math_util.check_n_rand(len(shuffle_data), p_thresh_corr)
+        rand_util.check_n_rand(len(shuffle_data), p_thresh_corr)
         null_CI = [np.percentile(shuffle_data, p) for p in percs]
 
         null_key = f"{col}_null_CIs"
-        stats_df[null_key] = np.nan
-        stats_df[null_key] = stats_df[null_key].astype(object)
+        stats_df = gen_util.set_object_columns(
+            stats_df, [null_key], in_place=True
+            )
         stats_df.at[0, null_key] = null_CI
 
         # get and add p-value
@@ -364,7 +366,7 @@ def run_sess_log_reg(sess, analyspar, stimpar, logregpar, n_splits=100,
             subset.
     """
     
-    seed = gen_util.seed_all(seed, log_seed=False, seed_now=False)
+    seed = rand_util.seed_all(seed, log_seed=False, seed_now=False)
 
     # retrieve data
     input_data, target_data, ctrl_ns = get_decoding_data(
@@ -396,8 +398,8 @@ def run_sess_log_reg(sess, analyspar, stimpar, logregpar, n_splits=100,
             with logger_util.TempChangeLogLevel(level="warning"):
                 mod_cvs, _, _ = logreg_util.run_logreg_cv_sk(
                     input_data, target_data, logregpar._asdict(), extrapar, 
-                    analyspar.scale, ctrl_ns, seed=seed + b, parallel=parallel, 
-                    save_models=False, catch_set_prob=False)
+                    analyspar.scale, ctrl_ns, randst=seed + b, 
+                    parallel=parallel, save_models=False, catch_set_prob=False)
 
             temp_df = pd.DataFrame()
             for set_type, score_type in set_score_types:

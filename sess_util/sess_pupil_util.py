@@ -14,10 +14,16 @@ Note: this code uses python 3.7.
 """
 
 import copy
+import logging
+from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 from util import logger_util
+from sess_util import sess_file_util
+
+logger = logging.getLogger(__name__)
 
 
 #############################################
@@ -100,7 +106,7 @@ def _eye_diam_center(df, thr=5):
 
     Required args:
         - data (pd DataFrame): dataframe with the following columns 
-                               ("coords", "bodyparts", ordered frame numbers)
+                               ("coords", "bodyparts", ordered by frame numbers)
 
     Optional args:
         - thr (num): threshold diameter to identify blinks
@@ -153,10 +159,7 @@ def _eye_diam_center(df, thr=5):
     # find diameters (frames x diams (4))
     diams = np.sqrt(dx**2 + dy**2)
 
-    # max_diam = np.max(diams, axis=1)
-    # mean_diam = np.mean(diams, axis=1)
     median_diam = np.median(diams, axis=1)
-    # min_diam = np.min(diams, axis=1)
 
     nan_diam = _diam_no_blink(median_diam, thr)
 
@@ -171,4 +174,50 @@ def _eye_diam_center(df, thr=5):
     center_dist_diff[nan_idx] = np.nan
 
     return nan_diam, center, center_dist_diff
+
+
+#############################################
+def create_pup_h5(source_df_path, sessid, mouseid, date, savedir=".", thr=5, 
+                  log=True):
+    """
+    create_pup_h5(source_df_path, sessid, mouseid, date)
+
+    Creates a pupil dataframe from a source dataframe, and saved as an h5 file.
+
+    Required args:
+        - source_df_path (Path): path to source dataframe, saved as a csv file, 
+                                 and containing the following columns 
+                                 ("coords", "bodyparts", ordered by frame 
+                                 numbers)
+        - sessid (int or str)  : session ID to generate pup_h5_name from.
+        - mouseid (int or str) : mouse ID to generate pup_h5_name from.
+        - date (int or str)    : date (YYYYMMDD) to generate pup_h5_name from.
+
+    Optional args:
+        - savedir (Path): main directory in which to save pupil data file.
+                          default: "."
+        - thr (num)     : threshold diameter to identify blinks
+                          default: 5
+        - log (bool)    : if True, target save path is logged to the console
+                          default: True
+    """
+
+    df = pd.read_csv(source_df_path)
+    nan_diam, center, _ = _eye_diam_center(df, thr=thr)
+
+    new_df = pd.DataFrame()
+    new_df["nan_diam"] = nan_diam.tolist()
+    new_df["nan_center_x"] = center[:, 0].tolist()
+    new_df["nan_center_y"] = center[:, 1].tolist()
+    
+    target_df_name = sess_file_util.get_check_pupil_data_h5_name(
+        sessid=sessid, mouseid=mouseid, date=date
+        )
+
+    target_df_path = Path(savedir, target_df_name)
+
+    new_df.to_hdf(target_df_path, "pupil_data")
+
+    if log:
+        logger.info(f"Pupil data saved to {target_df_path}.")    
 

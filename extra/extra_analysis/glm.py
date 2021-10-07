@@ -23,7 +23,7 @@ import pandas as pd
 from sklearn import linear_model, metrics, model_selection, pipeline, \
     preprocessing
 
-from util import file_util, gen_util, logger_util, math_util
+from util import file_util, gen_util, logger_util, math_util, rand_util
 from sess_util import sess_data_util, sess_gen_util, sess_str_util
 from extra_plot_fcts import glm_plots
 
@@ -67,7 +67,7 @@ def build_stim_beh_df(sessions, analyspar, sesspar, stimpar, each_roi=False):
         full_df = full_df.append(sub_df)
     
     full_df = full_df.reset_index(drop=True)
-    full_df = gen_util.drop_unique(full_df)
+    full_df = gen_util.drop_unique(full_df, in_place=True)
 
     return full_df
 
@@ -396,7 +396,7 @@ def run_glms(sessions, analysis, seed, analyspar, sesspar, stimpar, glmpar,
              figpar, parallel=False):
 
 
-    seed = gen_util.seed_all(seed, "cpu", log_seed=False)
+    seed = rand_util.seed_all(seed, "cpu", log_seed=False)
 
     sessstr_pr = sess_str_util.sess_par_str(
         sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 

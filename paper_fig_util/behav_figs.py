@@ -124,7 +124,7 @@ def pupil_run_block_diffs(sessions, analyspar, sesspar, stimpar, permpar,
         analyspar=analyspar, 
         stimpar=stimpar, 
         permpar=permpar, 
-        seed=seed,
+        randst=seed,
         parallel=parallel
         )
 

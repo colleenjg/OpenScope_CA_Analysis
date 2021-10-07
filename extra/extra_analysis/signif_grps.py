@@ -18,7 +18,7 @@ import logging
 
 import numpy as np
 
-from util import gen_util, logger_util, math_util
+from util import gen_util, logger_util, math_util, rand_util
 
 logger = logging.getLogger(__name__)
 
@@ -315,9 +315,9 @@ def get_signif_rois(integ_data, permpar, stats="mean", op="diff", nanpol=None,
     # concatenate surp and reg from quantile
     qu_data_all = np.concatenate(integ_data, axis=1)
     # run permutation to identify significant ROIs
-    all_rand_res = math_util.permute_diff_ratio(
+    all_rand_res = rand_util.permute_diff_ratio(
         qu_data_all, n_reg, permpar.n_perms, stats, nanpol, op)
-    sign_rois = math_util.id_elem(
+    sign_rois = rand_util.id_elem(
         all_rand_res, qu_data_res, permpar.tails, permpar.p_val, 
         log_elems=log_rois)
     return sign_rois

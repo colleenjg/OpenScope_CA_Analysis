@@ -81,8 +81,9 @@ def plot_pupil_run_trace_stats(trace_df, analyspar, figpar, split="by_exp",
 
     datatypes = ["run", "pupil"]
 
-    figpar["init"]["subplot_wid"] = 5
-    figpar["init"]["subplot_hei"] = 2.35
+    figpar["init"]["subplot_wid"] = 4.2
+    figpar["init"]["subplot_hei"] = 2.2
+    figpar["init"]["gs"] = {"hspace": 0.3}
     figpar["init"]["ncols"] = 1
     figpar["init"]["sharey"] = False
     figpar["init"]["sharex"] = True
@@ -126,7 +127,9 @@ def plot_pupil_run_trace_stats(trace_df, analyspar, figpar, split="by_exp",
     sub_ax.set_xlabel("Time (s)", weight="bold")
 
     # fix y ticks
-    plot_util.set_interm_ticks(ax, 4, dim="y", share=False, weight="bold")
+    plot_util.set_interm_ticks(
+        ax, 2, dim="y", share=False, weight="bold", update_ticks=True
+        )
 
     return ax
 
@@ -262,11 +265,12 @@ def plot_pupil_run_block_diffs(block_df, analyspar, permpar, figpar,
     n_datatypes = len(datatypes)
 
     fig, ax = plt.subplots(
-        1, n_datatypes, figsize=(11.2, 5.3), squeeze=False
+        1, n_datatypes, figsize=(12.7, 4), squeeze=False, 
+        gridspec_kw={"wspace": 0.22}
         )
 
     if title is not None:
-        fig.suptitle(title, y=0.94, weight="bold")
+        fig.suptitle(title, y=1.2, weight="bold")
 
     logger.info(f"Corrected p-values ({comp_info}):", extra={"spacing": "\n"})
     
@@ -326,10 +330,9 @@ def plot_pupil_run_block_diffs(block_df, analyspar, permpar, figpar,
         sub_ax.set_xticklabels(lp_names, fontweight="bold")
         sub_ax.tick_params(axis="x", which="both", bottom=False) 
 
-        sub_ax.set_yticks(sub_ax.get_ylim())
         plot_util.set_interm_ticks(
             np.asarray(sub_ax), n_ticks=3, dim="y", share=False, 
-            fontweight="bold"
+            fontweight="bold", update_ticks=True
             )
 
         for i, (x, p_val_text) in enumerate(zip(xs, p_val_texts)):

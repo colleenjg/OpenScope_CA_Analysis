@@ -19,7 +19,7 @@ import warnings
 from joblib import Parallel, delayed
 import numpy as np
 
-from util import file_util, gen_util, logger_util, math_util
+from util import file_util, gen_util, logger_util, math_util, rand_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
 from extra_analysis import ori_analys, quant_analys, signif_grps
 from extra_plot_fcts import roi_analysis_plots as roi_plots
@@ -451,7 +451,7 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
     else:
         nanpol = "omit"
 
-    seed = gen_util.seed_all(seed, "cpu", log_seed=False)
+    seed = rand_util.seed_all(seed, "cpu", log_seed=False)
 
     # identify significant ROIs 
     # (returns all_roi_grps, grp_names)
@@ -841,7 +841,7 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
         stimpar, ["gabfr", "pre", "post"], 
         [tcurvpar.gabfr, tcurvpar.pre, tcurvpar.post])
 
-    seed = gen_util.seed_all(seed, "cpu", log_seed=False)
+    seed = rand_util.seed_all(seed, "cpu", log_seed=False)
 
     if figpar["save"]["use_dt"] is None:
         figpar["save"]["use_dt"] = gen_util.create_time_str()

@@ -341,7 +341,7 @@ def surp_idx_by_sess(data, n_perms=1000, datatype='roi', op='diff',
     # get CI
     div = data[0].shape[-1] # length of reg
     # perms (items x perms)
-    all_rand = math_util.permute_diff_ratio(
+    all_rand = rand_util.permute_diff_ratio(
         np.concatenate(data, axis=-1).reshape(targ), div=div, 
         n_perms=n_perms, stats=stats, nanpol=nanpol, op=op)
 
