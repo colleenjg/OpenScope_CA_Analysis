@@ -355,6 +355,10 @@ def plot_usi_corr(usi_corr_df, stim_sess):
                 text = '       *\n{:.2e}'.format(df['p_val_raw'].
                                                  values[i]*bonf_n)
                 plt.text(xval-0.3, plt.ylim()[1], text)
+            else:
+                text = '\n{:.2e}'.format(df['p_val_raw'].
+                                                 values[i]*bonf_n)
+                plt.text(xval-0.3, plt.ylim()[1], text)
         plt.title(stim_str[plot_row] + '\n' + sess_str[plot_col] + '\n\n')
         plt.ylim([-1,1])
         ax[plot_row, plot_col].spines['top'].set_visible(False)
