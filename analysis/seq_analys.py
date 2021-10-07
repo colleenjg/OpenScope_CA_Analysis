@@ -768,7 +768,7 @@ def get_sess_integ_resp_dict(sess, analyspar, stimpar):
                 ref_type = "twop_frs"
                 refs = stim.get_twop_fr_by_seg(
                     refs, first=False, last=True, ch_fl=[0, 0.6]
-                    )["last_twop_fr"].to_numpy() + 1
+                    )["last_twop_fr"].to_numpy() # last frames (excl)
                 if len(refs) == 0:
                     raise RuntimeError(
                         "No frames found given flank requirements."
@@ -984,7 +984,7 @@ def get_rel_resp_stats_df(sessions, analyspar, stimpar, permpar, rel_sess=1,
     # prepare target dataframe
     source_cols = ["rel_exp", "rel_unexp"]
     if stimpar.stimtype == "gabors":
-         # regular, since only A, B, C are included
+         # regular means only A, B, C are included
         targ_cols = ["rel_reg", "rel_unexp"]
     else:
         targ_cols = ["rel_exp", "rel_unexp"]

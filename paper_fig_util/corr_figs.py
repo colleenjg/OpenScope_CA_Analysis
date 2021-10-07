@@ -19,7 +19,7 @@ from paper_fig_util import helper_fcts
 logger = logging.getLogger(__name__)
 
 # whether to shuffle ROI tracking (True), or session pair order (False)
-PERMUTE_TRACKING = False 
+PERMUTE_TRACKING = True 
 
 
 ############################################
@@ -179,9 +179,9 @@ def gabor_norm_res_corrs_sess123_comps(sessions, analyspar, sesspar, stimpar,
         )
         
     extrapar = {
-        "seed"            : seed,
         "consec_only"     : consec_only,
         "permute_tracking": permute_tracking,
+        "seed"            : seed,
     }
 
     info = {"analyspar"  : analyspar._asdict(),
@@ -269,9 +269,9 @@ def visual_flow_norm_res_corrs_sess123_comps(sessions, analyspar, sesspar,
         )
         
     extrapar = {
-        "seed"            : seed,
         "consec_only"     : consec_only,
         "permute_tracking": permute_tracking,
+        "seed"            : seed,
     }
 
     info = {"analyspar"  : analyspar._asdict(),

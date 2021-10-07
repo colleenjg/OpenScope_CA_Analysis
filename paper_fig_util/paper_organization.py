@@ -690,7 +690,7 @@ class FigurePanelAnalysis():
         self.description = ("Example normalized residual Gabor USI correlation "
             "between session 1 and 2.")
         self.specific_params = get_specific_params(
-           line="L23",
+           line="L5",
            plane="soma", 
            sess_n="1-2",
            tracked=True,

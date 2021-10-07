@@ -17,7 +17,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import seaborn
 
-from util import logger_util, plot_util, math_util
+from util import logger_util, plot_util, math_util, rand_util
 from analysis import misc_analys
 from plot_fcts import plot_helper_fcts, seq_plots
 
@@ -135,7 +135,8 @@ def plot_pupil_run_trace_stats(trace_df, analyspar, figpar, split="by_exp",
 
 
 #############################################
-def plot_violin_data(sub_ax, xs, all_data, palette=None, dashes=None):
+def plot_violin_data(sub_ax, xs, all_data, palette=None, dashes=None, 
+                     seed=None):
     """
     plot_violin_data(sub_ax, xs, all_data)
 
@@ -157,7 +158,13 @@ def plot_violin_data(sub_ax, xs, all_data, palette=None, dashes=None):
         - dashes (list): 
             dash patterns for each data group
             default: None
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
     """
+
+    # seed for scatterplot
+    rand_util.seed_all(seed, log_seed=False)
 
     # checks
     if len(xs) != len(all_data):
@@ -200,7 +207,7 @@ def plot_violin_data(sub_ax, xs, all_data, palette=None, dashes=None):
 
 #############################################
 def plot_pupil_run_block_diffs(block_df, analyspar, permpar, figpar, 
-                               title=None):
+                               title=None, seed=None):
     """
     plot_pupil_run_trace_stats(trace_df, analyspar, permpar, figpar)
 
@@ -238,6 +245,9 @@ def plot_pupil_run_block_diffs(block_df, analyspar, permpar, figpar,
     Optional args:
         - title (str):
             plot title
+            default: None
+        - seed (int): 
+            seed value to use. (-1 treated as None)
             default: None
 
     Returns:
@@ -323,7 +333,9 @@ def plot_pupil_run_block_diffs(block_df, analyspar, permpar, figpar,
             dashes.append(dash)
             p_val_texts.append(p_val_text)
 
-        plot_violin_data(sub_ax, xs, all_data, palette=cols, dashes=dashes)
+        plot_violin_data(
+            sub_ax, xs, all_data, palette=cols, dashes=dashes, seed=seed
+            )
         
         # edit ticks
         sub_ax.set_xticks(range(plot_helper_fcts.N_LINPLA))

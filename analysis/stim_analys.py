@@ -26,7 +26,7 @@ TAB = "    "
 
 
 ############################################
-def collect_base_data(sessions, analyspar, stimpar, datatype="unexp_rel_resp", 
+def collect_base_data(sessions, analyspar, stimpar, datatype="rel_unexp_resp", 
                       rel_sess=1, basepar=None, idxpar=None, abs_usi=True, 
                       parallel=False):
     """
@@ -45,8 +45,8 @@ def collect_base_data(sessions, analyspar, stimpar, datatype="unexp_rel_resp",
 
     Optional args:
         - datatype (str):
-            type of data to retrieve ("unexp_rel_resp" or "usis")
-            default: "unexp_rel_resp"
+            type of data to retrieve ("rel_unexp_resp" or "usis")
+            default: "rel_unexp_resp"
         - rel_sess (int):
             number of session relative to which data should be scaled, for each 
             mouse
@@ -75,7 +75,9 @@ def collect_base_data(sessions, analyspar, stimpar, datatype="unexp_rel_resp",
     
     nanpol = None if analyspar.remnans else "omit"
 
-    if datatype == "unexp_rel_resp":
+    initial_columns = misc_analys.get_sess_df_columns(sessions[0], analyspar)
+
+    if datatype == "rel_unexp_resp":
         data_df = seq_analys.get_resp_df(
             sessions, analyspar, stimpar, rel_sess=rel_sess, parallel=parallel
             )
@@ -83,11 +85,14 @@ def collect_base_data(sessions, analyspar, stimpar, datatype="unexp_rel_resp",
             unexp_gabfrs = stimpar.gabfr[1]
             unexp_data = [data_df[f"rel_unexp_{fr}"] for fr in unexp_gabfrs]
             data_df[datatype] = [
-                math_util.get_stats(data, axes=0, nanpol=nanpol)[0] 
-                for data in zip(*unexp_data)
+                math_util.mean_med(
+                    data, stats=analyspar.stats, axis=0, nanpol=nanpol
+                    ) for data in zip(*unexp_data)
                 ]
         else:
-            data_df = data_df.rename(columns={"unexp": datatype})
+            data_df = data_df.rename(columns={"rel_unexp": datatype})
+        
+
     elif datatype == "usis":
         if basepar is None or idxpar is None:
             raise ValueError(
@@ -102,8 +107,10 @@ def collect_base_data(sessions, analyspar, stimpar, datatype="unexp_rel_resp",
             data_df[datatype] = data_df[datatype].map(np.absolute)        
     else:
         gen_util.accepted_values_error(
-            "datatype", datatype, ["unexp_rel_resp", "usis"]
+            "datatype", datatype, ["rel_unexp_resp", "usis"]
             )
+
+    data_df = data_df[initial_columns + [datatype]]
 
     return data_df
 
@@ -215,7 +222,7 @@ def check_init_stim_data_df(data_df, sessions, stimpar, comp_sess=[1, 3],
 
 ############################################
 def get_stim_data_df(sessions, analyspar, stimpar, stim_data_df=None, 
-                     comp_sess=[1, 3], datatype="unexp_rel_resp", rel_sess=1, 
+                     comp_sess=[1, 3], datatype="rel_unexp_resp", rel_sess=1, 
                      basepar=None, idxpar=None, abs_usi=True, parallel=False):
     """
     get_stim_data_df(sessions, analyspar, stimpar)
@@ -242,7 +249,7 @@ def get_stim_data_df(sessions, analyspar, stimpar, stim_data_df=None,
             default: [1, 3]
         - datatype (str):
             type of data to retrieve
-            default: "unexp_rel_resp"
+            default: "rel_unexp_resp"
         - rel_sess (int):
             number of session relative to which data should be scaled, for each 
             mouse
@@ -297,7 +304,7 @@ def get_stim_data_df(sessions, analyspar, stimpar, stim_data_df=None,
         sess_ns = sorted(grp_df["sess_ns"].unique())
         for sess_n in comp_sess:
             if int(sess_n) not in sess_ns:
-                raise RuntimeError("sess_n missing in grp_df.")
+                raise RuntimeError(f"Session {sess_n} missing in grp_df.")
 
         # obtain comparison data
         comp_data = [[], []]
@@ -322,7 +329,7 @@ def get_stim_data_df(sessions, analyspar, stimpar, stim_data_df=None,
 ############################################
 def abs_fractional_diff(data):
     """
-    add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar)
+    abs_fractional_diff(data)
     """
 
     if len(data) != 2:
@@ -427,7 +434,7 @@ def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
             for n in comp_sess:
                 data_col = f"{stimtype}_s{n}"
 
-                # get absolute data
+                # get data
                 data = stim_stats_df.loc[row_idx, data_col]
 
                 # get session stats
@@ -626,7 +633,7 @@ def add_stim_roi_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
 
 ############################################
 def get_stim_stats_df(sessions, analyspar, stimpar, permpar, comp_sess=[1, 3], 
-                      datatype="unexp_resp", rel_sess=1, basepar=None, 
+                      datatype="rel_unexp_resp", rel_sess=1, basepar=None, 
                       idxpar=None, pop_stats=True, randst=None, 
                       parallel=False): 
     """
@@ -652,7 +659,7 @@ def get_stim_stats_df(sessions, analyspar, stimpar, permpar, comp_sess=[1, 3],
             default: [1, 3]
         - datatype (str):
             type of data to retrieve
-            default: "unexp_rel_resp"
+            default: "rel_unexp_resp"
         - rel_sess (int):
             number of session relative to which data should be scaled, for each 
             mouse
@@ -749,6 +756,7 @@ def get_stim_stats_df(sessions, analyspar, stimpar, permpar, comp_sess=[1, 3],
     for s, stimtype in enumerate(stimpar.stimtype):
         for n in comp_sess:
             data_cols.append(f"{stimtype}_s{n}")    
+
     stim_stats_df = stim_stats_df.drop(data_cols, axis=1)
 
     stim_stats_df["sess_ns"] = f"comp{comp_sess[0]}v{comp_sess[1]}"
