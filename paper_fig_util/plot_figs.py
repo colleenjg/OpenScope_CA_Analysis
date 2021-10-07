@@ -501,7 +501,7 @@ def plot_pupil_run_block_diffs(analyspar, sesspar, stimpar, permpar, extrapar,
             named tuple containing permutation parameters
         - extrapar (dict): 
             dictionary containing additional analysis parameters
-            ["split"] (str): data split
+            ["seed"] (int): seed
         - block_df (pd.DataFrame):
             dataframe with one row per session/line/plane, and the following 
             columns, in addition to the basic sess_df columns: 
@@ -534,6 +534,7 @@ def plot_pupil_run_block_diffs(analyspar, sesspar, stimpar, permpar, extrapar,
         permpar=permpar,
         figpar=figpar, 
         title=title,
+        seed=extrapar["seed"],
         )
     fig = ax.reshape(-1)[0].figure
     

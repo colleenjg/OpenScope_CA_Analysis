@@ -5281,7 +5281,7 @@ class Grayscr():
                                             grayscreen sequence, outside of 
                                             gabor stimulus blocks, with columns 
                 - "last_stim_fr": last stimulus frame number for the 
-                                  grayscreen sequence
+                                  grayscreen sequence (incl)
                 - "n_stim_fr"   : length of grayscreen sequence
         """
 

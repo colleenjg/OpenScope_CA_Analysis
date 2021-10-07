@@ -202,7 +202,14 @@ def create_pup_h5(source_df_path, sessid, mouseid, date, savedir=".", thr=5,
                           default: True
     """
 
-    df = pd.read_csv(source_df_path)
+    if log:
+        logger.info(f"Creating pupil data dataframe...")  
+
+    df = pd.read_csv(source_df_path, index_col=0, dtype=object)
+
+    if "bodyparts" in df.index:
+        df = df.transpose()
+
     nan_diam, center, _ = _eye_diam_center(df, thr=thr)
 
     new_df = pd.DataFrame()

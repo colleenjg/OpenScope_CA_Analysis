@@ -674,16 +674,18 @@ def get_check_pupil_data_h5_name(pup_h5_name=None, sessid=None, mouseid=None,
     """
 
     if pup_h5_name is not None:
-        expected_parts = [sessid, mouseid, date]
-        expected_lens = [9, 6, 8]
-
-        error_str = ("Expected pup_h5_name to have form "
-            "'{sessid:9}_{mouseid:6}_{date:8}_pupil_data_df.h5'.")
-
         pup_h5_name = Path(Path(pup_h5_name).parts[-1])
         if pup_h5_name.suffix != ".h5":
             raise ValueError("pup_h5_name should have extension .h5.")
         path_parts = pup_h5_name.stem.split("_")
+
+        expected_parts = [sessid, mouseid, date]
+        expected_lens = [9, 6, 8]
+
+        error_str = ("Expected pup_h5_name to have form "
+            "'{sessid:9}_{mouseid:6}_{date:8}_pupil_data_df.h5', but "
+            f"found {pup_h5_name}.")
+
 
         error = False
         error = True if len(path_parts) != 6 else error
@@ -693,7 +695,7 @@ def get_check_pupil_data_h5_name(pup_h5_name=None, sessid=None, mouseid=None,
             if part is not None:
                 error = True if str(path_parts[p]) != str(part) else error
             else: # length checked instead
-                error = True if len(path_parts[0]) != exp_len else error
+                error = True if len(path_parts[p]) != exp_len else error
         
         if path_parts[-3:] != ["pupil", "data", "df"]:
             error = True

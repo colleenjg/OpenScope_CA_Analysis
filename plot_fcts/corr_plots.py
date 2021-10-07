@@ -15,7 +15,7 @@ import logging
 from matplotlib import pyplot as plt
 import numpy as np
 
-from util import plot_util, logger_util
+from util import plot_util, logger_util, math_util
 from sess_util import sess_plot_util
 from analysis import misc_analys
 from plot_fcts import plot_helper_fcts
@@ -119,7 +119,11 @@ def plot_corr_ex_data_scatterplot(sub_ax, idx_corr_norm_row, corr_name="1v2",
     sub_ax.set_xlabel(f"Session {sess_pair[0]} USIs", fontweight="bold"
         )
     sub_ax.legend()
-    
+
+    plot_util.set_interm_ticks(
+        np.asarray(sub_ax), n_ticks=4, dim="x", share=False, fontweight="bold"
+        )
+
     
 #############################################
 def plot_corr_ex_data_histogram(sub_ax, idx_corr_norm_row, corr_name="1v2", 
@@ -175,7 +179,7 @@ def plot_corr_ex_data_histogram(sub_ax, idx_corr_norm_row, corr_name="1v2",
     sub_ax.axvline(
         x=raw_corr, ls=plot_helper_fcts.VDASH, c=col, lw=3.0, alpha=0.7
         )
-    
+
     # adjust axes so that at least 1/5 of the graph is beyond the correlation value
     xlims = list(sub_ax.get_xlim())
     if raw_corr < med:
@@ -186,7 +190,7 @@ def plot_corr_ex_data_histogram(sub_ax, idx_corr_norm_row, corr_name="1v2",
         leave_space = np.absolute(np.diff([raw_corr, xlims[0]]))[0] / 3
         xlims[1] = np.max([xlims[1], 1.08, leave_space])
         edge = 1
-    
+
     # edge line
     sub_ax.axvline(x=edge, ls=plot_helper_fcts.VDASH, c="k", lw=3.0, alpha=0.5)
 
@@ -194,6 +198,23 @@ def plot_corr_ex_data_histogram(sub_ax, idx_corr_norm_row, corr_name="1v2",
     sub_ax.set_xlim(xlims)
     ylims = list(sub_ax.get_ylim())
     sub_ax.set_ylim(ylims[0], ylims[1] * 1.3)
+
+    # set initial x ticks with more optimal interval
+    n_ticks = 3
+    xticks = plot_util.rounded_lims(xlims)
+    for i, bound in zip([0, 1], [-1, 1]):
+        if np.absolute(xticks[i]) >= 1:
+            xticks[i] = bound
+            step = np.diff(xticks)[0] / (n_ticks + 1)
+            o = math_util.get_order_of_mag(step)
+            new_step = np.ceil(step / 10 ** o) * 10 ** o
+            xticks[1 - i] = xticks[i] - new_step * (n_ticks + 1) * bound
+    sub_ax.set_xticks(xticks)
+
+    plot_util.set_interm_ticks(
+        np.asarray(sub_ax), n_ticks=n_ticks, dim="x", share=False, 
+        fontweight="bold"
+        )
 
     sub_ax.set_ylabel("Density", fontweight="bold", labelpad=10)
     sub_ax.set_xlabel("Raw correlations", fontweight="bold")
@@ -275,9 +296,6 @@ def plot_rand_corr_ex_data(idx_corr_norm_df, title=None):
     hist_ax = ax[1]
     plot_corr_ex_data_histogram(hist_ax, row, corr_name=corr_name, col=col)
 
-    plot_util.set_interm_ticks(
-        ax, n_ticks=3, dim="x", share=False, fontweight="bold"
-        )
     plot_util.set_interm_ticks(
         ax, n_ticks=4, dim="y", share=False, fontweight="bold"
         )

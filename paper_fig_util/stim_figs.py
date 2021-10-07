@@ -58,7 +58,7 @@ def unexp_resp_stimulus_comp_sess1v3(sessions, analyspar, sesspar, stimpar,
     """
 
     logger.info(
-        ("Compiling changes in unexpected responses to Gabors vs visual "
+        ("Compiling changes in unexpected responses to Gabor vs visual "
         "flow stimuli."), 
         extra={"spacing": "\n"})
 
@@ -73,7 +73,7 @@ def unexp_resp_stimulus_comp_sess1v3(sessions, analyspar, sesspar, stimpar,
     permpar = sess_ntuple_util.get_modif_ntuple(permpar, "multcomp", multcomp)
 
     comp_sess = [1, 3]
-    datatype = "unexp_rel_resp"
+    datatype = "rel_unexp_resp"
     rel_sess = 1
     pop_stats = True
     unexp_comp_df = stim_analys.get_stim_stats_df(

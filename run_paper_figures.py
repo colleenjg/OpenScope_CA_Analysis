@@ -239,20 +239,6 @@ def init_sessions(analyspar, sesspar, mouse_df, datadir, sessions=None,
     # identify sessions needed
     sessids = sess_gen_util.get_sess_vals(mouse_df, "sessid", **sesspar_dict)
 
-
-    # HERE, REMOVE IF PUPIL OR ANALYSPAR.TRACKED ARE NOT YET AVAILABLE
-    if pupil or analyspar.tracked:
-        not_done_yet = [828475005, 832883243, 833704570, 834403597]
-        new_sessids = [sessid for sessid in sessids if sessid not in not_done_yet]
-        if len(new_sessids) != len(sessids):
-            warnings.warn(f"One or more of the following sessions have been "
-                "REMOVED as the pupil and/or tracked ROI information is not "
-                f"yet available: {not_done_yet} ", 
-                category=RuntimeWarning, stacklevel=1)
-            time.sleep(10)
-            sessids = new_sessids
-
-
     if len(sessids) == 0:
         raise ValueError("No sessions meet the criteria.")
 
@@ -436,10 +422,10 @@ def main(args):
             raise ValueError("Cannot use '--overwrite' with '--plot_only'.")
         if not args.parallel:
             warnings.warn(
-                "It is strongly recommended that paper analyses be run with the "
-                "'--parallel' argument (enables computations to be distributed "
-                "across available CPU cores). Otherwise, analyses may be very "
-                "slow.", category=UserWarning, stacklevel=1
+                "It is strongly recommended that paper analyses be run with "
+                "the '--parallel' argument (enables computations to be "
+                "distributed across available CPU cores). Otherwise, analyses "
+                "may be very slow.", category=UserWarning, stacklevel=1
                 )
             time.sleep(paper_organization.WARNING_SLEEP)
 

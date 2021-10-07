@@ -72,7 +72,7 @@ def disperse_jsons(datadir, verbose=False):
     if not datadir.exists():
         raise OSError(f"{datadir} does not exist.")
 
-    matching_files_direc = Path("nway-matched-dfs--iou-min-0.3")
+    matching_files_direc = Path("nway-matched-dfs")
     if not matching_files_direc.exists():
         raise OSError(f"{matching_files_direc} directory is missing.")
 
