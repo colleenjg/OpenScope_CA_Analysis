@@ -917,3 +917,538 @@ def compute_2_tailed_pval(value, distro):
     return pval
 
 #############################################
+
+def make_unexp_frac_changes_df(gab_df, brk_df, n_perm=1e4, n_bstrap=1e4):
+    '''
+    Make dataframe containing |fractional df/f| changes and associated
+        p-values and standard deviations for Gabors and visual flow.
+
+    Parameters
+    ----------
+    gab_df : Pandas DataFrame
+        Dataframe with Gabor df/f data and p-values of changes between sessions.
+    brk_df : Pandas DataFrame
+        Dataframe with brick df/f data and p-values of changes between sessions.
+    n_perm : number, default = 1e4
+        Number of permutations to perform.
+    n_bstrap : number, default = 1e4
+        Number of boostraps to perform.
+    '''
+    
+    # declarations/initializations
+    surp_str_list = ['unexp']
+    sess_compare = [1,3]
+    compartment_list = ['dend', 'soma', 'all']
+    layer_list = ['L2/3', 'L5', 'all']
+
+    dff_unexp_frac_changes_df = \
+        pd.DataFrame(columns=['layer', 'compartment', 'sess_compare', 
+                              'gab_frac_changes', 'brk_frac_changes', 
+                              'pval', 'gab_bstrap_std', 'brk_bstrap_std'])
+    idx = -1
+    
+    # Loop over compartments
+    for compartment in compartment_list:
+        # And layers
+        for layer in layer_list:
+            if layer == 'all' and compartment != 'all':
+                continue
+            if layer != 'all' and compartment == 'all':
+                continue
+            print(layer, compartment)
+            idx+=1
+            # Compute Gabor fractional changes
+            gab_frac, gab_dff_pairs, brk_for_gab_dff_pairs = \
+                compute_gabor_session_fractional_changes(
+                    gab_df, brk_df, surp_str_list, 
+                    layer, compartment, sess_compare)
+            # Compute visual flow fractional changes
+            brk_frac, brk_dff_pairs, gab_for_brk_dff_pairs = \
+                compute_brick_session_fractional_changes(
+                    gab_df, brk_df, surp_str_list, 
+                    layer, compartment, sess_compare)
+            # Compute fractional change p-values
+            pval = \
+                compute_fractional_change_pval(gab_dff_pairs, brk_dff_pairs, 
+                                               brk_for_gab_dff_pairs, 
+                                               gab_for_brk_dff_pairs,
+                                               gab_frac, brk_frac,
+                                               n_perm=n_perm)     
+            # Compute fractional change standard deviations
+            gab_std, brk_std = \
+                compute_fractional_change_std(gab_dff_pairs, brk_dff_pairs, 
+                                              n_bstrap=n_bstrap)     
+            # Add data to dataframe
+            dff_unexp_frac_changes_df.loc[idx] = \
+                [layer] + [compartment] + [sess_compare] + \
+                [gab_frac] + [brk_frac] + [pval] + [gab_std] + [brk_std]
+    
+    return dff_unexp_frac_changes_df
+
+#############################################
+    
+def compute_gabor_session_fractional_changes(gab_df, brk_df, surp_str_list, 
+                                             layer, compartment, sess_compare):
+    '''
+    Get Gabor absolute fractional df/f changes (restricted to significant 
+    session changes, if desired), with associated brick |fractional df/f| 
+    changes.
+    
+    Parameters
+    ----------
+    gab_df : Pandas DataFrame
+        Dataframe with Gabor df/f data and p-values of changes between sessions.
+    brk_df : Pandas DataFrame
+        Dataframe with brick df/f data and p-values of changes between sessions.
+    surp_str_list : array of strings
+        Surprise type ('unexp', 'expec') for which to obtain data.
+    layer : string
+        Layer ('L2/3', 'L5', 'all') for which to obtain data.
+    compartment : string
+        Compartment ('dend', 'soma') for which to obtain data.
+    sess_compare : 1-D arraylike of numbers
+        Array of sessions to compare (e.g., [1,3], ['all'])
+    
+    Returns
+    -------
+    gab_frac : 1-d array of numbers
+        Array of absolute fractional changes for Gabor stimuli.
+    gab_dff_pairs : 2-d lists of 1-d arrays of numbers
+        Contains df/f data for selected sessions for Gabor stimuli.
+    brk_for_gab_dff_pairs : 2-d lists of 1-d arrays of numbers
+        Contains df/f data for selected sessions for visual flow stimuli
+        that match those for the Gabor stimuli.
+    '''
+    
+    # declarations/initializations
+    gab_dff_pairs = []
+    brk_for_gab_dff_pairs = []
+
+    # Loop through unexpected / expected
+    for surp_str in surp_str_list:
+        if layer != 'all':
+            # Get sub-dataframes for appropriate layer/compartment
+            mask0 = gab_df['layer']==layer
+            mask1 = gab_df['compartment']==compartment
+            gab_df = gab_df[mask0 & mask1]
+            mask0 = brk_df['layer']==layer
+            mask1 = brk_df['compartment']==compartment
+            brk_df = brk_df[mask0 & mask1]
+        # Obtain dataframe consisting only of p-value columns of expected
+        #  or unexpected stimulus
+        gab_pval_df = gab_df.filter(regex=('pval.*._{}'.format(surp_str)))
+        # This can be set to desired p-value (e.g., to get significant cells,
+        #  set to <= 0.05).  Currently just a dummy line
+        mask = gab_pval_df >= -1
+
+        
+        # Get rows/columns where brick(/gabor) data is significant if desired.
+        #  Here, just obtains the dataframe rows and columns
+
+        # Rows correspond to layer/compartments, columns to session pairs 
+        #  ([1,2], [2_3], or [1,3]). Note, there are equal number of entries,
+        #  and are such that gab_pval_df[rows[i], cols[i]] = True (i.e., think
+        #  of the rows and columns as x,y coordinates)
+        rows = np.where(mask.to_numpy())[0]
+        cols = np.where(mask.to_numpy())[1]
+
+        # Loop through all True values to compare against, including
+        #  sessions that will not be included (skipped below)
+        for i in range(len(rows)):
+            # Get sessions through column title.  E.g., [1,2]
+            sess_ns = gab_pval_df.columns[cols[i]].split('_')[1:3]
+            sess_ns = np.asarray(sess_ns).astype('int')
+            
+            # If we're comparing 2 sessions, make sure we're looking at the 
+            #  correct ones.  Skip ('continue') if not
+            if sess_compare[0] != 'all':
+                if sess_ns[0]!=sess_compare[0] or sess_ns[1]!=sess_compare[1]:
+                    continue
+            # Indices start with 0, of course
+            sess_idxs = sess_ns-1
+
+            
+            # Obtain df/f values for all sessions.  Will constrain to
+            #  appropriate sessions afterwards
+            gab_dff = \
+                gab_df['{}_dff__all_rois'.format(surp_str)].values[rows[i]]
+            brk_dff = \
+                brk_df['{}_dff__all_rois'.format(surp_str)].values[rows[i]]
+            # We need this to get the df/f data for the desired sessions
+            n_rois = gab_df['sess_123_num_rois'].values[rows[i]]
+            # display(n_rois)
+
+            
+            # Get data for each session (i really made this unnecessarily hard 
+            #  by not putting each session's data in its own column!)
+            
+            # Augment n_rois and running sum for indexing purposes below
+            n_rois_aug = np.concatenate(([0], n_rois))
+            n_rois_cs = np.cumsum(n_rois_aug)
+            # Get indices for first and second sessions as identified above.
+            dff_idxs = \
+                [range(n_rois_cs[sess_idxs[0]], 
+                       n_rois_cs[sess_idxs[0]+1]),
+                 range(n_rois_cs[sess_idxs[1]], 
+                       n_rois_cs[sess_idxs[1]+1])]
+            # # Augment n_rois for indexing purposes below
+            # n_rois_aug = np.concatenate((n_rois, [0]))
+            # # Get indices for first and second sessions as identified above.
+            # dff_idxs = \
+            #     [range(np.sum(n_rois_aug[:sess_idxs[0]]), 
+            #            np.sum(n_rois_aug[:sess_idxs[0]+1])),
+            #      range(np.sum(n_rois_aug[:sess_idxs[1]]), 
+            #            np.sum(n_rois_aug[:sess_idxs[1]+1]))]
+
+            # Plug indices into dff data to get the dff values for the two 
+            #  desired sessions!
+            # 1st array of list comprises ROI dff values for 1st session, 
+            #  2nd array those for 2nd session
+            gab_dff_sess = [gab_dff[dff_idxs[0]], gab_dff[dff_idxs[1]]]
+            brk_dff_sess = [brk_dff[dff_idxs[0]], brk_dff[dff_idxs[1]]]
+            # Each pair corresponds to one of the ss changes across sessions
+            #  (if they had been thus limited)
+            gab_dff_pairs.append(gab_dff_sess)
+            brk_for_gab_dff_pairs.append(brk_dff_sess)
+
+    gab_frac = []
+    # Now compute fractional difference of the means. If 'all' layers / 
+    #  compartments, append all fractional differences together, 
+    #  and, downstream, report the mean of the fractional differences over 
+    #  all compartments
+    for i in range(len(gab_dff_pairs)):
+        mean0 = np.nanmean(gab_dff_pairs[i][0])
+        mean1 = np.nanmean(gab_dff_pairs[i][1])    
+        gab_frac.append(np.abs((mean1-mean0)/mean0))
+    gab_frac = np.array(gab_frac)    
+            
+    return gab_frac, gab_dff_pairs, brk_for_gab_dff_pairs
+
+#############################################
+
+def compute_brick_session_fractional_changes(gab_df, brk_df, surp_str_list, 
+                                             layer, compartment, sess_compare):
+    '''
+    Get Gabor absolute fractional df/f changes (restricted to significant 
+    session changes, if desired), with associated brick |fractional df/f| 
+    changes.
+    
+    Parameters
+    ----------
+    gab_df : Pandas DataFrame
+        Dataframe with Gabor df/f data and p-values of changes between sessions.
+    brk_df : Pandas DataFrame
+        Dataframe with brick df/f data and p-values of changes between sessions.
+    surp_str_list : array of strings
+        Surprise type ('unexp', 'expec') for which to obtain data.
+    layer : string
+        Layer ('L2/3', 'L5', 'all') for which to obtain data.
+    compartment : string
+        Compartment ('dend', 'soma') for which to obtain data.
+    sess_compare : 1-D arraylike of numbers
+        Array of sessions to compare (e.g., [1,3], ['all'])
+    
+    Returns
+    -------
+    brk_frac : 1-d array of numbers
+        Array of absolute fractional changes for visual flow stimuli.
+    brk_dff_pairs : 2-d lists of 1-d arrays of numbers
+        Contains df/f data for selected sessions for visual flow stimuli.
+    gab_for_brk_dff_pairs : 2-d lists of 1-d arrays of numbers
+        Contains df/f data for selected sessions for Gabor stimuli
+        that match those for the visual flow stimuli.
+    '''
+
+    # declarations/initializations
+    brk_dff_pairs = []
+    gab_for_brk_dff_pairs = []
+
+    # Loop through unexpected / expected
+    for surp_str in surp_str_list:
+        if layer != 'all':
+            # Get sub-dataframes for appropriate layer/compartment
+            mask0 = gab_df['layer']==layer
+            mask1 = gab_df['compartment']==compartment
+            gab_df = gab_df[mask0 & mask1]
+            mask0 = brk_df['layer']==layer
+            mask1 = brk_df['compartment']==compartment
+            brk_df = brk_df[mask0 & mask1]
+        # Obtain dataframe consisting only of p-value columns of expected
+        #  or unexpected stimulus
+        brk_pval_df = brk_df.filter(regex=('pval.*._{}'.format(surp_str)))
+        # This can be set to desired p-value (e.g., to get significant cells,
+        #  set to <= 0.05).  Currently just a dummy line
+        mask = brk_pval_df >= -1
+
+        
+        # Get rows/columns where brick(/gabor) data is significant if desired.
+        #  Here, just obtains the dataframe rows and columns
+        # display(mask.to_numpy())
+
+        # Rows correspond to layer/compartments, columns to session pairs 
+        #  ([1,2], [2_3], or [1,3]). Note, there are equal number of entries,
+        #  and are such that gab_pval_df[rows[i], cols[i]] = True (i.e., think
+        #  of the rows and columns as x,y coordinates)
+        rows = np.where(mask.to_numpy())[0]
+        cols = np.where(mask.to_numpy())[1]
+        # display(rows, cols)
+
+        # Loop through all True values to compare against, including
+        #  sessions that will not be included (skipped below)
+        for i in range(len(rows)):
+            # Get sessions through column title.  E.g., [1,2]
+            sess_ns = brk_pval_df.columns[cols[i]].split('_')[1:3]
+            sess_ns = np.array(sess_ns).astype('int')
+
+            # If we're comparing 2 sessions, make sure we're looking at the 
+            #  correct ones.  Skip ('continue') if not
+            if sess_compare[0] != 'all':
+                if sess_ns[0]!=sess_compare[0] or sess_ns[1]!=sess_compare[1]:
+                    continue
+            # Indices start with 0, of course
+            sess_idxs = sess_ns-1
+
+            # Obtain df/f values for all sessions.  Will constrain to
+            #  appropriate sessions afterwards
+            brk_dff = \
+                brk_df['{}_dff__all_rois'.format(surp_str)].values[rows[i]]
+            gab_dff = \
+                gab_df['{}_dff__all_rois'.format(surp_str)].values[rows[i]]
+            gab_dff = \
+                gab_df['{}_dff__all_rois'.format(surp_str)].values[rows[i]]
+            brk_dff = \
+                brk_df['{}_dff__all_rois'.format(surp_str)].values[rows[i]]
+            # We need this to get the df/f data for the desired sessions
+            n_rois = brk_df['sess_123_num_rois'].values[rows[i]]
+            # display(n_rois)
+
+            
+            # Get data for each session (i really made this unnecessarily hard 
+            #  by not putting each session's data in its own column!)
+            
+            # Augment n_rois and running sum for indexing purposes below
+            n_rois_aug = np.concatenate(([0], n_rois))
+            n_rois_cs = np.cumsum(n_rois_aug)
+            # Get indices for first and second sessions as identified above.
+            dff_idxs = \
+                [range(n_rois_cs[sess_idxs[0]], 
+                       n_rois_cs[sess_idxs[0]+1]),
+                 range(n_rois_cs[sess_idxs[1]], 
+                       n_rois_cs[sess_idxs[1]+1])]
+            # # Augment n_rois for indexing purposes below
+            # n_rois_aug = np.concatenate((n_rois, [0]))
+            # # Get indices for first and second sessions as identified above.
+            # dff_idxs = \
+            #     [range(np.sum(n_rois_aug[:sess_idxs[0]]), 
+            #            np.sum(n_rois_aug[:sess_idxs[0]+1])),
+            #      range(np.sum(n_rois_aug[:sess_idxs[1]]), 
+            #            np.sum(n_rois_aug[:sess_idxs[1]+1]))]
+
+            # Plug indices into dff data to get the dff values for the two 
+            #  desired sessions!
+            # 1st array of list comprises ROI dff values for 1st session, 
+            #  2nd array those for 2nd session
+            brk_dff_sess = [brk_dff[dff_idxs[0]], brk_dff[dff_idxs[1]]]
+            gab_dff_sess = [gab_dff[dff_idxs[0]], gab_dff[dff_idxs[1]]]
+            # Each pair corresponds to one of the ss changes across sessions
+            #  (if they had been thus limited)
+            brk_dff_pairs.append(brk_dff_sess)
+            gab_for_brk_dff_pairs.append(gab_dff_sess)
+            
+    # Now compute fractional difference of the means. If 'all' layers / 
+    #  compartments, append all fractional differences together, 
+    #  and, downstream, report the mean of the fractional differences over 
+    #  all compartments
+    brk_frac = []
+    for i in range(len(brk_dff_pairs)):
+        mean0 = np.nanmean(brk_dff_pairs[i][0])
+        mean1 = np.nanmean(brk_dff_pairs[i][1])    
+        brk_frac.append(np.abs((mean1-mean0)/mean0))
+    brk_frac = np.array(brk_frac)
+
+    return brk_frac, brk_dff_pairs, gab_for_brk_dff_pairs
+
+#############################################
+
+def compute_fractional_change_pval(gab_dff_pairs, brk_dff_pairs, 
+                                   brk_for_gab_dff_pairs, gab_for_brk_dff_pairs,
+                                   gab_frac, brk_frac, n_perm=1e3):
+    '''
+    Compute p-value for absolute fractional changes.
+    
+    Parameters
+    ----------
+    gab_dff_pairs : 2-d lists of 1-d arrays of numbers
+        Contains df/f data for selected sessions for Gabor stimuli.
+    brk_dff_pairs : 2-d lists of 1-d arrays of numbers
+        Contains df/f data for selected sessions for visual flow stimuli.
+    brk_for_gab_dff_pairs : 2-d lists of 1-d arrays of numbers.
+        Contains df/f data for selected sessions for visual flow stimuli
+        that match those for the Gabor stimuli.
+    gab_for_brk_dff_pairs : 2-d lists of 1-d arrays of numbers
+        Contains df/f data for selected sessions for Gabor stimuli
+        that match those for the visual flow stimuli.
+    gab_frac : 1-d array of numbers
+        Array of absolute fractional changes for Gabor stimuli.
+    brk_frac : 1-d array of numbers
+        Array of absolute fractional changes for visual flow stimuli.
+    n_perm : number, default = 1e3
+        Number of permutations to perform.
+    
+    Returns
+    -------
+    pval : number
+        P-value of absolute fractional change.
+    '''
+
+    # declarations/initializations
+    n_perm = int(n_perm)
+    gab_brk_distro = []
+    for _ in range(n_perm):
+        gab_perm_pair_mn = []
+        gab_frac_change = []
+        brk_perm_pair_mn = []
+        brk_frac_change = []
+        # For each set of pairs (1 per layer/compartment), grab the two sessions
+        #  of data (as lists of np arrays) for each stimulus type
+        for i in range(len(gab_dff_pairs)):
+            gab_dff_sess = gab_dff_pairs[i]
+            brk_dff_sess = brk_for_gab_dff_pairs[i]
+            # Loop over sessions in the pair.  For each session, permute the
+            #  stimulus labels
+            for j in range(len(gab_dff_sess)):
+                # Arrange as columns.  1st column = Gabors, 2nd column = bricks
+                arr = np.vstack((gab_dff_sess[j],brk_dff_sess[j])).transpose()
+                # Randomly choose index for Gabor or brick column for each ROI  
+                col = np.random.choice(range(arr.shape[1]), size=arr.shape[0], 
+                                       replace=True)
+                # Separate into Gab and brick means
+                gab_perm_pair_mn.append(
+                    np.nanmean(arr[range(arr.shape[0]), col]))
+                brk_perm_pair_mn.append(
+                    np.nanmean(arr[range(arr.shape[0]), 
+                                   np.mod(col+1,arr.shape[1])]))
+            # Compute the permuted absolute fractional changes
+            gab_frac_change.append(
+                np.abs((gab_perm_pair_mn[1]-gab_perm_pair_mn[0]) / 
+                       gab_perm_pair_mn[0]))
+            brk_frac_change.append(
+                np.abs((brk_perm_pair_mn[1]-brk_perm_pair_mn[0]) / 
+                       brk_perm_pair_mn[0]))
+        # Append abs. frac. change differences to permutation distribution
+        gab_brk_distro.append(np.nanmean(gab_frac_change) - 
+                              np.nanmean(brk_frac_change))
+
+        gab_perm_pair_mn = []
+        gab_frac_change = []
+        brk_perm_pair_mn = []
+        brk_frac_change = []
+        # For each pair (1 per layer/compartment), grab the two sessions of 
+        #  data (as lists of np arrays) for each stimulus type.
+        # Note, this is separate specifically because there can be different 
+        #  data if the choice had been made to look at significant values
+        for i in range(len(brk_dff_pairs)):
+            brk_dff_sess = brk_dff_pairs[i]
+            gab_dff_sess = gab_for_brk_dff_pairs[i]
+            # Loop over sessions in the pair.  For each session, permute the
+            #  stimulus labels
+            for j in range(len(gab_dff_sess)):
+                # Arrange as columns.  1st column = Gabors, 2nd column = bricks
+                arr = np.vstack((gab_dff_sess[j],brk_dff_sess[j])).transpose()
+                # Randomly choose index for Gabor or brick column for each ROI  
+                col = np.random.choice(range(arr.shape[1]), size=arr.shape[0], 
+                                       replace=True)
+                # Separate into Gab and brick means
+                gab_perm_pair_mn.append(
+                    np.nanmean(arr[range(arr.shape[0]), col]))
+                brk_perm_pair_mn.append(
+                    np.nanmean(arr[range(arr.shape[0]), 
+                                   np.mod(col+1,arr.shape[1])]))
+            # Compute the permuted absolute fractional changes
+            gab_frac_change.append(
+                np.abs((gab_perm_pair_mn[1]-gab_perm_pair_mn[0]) / 
+                       gab_perm_pair_mn[0]))
+            brk_frac_change.append(
+                np.abs((brk_perm_pair_mn[1]-brk_perm_pair_mn[0]) / 
+                       brk_perm_pair_mn[0]))
+        # Append abs. frac. change differences to permutation distribution
+        gab_brk_distro.append(np.nanmean(gab_frac_change) - 
+                              np.nanmean(brk_frac_change))
+
+    gab_brk_distro = np.asarray(gab_brk_distro)
+
+    # Compute difference between permuted Gabor and brick abs. frac. changes
+    diff = np.mean(gab_frac) - np.mean(brk_frac)
+    pval = compute_2_tailed_pval(diff, gab_brk_distro)
+
+    return pval
+
+#############################################
+
+def compute_fractional_change_std(gab_dff_pairs, brk_dff_pairs, 
+                                  n_bstrap=1e3):
+    '''
+    Compute p-value for absolute fractional changes.
+    
+    Parameters
+    ----------
+    gab_dff_pairs : 2-d lists of 1-d arrays of numbers
+        Contains df/f data for selected sessions for Gabor stimuli.
+    brk_for_gab_dff_pairs : 2-d lists of 1-d arrays of numbers
+        Contains df/f data for selected sessions for visual flow stimuli.
+    n_bstrap : number, default = 1e3
+        Number of boostraps to perform.
+    
+    Returns
+    -------
+    gab_bstrap_std : number
+        Bootstrapped standard deviation of absolute fractional change.
+    gab_bstrap_std : number
+        Bootstrapped standard deviation of absolute fractional change.
+    '''
+    
+    # declarations/initializations
+    n_bstrap = int(n_bstrap)
+    gab_brk_distro = []
+    gab_bstrap_pair_mn = []
+    brk_bstrap_pair_mn = []
+    gab_frac_change = []
+    brk_frac_change = []
+    # For each set of pairs (1 per layer/compartment), grab the two sessions
+    #  of data (as lists of np arrays) for each stimulus type
+    for i in range(len(gab_dff_pairs)):
+        gab_dff_sess = gab_dff_pairs[i]
+        brk_dff_sess = brk_dff_pairs[i]
+        # Loop through each pair
+        for j in range(len(gab_dff_sess)):
+        
+            # Create matrices of bootstrapped data. 
+            #  Rows = sampled data. Columns = boostrapped trials
+            gab_bstrap_matrix = \
+                np.random.choice(gab_dff_sess[j], 
+                                 size=(len(gab_dff_sess[j]), n_bstrap),
+                                 replace=True)
+            brk_bstrap_matrix = \
+                np.random.choice(brk_dff_sess[j], 
+                                 size=(len(brk_dff_sess[j]), n_bstrap),
+                                 replace=True)
+            # We only need the means across sampled data
+            gab_bstrap_pair_mn.append(np.nanmean(gab_bstrap_matrix, axis=0))
+            brk_bstrap_pair_mn.append(np.nanmean(brk_bstrap_matrix, axis=0))
+        # Compute absolute frac changes from bootstrapped data.  
+        #  Gives a vector with length n_bstrap.
+        # Note: abs value bad for values near zero. just do frac change
+        gab_frac_change.append(np.abs(gab_bstrap_pair_mn[1] -
+                                      gab_bstrap_pair_mn[0] / 
+                                      gab_bstrap_pair_mn[0]))
+        brk_frac_change.append(np.abs(brk_bstrap_pair_mn[1] -
+                                      brk_bstrap_pair_mn[0] / 
+                                      brk_bstrap_pair_mn[0]))
+    gab_frac_change = np.hstack(gab_frac_change)
+    brk_frac_change = np.hstack(brk_frac_change)
+    gab_bstrap_std = np.std(gab_frac_change)
+    brk_bstrap_std = np.std(brk_frac_change)
+    
+    return gab_bstrap_std, brk_bstrap_std
+
+#############################################

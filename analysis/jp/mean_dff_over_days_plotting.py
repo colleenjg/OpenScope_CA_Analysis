@@ -229,3 +229,133 @@ def subplot_layer_compartment(ax, layer, compartment, which_sessns, mouse_ns,
                 plt.text(text_xvals[i_x], text_yvals[i_x], text)
 
 #############################################
+
+def plot_absolute_fractional_changes(df_full, alpha):
+    '''
+    Plot absolute fractional changes.
+    
+    Parameters
+    ----------
+    df_full : Pandas DataFrame
+        Dataframe containing |fractional df/f| changes and associated
+        p-values and standard deviations
+    alpha : number
+        Alpha is the p-value threshold, values below which 
+        are considered statistically significant.
+
+    Returns
+    -------
+    fig : Matplotlib figure handle
+        Handle to the full layer/compartment figure with subplots
+    '''
+    
+    # declarations/initializations
+    plot_rows = 3
+    plot_cols = 2
+    fig, ax = plt.subplots(plot_rows, plot_cols, 
+                           figsize=(plot_cols*2.5, plot_cols*6+1),
+                           constrained_layout=True)
+    # Plot rows / compartments
+    for plot_row, compartment in enumerate(df_full['compartment'].unique()):
+        # Plot columns / layers
+        for plot_col, layer in enumerate(df_full['layer'].unique()[:-1]):
+            if compartment == 'all':
+                if plot_col==1:
+                    ax[plot_row, plot_col].axis('off')
+                    continue
+                layer = 'all'
+            mask0 = df_full['layer']==layer
+            mask1 = df_full['compartment']==compartment
+            df = df_full[mask0 & mask1]
+            gab_frac = df['gab_frac_changes'].values[0]
+            brk_frac = df['brk_frac_changes'].values[0]
+            gab_std = df['gab_bstrap_std'].values[0]
+            brk_std = df['brk_bstrap_std'].values[0]
+            sess_compare = df['sess_compare'].values[0]
+            pval = df['pval'].values[0]
+            make_absolute_fractional_subplot(gab_frac, brk_frac, gab_std, 
+                                             brk_std, pval, alpha, 
+                                             layer, compartment, sess_compare, 
+                                             ax[plot_row, plot_col])
+    sess_compare_str = 'All session pairs' if sess_compare[0]=='all' else \
+        'Session {} v {}'.format(sess_compare[0], sess_compare[1])
+    plt.suptitle('|df/f fractional changes| \nfor unexpected events\n{}\n'.
+                 format(sess_compare_str), fontsize=20)
+    return fig
+
+#############################################
+
+def make_absolute_fractional_subplot(gab_frac, brk_frac, gab_frac_std, 
+                                     brk_frac_std, pval, alpha, 
+                                     layer, compartment, sess_compare, ax):
+
+    '''
+    Plot absolute fractional changes.
+    
+    Parameters
+    ----------
+    gab_frac : 1-d array of numbers
+        Array of absolute fractional changes for Gabors.
+    brk_frac : 1-d array of numbers
+        Array of absolute fractional changes for visual flow.
+    gab_frac_std : number
+        Standard deviation of Gabor |fractional df/f| changes.
+    brk_frac_std : number
+        Standard deviation of brick |fractional df/f| changes.
+    pval : number
+        P-value of absolute fractional change.
+    alpha : number
+        Alpha is the p-value threshold, values below which 
+        are considered statistically significant.
+    layer : string
+        Layer ('L2/3', 'L5', 'all') for which to obtain data.    
+    compartment : string
+        Compartment ('dend', 'soma') for which to obtain data.
+    sess_compare : 1-D arraylike of numbers
+        Array of sessions to compare (e.g., [1,3], ['all'])
+    ax : Matplotlib axis handle
+        Axis in which to make subplot
+    '''
+    
+    # declarations/initializations
+    colors = ['slateblue','firebrick']
+    compartment_str_dict = {'dend':'dendrites', 'soma':'somata'}
+
+    plt.sca(ax)
+    plt.bar(['Gabors', 'Bricks'], [np.mean(gab_frac), np.mean(brk_frac)], 
+            color=colors, width=0.5, alpha=0.8)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    err_ylows  = [max(np.mean(gab_frac)-gab_frac_std, 0), 
+                  max(np.mean(brk_frac)-brk_frac_std, 0)]
+    err_yhighs = \
+        [np.mean(gab_frac)+gab_frac_std, np.mean(brk_frac)+brk_frac_std]
+    plt.vlines(['Gabors', 'Bricks'], err_ylows, err_yhighs, color='black')
+
+    # For all layers/compartments
+    if layer=='all':
+        gab_arr = np.repeat(['Gabors'], len(gab_frac))
+        brk_arr = np.repeat(['Bricks'], len(brk_frac))
+        x0 = np.concatenate((gab_arr, brk_arr))
+        y0 = np.concatenate((gab_frac, brk_frac))
+        sns.set_palette('gray')
+        # sns.set_palette(colors)
+        # sns.violinplot(x=x0, y=y0, inner=None, alpha=0.6);
+        sns.stripplot(x=x0, y=y0, jitter=0.2, size=10, alpha=0.6);
+    
+    # Significant p-values
+    if pval <= alpha:
+        ymin = plt.ylim()[0]
+        ymax = plt.ylim()[1]
+        yrange = ymax-ymin
+        y_hline = ymax+0.05*yrange
+        y_text = ymax+0.1*yrange
+        plt.hlines(y_hline, 0, 1)
+        plt.text(0.5, y_text, '*', fontsize=15)
+    
+    compartment_compare_str = 'All compartments' if layer=='all' else \
+        '{} {}'.format(layer, compartment_str_dict[compartment])
+    plt.title('{}\np-value = {:.5f}\n'.
+              format(compartment_compare_str,pval), fontsize=15)
+
+#############################################
