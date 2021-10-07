@@ -16,7 +16,7 @@ from sess_util import sess_ntuple_util
 import numpy as np
 import pandas as pd
 
-from util import logger_util, gen_util, math_util
+from util import logger_util, gen_util, math_util, rand_util
 from analysis import misc_analys, seq_analys, usi_analys
 
 logger = logging.getLogger(__name__)
@@ -162,10 +162,9 @@ def check_init_stim_data_df(data_df, sessions, stimpar, comp_sess=[1, 3],
             raise KeyError(
             f"{stimpar.stimtype} should not already be in stim_data_df."
             )
-        for stimtype_col in stimtype_cols:
-            stim_data_df[stimtype_col] = np.nan
-            stim_data_df[stimtype_col] = \
-                stim_data_df[stimtype_col].astype(object)
+        stim_data_df = gen_util.set_object_columns(
+            stim_data_df, stimtype_cols, in_place=True
+        )
     
     group_columns = ["lines", "planes"]
     aggreg_cols = [
@@ -343,7 +342,7 @@ def abs_fractional_diff(data):
 
 ############################################
 def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar, 
-                       comp_sess=[1, 3], in_place=False, seed=None):
+                       comp_sess=[1, 3], in_place=False, randst=None):
     """
     add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar)
 
@@ -377,8 +376,8 @@ def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
             if True, targ_df is modified in place. Otherwise, a deep copy is 
             modified. targ_df is returned in either case.
             default: False
-        - seed (int): 
-            seed value to use. (-1 treated as None)
+        - randst (int or np.random.RandomState): 
+            random state or seed value to use. (-1 treated as None)
             default: None
 
     Returns:
@@ -390,8 +389,6 @@ def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
             - p_vals (float): p-value for data differences between stimulus 
                 types, corrected for multiple comparisons and tails
     """
-    
-    seed = gen_util.seed_all(seed, "cpu", log_seed=False)
 
     nanpol = None if analyspar.remnans else "omit"
 
@@ -401,9 +398,10 @@ def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
     if not in_place:
         stim_stats_df = stim_stats_df.copy(deep=True)
 
-    for stimtype in stimpar.stimtype:
-        stim_stats_df[stimtype] = np.nan
-        stim_stats_df[stimtype] = stim_stats_df[stimtype].astype(object)
+    stimtypes = gen_util.list_if_not(stimpar.stimtype)
+    stim_stats_df = gen_util.set_object_columns(
+        stim_stats_df, stimtypes, in_place=True
+    )
 
     if analyspar.stats != "mean" or analyspar.error != "std":
         raise NotImplementedError(
@@ -438,8 +436,8 @@ def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
                 )
 
                 # get bootstrapped data 
-                returns = math_util.bootstrapped_std(
-                    data, randst=seed, n_samples=n_bootstrp, return_rand=True, 
+                returns = rand_util.bootstrapped_std(
+                    data, randst=randst, n_samples=n_bootstrp, return_rand=True, 
                     return_choices=analyspar.tracked, choices=choices, 
                     nanpol=nanpol
                     )
@@ -467,10 +465,10 @@ def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
         for j in range(len(comp_sess)):
             rand_concat = [stim_data[j] for stim_data in full_comp_data]
             rand_concat = np.stack(rand_concat).T
-            rand_stats = math_util.permute_diff_ratio(
+            rand_stats = rand_util.permute_diff_ratio(
                 rand_concat, div=None, n_perms=permpar.n_perms, 
                 stats=analyspar.stats, op="none", paired=True, # pair stimuli
-                nanpol=nanpol
+                nanpol=nanpol, randst=randst
                 )
             sess_rand_stats.append(rand_stats)
         
@@ -482,7 +480,7 @@ def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
         all_rand_stat_diffs[i] = all_rand_stats[1] - all_rand_stats[0]
 
         # calculate p-value
-        p_val = math_util.get_p_val_from_rand(
+        p_val = rand_util.get_p_val_from_rand(
             stim_stat_diff, all_rand_stat_diffs[i], tails=permpar.tails,
             nanpol=nanpol
             )
@@ -505,7 +503,7 @@ def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
         error = np.std(btstrap_stats[s])
         stim_stats_df.at[row_idx, stimtype] = [stat[s], error]
 
-    p_val = math_util.get_p_val_from_rand(
+    p_val = rand_util.get_p_val_from_rand(
         stat[1] - stat[0], rand_stat_diffs, tails=permpar.tails, nanpol=nanpol
         )
     stim_stats_df.loc[row_idx, "p_vals"] = p_val
@@ -515,7 +513,7 @@ def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
 
 ############################################
 def add_stim_roi_stats(stim_stats_df, sessions, analyspar, stimpar, permpar, 
-                       comp_sess=[1, 3], in_place=False, seed=None):
+                       comp_sess=[1, 3], in_place=False, randst=None):
     """
     add_stim_roi_stats(stim_stats_df, sessions, analyspar, stimpar, permpar)
 
@@ -548,8 +546,8 @@ def add_stim_roi_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
             if True, targ_df is modified in place. Otherwise, a deep copy is 
             modified. targ_df is returned in either case.
             default: False
-        - seed (int): 
-            seed value to use. (-1 treated as None)
+        - randst (int or np.random.RandomState): 
+            random state or seed value to use. (-1 treated as None)
             default: None
 
     Returns:
@@ -561,8 +559,6 @@ def add_stim_roi_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
             - p_vals (float): p-value for data differences between stimulus 
                 types, corrected for multiple comparisons and tails
     """
-
-    seed = gen_util.seed_all(seed, "cpu", log_seed=False)
 
     nanpol = None if analyspar.remnans else "omit"
 
@@ -577,9 +573,10 @@ def add_stim_roi_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
     if not in_place:
         stim_stats_df = stim_stats_df.copy(deep=True)
 
-    for stimtype in stimpar.stimtype:
-        stim_stats_df[stimtype] = np.nan
-        stim_stats_df[stimtype] = stim_stats_df[stimtype].astype(object)
+    stimtypes = gen_util.list_if_not(stimpar.stimtype)
+    stim_stats_df = gen_util.set_object_columns(
+        stim_stats_df, stimtypes, in_place=True
+    )
 
     # compile all data
     full_data = dict()
@@ -612,9 +609,9 @@ def add_stim_roi_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
                     ).tolist()
 
         # obtain p-values
-        stim_stats_df.loc[row_idx, "p_vals"] = math_util.get_op_p_val(
+        stim_stats_df.loc[row_idx, "p_vals"] = rand_util.get_op_p_val(
             comp_data, permpar.n_perms, stats=analyspar.stats, paired=True,
-            nanpol=nanpol
+            nanpol=nanpol, randst=randst
             )
 
     # remove full data columns
@@ -630,7 +627,8 @@ def add_stim_roi_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
 ############################################
 def get_stim_stats_df(sessions, analyspar, stimpar, permpar, comp_sess=[1, 3], 
                       datatype="unexp_resp", rel_sess=1, basepar=None, 
-                      idxpar=None, pop_stats=True, seed=None, parallel=False): 
+                      idxpar=None, pop_stats=True, randst=None, 
+                      parallel=False): 
     """
     get_stim_stats_df(sessions, analyspar, stimpar, permpar)
 
@@ -671,8 +669,8 @@ def get_stim_stats_df(sessions, analyspar, stimpar, permpar, comp_sess=[1, 3],
             if True, analyses are run on population statistics, and not 
             individual tracked ROIs
             default: True
-        - seed (int): 
-            seed value to use. (-1 treated as None)
+        - randst (int or np.random.RandomState): 
+            random state or seed value to use. (-1 treated as None)
             default: None
         - parallel (bool): 
             if True, some of the analysis is run in parallel across CPU cores 
@@ -743,7 +741,7 @@ def get_stim_stats_df(sessions, analyspar, stimpar, permpar, comp_sess=[1, 3],
     add_stim_stats = add_stim_pop_stats if pop_stats else add_stim_roi_stats 
     stim_stats_df = add_stim_stats(
         stim_stats_df, sessions, analyspar, stimpar, permpar, 
-        comp_sess=comp_sess, in_place=True, seed=seed
+        comp_sess=comp_sess, in_place=True, randst=randst
         )
 
     # adjust data columns

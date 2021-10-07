@@ -25,7 +25,7 @@ gen_util.CC_config_cache()
 
 gen_util.extend_sys_path(__file__, parents=3)
 from extra_analysis import glm
-from util import gen_util, logger_util
+from util import gen_util, logger_util, rand_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_plot_util
 from extra_plot_fcts import plot_from_dicts_tool as plot_dicts
 
@@ -76,12 +76,12 @@ def reformat_args(args):
     if args.plane == "soma":
         args.dend = "allen"
 
-    args.omit_sess, args.omit_mice = sess_gen_util.all_omit(args.stimtype, 
-                                                    args.runtype, args.bri_dir, 
-                                                    args.bri_size, args.gabk)
+    args.omit_sess, args.omit_mice = sess_gen_util.all_omit(
+        args.stimtype, args.runtype, args.bri_dir, args.bri_size, args.gabk
+        )
     
     # chose a seed if none is provided (i.e., args.seed=-1), but seed later
-    args.seed = gen_util.seed_all(
+    args.seed = rand_util.seed_all(
         args.seed, "cpu", log_seed=False, seed_now=False)
 
     # collect analysis letters

@@ -133,7 +133,7 @@ def gabor_sequence_diffs_sess123(sessions, analyspar, sesspar, stimpar,
         basepar=basepar, 
         permpar=permpar,
         split=split, 
-        seed=seed,
+        randst=seed,
         parallel=parallel,
         )
     
@@ -210,7 +210,7 @@ def gabor_rel_resp_sess123(sessions, analyspar, sesspar, stimpar, permpar,
         stimpar=stimpar, 
         permpar=permpar,
         rel_sess=rel_sess,
-        seed=seed,
+        randst=seed,
         parallel=parallel,
         )
 
@@ -334,7 +334,7 @@ def gabor_ex_roi_responses_sess1(sessions, analyspar, sesspar, stimpar,
         stimpar, 
         basepar, 
         n_ex=n_ex,
-        seed=seed,
+        randst=seed,
         parallel=parallel,
         )
 
@@ -418,7 +418,7 @@ def gabor_rel_resp_tracked_rois_sess123(sessions, analyspar, sesspar, stimpar,
         stimpar=stimpar, 
         permpar=permpar,
         rel_sess=rel_sess,
-        seed=seed,
+        randst=seed,
         parallel=parallel,
         )
 
@@ -552,7 +552,7 @@ def visual_flow_diffs_sess123(sessions, analyspar, sesspar, stimpar, basepar,
         basepar=basepar, 
         permpar=permpar,
         split=split, 
-        seed=seed,
+        randst=seed,
         parallel=parallel,
         )
     
@@ -629,7 +629,7 @@ def visual_flow_rel_resp_sess123(sessions, analyspar, sesspar, stimpar,
         stimpar=stimpar, 
         permpar=permpar,
         rel_sess=rel_sess,
-        seed=seed,
+        randst=seed,
         parallel=parallel,
         )
 

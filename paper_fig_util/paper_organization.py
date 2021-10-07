@@ -18,7 +18,7 @@ import time
 
 import numpy as np
 
-from util import gen_util, logger_util
+from util import logger_util, rand_util
 from sess_util import sess_gen_util
 from paper_fig_util import behav_figs, corr_figs, decoding_figs, misc_figs, \
     seq_figs, stim_figs, tracking_figs, usi_figs, plot_figs
@@ -385,7 +385,7 @@ class FigurePanelAnalysis():
             if self.seed == -1:
                 self.seed = PAPER_SEED # select any seed but the paper seed
                 while self.seed == PAPER_SEED:
-                    self.seed = gen_util.seed_all(
+                    self.seed = rand_util.seed_all(
                         -1, "cpu", log_seed=False, seed_now=False
                         )
             if self.seed != PAPER_SEED:
@@ -686,16 +686,19 @@ class FigurePanelAnalysis():
         self.warnings.append(decoder_warning())
 
 
-    def gabor_norm_res_corr_example(self):
+    def gabor_corr_norm_res_ex(self):
         self.description = ("Example normalized residual Gabor USI correlation "
             "between session 1 and 2.")
         self.specific_params = get_specific_params(
            line="L23",
            plane="soma", 
+           sess_n="1-2",
+           tracked=True,
+           error="std",
         )
         self.n_perms_full = 1e5
-        self.analysis_fct = corr_figs.gabor_norm_res_corr_example
-        self.plot_fct = plot_figs.plot_gabor_norm_res_corr_example
+        self.analysis_fct = corr_figs.gabor_corr_norm_res_ex
+        self.plot_fct = plot_figs.plot_gabor_corr_norm_res_ex
 
 
     def gabor_norm_res_corrs_sess123_comps(self):
@@ -1023,7 +1026,7 @@ class FigurePanelAnalysis():
                 "4": {
                     "A_left": self.gabor_Dori_decoding_sess123,
                     "A_right": self.gabor_Uori_decoding_sess123,
-                    "B": self.gabor_norm_res_corr_example,
+                    "B": self.gabor_corr_norm_res_ex,
                     "C": self.gabor_norm_res_corrs_sess123_comps,
                     "D": self.model_illustration,
                     },

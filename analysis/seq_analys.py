@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import scipy.stats as scist
 
-from util import logger_util, gen_util, math_util
+from util import logger_util, gen_util, math_util, rand_util
 from analysis import basic_analys, misc_analys
 from plot_fcts import plot_helper_fcts
 
@@ -259,7 +259,7 @@ def get_sess_roi_split_stats(sess, analyspar, stimpar, basepar, split="by_exp",
 
 
 #############################################
-def get_rand_split_data(split_data, analyspar, permpar, seed=None):
+def get_rand_split_data(split_data, analyspar, permpar, randst=None):
     """
     get_rand_split_data(split_data, analyspar, permpar)
 
@@ -275,8 +275,8 @@ def get_rand_split_data(split_data, analyspar, permpar, seed=None):
             named tuple containing permutation parameters
 
     Optional args:
-        - seed (int): 
-            seed value to use. (-1 treated as None)
+        - randst (int or np.random.RandomState): 
+            random state or seed value to use. (-1 treated as None)
             default: None
 
     Returns:
@@ -285,8 +285,6 @@ def get_rand_split_data(split_data, analyspar, permpar, seed=None):
             dims: ROIs x perms
     """
 
-    seed = gen_util.seed_all(seed, log_seed=False)
-
     nanpol = None if analyspar.remnans else "omit"
 
     split_data = [np.asarray(data) for data in split_data]
@@ -294,13 +292,14 @@ def get_rand_split_data(split_data, analyspar, permpar, seed=None):
     # collect random sequence mean/median split differences
     div = split_data[0].shape[1]
 
-    rand_diffs = math_util.permute_diff_ratio(
+    rand_diffs = rand_util.permute_diff_ratio(
         np.concatenate(split_data, axis=1), 
         div=div, 
         n_perms=permpar.n_perms, 
         stats=analyspar.stats, 
         nanpol=nanpol, 
-        op="diff"
+        op="diff",
+        randst=randst
         )            
 
     return rand_diffs
@@ -308,7 +307,7 @@ def get_rand_split_data(split_data, analyspar, permpar, seed=None):
 
 #############################################
 def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
-                            split="by_exp", seed=None, parallel=False):
+                            split="by_exp", randst=None, parallel=False):
     """
     get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar)
 
@@ -336,8 +335,8 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
             "stim_onset" (grayscr, stim on), 
             "stim_offset" (stim off, grayscr)
             default: "by_exp"
-        - seed (int): 
-            seed value to use. (-1 treated as None)
+        - randst (int or np.random.RandomState): 
+            random state or seed value to use. (-1 treated as None)
             default: None
         - parallel (bool): 
             if True, some of the analysis is run in parallel across CPU cores 
@@ -362,8 +361,6 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
 
 
     nanpol = None if analyspar.remnans else "omit"
-
-    seed = gen_util.seed_all(seed, "cpu", log_seed=False)
 
     if analyspar.tracked:
         misc_analys.check_sessions_complete(sessions, raise_err=True)
@@ -407,7 +404,7 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
         # done here to avoid OOM errors
         lp_rand_diffs = gen_util.parallel_wrap(
             get_rand_split_data, lp_grp_df["roi_split_data"].tolist(), 
-            args_list=[analyspar, permpar, seed], parallel=parallel, 
+            args_list=[analyspar, permpar, randst], parallel=parallel, 
             zip_output=False
             )
 
@@ -454,7 +451,7 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
                 )
 
             # get CIs and p-values
-            p_val, null_CI = math_util.get_p_val_from_rand(
+            p_val, null_CI = rand_util.get_p_val_from_rand(
                 diff_stats[0], rand_diffs, return_CIs=True, 
                 p_thresh=permpar.p_val, tails=permpar.tails, 
                 multcomp=permpar.multcomp, nanpol=nanpol
@@ -465,7 +462,7 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
         del lp_rand_diffs # free up memory
 
         # calculate p-values between sessions (0-1, 0-2, 1-2...)
-        p_vals = math_util.comp_vals_acr_groups(
+        p_vals = rand_util.comp_vals_acr_groups(
             sess_diffs, n_perms=permpar.n_perms, stats=analyspar.stats,
             paired=analyspar.tracked, nanpol=nanpol
             )
@@ -583,7 +580,7 @@ def get_sess_ex_traces(sess, analyspar, stimpar, basepar):
 
 #############################################
 def get_ex_traces_df(sessions, analyspar, stimpar, basepar, n_ex=6, 
-                     seed=None, parallel=False):
+                     randst=None, parallel=False):
     """
     get_ex_traces_df(sessions, analyspar, stimpar, basepar)
 
@@ -603,8 +600,8 @@ def get_ex_traces_df(sessions, analyspar, stimpar, basepar, n_ex=6,
         - n_ex (int):
             number of example traces to retain
             default: 6
-        - seed (int): 
-            seed value to use. (-1 treated as None)
+        - randst (int or np.random.RandomState): 
+            random state or seed value to use. (-1 treated as None)
             default: None
         - parallel (bool): 
             if True, some of the analysis is run in parallel across CPU cores 
@@ -634,14 +631,14 @@ def get_ex_traces_df(sessions, analyspar, stimpar, basepar, n_ex=6,
         get_sess_ex_traces, sessions, [analyspar, stimpar, basepar], 
         parallel=parallel
         )
-
-    seed = gen_util.seed_all(seed, "cpu", log_seed=False)
+    
+    randst = rand_util.get_np_rand_state(randst, set_none=True)
     
     # add data to dataframe
-    new_columns = retained_roi_data[0].keys()
-    for column in new_columns:
-        retained_traces_df[column] = np.nan
-        retained_traces_df[column] = retained_traces_df[column].astype(object)
+    new_columns = list(retained_roi_data[0])
+    retained_traces_df = gen_util.set_object_columns(
+        retained_traces_df, new_columns, in_place=True
+    )
 
     for i, sess in enumerate(sessions):
         row_idx = retained_traces_df.loc[
@@ -668,7 +665,7 @@ def get_ex_traces_df(sessions, analyspar, stimpar, basepar, n_ex=6,
         n_per = np.asarray([len(roi_ns) for roi_ns in trace_grp_df["roi_ns"]])
         roi_ns = np.concatenate(trace_grp_df["roi_ns"].tolist())
         concat_idxs = np.sort(
-            np.random.choice(len(roi_ns), n_ex, replace=False)
+            randst.choice(len(roi_ns), n_ex, replace=False)
             )
 
         for concat_idx in concat_idxs:
@@ -830,9 +827,9 @@ def add_relative_resp_data(resp_data_df, analyspar, rel_sess=1, in_place=False):
 
     source_columns = [col for col in resp_data_df.columns if "exp" in col]
     rel_columns = [f"rel_{col}" for col in source_columns]
-    for col in rel_columns:
-        resp_data_df[col] = np.nan
-        resp_data_df[col] = resp_data_df[col].astype(object)
+    resp_data_df = gen_util.set_object_columns(
+        resp_data_df, rel_columns, in_place=True
+    )
 
     # calculate relative value for each
     for mouse_n, resp_mouse_df in resp_data_df.groupby("mouse_ns"):
@@ -920,8 +917,9 @@ def get_resp_df(sessions, analyspar, stimpar, rel_sess=1, parallel=False):
     for i, idx in enumerate(resp_data_df.index):
         for key, value in data_dicts[i].items():
             if i == 0:
-                resp_data_df[key] = np.nan
-                resp_data_df[key] = resp_data_df[key].astype(object)
+                resp_data_df = gen_util.set_object_columns(
+                    resp_data_df, [key], in_place=True
+                )
             resp_data_df.at[idx, key] = value[:, 0] # retain stat only, not error
     
     # add relative data
@@ -935,7 +933,7 @@ def get_resp_df(sessions, analyspar, stimpar, rel_sess=1, parallel=False):
 
 ############################################
 def get_rel_resp_stats_df(sessions, analyspar, stimpar, permpar, rel_sess=1, 
-                          seed=None, parallel=False):
+                          randst=None, parallel=False):
     """
     get_rel_resp_stats_df(sessions, analyspar, stimpar, permpar)
 
@@ -956,8 +954,8 @@ def get_rel_resp_stats_df(sessions, analyspar, stimpar, permpar, rel_sess=1,
             number of session relative to which data should be scaled, for each 
             mouse
             default: 1
-        - seed (int): 
-            seed value to use. (-1 treated as None)
+        - randst (int or np.random.RandomState): 
+            random state or seed value to use. (-1 treated as None)
             default: None
         - parallel (bool): 
             if True, some of the analysis is run in parallel across CPU cores 
@@ -974,8 +972,6 @@ def get_rel_resp_stats_df(sessions, analyspar, stimpar, permpar, rel_sess=1,
             - {data_type}_p_vals_{}v{} (float): p-value for data between 
                 sessions, corrected for multiple comparisons and tails
     """
-    
-    seed = gen_util.seed_all(seed, "cpu", log_seed=False)
 
     nanpol = None if analyspar.remnans else "omit"
  
@@ -1050,9 +1046,9 @@ def get_rel_resp_stats_df(sessions, analyspar, stimpar, permpar, rel_sess=1,
                 sess_data.append(data) # for p-value calculation
             
             # calculate p-values between sessions (0-1, 0-2, 1-2...)
-            p_vals = math_util.comp_vals_acr_groups(
+            p_vals = rand_util.comp_vals_acr_groups(
                 sess_data, n_perms=permpar.n_perms, stats=analyspar.stats, 
-                paired=analyspar.tracked, nanpol=nanpol
+                paired=analyspar.tracked, nanpol=nanpol, randst=randst
                 )
             p = 0
             for i, sess_n in enumerate(sess_ns):

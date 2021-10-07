@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 import scipy.stats as st
 
-from util import file_util, gen_util, logger_util, math_util
+from util import file_util, gen_util, logger_util, math_util, rand_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
 from extra_analysis import quant_analys
 from extra_plot_fcts import gen_analysis_plots as gen_plots
@@ -272,7 +272,7 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
         f"traces locked to surprise onset by quantile ({quantpar.n_quants}) "
         f"\n({sessstr_pr}{dendstr_pr}).", extra={"spacing": "\n"})
 
-    seed = gen_util.seed_all(seed, "cpu", log_seed=False)
+    seed = rand_util.seed_all(seed, "cpu", log_seed=False)
 
     # modify quantpar to retain all quantiles
     quantpar_one  = sess_ntuple_util.init_quantpar(1, 0, "", "")
@@ -421,7 +421,7 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
     else:
         nanpol = "omit"
 
-    seed = gen_util.seed_all(seed, "cpu", log_seed=False)
+    seed = rand_util.seed_all(seed, "cpu", log_seed=False)
 
     mags = quant_analys.qu_mags(
         qu_data, permpar, mouse_ns, lines, analyspar.stats, analyspar.error, 

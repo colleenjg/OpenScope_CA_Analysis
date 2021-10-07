@@ -153,12 +153,13 @@ def plot_stim_data_df(stim_data_df, stimpar, permpar, figpar, pop_stats=True,
 
     figpar = sess_plot_util.fig_init_linpla(figpar, kind="reg")
 
-    figpar["init"]["subplot_wid"] = 2.3
-    figpar["init"]["subplot_hei"] = 4.0
+    figpar["init"]["subplot_wid"] = 2.1
+    figpar["init"]["subplot_hei"] = 4.2
+    figpar["init"]["gs"] = {"hspace": 0.20, "wspace": 0.3}
     figpar["init"]["sharey"] = "row"
     
     fig, ax = plot_util.init_fig(plot_helper_fcts.N_LINPLA, **figpar["init"])
-    fig.suptitle(title, y=1.01, weight="bold")
+    fig.suptitle(title, y=0.98, weight="bold")
 
     sub_ax_all = fig.add_axes([1.05, 0.11, 0.3, 0.77])
 
@@ -248,7 +249,7 @@ def plot_stim_data_df(stim_data_df, stimpar, permpar, figpar, pop_stats=True,
     sub_ax_all.set_xlim(ax[0, 0].get_xlim())
         
     plot_util.set_interm_ticks(
-        np.asarray(sub_ax_all), 5, dim="y", share=False, weight="bold"
+        np.asarray(sub_ax_all), 4, dim="y", share=False, weight="bold"
         )
 
     return ax

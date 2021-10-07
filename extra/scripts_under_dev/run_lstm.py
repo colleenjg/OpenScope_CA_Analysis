@@ -14,7 +14,8 @@ import pandas as pd
 import numpy as np
 
 gen_util.extend_sys_path(__file__, parents=3)
-from util import data_util, file_util, gen_util, logger_util, plot_util
+from util import data_util, file_util, gen_util, logger_util, plot_util, \
+    rand_util
 from sess_util import sess_data_util, sess_plot_util, sess_gen_util
 
 
@@ -121,7 +122,7 @@ def run_sess_lstm(sessid, args):
     if args.parallel and args.plt_bkend is not None:
         plt.switch_backend(args.plt_bkend) # needs to be repeated within joblib
 
-    args.seed = gen_util.seed_all(args.seed, args.device, seed_torch=True)
+    args.seed = rand_util.seed_all(args.seed, args.device, seed_torch=True)
 
     train_p = 0.8
     lr = 1. * 10**(-args.lr_ex)

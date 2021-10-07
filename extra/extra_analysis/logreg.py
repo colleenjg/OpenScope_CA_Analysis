@@ -25,7 +25,7 @@ import torch
 
 from extra_analysis import quant_analys
 from util import data_util, file_util, gen_util, logger_util, logreg_util, \
-    math_util, plot_util
+    math_util, plot_util, rand_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
 from extra_plot_fcts import logreg_plots
 
@@ -1129,7 +1129,7 @@ def setup_run(quantpar, extrapar, techpar, sess_data, comp="surp",
     extrapar = copy.deepcopy(extrapar)
     if techpar["reseed"]: # reset seed         
         extrapar["seed"] = None
-    extrapar["seed"] = gen_util.seed_all(
+    extrapar["seed"] = rand_util.seed_all(
         extrapar["seed"], techpar["device"], 
         seed_torch=(techpar["alg"] == "pytorch")) # seed torch, if needed
     extrapar["classes"] = get_classes(comp, gab_ori)
@@ -1810,7 +1810,9 @@ def calc_stats(scores_summ, curr_lines, curr_idx, CI=0.95, ext_test=None,
 
             # plug in values
             cols = [f"{sc_lab}_{name}" for name in cols]
-            gen_util.set_df_vals(scores_summ, curr_idx, cols, vals)
+            scores_summ = gen_util.set_df_vals(
+                scores_summ, curr_idx, cols, vals, in_place=True
+                )
 
     return scores_summ
 
@@ -1885,7 +1887,9 @@ def run_analysis(output, stimtype="gabors", comp="surp", ctrl=False,
             curr_lines = gen_util.get_df_vals(all_scores_df, comm_labs, vals)
             # assign values to current line in summary df
             curr_idx = len(scores_summ)
-            gen_util.set_df_vals(scores_summ, curr_idx, comm_labs, vals)
+            scores_summ = gen_util.set_df_vals(
+                scores_summ, curr_idx, comm_labs, vals, in_place=True
+                )
             # calculate stats
             scores_summ = calc_stats(scores_summ, curr_lines, curr_idx, CI, 
                 ext_test, stats=stats, shuffle=acr_shuff)

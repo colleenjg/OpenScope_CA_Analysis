@@ -15,7 +15,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-from util import logger_util, gen_util, math_util
+from util import logger_util, gen_util, math_util, rand_util
 from analysis import basic_analys, misc_analys
 
 logger = logging.getLogger(__name__)
@@ -278,7 +278,7 @@ def get_pupil_run_block_diffs_df(sessions, analyspar, stimpar, parallel=False):
 
 #############################################
 def get_pupil_run_block_stats_df(sessions, analyspar, stimpar, permpar, 
-                                 seed=None, parallel=False):
+                                 randst=None, parallel=False):
     """
     get_pupil_run_block_stats_df(sessions, analyspar, stimpar, permpar)
 
@@ -296,8 +296,8 @@ def get_pupil_run_block_stats_df(sessions, analyspar, stimpar, permpar,
             named tuple containing permutation parameters
 
     Optional args:
-        - seed (int): 
-            seed value to use. (-1 treated as None)
+        - randst (int or np.random.RandomState): 
+            random state or seed value to use. (-1 treated as None)
             default: None
         - parallel (bool): 
             if True, some of the analysis is run in parallel across CPU cores 
@@ -324,9 +324,7 @@ def get_pupil_run_block_stats_df(sessions, analyspar, stimpar, permpar,
     """
 
     nanpol = None if analyspar.remnans else "omit"
-
-    seed = gen_util.seed_all(seed, log_seed=False)
-
+    
     all_block_df = get_pupil_run_block_diffs_df(
         sessions, 
         analyspar=analyspar, 
@@ -367,12 +365,13 @@ def get_pupil_run_block_stats_df(sessions, analyspar, stimpar, permpar,
             )[..., 0] # keep mean/median only
 
             block_df.loc[row_idx, f"{datatype}_p_vals"] = \
-                math_util.get_op_p_val(
+                rand_util.get_op_p_val(
                     all_split_block, 
                     n_perms=permpar.n_perms, 
                     stats=analyspar.stats, 
                     paired=True,
-                    nanpol=nanpol
+                    nanpol=nanpol, 
+                    randst=randst
                 )
 
     # add corrected p-values

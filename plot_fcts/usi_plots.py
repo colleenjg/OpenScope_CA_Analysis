@@ -268,11 +268,12 @@ def plot_idxs(idx_df, sesspar, figpar, plot="items", density=True, n_bins=40,
         subplot_hei = 3.2
         subplot_wid = 5.5
     elif size == "small":
-        subplot_hei = 2.5
-        subplot_wid = 3.2
+        subplot_hei = 2.40
+        subplot_wid = 3.75
+        figpar["init"]["gs"] = {"hspace": 0.25, "wspace": 0.30}
     elif size == "tall":
         subplot_hei = 5.3
-        subplot_wid = 5.3
+        subplot_wid = 5.55
     else:
         gen_util.accepted_values_error("size", size, ["reg", "small", "tall"])
     
@@ -336,7 +337,7 @@ def plot_idxs(idx_df, sesspar, figpar, plot="items", density=True, n_bins=40,
     # Add plane, line info to plots
     y_lab = "Density" if density else f"N ROIs" 
     sess_plot_util.format_linpla_subaxes(ax, datatype="roi", ylab=y_lab, 
-        xticks=None, sess_ns=sess_ns, kind="idx", modif_share=False, 
+        xticks=None, sess_ns=None, kind="idx", modif_share=False, 
         single_lab=True)
         
     return ax
@@ -475,15 +476,16 @@ def plot_perc_sig_usis(perc_sig_df, analyspar, permpar, figpar, by_mouse=False,
         sharex=True, sharey=True)
 
     figpar["init"]["sharey"] = True
-    figpar["init"]["subplot_wid"] = 3.15
+    figpar["init"]["subplot_wid"] = 3.4
+    figpar["init"]["gs"] = {"wspace": 0.18}
     if by_mouse:
-        figpar["init"]["subplot_hei"] = 9
+        figpar["init"]["subplot_hei"] = 8.4
     else:
-        figpar["init"]["subplot_hei"] = 4.5
+        figpar["init"]["subplot_hei"] = 3.5
 
     fig, ax = plot_util.init_fig(2, **figpar["init"])
     if title is not None:
-        fig.suptitle(title, y=1.0, weight="bold")
+        fig.suptitle(title, y=0.98, weight="bold")
 
     tail_order = ["Low tail", "High tail"]
     tail_keys = ["lo", "hi"]
@@ -587,7 +589,7 @@ def plot_perc_sig_usis(perc_sig_df, analyspar, permpar, figpar, by_mouse=False,
                         f"{tail_sig_str}{p_val:.5f}{sig_str:3}"
                         )
 
-            if by_mouse: # sort p-value printing by percentage value
+            if by_mouse: # sort p-value logging by percentage value
                 tail_sig_str = f"{tail_sig_str}\n\t{linpla_name:6}: "
                 order = np.argsort([vals[0] for vals in perc_p_vals])
                 for i in order:
@@ -716,6 +718,11 @@ def plot_ex_roi_hists(ex_idx_df, sesspar, permpar, figpar, title=None):
             alpha=0.8, label=f"p{ex_perc:0.2f}{sig_str}"
             )
 
+        sub_ax.axvline(
+            x=0, ls=plot_helper_fcts.VDASH, c="k", lw=3.0, alpha=0.5
+            )
+
+
         # reset the x limits
         sub_ax.set_xlim(xlims)
 
@@ -762,17 +769,18 @@ def plot_tracked_idxs(idx_only_df, sesspar, figpar, title=None, wide=False):
 
     figpar = sess_plot_util.fig_init_linpla(figpar)
 
-    sharey = "row"
-    figpar["init"]["sharey"] = sharey
-    figpar["init"]["subplot_hei"] = 4.0
-    figpar["init"]["subplot_wid"] = 2.7
+    figpar["init"]["sharey"] = "row"
+    figpar["init"]["subplot_hei"] = 4.1
+    figpar["init"]["subplot_wid"] = 2.5
+    figpar["init"]["gs"] = {"wspace": 0.25, "hspace": 0.2}
     if wide:
-        figpar["init"]["subplot_wid"] = 3.7
+        figpar["init"]["subplot_wid"] = 3.3
+        figpar["init"]["gs"]["wspace"] = 0.25
 
     fig, ax = plot_util.init_fig(plot_helper_fcts.N_LINPLA, **figpar["init"])
 
     if title is not None:
-        fig.suptitle(title, y=1.0, weight="bold")
+        fig.suptitle(title, y=0.98, weight="bold")
 
     for (line, plane), lp_df in idx_only_df.groupby(["lines", "planes"]):
         li, pl, col, _ = plot_helper_fcts.get_line_plane_idxs(line, plane)
@@ -878,17 +886,18 @@ def plot_tracked_idx_stats(idx_stats_df, sesspar, figpar, permpar=None,
 
     figpar = sess_plot_util.fig_init_linpla(figpar)
 
-    sharey = "row"
-    figpar["init"]["sharey"] = sharey
-    figpar["init"]["subplot_hei"] = 4.0
-    figpar["init"]["subplot_wid"] = 3.0
+    figpar["init"]["sharey"] = "row"
+    figpar["init"]["subplot_hei"] = 4.1
+    figpar["init"]["subplot_wid"] = 2.6
+    figpar["init"]["gs"] = {"wspace": 0.25, "hspace": 0.2}
     if wide:
-        figpar["init"]["subplot_wid"] = 3.7
+        figpar["init"]["subplot_wid"] = 3.3
+        figpar["init"]["gs"]["wspace"] = 0.25
 
     fig, ax = plot_util.init_fig(plot_helper_fcts.N_LINPLA, **figpar["init"])
 
     if title is not None:
-        fig.suptitle(title, y=1.0, weight="bold")
+        fig.suptitle(title, y=0.98, weight="bold")
     
     data_col = "roi_idx_stats"
     if absolute:

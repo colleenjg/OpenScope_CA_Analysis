@@ -1062,15 +1062,78 @@ def plot_gabor_Uori_decoding_sess123(analyspar, sesspar, stimpar, logregpar,
 
 
 #############################################
-def plot_gabor_norm_res_corr_example(figpar, **kwargs):
+def plot_gabor_corr_norm_res_ex(analyspar, sesspar, stimpar, basepar, idxpar, 
+                                permpar, extrapar, idx_corr_norm_df, figpar):
     """
+    plot_gabor_corr_norm_res_ex(analyspar, sesspar, stimpar, basepar, idxpar, 
+                                permpar, extrapar, idx_corr_norm_df, figpar)
+
+    From dictionaries, plots ROI USI correlations across essions for tracked 
+    Gabor USIs. 
+    
+    Returns figure name and save directory path.
+
+    Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - basepar (dict): 
+            dictionary with keys of BasePar namedtuple
+        - idxpar (dict): 
+            dictionary with keys of IdxPar namedtuple
+        - permpar (dict): 
+            dictionary with keys of PermPar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+            ["n_bins"] (int): number of bins used to bin random correlation 
+                data
+            ["permute_tracking"] (bool): if True, permutations are run on ROI 
+                tracking instead of session pair order
+            ["seed"] (int): seed
+        - idx_corr_df (pd.DataFrame):
+            dataframe with one row for a line/plane, and the 
+            following columns, in addition to the basic sess_df columns:
+
+            for a specific session comparison, e.g. 1v2
+            - {}v{}_corrs (float): unnormalized intersession ROI index 
+                correlations
+            - {}v{}_norm_corrs (float): normalized intersession ROI index 
+                correlations
+            - {}v{}_rand_ex_corrs (float): unnormalized intersession 
+                ROI index correlations for an example of randomized data
+            - {}v{}_rand_corr_meds (float): median of randomized correlations
+
+            - {}v{}_corr_data (list): intersession values to correlate
+            - {}v{}_rand_ex (list): intersession values for an example of 
+                randomized data
+            - {}v{}_rand_corrs_binned (list): binned random unnormalized 
+                intersession ROI index correlations
+            - {}v{}_rand_corrs_bin_edges (list): bins edges
+
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+
+    Returns:
+        - fulldir (Path): final path of the directory in which the figure 
+                          is saved
+        - savename (str): name under which the figure is saved
     """
  
-    title = ""
-    
-    # df = pd.DataFrame.from_dict(df)
+    title = "Example calculation of normalized residual correlations"
 
-    fig = None
+    idx_corr_norm_df = pd.DataFrame.from_dict(idx_corr_norm_df)
+    
+    ax = corr_plots.plot_rand_corr_ex_data(
+        idx_corr_norm_df, 
+        title=title, 
+        )
+    fig = ax.reshape(-1)[0].figure
     
     savedir, savename = helper_fcts.get_save_path(
         figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
@@ -1155,7 +1218,7 @@ def plot_gabor_norm_res_corrs_sess123_comps(analyspar, sesspar, stimpar,
         permpar=permpar,
         figpar=figpar, 
         title=title, 
-        small=True,
+        small=False,
         )
     fig = ax.reshape(-1)[0].figure
     
@@ -1954,7 +2017,7 @@ def plot_visual_flow_rel_resp_sess123(analyspar, sesspar, stimpar, permpar,
         permpar=permpar, 
         figpar=figpar, 
         title=title, 
-        wide=True
+        wide=False
         )
     fig = ax.reshape(-1)[0].figure
     

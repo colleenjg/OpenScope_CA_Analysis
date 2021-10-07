@@ -87,7 +87,7 @@ def gabor_example_roi_usis(sessions, analyspar, sesspar, stimpar, basepar,
         permpar=permpar,
         target_idx_vals = [0.5, 0, -0.5],
         target_idx_sigs = ["sig", "not_sig", "sig"],
-        seed=seed,
+        randst=seed,
         parallel=parallel
         )
 
@@ -175,7 +175,7 @@ def gabor_example_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar,
         basepar=basepar, 
         idxpar=idxpar, 
         permpar=permpar, 
-        seed=seed, 
+        randst=seed, 
         target_roi_perc=target_roi_perc
         )
 
@@ -246,7 +246,7 @@ def gabor_roi_usi_distr(sessions, analyspar, sesspar, stimpar, basepar,
         idxpar=idxpar, 
         permpar=permpar, 
         n_bins=n_bins,
-        seed=seed, 
+        randst=seed, 
         parallel=parallel
         )
 
@@ -332,7 +332,7 @@ def gabor_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar,
         permpar=permpar, 
         common_oris=common_oris,
         by_mouse=by_mouse,
-        seed=seed, 
+        randst=seed, 
         parallel=parallel,
         )
 
@@ -549,7 +549,7 @@ def gabor_tracked_roi_abs_usi_means_sess123(
         permpar=permpar, 
         absolute=absolute, 
         by_mouse=by_mouse, 
-        seed=seed,
+        randst=seed,
         parallel=parallel, 
         )
 
@@ -625,7 +625,7 @@ def gabor_roi_usi_sig_by_mouse(sessions, analyspar, sesspar, stimpar, basepar,
         idxpar=idxpar, 
         permpar=permpar, 
         by_mouse=by_mouse,
-        seed=seed, 
+        randst=seed, 
         parallel=parallel,
         )
 
@@ -864,7 +864,7 @@ def visual_flow_tracked_roi_abs_usi_means_sess123(
         permpar=permpar, 
         absolute=absolute, 
         by_mouse=by_mouse, 
-        seed=seed,
+        randst=seed,
         parallel=parallel, 
         )
 

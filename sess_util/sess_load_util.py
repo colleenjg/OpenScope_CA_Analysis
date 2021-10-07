@@ -609,7 +609,9 @@ def modify_bri_segs(stim_df, runtype="prod"):
     seg_idx = ((stim_df["stimType"] == "b") & (stim_df["start2pfr"] > last_fr1))
 
     new_idx = stim_df.loc[seg_idx]["stimSeg"] + last_seg1 + 1
-    stim_df = gen_util.set_df_vals(stim_df, seg_idx, "stimSeg", new_idx)
+    stim_df = gen_util.set_df_vals(
+        stim_df, seg_idx, "stimSeg", new_idx, in_place=True
+        )
 
     return stim_df
 

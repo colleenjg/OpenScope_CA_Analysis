@@ -647,7 +647,72 @@ def get_roi_trace_paths_from_sessid(maindir, sessid, runtype="prod",
 
 
 #############################################
-def get_pupil_data_h5_path(maindir):
+def get_check_pupil_data_h5_name(pup_h5_name=None, sessid=None, mouseid=None, 
+                                 date=None):
+    """
+    get_check_pupil_data_h5_name()
+
+    Returns path name for pupil data h5 file, or checks whether the provided 
+    file name conforms.
+
+    Optional args:
+        - pup_h5_name (Path)  : pupil data h5 file name to check. If None, a 
+                                file name is generated.
+                                default: None
+        - sessid (int or str) : session ID to generate pup_h5_name with, or 
+                                against which to check pup_h5_name.
+                                default: None
+        - mouseid (int or str): mouse ID to generate pup_h5_name with, or 
+                                against which to check pup_h5_name.
+                                default: None
+        - date (int or str)   : date (YYYYMMDD) to generate pup_h5_name with, 
+                                or against which to check pup_h5_name.
+                                default: None
+
+    Returns:
+        - pup_data_h5 (Path): pupil data h5 file name (checked or generated)
+    """
+
+    if pup_h5_name is not None:
+        expected_parts = [sessid, mouseid, date]
+        expected_lens = [9, 6, 8]
+
+        error_str = ("Expected pup_h5_name to have form "
+            "'{sessid:9}_{mouseid:6}_{date:8}_pupil_data_df.h5'.")
+
+        pup_h5_name = Path(Path(pup_h5_name).parts[-1])
+        if pup_h5_name.suffix != ".h5":
+            raise ValueError("pup_h5_name should have extension .h5.")
+        path_parts = pup_h5_name.stem.split("_")
+
+        error = False
+        error = True if len(path_parts) != 6 else error
+
+
+        for p, (part, exp_len) in enumerate(zip(expected_parts, expected_lens)):
+            if part is not None:
+                error = True if str(path_parts[p]) != str(part) else error
+            else: # length checked instead
+                error = True if len(path_parts[0]) != exp_len else error
+        
+        if path_parts[-3:] != ["pupil", "data", "df"]:
+            error = True
+
+        if error:
+            raise RuntimeError(error_str)
+
+    else:
+        if sessid is None or mouseid is None or date is None:
+            raise ValueError(
+                "If 'h5_name' is None, must provide sessid, mouseid and date."
+                )
+        pup_h5_name = f"{sessid}_{mouseid}_{date}_pupil_data_df.h5"
+
+    return pup_h5_name
+
+
+#############################################
+def get_pupil_data_h5_path(maindir, check_name=True):
     """
     get_pupil_data_h5_path(maindir)
 
@@ -655,6 +720,11 @@ def get_pupil_data_h5_path(maindir):
 
     Required args:
         - maindir (Path): path of the main data directory
+
+    Optional args:
+        - check_name (bool): if True, pupil file name is checked to have the 
+                             expected structure.
+                             default: True
 
     Returns:
         - pup_data_h5 (Path or list): full path name(s) of the pupil h5 file
@@ -669,6 +739,11 @@ def get_pupil_data_h5_path(maindir):
         pup_data_h5 = [Path(data_file) for data_file in pupil_data_files]
     else:
         pup_data_h5 = "none"
+
+    if check_name:
+        for h5_name in gen_util.list_if_not(pup_data_h5):
+            if h5_name != "none":
+                get_check_pupil_data_h5_name(h5_name)
 
     return pup_data_h5
 

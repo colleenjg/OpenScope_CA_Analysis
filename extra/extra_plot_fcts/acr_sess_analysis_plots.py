@@ -3531,7 +3531,7 @@ def plot_position(analyspar, sesspar, stimpar, extrapar, sess_info,
 
 #############################################
 def plot_lat_clouds(sub_ax, sess_ns, lat_data, sess_info, datatype="roi", 
-                    col="blue", alpha=0.2):
+                    col="blue", alpha=0.2, randst=None):
     """
     plot_lat_clouds(sub_ax, sess_ns, lat_data)
 
@@ -3560,6 +3560,8 @@ def plot_lat_clouds(sub_ax, sess_ns, lat_data, sess_info, datatype="roi",
                           default: "blue"
         - alpha (float) : pyplot transparency parameter
                           default: 0.3
+        - randst (int)  : random state for plotting clouds
+                          default: None
     
     Returns:
         - maxes (1D array): max values from data clouds for each session
@@ -3600,7 +3602,7 @@ def plot_lat_clouds(sub_ax, sess_ns, lat_data, sess_info, datatype="roi",
             alpha_spec = alpha/div_fact
             clouds[m] = plot_util.plot_data_cloud(
                 sub_ax, sess_n, lat_data[s][m], 0.15, label=None, 
-                color=m_cols[m], alpha=alpha_spec, zorder=-11)
+                color=m_cols[m], alpha=alpha_spec, zorder=-11, randst=randst)
             maxes[s] = np.nanmax([maxes[s], np.nanmax(lat_data[s][m])])
     if datatype == "roi":
         labels = [f"{label} ROIs)" for label in labels]
@@ -3640,6 +3642,7 @@ def plot_surp_latency(analyspar, sesspar, stimpar, permpar, latpar, extrapar,
                                    parameters
             ["analysis"] (str): analysis type (e.g., "u")
             ["datatype"] (str): datatype (e.g., "run", "roi")
+            ["seed"] (int)    : seed
         - sess_info (nested list): nested list of dictionaries for each 
                                    line/plane x session containing information 
                                    from each mouse, with None for missing 
@@ -3754,7 +3757,9 @@ def plot_surp_latency(analyspar, sesspar, stimpar, permpar, latpar, extrapar,
         if datatype == "roi":
             maxes[i] = plot_lat_clouds(
                 sub_ax, sess_ns, lat_data["lat_vals"][l_idx], sess_info[l_idx], 
-                datatype=datatype, col=pla_col_names[pl])
+                datatype=datatype, col=pla_col_names[pl], 
+                randst=extrapar["seed"]
+                )
         else:
             maxes[i] = np.max(lat_st[0])
 

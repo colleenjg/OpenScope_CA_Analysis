@@ -19,7 +19,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-from util import gen_util, logger_util, math_util
+from util import gen_util, logger_util, math_util, rand_util
 from sess_util import sess_ntuple_util
 
 logger = logging.getLogger(__name__)
@@ -668,7 +668,7 @@ def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar,
     all_rand_vals = [] # qu x grp x ROI x perms
     # for each quantile
     for q, perm_data in enumerate(all_data_perm):
-        qu_vals = math_util.permute_diff_ratio(
+        qu_vals = rand_util.permute_diff_ratio(
             perm_data, n_regs[q], permpar.n_perms, stats, nanpol=nanpol, 
             op="none")
         all_rand_vals.append(qu_vals)
@@ -684,9 +684,9 @@ def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar,
     rand_L2_rel  = math_util.calc_op(rand_L2, op_grp, dim=0)
 
     # check significance (returns list although only one result tested)
-    mag_sign, mag_th = math_util.id_elem(
+    mag_sign, mag_th = rand_util.id_elem(
         rand_mag_rel, act_mag_me_rel, permpar.tails, permpar.p_val, ret_th=True)
-    L2_sign, L2_th   = math_util.id_elem(
+    L2_sign, L2_th   = rand_util.id_elem(
         rand_L2_rel, act_L2_rel, permpar.tails, permpar.p_val, ret_th=True)
 
     mag_signif, L2_signif = ["no", "no"]
