@@ -2162,7 +2162,7 @@ def plot_stim_idx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
     elif plot == "items":
         nticks = 3
         plot_util.set_interm_ticks(
-            ax, nticks, dim="x", weight="bold", share=False, skip=False
+            ax, nticks, axis="x", weight="bold", share=False, skip=False
             )
 
     # Add plane, line info to plots

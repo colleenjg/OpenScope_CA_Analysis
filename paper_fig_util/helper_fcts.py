@@ -80,7 +80,8 @@ def get_save_path(fig_panel_analysis, main_direc=None):
     
 
 #############################################
-def check_if_data_exists(figpar, filetype="json"):
+def check_if_data_exists(figpar, filetype="json", overwrite_plot_only=False, 
+                         raise_no_data=True):
     """
     check_if_data_exists(figpar)
 
@@ -93,13 +94,21 @@ def check_if_data_exists(figpar, filetype="json"):
             ["fig_panel_analysis"] (FigPanelAnalysis): figure/panel analysis 
                 object
             ["dirs"]["figdir"] (Path): figure directory
-            ["save"]["overwrite"] (bool): whether to overwrite data files
+            ["save"]["overwrite"] (bool): whether to overwrite data and figure 
+                files
 
     Optional args:
         - filetype (str): 
             type of data file expected
             default: "json"
-    
+        - overwrite_plot_only (bool): 
+            if True, data is replotted only. 
+            default: False
+        - raise_no_data (bool):
+            if True, an error is raised if overwrite_plot_only is True, but no 
+            analysis data is found.
+            default: True
+
     Returns:
         - run_analysis (bool): 
             if True, analysis should be run
@@ -120,17 +129,24 @@ def check_if_data_exists(figpar, filetype="json"):
 
     if data_path.exists():
         warn_str = f"Analysis data already exists under {data_path}."
-        if figpar["save"]["overwrite"]:
+        if figpar["save"]["overwrite"] and not overwrite_plot_only:
             warn_str = f"{warn_str}\nFile will be overwritten."
             logger.warning(warn_str, extra={"spacing": "\n"})
         else:
             warn_str = (f"{warn_str}\nReplotting from existing file.\n"
-                "To overwrite, run script with the '--overwrite' argument.")
+                "To overwrite file, run script with the '--overwrite' "
+                "argument, and without --plot_only.")
             logger.warning(warn_str, extra={"spacing": "\n"})
 
             info = file_util.loadfile(data_path)
             fig_panel_analysis.plot_fct(figpar=figpar, **info)
             run_analysis = False
+
+    elif overwrite_plot_only and raise_no_data:
+        raise RuntimeError(
+            "overwrite_plot_only is True, but no analysis data was found "
+            f"under {data_path}"
+            )
 
     return run_analysis, data_path
 

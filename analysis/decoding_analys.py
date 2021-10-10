@@ -483,6 +483,7 @@ def run_sess_log_regs(sessions, analyspar, stimpar, logregpar, permpar,
     group_columns = ["lines", "planes", "sess_ns"]
     s = 0
     for _, lp_grp_df in sess_df.groupby(group_columns):
+        lp_grp_df = lp_grp_df.sort_values("mouse_ns")
         lp_sessions = [
             sessions[sessids.index(sessid)] for sessid in lp_grp_df["sessids"]
             ]

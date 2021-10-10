@@ -50,11 +50,11 @@ def get_corr_pairs(sess_df, consec_only=True):
     # identify correlation pairs
     corr_ns = []
     for _, lp_df in sess_df.groupby(["lines", "planes"]):
-        sessions = np.sort(lp_df["sess_ns"].unique())
-        if len(sessions) == 1:
+        sess_ns = np.sort(lp_df["sess_ns"].unique())
+        if len(sess_ns) == 1:
             continue
-        for i, sess1 in enumerate(sessions):
-            for sess2 in sessions[i + 1:]:
+        for i, sess1 in enumerate(sess_ns):
+            for sess2 in sess_ns[i + 1:]:
                 if consec_only and (sess2 - sess1 != 1):
                     continue
                 corr_pair = [sess1, sess2]
@@ -274,7 +274,7 @@ def get_corr_data(sess_pair, data_df, analyspar, permpar,
             uncorrected p-value for the correlation between sessions
         
         if return_data:
-        - data (2D array):
+        - corr_data (2D array):
             data to correlate (grps (2) x datapoints)            
         
         if return_rand:
@@ -327,17 +327,17 @@ def get_corr_data(sess_pair, data_df, analyspar, permpar,
     else:
         paired = True
 
-    if return_rand or return_data:
-        corr_data = np.vstack([first, sec - first]) # datapoints (2) x groups
+    if return_data:
+        corr_data = np.vstack([first, diffs]) # datapoints (2) x groups
     if return_rand:
         use_randst = copy.deepcopy(randst)
         data = np.vstack([first, sec]).T # groups x datapoints (2)
-        rand_ex = rand_util.run_permute(
+        first_ex, sec_ex = rand_util.run_permute(
             data, n_perms=1, paired=paired, randst=use_randst
             )[..., 0].T
-        first_ex, sec_ex = rand_ex
         diff_ex = sec_ex - first_ex
-        rand_ex_corr = math_util.np_pearson_r(first_ex, diff_ex, nanpol=nanpol)
+        rand_ex = np.vstack([first_ex, diff_ex]) # datapoints (2) x groups
+        rand_ex_corr = math_util.np_pearson_r(*rand_ex, nanpol=nanpol)
 
     # get random correlation info
     returns = rand_util.get_op_p_val(
@@ -432,6 +432,7 @@ def get_lp_idx_df(sessions, analyspar, stimpar, basepar, idxpar,
     group_columns = ["lines", "planes", "sess_ns"]
     aggreg_cols = [col for col in initial_columns if col not in group_columns]
     for grp_vals, grp_df in idx_only_df.groupby(group_columns):
+        grp_df = grp_df.sort_values("mouse_ns")
         row_idx = len(lp_idx_df)
         for g, group_column in enumerate(group_columns):
             lp_idx_df.loc[row_idx, group_column] = grp_vals[g]
@@ -440,7 +441,8 @@ def get_lp_idx_df(sessions, analyspar, stimpar, basepar, idxpar,
         lp_idx_df = misc_analys.aggreg_columns(
             grp_df, lp_idx_df, aggreg_cols, row_idx=row_idx, in_place=True
             )
-
+        
+        # collect indices
         lp_idx_df.at[row_idx, "roi_idxs"] = \
             np.concatenate(grp_df["roi_idxs"].tolist())
     
@@ -495,26 +497,27 @@ def get_basic_idx_corr_df(lp_idx_df, consec_only=False):
         ]
 
     for grp_vals, grp_df in lp_idx_df.groupby(group_columns):
-            row_idx = len(idx_corr_df)
+        grp_df = grp_df.sort_values("sess_ns") # mice already aggregated
+        row_idx = len(idx_corr_df)
 
-            for g, group_column in enumerate(group_columns):
-                idx_corr_df.loc[row_idx, group_column] = grp_vals[g]
+        for g, group_column in enumerate(group_columns):
+            idx_corr_df.loc[row_idx, group_column] = grp_vals[g]
 
-            # add aggregated values for initial columns
-            idx_corr_df = misc_analys.aggreg_columns(
-                grp_df, idx_corr_df, aggreg_cols, row_idx=row_idx, 
-                in_place=True, sort_by="sess_ns"
-                )
-            
-            # amend mouse info
-            for col in ["mouse_ns", "mouseids"]:
-                vals = [tuple(ns) for ns in idx_corr_df.loc[row_idx, col]]
-                if len(list(set(vals))) != 1:
-                    raise RuntimeError(
-                        "Aggregated sessions should share same mouse "
-                        "information."
-                        )
-                idx_corr_df.at[row_idx, col] = list(vals[0])
+        # add aggregated values for initial columns
+        idx_corr_df = misc_analys.aggreg_columns(
+            grp_df, idx_corr_df, aggreg_cols, row_idx=row_idx, 
+            in_place=True, sort_by="sess_ns"
+            )
+        
+        # amend mouse info
+        for col in ["mouse_ns", "mouseids"]:
+            vals = [tuple(ns) for ns in idx_corr_df.loc[row_idx, col]]
+            if len(list(set(vals))) != 1:
+                raise RuntimeError(
+                    "Aggregated sessions should share same mouse "
+                    "information."
+                    )
+            idx_corr_df.at[row_idx, col] = list(vals[0])
 
     return idx_corr_df
 
@@ -741,6 +744,7 @@ def get_idx_corrs_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
         )
     group_columns = ["lines", "planes"]
     for grp_vals, grp_df in lp_idx_df.groupby(group_columns):
+        grp_df = grp_df.sort_values("sess_ns") # mice already aggregated
         line, plane = grp_vals
         row_idx = idx_corr_df.loc[
             (idx_corr_df["lines"] == line) &
@@ -750,6 +754,8 @@ def get_idx_corrs_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
         if len(row_idx) != 1:
             raise RuntimeError("Expected exactly one row to match.")
         row_idx = row_idx[0]
+    
+        use_randst = copy.deepcopy(randst) # reset each time
 
         # obtain correlation data
         args_dict = {
@@ -758,8 +764,9 @@ def get_idx_corrs_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
             "permpar"         : permpar,
             "permute_tracking": permute_tracking,
             "norm"            : True,
-            "randst"          : randst,
+            "randst"          : use_randst,
         }
+
         all_corr_data = gen_util.parallel_wrap(
             get_corr_data, 
             corr_ns, 

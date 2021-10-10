@@ -102,8 +102,8 @@ def slow_plot_warning():
 
 def stats_plot_fct_warning():
     message = ("This figure panel includes statistical analyses. "
-        "Analysis may take longer, and statistical symbols may not be "
-        "nicely spaced out.")
+        "Analysis may take longer, and statistical markers may not be "
+        "ideally spaced out.")
     warning_tuple = WARNING_TUPLE(message, False)
     return warning_tuple
 
@@ -691,7 +691,7 @@ class FigurePanelAnalysis():
             "between session 1 and 2.")
         self.specific_params = get_specific_params(
            line="L5",
-           plane="soma", 
+           plane="soma",
            sess_n="1-2",
            tracked=True,
            error="std",

@@ -249,7 +249,7 @@ def plot_stim_data_df(stim_data_df, stimpar, permpar, figpar, pop_stats=True,
     sub_ax_all.set_xlim(ax[0, 0].get_xlim())
         
     plot_util.set_interm_ticks(
-        np.asarray(sub_ax_all), 4, dim="y", share=False, weight="bold"
+        np.asarray(sub_ax_all), 4, axis="y", share=False, weight="bold"
         )
 
     return ax

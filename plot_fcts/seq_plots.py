@@ -240,14 +240,14 @@ def plot_sess_traces(data_df, analyspar, sesspar, figpar,
                 )
             
     for sub_ax in ax.reshape(-1):
-        plot_util.set_minimal_ticks(sub_ax, dim="y")
+        plot_util.set_minimal_ticks(sub_ax, axis="y")
 
     sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar["fluor"], 
         area=False, datatype="roi", sess_ns=sess_ns, xticks=None, 
         kind="traces", modif_share=False)
 
    # fix x ticks and lims
-    plot_util.set_interm_ticks(ax, 3, dim="x", fontweight="bold")
+    plot_util.set_interm_ticks(ax, 3, axis="x", fontweight="bold")
     xlims = [np.min(row["time_values"]), np.max(row["time_values"])]
     if split != "by_exp":
         xlims = [-xlims[1], xlims[1]]
@@ -734,7 +734,7 @@ def plot_ex_gabor_traces(ex_traces_df, stimpar, figpar, title=None):
         xlims = [time_values[0], time_values[-1]]
         xticks = np.linspace(*xlims, 6)
         sub_ax.set_xticks(xticks)
-    plot_util.set_interm_ticks(ax, 3, dim="x", fontweight="bold", skip=False)
+    plot_util.set_interm_ticks(ax, 3, axis="x", fontweight="bold", skip=False)
     for sub_ax in ax.reshape(-1):
         sub_ax.set_xlim(xlims)
     
@@ -746,7 +746,7 @@ def plot_ex_gabor_traces(ex_traces_df, stimpar, figpar, title=None):
             ax[r, c].set_ylim(ylims[r, c])
             ax[r, c].set_yticks(ylims[r, c])
 
-    plot_util.set_interm_ticks(ax, 2, dim="y", share=False, weight="bold")  
+    plot_util.set_interm_ticks(ax, 2, axis="y", share=False, weight="bold")  
 
     # rasterize the gray lines
     logger.info("Rasterizing individual traces...", extra={"spacing": TAB})

@@ -121,7 +121,7 @@ def plot_corr_ex_data_scatterplot(sub_ax, idx_corr_norm_row, corr_name="1v2",
     sub_ax.legend()
 
     plot_util.set_interm_ticks(
-        np.asarray(sub_ax), n_ticks=4, dim="x", share=False, fontweight="bold"
+        np.asarray(sub_ax), n_ticks=4, axis="x", share=False, fontweight="bold"
         )
 
     
@@ -212,7 +212,7 @@ def plot_corr_ex_data_histogram(sub_ax, idx_corr_norm_row, corr_name="1v2",
     sub_ax.set_xticks(xticks)
 
     plot_util.set_interm_ticks(
-        np.asarray(sub_ax), n_ticks=n_ticks, dim="x", share=False, 
+        np.asarray(sub_ax), n_ticks=n_ticks, axis="x", share=False, 
         fontweight="bold"
         )
 
@@ -297,7 +297,7 @@ def plot_rand_corr_ex_data(idx_corr_norm_df, title=None):
     plot_corr_ex_data_histogram(hist_ax, row, corr_name=corr_name, col=col)
 
     plot_util.set_interm_ticks(
-        ax, n_ticks=4, dim="y", share=False, fontweight="bold"
+        ax, n_ticks=4, axis="y", share=False, fontweight="bold"
         )
 
     return ax
@@ -534,7 +534,8 @@ def plot_idx_correlations(idx_corr_df, permpar, figpar, title=None, small=True):
                 sub_ax.spines["bottom"].set_visible(True)
 
         plot_util.set_interm_ticks(
-            ax[row_n], 3, dim="y", weight="bold", share=False, update_ticks=True
+            ax[row_n], 3, axis="y", weight="bold", share=False, 
+            update_ticks=True
             )
     
     return ax

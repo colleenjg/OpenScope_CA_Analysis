@@ -19,7 +19,7 @@ from paper_fig_util import helper_fcts
 logger = logging.getLogger(__name__)
 
 # whether to shuffle ROI tracking (True), or session pair order (False)
-PERMUTE_TRACKING = True 
+PERMUTE_TRACKING = False
 
 
 ############################################
