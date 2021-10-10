@@ -119,16 +119,19 @@ def plot_pupil_run_trace_stats(trace_df, analyspar, figpar, split="by_exp",
         sub_ax.set_ylabel(ylabel, weight="bold")
 
    # fix x ticks and lims
-    plot_util.set_interm_ticks(ax, 3, dim="x", fontweight="bold")
+    plot_util.set_interm_ticks(ax, 3, axis="x", fontweight="bold")
     xlims = [np.min(time_values), np.max(time_values)]
     if split != "by_exp":
         xlims = [-xlims[1], xlims[1]]
     sub_ax.set_xlim(xlims)
     sub_ax.set_xlabel("Time (s)", weight="bold")
 
-    # fix y ticks
+    # expand y lims a bit and fix y ticks
+    for sub_ax in ax.reshape(-1):
+        plot_util.expand_lims(sub_ax, axis="y", prop=0.2)
+
     plot_util.set_interm_ticks(
-        ax, 2, dim="y", share=False, weight="bold", update_ticks=True
+        ax, 2, axis="y", share=False, weight="bold", update_ticks=True
         )
 
     return ax
@@ -342,8 +345,10 @@ def plot_pupil_run_block_diffs(block_df, analyspar, permpar, figpar,
         sub_ax.set_xticklabels(lp_names, fontweight="bold")
         sub_ax.tick_params(axis="x", which="both", bottom=False) 
 
+        plot_util.expand_lims(sub_ax, axis="y", prop=0.1)
+
         plot_util.set_interm_ticks(
-            np.asarray(sub_ax), n_ticks=3, dim="y", share=False, 
+            np.asarray(sub_ax), n_ticks=3, axis="y", share=False, 
             fontweight="bold", update_ticks=True
             )
 

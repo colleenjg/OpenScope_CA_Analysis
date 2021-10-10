@@ -916,7 +916,7 @@ def add_linpla_axislabels(ax, fluor="dff", area=False, scale=False,
                     sub_ax.set_xlabel(x_str, weight="bold")
 
     # y labels for each plane set (top and bottom)
-    add_y_pos = plot_util.get_fig_rel_pos(ax, row_per_grp, dim="y")
+    add_y_pos = plot_util.get_fig_rel_pos(ax, row_per_grp, axis="y")
     if single_lab:
         add_y_pos = add_y_pos[:1] # top only
 
@@ -1140,7 +1140,7 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
             "kind", kind, ["reg", "traces", "prog", "idx"])
 
     if kind in ["reg", "prog", "idx"]:
-        plot_util.set_interm_ticks(ax, n, dim="y", weight="bold", share=False)
+        plot_util.set_interm_ticks(ax, n, axis="y", weight="bold", share=False)
 
     # get x axis label and tick information
     if kind == "traces":
@@ -1167,13 +1167,13 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
         fig.tight_layout()
 
     # adds plane labels (vertical)
-    plane_pos = plot_util.get_fig_rel_pos(ax, row_per_grp, dim="y")
+    plane_pos = plot_util.get_fig_rel_pos(ax, row_per_grp, axis="y")
     for plane, pos in zip(planes, plane_pos):
         fig.text(fig_xpos, pos, plane, rotation=90, fontsize="xx-large", 
             verticalalignment="center", weight="bold")
 
     # adds line names (horizontal)
-    line_pos = plot_util.get_fig_rel_pos(ax, col_per_grp, dim="x")
+    line_pos = plot_util.get_fig_rel_pos(ax, col_per_grp, axis="x")
     for c, (line, pos) in enumerate(zip(lines, line_pos)):
         line_name = f"{line} Pyr" if len(line) and line[1].isdigit() else line
         if kind != "prog" and col_per_grp == 1:

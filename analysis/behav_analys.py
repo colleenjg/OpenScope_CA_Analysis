@@ -167,6 +167,7 @@ def get_pupil_run_trace_stats_df(sessions, analyspar, stimpar, basepar,
 
     group_columns = ["sess_ns"]
     for grp_vals, trace_grp_df in all_trace_df.groupby(group_columns):
+        trace_grp_df = trace_grp_df.sort_values(["lines", "planes", "mouse_ns"])
         row_idx = len(trace_df)
         grp_vals = [grp_vals]
         for g, group_column in enumerate(group_columns):
@@ -341,6 +342,7 @@ def get_pupil_run_block_stats_df(sessions, analyspar, stimpar, permpar,
 
     group_columns = ["lines", "planes", "sess_ns"]
     for grp_vals, block_grp_df in all_block_df.groupby(group_columns):
+        block_grp_df = block_grp_df.sort_values("mouse_ns")
         row_idx = len(block_df)
         for g, group_column in enumerate(group_columns):
             block_df.loc[row_idx, group_column] = grp_vals[g]

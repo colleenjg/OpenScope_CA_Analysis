@@ -366,6 +366,7 @@ def get_chosen_roi_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
     loop_args = list(zip(target_idx_vals, target_idx_sigs))
     group_columns = ["lines", "planes", "sess_ns"]
     for idx_df_vals, idx_df_grp in idx_df.groupby(group_columns):
+        idx_df_grp = idx_df_grp.sort_values("mouse_ns")
         line, plane, sess_n = idx_df_vals
         lp_name = plot_helper_fcts.get_line_plane_name(line, plane)
         logger.info(
@@ -842,6 +843,7 @@ def get_idx_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
         group_columns.append("mouse_ns")
     aggreg_cols = [col for col in initial_columns if col not in group_columns]
     for grp_vals, grp_df in full_idx_df.groupby(group_columns):
+        grp_df = grp_df.sort_values("mouse_ns")
         row_idx = len(idx_df)
         for g, group_column in enumerate(group_columns):
             idx_df.loc[row_idx, group_column] = grp_vals[g]
@@ -1097,6 +1099,7 @@ def get_idx_stats_df(sessions, analyspar, stimpar, basepar, idxpar,
         sess_roi_idxs = []
         for sess_n in sess_ns:
             sess_grp_df = grp_df.loc[grp_df["sess_ns"] == sess_n]
+            sess_grp_df = sess_grp_df.sort_values("mouse_ns")
             row_idx = len(idx_stats_df)
             row_indices.append(row_idx)
 
@@ -1110,7 +1113,6 @@ def get_idx_stats_df(sessions, analyspar, stimpar, basepar, idxpar,
                 in_place=True, by_mouse=by_mouse
                 )
 
-            # collect indices
             roi_idxs = np.concatenate(sess_grp_df["roi_idxs"].tolist())
             if absolute:
                 roi_idxs = np.absolute(roi_idxs)

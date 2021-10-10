@@ -181,6 +181,7 @@ def check_init_stim_data_df(data_df, sessions, stimpar, comp_sess=[1, 3],
 
     # populate dataframe
     for grp_vals, grp_df in data_df.groupby(group_columns):
+        grp_df = grp_df.sort_values(["sess_ns", "mouse_ns"])
         line, plane = grp_vals
         if new_df:
             row_idx = len(stim_data_df)
@@ -292,6 +293,7 @@ def get_stim_data_df(sessions, analyspar, stimpar, stim_data_df=None,
     # populate dataframe
     group_columns = ["lines", "planes"]
     for grp_vals, grp_df in data_df.groupby(group_columns):
+        grp_df = grp_df.sort_values(["sess_ns", "mouse_ns"])
         line, plane = grp_vals
 
         row_idxs = stim_data_df.loc[

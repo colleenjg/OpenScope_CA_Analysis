@@ -328,7 +328,7 @@ def plot_idxs(idx_df, sesspar, figpar, plot="items", density=True, n_bins=40,
     elif plot == "items":
         nticks = 3
         plot_util.set_interm_ticks(
-            ax, nticks, dim="x", weight="bold", share=False, skip=False
+            ax, nticks, axis="x", weight="bold", share=False, skip=False
             )
     
     else:
@@ -485,7 +485,8 @@ def plot_perc_sig_usis(perc_sig_df, analyspar, permpar, figpar, by_mouse=False,
 
     fig, ax = plot_util.init_fig(2, **figpar["init"])
     if title is not None:
-        fig.suptitle(title, y=0.98, weight="bold")
+        y = 0.98 if by_mouse else 1.07
+        fig.suptitle(title, y=y, weight="bold")
 
     tail_order = ["Low tail", "High tail"]
     tail_keys = ["lo", "hi"]
@@ -619,7 +620,7 @@ def plot_perc_sig_usis(perc_sig_df, analyspar, permpar, figpar, by_mouse=False,
         sub_ax.set_xticklabels(linpla_names, rotation=90, weight="bold")
 
     ax[0, 0].set_ylabel("%", fontweight="bold")
-    plot_util.set_interm_ticks(ax, 3, dim="y", weight="bold", share=True)
+    plot_util.set_interm_ticks(ax, 3, axis="y", weight="bold", share=True)
 
     # adjustment if tick interval is repeated in the negative
     if ax[0, 0].get_ylim()[0] < 0:

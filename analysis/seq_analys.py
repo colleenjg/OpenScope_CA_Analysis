@@ -153,6 +153,7 @@ def get_sess_grped_trace_df(sessions, analyspar, stimpar, basepar,
 
     group_columns = ["lines", "planes", "sess_ns"]
     for grp_vals, trace_grp_df in trace_df.groupby(group_columns):
+        trace_grp_df = trace_grp_df.sort_values("mouse_ns")
         row_idx = len(grped_trace_df)
         for g, group_column in enumerate(group_columns):
             grped_trace_df.loc[row_idx, group_column] = grp_vals[g]
@@ -393,6 +394,7 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
     group_columns = ["lines", "planes", "sess_ns"]
     aggreg_cols = [col for col in initial_columns if col not in group_columns]
     for lp_grp_vals, lp_grp_df in sess_diffs_df.groupby(["lines", "planes"]):
+        lp_grp_df = lp_grp_df.sort_values(["sess_ns", "mouse_ns"])
         line, plane = lp_grp_vals
         lp_name = plot_helper_fcts.get_line_plane_name(line, plane)
         logger.info(
@@ -661,6 +663,7 @@ def get_ex_traces_df(sessions, analyspar, stimpar, basepar, n_ex=6,
 
     group_columns = ["lines", "planes", "sess_ns"]
     for _, trace_grp_df in retained_traces_df.groupby(group_columns):
+        trace_grp_df = trace_grp_df.sort_values("mouse_ns")
         grp_indices = trace_grp_df.index
         n_per = np.asarray([len(roi_ns) for roi_ns in trace_grp_df["roi_ns"]])
         roi_ns = np.concatenate(trace_grp_df["roi_ns"].tolist())
@@ -833,6 +836,7 @@ def add_relative_resp_data(resp_data_df, analyspar, rel_sess=1, in_place=False):
 
     # calculate relative value for each
     for mouse_n, resp_mouse_df in resp_data_df.groupby("mouse_ns"):
+        resp_data_df = resp_data_df.sort_values("sess_ns")
         # find sess 1 and check that there is only 1
         rel_sess_idx = resp_mouse_df.loc[
             resp_mouse_df["sess_ns"] == rel_sess
@@ -1004,6 +1008,7 @@ def get_rel_resp_stats_df(sessions, analyspar, stimpar, permpar, rel_sess=1,
                 row_indices = []
             for s, sess_n in enumerate(sess_ns):
                 sess_grp_df = resp_grp_df.loc[resp_grp_df["sess_ns"] == sess_n]
+                sess_grp_df = sess_grp_df.sort_values("mouse_ns")
                 if e == 0:
                     row_idx = len(rel_resp_data_df)
                     row_indices.append(row_idx)

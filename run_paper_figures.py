@@ -19,6 +19,8 @@ from pathlib import Path
 import time
 import warnings
 
+from matplotlib import pyplot as plt
+
 # try to set cache/config as early as possible (for clusters)
 from util import gen_util 
 gen_util.CC_config_cache()
@@ -358,13 +360,14 @@ def run_single_panel(args, sessions=None, new_fig=False):
 
     # Check if analysis needs to be rerun, and if not, replots only.
     run_analysis, data_path = \
-        helper_fcts.check_if_data_exists(analysis_dict["figpar"])
+        helper_fcts.check_if_data_exists(
+            analysis_dict["figpar"], overwrite_plot_only=args.plot_only, 
+            raise_no_data=False
+            )
     
     if not run_analysis:
         return
     elif args.plot_only:
-        if analysis_dict["figpar"]["save"]["overwrite"]:
-            raise ValueError("Cannot use '--overwrite' with '--plot_only'.")
         logger.warning(
             f"Skipping plot, as no analysis data was found under {data_path}.", 
             extra={"spacing": "\n"}
@@ -417,9 +420,7 @@ def main(args):
     args.mouse_df_path = DEFAULT_MOUSE_DF_PATH
 
     # warn if parallel is not used
-    if args.overwrite:
-        if args.plot_only:
-            raise ValueError("Cannot use '--overwrite' with '--plot_only'.")
+    if args.overwrite and not(args.plot_only):
         if not args.parallel:
             warnings.warn(
                 "It is strongly recommended that paper analyses be run with "
@@ -458,6 +459,8 @@ def main(args):
                     logger.info(f"{lead}. {err}")
                 else:
                     raise err
+                    
+            plt.close("all")
 
 
 #############################################
@@ -480,7 +483,7 @@ def parse_args():
     parser.add_argument("--output", default=".", type=Path,
         help="where to store output")
     parser.add_argument("--overwrite", action="store_true", 
-        help=("rerun and overwrite analysis files "
+        help=("overwrite figure, and analysis files if args.plot_only is False"
         "(figures are always overwritten)"))
     parser.add_argument("--plot_only", action="store_true", 
         help=("only replots panels for which analysis files exist in the "
