@@ -74,12 +74,13 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False,
 
     analysis = info["extrapar"]["analysis"]
 
-    # 0. Plots the difference between surprise and regular across sessions
+    # 0. Plots the difference between unexpected and expected sequences across 
+    # sessions
     if analysis == "s": 
-        plot_surp_area_diff(figpar=figpar, savedir=savedir, **info)
+        plot_unexp_area_diff(figpar=figpar, savedir=savedir, **info)
 
-    # 1. Plots the difference between surprise and regular locked to surprise
-    # across sessions
+    # 1. Plots the difference between unexpected and expected sequences locked 
+    # to unexpected sequence onset across sessions
     elif analysis == "l":
         plot_lock_area_diff(figpar=figpar, savedir=savedir, **info)
 
@@ -87,12 +88,12 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False,
     elif analysis == "a":
         plot_stim_grayscr_diff(figpar=figpar, savedir=savedir, **info)
 
-    # 3. Plots the surprise and regular traces across sessions
+    # 3. Plots the unexpected and expected traces across sessions
     elif analysis == "t":
-        plot_surp_traces(figpar=figpar, savedir=savedir, **info)
+        plot_unexp_traces(figpar=figpar, savedir=savedir, **info)
 
-    # 4. Plots the surprise and regular locked to surprise traces
-    # across sessions
+    # 4. Plots the unexpected and expected sequences locked to unexpected 
+    # sequence onset across sessions
     elif analysis == "r":
         plot_lock_traces(figpar=figpar, savedir=savedir, **info)
 
@@ -100,36 +101,37 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False,
     elif analysis == "b":
         plot_stim_grayscr_traces(figpar=figpar, savedir=savedir, **info)
 
-    # 6. Plots the surprise indices across sessions
+    # 6. Plots the unexpected event indices across sessions
     elif analysis == "i":
-        plot_surp_idx(figpar=figpar, savedir=savedir, **info)
+        plot_unexp_idx(figpar=figpar, savedir=savedir, **info)
 
-    # 7. Plots the surprise indices with common orientations across sessions
+    # 7. Plots the unexpected event indices with common orientations across 
+    # sessions
     elif analysis == "m":
-        plot_surp_idx_common_oris(figpar=figpar, savedir=savedir, **info)
+        plot_unexp_idx_common_oris(figpar=figpar, savedir=savedir, **info)
 
     # 8. Plots the direction indices across sessions
     elif analysis == "d":
         plot_direction_idx(figpar=figpar, savedir=savedir, **info)
 
-    # 9. Plots surprise index colormaps across sessions 
+    # 9. Plots unexpected index colormaps across sessions 
     elif analysis == "c":
-        plot_surp_idx_cms(figpar=figpar, savedir=savedir, **info)
+        plot_unexp_idx_cms(figpar=figpar, savedir=savedir, **info)
 
-    # 10. Plots the progression surprises/regular sequences across sessions
+    # 10. Plots the progression unexpecteds/expected sequences across sessions
     elif analysis == "g":
         plot_prog(figpar=figpar, savedir=savedir, **info)
 
-    # 11. Plots the difference in position surprises/regular sequences across 
-    # sessions
+    # 11. Plots the difference in position unexpecteds/expected sequences 
+    # across sessions
     elif analysis == "o":
         plot_position(figpar=figpar, savedir=savedir, **info)
 
-    # 12. Plots the surprise latency across sessions
+    # 12. Plots the unexpected latency across sessions
     elif analysis == "u":
-        plot_surp_latency(figpar=figpar, savedir=savedir, **info)
+        plot_unexp_latency(figpar=figpar, savedir=savedir, **info)
 
-    # 13. Plots proportion of ROIs responses to both surprise types
+    # 13. Plots proportion of ROIs responses to both unexpected types
     elif analysis == "p":
         plot_resp_prop(figpar=figpar, savedir=savedir, **info)
 
@@ -637,8 +639,8 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
             ["init"] (dict): dictionary with figure initialization parameters
             ["save"] (dict): dictionary with figure saving parameters
             ["dirs"] (dict): dictionary with additional figure parameters
-        - lock (bool or str): if "surplock" or "reglock", differences being
-                              plotted are surp or reg-locked, correspondingly. 
+        - lock (bool or str): if "unexp_lock" or "exp_lock", differences being
+                              plotted are unexp or exp-locked, correspondingly. 
                               default: False    
         - plot (str)        : if "tog", average is taken across mice, otherwise, 
                               if "sep", each mouse is plotted separately
@@ -668,7 +670,7 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
         grp_str_pr = " (grouped)"
         
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"],
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"],
         stimpar["gabk"], "print")
     statstr_pr = sess_str_util.stat_par_str(analyspar["stats"], error, "print")
     dendstr_pr = sess_str_util.dend_par_str(
@@ -693,21 +695,21 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
         sig_comps = [[] for _ in range(len(linpla_iter))]
         maxes = np.full([len(linpla_iter), len(sess_ns)], np.nan)
 
-    subtitle = "Surp - reg activity"
+    subtitle = "Unexp - exp activity"
     if lock:
         prepost_str = f"{stimpar['post']}s pre v post"
-        if lock == "surplock":
-            subtitle += " locked to surprise onset"
-        elif lock == "reglock":
-            subtitle = "Reg - surp activity locked to regular onset"
+        if lock == "unexp_lock":
+            subtitle += " locked to unexpected event onset"
+        elif lock == "exp_lock":
+            subtitle = "Exp - unexp activity locked to expected onset"
         elif lock == "stim_onset":
             subtitle = "Stimulus - grayscreen activity locked to stimulus onset"
         elif lock == "stim_offset":
             subtitle = ("Grayscreen - stimulus activity locked to stimulus "
                 "offset")
         else:
-            raise ValueError("If lock is not False, it must be 'reglock' or \
-                'surplock'.")
+            raise ValueError("If lock is not False, it must be 'exp_lock' or \
+                'unexp_lock'.")
     else:
         prepost_str = sess_str_util.prepost_par_str(
             stimpar["pre"], stimpar["post"], str_type="print")
@@ -753,14 +755,14 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
    
 
 #############################################
-def plot_surp_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar, 
+def plot_unexp_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar, 
                         sess_info, diff_info, figpar=None, savedir=None):
     """
-    plot_surp_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar, 
+    plot_unexp_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar, 
                         sess_info, diff_stats)
 
     From dictionaries, plots statistics across ROIs or mice of difference 
-    between regular and surprise averaged across sequences.
+    between expected and unexpected averaged across sequences.
     
     Returns figure name and save directory path.
     
@@ -838,7 +840,7 @@ def plot_surp_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
     
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
     datatype = extrapar["datatype"]
@@ -859,8 +861,8 @@ def plot_surp_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
             sess_str_util.get_stimdir(stimpar["stimtype"], stimpar["gabfr"]), 
             base_str)
 
-    gen_savename = f"{datatype}_surp_diff_{sessstr}{dendstr}"
-    part = "surp_diff"
+    gen_savename = f"{datatype}_unexp_diff_{sessstr}{dendstr}"
+    part = "unexp_diff"
     add_idx = gen_savename.find(part) + len(part)
 
     for p, plot in enumerate(["sep", "tog", "grped"]):
@@ -886,8 +888,8 @@ def plot_lock_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
                         sess_info, diff_info)
 
     From dictionaries, plots statistics across ROIs or mice of difference 
-    between regular and surprise averaged across sequences, locked to 
-    transitions from regular to surprise, and vice versa.
+    between expected and unexpected averaged across sequences, locked to 
+    transitions from expected to unexpected, and vice versa.
     
     Returns figure name and save directory path.
     
@@ -903,7 +905,7 @@ def plot_lock_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
             ["datatype"] (str): datatype (e.g., "run", "roi")
         - sess_info (list): list of dictionaries containing information from 
                             each session, structured as 
-                            [surp-locked, reg-locked]
+                            [unexp-locked, exp-locked]
             ["mouse_ns"] (list)   : mouse numbers
             ["sess_ns"] (list)    : session numbers  
             ["lines"] (list)      : mouse lines
@@ -911,7 +913,7 @@ def plot_lock_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
             ["nrois"] (list)      : number of ROIs in session
             
         - diff_info (list): list of dictionaries containing difference 
-                            information, structured as [surp-locked, reg-locked]
+                            information, structured as [unexp-locked, exp-locked]
             ["all_diff_stats"] (list)  : difference stats across mice, 
                                          structured as plane/line x session 
                                                                   x stats
@@ -967,7 +969,7 @@ def plot_lock_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
  
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
     datatype = extrapar["datatype"]
@@ -990,7 +992,7 @@ def plot_lock_area_diff(analyspar, sesspar, stimpar, basepar, permpar, extrapar,
 
     gen_savename = f"{datatype}_lock_diff_{sessstr}{dendstr}"
 
-    for l, lock in enumerate(["surplock", "reglock"]):
+    for l, lock in enumerate(["unexp_lock", "exp_lock"]):
         part = "lock_diff"
         lock_savename = gen_savename.replace("lock", lock)
         add_idx = lock_savename.find(part) + len(part)
@@ -1104,7 +1106,7 @@ def plot_stim_grayscr_diff(analyspar, sesspar, stimpar, basepar, permpar,
 
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
     datatype = extrapar["datatype"]
@@ -1149,7 +1151,7 @@ def plot_stim_grayscr_diff(analyspar, sesspar, stimpar, basepar, permpar,
 
 #############################################
 def plot_traces(sub_ax, xran, trace_st, lock=False, col="k", lab=True, 
-                stimtype="gabors", gabfr=0, ls=None, reg_col="gray"):
+                stimtype="gabors", gabfr=0, ls=None, exp_col="gray"):
     """
     plot_traces(sub_ax, xran, trace_st)
 
@@ -1164,26 +1166,26 @@ def plot_traces(sub_ax, xran, trace_st, lock=False, col="k", lab=True,
     Optional args:
         - lock (bool)   : if True, plotted data is locked 
                           default: False
-        - col  (str)    : colour for non-regular/non-locked data
+        - col  (str)    : colour for non-expected/non-locked data
                           default: "k"
         - lab (bool)    : if True, data label is included for legend
                           default: True
-        - stimtype (str): stimtype ("gabors" or "bricks")
+        - stimtype (str): stimtype ("gabors" or "visflow")
                           default: "gabors"
         - gabfr (int)   : gabor start frame number
                           default: 0
         - ls (float)    : trace line style
                           default: None
-        - reg_col (str) : color for regular data
+        - exp_col (str) : color for expected data
                           default: "gray"
     """
 
     if lock:
         cols = [col, col]
     else:
-        cols = [reg_col, col]
+        cols = [exp_col, col]
     
-    names = ["reg", "surp"]
+    names = ["exp", "unexp"]
     if lock and "stim" in lock:
         names = ["off", "on"]
 
@@ -1219,7 +1221,7 @@ def plot_traces(sub_ax, xran, trace_st, lock=False, col="k", lab=True,
     if stimtype == "gabors":
         shade_col = DARKRED
         shade_lim = "pos"
-        if lock in ["reglock", "stim_offset"]:
+        if lock in ["exp_lock", "stim_offset"]:
             shade_lim = "neg"
         sess_plot_util.plot_gabfr_pattern(sub_ax, full_xran, offset=gabfr, 
             bars_omit=[0], shade_col=shade_col, alpha=0.2, shade_lim=shade_lim)
@@ -1227,12 +1229,12 @@ def plot_traces(sub_ax, xran, trace_st, lock=False, col="k", lab=True,
     trace_st = np.asarray(trace_st)
     for i, (col, name) in enumerate(zip(cols, names)):
         label = name if lab and not lock else None
-        if lock and name not in lock:
+        if lock and f"_{name}" not in f"_{lock}": # hack, since "exp" is in "unexp"
             xran_use = rev_xran
         else:
             xran_use = xran
-        if lock in ["reglock", "stim_offset"]:
-            i = 1 - i # data ordered as [non-reg, reg] instead of vv
+        if lock in ["exp_lock", "stim_offset"]:
+            i = 1 - i # data ordered as [non-exp, exp] instead of vv
         plot_util.plot_traces(sub_ax, xran_use, trace_st[i, :, 0], 
             trace_st[i, :, 1:], label=label, alpha_line=0.8, color=col, 
             xticks=xticks, ls=ls)
@@ -1243,7 +1245,7 @@ def plot_single_prog(sub_ax, prog_st, col="k", label=None, alpha_line=0.8):
     """
     plot_single_prog(sub_ax, prog_st)
 
-    Plot surprise or regular progression data (single set).
+    Plot unexpected or expected progression data (single set).
 
     Required args:
         - sub_ax (plt Axis subplot): subplot
@@ -1315,15 +1317,15 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
         - trace_info (dict)      : dictionary with difference info
             ["linpla_ord"] (list) : order list of planes/lines
             ["trace_stats"] (list): trace statistics, structured as
-                                    plane/line x session x reg/surp x frame 
+                                    plane/line x session x exp/unexp x frame 
                                                x stats
             ["xran"] (list)       : second values for each frame
             if datatype == "roi":
                 ["trace_st_acr_rois"] (list): trace statistics across ROIs, 
                                               grouped across mice, structured 
-                                              as session x reg/surp 
+                                              as session x exp/unexp 
                                                          x frame x stats
-                                              (or surp/reg if surp == "reglock")
+                                              (or unexp/exp if unexp == "exp_lock")
 
     Optional args:
         - figpar (dict)     : dictionary containing the following figure 
@@ -1332,8 +1334,8 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
             ["init"] (dict): dictionary with figure initialization parameters
             ["save"] (dict): dictionary with figure saving parameters
             ["dirs"] (dict): dictionary with additional figure parameters
-        - lock (bool or str): if "surplock" or "reglock", differences being
-                              plotted are surp or reg-locked, correspondingly. 
+        - lock (bool or str): if "unexp_lock" or "exp_lock", differences being
+                              plotted are unexp or exp-locked, correspondingly. 
                               If "stim_onset" or "stim_offset", differences 
                               plotted are from onset or offset.
                               default: False     
@@ -1346,7 +1348,7 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
  
     datatype = extrapar["datatype"]
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"],
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"],
         stimpar["gabk"], "print")
     statstr_pr = sess_str_util.stat_par_str(
         analyspar["stats"], analyspar["error"], "print")
@@ -1364,20 +1366,20 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
             n_sess=n_sess, n_grps=len(trace_info["linpla_ord"]))
     figpar = sess_plot_util.fig_init_linpla(figpar, kind="traces", n_sub=n_sess)
 
-    subtitle = "Surp v reg activity"
+    subtitle = "Unexp v exp activity"
     if lock:
         prepost_str = f"{stimpar['post']}s pre v post"
-        if lock == "surplock":
-            subtitle += " locked to surprise onset"
-        elif lock == "reglock":
-            subtitle = "Reg v surp activity locked to regular onset"
+        if lock == "unexp_lock":
+            subtitle += " locked to unexpected onset"
+        elif lock == "exp_lock":
+            subtitle = "Exp v unexp activity locked to expected onset"
         elif lock == "stim_onset":
             subtitle = "Stimulus vs grayscreen activity locked to onset"
         elif lock == "stim_offset":
             subtitle = "Grayscreen vs stimulus activity locked to offset"
         else:
-            raise ValueError("If lock is not False, it must be 'reglock', "
-                "'surplock', 'stim_onset' or 'stim_offset'.")
+            raise ValueError("If lock is not False, it must be 'exp_lock', "
+                "'unexp_lock', 'stim_onset' or 'stim_offset'.")
     else:
         prepost_str = sess_str_util.prepost_par_str(
             stimpar["pre"], stimpar["post"], str_type="print")
@@ -1432,14 +1434,14 @@ def plot_traces_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
    
 
 #############################################
-def plot_surp_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info, 
+def plot_unexp_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info, 
                      trace_info, figpar=None, savedir=None):
     """
-    plot_surp_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info, 
+    plot_unexp_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info, 
                      trace_info)
 
     From dictionaries, plots traces across ROIs or mice of difference 
-    for regular and surprise averaged across sequences.
+    for expected and unexpected averaged across sequences.
     
     Returns general figure name and save directory path.
     
@@ -1465,14 +1467,14 @@ def plot_surp_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
         - trace_info (dict)      : dictionary with difference info
             ["linpla_ord"] (list) : order list of planes/lines            
             ["trace_stats"] (list): trace statistics, structured as
-                                    plane/line x session x reg/surp x frame 
+                                    plane/line x session x exp/unexp x frame 
                                                x stats
             if datatype == "roi":
                 ["trace_st_acr_rois"] (list): trace statistics across ROIs, 
                                               grouped across mice, structured 
-                                              as session x reg/surp 
+                                              as session x exp/unexp 
                                                          x frame x stats
-                                              (or surp/reg if surp == "reglock")
+                                              (or unexp/exp if unexp == "exp_lock")
             ["xran"] (list)       : second values for each frame
 
     Optional args:
@@ -1494,7 +1496,7 @@ def plot_surp_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
     
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
     datatype = extrapar["datatype"]
@@ -1514,7 +1516,7 @@ def plot_surp_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
             sess_str_util.get_stimdir(stimpar["stimtype"], stimpar["gabfr"]), 
             base_str)
 
-    gen_savename = f"{datatype}_surp_tr_{sessstr}{dendstr}"
+    gen_savename = f"{datatype}_unexp_tr_{sessstr}{dendstr}"
 
     for grp in ["mice", "rois"]:
         if grp == "rois" and datatype == "run":
@@ -1539,9 +1541,9 @@ def plot_lock_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
     plot_lock_traces(analyspar, sesspar, stimpar, extrapar, sess_info,
                      trace_info)
 
-    From dictionaries, plots traces across ROIs or mice for regular and 
-    surprise sequences, locked to transitions from regular to surprise, then
-    from surprise to regular.
+    From dictionaries, plots traces across ROIs or mice for expected and 
+    unexpected sequences, locked to transitions from expected to unexpected, then
+    from unexpected to expected.
     
     Returns general figure name and save directory path.
     
@@ -1556,7 +1558,7 @@ def plot_lock_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
             ["datatype"] (str): datatype (e.g., "run", "roi")
         - sess_info (list): list of dictionaries containing information from 
                             each session, structured as 
-                            [surp-locked, reg-locked]
+                            [unexp-locked, exp-locked]
             ["mouse_ns"] (list)   : mouse numbers
             ["sess_ns"] (list)    : session numbers  
             ["lines"] (list)      : mouse lines
@@ -1565,17 +1567,17 @@ def plot_lock_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
             
         - trace_info (list): list of dictionaries containing trace 
                              information, structured as 
-                             [surp-locked, reg-locked]
+                             [unexp-locked, exp-locked]
             ["linpla_ord"] (list) : order list of planes/lines            
             ["trace_stats"] (list): trace statistics, structured as
-                                    plane/line x session x reg/surp x frame 
+                                    plane/line x session x exp/unexp x frame 
                                                x stats
             if datatype == "roi":
                 ["trace_st_grped"] (list): trace statistics across ROIs, 
                                            grouped across mice, structured 
-                                           as session x reg/surp 
+                                           as session x exp/unexp 
                                                       x frame x stats
-                                           (or surp/reg if surp == "reglock")
+                                           (or unexp/exp if unexp == "exp_lock")
             ["xran"] (list)       : second values for each frame
 
     Optional args:
@@ -1597,7 +1599,7 @@ def plot_lock_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
  
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
     datatype = extrapar["datatype"]
@@ -1613,7 +1615,7 @@ def plot_lock_traces(analyspar, sesspar, stimpar, basepar, extrapar, sess_info,
 
     stimdir = sess_str_util.get_stimdir(stimpar["stimtype"], stimpar["gabfr"])
 
-    for l, lock in enumerate(["surplock", "reglock"]):
+    for l, lock in enumerate(["unexp_lock", "exp_lock"]):
         for grp in ["mice", "rois"]:
             if grp == "rois" and datatype == "run":
                 continue
@@ -1706,7 +1708,7 @@ def plot_stim_grayscr_traces(analyspar, sesspar, stimpar, basepar, extrapar,
 
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
     datatype = extrapar["datatype"]
@@ -1753,12 +1755,12 @@ def plot_prog_per_mouse(ax, mouse_st, sess_info, sess_ns=None, cols=None,
     """
     plot_prog_per_mouse(ax, mouse_st, sess_info)
 
-    Plots surprise/regular sequence progression statistics for each mouse.
+    Plots unexpected/expected sequence progression statistics for each mouse.
 
     Required args:
         - ax (1D array of subplots): array of subplots
         - mouse_st (3D array)      : statistics across ROIs or seqs, 
-                                     structured as mouse x session x surps 
+                                     structured as mouse x session x unexps 
                                         x seq x stats
         - sess_info (list)         : list of dictionaries for each mouse 
                                      containing information from each session, 
@@ -1777,7 +1779,7 @@ def plot_prog_per_mouse(ax, mouse_st, sess_info, sess_ns=None, cols=None,
                                 default: None
         - use_lab (bool)      : if True, label with mouse numbers is added
                                 default: True
-        - diff (bool)         : if True, difference between surp/reg is taken
+        - diff (bool)         : if True, difference between unexp/exp is taken
                                 default: True
     
     Returns:
@@ -1991,7 +1993,7 @@ def plot_stim_idx_hist(sub_ax, percs, n_bins=None, data=None, rand_data=None,
 #############################################
 def plot_stim_idx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar, 
                            idx_info, sess_info, figpar=None, plot="tog", 
-                           feature="surp", common_oris=False):
+                           feature="unexp", common_oris=False):
     """
     plot_stim_idx_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info, 
                            idx_info, sess_info)
@@ -2053,11 +2055,11 @@ def plot_stim_idx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
                               "percs" for index percentiles)
                               default: "items"
         - feature (str)     : feature on which index is based, 
-                              e.g. "surp" or "dir"
-                              default: "surp"
+                              e.g. "unexp" or "dir"
+                              default: "unexp"
         - common_oris (bool): if True, only Gabor stimulus orientations 
                               common to D and U frames are included 
-                              ("surp" split only)
+                              ("unexp" split only)
                               default: False
 
     Returns:
@@ -2084,7 +2086,7 @@ def plot_stim_idx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
         gen_util.accepted_values_error("plot", plot, ["items", "percs"])
 
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"],
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"],
         stimpar["gabk"], "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"], "print")
@@ -2105,17 +2107,17 @@ def plot_stim_idx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
             stimpar["pre"], stimpar["post"], str_type="print")
 
     if "dir" in feature:
-        if feature == "dir_reg":
-            feat_sub = "regular "
-        elif feature == "dir_surp":
-            feat_sub = "surprise "
+        if feature == "dir_exp":
+            feat_sub = "expected "
+        elif feature == "dir_unexp":
+            feat_sub = "unexpected "
         elif feature != "dir":
             raise ValueError(
-                "If 'dir' in 'feature', must be among 'dir_reg', 'dir_surp' "
+                "If 'dir' in 'feature', must be among 'dir_exp', 'dir_unexp' "
                 "or 'dir'.")
         feature_str = f"{feat_sub}direction (left v right)\n"
     else:
-        feature_str = "surprise"
+        feature_str = "unexpected"
     
     common_str = ""
     if common_oris:
@@ -2176,7 +2178,7 @@ def plot_stim_idx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
 #############################################
 def plot_perc_sig_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar, 
                            perc_sig_info, sess_info, figpar=None, plot="items", 
-                           feature="surp", common_oris=False):
+                           feature="unexp", common_oris=False):
     """
     plot_perc_sig_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar, 
                            perc_sig_info, sess_info)
@@ -2221,11 +2223,11 @@ def plot_perc_sig_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
             ["save"] (dict): dictionary with figure saving parameters
             ["dirs"] (dict): dictionary with additional figure parameters
         - feature (str)     : feature on which index is based, 
-                              e.g. "surp" or "dir"
-                              default: "surp"
+                              e.g. "unexp" or "dir"
+                              default: "unexp"
         - common_oris (bool): if True, only Gabor stimulus orientations 
                               common to D and U frames are included 
-                              ("surp" split only)
+                              ("unexp" split only)
                               default: False
 
     Returns:
@@ -2239,7 +2241,7 @@ def plot_perc_sig_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
     dim_str = sess_str_util.datatype_dim_str(datatype)
 
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"],
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"],
         stimpar["gabk"], "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"], "print")
@@ -2259,17 +2261,17 @@ def plot_perc_sig_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
             stimpar["pre"], stimpar["post"], str_type="print")
 
     if "dir" in feature:
-        if feature == "dir_reg":
-            feat_sub = "regular "
-        elif feature == "dir_surp":
-            feat_sub = "surprise "
+        if feature == "dir_exp":
+            feat_sub = "expected "
+        elif feature == "dir_unexp":
+            feat_sub = "unexpected "
         elif feature != "dir":
             raise ValueError(
-                "If 'dir' in 'feature', must be among 'dir_reg', 'dir_surp' "
+                "If 'dir' in 'feature', must be among 'dir_exp', 'dir_unexp' "
                 "or 'dir'.")
         feature_str = f"{feat_sub}direction (left v right)"
     else:
-        feature_str = "surprise"
+        feature_str = "unexpected"
 
     common_str = ""
     if common_oris:
@@ -2327,13 +2329,14 @@ def plot_perc_sig_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
 
 
 #############################################
-def plot_surp_idx(analyspar, sesspar, stimpar, basepar, permpar, idxpar, 
-                  extrapar, sess_info, surpidx_info, figpar=None, savedir=None):
+def plot_unexp_idx(analyspar, sesspar, stimpar, basepar, permpar, idxpar, 
+                  extrapar, sess_info, unexp_idx_info, figpar=None, savedir=None):
     """
-    plot_surp_idx(analyspar, sesspar, stimpar, basepar, permpar, idxpar, 
-                  extrapar, sess_info, surpidx_info)
+    plot_unexp_idx(analyspar, sesspar, stimpar, basepar, permpar, idxpar, 
+                  extrapar, sess_info, unexp_idx_info)
 
-    From dictionaries, plots surprise indices for all ROIs or running values.
+    From dictionaries, plots unexpected event indices for all ROIs or running 
+    values.
     
     Returns figure name and save directory path.
     
@@ -2357,16 +2360,16 @@ def plot_surp_idx(analyspar, sesspar, stimpar, basepar, permpar, idxpar,
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
             
-        - surpidx_info (dict): containing surprise index information:
-            ["item_idxs"] (list) : surprise index bin counts for each 
+        - unexp_idx_info (dict): containing unexpected index information:
+            ["item_idxs"] (list) : unexpected index bin counts for each 
                                    ROI or running value, grouped across mice, 
                                    structured as 
                                        plane/line x session x bin
-            ["item_percs"] (list): surprise percentile bin counts for each 
+            ["item_percs"] (list): unexpected percentile bin counts for each 
                                    ROI or running value, grouped across mice, 
                                    structured as 
                                        plane/line x session x bin
-            ["rand_idxs"] (list) : random surprise index bin counts for each 
+            ["rand_idxs"] (list) : random unexpected index bin counts for each 
                                    ROI or running value, grouped across mice, 
                                    structured as 
                                        plane/line x session x bin
@@ -2397,7 +2400,7 @@ def plot_surp_idx(analyspar, sesspar, stimpar, basepar, permpar, idxpar,
  
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
     datatype = extrapar["datatype"]
@@ -2409,19 +2412,19 @@ def plot_surp_idx(analyspar, sesspar, stimpar, basepar, permpar, idxpar,
     if figpar["save"]["use_dt"] is None:
         figpar["save"]["use_dt"] = gen_util.create_time_str()
 
-    gen_savename = f"{datatype}_surpidx_{sessstr}{dendstr}"
+    gen_savename = f"{datatype}_unexp_idx_{sessstr}{dendstr}"
 
     stimdir = sess_str_util.get_stimdir(stimpar["stimtype"], stimpar["gabfr"])
 
     for plot in ["items", "percs", "perc_sig"]:
         if plot != "perc_sig":
             fig, perc_sig_info = plot_stim_idx_acr_sess(
-                analyspar, sesspar, stimpar, permpar, extrapar, surpidx_info, 
-                sess_info, figpar=figpar, plot=plot, feature="surp")
+                analyspar, sesspar, stimpar, permpar, extrapar, unexp_idx_info, 
+                sess_info, figpar=figpar, plot=plot, feature="unexp")
         else:
             fig = plot_perc_sig_acr_sess(
                 analyspar, sesspar, stimpar, permpar, extrapar, 
-                perc_sig_info, sess_info, figpar=figpar, feature="surp")
+                perc_sig_info, sess_info, figpar=figpar, feature="unexp")
 
         if savedir is None:
             base_str = sess_str_util.base_par_str(basepar["baseline"])[1:]
@@ -2430,8 +2433,8 @@ def plot_surp_idx(analyspar, sesspar, stimpar, basepar, permpar, idxpar,
                 figpar["dirs"]["acr_sess"], 
                 stimdir,
                 base_str,
-                figpar["dirs"]["surp_idx"])
-            if idxpar["feature"] != "bysurp":
+                figpar["dirs"]["unexp_idx"])
+            if idxpar["feature"] != "by_exp":
                 savedir = savedir.joinpath(idxpar["feature"])
 
         savename = gen_savename
@@ -2447,15 +2450,15 @@ def plot_surp_idx(analyspar, sesspar, stimpar, basepar, permpar, idxpar,
 
 
 #############################################
-def plot_surp_idx_common_oris(analyspar, sesspar, stimpar, basepar, permpar, 
-                              idxpar, extrapar, sess_info, surpidx_info, 
+def plot_unexp_idx_common_oris(analyspar, sesspar, stimpar, basepar, permpar, 
+                              idxpar, extrapar, sess_info, unexp_idx_info, 
                               figpar=None, savedir=None):
     """
-    plot_surp_idx_common_oris(analyspar, sesspar, stimpar, basepar, permpar, 
-                              idxpar, extrapar, sess_info, surpidx_info)
+    plot_unexp_idx_common_oris(analyspar, sesspar, stimpar, basepar, permpar, 
+                              idxpar, extrapar, sess_info, unexp_idx_info)
 
-    From dictionaries, plots surprise indices with common orientations for 
-    all ROIs or running values.
+    From dictionaries, plots unexpected event indices with common orientations 
+    for all ROIs or running values.
     
     Returns figure name and save directory path.
     
@@ -2479,16 +2482,16 @@ def plot_surp_idx_common_oris(analyspar, sesspar, stimpar, basepar, permpar,
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
             
-        - surpidx_info (dict): containing surprise index information:
-            ["item_idxs"] (list) : surprise index bin counts for each 
+        - unexp_idx_info (dict): containing unexpected index information:
+            ["item_idxs"] (list) : unexpected index bin counts for each 
                                    ROI or running value, grouped across mice, 
                                    structured as 
                                        plane/line x session x bin
-            ["item_percs"] (list): surprise percentile bin counts for each 
+            ["item_percs"] (list): unexpected percentile bin counts for each 
                                    ROI or running value, grouped across mice, 
                                    structured as 
                                        plane/line x session x bin
-            ["rand_idxs"] (list) : random surprise index bin counts for each 
+            ["rand_idxs"] (list) : random unexpected index bin counts for each 
                                    ROI or running value, grouped across mice, 
                                    structured as 
                                        plane/line x session x bin
@@ -2519,7 +2522,7 @@ def plot_surp_idx_common_oris(analyspar, sesspar, stimpar, basepar, permpar,
  
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
     datatype = extrapar["datatype"]
@@ -2531,20 +2534,20 @@ def plot_surp_idx_common_oris(analyspar, sesspar, stimpar, basepar, permpar,
     if figpar["save"]["use_dt"] is None:
         figpar["save"]["use_dt"] = gen_util.create_time_str()
 
-    gen_savename = f"{datatype}_surpidx_common_oris_{sessstr}{dendstr}"
+    gen_savename = f"{datatype}_unexp_idx_common_oris_{sessstr}{dendstr}"
 
     stimdir = sess_str_util.get_stimdir(stimpar["stimtype"], stimpar["gabfr"])
 
     for plot in ["items", "percs", "perc_sig"]:
         if plot != "perc_sig":
             fig, perc_sig_info = plot_stim_idx_acr_sess(
-                analyspar, sesspar, stimpar, permpar, extrapar, surpidx_info, 
-                sess_info, figpar=figpar, plot=plot, feature="surp", 
+                analyspar, sesspar, stimpar, permpar, extrapar, unexp_idx_info, 
+                sess_info, figpar=figpar, plot=plot, feature="unexp", 
                 common_oris=True)
         else:
             fig = plot_perc_sig_acr_sess(
                 analyspar, sesspar, stimpar, permpar, extrapar, 
-                perc_sig_info, sess_info, figpar=figpar, feature="surp", 
+                perc_sig_info, sess_info, figpar=figpar, feature="unexp", 
                 common_oris=True)
 
         if savedir is None:
@@ -2554,8 +2557,8 @@ def plot_surp_idx_common_oris(analyspar, sesspar, stimpar, basepar, permpar,
                 figpar["dirs"]["acr_sess"], 
                 stimdir,
                 base_str,
-                figpar["dirs"]["surp_idx"])
-            if idxpar["feature"] != "bysurp":
+                figpar["dirs"]["unexp_idx"])
+            if idxpar["feature"] != "by_exp":
                 savedir = savedir.joinpath(idxpar["feature"])
 
         savename = gen_savename
@@ -2603,7 +2606,7 @@ def plot_direction_idx(analyspar, sesspar, stimpar, basepar, permpar, idxpar,
             ["nrois"] (list)      : number of ROIs in session
             
         - diridx_info (dict) : list of dictionaries containing direction index 
-                               information, ordered as ["dir_reg", "dir_surp"]:
+                               information, ordered as ["dir_exp", "dir_unexp"]:
             ["item_idxs"] (list) : direction index bin counts for each 
                                    ROI or running value, grouped across mice, 
                                    structured as 
@@ -2643,7 +2646,7 @@ def plot_direction_idx(analyspar, sesspar, stimpar, basepar, permpar, idxpar,
  
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
     datatype = extrapar["datatype"]
@@ -2659,7 +2662,7 @@ def plot_direction_idx(analyspar, sesspar, stimpar, basepar, permpar, idxpar,
 
     stimdir = sess_str_util.get_stimdir(stimpar["stimtype"], stimpar["gabfr"])
 
-    for d, direc in enumerate(["dir_reg", "dir_surp"]):
+    for d, direc in enumerate(["dir_exp", "dir_unexp"]):
         for plot in ["items", "percs", "perc_sig"]:
             if plot != "perc_sig":
                 fig, perc_sig_info = plot_stim_idx_acr_sess(
@@ -2694,9 +2697,9 @@ def plot_direction_idx(analyspar, sesspar, stimpar, basepar, permpar, idxpar,
 
 
 #############################################
-def plot_surp_idx_cm(sub_ax, item_idxs, col="blue"):
+def plot_unexp_idx_cm(sub_ax, item_idxs, col="blue"):
     """
-    plot_surp_idx_cm(sub_ax, item_idxs)
+    plot_unexp_idx_cm(sub_ax, item_idxs)
 
     Plot colormap for a set of stimulus parameters
 
@@ -2729,13 +2732,13 @@ def plot_surp_idx_cm(sub_ax, item_idxs, col="blue"):
 
 
 #############################################
-def plot_surp_idx_cms_acr_sess(analyspar, sesspar, stimpar, extrapar, 
-                               surpidx_info, sess_info, figpar=None):
+def plot_unexp_idx_cms_acr_sess(analyspar, sesspar, stimpar, extrapar, 
+                               unexp_idx_info, sess_info, figpar=None):
     """
-    plot_surp_idx_cms_acr_sess(analyspar, sesspar, stimpar, extrapar, 
-                               surpidx_info, sess_info)
+    plot_unexp_idx_cms_acr_sess(analyspar, sesspar, stimpar, extrapar, 
+                               unexp_idx_info, sess_info)
 
-    From dictionaries, surprise indices for each ROI or single running 
+    From dictionaries, unexpected event indices for each ROI or single running 
     value, for each stimulus parameter, across sessions. 
     
     Returns figure name and save directory path.
@@ -2784,7 +2787,7 @@ def plot_surp_idx_cms_acr_sess(analyspar, sesspar, stimpar, extrapar,
     dim_str = sess_str_util.datatype_dim_str(datatype)
 
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"],
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"],
         stimpar["gabk"], "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"], "print")
@@ -2799,28 +2802,28 @@ def plot_surp_idx_cms_acr_sess(analyspar, sesspar, stimpar, extrapar,
         if (stimpar["gab_ori"] not in ["all", "any"] and 
             len(stimpar["gab_ori"]) < 2):
             raise ValueError("Must include at least 2 gabor orientations "
-                "for colormap surprise index analysis.")
+                "for colormap unexpected index analysis.")
         stim_vals = [0, 45, 90, 135]
         stim_name = "Gabor oris"
-    elif stimpar["stimtype"] == "bricks":
-        if (stimpar["bri_dir"] not in ["all", "any", "both"] and 
-            len(stimpar["bri_dir"]) < 2):
-            raise ValueError("Must include at least 2 brick directions "
-                "for colormap surprise index analysis.")
-        stim_vals = [sess_gen_util.get_bri_screen_mouse_direc(val) 
+    elif stimpar["stimtype"] == "visflow":
+        if (stimpar["visflow_dir"] not in ["all", "any", "both"] and 
+            len(stimpar["visflow_dir"]) < 2):
+            raise ValueError("Must include at least 2 visual flow directions "
+                "for colormap unexpected index analysis.")
+        stim_vals = [sess_gen_util.get_visflow_screen_mouse_direc(val) 
             for val in ["left", "right"]]
-        stim_name = "Brick dirs"
+        stim_name = "Visual flow dirs"
 
     [lines, planes, linpla_iter, 
      pla_cols, _, n_plots] = sess_plot_util.fig_linpla_pars(
-        n_sess = len(sess_ns), n_grps=len(surpidx_info["linpla_ord"]))
+        n_sess = len(sess_ns), n_grps=len(unexp_idx_info["linpla_ord"]))
     figpar = sess_plot_util.fig_init_linpla(figpar, kind="idx", n_sub=n_sess, 
         sharex=False)
 
     prepost_str = sess_str_util.prepost_par_str(
             stimpar["pre"], stimpar["post"], str_type="print")
 
-    feature_str = "surprise"
+    feature_str = "unexpected"
 
     subtitle = (f"{dim_str} {feature_str}")
     
@@ -2834,13 +2837,13 @@ def plot_surp_idx_cms_acr_sess(analyspar, sesspar, stimpar, extrapar,
         li = lines.index(line)
         pl = planes.index(pla)
         l_idx = get_linpla_idx(
-            surpidx_info["linpla_ord"], line, pla, verbose=True, newline=(i==0))
+            unexp_idx_info["linpla_ord"], line, pla, verbose=True, newline=(i==0))
         if l_idx is None:
             continue
         for s in range(n_sess):
             sub_ax = ax[s + pl * n_sess, li]
-            im = plot_surp_idx_cm(
-                sub_ax, surpidx_info["item_idxs"][l_idx][s], col=pla_cols[pl])
+            im = plot_unexp_idx_cm(
+                sub_ax, unexp_idx_info["item_idxs"][l_idx][s], col=pla_cols[pl])
     
     xticks = np.linspace(1, len(stim_vals), len(stim_vals))
     for sub_ax in ax.reshape(-1):
@@ -2858,14 +2861,14 @@ def plot_surp_idx_cms_acr_sess(analyspar, sesspar, stimpar, extrapar,
 
 
 #############################################
-def plot_surp_idx_cms(analyspar, sesspar, stimpar, basepar, idxpar, permpar, 
-                      extrapar, sess_info, surpidx_info, figpar=None, 
+def plot_unexp_idx_cms(analyspar, sesspar, stimpar, basepar, idxpar, permpar, 
+                      extrapar, sess_info, unexp_idx_info, figpar=None, 
                       savedir=None):
     """
-    plot_surp_idx_cms(analyspar, sesspar, stimpar, basepar, idxpar, permpar, 
-                      extrapar, sess_info, surpidx_info)
+    plot_unexp_idx_cms(analyspar, sesspar, stimpar, basepar, idxpar, permpar, 
+                      extrapar, sess_info, unexp_idx_info)
 
-    From dictionaries, plots surprise index colormaps for all ROIs or 
+    From dictionaries, plots unexpected index colormaps for all ROIs or 
     running values.
     
     Returns figure name and save directory path.
@@ -2889,8 +2892,8 @@ def plot_surp_idx_cms(analyspar, sesspar, stimpar, basepar, idxpar, permpar,
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
             
-        - surpidx_info (dict): containing surprise index information:
-            ["item_idxs"] (list) : surprise index for each ROI or running 
+        - unexp_idx_info (dict): containing unexpected index information:
+            ["item_idxs"] (list) : unexpected index for each ROI or running 
                                    value, grouped across mice, 
                                    structured as 
                                         plane/line x session x 
@@ -2916,7 +2919,7 @@ def plot_surp_idx_cms(analyspar, sesspar, stimpar, basepar, idxpar, permpar,
  
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
     datatype = extrapar["datatype"]
@@ -2928,12 +2931,12 @@ def plot_surp_idx_cms(analyspar, sesspar, stimpar, basepar, idxpar, permpar,
     if figpar["save"]["use_dt"] is None:
         figpar["save"]["use_dt"] = gen_util.create_time_str()
 
-    savename = f"{datatype}_surpidx_cm_{sessstr}{dendstr}"
+    savename = f"{datatype}_unexp_idx_cm_{sessstr}{dendstr}"
 
     stimdir = sess_str_util.get_stimdir(stimpar["stimtype"], stimpar["gabfr"])
 
-    fig = plot_surp_idx_cms_acr_sess(
-            analyspar, sesspar, stimpar, extrapar, surpidx_info, 
+    fig = plot_unexp_idx_cms_acr_sess(
+            analyspar, sesspar, stimpar, extrapar, unexp_idx_info, 
             sess_info, figpar=figpar)
 
     if savedir is None:
@@ -2943,9 +2946,9 @@ def plot_surp_idx_cms(analyspar, sesspar, stimpar, basepar, idxpar, permpar,
             figpar["dirs"]["acr_sess"], 
             stimdir,
             base_str,
-            figpar["dirs"]["surp_idx"],
+            figpar["dirs"]["unexp_idx"],
             figpar["dirs"]["colormaps"])
-        if idxpar["feature"] != "bysurp":
+        if idxpar["feature"] != "by_exp":
             savedir = savedir.joinpath(idxpar["feature"])
 
     fulldir = plot_util.savefig(
@@ -2956,13 +2959,13 @@ def plot_surp_idx_cms(analyspar, sesspar, stimpar, basepar, idxpar, permpar,
 
 #############################################
 def plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info, 
-                       prog_info, figpar=None, prog="progsurp", 
+                       prog_info, figpar=None, prog="prog_unexp", 
                        plot="tog", diff=True):
     """
     plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info, 
                        prog_info)
 
-    From dictionaries, plots progression of surprise or regular sequences 
+    From dictionaries, plots progression of unexpected or expected sequences 
     within sessions across ROIs or mice.
     
     Returns figure name and save directory path.
@@ -2988,18 +2991,18 @@ def plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
             
         - prog_info (dict)       : dictionary with progression info
             ["linpla_ord"] (list)       : order list of planes/lines            
-            ["prog_stats"] (list)  : surprise progression stats across mice, 
+            ["prog_stats"] (list)  : unexpected progression stats across mice, 
                                           structured as plane/line x session 
-                                            x surps x seq x stats
-            ["mouse_prog_stats"] (list): surprise progression stats across 
+                                            x unexps x seq x stats
+            ["mouse_prog_stats"] (list): unexpected progression stats across 
                                           ROIs, structured as 
                                              plane/line x mouse x session 
-                                                x surps x seq x stats
+                                                x unexps x seq x stats
             if extrapar["datatype"] == "roi":
-                ["prog_stats_grped"] (list): surprise progression stats across 
+                ["prog_stats_grped"] (list): unexpected progression stats across 
                                               ROIs (grouped across mice), 
                                               structured as 
-                                                 plane/line x session x surps 
+                                                 plane/line x session x unexps 
                                                      x seqs x stats
 
     Optional args:
@@ -3009,15 +3012,15 @@ def plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
             ["init"] (dict): dictionary with figure initialization parameters
             ["save"] (dict): dictionary with figure saving parameters
             ["dirs"] (dict): dictionary with additional figure parameters
-        - prog (str)   : if "progsurp" or "progreg", differences between
-                         surprise and previous regular are plotted. If 
-                         "progreg", v.v. 
-                         default: "progsurp"     
+        - prog (str)   : if "prog_unexp" or "prog_exp", differences between
+                         unexpected and previous expected seqs are plotted. If 
+                         "prog_exp", v.v. 
+                         default: "prog_unexp"     
         - plot (str)   : if "tog", data is grouped across mouse, if "grped", 
                          data is grouped across ROIs, if "sep", data is 
                          separated by mouse
                          default: "tog"
-        - diff (bool)  : if True, difference is plotted instead of surp, reg 
+        - diff (bool)  : if True, difference is plotted instead of unexp, exp 
                          separately
                          default: True
 
@@ -3027,7 +3030,7 @@ def plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
  
     datatype = extrapar["datatype"]
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"],
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"],
         stimpar["gabk"], "print")
     statstr_pr = sess_str_util.stat_par_str(
         analyspar["stats"], analyspar["error"], "print")
@@ -3049,13 +3052,13 @@ def plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
     prepost_str = sess_str_util.prepost_par_str(
             stimpar["pre"], stimpar["post"], str_type="print")
 
-    if prog == "progsurp":
-        substrs = ["surprise", "regular"]
-    elif prog == "progreg":
-        substrs = ["regular", "surprise"]
+    if prog == "prog_unexp":
+        substrs = ["unexpected", "expected"]
+    elif prog == "prog_exp":
+        substrs = ["expected", "unexpected"]
     else:
         raise ValueError(
-            "If prog is not False, it must be 'progreg' or 'progsurp'."
+            "If prog is not False, it must be 'prog_exp' or 'prog_unexp'."
             )
     subtitle = "Progression of each {} {} vs preceeding {} sequence".format(
         pos, *substrs)
@@ -3094,9 +3097,9 @@ def plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
 
         cols = [pla_cols[pl]]
         if not diff:
-            if prog == "progreg":
+            if prog == "prog_exp":
                 cols = cols + ["gray"]
-            elif prog == "progsurp":
+            elif prog == "prog_unexp":
                 cols = ["gray"] + cols
 
         if plot == "sep":
@@ -3153,8 +3156,8 @@ def plot_prog(analyspar, sesspar, stimpar, extrapar, sess_info,
     plot_prog(analyspar, sesspar, stimpar, extrapar, sess_info, 
               prog_info)
 
-    From dictionaries, plots progression of difference between each surprise 
-    and the preceeding regular sequence within sessions. 
+    From dictionaries, plots progression of difference between each unexpected 
+    and the preceeding expected sequence within sessions. 
     
     Returns general figure name and save directory path.
     
@@ -3170,41 +3173,41 @@ def plot_prog(analyspar, sesspar, stimpar, extrapar, sess_info,
             ["position"] (str): position plotted (e.g., "first", "second", etc.)
         - sess_info (list): list of dictionaries containing information from 
                             each session, structured as 
-                            [progsurp, progreg]
+                            [prog_unexp, prog_exp]
             ["mouse_ns"] (list)   : mouse numbers
             ["sess_ns"] (list)    : session numbers  
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
             
-        - prog_info (list): list of dictionaries containing prog surprise or 
-                             regular sequence information, structured as 
-                             [progsurp, progreg]
-            ["prog_stats"] (list)           : surprise progression stats across 
+        - prog_info (list): list of dictionaries containing prog unexpected or 
+                             expected sequence information, structured as 
+                             [prog_unexp, prog_exp]
+            ["prog_stats"] (list)           : unexpected progression stats across 
                                               mice, structured as 
-                                                  plane/line x session x surps 
+                                                  plane/line x session x unexps 
                                                   x seq x stats
-            ["prog_diff_stats"] (list)      : surprise difference progression 
+            ["prog_diff_stats"] (list)      : unexpected difference progression 
                                               stats across mice, structured as 
                                                   plane/line x session x seq 
                                                   x stats
-            ["mouse_prog_stats"] (list)     : surprise progression stats across 
+            ["mouse_prog_stats"] (list)     : unexpected progression stats across 
                                               ROIs, structured as 
                                                  plane/line x mouse x session x
-                                                 surps x seq x stats
-            ["mouse_prog_diff_stats"] (list): surprise difference progression 
+                                                 unexps x seq x stats
+            ["mouse_prog_diff_stats"] (list): unexpected difference progression 
                                               stats across ROIs, structured as 
                                                  plane/line x mouse x session x
                                                  seq x stats
 
             ["linpla_ord"] (list)           : order list of planes/lines
         if datatype == "roi":
-            ["prog_stats_grped"] (list)     : surprise progression stats across 
+            ["prog_stats_grped"] (list)     : unexpected progression stats across 
                                               ROIs (grouped across mice), 
                                               structured as 
-                                                  plane/line x session x surps 
+                                                  plane/line x session x unexps 
                                                   x seqs x stats
-            ["prog_diff_stats_grped"] (list): surprise difference progression 
+            ["prog_diff_stats_grped"] (list): unexpected difference progression 
                                               stats across ROIs (grouped across 
                                               mice), structured as 
                                                   plane/line x session 
@@ -3229,7 +3232,7 @@ def plot_prog(analyspar, sesspar, stimpar, extrapar, sess_info,
 
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
     datatype = extrapar["datatype"]
@@ -3250,7 +3253,7 @@ def plot_prog(analyspar, sesspar, stimpar, extrapar, sess_info,
 
     for diff in [True, False]:
         diff_str = "_diff" if diff else ""
-        for l, prog in enumerate(["progsurp", "progreg"]):
+        for l, prog in enumerate(["prog_unexp", "prog_exp"]):
             for plot in ["sep", "tog", "grped"]:
                 if plot == "grped" and datatype == "run":
                     continue
@@ -3277,13 +3280,14 @@ def plot_prog(analyspar, sesspar, stimpar, extrapar, sess_info,
 
 #############################################
 def plot_position_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info, 
-                           pos_info, figpar=None, prog="prog_surp", plot="tog"):
+                           pos_info, figpar=None, prog="prog_unexp", plot="tog"):
     """
     plot_position_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info, 
                             diff_info)
 
     From dictionaries, plots statistics across ROIs or mice of difference 
-    between each surprise and the preceeding regular sequence across sessions. 
+    between each unexpected sequence and the preceeding expected sequence 
+    across sessions. 
     
     Returns figure name and save directory path.
     
@@ -3296,17 +3300,17 @@ def plot_position_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
             ["analysis"] (str): analysis type (e.g., "o")
             ["datatype"] (str): datatype (e.g., "run", "roi")
             ["position"] (str): position plotted (e.g., "first", "second", etc.)
-        - pos_info (dict)       : dictionary with surprise position info
-            ["pos_stats"] (list)      : surprise position stats across 
+        - pos_info (dict)       : dictionary with unexpected position info
+            ["pos_stats"] (list)      : unexpected position stats across 
                                         mice, structured as 
                                            plane/line x session x stats
-            ["mouse_pos_stats"] (list): surprise position stats across 
+            ["mouse_pos_stats"] (list): unexpected position stats across 
                                         sequences, structured as 
                                             plane/line x mouse x session 
                                                x stats
             ["linpla_ord"] (list)      : order list of planes/lines
         if extrapar["datatype"] == "roi":
-            ["pos_stats_grped"] (list): surprise position stats across 
+            ["pos_stats_grped"] (list): unexpected position stats across 
                                         sequences (ROIs grouped across mice), 
                                         structured as 
                                             plane/line x session x stats
@@ -3329,10 +3333,10 @@ def plot_position_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
             ["init"] (dict): dictionary with figure initialization parameters
             ["save"] (dict): dictionary with figure saving parameters
             ["dirs"] (dict): dictionary with additional figure parameters
-        - prog (str)        : if "progsurp" or "progreg", differences between
-                              surprise and previous regular are plotted. If 
-                              "progreg", v.v. 
-                              default: "progsurp" 
+        - prog (str)        : if "prog_unexp" or "prog_exp", differences between
+                              unexpected and previous expected sequences are 
+                              plotted. If "prog_exp", v.v. 
+                              default: "prog_unexp" 
         - plot (str)        : if "tog", average is taken across mice, otherwise, 
                               if "sep", each mouse is plotted separately
                               default: "tog"
@@ -3362,7 +3366,7 @@ def plot_position_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
         grp_str_pr = " (ROIs grouped)"
         
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"],
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"],
         stimpar["gabk"], "print")
     statstr_pr = sess_str_util.stat_par_str(analyspar["stats"], error, "print")
     dendstr_pr = sess_str_util.dend_par_str(
@@ -3381,13 +3385,13 @@ def plot_position_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
     prepost_str = sess_str_util.prepost_par_str(
             stimpar["pre"], stimpar["post"], str_type="print")
 
-    if prog == "progsurp":
-        substrs = ["surprise", "regular"]
-    elif prog == "progreg":
-        substrs = ["regular", "surprise"]
+    if prog == "prog_unexp":
+        substrs = ["unexpected", "expected"]
+    elif prog == "prog_exp":
+        substrs = ["expected", "unexpected"]
     else:
         raise ValueError(
-            "If prog is not False, it must be 'progreg' or 'progsurp'."
+            "If prog is not False, it must be 'prog_exp' or 'prog_unexp'."
             )
     subtitle = "{} {} - preceeding {} sequences".format(
         pos, *substrs).capitalize()
@@ -3428,7 +3432,8 @@ def plot_position(analyspar, sesspar, stimpar, extrapar, sess_info,
                   pos_info)
 
     From dictionaries, plots statistics across ROIs or mice of difference 
-    between each surprise and the preceeding regular sequence across sessions.
+    between each unexpected and the preceeding expected sequence across 
+    sessions.
     
     Returns figure name and save directory path.
     
@@ -3442,26 +3447,26 @@ def plot_position(analyspar, sesspar, stimpar, extrapar, sess_info,
             ["datatype"] (str): datatype (e.g., "run", "roi")
         - sess_info (list): list of dictionaries containing information from 
                             each session, structured as 
-                            [surp-locked, reg-locked]
+                            [unexp-locked, exp-locked]
             ["mouse_ns"] (list)   : mouse numbers
             ["sess_ns"] (list)    : session numbers  
             ["lines"] (list)      : mouse lines
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
             
-        - pos_info (list)       : list of dictionaries containing prog surprise 
-                                  or regular sequence information, structured as 
-                                  [progsurp, progreg]:
-            ["pos_stats"] (list)      : surprise position stats across 
+        - pos_info (list)       : list of dictionaries containing prog unexpected 
+                                  or expected sequence information, structured as 
+                                  [prog_unexp, prog_exp]:
+            ["pos_stats"] (list)      : unexpected position stats across 
                                         mice, structured as 
                                            plane/line x session x stats
-            ["mouse_pos_stats"] (list): surprise position stats across 
+            ["mouse_pos_stats"] (list): unexpected position stats across 
                                         sequences, structured as 
                                             plane/line x mouse x session 
                                                x stats
             ["linpla_ord"] (list)      : order list of planes/lines
         if extrapar["datatype"] == "roi":
-            ["pos_stats_grped"] (list): surprise position stats across 
+            ["pos_stats_grped"] (list): unexpected position stats across 
                                         sequences (ROIs grouped across mice), 
                                         structured as 
                                             plane/line x session x stats
@@ -3485,7 +3490,7 @@ def plot_position(analyspar, sesspar, stimpar, extrapar, sess_info,
  
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
     datatype = extrapar["datatype"]
@@ -3504,7 +3509,7 @@ def plot_position(analyspar, sesspar, stimpar, extrapar, sess_info,
 
     stimdir = sess_str_util.get_stimdir(stimpar["stimtype"], stimpar["gabfr"])
 
-    for l, prog in enumerate(["progsurp", "progreg"]):
+    for l, prog in enumerate(["prog_unexp", "prog_exp"]):
         for plot in ["sep", "tog", "grped"]:
             if plot == "grped" and datatype == "run":
                 continue
@@ -3621,13 +3626,13 @@ def plot_lat_clouds(sub_ax, sess_ns, lat_data, sess_info, datatype="roi",
 
 
 #############################################
-def plot_surp_latency(analyspar, sesspar, stimpar, permpar, latpar, extrapar, 
+def plot_unexp_latency(analyspar, sesspar, stimpar, permpar, latpar, extrapar, 
                       sess_info, lat_data, figpar=None, savedir=None):
     """
-    plot_surp_latency(analyspar, sesspar, stimpar, permpar, latpar, extrapar, 
+    plot_unexp_latency(analyspar, sesspar, stimpar, permpar, latpar, extrapar, 
                       sess_info, lat_data)
 
-    From dictionaries, plots surprise latency across mice, as well as for all 
+    From dictionaries, plots unexpected latency across mice, as well as for all 
     ROIs.
     
     Returns figure name and save directory path.
@@ -3689,14 +3694,14 @@ def plot_surp_latency(analyspar, sesspar, stimpar, permpar, latpar, extrapar,
  
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
     latstr = sess_str_util.lat_par_str(
         latpar["method"], latpar["p_val_thr"], latpar["rel_std"])
 
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"],
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"],
         stimpar["gabk"], "print")
     statstr_pr = sess_str_util.stat_par_str(
         analyspar["stats"], analyspar["error"], "print")
@@ -3704,9 +3709,9 @@ def plot_surp_latency(analyspar, sesspar, stimpar, permpar, latpar, extrapar,
         analyspar["dend"], sesspar["plane"], extrapar["datatype"], "print")
     latstr_pr = sess_str_util.lat_par_str(
         latpar["method"], latpar["p_val_thr"], latpar["rel_std"], "print")
-    surp_resp_str = ""
-    if latpar["surp_resp"]:
-        surp_resp_str = "_surp_resp"
+    unexp_resp_str = ""
+    if latpar["unexp_resp"]:
+        unexp_resp_str = "_unexp_resp"
     
     datatype = extrapar["datatype"]
 
@@ -3734,7 +3739,7 @@ def plot_surp_latency(analyspar, sesspar, stimpar, permpar, latpar, extrapar,
 
     prepost_str = sess_str_util.prepost_par_str(
         stimpar["pre"], stimpar["post"], str_type="print")
-    title = (f"Surprise latencies ({prepost_str} seqs, {latstr_pr})\nfor "
+    title = (f"Unexpected latencies ({prepost_str} seqs, {latstr_pr})\nfor "
         f"{stimstr_pr} - {statstr_pr} pooled across "
         f"\nROIs (grouped) (sess {sess_ns_str}{dendstr_pr})")
 
@@ -3787,7 +3792,7 @@ def plot_surp_latency(analyspar, sesspar, stimpar, permpar, latpar, extrapar,
             figpar["dirs"]["lat"], 
             latpar["method"])
 
-    savename = f"{datatype}_surp_lat_{sessstr}{dendstr}_{latstr}{surp_resp_str}"
+    savename = f"{datatype}_unexp_lat_{sessstr}{dendstr}_{latstr}{unexp_resp_str}"
     
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar["save"])
 
@@ -3801,7 +3806,7 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
     plot_resp_prop(analyspar, sesspar, stimpar, extrapar, sess_info,
                    prop_data)
 
-    From dictionaries, plots surprise latency across mice, as well as for all 
+    From dictionaries, plots unexpected latency across mice, as well as for all 
     ROIs.
     
     Returns figure name and save directory path.
@@ -3831,7 +3836,7 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
                                        plane/line x session x comb x stats
             ["comb_names"] (int) : names of combinations for with proportions 
                                    were calculated
-            if latpar["surp_resp"]:
+            if latpar["unexp_resp"]:
             ["n_sign_rois] (list): number of significant ROIs, structured as 
                                    plane/line x session
 
@@ -3865,9 +3870,9 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
         analyspar["dend"], sesspar["plane"], extrapar["datatype"], "print")
     latstr_pr = sess_str_util.lat_par_str(
         latpar["method"], latpar["p_val_thr"], latpar["rel_std"], "print")
-    surp_resp_str = ""
-    if latpar["surp_resp"]:
-        surp_resp_str = "_surp_resp"
+    unexp_resp_str = ""
+    if latpar["unexp_resp"]:
+        unexp_resp_str = "_unexp_resp"
 
     datatype = extrapar["datatype"]
 
@@ -3876,9 +3881,9 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
         sess_ns = np.asarray(range(len(sess_info[0]))) + 1
     sess_ns_str = gen_util.intlist_to_str(sess_ns.reshape(-1).tolist())
 
-    # combinations: "gabfrs", "surps"
-    ctrl_idx, surp_idx = [prop_data["comb_names"].index(comb) 
-        for comb in ["gabfrs", "surps"]]
+    # combinations: "gabfrs", "unexps"
+    ctrl_idx, unexp_idx = [prop_data["comb_names"].index(comb) 
+        for comb in ["gabfrs", "unexps"]]
 
     [lines, planes, linpla_iter, pla_cols, _, n_plots] = \
         sess_plot_util.fig_linpla_pars(n_grps=len(prop_data["linpla_ord"]))
@@ -3891,8 +3896,8 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
     prepost_str = sess_str_util.prepost_par_str(
         stimpar["pre"], stimpar["post"], str_type="print")
 
-    title = (f"Proportion surprise responsive ROIs\n({prepost_str} seqs, "
-        f"{latstr_pr})\n{statstr_pr} across mice (sess "
+    title = (f"Proportion unexpected event responsive ROIs\n({prepost_str} "
+        f"seqs, {latstr_pr})\n{statstr_pr} across mice (sess "
         f"{sess_ns_str}{dendstr_pr})")
 
     fig, ax = plot_util.init_fig(n_plots, **figpar["init"])
@@ -3908,7 +3913,7 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
         if l_idx is None:
             continue
         
-        for idx, col in zip([ctrl_idx, surp_idx], ["gray", pla_cols[pl]]):
+        for idx, col in zip([ctrl_idx, unexp_idx], ["gray", pla_cols[pl]]):
             # retrieve proportion (* 100)
             prop_st = np.asarray([sess_vals[idx] for sess_vals 
                 in prop_data["prop_stats"][l_idx]]) * 100
@@ -3937,7 +3942,7 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
             latpar["method"])
 
     savename = (f"{datatype}_prop_resp_sess{sess_ns_str}{dendstr}_{latstr}"
-        f"{surp_resp_str}")
+        f"{unexp_resp_str}")
     
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar["save"])
 

@@ -15,6 +15,7 @@ Note: this code uses python 3.7.
 
 import copy
 import logging
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -28,7 +29,7 @@ TAB = "    "
 
 
 #############################################
-def define_transition_baseline(stimtype="bricks", gabfr=3, baseline=0.1, pre=0, 
+def define_transition_baseline(stimtype="visflow", gabfr=3, baseline=0.1, pre=0, 
                                post=1.5):
     """
     define_transition_baseline()
@@ -40,11 +41,11 @@ def define_transition_baseline(stimtype="bricks", gabfr=3, baseline=0.1, pre=0,
     (including if the stimulus period ends at a first D/U frame), the 
     closest preceeding D/U frame is chosen. 
 
-    For bricks, the baseline is before 0 seconds reference point.
+    For visual flow, the baseline is before 0 seconds reference point.
 
     Optional args:
-        - stimtype (str)  : stimulus ("bricks", "gabors", "both")
-                            default: "bricks"
+        - stimtype (str)  : stimulus ("visflow", "gabors", "both")
+                            default: "visflow"
         - gabfr (int)     : gabor frame at which stimulus period start 
                             (0, 1, 2, 3) (or to include, for GLM)
                             default: 0
@@ -64,7 +65,7 @@ def define_transition_baseline(stimtype="bricks", gabfr=3, baseline=0.1, pre=0,
                             reference frame included in baseline (in s)
     """
 
-    if stimtype in ["bricks", "both"]: # same as provided pre
+    if stimtype in ["visflow", "both"]: # same as provided pre
         base_pre = baseline
     elif stimtype == "gabors":
         sec_per, targ_fr, full = 0.3, 3, 1.5
@@ -82,8 +83,8 @@ def define_transition_baseline(stimtype="bricks", gabfr=3, baseline=0.1, pre=0,
 
 
 #############################################
-def quant_segs(stim, stimpar, n_quants=4, qu_idx="all", surp="any", 
-               empty_ok=False, remconsec=False, by_surp_len=False):
+def quant_segs(stim, stimpar, n_quants=4, qu_idx="all", unexp="any", 
+               empty_ok=False, remconsec=False, by_exp_len=False):
     """
     quant_segs(stim, stimpar)
 
@@ -98,7 +99,7 @@ def quant_segs(stim, stimpar, n_quants=4, qu_idx="all", surp="any",
                                 default: 4
         - qu_idx (str or list): indices of quantiles to retain
                                 default: "all"
-        - surp (int or list)  : surprise values to include (e.g., 0 or 1)
+        - unexp (int or list)  : unexpected values to include (e.g., 0 or 1)
                                 default: "any"
         - empty_ok (bool)     : if True, catches error if no segments respond 
                                 to criteria and returns empty qu_segs and 
@@ -106,7 +107,7 @@ def quant_segs(stim, stimpar, n_quants=4, qu_idx="all", surp="any",
                                 default: False 
         - remconsec (bool)    : if True, consecutive segments are removed
                                 default: False
-        - by_surp_len (bool)  : if True, consecutive segments are removed and
+        - by_exp_len (bool)  : if True, consecutive segments are removed and
                                 the number of consecutive segments 
                                 corresponding to each retained segment is also 
                                 returned
@@ -116,7 +117,7 @@ def quant_segs(stim, stimpar, n_quants=4, qu_idx="all", surp="any",
         - qu_segs (list)  : list of sublists for each quantile, each containing 
                             segment numbers for that quantile
         - qu_counts (list): list of number of segments in each quantile
-        if by_surp_len:
+        if by_exp_len:
             - qu_n_consec (list): list of sublists for each quantile, each
                                   containing the number of consecutive segments
                                   corresponding to the values in qu_segs
@@ -130,7 +131,8 @@ def quant_segs(stim, stimpar, n_quants=4, qu_idx="all", surp="any",
     # get all seg values (for all gabor frames and orientations)
     try:
         all_segs = stim.get_segs_by_criteria(gabk=stimpar.gabk, 
-            bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, by="seg")
+            visflow_dir=stimpar.visflow_dir, visflow_size=stimpar.visflow_size, 
+            by="seg")
     except RuntimeError as err:
         if empty_ok and "fit these criteria" in str(err):
             all_segs = []
@@ -155,15 +157,15 @@ def quant_segs(stim, stimpar, n_quants=4, qu_idx="all", surp="any",
     try:
         all_segs = stim.get_segs_by_criteria(gabfr=stimpar.gabfr,
             gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
-            bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size,
-            surp=surp, by="seg", remconsec=remconsec)
+            visflow_dir=stimpar.visflow_dir, visflow_size=stimpar.visflow_size,
+            unexp=unexp, by="seg", remconsec=remconsec)
     except RuntimeError as err:
         if empty_ok and  "fit these criteria" in str(err):
             all_segs = []
         else:
             raise err                                     
     
-    if by_surp_len:
+    if by_exp_len:
         all_segs, n_consec = gen_util.consec(all_segs)
         qu_n_consec = []
 
@@ -172,12 +174,12 @@ def quant_segs(stim, stimpar, n_quants=4, qu_idx="all", surp="any",
             if (seg >= q * qu_len + seg_min and 
                 seg < (q + 1) * qu_len + seg_min)])
         qu_counts.extend([len(qu_segs[-1])])
-        if by_surp_len: # also include lengths
+        if by_exp_len: # also include lengths
             qu_n_consec.append([n for i, n in enumerate(n_consec) 
                 if (all_segs[i] >= q * qu_len + seg_min and 
                     all_segs[i] < (q + 1) * qu_len + seg_min)])
 
-    if by_surp_len:
+    if by_exp_len:
         return qu_segs, qu_counts, qu_n_consec
     else:
         return qu_segs, qu_counts
@@ -301,9 +303,9 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
                                         (x frames if not integ)
     """
     
-    if datatype == "roi" and (stim.sess.only_matched_rois != analyspar.tracked):
+    if datatype == "roi" and (stim.sess.only_tracked_rois != analyspar.tracked):
         raise RuntimeError(
-            "stim.sess.only_matched_rois should match analyspar.tracked."
+            "stim.sess.only_tracked_rois should match analyspar.tracked."
             )
 
     qu_stats, qu_array = [], []
@@ -313,8 +315,8 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
         for _ in range(2): # allows retrying if nan_empty is True
             try:
                 if datatype == "roi":
-                    twop_fr = stim.get_twop_fr_by_seg(
-                        segs, first=True)["first_twop_fr"]
+                    twop_fr = stim.get_fr_by_seg(
+                        segs, start=True, fr_type="twop")["start_frame_twop"]
                     trace_df = stim.get_roi_stats_df(twop_fr, pre, post, 
                         byroi=byroi, fluor=analyspar.fluor, 
                         remnans=analyspar.remnans, 
@@ -322,8 +324,8 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
                         integ=integ, ret_arr=ret_arr, scale=analyspar.scale,
                         baseline=baseline)
                 elif datatype == "run":
-                    stim_fr = stim.get_stim_fr_by_seg(
-                        segs, first=True)["first_stim_fr"]
+                    stim_fr = stim.get_fr_by_seg(
+                        segs, start=True, fr_type="stim")["start_frame_stim"]
                     trace_df = stim.get_run_stats_df(stim_fr, pre, post, 
                         remnans=analyspar.remnans,
                         stats=analyspar.stats, error=analyspar.error,
@@ -376,14 +378,14 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
 
 #############################################
 def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quants=4, 
-                           qu_idx="all", byroi=True, bysurp=False, integ=False, 
+                           qu_idx="all", byroi=True, by_exp=False, integ=False, 
                            ret_arr=False, nan_empty=False, lock="no", 
-                           baseline=None, sample_reg=False, datatype="roi"):
+                           baseline=None, datatype="roi"):
     """
     trace_stats_by_qu_sess(sessions, analyspar, stimpar)
 
     Returns trace statistics for the quantiles of interest for each
-    session and surprise value, for the datatype of interest.
+    session and unexpected value, for the datatype of interest.
 
     Required args:
         - sessions (list)      : list of Session objects
@@ -399,8 +401,8 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quants=4,
                                 statistics for each ROI. If False, returns 
                                 statistics across ROIs.
                                 default: True
-        - bysurp (bool)       : if True, quantiles are separated into surprise 
-                                and no surprise groups.
+        - by_exp (bool)     : if True, quantiles are separated into unexpected 
+                                and expected groups.
                                 default: False
         - integ (bool)        : if True, dF/F is integrated over sequences
                                 default: False
@@ -409,10 +411,10 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quants=4,
         - nan_empty (bool)    : if a quantile is empty, return NaN arrays 
                                 (avoids an error)
                                 default: False
-        - lock (bool)         : if "surp", "reg", "regsamp", only the first 
-                                surprise or regular segments are retained.
+        - lock (bool)         : if "unexp", "exp", "exp_samp", only the first 
+                                unexpected or expected segments are retained.
                                 If "both"
-                                (bysurp is ignore). 
+                                (by_exp is ignore). 
                                 default: False
         - baseline (num)      : number of seconds to use as baseline. If None,
                                 data is not baselined.
@@ -425,7 +427,7 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quants=4,
                                      integ), for each session
         - all_stats (list)         : list of 2 to 5D arrays of trace data 
                                      statistics for each session, structured as:
-                                         (surp if bysurp x)
+                                         (unexp if by_exp x)
                                          quantiles x
                                          stats (me, err) x
                                          (ROIs if byroi x)
@@ -433,50 +435,67 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quants=4,
         - all_counts (nested list) : list of number of sequences, 
                                      structured as:
                                         sess 
-                                        x (surp if bysurp or lock is "both") 
+                                        x (unexp if by_exp or lock is "both") 
                                         x quantiles
         if ret_arr:
         - all_arrays (nested lists): list of data trace arrays, structured as:
-                                        session (x surp if bysurp) x quantile 
+                                        session (x unexp if by_exp) x quantile 
                                         of 1 to 3D arrays: 
                                             (ROI x) sequences 
                                             (x frames if not integ)
     """
 
+    incr_unexp_ori = False
+    if stimpar.stimtype == "gabors":
+        if by_exp and isinstance(stimpar.gab_ori, int):
+            if stimpar.gabfr == 3:
+                incr_unexp_ori = True
+                warnings.warn(
+                    "Incrementing orientation for unexpected segments to "
+                    "ensure data is paired for by_exp split.", 
+                    category=RuntimeWarning, stacklevel=1
+                )
+
     shift_gab_segs = False
     remconsec, sample = False, False
-    surp_vals = ["any"]
-    if lock in ["surp", "reg", "both"]:
+    unexp_vals = ["any"]
+    if lock in ["unexp", "exp", "both"]:
         remconsec = True
-        surp_vals = [1, 0]
-        if lock == "reg":
-            surp_vals = [0]
-        elif lock == "surp":
-            surp_vals = [1]
+        unexp_vals = [1, 0]
+        if lock == "exp":
+            unexp_vals = [0]
+        elif lock == "unexp":
+            unexp_vals = [1]
         if stimpar.stimtype == "gabors" and stimpar.gabfr not in ["any", "all"]:
             shift_gab_segs = True
             orig_gabfr = stimpar.gabfr
             stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, "gabfr", "any")
-    elif lock == "regsamp":
+    elif lock == "exp_samp":
         remconsec, sample = False, True
-        surp_vals = [0]
-    elif bysurp:
-        surp_vals = [0, 1]    
+        unexp_vals = [0]
+    elif by_exp:
+        unexp_vals = [0, 1]    
 
     all_counts, all_stats, all_arrays = [], [], []
     xrans = []
     for sess in sessions:
         stim = sess.get_stim(stimpar.stimtype)
         sess_counts, sess_stats, sess_arrays = [], [], []
-        for surp in surp_vals:
+        for unexp in unexp_vals:
+            stimpar_use = stimpar
+            if incr_unexp_ori and unexp == 1:
+                stimpar_use = sess_ntuple_util.get_modif_ntuple(
+                    stimpar, "gab_ori", stimpar.gab_ori + 90
+                    )
+
             qu_segs, qu_counts = quant_segs(
-                stim, stimpar, n_quants, qu_idx, surp, empty_ok=nan_empty, 
+                stim, stimpar_use, n_quants, qu_idx, unexp, empty_ok=nan_empty, 
                 remconsec=remconsec)
             if shift_gab_segs: # shift to requested gabor frame
                 qu_segs = [[s + orig_gabfr for s in segs] for segs in qu_segs]
             if sample:
-                pre_seg = stimpar.pre/stim.seg_len_s
-                post_seg = stimpar.post/stim.seg_len_s
+                pre_seg = stimpar.pre / stim.seg_len_s
+                post_seg = stimpar.post / stim.seg_len_s
                 qu_segs, qu_counts = samp_quant_segs(qu_segs, pre_seg, post_seg)
             sess_counts.append(qu_counts)
             trace_info = trace_stats_by_qu(
@@ -487,7 +506,7 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quants=4,
             if ret_arr:
                 sess_arrays.append(trace_info[2])
         xrans.append(trace_info[0])
-        if len(surp_vals) > 1:
+        if len(unexp_vals) > 1:
             sess_stats = np.asarray(sess_stats)
         else:
             sess_stats = np.asarray(sess_stats[0]) # list of length 1
@@ -506,15 +525,15 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quants=4,
 
 
 #############################################
-def trace_stats_by_surp_len_sess(sessions, analyspar, stimpar, n_quants=4, 
+def trace_stats_by_exp_len_sess(sessions, analyspar, stimpar, n_quants=4, 
                                  qu_idx="all", byroi=True, integ=False, 
                                  ret_arr=False, nan_empty=False, 
                                  baseline=None, datatype="roi"):
     """
-    trace_stats_by_surp_len_sess(sessions, analyspar, stimpar)
+    trace_stats_by_exp_len_sess(sessions, analyspar, stimpar)
 
     Returns trace statistics for the quantiles of interest for each
-    session and surprise length value, for the datatype of interest.
+    session and unexpected length value, for the datatype of interest.
 
     Required args:
         - sessions (list)      : list of Session objects
@@ -548,19 +567,19 @@ def trace_stats_by_surp_len_sess(sessions, analyspar, stimpar, n_quants=4,
                                      integ), for each session
         - all_stats (list)        : list of 2 to 5D arrays of trace data 
                                     statistics for each session, structured as:
-                                        surp_len x
+                                        unexp_len x
                                         quantiles x
                                         stats (me, err) x
                                         (ROIs if byroi x)
                                         (frames if not integ)
         - all_counts (nested list) : list of number of sequences, 
                                      structured as:
-                                        sess x surp_len x quantiles
+                                        sess x unexp_len x quantiles
         - all_n_consec (list)      : unique values of number of consecutive 
                                      segments, by session  
         if ret_arr:
         - all_arrays (nested lists): list of data trace arrays, structured as:
-                                     session x surp_len x quantile 
+                                     session x unexp_len x quantile 
                                      of 1 to 3D arrays: 
                                          (ROI x) sequences 
                                          (x frames if not integ)
@@ -579,7 +598,7 @@ def trace_stats_by_surp_len_sess(sessions, analyspar, stimpar, n_quants=4,
         sess_counts, sess_stats, sess_arrays = [], [], []
         qu_segs, _, qu_n_consec = quant_segs(
             stim, stimpar, n_quants, qu_idx, 1, empty_ok=nan_empty, 
-            by_surp_len=True)
+            by_exp_len=True)
 
         if shift_gab_segs: # shift to requested gabor frame
             qu_segs = [[s + orig_gabfr for s in segs] for segs in qu_segs]
@@ -615,14 +634,14 @@ def trace_stats_by_surp_len_sess(sessions, analyspar, stimpar, n_quants=4,
 
 
 #############################################
-def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar, 
+def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_exps, permpar, 
                     op_qu="diff", op_grp="diff", stats="mean", nanpol=None):
     """
-    run_mag_permute(all_data_perm, act_mag_rel, act_L2_rel, n_reg, permpar)
+    run_mag_permute(all_data_perm, act_mag_rel, act_L2_rel, n_exp, permpar)
 
     Returns the results of a permutation analysis of difference or ratio 
-    between 2 quantiles of the magnitude change or L2 norm between regular and 
-    surprise activity.
+    between 2 quantiles of the magnitude change or L2 norm between expected and 
+    unexpected activity.
 
     Required args:
         - all_data_perm (2D array): Data from both groups for permutation, 
@@ -631,7 +650,7 @@ def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar,
         - act_mag_rel (num)       : Real mean/median magnitude difference
                                     between quantiles
         - act_L2_rel (num)        : Real L2 difference between quantiles
-        - n_regs (list)           : List of number of regular sequences in
+        - n_exps (list)           : List of number of expected sequences in
                                     each quantile
         - permpar (PermPar)       : named tuple containing permutation 
                                     parameters
@@ -641,7 +660,7 @@ def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar,
                         quantile ("diff" or "ratio")
                         default: "diff"       
         - op_grp (str): Operation to use in comparing groups 
-                        (e.g., surprise vs regular data) ("diff" or "ratio")
+                        (e.g., unexpected vs expected data) ("diff" or "ratio")
                         default: "diff" 
         - stats (str) : Statistic to take across group sequences, and then 
                         across magnitude differences ("mean" or "median")
@@ -662,14 +681,14 @@ def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar,
             [False, permpar.p_val / permpar.multcomp]
             )
 
-    if len(all_data_perm) != 2 or len(n_regs) !=2:
-        raise ValueError("all_data_perm and n_regs must have length of 2.")
+    if len(all_data_perm) != 2 or len(n_exps) !=2:
+        raise ValueError("all_data_perm and n_exps must have length of 2.")
 
     all_rand_vals = [] # qu x grp x ROI x perms
     # for each quantile
     for q, perm_data in enumerate(all_data_perm):
         qu_vals = rand_util.permute_diff_ratio(
-            perm_data, n_regs[q], permpar.n_perms, stats, nanpol=nanpol, 
+            perm_data, n_exps[q], permpar.n_perms, stats, nanpol=nanpol, 
             op="none")
         all_rand_vals.append(qu_vals)
 
@@ -713,7 +732,7 @@ def run_mag_permute(all_data_perm, act_mag_me_rel, act_L2_rel, n_regs, permpar,
 
 #############################################
 def qu_mags(all_data, permpar, mouse_ns, lines, stats="mean", error="sem", 
-            nanpol=None, op_qu="diff", op_surp="diff", log_vals=True):
+            nanpol=None, op_qu="diff", op_unexp="diff", log_vals=True):
     """
     qu_mags(all_data, permpar, mouse_ns, lines)
 
@@ -721,22 +740,22 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats="mean", error="sem",
     analysis, as well as the results of the permutation test.
 
     Specifically, magnitude and L2 norm are calculated as follows: 
-        - Magnitude: for surp and regular segments: 
+        - Magnitude: for unexp and expected segments: 
                          mean/median across ROIs of
                              diff/ratio in average activity between 2 quantiles
-        - L2 norm:   for surp and regular segments: 
+        - L2 norm:   for unexp and expected segments: 
                          L2 norm across ROIs of
                              diff/ratio in average activity between 2 quantiles
     
-    Significance is assessed based on the diff/ratio between surprise and 
-    regular magnitude/L2 norm results.
+    Significance is assessed based on the diff/ratio between unexpected and 
+    expected magnitude/L2 norm results.
 
     Optionally, the magnitudes and L2 norms are logged for each session, with
     significance indicated.
 
     Required args:
         - all_data (list)  : nested list of data, structured as:
-                                 session x surp x qu x array[(ROI x) seqs]
+                                 session x unexp x qu x array[(ROI x) seqs]
         - permpar (PermPar): named tuple containing permutation parameters
         - mouse_ns (list)  : list of mouse numbers (1 per session)
         - lines (list)     : list of mouse lines (1 per session)
@@ -754,8 +773,8 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats="mean", error="sem",
         - op_qu (str)      : Operation to use in comparing the last vs first 
                              quantile ("diff" or "ratio")
                              default: "diff"       
-        - op_surp (str)    : Operation to use in comparing the surprise vs 
-                             regular, data ("diff" or "ratio")
+        - op_unexp (str)    : Operation to use in comparing the unexpected vs 
+                             expected, data ("diff" or "ratio")
                              default: "diff" 
         - log_vals (bool)  : If True, the magnitudes and L2 norms are logged
                              for each session, with significance indicated.
@@ -763,9 +782,9 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats="mean", error="sem",
     Returns:
         - mags (dict): dictionary containing magnitude and L2 data to plot.
             ["L2"] (3D array)        : L2 norms, structured as: 
-                                           sess x scaled x surp
+                                           sess x scaled x unexp
             ["mag_st"] (4D array)    : magnitude stats, structured as: 
-                                           sess x scaled x surp x stats
+                                           sess x scaled x unexp x stats
             ["L2_rel_th"] (2D array) : L2 thresholds calculated from 
                                        permutation analysis, structured as:
                                            sess x tail(s)
@@ -783,18 +802,18 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats="mean", error="sem",
     n_sess = len(all_data)
     n_qu   = len(all_data[0][0])
     scales = [False, True]
-    surps    = ["reg", "surp"]
+    unexps    = ["exp", "unexp"]
     stat_len = 2 + (stats == "median" and error == "std")
     tail_len = 1 + (str(permpar.tails) == "2")
 
     if n_qu != 2:
         raise ValueError(f"Expected 2 quantiles, but found {n_qu}.")
-    if len(surps) != 2:
-        raise ValueError("Expected a length 2 surprise dim, "
-            f"but found length {len(surps)}.")
+    if len(unexps) != 2:
+        raise ValueError("Expected a length 2 unexpected dim, "
+            f"but found length {len(unexps)}.")
     
-    mags = {"mag_st": np.empty([n_sess, len(scales), len(surps), stat_len]),
-            "L2"    : np.empty([n_sess, len(scales), len(surps)])
+    mags = {"mag_st": np.empty([n_sess, len(scales), len(unexps), stat_len]),
+            "L2"    : np.empty([n_sess, len(scales), len(unexps)])
            }
     
     for lab in ["mag_sig", "L2_sig"]:
@@ -807,9 +826,9 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats="mean", error="sem",
         logger.info(f"Mouse {mouse_ns[i]}, {lines[i]}:", 
             extra={"spacing": "\n"})
         sess_data_me = []
-        # number of regular sequences
-        n_regs = [all_data[i][0][q].shape[-1] for q in range(n_qu)]
-        for s in range(len(surps)):
+        # number of expected sequences
+        n_exps = [all_data[i][0][q].shape[-1] for q in range(n_qu)]
+        for s in range(len(unexps)):
             # take the mean for each quantile
             data_me = np.asarray(
                 [math_util.mean_med(all_data[i][s][q], stats, axis=-1, 
@@ -840,17 +859,17 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats="mean", error="sem",
             axis=0, pos=0, sc_type="unit").T
         
         # diff/ratio for permutation test
-        act_mag_rel = math_util.calc_op(mags["mag_st"][i, 0, :, 0], op=op_surp)
-        act_L2_rel  = math_util.calc_op(mags["L2"][i, 0, :], op=op_surp)
+        act_mag_rel = math_util.calc_op(mags["mag_st"][i, 0, :, 0], op=op_unexp)
+        act_L2_rel  = math_util.calc_op(mags["L2"][i, 0, :], op=op_unexp)
 
-        # concatenate regular and surprise sequences for each quantile
+        # concatenate expected and unexpected sequences for each quantile
         all_data_perm = [np.concatenate(
             [all_data[i][0][q], all_data[i][1][q]], axis=1) 
                 for q in range(n_qu)]
         
         signif, ths = run_mag_permute(
-            all_data_perm, act_mag_rel, act_L2_rel, n_regs, permpar, op_qu, 
-            op_surp, stats, nanpol)
+            all_data_perm, act_mag_rel, act_L2_rel, n_exps, permpar, op_qu, 
+            op_unexp, stats, nanpol)
         
         mags["mag_sig"].append(signif[0])
         mags["L2_sig"].append(signif[1])
@@ -867,8 +886,8 @@ def qu_mags(all_data, permpar, mouse_ns, lines, stats="mean", error="sem",
             vals = [mags["mag_st"][i, 0, :, 0], mags["L2"][i, 0, :]]
             names = [f"{stats} mag".capitalize(), "L2"]
             for v, (val, name) in enumerate(zip(vals, names)):
-                for s, surp in zip([0, 1], ["(reg) ", "(surp)"]):
-                    logger.info(f"{name} {surp}: {val[s]:.4f}{sig_symb[v]}", 
+                for s, unexp in zip([0, 1], ["(exp) ", "(unexp)"]):
+                    logger.info(f"{name} {unexp}: {val[s]:.4f}{sig_symb[v]}", 
                         extra={"spacing": TAB})
         
     return mags

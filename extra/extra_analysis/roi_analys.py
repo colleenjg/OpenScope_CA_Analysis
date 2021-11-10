@@ -38,8 +38,8 @@ def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
     run_roi_areas_by_grp_qu(sessions, analysis, analyspar, sesspar, stimpar, 
                             permpar, quantpar, roigrppar, roi_grps, figpar)
 
-    Plots average integrated surprise, no surprise or difference between 
-    surprise and no surprise activity across ROIs per group for each quantiles
+    Plots average integrated unexpected, expected or difference between 
+    unexpected and expected activity across ROIs per group for each quantiles
     with each session in a separate subplot.
 
     Returns save directory path and results in roi_grps dictionary.
@@ -89,8 +89,8 @@ def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
     opstr_pr = sess_str_util.op_par_str(
         roigrppar.plot_vals, roigrppar.op, str_type="print")
     sessstr_pr = sess_str_util.sess_par_str(
-        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 
-        stimpar.bri_size, stimpar.gabk, "print")
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.visflow_dir, 
+        stimpar.visflow_size, stimpar.gabk, "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar.dend, sesspar.plane, extrapar["datatype"], "print")
     datastr = sess_str_util.datatype_par_str(extrapar["datatype"])
@@ -102,9 +102,9 @@ def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
         f"response by quantile ({quantpar.n_quants}). \n{sessstr_pr}"
         f"{dendstr_pr}.", extra={"spacing": "\n"})
     
-    # get full data for qu of interest: session x surp x [seq x ROI]
+    # get full data for qu of interest: session x unexp x [seq x ROI]
     integ_info = quant_analys.trace_stats_by_qu_sess(
-        sessions, analyspar, stimpar, quantpar.n_quants, "all", bysurp=True, 
+        sessions, analyspar, stimpar, quantpar.n_quants, "all", by_exp=True, 
         integ=True)
 
     # retrieve only mean/medians per ROI
@@ -154,8 +154,8 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
     run_roi_traces_by_grp(sessions, analysis, sesspar, stimpar, extrapar, 
                           permpar, quantpar, roigrppar, roi_grps, figpar)
 
-    Calculates and plots ROI traces across ROIs by group for surprise, no 
-    surprise or difference between surprise and no surprise activity per 
+    Calculates and plots ROI traces across ROIs by group for unexpected, 
+    expected or difference between unexpected and expected activity per 
     quantile (first/last) with each group in a separate subplot and each 
     session in a different figure.
 
@@ -210,14 +210,14 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
     opstr_pr = sess_str_util.op_par_str(
         roigrppar.plot_vals, roigrppar.op, str_type="print")
     sessstr_pr = sess_str_util.sess_par_str(
-        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir,
-        stimpar.bri_size, stimpar.gabk, "print")
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.visflow_dir,
+        stimpar.visflow_size, stimpar.gabk, "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar.dend, sesspar.plane, extrapar["datatype"], "print")
     opstr = sess_str_util.op_par_str(roigrppar.plot_vals, roigrppar.op)
     sessstr = sess_str_util.sess_par_str(
-        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir,
-        stimpar.bri_size, stimpar.gabk, "file")
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.visflow_dir,
+        stimpar.visflow_size, stimpar.gabk, "file")
     dendstr = sess_str_util.dend_par_str(
         analyspar.dend, sesspar.plane, extrapar["datatype"])
      
@@ -225,20 +225,20 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
     if extrapar["datatype"] != "roi":
         raise NotImplementedError("Analysis only implemented for roi datatype.")
 
-    logger.info(f"Analysing and plotting {opstr_pr} {datastr} surp vs reg "
+    logger.info(f"Analysing and plotting {opstr_pr} {datastr} unexp vs exp "
         f"traces by quantile ({quantpar.n_quants}). \n{sessstr_pr}{dendstr_pr}.", 
         extra={"spacing": "\n"})
 
-    # get sess x surp x quant x stats x ROIs x frames
+    # get sess x unexp x quant x stats x ROIs x frames
     trace_info = quant_analys.trace_stats_by_qu_sess(
         sessions, analyspar, stimpar, n_quants=quantpar.n_quants, 
-        qu_idx=quantpar.qu_idx, byroi=True, bysurp=True)
+        qu_idx=quantpar.qu_idx, byroi=True, by_exp=True)
     xrans = [xran.tolist() for xran in trace_info[0]]
 
     # retain mean/median from trace stats
     trace_me = [sessst[:, :, 0] for sessst in trace_info[1]]
 
-    grp_stats = signif_grps.grp_traces_by_qu_surp_sess(
+    grp_stats = signif_grps.grp_traces_by_qu_unexp_sess(
         trace_me, analyspar, roigrppar, roi_grps["all_roi_grps"])
 
     roi_grps = copy.deepcopy(roi_grps)
@@ -279,8 +279,8 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
     run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar, 
                          permpar, quantpar, roigrppar, roi_grps, fig_par)
 
-    Calculates and plots ROI traces across ROIs by group for surprise, no 
-    surprise or difference between surprise and no surprise activity per 
+    Calculates and plots ROI traces across ROIs by group for unexpected, 
+    expected or difference between unexpected and expected activity per 
     quantile (first/last) with each group in a separate subplot and each 
     session in a different figure. 
 
@@ -336,15 +336,15 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
     opstr_pr = sess_str_util.op_par_str(
         roigrppar.plot_vals, roigrppar.op, str_type="print")
     sessstr_pr = sess_str_util.sess_par_str(
-        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir,
-        stimpar.bri_size, stimpar.gabk, "print")
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.visflow_dir,
+        stimpar.visflow_size, stimpar.gabk, "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar.dend, sesspar.plane, extrapar["datatype"], "print")
    
     opstr = sess_str_util.op_par_str(roigrppar.plot_vals, roigrppar.op)
     sessstr = sess_str_util.sess_par_str(
-        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir,
-        stimpar.bri_size, stimpar.gabk)
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.visflow_dir,
+        stimpar.visflow_size, stimpar.gabk)
     dendstr = sess_str_util.dend_par_str(
         analyspar.dend, sesspar.plane, extrapar["datatype"])
      
@@ -352,14 +352,14 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
     if extrapar["datatype"] != "roi":
         raise NotImplementedError("Analysis only implemented for roi datatype.")
 
-    logger.info(f"Analysing and plotting {opstr_pr} {datastr} surp vs reg "
+    logger.info(f"Analysing and plotting {opstr_pr} {datastr} unexp vs exp "
         f"average responses by quantile ({quantpar.n_quants}). \n{sessstr_pr}"
         f"{dendstr_pr}.", extra={"spacing": "\n"})
 
-    # get full data for qu of interest: session x surp x [seq x ROI]
+    # get full data for qu of interest: session x unexp x [seq x ROI]
     integ_info = quant_analys.trace_stats_by_qu_sess(
         sessions, analyspar, stimpar, quantpar.n_quants, quantpar.qu_idx, 
-        bysurp=True, integ=True)     
+        by_exp=True, integ=True)     
 
     # retrieve only mean/medians per ROI
     all_me = [sess_stats[:, :, 0] for sess_stats in integ_info[1]]
@@ -406,9 +406,9 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
     run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar, 
                     permpar, quantpar, roigrppar, figpar)
 
-    Identifies ROIs showing significant surprise in first and/or last quantile,
-    group accordingly and plots traces and areas across ROIs for surprise, 
-    no surprise or difference between surprise and no surprise activity per 
+    Identifies ROIs showing significant unexpected in first and/or last quantile,
+    group accordingly and plots traces and areas across ROIs for unexpected, 
+    expected or difference between unexpected and expected activity per 
     quantile (first/last) with each group in a separate subplot and each 
     session in a different figure. 
     
@@ -432,17 +432,17 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
     opstr = sess_str_util.op_par_str(roigrppar.plot_vals, roigrppar.op)
     sessstr = sess_str_util.sess_par_str(
-        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir,
-        stimpar.bri_size, stimpar.gabk)
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.visflow_dir,
+        stimpar.visflow_size, stimpar.gabk)
     dendstr = sess_str_util.dend_par_str(
         analyspar.dend, sesspar.plane, datatype)
     
     sessids = [sess.sessid for sess in sessions]
     
-    # get full data for qu of interest: session x surp x [seq x ROI]
+    # get full data for qu of interest: session x unexp x [seq x ROI]
     integ_info = quant_analys.trace_stats_by_qu_sess(
         sessions, analyspar, stimpar, quantpar.n_quants, quantpar.qu_idx, 
-        bysurp=True, integ=True, ret_arr=True)
+        by_exp=True, integ=True, ret_arr=True)
 
     _, _, _, qu_data = integ_info     
 
@@ -512,29 +512,29 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
 
 #############################################
-def run_oridirs_by_qu_sess(sess, oridirs, surps, xran, mes, counts, 
+def run_oridirs_by_qu_sess(sess, oridirs, unexps, xran, mes, counts, 
                            analyspar, sesspar, stimpar, extrapar, quantpar, 
                            figpar, parallel=False):
     """
 
-    run_oridirs_by_qu_sess(sess, oridirs, surps, xrans, mes, counts, 
+    run_oridirs_by_qu_sess(sess, oridirs, unexps, xrans, mes, counts, 
                            analyspar, sesspar, stimpar, extrapar, quantpar, 
                            figpar)
 
-    Plots average activity across gabor orientations or across brick directions,
-    locked to surprise/regular transition per ROI as colormaps, and across ROIs 
-    as traces for a single session and specified quantile.
+    Plots average activity across gabor orientations or across visual flow 
+    directions, locked to unexpected/expected transition per ROI as colormaps, 
+    and across ROIs as traces for a single session and specified quantile.
     Saves results and parameters relevant to analysis in a dictionary. 
 
     Required args:
         - sess (Session)       : Session object
         - oridirs (list)       : list of orientations/directions
-        - surps (list)         : list of surprise values
+        - unexps (list)         : list of unexpected values
         - xran (list)          : list of time values for the 2p frames
         - mes (nested list)    : ROI mean/median data, structured as:
-                                    oridirs x surp x ROI x frames
+                                    oridirs x unexp x ROI x frames
         - counts (nested list) : number of sequences, structured as:
-                                    oridirs x surp
+                                    oridirs x unexp
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
@@ -553,7 +553,7 @@ def run_oridirs_by_qu_sess(sess, oridirs, surps, xran, mes, counts,
     """
 
     stimstr = sess_str_util.stim_par_str(
-        stimpar.stimtype, stimpar.bri_dir, stimpar.bri_size, stimpar.gabk)
+        stimpar.stimtype, stimpar.visflow_dir, stimpar.visflow_size, stimpar.gabk)
     dendstr = sess_str_util.dend_par_str(
         analyspar.dend, sesspar.plane, extrapar["datatype"])
        
@@ -575,8 +575,8 @@ def run_oridirs_by_qu_sess(sess, oridirs, surps, xran, mes, counts,
     [n_seqs, roi_me, stats, 
         scale_vals, roi_sort] = [dict(), dict(), dict(), dict(), dict()]
     for o, od in enumerate(oridirs):
-        for s, surp in enumerate(surps):
-            key = f"{surp}_{od}"
+        for s, unexp in enumerate(unexps):
+            key = f"{unexp}_{od}"
             me = mes[o][s] # me per ROI
             n_seqs[key] = int(counts[o][s])
             # sorting idx
@@ -620,21 +620,21 @@ def run_oridirs_by_qu_sess(sess, oridirs, surps, xran, mes, counts,
 
 
 #############################################
-def run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar, 
+def run_oridirs_by_qu(sessions, oridirs, unexps, analyspar, sesspar, stimpar, 
                       extrapar, quantpar, figpar, parallel=False):
     """
-    run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
+    run_oridirs_by_qu(sessions, oridirs, unexps, analyspar, sesspar, stimpar,
                       extrapar, quantpar, figpar)
 
-    Plots average activity across gabor orientations or across brick directions,
-    locked to surprise/regular transition per ROI as colormaps, and across ROIs 
-    as traces for a specified quantile.
+    Plots average activity across gabor orientations or across visual flow 
+    directions, locked to unexpected/expected transition per ROI as colormaps, 
+    and across ROIs as traces for a specified quantile.
     Saves results and parameters relevant to analysis in a dictionary. 
 
     Required args:
         - sessions (list)      : list of Session objects
         - oridirs (list)       : list of orientations/directions
-        - surps (list)         : list of surprise values
+        - unexps (list)         : list of unexpected values
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
@@ -655,8 +655,8 @@ def run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
     mes, counts = [], []
     for od in oridirs:
         # create a specific stimpar for each direction or orientation
-        if stimpar.stimtype == "bricks":
-            key = "bri_dir"
+        if stimpar.stimtype == "visflow":
+            key = "visflow_dir"
             lock = "both"
         elif stimpar.stimtype == "gabors":
             key = "gab_ori"
@@ -666,15 +666,15 @@ def run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
         nan_empty = True
         trace_info = quant_analys.trace_stats_by_qu_sess(
             sessions, analyspar, stimpar_od, quantpar.n_quants, 
-            quantpar.qu_idx, byroi=True, bysurp=True, lock=lock, 
+            quantpar.qu_idx, byroi=True, by_exp=True, lock=lock, 
             nan_empty=nan_empty)
         xrans = trace_info[0]
         # retrieve mean/medians and single quantile data:
-        # sess x [surp x ROIs x frames]
+        # sess x [unexp x ROIs x frames]
         mes.append([sess_stats[:, 0, 0] for sess_stats in trace_info[1]]) 
-        # retrieve single quantile counts: sess x surp
+        # retrieve single quantile counts: sess x unexp
         counts.append(
-            [[surp_c[0] for surp_c in sess_c] for sess_c in trace_info[2]])
+            [[unexp_c[0] for unexp_c in sess_c] for sess_c in trace_info[2]])
 
     mes = [np.asarray(vals) for vals in zip(*mes)]
     counts = [np.asarray(vals) for vals in zip(*counts)]
@@ -683,13 +683,13 @@ def run_oridirs_by_qu(sessions, oridirs, surps, analyspar, sesspar, stimpar,
     if parallel and len(sessions) > 1:
         n_jobs = gen_util.get_n_jobs(len(sessions))
         Parallel(n_jobs=n_jobs)(delayed(run_oridirs_by_qu_sess)
-            (sess, oridirs, surps, xrans[se], mes[se], counts[se], analyspar, 
+            (sess, oridirs, unexps, xrans[se], mes[se], counts[se], analyspar, 
             sesspar, stimpar, extrapar, quantpar, figpar, False) 
             for se, sess in enumerate(sessions))
     else:
         for se, sess in enumerate(sessions):
             run_oridirs_by_qu_sess(
-                sess, oridirs, surps, xrans[se], mes[se], counts[se], 
+                sess, oridirs, unexps, xrans[se], mes[se], counts[se], 
                 analyspar, sesspar, stimpar, extrapar, quantpar, figpar, 
                 parallel)
 
@@ -701,7 +701,7 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quantpar,
     run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quantpar, 
                 figpar)
 
-    Plots average activity across gabor orientations or brick directions 
+    Plots average activity across gabor orientations or visual flow directions 
     per ROI as colormaps, and across ROIs as traces. 
     Saves results and parameters relevant to analysis in a dictionary.
 
@@ -723,21 +723,21 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quantpar,
     datatype = "roi"
 
     # update stim parameters parameters
-    if stimpar.stimtype == "bricks":
-        # update stimpar with both brick directions
+    if stimpar.stimtype == "visflow":
+        # update stimpar with both visual flow directions
         oridirs = ["right", "left"]
-        keys = ["bri_dir", "pre", "post"]
+        keys = ["visflow_dir", "pre", "post"]
         vals = [oridirs, 2.0, 4.0]
     elif stimpar.stimtype == "gabors":
         # update stimpar with gab_fr = 0 and all gabor orientations
-        oridirs = [0, 45, 90, 135]
+        oridirs = sess_gen_util.filter_gab_oris("D", stimpar.gab_ori)
         keys = ["gabfr", "gab_ori"]
         vals = [0, oridirs]
     stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, keys, vals)            
 
     sessstr_pr = sess_str_util.sess_par_str(
-        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 
-        stimpar.bri_size, stimpar.gabk, "print")
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.visflow_dir, 
+        stimpar.visflow_size, stimpar.gabk, "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar.dend, sesspar.plane, datatype, "print")
   
@@ -757,7 +757,7 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quantpar,
                 "datatype": datatype,
                 }
 
-    surps = ["reg", "surp"]  
+    unexps = ["exp", "unexp"]  
     figpar = copy.deepcopy(figpar)
     if figpar["save"]["use_dt"] is None:
         figpar["save"]["use_dt"] = gen_util.create_time_str()
@@ -766,13 +766,13 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quantpar,
     if parallel and (len(quantpars) > np.max([1, len(sessions)])):
         n_jobs = gen_util.get_n_jobs(len(quantpars))
         Parallel(n_jobs=n_jobs)(delayed(run_oridirs_by_qu)
-            (sessions, oridirs, surps, analyspar, sesspar, stimpar, 
+            (sessions, oridirs, unexps, analyspar, sesspar, stimpar, 
             extrapar, quantpar, figpar, False) 
             for quantpar in quantpars)
     else:
         for quantpar in quantpars:
             run_oridirs_by_qu(
-                sessions, oridirs, surps, analyspar, sesspar, stimpar, 
+                sessions, oridirs, unexps, analyspar, sesspar, stimpar, 
                 extrapar, quantpar, figpar, parallel)
 
 
@@ -784,7 +784,7 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
                     tcurvpar, figpar)
 
     Calculates and plots estimated ROI orientation tuning curves, as well as a 
-    correlation plot for regular vs surprise orientation preferences. 
+    correlation plot for expected vs unexpected orientation preferences. 
 
     Required args:
         - sessions (list)      : list of Session objects
@@ -806,14 +806,14 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
     datatype = "roi"
 
-    if stimpar.stimtype == "bricks":
-        warnings.warn("Tuning curve analysis not implemented for bricks.", 
+    if stimpar.stimtype == "visflow":
+        warnings.warn("Tuning curve analysis not implemented for visual flow.", 
             category=UserWarning, stacklevel=1)
         return
     
     sessstr_pr = sess_str_util.sess_par_str(
-        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 
-        stimpar.bri_size, stimpar.gabk, "print")
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.visflow_dir, 
+        stimpar.visflow_size, stimpar.gabk, "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar.dend, sesspar.plane, datatype, "print")
   
@@ -923,9 +923,9 @@ def posori_resp(sess, analyspar, stimpar, nrois="all"):
                                 mean orientation x gaborframe
     """
 
-    if sess.only_matched_rois != analyspar.tracked:
+    if sess.only_tracked_rois != analyspar.tracked:
         raise RuntimeError(
-            "sess.only_matched_rois should match analyspar.tracked."
+            "sess.only_tracked_rois should match analyspar.tracked."
             )
 
     stim = sess.get_stim(stimpar.stimtype)
@@ -952,10 +952,13 @@ def posori_resp(sess, analyspar, stimpar, nrois="all"):
                 s = "any"
             # get segments
             segs = stim.get_segs_by_criteria(
-                gabfr=gf, bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, 
-                gab_ori=ori, gabk=stimpar.gabk, surp=s, by="seg")
+                gabfr=gf, visflow_dir=stimpar.visflow_dir, 
+                visflow_size=stimpar.visflow_size, 
+                gab_ori=ori, gabk=stimpar.gabk, unexp=s, by="seg")
             ori_nseqs.append(len(segs))
-            twopfr = stim.get_twop_fr_by_seg(segs, first=True)["first_twop_fr"]
+            twopfr = stim.get_fr_by_seg(
+                segs, start=True, fr_type="twop"
+                )["start_frame_twop"]
             # stats x ROI
             gf_stats = gen_util.reshape_df_data(stim.get_roi_stats_df(twopfr, 
                 stimpar.pre, stimpar.post, byroi=True, fluor=analyspar.fluor, 
@@ -993,16 +996,16 @@ def run_posori_resp(sessions, analysis, analyspar, sesspar, stimpar, figpar,
 
     datatype = "roi"
     
-    if stimpar.stimtype == "bricks":
+    if stimpar.stimtype == "visflow":
         warnings.warn(
-            "Location preference analysis not implemented for bricks.", 
+            "Location preference analysis not implemented for visual flow.", 
             category=UserWarning, stacklevel=1
             )
         return
     
     sessstr_pr = sess_str_util.sess_par_str(
-        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 
-        stimpar.bri_size, stimpar.gabk, "print")
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.visflow_dir, 
+        stimpar.visflow_size, stimpar.gabk, "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar.dend, sesspar.plane, datatype, "print")
   
@@ -1076,8 +1079,8 @@ def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar,
     datatype = "roi"
 
     sessstr_pr = sess_str_util.sess_par_str(
-        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 
-        stimpar.bri_size, stimpar.gabk, "print")
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.visflow_dir, 
+        stimpar.visflow_size, stimpar.gabk, "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar.dend, sesspar.plane, datatype, "print")
        
@@ -1094,31 +1097,32 @@ def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar,
     if stimpar.stimtype == "gabors":
         stimpar = sess_ntuple_util.get_modif_ntuple(
             stimpar, ["gabfr", "pre", "post"], [0, 0, 1.5])
-        surps = [0, 1]
-    elif stimpar.stimtype == "bricks":
+        unexps = [0, 1]
+    elif stimpar.stimtype == "visflow":
         stimpar = sess_ntuple_util.get_modif_ntuple(
             stimpar, ["pre", "post"], [4, 8])
-        surps = [1]
+        unexps = [1]
     else:
         gen_util.accepted_values_error(
-            "stimpar.stimtype", stimpar.stimtype, ["gabors", "bricks"])
+            "stimpar.stimtype", stimpar.stimtype, ["gabors", "visflow"])
 
     for sess in sessions:
         stim = sess.get_stim(stimpar.stimtype)
-        if sess.only_matched_rois != analyspar.tracked:
+        if sess.only_tracked_rois != analyspar.tracked:
             raise RuntimeError(
-                "sess.only_matched_rois should match analyspar.tracked."
+                "sess.only_tracked_rois should match analyspar.tracked."
                 )
         all_traces = []
-        for surp in surps:        
+        for unexp in unexps:        
             all_segs = stim.get_segs_by_criteria(gabfr=stimpar.gabfr,
                 gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
-                bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size,
-                surp=surp, by="seg")
-            if stimpar.stimtype == "bricks":
+                visflow_dir=stimpar.visflow_dir, 
+                visflow_size=stimpar.visflow_size,
+                unexp=unexp, by="seg")
+            if stimpar.stimtype == "visflow":
                 all_segs, n_consec = gen_util.consec(all_segs)
-            twop_fr = stim.get_twop_fr_by_seg(
-                all_segs, first=True)["first_twop_fr"]
+            twop_fr = stim.get_fr_by_seg(
+                all_segs, start=True, fr_type="twop")["start_frame_twop"]
             # ROI x sequences (x frames)
             traces_df = stim.get_roi_data(
                 twop_fr, stimpar.pre, stimpar.post, fluor=analyspar.fluor, 
@@ -1126,9 +1130,9 @@ def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar,
             all_traces.append(gen_util.reshape_df_data(
                 traces_df, squeeze_cols=True))
         if stimpar.stimtype == "gabors":
-            n_reg = len(all_traces[0])
+            n_exp = len(all_traces[0])
             all_traces = np.concatenate(all_traces, axis=1)
-        if stimpar.stimtype == "bricks":
+        if stimpar.stimtype == "visflow":
             all_traces = all_traces[0]
 
         ################
@@ -1158,7 +1162,7 @@ def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar,
         #         "trace_stats": trace_stats
         #         }
 
-        # fulldir, savename = gen_plots.plot_traces_by_qu_surp_sess(figpar=figpar, 
+        # fulldir, savename = gen_plots.plot_traces_by_qu_unexp_sess(figpar=figpar, 
         #                                                           **info)
         # file_util.saveinfo(info, savename, fulldir, "json")
 

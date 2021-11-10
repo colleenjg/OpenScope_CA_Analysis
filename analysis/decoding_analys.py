@@ -65,35 +65,38 @@ def get_decoding_data(sess, analyspar, stimpar, comp="Dori", ctrl=False):
         raise ValueError("Expected stimpar.stimtype to be 'gabors'.")
 
     if comp == "Dori":
-        exp = 0
+        unexp = 0
         ctrl_ns = []
     elif comp == "Uori":
-        exp = 1
+        unexp = 1
         ctrl = False
         ctrl_ns = False
     else:
         gen_util.accepted_values_error("comp", comp, ["Dori", "Uori"])
 
-    gab_oris = sess_gen_util.get_params(gab_ori=stimpar.gab_ori)[-1]
-
+    gab_oris = sess_gen_util.filter_gab_oris(comp[0], stimpar.gab_ori)
+  
     stim = sess.get_stim(stimpar.stimtype)
 
     all_input_data = []
     all_target_data = []
     for g, gab_ori in enumerate(gab_oris):
         segs = stim.get_segs_by_criteria(
-            gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=gab_ori, surp=exp, 
-            remconsec=False, by="seg")
-        fr_ns = stim.get_twop_fr_by_seg(segs, first=True)["first_twop_fr"]
+            gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=gab_ori, 
+            unexp=unexp, remconsec=False, by="seg")
+        fr_ns = stim.get_fr_by_seg(
+            segs, start=True, fr_type="twop"
+            )["start_frame_twop"]
 
         # sample as many sequences as are usable for unexpected data
         if ctrl:
             segs_ctrl = stim.get_segs_by_criteria(
                 gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=gab_ori, 
-                surp=1, remconsec=False, by="seg")
-            fr_ns_ctrl = stim.get_twop_fr_by_seg(
-                segs_ctrl, first=True, ch_fl=[stimpar.pre, stimpar.post]
-                )["first_twop_fr"]
+                unexp=1, remconsec=False, by="seg")
+            fr_ns_ctrl = stim.get_fr_by_seg(
+                segs_ctrl, start=True, ch_fl=[stimpar.pre, stimpar.post], 
+                fr_type="twop"
+                )["start_frame_twop"]
             ctrl_ns.append(len(fr_ns_ctrl))
 
         ori_data_df = stim.get_roi_data(
@@ -324,10 +327,10 @@ def collate_results(sess_data_stats_df, shuffle_dfs, analyspar, permpar):
 
 
 #############################################
-def run_sess_log_reg(sess, analyspar, stimpar, logregpar, n_splits=100, 
-                     n_shuff_splits=300, seed=None, parallel=False):
+def run_sess_logreg(sess, analyspar, stimpar, logregpar, n_splits=100, 
+                    n_shuff_splits=300, seed=None, parallel=False):
     """
-    run_sess_log_reg(sess, analyspar, stimpar, logregpar)
+    run_sess_logreg(sess, analyspar, stimpar, logregpar)
 
     Runs logistic regressions on a session (real data and shuffled), and 
     returns statistics dataframes.
@@ -377,8 +380,8 @@ def run_sess_log_reg(sess, analyspar, stimpar, logregpar, n_splits=100,
     logreg_columns = ["comp", "ctrl", "bal", "shuffle"]
 
     # do checks
-    if logregpar.q1v4 or logregpar.regvsurp:
-        raise NotImplementedError("q1v4 and regvsurp are not implemented.")
+    if logregpar.q1v4 or logregpar.exp_v_unexp:
+        raise NotImplementedError("q1v4 and exp_v_unexp are not implemented.")
     if n_splits <= 0 or n_shuff_splits <= 0:
         raise ValueError("n_splits and n_shuff_splits must be greater than 0.")
 
@@ -436,10 +439,10 @@ def run_sess_log_reg(sess, analyspar, stimpar, logregpar, n_splits=100,
 
 
 #############################################
-def run_sess_log_regs(sessions, analyspar, stimpar, logregpar, permpar, 
-                      n_splits=100, seed=None, parallel=False):
+def run_sess_logregs(sessions, analyspar, stimpar, logregpar, permpar, 
+                     n_splits=100, seed=None, parallel=False):
     """
-    run_sess_log_regs(sessions, analyspar, stimpar, logregpar, permpar)
+    run_sess_logregs(sessions, analyspar, stimpar, logregpar, permpar)
 
     Runs logistic regressions on sessions (real data and shuffled), and 
     returns statistics dataframe.
@@ -494,7 +497,7 @@ def run_sess_log_regs(sessions, analyspar, stimpar, logregpar, permpar,
                 f"Running decoders for session {s + 1}/{len(sess_df)}...",
                 extra={"spacing": f"\n{TAB}"}
                 )
-            sess_data_stats_df, shuffle_df = run_sess_log_reg(
+            sess_data_stats_df, shuffle_df = run_sess_logreg(
                 sess, 
                 analyspar=analyspar, 
                 stimpar=stimpar, 

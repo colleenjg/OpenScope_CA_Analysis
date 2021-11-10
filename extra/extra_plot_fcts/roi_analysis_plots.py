@@ -79,18 +79,18 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
     if analysis == "f": # full traces
         gen_plots.plot_full_traces(figpar=figpar, savedir=savedir, **info)
 
-    # 1. Plot average traces by quantile x surprise for each session 
+    # 1. Plot average traces by quantile x unexpected for each session 
     if analysis == "t": # traces
-        gen_plots.plot_traces_by_qu_surp_sess(
+        gen_plots.plot_traces_by_qu_unexp_sess(
             figpar=figpar, savedir=savedir, **info)
 
-    # 2. Plot average traces by quantile, locked to surprise for each session 
-    elif analysis == "l": # surprise locked traces
+    # 2. Plot average traces by quantile, locked to unexpected for each session 
+    elif analysis == "l": # unexpected locked traces
         gen_plots.plot_traces_by_qu_lock_sess(
             figpar=figpar, savedir=savedir, **info)
 
     # 3. Plot magnitude of change in dF/F area from first to last quantile of 
-    # surprise vs no surprise sequences, for each session
+    # unexpected vs expected sequences, for each session
     elif analysis == "m": # mag
         gen_plots.plot_mag_change(figpar=figpar, savedir=savedir, **info)
 
@@ -137,10 +137,10 @@ def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar,
     plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar, 
                              quantpar, roigrppar, sess_info, roi_grps)
 
-    From dictionaries, plots average integrated surprise, no surprise or 
-    difference between surprise and no surprise activity per group of ROIs 
-    showing significant surprise in first and/or last quantile. Each session is 
-    in a different plot.
+    From dictionaries, plots average integrated unexpected, expected or 
+    difference between unexpected and expected activity per group of ROIs 
+    showing significant unexpected response in first and/or last quantile. Each 
+    session is in a different plot.
 
     Returns figure name and save directory path.
 
@@ -202,7 +202,7 @@ def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar,
     opstr_pr = sess_str_util.op_par_str(
         roigrppar["plot_vals"], roigrppar["op"], str_type="print")
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"], 
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"], 
         stimpar["gabk"], "print")
     statstr_pr = sess_str_util.stat_par_str(
         analyspar["stats"], analyspar["error"], "print")
@@ -212,7 +212,7 @@ def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar,
     opstr = sess_str_util.op_par_str(roigrppar["plot_vals"], roigrppar["op"])
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"],stimpar["bri_size"], stimpar["gabk"]) 
+        stimpar["visflow_dir"],stimpar["visflow_size"], stimpar["gabk"]) 
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
 
@@ -258,7 +258,7 @@ def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar,
     if savedir is None:
         savedir = Path(
             figpar["dirs"][datatype], 
-            figpar["dirs"]["surp_qu"], 
+            figpar["dirs"]["unexp_qu"], 
             figpar["dirs"]["grped"])
     
     savename = (f"{datatype}_{sessstr}{dendstr}_grps_{opstr}_" + 
@@ -277,8 +277,8 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
     plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, 
                            quantpar, roigrppar, sess_info, roi_grps)
 
-    From dictionaries, plots ROI traces by group across surprise, no surprise or 
-    difference between surprise and no surprise activity per quantile 
+    From dictionaries, plots ROI traces by group across unexpected, expected or 
+    difference between unexpected and expected activity per quantile 
     (first/last) with each group in a separate subplot and each session in a 
     different figure.
 
@@ -342,7 +342,7 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
     opstr_pr = sess_str_util.op_par_str(
         roigrppar["plot_vals"], roigrppar["op"], "print")
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"], 
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"], 
         stimpar["gabk"], "print")
     statstr_pr = sess_str_util.stat_par_str(
         analyspar["stats"], analyspar["error"], "print")
@@ -352,7 +352,7 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
     opstr = sess_str_util.op_par_str(roigrppar["plot_vals"], roigrppar["op"])
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"],stimpar["bri_size"], stimpar["gabk"]) 
+        stimpar["visflow_dir"],stimpar["visflow_size"], stimpar["gabk"]) 
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
 
@@ -377,7 +377,7 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
     if savedir is None:
         savedir = Path(
             figpar["dirs"][datatype], 
-            figpar["dirs"]["surp_qu"], 
+            figpar["dirs"]["unexp_qu"], 
             figpar["dirs"]["grped"])
 
     if figpar["save"]["use_dt"] is None:
@@ -436,8 +436,8 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
     plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, 
                           quantpar, roigrppar, sess_info, roi_grps)
 
-    From dictionaries, plots ROI traces by group across surprise, no surprise 
-    or difference between surprise and no surprise activity per quantile 
+    From dictionaries, plots ROI traces by group across unexpected, expected or 
+    difference between unexpected and expected activity per quantile 
     (first/last) with each group in a separate subplot and each session in a 
     different figure.
 
@@ -503,7 +503,7 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
     opstr_pr = sess_str_util.op_par_str(
         roigrppar["plot_vals"], roigrppar["op"], "print")
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"], 
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"], 
         stimpar["gabk"], "print")
     statstr_pr = sess_str_util.stat_par_str(
         analyspar["stats"], analyspar["error"], "print")
@@ -513,7 +513,7 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
     opstr = sess_str_util.op_par_str(roigrppar["plot_vals"], roigrppar["op"])
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"]) 
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"]) 
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
 
@@ -586,7 +586,7 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
         if savedir is None:
             savedir = Path(
                 figpar["dirs"][datatype], 
-                figpar["dirs"]["surp_qu"], 
+                figpar["dirs"]["unexp_qu"], 
                 figpar["dirs"]["grped"])
 
         for i, (fig, scale) in enumerate(zip(figs, scales)):
@@ -608,8 +608,8 @@ def plot_rois_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, quantpar,
     plot_rois_by_grp(analyspar, sesspar, stimpar, extrapar, permpar, quantpar, 
                      roigrppar, sess_info, roi_grps)
 
-    From dictionaries, plots ROI data by group across surprise, no surprise 
-    or difference between surprise and no surprise activity per quantile 
+    From dictionaries, plots ROI data by group across unexpected, expected or 
+    difference between unexpected and expected activity per quantile 
     (first/last) with each group in a separate subplot and each session in a 
     different figure.
 
@@ -724,8 +724,8 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quantpar,
                        tr_data, sess_info)
 
     From dictionaries, plots average activity across gabor orientations or 
-    brick directions per ROI as colormaps for a single session and optionally
-    a single quantile. 
+    visual flow directions per ROI as colormaps for a single session and 
+    optionally a single quantile. 
 
     Required args:
         - analyspar (dict): dictionary with keys of AnalysPar namedtuple
@@ -745,18 +745,18 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quantpar,
             ["nrois"] (list)      : number of ROIs in session
 
         - tr_data (dict)   : dictionary containing information to plot colormap.
-                             Surprise x ori/dir keys are formatted as 
-                             [{s}_{od}] for surp in ["reg", "surp"]
+                             unexpected x ori/dir keys are formatted as 
+                             [{s}_{od}] for unexp in ["exp", "unexp"]
                                             and od in [0, 45, 90, 135] or 
                                                       ["right", "left"]
             ["n_seqs"] (dict): dictionary containing number of segs for each
-                               surprise x ori/dir combination under a 
+                               unexpected x ori/dir combination under a 
                                separate key
             ["stats"] (dict) : dictionary containing trace mean/medians across
                                ROIs in 2D arrays or nested lists, 
                                structured as:
                                    stats (me, err) x frames
-                               with each surprise x ori/dir combination under a 
+                               with each unexpected x ori/dir combination under a 
                                separate key
                                (NaN arrays for combinations with 0 seqs.)
             ["xran"] (list)  : time values for the 2p frames
@@ -781,13 +781,13 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quantpar,
     statstr_pr = sess_str_util.stat_par_str(
         analyspar["stats"], analyspar["error"], "print")
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"], 
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"], 
         stimpar["gabk"], "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"], "print")
 
     stimstr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"], 
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"], 
         stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
@@ -804,20 +804,20 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quantpar,
     # extract some info from dictionaries
     keys = ["mouse_ns", "sess_ns", "lines", "planes"]
     [mouse_n, sess_n, line, plane] = [sess_info[key][0] for key in keys]
-    nroi_strs = sess_str_util.get_nroi_strs(sess_info)[0]
+    nroi_str = sess_str_util.get_nroi_strs(sess_info)[0]
 
     xran = tr_data["xran"]
 
-    surps = ["reg", "surp"]
+    unexps = ["exp", "unexp"]
     if stimpar["stimtype"] == "gabors":
-        surp_labs = surps
+        unexp_labs = unexps
         deg = u"\u00B0"
         oridirs = stimpar["gab_ori"]
         n = 6
-    elif stimpar["stimtype"] == "bricks":
-        surp_labs = [f"{surps[i]} -> {surps[1-i]}" for i in range(len(surps))]
+    elif stimpar["stimtype"] == "visflow":
+        unexp_labs = [f"{unexps[i]} -> {unexps[1-i]}" for i in range(len(unexps))]
         deg = ""
-        oridirs = stimpar["bri_dir"]
+        oridirs = stimpar["visflow_dir"]
         n = 7
 
     qu_str, qu_str_pr = quantpar["qu_lab"][0], quantpar["qu_lab_pr"][0]
@@ -843,14 +843,14 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quantpar,
     for o, od in enumerate(oridirs):
         cols = []
         od_str = od
-        if stimpar["stimtype"] == "bricks":
+        if stimpar["stimtype"] == "visflow":
             od_str = sess_str_util.dir_par_str(od, str_type="print")[8:-1]
-        for surp, surp_lab in zip(surps, surp_labs): 
+        for unexp, unexp_lab in zip(unexps, unexp_labs): 
             sub_ax = plot_util.get_subax(ax, o)
-            key = f"{surp}_{od}"
+            key = f"{unexp}_{od}"
             stimtype_str_pr = stimpar["stimtype"][:-1].capitalize()
             title_tr = u"{} traces ({}{})".format(stimtype_str_pr, od_str, deg)
-            lab = f"{surp_lab} (n={tr_data['n_seqs'][key]})"
+            lab = f"{unexp_lab} (n={tr_data['n_seqs'][key]})"
             sess_plot_util.add_axislabels(sub_ax, datatype=datatype)
             me  = np.asarray(tr_data["stats"][key][0])
             err = np.asarray(tr_data["stats"][key][1:])
@@ -858,7 +858,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quantpar,
                 sub_ax, xran, me, err, title_tr, n_xticks=n, label=lab, 
                 xticks="auto")
             cols.append(sub_ax.lines[-1].get_color())
-            if stimpar["stimtype"] == "bricks":
+            if stimpar["stimtype"] == "visflow":
                 plot_util.add_bars(sub_ax, 0)
 
     if stimpar["stimtype"] == "gabors":
@@ -873,7 +873,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quantpar,
 
 
 #############################################
-def scale_sort_trace_data(tr_data, fig_type="byplot", surps=["reg", "surp"], 
+def scale_sort_trace_data(tr_data, fig_type="byplot", unexps=["exp", "unexp"], 
                           oridirs=[0, 45, 90, 135]):
     """
     scale_sort_trace_data(tr_data)
@@ -883,15 +883,15 @@ def scale_sort_trace_data(tr_data, fig_type="byplot", surps=["reg", "surp"],
 
     Required args:        
         - tr_data (dict): dictionary containing information to plot colormap.
-                            Surprise x ori/dir keys are formatted as 
-                            [{s}_{od}] for surp in ["reg", "surp"]
+                            unexpected x ori/dir keys are formatted as 
+                            [{s}_{od}] for unexp in ["exp", "unexp"]
                                            and od in [0, 45, 90, 135] or 
                                                      ["right", "left"]
             ["n_seqs"] (dict)    : dictionary containing number of segs for 
-                                   each surprise x ori/dir combination under a 
+                                   each unexpected x ori/dir combination under a 
                                    separate key
             ["scale_vals"] (dict): dictionary containing 1D array or list of 
-                                   scaling values for each surprise x ori/dir 
+                                   scaling values for each unexpected x ori/dir 
                                    combination under a separate key.
                                    (NaN arrays for combinations with 0 seqs.)
                 ["{}_min"] (num): minimum value from corresponding tr_stats 
@@ -900,14 +900,14 @@ def scale_sort_trace_data(tr_data, fig_type="byplot", surps=["reg", "surp"],
                                   mean/medians
             ["roi_sort"] (dict)  : dictionary containing 1D arrays or list 
                                    of peak sorting order for each 
-                                   surprise x ori/dir combination under
+                                   unexpected x ori/dir combination under
                                    a separate key.
                                    (NaN arrays for combinations with 0 seqs.)
             ["roi_me"] (dict)    : dictionary containing trace mean/medians
                                    for each ROI as 2D arrays or nested lists, 
                                    structured as:
                                        ROIs x frames, 
-                                   with each surprise x ori/dir combination 
+                                   with each unexpected x ori/dir combination 
                                    under a separate key. 
                                    (NaN arrays for combinations with 0 seqs.)
             ["xran"] (list)      : time values for the 2p frames
@@ -915,15 +915,15 @@ def scale_sort_trace_data(tr_data, fig_type="byplot", surps=["reg", "surp"],
     Optional args:
         - fig_type (str) : how to scale and sort ROIs, 
                                i.e. each plot separately ("byplot"), 
-                                   each orientation/direction by its regular 
-                                       plot ("byreg"), 
-                                   each reg/surp by the first 
+                                   each orientation/direction by its expected 
+                                       plot ("byexp"), 
+                                   each exp/unexp by the first 
                                        orientation/direction 
                                        ("by0deg" or "byright")
                                    each plot by the first plot ("byfirst")
                            default: "byplot"
-        - surps (list)   : surprise value names used in keys, ordered
-                           default: ["reg", "surp"]
+        - unexps (list)   : unexpected value names used in keys, ordered
+                           default: ["exp", "unexp"]
         - oridirs (list) : orientation/direction value names used in keys,
                            ordered
                            default: [0, 45, 90, 135]
@@ -933,7 +933,7 @@ def scale_sort_trace_data(tr_data, fig_type="byplot", surps=["reg", "surp"],
                                       sorted trace mean/medians for each ROI as 
                                       2D arrays, structured as:
                                           ROIs x frames, 
-                                      with each surprise x ori/dir combination 
+                                      with each unexpected x ori/dir combination 
                                       under a separate key, as above
     """
 
@@ -941,7 +941,7 @@ def scale_sort_trace_data(tr_data, fig_type="byplot", surps=["reg", "surp"],
     scale_vals  = tr_data["scale_vals"]
     roi_sort   = tr_data["roi_sort"]
     for od in oridirs:
-        for s in surps:
+        for s in unexps:
             key = f"{s}_{od}"
             me = np.asarray(tr_data["roi_me"][key])
             # mean/median organized as ROI x fr
@@ -953,16 +953,16 @@ def scale_sort_trace_data(tr_data, fig_type="byplot", surps=["reg", "surp"],
                 max_v = np.asarray(scale_vals[f"{key}_max"])
                 sort_arg = roi_sort[key]
 
-            elif fig_type == "byreg":
-                mins = [scale_vals[f"{sv}_{od}_min"] for sv in surps]
-                maxs = [scale_vals[f"{sv}_{od}_max"] for sv in surps]
+            elif fig_type == "byexp":
+                mins = [scale_vals[f"{sv}_{od}_min"] for sv in unexps]
+                maxs = [scale_vals[f"{sv}_{od}_max"] for sv in unexps]
                 min_v = np.nanmin(np.asarray(mins), axis=0)
                 max_v = np.nanmax(np.asarray(maxs), axis=0)
                 idx = 0
-                # find first reg/surp plot with data
-                while tr_data["n_seqs"][f"{surps[idx]}_{od}"] == 0:
+                # find first exp/unexp plot with data
+                while tr_data["n_seqs"][f"{unexps[idx]}_{od}"] == 0:
                     idx += 1
-                sort_arg = roi_sort[f"{surps[idx]}_{od}"]
+                sort_arg = roi_sort[f"{unexps[idx]}_{od}"]
             
             elif fig_type in ["by0deg", "byright"]:
                 mins = [scale_vals[f"{s}_{odv}_min"] for odv in oridirs]
@@ -977,20 +977,20 @@ def scale_sort_trace_data(tr_data, fig_type="byplot", surps=["reg", "surp"],
                 
             elif fig_type == "byfir":
 
-                mins = [scale_vals[f"{sv}_{odv}_min"] for sv in surps 
+                mins = [scale_vals[f"{sv}_{odv}_min"] for sv in unexps 
                     for odv in oridirs]
-                maxs = [scale_vals[f"{sv}_{odv}_max"] for sv in surps 
+                maxs = [scale_vals[f"{sv}_{odv}_max"] for sv in unexps 
                     for odv in oridirs]
                 min_v = np.nanmin(np.asarray(mins), axis=0)
                 max_v = np.nanmax(np.asarray(maxs), axis=0)
                 idx_s, idx_od, count = 0, 0, 0
-                # find first plot with data (by oridirs, then surps)
+                # find first plot with data (by oridirs, then unexps)
                 while tr_data["n_seqs"][
-                    f"{surps[idx_s]}_{oridirs[idx_od]}"] == 0:
+                    f"{unexps[idx_s]}_{oridirs[idx_od]}"] == 0:
                     count += 1
                     idx_od = count % len(oridirs)
-                    idx_s  = count // len(oridirs) % len(surps)
-                sort_arg = roi_sort[f"{surps[idx_s]}_{oridirs[idx_od]}"]
+                    idx_s  = count // len(oridirs) % len(unexps)
+                sort_arg = roi_sort[f"{unexps[idx_s]}_{oridirs[idx_od]}"]
 
             me_scaled = ((me.T - min_v)/(max_v - min_v))
             scaled_sort_data_me[key] = me_scaled[:, sort_arg]
@@ -1007,11 +1007,11 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quantpar,
                          tr_data, sess_info)
 
     From dictionaries, plots average activity across gabor orientations or 
-    brick directions per ROI for a single session and optionally a single 
+    visual flow directions per ROI for a single session and optionally a single 
     quantile. (Single figure type) 
 
     Required args:
-        - fig_type (str)  : type of figure to plot, i.e., "byplot", "byreg", 
+        - fig_type (str)  : type of figure to plot, i.e., "byplot", "byexp", 
                             "byfir" or "by{}{}" (ori/dir, deg)
         - analyspar (dict): dictionary with keys of AnalysPar namedtuple
         - sesspar (dict)  : dictionary with keys of SessPar namedtuple 
@@ -1026,15 +1026,15 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quantpar,
             ["nrois"] (list)      : number of ROIs in session
 
         - tr_data (dict)   : dictionary containing information to plot colormap.
-                             Surprise x ori/dir keys are formatted as 
-                             [{s}_{od}] for surp in ["reg", "surp"]
+                             unexpected x ori/dir keys are formatted as 
+                             [{s}_{od}] for unexp in ["exp", "unexp"]
                                           and od in [0, 45, 90, 135] or 
                                                     ["right", "left"]
             ["n_seqs"] (dict)    : dictionary containing number of segs for 
-                                   each surprise x ori/dir combination under a 
+                                   each unexpected x ori/dir combination under a 
                                    separate key
             ["scale_vals"] (dict): dictionary containing 1D array or list of 
-                                   scaling values for each surprise x ori/dir 
+                                   scaling values for each unexpected x ori/dir 
                                    combination under a separate key.
                                    (NaN arrays for combinations with 0 seqs.)
                 ["{}_min"] (num): minimum value from corresponding tr_stats 
@@ -1043,14 +1043,14 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quantpar,
                                   mean/medians
             ["roi_sort"] (dict)  : dictionary containing 1D arrays or list 
                                    of peak sorting order for each 
-                                   surprise x ori/dir combination under a 
+                                   unexpected x ori/dir combination under a 
                                    separate key.
                                    (NaN arrays for combinations with 0 seqs.)
             ["roi_me"] (dict)    : dictionary containing trace mean/medians for 
                                    each ROI as 2D arrays or nested lists, 
                                    structured as:
                                        ROIs x frames, 
-                                   with each surprise x ori/dir combination 
+                                   with each unexpected x ori/dir combination 
                                    under a separate key
                                    (NaN arrays for combinations with 0 seqs.)
             ["xran"] (list)      : time values for the 2p frames
@@ -1077,13 +1077,13 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quantpar,
     statstr_pr = sess_str_util.stat_par_str(
         analyspar["stats"], analyspar["error"], "print")
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"], 
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"], 
         stimpar["gabk"], "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], "roi", "print")
 
     stimstr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"], 
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"], 
         stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], "roi")
@@ -1104,20 +1104,20 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quantpar,
     keys = ["mouse_ns", "sess_ns", "lines", "planes"]
     [mouse_n, sess_n, line, plane] = [sess_info[key][0] for key in keys]
 
-    surps = ["reg", "surp"]
+    unexps = ["exp", "unexp"]
     if stimpar["stimtype"] == "gabors":
-        surp_labs = surps
+        unexp_labs = unexps
         var_name = "orientation"
         deg  = "deg"
         deg_pr = u"\u00B0"
         oridirs = stimpar["gab_ori"]
         n = 6
-    elif stimpar["stimtype"] == "bricks":
-        surp_labs = [f"{surps[i]} -> {surps[1-i]}" for i in range(len(surps))]
+    elif stimpar["stimtype"] == "visflow":
+        unexp_labs = [f"{unexps[i]} -> {unexps[1-i]}" for i in range(len(unexps))]
         var_name = "direction"
         deg  = ""
         deg_pr = ""
-        oridirs = stimpar["bri_dir"]
+        oridirs = stimpar["visflow_dir"]
         n = 7
     
     qu_str, qu_str_pr = quantpar["qu_lab"][0], quantpar["qu_lab_pr"][0]
@@ -1144,12 +1144,12 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quantpar,
         scale_type = "per plot"
         peak_sort  = ""
         figpar["init"]["sharey"] = False
-    elif fig_type == "byreg":
+    elif fig_type == "byexp":
         scale_type = f"within {var_name}"
-        peak_sort  = f" of {surps[0]}"
+        peak_sort  = f" of {unexps[0]}"
         figpar["init"]["sharey"] = False
     elif fig_type == f"by{oridirs[0]}{deg}":
-        scale_type = "within surp/reg"
+        scale_type = "within unexp/exp"
         peak_sort  = f" of first {var_name}"
         figpar["init"]["sharey"] = True
     elif fig_type == "byfir":
@@ -1158,7 +1158,7 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quantpar,
         figpar["init"]["sharey"] = True
     else:
         gen_util.accepted_values_error("fig_type", fig_type, 
-            ["byplot", "byreg", f"by{oridirs[0]}{deg}", "byfir"])
+            ["byplot", "byexp", f"by{oridirs[0]}{deg}", "byfir"])
 
     subtitle = (f"ROIs sorted by peak activity{peak_sort} and scaled "
         f"{scale_type}")
@@ -1166,37 +1166,37 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quantpar,
     suptitle = f"{gentitle}\n({subtitle})"
     
     # get scaled and sorted ROI mean/medians (ROI x frame)
-    scaled_sort_me = scale_sort_trace_data(tr_data, fig_type, surps, oridirs)
-    fig, ax = plot_util.init_fig(len(oridirs) * len(surps), **figpar["init"])
+    scaled_sort_me = scale_sort_trace_data(tr_data, fig_type, unexps, oridirs)
+    fig, ax = plot_util.init_fig(len(oridirs) * len(unexps), **figpar["init"])
 
     xran_edges = [np.min(tr_data["xran"]), np.max(tr_data["xran"])]
     alpha=0.8
 
-    nrois = scaled_sort_me[f"{surps[0]}_{oridirs[0]}"].shape[1]
+    nrois = scaled_sort_me[f"{unexps[0]}_{oridirs[0]}"].shape[1]
     yticks_ev = int(10 * np.max([1, np.ceil(nrois/100)])) # avoid > 10 ticks
     for o, od in enumerate(oridirs):
         od_str = od
-        if stimpar["stimtype"] == "bricks":
+        if stimpar["stimtype"] == "visflow":
             od_str = sess_str_util.dir_par_str(od, str_type="print")[8:-1]
-        for s, (surp, surp_lab) in enumerate(zip(surps, surp_labs)):    
+        for s, (unexp, unexp_lab) in enumerate(zip(unexps, unexp_labs)):    
             sub_ax = ax[s][o]
-            key = f"{surp}_{od}"
+            key = f"{unexp}_{od}"
             title = u"{} seqs ({}{}) (n={})".format(
-                surp_lab.capitalize(), od_str, deg_pr, tr_data["n_seqs"][key])
+                unexp_lab.capitalize(), od_str, deg_pr, tr_data["n_seqs"][key])
             sess_plot_util.add_axislabels(
                 sub_ax, fluor=analyspar["fluor"], y_ax="ROIs", datatype="roi")
             im = plot_util.plot_colormap(
                 sub_ax, scaled_sort_me[key], title=title, cmap=cmap,
                 xran=xran_edges, n_xticks=n, yticks_ev=yticks_ev, 
                 xticks="auto", origin="upper")
-            if stimpar["stimtype"] == "bricks":
+            if stimpar["stimtype"] == "visflow":
                 plot_util.add_bars(sub_ax, 0, lw=3.5, alpha=alpha)
 
-    for s, surp in enumerate(surps):
+    for s, unexp in enumerate(unexps):
         sub_ax = ax[s:s+1]
         if stimpar["stimtype"] == "gabors":
             sess_plot_util.plot_labels(
-                sub_ax, stimpar["gabfr"], surp, pre=stimpar["pre"], 
+                sub_ax, stimpar["gabfr"], unexp, pre=stimpar["pre"], 
                 post=stimpar["post"], sharey=figpar["init"]["sharey"], 
                 t_heis=-0.05, omit_empty=False, lw=[5, 3], alpha=alpha)
         
@@ -1221,8 +1221,8 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quantpar,
                           tr_data, sess_info)
 
     From dictionaries, plots average activity across gabor orientations or 
-    brick directions per ROI as colormaps for a single session and optionally
-    a single quantile. 
+    visual flow directions per ROI as colormaps for a single session and 
+    optionally a single quantile. 
 
     Required args:
         - analyspar (dict): dictionary with keys of AnalysPar namedtuple
@@ -1242,15 +1242,15 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quantpar,
             ["nrois"] (list)      : number of ROIs in session
 
         - tr_data (dict)   : dictionary containing information to plot colormap.
-                             Surprise x ori/dir keys are formatted as 
-                             [{s}_{od}] for surp in ["reg", "surp"]
+                             unexpected x ori/dir keys are formatted as 
+                             [{s}_{od}] for unexp in ["exp", "unexp"]
                                           and od in [0, 45, 90, 135] or 
                                                     ["right", "left"]
             ["n_seqs"] (dict)    : dictionary containing number of seqs for 
-                                   each surprise x ori/dir combination under a 
+                                   each unexpected x ori/dir combination under a 
                                    separate key
             ["scale_vals"] (dict): dictionary containing 1D array or list of 
-                                   scaling values for each surprise x ori/dir 
+                                   scaling values for each unexpected x ori/dir 
                                    combination under a separate key.
                                    (NaN arrays for combinations with 0 seqs.)
                 ["{}_min"] (num): minimum value from corresponding tr_stats 
@@ -1259,14 +1259,14 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quantpar,
                                   mean/medians
             ["roi_sort"] (dict)  : dictionary containing 1D arrays or list 
                                    of peak sorting order for each 
-                                   surprise x ori/dir combination under a 
+                                   unexpected x ori/dir combination under a 
                                    separate key.
                                    (NaN arrays for combinations with 0 seqs.)
             ["roi_me"] (dict)    : dictionary containing trace mean/medians for 
                                    each ROI as 2D arrays or nested lists, 
                                    structured as:
                                        ROIs x frames, 
-                                   with each surprise x ori/dir combination 
+                                   with each unexpected x ori/dir combination 
                                    under a separate key
                                    (NaN arrays for combinations with 0 seqs.)
             ["xran"] (list)      : time values for the 2p frames
@@ -1298,8 +1298,8 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quantpar,
     if stimpar["stimtype"] == "gabors":
         oridirs = stimpar["gab_ori"]
         deg  = "deg"
-    elif stimpar["stimtype"] == "bricks":
-        oridirs = stimpar["bri_dir"]
+    elif stimpar["stimtype"] == "visflow":
+        oridirs = stimpar["visflow_dir"]
         deg = ""
     
     if figpar is None:
@@ -1310,7 +1310,7 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quantpar,
         figpar["save"]["use_dt"] = gen_util.create_time_str()
     figpar["save"]["fig_ext"] = "png" # svg too big
 
-    fig_types  = ["byplot", "byreg", f"by{oridirs[0]}{deg}", "byfir"]
+    fig_types  = ["byplot", "byexp", f"by{oridirs[0]}{deg}", "byfir"]
     fig_last = len(fig_types) - 1
     
     # optionally runs in parallel
@@ -1340,8 +1340,8 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quantpar,
                  tr_data, sess_info)
 
     From dictionaries, plots average activity across gabor orientations or 
-    brick directions per ROI as colormaps, as well as traces across ROIs for a 
-    single session and optionally a single quantile. 
+    visual flow directions per ROI as colormaps, as well as traces across ROIs 
+    for a single session and optionally a single quantile. 
 
     Required args:
         - analyspar (dict): dictionary with keys of AnalysPar namedtuple
@@ -1361,15 +1361,15 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quantpar,
             ["nrois"] (list)      : number of ROIs in session
 
         - tr_data (dict)   : dictionary containing information to plot colormap.
-                             Surprise x ori/dir keys are formatted as 
-                             [{s}_{od}] for surp in ["reg", "surp"]
+                             unexpected x ori/dir keys are formatted as 
+                             [{s}_{od}] for unexp in ["exp", "unexp"]
                                           and od in [0, 45, 90, 135] or 
                                                     ["right", "left"]
             ["n_seqs"] (dict)    : dictionary containing number of segs for each
-                                   surprise x ori/dir combination under a 
+                                   unexpected x ori/dir combination under a 
                                    separate key
             ["scale_vals"] (dict): dictionary containing 1D array or list of 
-                                   scaling values for each surprise x ori/dir 
+                                   scaling values for each unexpected x ori/dir 
                                    combination under a separate key.
                                    (NaN arrays for combinations with 0 seqs.)
                 ["{}_min"] (num): minimum value from corresponding tr_stats 
@@ -1378,21 +1378,21 @@ def plot_oridirs(analyspar, sesspar, stimpar, extrapar, quantpar,
                                   mean/medians
             ["roi_sort"] (dict) : dictionary containing 1D arrays or list of 
                                   peak sorting order for each 
-                                  surprise x ori/dir combination under a 
+                                  unexpected x ori/dir combination under a 
                                   separate key.
                                   (NaN arrays for combinations with 0 seqs.)
             ["roi_me"] (dict)   : dictionary containing trace mean/medians
                                   for each ROI as 2D arrays or nested lists, 
                                   structured as:
                                       ROIs x frames, 
-                                  with each surprise x ori/dir combination 
+                                  with each unexpected x ori/dir combination 
                                   under a separate key.
                                   (NaN arrays for combinations with 0 seqs.)
             ["stats"] (dict)    : dictionary containing trace mean/medians 
                                   across ROIs in 2D arrays or nested lists, 
                                   structured as: 
                                       stats (me, err) x frames
-                                  with each surprise x ori/dir combination 
+                                  with each unexpected x ori/dir combination 
                                   under a separate key
                                   (NaN arrays for combinations with 0 seqs.)
             ["xran"] (list)     : time values for the 2p frames
@@ -1514,10 +1514,10 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
     Required args:
         - tc_oris (list)        : list of orientation values corresponding to 
                                   the tc_data
-                                    surp x gabor (1 if comb_gabs) x oris
+                                    unexp x gabor (1 if comb_gabs) x oris
         - roi_data (list)       : list of mean integrated fluorescence data per 
                                   orientation, structured as 
-                                    surp (x gabor (1 if comb_gabs)) x oris
+                                    unexp (x gabor (1 if comb_gabs)) x oris
         - n (int)               : ROI number
         - nrois (int)           : total number of ROIs
         - seq_info (list)       : list of strings with info on each group
@@ -1525,13 +1525,13 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
     
     Optional args:
         - roi_vm_pars (3D array): array of Von Mises parameters: 
-                                    surp x gabor (1 if comb_gabs) 
+                                    unexp x gabor (1 if comb_gabs) 
                                         x par (kappa, mean, scale)
                                   default: None
         - roi_hist_pars (list)  : parameters used to convert tc_data to 
                                   histogram values (sub, mult) used in Von 
                                   Mises parameter estimation, structured as:
-                                    surp x gabor (1 if comb_gabs) x 
+                                    unexp x gabor (1 if comb_gabs) x 
                                     param (sub, mult)
                                   default: None
         - fluor (str)           : fluorescence type
@@ -1599,15 +1599,15 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
     fig.suptitle(f"{gentitle} - ROI {n+1} ({nrois} total)", y=1)
     
     deg = u"\u00B0"
-    for s, surp_oris in enumerate(tc_oris):
+    for s, unexp_oris in enumerate(tc_oris):
         if comb_gabs:
             gab_str = "(gabors combined)"
             for subax in ax[0, s+1:]: # advance color cycle past gray
                 subax.plot([], [])
         else:
-            gab_str = f"({len(surp_oris)} gabors)"
+            gab_str = f"({len(unexp_oris)} gabors)"
         title_str = f" for {seq_info[s]} {gab_str}"
-        for g, gab_oris in enumerate(surp_oris):
+        for g, gab_oris in enumerate(unexp_oris):
             if roi_vm_pars is not None:
                 plot_vm_estim_analysis(
                     ax[:, s], xran, gab_oris, roi_data[s][g], 
@@ -1640,14 +1640,14 @@ def plot_tune_curve_regr(vm_means, vm_regr, seq_info, gentitle="",
     """
     plot_tune_curve_regr(vm_means, vm_regr, seq_info)
     
-    Plots correlation for regular vs surprise orientation preferences. 
+    Plots correlation for expected vs unexpected orientation preferences. 
 
     Required args:
         - vm_mean (3D array): array of mean Von Mises means for each ROI, not 
                               weighted by kappa value or weighted (in rad): 
-                                ROI x surp x kappa weighted (False, (True)
-        - vm_regr (2D array): array of regression results correlating surprise 
-                              and non surprise means across ROIs, not weighted 
+                                ROI x unexp x kappa weighted (False, (True)
+        - vm_regr (2D array): array of regression results correlating unexpected 
+                              and non unexpected means across ROIs, not weighted 
                               by kappa value or weighted (in rad): 
                                   regr_val (score, slope, intercept)
                                      x kappa weighted (False, (True)
@@ -1745,7 +1745,7 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
                      sess_info)
 
     Plots orientation fluorescence data, as well as ROI orientation tuning 
-    curves, and a correlation plot for regular vs surprise orientation 
+    curves, and a correlation plot for expected vs unexpected orientation 
     preferences, if provided. 
 
     Required args:
@@ -1770,26 +1770,26 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
         - tcurv_data (dict): tuning curve data 
             ["oris"] (list)         : list of orientation values 
                                       corresponding to the tc_data
-                                      surp x gabor (1 if comb_gabs) x oris
+                                      unexp x gabor (1 if comb_gabs) x oris
             ["data"] (list)         : list of mean integrated fluorescence 
                                       data per orientation, for each ROI, 
                                       structured as 
-                                      ROI x surp x gabor (1 if comb_gabs) 
+                                      ROI x unexp x gabor (1 if comb_gabs) 
                                           x oris
-            ["nseqs"] (list)        : number of sequences per surp
+            ["nseqs"] (list)        : number of sequences per unexp
 
             if tcurvpar["vm_estim"]:
             ["vm_pars"] (4D array)  : array of Von Mises parameters for each
                                       ROI: 
-                                      ROI x surp x gabor (1 if comb_gabs) 
+                                      ROI x unexp x gabor (1 if comb_gabs) 
                                           x par
             ["vm_mean"] (3D array)  : array of mean Von Mises means for each
                                       ROI, not weighted by kappa value or 
                                       weighted (if not comb_gabs) (in rad): 
-                                      ROI x surp 
+                                      ROI x unexp 
                                           x kappa weighted (False, (True))
             ["vm_regr"] (2D array)  : array of regression results 
-                                      correlating surprise and non surprise
+                                      correlating unexpected and expected
                                       means across ROIs, not weighted by 
                                       kappa value or weighted (if not 
                                       comb_gabs) (in rad): 
@@ -1799,7 +1799,7 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
                                       histogram values (sub, mult) used
                                       in Von Mises parameter estimation, 
                                       structured as:
-                                      ROI x surp x gabor (1 if comb_gabs) x 
+                                      ROI x unexp x gabor (1 if comb_gabs) x 
                                          param (sub, mult)
 
     Optional args:
@@ -1825,13 +1825,13 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
     """
     
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"], 
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"], 
         stimpar["gabk"], "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"], "print")
 
     stimstr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"], 
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"], 
         stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
@@ -1845,16 +1845,16 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
         gabfrs = gabfrs * 2
     
     rand_str, rand_str_pr = "", ["", ""]
-    if tcurvpar["grp2"] == "surp":
-        surps = [0, 1]
-        seq_types = ["reg", "surp"]
-    elif tcurvpar["grp2"] in ["reg", "rand"]:
-        surps = [0, 0]
-        seq_types = ["reg", "reg"]
+    if tcurvpar["grp2"] == "unexp":
+        unexps = [0, 1]
+        seq_types = ["exp", "unexp"]
+    elif tcurvpar["grp2"] in ["exp", "rand"]:
+        unexps = [0, 0]
+        seq_types = ["exp", "exp"]
         if tcurvpar["grp2"] == "rand":
             rand_str = "_rand"
             rand_str_pr = ["", " samp"]
-    gabfr_letts = sess_str_util.gabfr_letters(gabfrs, surps)
+    gabfr_letts = sess_str_util.gabfr_letters(gabfrs, unexps)
 
     if extrapar["comb_gabs"]:
         comb_gab_str = "_comb"
@@ -1979,7 +1979,7 @@ def plot_posori_resp(analyspar, sesspar, stimpar, extrapar, sess_info,
     """
 
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"], 
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"], 
         stimpar["gabk"], "print")
     statstr_pr = sess_str_util.stat_par_str(
         analyspar["stats"], analyspar["error"], "print")
@@ -1987,7 +1987,7 @@ def plot_posori_resp(analyspar, sesspar, stimpar, extrapar, sess_info,
         analyspar["dend"], sesspar["plane"], extrapar["datatype"], "print")
     
     stimstr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"], 
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"], 
         stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])

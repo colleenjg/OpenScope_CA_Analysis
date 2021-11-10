@@ -164,7 +164,6 @@ def plot_stim_data_df(stim_data_df, stimpar, permpar, figpar, pop_stats=True,
     sub_ax_all = fig.add_axes([1.05, 0.11, 0.3, 0.77])
 
     stimtypes = stimpar["stimtype"][:] # deep copy
-    stimtypes[stimtypes.index("bricks")] = "visflow"
 
     # indicate bootstrapped error with wider capsize
     capsize = 8 if pop_stats else 6

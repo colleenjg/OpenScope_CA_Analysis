@@ -493,7 +493,7 @@ def plot_sess_data(data_df, analyspar, sesspar, permpar, figpar,
     figpar["init"]["subplot_hei"] = 4.4
     figpar["init"]["gs"] = {"hspace": 0.2}
     if wide:
-        figpar["init"]["subplot_wid"] = 3.4
+        figpar["init"]["subplot_wid"] = 3.0
         figpar["init"]["gs"]["wspace"] = 0.3
     else:
         figpar["init"]["subplot_wid"] = 2.6
@@ -758,7 +758,7 @@ def plot_ex_gabor_traces(ex_traces_df, stimpar, figpar, title=None):
 
 #############################################
 def plot_rel_resp_data(rel_resp_df, analyspar, sesspar, stimpar, permpar, 
-                       figpar, title=None, wide=False):
+                       figpar, title=None, small=True):
     """
     plot_rel_resp_data((rel_resp_df, analyspar, sesspar, stimpar, permpar, 
                        figpar)
@@ -796,8 +796,8 @@ def plot_rel_resp_data(rel_resp_df, analyspar, sesspar, stimpar, permpar,
         - title (str):
             plot title
             default: None
-        - wide (bool):
-            if True, subplots are wider
+        - small (bool):
+            if True, subplots are smaller
             default: False
 
     Returns:
@@ -808,14 +808,17 @@ def plot_rel_resp_data(rel_resp_df, analyspar, sesspar, stimpar, permpar,
     sess_ns = misc_analys.get_sess_ns(sesspar, rel_resp_df)
 
     figpar = sess_plot_util.fig_init_linpla(figpar)
-    
+
     figpar["init"]["sharey"] = "row"
-    figpar["init"]["subplot_hei"] = 4.1
-    figpar["init"]["subplot_wid"] = 2.6
-    figpar["init"]["gs"] = {"wspace": 0.25, "hspace": 0.2}
-    if wide:
-        figpar["init"]["subplot_wid"] = 3.3
+    figpar["init"]["gs"] = {"hspace": 0.2}
+    if small:
+        figpar["init"]["subplot_hei"] = 4.1
+        figpar["init"]["subplot_wid"] = 2.6
         figpar["init"]["gs"]["wspace"] = 0.25
+    else:
+        figpar["init"]["subplot_hei"] = 4.4
+        figpar["init"]["subplot_wid"] = 3.0
+        figpar["init"]["gs"] = {"wspace": 0.3}
 
     fig, ax = plot_util.init_fig(plot_helper_fcts.N_LINPLA, **figpar["init"])
 
@@ -824,11 +827,11 @@ def plot_rel_resp_data(rel_resp_df, analyspar, sesspar, stimpar, permpar,
 
     if stimpar["stimtype"] == "gabors":
         data_types = ["rel_reg", "rel_unexp"]
-    elif stimpar["stimtype"] == "bricks":
+    elif stimpar["stimtype"] == "visflow":
         data_types = ["rel_exp", "rel_unexp"]
     else:
         gen_util.accepted_values_error(
-            "stimpar['stimtype']", stimpar["stimtype"], ["gabors", "bricks"]
+            "stimpar['stimtype']", stimpar["stimtype"], ["gabors", "visflow"]
             )
 
     for (line, plane), lp_df in rel_resp_df.groupby(["lines", "planes"]):

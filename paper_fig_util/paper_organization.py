@@ -218,33 +218,33 @@ def get_specific_params(sess_n="1-3", mouse_n="any", plane="all", line="all",
         - specific_params (dict): dictionary with the specified parameters
     """
 
-    bri_dir, bri_size, gabfr, gabk, gab_ori = sess_gen_util.get_params(
+    visflow_dir, visflow_size, gabfr, gabk, gab_ori = sess_gen_util.get_params(
         stimtype, gabfr=gabfr, gab_ori=gab_ori
         )
 
     specific_params = {
-        "sess_n"     : sess_n,
-        "mouse_n"    : mouse_n,
-        "plane"      : plane,
-        "line"       : line,
-        "stimtype"   : stimtype,
-        "bri_dir"    : bri_dir,
-        "bri_size"   : bri_size,
-        "gabfr"      : gabfr,
-        "gabk"       : gabk,
-        "gab_ori"    : gab_ori,
-        "pre"        : pre,
-        "post"       : post,
-        "tails"      : tails,
-        "idx_feature": idx_feature,
-        "comp"       : comp,  
-        "error"      : error,
-        "scale"      : scale,
-        "tracked"    : tracked,
-        "remnans"    : remnans,
-        "roi"        : roi,
-        "run"        : run,
-        "pupil"      : pupil,
+        "sess_n"      : sess_n,
+        "mouse_n"     : mouse_n,
+        "plane"       : plane,
+        "line"        : line,
+        "stimtype"    : stimtype,
+        "visflow_dir" : visflow_dir,
+        "visflow_size": visflow_size,
+        "gabfr"       : gabfr,
+        "gabk"        : gabk,
+        "gab_ori"     : gab_ori,
+        "pre"         : pre,
+        "post"        : post,
+        "tails"       : tails,
+        "idx_feature" : idx_feature,
+        "comp"        : comp,  
+        "error"       : error,
+        "scale"       : scale,
+        "tracked"     : tracked,
+        "remnans"     : remnans,
+        "roi"         : roi,
+        "run"         : run,
+        "pupil"       : pupil,
     }
 
     return specific_params
@@ -690,27 +690,27 @@ class FigurePanelAnalysis():
         self.description = ("Example normalized residual Gabor USI correlation "
             "between session 1 and 2.")
         self.specific_params = get_specific_params(
-           line="L5",
-           plane="soma",
-           sess_n="1-2",
-           tracked=True,
-           error="std",
+            line="L5",
+            plane="soma",
+            sess_n="1-2",
+            tracked=True,
+            error="std",
         )
         self.n_perms_full = 1e5
         self.analysis_fct = corr_figs.gabor_corr_norm_res_ex
         self.plot_fct = plot_figs.plot_gabor_corr_norm_res_ex
 
 
-    def gabor_norm_res_corrs_sess123_comps(self):
-        self.description = ("Normalized residual Gabor USI correlations "
-            "between sessions.")
+    def gabor_corrs_sess123_comps(self):
+        self.description = "Gabor USI correlations between sessions."
         self.specific_params = get_specific_params(
             error="std",
             tracked=True,
+            tails="lo",
         )
         self.n_perms_full = 1e5
-        self.analysis_fct = corr_figs.gabor_norm_res_corrs_sess123_comps
-        self.plot_fct = plot_figs.plot_gabor_norm_res_corrs_sess123_comps
+        self.analysis_fct = corr_figs.gabor_corrs_sess123_comps
+        self.plot_fct = plot_figs.plot_gabor_corrs_sess123_comps
         
 
     def model_illustration(self):
@@ -845,7 +845,7 @@ class FigurePanelAnalysis():
     def visual_flow_sequences_sess123(self):
         self.description = "ROI responses to visual flow sequences."
         self.specific_params = get_specific_params(
-            stimtype="bricks",
+            stimtype="visflow",
             pre=2,
             post=2,
         )
@@ -857,7 +857,7 @@ class FigurePanelAnalysis():
         self.description = ("Differences in ROI responses to unexpected "
             "and expected visual flow sequences.")
         self.specific_params = get_specific_params(
-            stimtype="bricks",
+            stimtype="visflow",
             pre=2,
             post=2,
         )
@@ -871,7 +871,7 @@ class FigurePanelAnalysis():
         self.description = ("ROI responses to expected and unexpected "
             "visual flow sequences, relative to session 1.")
         self.specific_params = get_specific_params(
-            stimtype="bricks",
+            stimtype="visflow",
             pre=0,
             post=1,
             scale=False,
@@ -886,7 +886,7 @@ class FigurePanelAnalysis():
         self.description = ("Change in ROI responses to unexpected sequences "
             "for the Gabor vs visual flow stimulus.")
         self.specific_params = get_specific_params(
-            stimtype=["gabors", "bricks"],
+            stimtype=["gabors", "visflow"],
             pre=[0, 0],
             post=[0.3, 1],
             gabfr=[[0, 1, 2], [3, "G"]],
@@ -902,7 +902,7 @@ class FigurePanelAnalysis():
     def visual_flow_tracked_roi_usis_sess123(self):
         self.description = "Tracked ROI visual flow USIs across sessions."
         self.specific_params = get_specific_params(
-            stimtype="bricks",
+            stimtype="visflow",
             pre=2,
             post=2,
             idx_feature="unexp_lock",
@@ -916,7 +916,7 @@ class FigurePanelAnalysis():
         self.description = ("Absolute means of tracked ROI visual flow USIs "
             "across sessions.")
         self.specific_params = get_specific_params(
-            stimtype="bricks",
+            stimtype="visflow",
             pre=2,
             post=2,
             idx_feature="unexp_lock",
@@ -931,7 +931,7 @@ class FigurePanelAnalysis():
         self.description = ("Change in tracked ROI USIs for the Gabor vs "
             "visual flow stimulus.")
         self.specific_params = get_specific_params(
-            stimtype=["gabors", "bricks"],
+            stimtype=["gabors", "visflow"],
             pre=[0, 2],
             post=[0.6, 2],
             idx_feature=["by_exp", "unexp_lock"],
@@ -943,20 +943,20 @@ class FigurePanelAnalysis():
         self.plot_fct = plot_figs.plot_tracked_roi_usis_stimulus_comp_sess1v3
         
 
-    def visual_flow_norm_res_corrs_sess123_comps(self):
-        self.description = ("Normalized residual visual flow USI correlations "
-            "between sessions.")
+    def visual_flow_corrs_sess123_comps(self):
+        self.description = "Visual flow USI correlations between sessions."
         self.specific_params = get_specific_params(
-            stimtype="bricks",
+            stimtype="visflow",
             pre=2,
             post=2,
             idx_feature="unexp_lock",
             error="std",
+            tails="lo",
             tracked=True,
         )
         self.n_perms_full = 1e5
-        self.analysis_fct = corr_figs.visual_flow_norm_res_corrs_sess123_comps
-        self.plot_fct = plot_figs.plot_visual_flow_norm_res_corrs_sess123_comps
+        self.analysis_fct = corr_figs.visual_flow_corrs_sess123_comps
+        self.plot_fct = plot_figs.plot_visual_flow_corrs_sess123_comps
         
 
     ### Figure S7 ###
@@ -1027,7 +1027,7 @@ class FigurePanelAnalysis():
                     "A_left": self.gabor_Dori_decoding_sess123,
                     "A_right": self.gabor_Uori_decoding_sess123,
                     "B": self.gabor_corr_norm_res_ex,
-                    "C": self.gabor_norm_res_corrs_sess123_comps,
+                    "C": self.gabor_corrs_sess123_comps,
                     "D": self.model_illustration,
                     },
                 "S1": {
@@ -1059,7 +1059,7 @@ class FigurePanelAnalysis():
                     "C": self.visual_flow_tracked_roi_usis_sess123,
                     "D": self.visual_flow_tracked_roi_abs_usi_means_sess123,
                     "E": self.tracked_roi_usis_stimulus_comp_sess1v3,
-                    "F": self.visual_flow_norm_res_corrs_sess123_comps,
+                    "F": self.visual_flow_corrs_sess123_comps,
                     },
                 "S7":  {
                     "A": self.dendritic_roi_tracking_example,

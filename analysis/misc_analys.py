@@ -634,19 +634,19 @@ def get_snr(session, analyspar, datatype="snrs"):
             data, depending on datatype, for each ROI in a session
     """
     
-    if session.only_matched_rois != analyspar.tracked:
+    if session.only_tracked_rois != analyspar.tracked:
         raise RuntimeError(
-            "session.only_matched_rois should match analyspar.tracked."
+            "session.only_tracked_rois should match analyspar.tracked."
             )
 
     if analyspar.scale:
         raise ValueError("analyspar.scale must be False for SNR analysis.")
 
     if analyspar.tracked:
-        keep_rois = session.matched_rois
+        keep_rois = session.tracked_rois
         if analyspar.remnans and len(session.get_nanrois(fluor=analyspar.fluor)):
             raise NotImplementedError(
-                "remnans not implemented for matched ROIs."
+                "remnans not implemented for tracked ROIs."
                 )
     else:
         keep_rois = np.arange(session.get_nrois(remnans=False))

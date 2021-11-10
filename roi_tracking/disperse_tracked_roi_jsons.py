@@ -5,27 +5,27 @@ from pathlib import Path
 
 
 #############################################
-def get_target_direcs(matching_file_sources, data_direc):
+def get_target_direcs(tracking_file_sources, data_direc):
     """
-    get_target_direcs(matching_file_sources, data_direc)
+    get_target_direcs(tracking_file_sources, data_direc)
 
     Returns the target directories (mouse/session specific) for each json.
 
     Required args:
-        - matching_file_sources (list): source json paths
+        - tracking_file_sources (list): source json paths
 
     Returns:
         - datadir (Path): target data directory
     """
     
     # get file names
-    matching_files_local = [
-        matching_file.name for matching_file in matching_file_sources
+    tracking_files_local = [
+        tracking_file.name for tracking_file in tracking_file_sources
     ]
     
     # identify target directories
-    file_name_tokens = [str(matching_file_local).split("_") 
-        for matching_file_local in matching_files_local]
+    file_name_tokens = [str(tracking_file_local).split("_") 
+        for tracking_file_local in tracking_files_local]
     mouse_ids = [tokens[tokens.index("mouse") + 1] 
         for tokens in file_name_tokens]
     sess_ids = [tokens[tokens.index("session") + 1] 
@@ -44,13 +44,13 @@ def get_target_direcs(matching_file_sources, data_direc):
         ]
     
     # identify target paths
-    matching_file_targets = [
-        target_direc.joinpath(matching_file_local) 
-        for (target_direc, matching_file_local) in 
-        zip(target_direcs, matching_files_local)
+    tracking_file_targets = [
+        target_direc.joinpath(tracking_file_local) 
+        for (target_direc, tracking_file_local) in 
+        zip(target_direcs, tracking_files_local)
     ]
     
-    return matching_file_targets
+    return tracking_file_targets
 
 
 #############################################
@@ -72,18 +72,18 @@ def disperse_jsons(datadir, verbose=False):
     if not datadir.exists():
         raise OSError(f"{datadir} does not exist.")
 
-    matching_files_direc = Path("nway-matched-dfs")
-    if not matching_files_direc.exists():
-        raise OSError(f"{matching_files_direc} directory is missing.")
+    tracking_files_direc = Path("nway-matched-dfs")
+    if not tracking_files_direc.exists():
+        raise OSError(f"{tracking_files_direc} directory is missing.")
 
-    matching_file_sources = [Path(file_direc) 
-        for file_direc in glob.glob(str(Path(matching_files_direc, "*.json")))
+    tracking_file_sources = [Path(file_direc) 
+        for file_direc in glob.glob(str(Path(tracking_files_direc, "*.json")))
     ]
-    matching_file_targets = get_target_direcs(matching_file_sources, datadir)
+    tracking_file_targets = get_target_direcs(tracking_file_sources, datadir)
 
     # copy files over
     for (file_source, file_target) in zip(
-        matching_file_sources, matching_file_targets
+        tracking_file_sources, tracking_file_targets
         ):
         
         shutil.copy(file_source, file_target)

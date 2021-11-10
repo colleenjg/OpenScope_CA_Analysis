@@ -59,8 +59,8 @@ def plot_from_dict(direc, plt_bkend=None, fontdir=None):
     plt.close("all")
 
 #############################################
-def plot_title(mouse_n, sess_n, line, plane, comp, stimtype, bri_dir="right",
-               bri_size=128, gabk=16):
+def plot_title(mouse_n, sess_n, line, plane, comp, stimtype, 
+               visflow_dir="right", visflow_size=128, gabk=16):
     """
     plot_title(mouse_n, sess_n, line, plane)
 
@@ -75,24 +75,24 @@ def plot_title(mouse_n, sess_n, line, plane, comp, stimtype, bri_dir="right",
         - stimtype (str): stimulus type
     
     Optional args:
-        - bri_dir (str or list)      : brick direction
-                                       default: "right"
-        - bri_size (int, str or list): brick size
-                                       default: 128
-        - gabk (int, str or list)    : gabor kappa parameter
-                                       default: 16
+        - visflow_dir (str or list)      : visual flow direction
+                                           default: "right"
+        - visflow_size (int, str or list): visual flow square size
+                                           default: 128
+        - gabk (int, str or list)        : gabor kappa parameter
+                                           default: 16
     
     Returns:
         - (str): plot title 
     """
-    if comp == "surp":
-        comp_str = "Surp v Reg"
+    if comp == "unexp":
+        comp_str = "Unexp v Exp"
     elif comp == "Direction":
         comp_str = "Direction"
-    elif comp == "dir_reg":
-        comp_str = "Reg dir"
-    elif comp == "dir_surp":
-        comp_str = "Surp dir"
+    elif comp == "dir_exp":
+        comp_str = "Exp dir"
+    elif comp == "dir_unexp":
+        comp_str = "Unexp dir"
     elif comp == "half_diff":
         comp_str = "Halves (diff dir)"
     elif comp == "half_right":
@@ -104,7 +104,7 @@ def plot_title(mouse_n, sess_n, line, plane, comp, stimtype, bri_dir="right",
         comp_str = comp
 
     stim_str = sess_str_util.stim_par_str(
-        stimtype, bri_dir, bri_size, gabk, "print").capitalize()
+        stimtype, visflow_dir, visflow_size, gabk, "print").capitalize()
 
     return (f"Mouse {mouse_n}, sess {sess_n}, {line} {plane}\n"
         f"{stim_str}, {comp_str}")
@@ -171,7 +171,7 @@ def plot_class_traces(analyspar, sesspar, stimpar, logregpar, tr_stats,
         test_lab = st_name.replace("_class_stats", "")
         n_name    = f"{test_lab}_ns"
         ext_str = sess_str_util.ext_test_str(
-            logregpar["q1v4"], logregpar["regvsurp"], logregpar["comp"], 
+            logregpar["q1v4"], logregpar["exp_v_unexp"], logregpar["comp"], 
             "label")
         if len(classes) == 2:
             ext_cols = ["cornflowerblue", "salmon"]
@@ -185,11 +185,11 @@ def plot_class_traces(analyspar, sesspar, stimpar, logregpar, tr_stats,
         raise RuntimeError("Did not expect more than 1 extra dataset to plot.")
     
     # add plot details
-    if stimpar["stimtype"] == "gabors" and logregpar["comp"] == "surp":
+    if stimpar["stimtype"] == "gabors" and logregpar["comp"] == "unexp":
         ax_arr = np.asarray(ax_tr).reshape(1, 1)
         sess_plot_util.plot_labels(ax_arr, stimpar["gabfr"], pre=stimpar["pre"], 
                        post=stimpar["post"], cols=cols, sharey=False)
-    elif stimpar["stimtype"] == "bricks":
+    elif stimpar["stimtype"] == "visflow":
         if stimpar["pre"] > 0 and stimpar["post"] > 0:
             ax_tr.axvline(x=0, ls="dashed", c="k", lw=1.5, alpha=0.5)
 
@@ -212,7 +212,7 @@ def plot_class_traces(analyspar, sesspar, stimpar, logregpar, tr_stats,
     fig_title = plot_title(
         sesspar["mouse_n"], sesspar["sess_n"], sesspar["line"], 
         sesspar["plane"], logregpar["comp"], stimpar["stimtype"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"])
 
     ax_tr.set_title(
         f"{fig_title}{ext_str}, " + u"{} ".format(stat_str) + f"\n{shuff_str}")
@@ -252,10 +252,10 @@ def plot_scores(analyspar, sesspar, stimpar, logregpar, extrapar, scores,
     fig_title = plot_title(
         sesspar["mouse_n"], sesspar["sess_n"], sesspar["line"], 
         sesspar["plane"], logregpar["comp"], stimpar["stimtype"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"])
 
     ext_str = sess_str_util.ext_test_str(
-        logregpar["q1v4"], logregpar["regvsurp"], logregpar["comp"], "print")
+        logregpar["q1v4"], logregpar["exp_v_unexp"], logregpar["comp"], "print")
 
     gen_title = (f"{fig_title}{ext_str}" + u" {}".format(fluor_str) +
         f"{scale_str}{shuff_str}")
@@ -571,8 +571,8 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane,
         - q1v4 (bool)      : if True, analysis is separated across first and 
                              last quartiles
                              default: False
-        - rvs (bool)       : if True, the first dataset will include regular 
-                             sequences and the second will include surprise 
+        - rvs (bool)       : if True, the first dataset will include expected 
+                             sequences and the second will include unexpected 
                              sequences
                              default: False
         - split_oris (list): if not False, the dataset will include 
@@ -599,14 +599,14 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane,
             if q1v4:
                 ax.set_ylabel("Accuracy in Q4 (%)")
             elif rvs:
-                ax.set_ylabel("Accuracy in surp (%)")
+                ax.set_ylabel("Accuracy for unexp (%)")
             else:
                 ax.set_ylabel("Accuracy (%)")
             plot_util.set_ticks(ax, "y", 0, 100, 6, pad_p=0)
 
     elif "epoch" in data_title.lower():
         q1v4 = False # treated as if no Q4
-        rvs = False # treated as if no reg v surp
+        rvs = False # treated as if no exp v unexp
         split_oris = False # treated as if no 2 sets of Gabor frames
         if (not modif or ax.is_first_row()) and ax.is_first_col():
             ax.set_ylabel("Nbr epochs")
@@ -620,7 +620,7 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane,
         if q1v4:
             add_leg = [" (Q1)", " (Q4)"]
         elif rvs:
-            add_leg = [" (reg)", " (surp)"]
+            add_leg = [" (exp)", " (unexp)"]
         else:
             add_leg = [f" ({split_oris[0]})", f" ({split_oris[1]})"]
     else:
@@ -683,7 +683,7 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane,
 
 #############################################    
 def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename, 
-                   CI=0.95, q1v4=False, rvs=False, comp="surp", modif=False, 
+                   CI=0.95, q1v4=False, rvs=False, comp="unexp", modif=False, 
                    no_save=False):
     """
     plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename)
@@ -709,12 +709,12 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
         - q1v4 (bool)   : if True, analysis is separated across first and 
                           last quartiles
                           default: False
-        - rvs (bool)    : if True, the first dataset will include regular 
-                          sequences and the second will include surprise 
+        - rvs (bool)    : if True, the first dataset will include expected 
+                          sequences and the second will include unexpected 
                           sequences
                           default: False
         - comp (str)    : type of comparison
-                          default: "surp"
+                          default: "unexp"
         - modif (bool)  : if True, plots are made in a modified (simplified 
                           way)
                           default: False
@@ -848,9 +848,9 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
 
 
 #############################################    
-def plot_summ(output, savename, stimtype="gabors", comp="surp", ctrl=False, 
-              bri_dir="both", fluor="dff", scale=True, CI=0.95, plt_bkend=None, 
-              fontdir=None, modif=False):
+def plot_summ(output, savename, stimtype="gabors", comp="unexp", ctrl=False, 
+              visflow_dir="both", fluor="dff", scale=True, CI=0.95, 
+              plt_bkend=None, fontdir=None, modif=False):
     """
     plot_summ(output)
 
@@ -864,27 +864,27 @@ def plot_summ(output, savename, stimtype="gabors", comp="surp", ctrl=False,
         - savename (str): name of the dataframe containing summary data to plot
             
     Optional args:
-        - stimtype (str) : stimulus type
-                           default: "gabors"
-        - comp (str)     : type of comparison
-                           default: "surp"
-        - ctrl (bool)    : if True, control comparisons are analysed
-                           default: False                           
-        - bri_dir (str)  : brick direction
-                           default: "both"
-        - fluor (str)    : fluorescence trace type
-                           default: "dff"
-        - scale (bool)   : whether ROIs are scaled
-                           default: True
-        - CI (num)       : CI for shuffled data
-                           default: 0.95
-        - plt_bkend (str): mpl backend to use for plotting (e.g., "agg")
-                           default: None
-        - fontdir (str)  : directory in which additional fonts are located
-                           default: None
-        - modif (bool)   : if True, plots are made in a modified (simplified 
-                           way)
-                           default: False
+        - stimtype (str)   : stimulus type
+                             default: "gabors"
+        - comp (str)       : type of comparison
+                             default: "unexp"
+        - ctrl (bool)      : if True, control comparisons are analysed
+                             default: False                           
+        - visflow_dir (str): visual flow direction
+                             default: "both"
+        - fluor (str)      : fluorescence trace type
+                             default: "dff"
+        - scale (bool)     : whether ROIs are scaled
+                             default: True
+        - CI (num)         : CI for shuffled data
+                             default: 0.95
+        - plt_bkend (str)  : mpl backend to use for plotting (e.g., "agg")
+                             default: None
+        - fontdir (str)    : directory in which additional fonts are located
+                             default: None
+        - modif (bool)     : if True, plots are made in a modified (simplified 
+                             way)
+                             default: False
 
     """
     
@@ -924,16 +924,16 @@ def plot_summ(output, savename, stimtype="gabors", comp="surp", ctrl=False,
         runtype = "pilot"
 
     if stimtype == "gabors":
-        bri_dir = "none"
+        visflow_dir = "none"
         stim_str = "gab"
         stim_str_pr = "gabors"
 
     else:
-        bri_dir = sess_gen_util.get_params(stimtype, bri_dir)[0]
-        if isinstance(bri_dir, list) and len(bri_dir) == 2:
-            bri_dir = "both"
-        stim_str = sess_str_util.dir_par_str(bri_dir, str_type="file")
-        stim_str_pr = sess_str_util.dir_par_str(bri_dir, str_type="print")
+        visflow_dir = sess_gen_util.get_params(stimtype, visflow_dir)[0]
+        if isinstance(visflow_dir, list) and len(visflow_dir) == 2:
+            visflow_dir = "both"
+        stim_str = sess_str_util.dir_par_str(visflow_dir, str_type="file")
+        stim_str_pr = sess_str_util.dir_par_str(visflow_dir, str_type="print")
 
     scale_str = sess_str_util.scale_par_str(scale, "file")
     scale_str_pr = sess_str_util.scale_par_str(scale, "file").replace("_", " ")
@@ -944,8 +944,8 @@ def plot_summ(output, savename, stimtype="gabors", comp="surp", ctrl=False,
     save_dir = Path(output, f"figures_{fluor}")
     save_dir.mkdir(exist_ok=True)
     
-    cols = ["scale", "fluor", "bri_dir", "runtype"]
-    cri  = [scale, fluor, bri_dir, runtype]
+    cols = ["scale", "fluor", "visflow_dir", "runtype"]
+    cri  = [scale, fluor, visflow_dir, runtype]
     plot_lines = gen_util.get_df_vals(summ_scores, cols, cri)
     cri_str = ", ".join([f"{col}: {crit}" for col, crit in zip(cols, cri)])
     if len(plot_lines) == 0: # no data

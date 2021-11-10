@@ -15,18 +15,21 @@ Note: this code uses python 3.7.
 import copy
 import logging
 from pathlib import Path
+import warnings
 
 import h5py
 import numpy as np
 import pandas as pd
+import pynwb
 
 from util import file_util, gen_util, logger_util
-from sess_util import sess_gen_util, sess_sync_util
+from sess_util import sess_gen_util, sess_load_util, sess_sync_util
 
 logger = logging.getLogger(__name__)
 
 TAB = "    "
 
+NWB_FILTER_KS = 5
 
 ######################################
 def get_sessid_from_mouse_df(mouse_n=1, sess_n=1, runtype="prod", 
@@ -91,15 +94,19 @@ def load_info_from_mouse_df(sessid, mouse_df="mouse_df.csv"):
                                  the session
             - any_files (bool) : if True, some files have been acquired for
                                  the session
+            - dandi_id (str)   : Dandi session ID
+            - date (str)       : session date (i.e., yyyymmdd)
             - depth (int)      : recording depth 
             - plane (str)      : recording plane ("soma" or "dend")
             - line (str)       : mouse line (e.g., "L5-Rbp4")
             - mouse_n (int)    : mouse number (e.g., 1)
+            - mouseid (int)    : mouse ID (6 digits)
             - notes (str)      : notes from the dataframe on the session
             - pass_fail (str)  : whether session passed "P" or failed "F" 
                                  quality control
-
+            - runtype (str)    : "prod" (production) or "pilot" data
             - sess_n (int)     : overall session number (e.g., 1)
+            - stim_seed (int)  : random seed used to generated stimulus 
     """
 
     if isinstance(mouse_df, (str, Path)):
@@ -109,10 +116,15 @@ def load_info_from_mouse_df(sessid, mouse_df="mouse_df.csv"):
 
     df_dict = {
         "mouse_n"      : int(df_line["mouse_n"].tolist()[0]),
+        "dandi_id"     : df_line["dandi_session_id"].tolist()[0],
+        "date"         : int(df_line["date"].tolist()[0]),
         "depth"        : df_line["depth"].tolist()[0],
         "plane"        : df_line["plane"].tolist()[0],
         "line"         : df_line["line"].tolist()[0],
+        "mouseid"      : int(df_line["mouseid"].tolist()[0]),
+        "runtype"      : df_line["runtype"].tolist()[0],
         "sess_n"       : int(df_line["sess_n"].tolist()[0]),
+        "stim_seed"    : int(df_line["stim_seed"].tolist()[0]),
         "pass_fail"    : df_line["pass_fail"].tolist()[0],
         "all_files"    : bool(int(df_line["all_files"].tolist()[0])),
         "any_files"    : bool(int(df_line["any_files"].tolist()[0])),
@@ -128,7 +140,7 @@ def load_small_stim_pkl(stim_pkl, runtype="prod"):
     load_small_stim_pkl(stim_pkl)
 
     Loads a smaller stimulus dictionary from the stimulus pickle file in which 
-    "posbyframe" for bricks stimuli is not included. 
+    "posbyframe" for visual flow stimuli is not included. 
     
     If it does not exist, small stimulus dictionary is created and saved as a
     pickle with "_small" appended to name.
@@ -202,9 +214,10 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid,
 
     Returns:
         - stim_df (pd DataFrame): stimlus alignment dataframe with columns:
-                                    "stimType", "stimPar1", "stimPar2", 
-                                    "surp", "stimSeg", "gabfr", 
-                                    "start2pfr", "end2pfr", "num2pfr"
+                                    "stimtype", "unexp", "stim_seg", "gabfr", 
+                                    "gab_ori", "gabk", "visflow_dir", 
+                                    "visflow_size", "start_twop_fr", 
+                                    "end_twop_fr", "num_twop_fr"
         - stimtype_order (list) : stimulus type order
         - stim2twopfr (1D array): 2p frame numbers for each stimulus frame, 
                                   as well as the flanking
@@ -230,26 +243,46 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid,
     stim_df = align["stim_df"]
     stim_df = stim_df.rename(
         columns={"GABORFRAME": "gabfr", 
-                 "start_frame": "start2pfr", 
-                 "end_frame": "end2pfr", 
-                 "num_frames": "num2pfr"})
+                 "surp": "unexp", # rename surprise to unexpected
+                 "stimType": "stimtype",
+                 "stimSeg": "stim_seg",
+                 "start_frame": "start_twop_fr", 
+                 "end_frame": "end_twop_fr", 
+                 "num_frames": "num_twop_fr"})
+    
+    # rename bricks -> visflow
+    stim_df["stimtype"] = stim_df["stimtype"].replace({"b": "v"})
 
-    stim_df = modify_bri_segs(stim_df, runtype)
-    stim_df = stim_df.sort_values("start2pfr").reset_index(drop=True)
+    stim_df = modify_visflow_segs(stim_df, runtype)
+    stim_df = stim_df.sort_values("start_twop_fr").reset_index(drop=True)
 
     # note: STIMULI ARE NOT ORDERED IN THE PICKLE
     stimtype_map = {
         "g": "gabors", 
-        "b": "bricks"
+        "v": "visflow"
         }
-    stimtype_order = stim_df["stimType"].map(stimtype_map).unique()
+    stimtype_order = stim_df["stimtype"].map(stimtype_map).unique()
     stimtype_order = list(
         filter(lambda s: s in stimtype_map.values(), stimtype_order))
 
+    # split stimPar1 and stimPar2 into all stimulus parameters
+    stim_df["gab_ori"] = stim_df["stimPar1"]
+    stim_df["gabk"] = stim_df["stimPar2"]
+    stim_df["visflow_size"] = stim_df["stimPar1"]
+    stim_df["visflow_dir"] = stim_df["stimPar2"]
+
+    stim_df = stim_df.drop(columns=["stimPar1", "stimPar2"])
+
+    for col in stim_df.columns:
+        if "gab" in col:
+            stim_df.loc[stim_df["stimtype"] != "g", col] = -1
+        if "visflow" in col:
+            stim_df.loc[stim_df["stimtype"] != "v", col] = -1
+
     # expand on direction info
     for direc in ["right", "left"]:
-        stim_df.loc[(stim_df["stimPar2"] == direc), "stimPar2"] = \
-            sess_gen_util.get_bri_screen_mouse_direc(direc)
+        stim_df.loc[(stim_df["visflow_dir"] == direc), "visflow_dir"] = \
+            sess_gen_util.get_visflow_screen_mouse_direc(direc)
 
     stim2twopfr  = align["stim_align"].astype("int")
     twop_fps     = sess_sync_util.get_frame_rate(stim_sync_h5)[0] 
@@ -372,7 +405,8 @@ def nan_large_run_differences(run, diff_thr=50, warn_nans=True,
 
     # reinsert pre-existing NaNs
     prev_run = copy.deepcopy(run)
-    run = np.empty(original_length) * np.nan
+    with gen_util.TempWarningFilter("invalid value", RuntimeWarning):
+        run = np.empty(original_length) * np.nan
     run[not_nans_idx] = prev_run
 
     prop_nans = np.sum(np.isnan(run)) / len(run)
@@ -382,6 +416,66 @@ def nan_large_run_differences(run, diff_thr=50, warn_nans=True,
             )
 
     return run
+
+
+
+#############################################
+def load_run_data_nwb(sess_files, diff_thr=50, drop_tol=0.0003, sessid=None):
+    """
+    load_run_data_nwb(sess_files)
+
+    Returns pre-processed running velocity from NWB files. 
+
+    Required args:
+        - sess_files (Path): full path names of the session files
+
+    Optional args:
+        - diff_thr (int): threshold of difference in running velocity to 
+                          identify outliers
+                          default: 50
+        - drop_tol (num): the tolerance for proportion running frames 
+                          dropped. A warning is produced only if this 
+                          condition is not met. 
+                          default: 0.0003 
+        - sessid (int)  : session ID to include in the log or error
+                          default: None 
+    Returns:
+        - run_velocity (1D array): array of running velocities in cm/s for each 
+                                   recorded stimulus frames
+
+    """
+
+    # check whether behavior is included in file
+    sess_files = gen_util.list_if_not(sess_files)
+    behav_files = [
+        sess_file for sess_file in sess_files if "behavior" in str(sess_file)
+        ]
+
+    if len(behav_files) == 0:
+        raise RuntimeError(
+            "Behavioural data not included in session NWB files."
+            )
+    
+    behav_file = behav_files[0]
+    if len(behav_files) == 1:
+        warnings.warn(
+            "Several session files with behavioural data found. "
+            f"Using the first listed: {behav_file}."
+            )
+
+    with pynwb.NWBHDF5IO(behav_file, "r") as f:
+        nwbfile_in = f.read()
+        run_velocity = np.asarray(
+            nwbfile_in.get_processing_module("behavior")[
+            "BehavioralTimeSeries"]["running_velocity"].data
+        )
+
+    run_velocity = nan_large_run_differences(
+        run_velocity, diff_thr, warn_nans=True, drop_tol=drop_tol, 
+        sessid=sessid
+        )
+
+    return run_velocity
 
 
 #############################################
@@ -426,7 +520,7 @@ def load_run_data(stim_dict, stim_sync_h5, filter_ks=5, diff_thr=50,
     if isinstance(stim_dict, dict):
         run_kwargs["stim_dict"] = stim_dict        
     elif isinstance(stim_dict, (str, Path)):
-        run_kwargs["pkl_file_name"] = stim_dict
+        run_kwargs["stim_pkl"] = stim_dict
     else:
         raise TypeError(
             "'stim_dict' must be a dictionary or a path to a pickle."
@@ -443,17 +537,14 @@ def load_run_data(stim_dict, stim_sync_h5, filter_ks=5, diff_thr=50,
 
 
 #############################################
-def load_pup_data(pup_data_h5):
+def load_pup_data_nwb(sess_files):
     """
-    load_pup_data(pup_data_h5)
+    load_pup_data_nwb(sess_files)
 
-    If it exists, loads the pupil tracking data. Extracts pupil diameter
-    and position information in pixels.
-
-    If it doesn't exist or several are found, raises an error.
+    Returns pre-processed pupil data from NWB files. 
 
     Required args:
-        - pup_data_h5 (Path or list): path to the pupil data h5 file
+        - sess_files (Path): full path names of the session files
 
     Returns:
         - pup_data (pd DataFrame): pupil data dataframe with columns:
@@ -465,16 +556,91 @@ def load_pup_data(pup_data_h5):
                                     each pupil frame in pixels
     """
 
+    # check whether behavior is included in file
+    sess_files = gen_util.list_if_not(sess_files)
+    behav_files = [
+        sess_file for sess_file in sess_files if "behavior" in str(sess_file)
+        ]
+
+    if len(behav_files) == 0:
+        raise RuntimeError(
+            "Behavioural data not included in session NWB files."
+            )
+    
+    behav_file = behav_files[0]
+    if len(behav_files) == 1:
+        warnings.warn(
+            "Several session files with behavioural data found. "
+            f"Using the first listed: {behav_file}."
+            )
+
+    with pynwb.NWBHDF5IO(behav_file, "r") as f:
+        nwbfile_in = f.read()
+        pup_data = np.asarray(
+            nwbfile_in.get_processing_module("behavior")[
+            "PupilTracking"]["pupil_diameter"].data
+        )
+
+    column_names = {
+        "pupil_diameter": "pup_diam",
+        "pupil_x"       : "pup_center_x",
+        "pupil_y"       : "pup_center_y",
+    }
+
+    pup_data["pup_diam"] = pup_data["pup_diam"] / sess_sync_util.MM_PER_PIXEL
+
+    pup_data = pup_data.rename(columns=column_names)
+    pup_data.insert(0, "frames", value=range(len(pup_data)))
+
+    return pup_data  
+
+
+#############################################
+def load_pup_data(pup_data_h5, time_sync_h5):
+    """
+    load_pup_data(pup_data_h5, time_sync_h5)
+
+    If it exists, loads the pupil tracking data. Extracts pupil diameter
+    and position information in pixels, converted to two-photon frames.
+
+    If it doesn't exist or several are found, raises an error.
+
+    Required args:
+        - pup_data_h5 (Path or list): path to the pupil data h5 file
+        - time_sync_h5 (Path): path to the time synchronization hdf5 file
+
+    Returns:
+        - pup_data (pd DataFrame): pupil data dataframe with columns:
+            - frames (int)        : frame number
+            - pup_diam (float)    : median pupil diameter in pixels
+            - pup_center_x (float): pupil center position for x at 
+                                    each pupil frame in pixels
+            - pup_center_y (float): pupil center position for y at 
+                                    each pupil frame in pixels
+    """
+
     if pup_data_h5 == "none":
         raise OSError("No pupil data file found.")
     elif isinstance(pup_data_h5, list):
         raise OSError("Many pupil data files found.")
 
     columns = ["nan_diam", "nan_center_x", "nan_center_y"]
-    pup_data = pd.read_hdf(pup_data_h5).filter(items=columns).astype(float)
+    orig_pup_data = pd.read_hdf(pup_data_h5).filter(items=columns).astype(float)
     nan_pup = (lambda name : name.replace("nan_", "pup_") 
         if "nan" in name else name)
-    pup_data = pup_data.rename(columns=nan_pup)
+    orig_pup_data = orig_pup_data.rename(columns=nan_pup)
+
+    with h5py.File(time_sync_h5, "r") as f:
+        twop_timestamps = f["twop_vsync_fall"][:]
+
+        mean_twop_fps = 1.0 / np.mean(np.diff(twop_timestamps))
+        delay = int(np.round(mean_twop_fps * 0.1))
+        eye_alignment = f["eye_tracking_alignment"][:].astype(int) + delay
+
+    pup_data = pd.DataFrame()
+    for col in orig_pup_data.columns:
+        pup_data[col] = orig_pup_data[col].to_numpy()[eye_alignment]
+
     pup_data.insert(0, "frames", value=range(len(pup_data)))
 
     return pup_data  
@@ -564,18 +730,19 @@ def load_sync_h5_data(pup_video_h5, time_sync_h5):
 
 
 #############################################
-def modify_bri_segs(stim_df, runtype="prod"):
+def modify_visflow_segs(stim_df, runtype="prod"):
     """
-    modify_bri_segs(stim_df)
+    modify_visflow_segs(stim_df)
 
-    Returns stim_df with brick segment numbers modified to ensure that
-    they are different for the two brick stimuli in the production data.
+    Returns stim_df with visual flow segment numbers modified to ensure that
+    they are different for the two visual flow stimuli in the production data.
 
     Required args:
         - stim_df (pd DataFrame): stimlus alignment dataframe with columns:
-                                    "stimType", "stimPar1", "stimPar2", 
-                                    "surp", "stimSeg", "gabfr", 
-                                    "start2pfr", "end2pfr", "num2pfr"
+                                    "stimtype", "unexp", "stim_seg", "gabfr", 
+                                    "gab_ori", "gabk", "visflow_dir", 
+                                    "visflow_size", "start_twop_fr", 
+                                    "end_twop_fr", "num_twop_fr"
 
     Optional args:
         - runtype (str): runtype
@@ -590,27 +757,30 @@ def modify_bri_segs(stim_df, runtype="prod"):
 
     stim_df = copy.deepcopy(stim_df)
 
-    bri_st_fr = gen_util.get_df_vals(
-        stim_df, "stimType", "b", "start2pfr", unique=False)
-    bri_num_fr = np.diff(bri_st_fr)
+    visflow_st_fr = gen_util.get_df_vals(
+        stim_df, "stimtype", "v", "start_twop_fr", unique=False)
+    visflow_num_fr = np.diff(visflow_st_fr)
     num_fr = gen_util.get_df_vals(
-        stim_df, "stimType", "b", "num2pfr", unique=False)[:-1]
-    break_idx = np.where(num_fr != bri_num_fr)[0]
+        stim_df, "stimtype", "v", "num_twop_fr", unique=False)[:-1]
+    break_idx = np.where(num_fr != visflow_num_fr)[0]
     n_br = len(break_idx)
     if n_br != 1:
-        raise RuntimeError("Expected only one break in the bricks "
+        raise RuntimeError("Expected only one break in the visual flow "
             f"stimulus, but found {n_br}.")
     
-    # last start frame and seg for the first brick stim
-    last_fr1 = bri_st_fr[break_idx[0]] 
+    # last start frame and seg for the first visual flow stim
+    last_fr1 = visflow_st_fr[break_idx[0]] 
     last_seg1 = gen_util.get_df_vals(
-        stim_df, ["stimType", "start2pfr"], ["b", last_fr1], "stimSeg")[0]
+        stim_df, ["stimtype", "start_twop_fr"], ["v", last_fr1], "stim_seg")[0]
     
-    seg_idx = ((stim_df["stimType"] == "b") & (stim_df["start2pfr"] > last_fr1))
+    seg_idx = (
+        (stim_df["stimtype"] == "v") & 
+        (stim_df["start_twop_fr"] > last_fr1)
+        )
 
-    new_idx = stim_df.loc[seg_idx]["stimSeg"] + last_seg1 + 1
+    new_idx = stim_df.loc[seg_idx]["stim_seg"] + last_seg1 + 1
     stim_df = gen_util.set_df_vals(
-        stim_df, seg_idx, "stimSeg", new_idx, in_place=True
+        stim_df, seg_idx, "stim_seg", new_idx, in_place=True
         )
 
     return stim_df
@@ -619,7 +789,7 @@ def modify_bri_segs(stim_df, runtype="prod"):
 #############################################
 def load_sess_stim_seed(stim_dict, runtype="prod"):
     """
-    load_sess_stim_seed(stim_df)
+    load_sess_stim_seed(stim_dict)
 
     Returns session's stimulus seed for this session. Expects all stimuli 
     stored in the session's stimulus dictionary to share the same seed.

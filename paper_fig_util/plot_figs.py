@@ -605,7 +605,7 @@ def plot_gabor_sequences_sess123(analyspar, sesspar, stimpar, basepar,
         row_col="sess_ns",
         split=extrapar["split"],
         title=title, 
-        size="wide"
+        size="reg"
         )
     fig = ax.reshape(-1)[0].figure
     
@@ -757,7 +757,7 @@ def plot_gabor_rel_resp_sess123(analyspar, sesspar, stimpar, permpar, extrapar,
         permpar=permpar, 
         figpar=figpar, 
         title=title, 
-        wide=True
+        small=False,
         )
     fig = ax.reshape(-1)[0].figure
     
@@ -1091,9 +1091,11 @@ def plot_gabor_corr_norm_res_ex(analyspar, sesspar, stimpar, basepar, idxpar,
             dictionary containing additional analysis parameters
             ["n_bins"] (int): number of bins used to bin random correlation 
                 data
-            ["permute_tracking"] (bool): if True, permutations are run on ROI 
-                tracking instead of session pair order
+            ["permute"] (str): type of permutations used 
+                ("sess", "tracking", "all")
             ["seed"] (int): seed
+            ["sig_only"] (bool): if True, only ROIs with significant USIs are 
+                retained
         - idx_corr_df (pd.DataFrame):
             dataframe with one row for a line/plane, and the 
             following columns, in addition to the basic sess_df columns:
@@ -1148,15 +1150,15 @@ def plot_gabor_corr_norm_res_ex(analyspar, sesspar, stimpar, basepar, idxpar,
 
 
 #############################################
-def plot_gabor_norm_res_corrs_sess123_comps(analyspar, sesspar, stimpar, 
-                                            basepar, idxpar, permpar, extrapar, 
-                                            idx_corr_df, figpar):
+def plot_gabor_corrs_sess123_comps(analyspar, sesspar, stimpar, basepar, 
+                                   idxpar, permpar, extrapar, idx_corr_df, 
+                                   figpar):
     """
-    plot_gabor_norm_res_corrs_sess123_comps(analyspar, sesspar, stimpar, 
-                                            basepar, idxpar, permpar, extrapar, 
-                                            idx_corr_df, figpar)
+    plot_gabor_corrs_sess123_comps(analyspar, sesspar, stimpar, basepar, 
+                                   idxpar, permpar, extrapar, idx_corr_df, 
+                                   figpar))
 
-    From dictionaries, plots ROI USI correlations across essions for tracked 
+    From dictionaries, plots ROI USI correlations across sessions for tracked 
     Gabor USIs. 
     
     Returns figure name and save directory path.
@@ -1178,24 +1180,25 @@ def plot_gabor_norm_res_corrs_sess123_comps(analyspar, sesspar, stimpar,
             dictionary containing additional analysis parameters
             ["consec_only"] (bool): if True, only consecutive sessions are  
                 correlated
-            ["permute_tracking"] (bool): if True, permutations are run on ROI 
-                tracking instead of session pair order
+            ["corr_type"] (str): type of correlation ("corr" or "R_sqr")
+            ["permute"] (str): type of permutations used 
+                ("sess", "tracking", "all")
             ["seed"] (int): seed
+            ["sig_only"] (bool): if True, only ROIs with significant USIs are 
+                retained
         - idx_corr_df (pd.DataFrame):
             dataframe with one row per line/plane, and the 
             following columns, in addition to the basic sess_df columns:
 
             for session comparisons, e.g. 1v2
-            - {}v{}_norm_corrs (float): normalized intersession ROI index 
-                correlations
-            - {}v{}_norm_corr_stds (float): bootstrapped normalized 
-                intersession ROI index correlation standard deviation
-            - {}v{}_null_CIs (list): adjusted null CI for normalized 
-                intersession ROI index correlations
-            - {}v{}_raw_p_vals (float): p-value for normalized intersession 
-                correlations
-            - {}v{}_p_vals (float): p-value for normalized intersession 
-                correlations, corrected for multiple comparisons and tails
+            - {}v{}{norm_str}_corrs (float): intersession ROI index correlations
+            - {}v{}{norm_str}_corr_stds (float): bootstrapped intersession ROI 
+                index correlation standard deviation
+            - {}v{}_null_CIs (list): adjusted null CI for intersession ROI 
+                index correlations
+            - {}v{}_raw_p_vals (float): p-value for intersession correlations
+            - {}v{}_p_vals (float): p-value for intersession correlations, 
+                corrected for multiple comparisons and tails
 
         - figpar (dict): 
             dictionary containing the following figure parameter dictionaries
@@ -1209,16 +1212,17 @@ def plot_gabor_norm_res_corrs_sess123_comps(analyspar, sesspar, stimpar,
         - savename (str): name under which the figure is saved
     """
  
-
-    title = "Normalized correlations for Gabor USIs"
-
+    title = "Correlations for Gabor USIs"
+    
     idx_corr_df = pd.DataFrame.from_dict(idx_corr_df)
     
     ax = corr_plots.plot_idx_correlations(
         idx_corr_df, 
         permpar=permpar,
         figpar=figpar, 
-        title=title, 
+        permute=extrapar["permute"],
+        corr_type=extrapar["corr_type"], 
+        title=title,
         small=False,
         )
     fig = ax.reshape(-1)[0].figure
@@ -1714,7 +1718,7 @@ def plot_gabor_rel_resp_tracked_rois_sess123(analyspar, sesspar, stimpar,
         permpar=permpar, 
         figpar=figpar, 
         title=title, 
-        wide=False
+        small=True
         )
     fig = ax.reshape(-1)[0].figure
     
@@ -2018,7 +2022,7 @@ def plot_visual_flow_rel_resp_sess123(analyspar, sesspar, stimpar, permpar,
         permpar=permpar, 
         figpar=figpar, 
         title=title, 
-        wide=False
+        small=True,
         )
     fig = ax.reshape(-1)[0].figure
     
@@ -2346,13 +2350,13 @@ def plot_tracked_roi_usis_stimulus_comp_sess1v3(analyspar, sesspar, stimpar,
 
     
 #############################################
-def plot_visual_flow_norm_res_corrs_sess123_comps(
-        analyspar, sesspar, stimpar, basepar, idxpar, permpar, extrapar, 
-        idx_corr_df, figpar):
+def plot_visual_flow_corrs_sess123_comps(analyspar, sesspar, stimpar, basepar, 
+                                         idxpar, permpar, extrapar, idx_corr_df, 
+                                         figpar):
     """
-    plot_visual_flow_norm_res_corrs_sess123_comps(
-        analyspar, sesspar, stimpar, basepar, idxpar, permpar, extrapar, 
-        idx_corr_df, figpar)
+    plot_visual_flow_corrs_sess123_comps(analyspar, sesspar, stimpar, basepar, 
+                                         idxpar, permpar, extrapar, idx_corr_df, 
+                                         figpar)
 
     From dictionaries, plots ROI USI correlations across sessions for tracked 
     visual flow USIs. 
@@ -2376,24 +2380,25 @@ def plot_visual_flow_norm_res_corrs_sess123_comps(
             dictionary containing additional analysis parameters
             ["consec_only"] (bool): if True, only consecutive sessions are  
                 correlated
-            ["permute_tracking"] (bool): if True, permutations are run on ROI 
-                tracking instead of session pair order
+            ["corr_type"] (str): type of correlation ("corr" or "R_sqr")
+            ["permute"] (str): type of permutations used 
+                ("sess", "tracking", "all")
             ["seed"] (int): seed
+            ["sig_only"] (bool): if True, only ROIs with significant USIs are 
+                retained
         - idx_corr_df (pd.DataFrame):
             dataframe with one row per line/plane, and the 
             following columns, in addition to the basic sess_df columns:
 
             for session comparisons, e.g. 1v2
-            - {}v{}_norm_corrs (float): normalized intersession ROI index 
-                correlations
-            - {}v{}_norm_corr_stds (float): bootstrapped normalized 
-                intersession ROI index correlation standard deviation
-            - {}v{}_null_CIs (list): adjusted null CI for normalized 
-                intersession ROI index correlations
-            - {}v{}_raw_p_vals (float): p-value for normalized intersession 
-                correlations
-            - {}v{}_p_vals (float): p-value for normalized intersession 
-                correlations, corrected for multiple comparisons and tails
+            - {}v{}{norm_str}_corrs (float): intersession ROI index correlations
+            - {}v{}{norm_str}_corr_stds (float): bootstrapped intersession ROI 
+                index correlation standard deviation
+            - {}v{}_null_CIs (list): adjusted null CI for intersession ROI 
+                index correlations
+            - {}v{}_raw_p_vals (float): p-value for intersession correlations
+            - {}v{}_p_vals (float): p-value for intersession correlations, 
+                corrected for multiple comparisons and tails
 
         - figpar (dict): 
             dictionary containing the following figure parameter dictionaries
@@ -2408,7 +2413,7 @@ def plot_visual_flow_norm_res_corrs_sess123_comps(
     """
  
 
-    title = "Normalized correlations for visual flow USIs"
+    title = "Correlations for visual flow USIs"
 
     idx_corr_df = pd.DataFrame.from_dict(idx_corr_df)
     
@@ -2416,6 +2421,8 @@ def plot_visual_flow_norm_res_corrs_sess123_comps(
         idx_corr_df, 
         permpar=permpar,
         figpar=figpar, 
+        permute=extrapar["permute"],
+        corr_type=extrapar["corr_type"], 
         title=title, 
         small=True,
         )

@@ -15,12 +15,14 @@ import logging
 from util import logger_util
 from analysis import misc_analys, corr_analys
 from paper_fig_util import helper_fcts
+from sess_util import sess_ntuple_util
 
 logger = logging.getLogger(__name__)
 
-# whether to shuffle ROI tracking (True), or session pair order (False)
-PERMUTE_TRACKING = False
 
+PERMUTE = "tracking" # sess, tracking or all
+CORR_TYPE = "corr" # corr or R_sqr
+SIG_ONLY = False # whether to include only ROIs with significant USIs 
 
 ############################################
 def gabor_corr_norm_res_ex(sessions, analyspar, sesspar, stimpar, basepar, 
@@ -73,7 +75,8 @@ def gabor_corr_norm_res_ex(sessions, analyspar, sesspar, stimpar, basepar,
     # remove incomplete session series and warn
     sessions = misc_analys.check_sessions_complete(sessions)
 
-    permute_tracking = PERMUTE_TRACKING
+    permute = PERMUTE
+    sig_only = SIG_ONLY
     n_bins = 40
     idx_corr_norm_df = corr_analys.get_ex_idx_corr_norm_df(
         sessions, 
@@ -81,17 +84,19 @@ def gabor_corr_norm_res_ex(sessions, analyspar, sesspar, stimpar, basepar,
         stimpar=stimpar, 
         basepar=basepar, 
         idxpar=idxpar, 
-        permpar=permpar, 
-        permute_tracking=permute_tracking,
+        permpar=permpar,
+        permute=permute,
+        sig_only=sig_only,
         n_bins=n_bins,
         randst=seed,
         parallel=parallel
         )
         
     extrapar = {
-        "seed"            : seed,
-        "n_bins"          : n_bins,
-        "permute_tracking": permute_tracking,
+        "n_bins"   : n_bins,
+        "permute"  : permute,
+        "seed"     : seed,
+        "sig_only" : sig_only,
     }
 
     info = {"analyspar"       : analyspar._asdict(),
@@ -110,12 +115,12 @@ def gabor_corr_norm_res_ex(sessions, analyspar, sesspar, stimpar, basepar,
 
 
 ############################################
-def gabor_norm_res_corrs_sess123_comps(sessions, analyspar, sesspar, stimpar, 
-                                       basepar, idxpar, permpar, figpar, 
-                                       seed=None, parallel=False):
+def gabor_corrs_sess123_comps(sessions, analyspar, sesspar, stimpar, basepar, 
+                              idxpar, permpar, figpar, seed=None, 
+                              parallel=False):
     """
-    gabor_norm_res_corrs_sess123_comps(sessions, analyspar, sesspar, stimpar, 
-                                       basepar, idxpar, permpar, figpar)
+    gabor_corrs_sess123_comps(sessions, analyspar, sesspar, stimpar, basepar, 
+                              idxpar, permpar, figpar)
 
     Retrieves tracked ROI Gabor USI correlations for session 1 to 3.
         
@@ -164,7 +169,13 @@ def gabor_norm_res_corrs_sess123_comps(sessions, analyspar, sesspar, stimpar,
         permpar, sessions, analyspar, consec_only=consec_only
         )
 
-    permute_tracking = PERMUTE_TRACKING
+    permute = PERMUTE
+    corr_type = CORR_TYPE
+    sig_only = SIG_ONLY
+
+    if "R_sqr" in corr_type:
+        permpar = sess_ntuple_util.get_modif_ntuple(permpar, "tails", "hi")
+
     idx_corr_df = corr_analys.get_idx_corrs_df(
         sessions, 
         analyspar=analyspar,
@@ -173,15 +184,19 @@ def gabor_norm_res_corrs_sess123_comps(sessions, analyspar, sesspar, stimpar,
         idxpar=idxpar, 
         permpar=permpar, 
         consec_only=consec_only,
-        permute_tracking=permute_tracking,
+        permute=permute,
+        corr_type=corr_type,
+        sig_only=sig_only,
         randst=seed,
         parallel=parallel
         )
         
     extrapar = {
-        "consec_only"     : consec_only,
-        "permute_tracking": permute_tracking,
-        "seed"            : seed,
+        "consec_only": consec_only,
+        "corr_type"  : corr_type,
+        "permute"    : permute,
+        "seed"       : seed,
+        "sig_only"   : sig_only,
     }
 
     info = {"analyspar"  : analyspar._asdict(),
@@ -198,13 +213,12 @@ def gabor_norm_res_corrs_sess123_comps(sessions, analyspar, sesspar, stimpar,
 
 
 ############################################
-def visual_flow_norm_res_corrs_sess123_comps(sessions, analyspar, sesspar, 
-                                             stimpar, basepar, idxpar, permpar, 
-                                             figpar, seed=None, parallel=False):
+def visual_flow_corrs_sess123_comps(sessions, analyspar, sesspar, stimpar, 
+                                    basepar, idxpar, permpar, figpar, 
+                                    seed=None, parallel=False):
     """
-    visual_flow_norm_res_corrs_sess123_comps(sessions, analyspar, sesspar, 
-                                             stimpar, basepar, idxpar, permpar, 
-                                             figpar)
+    visual_flow_corrs_sess123_comps(sessions, analyspar, sesspar, stimpar, 
+                                    basepar, idxpar, permpar, figpar)
 
     Retrieves tracked ROI visual flow USI correlations for session 1 to 3.
         
@@ -254,7 +268,13 @@ def visual_flow_norm_res_corrs_sess123_comps(sessions, analyspar, sesspar,
         permpar, sessions, analyspar, consec_only=consec_only
         )
 
-    permute_tracking = PERMUTE_TRACKING
+    permute = PERMUTE
+    corr_type = CORR_TYPE
+    sig_only = SIG_ONLY
+
+    if "R_sqr" in corr_type:
+        permpar = sess_ntuple_util.get_modif_ntuple(permpar, "tails", "hi")
+
     idx_corr_df = corr_analys.get_idx_corrs_df(
         sessions, 
         analyspar=analyspar,
@@ -263,15 +283,19 @@ def visual_flow_norm_res_corrs_sess123_comps(sessions, analyspar, sesspar,
         idxpar=idxpar, 
         permpar=permpar, 
         consec_only=consec_only,
-        permute_tracking=permute_tracking,
+        permute=permute,
+        corr_type=corr_type,
+        sig_only=sig_only,
         randst=seed,
         parallel=parallel
         )
         
     extrapar = {
-        "consec_only"     : consec_only,
-        "permute_tracking": permute_tracking,
-        "seed"            : seed,
+        "consec_only": consec_only,
+        "corr_type"  : corr_type,
+        "permute"    : permute,
+        "seed"       : seed,
+        "sig_only"   : sig_only,
     }
 
     info = {"analyspar"  : analyspar._asdict(),

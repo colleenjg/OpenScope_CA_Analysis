@@ -109,9 +109,9 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                 ["pupil"] (Path)    : subdirectory for pupil analyses
                 ["oridir"] (Path)   : subdirectory name for 
                                       orientation/direction analyses
-                ["surp_qu"] (Path)  : subdirectory name for surprise, quantile 
-                                      analyses
-                ["surp_idx"] (Path) : subdirectory name for surprise index 
+                ["unexp_qu"] (Path) : subdirectory name for unexpected, 
+                                      quantile analyses
+                ["unexp_idx"] (Path): subdirectory name for unexpected index 
                                       analyses
                 ["tune_curv"] (Path): subdirectory name for tuning curves
                 
@@ -163,8 +163,8 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                 "prop"     : "prop_resp",
                 "pupil"    : "pupil",
                 "oridir"   : "oridir",
-                "surp_idx" : "surp_idx",
-                "surp_qu"  : "surp_qu",
+                "unexp_idx": "unexp_idx",
+                "unexp_qu" : "unexp_qu",
                 "tune_curv": "tune_curves",
                }
     fig_dirs = {key: Path(value) for key, value in fig_dirs.items()}
@@ -183,26 +183,26 @@ def get_quant_cols(n_quants=4):
     """
     get_quant_cols()
 
-    Returns regular and surprise colors for quantiles, as well as label colors
-    for regular and surprise.
+    Returns expected and unexpected colors for quantiles, as well as label 
+    colors for expected and unexpected data.
 
     Required args:
         - n_quants (int): number of quantiles
 
     Returns:
         - cols (list)    : nested list of colors, 
-                           structured as [regular, surprise]
-        - lab_cols (list): label colors for regular and surprise data
+                           structured as [expected, unexpected]
+        - lab_cols (list): label colors for expected and unexpected data
     """
 
-    col_reg  = plot_util.get_color_range(n_quants, "blue")
-    col_surp = plot_util.get_color_range(n_quants, "red")
+    col_exp   = plot_util.get_color_range(n_quants, "blue")
+    col_unexp = plot_util.get_color_range(n_quants, "red")
 
-    lab_reg = plot_util.get_color_range(1, "blue")[0]
-    lab_surp = plot_util.get_color_range(1, "red")[0]
+    lab_exp   = plot_util.get_color_range(1, "blue")[0]
+    lab_unexp = plot_util.get_color_range(1, "red")[0]
 
-    cols = [col_reg, col_surp]
-    lab_cols = [lab_reg, lab_surp]
+    cols = [col_exp, col_unexp]
+    lab_cols = [lab_exp, lab_unexp]
 
     return cols, lab_cols
 
@@ -316,10 +316,10 @@ def get_fr_lab(plot_vals="both", op="diff", start_fr=-1):
     get_fr_lab()
 
     Returns a list of labels for gabor frames based on values that are plotted,
-    and operation on surprise v no surprise, starting with grayscreen (G).
+    and operation on unexpected v expected, starting with grayscreen (G).
 
     Optional args:
-        - plot_vals (str): values plotted ("surp", "reg", "both")
+        - plot_vals (str): values plotted ("unexp", "exp", "both")
                            default: "both"
         - op (str)       : operation on the values, if both ("ratio" or "diff")
                            default: "diff"
@@ -333,9 +333,9 @@ def get_fr_lab(plot_vals="both", op="diff", start_fr=-1):
 
     labels = ["G", "A", "B", "C"]
 
-    if plot_vals == "surp":
+    if plot_vals == "unexp":
         labels.extend(["U"])
-    elif plot_vals == "reg":
+    elif plot_vals == "exp":
         labels.extend(["D"])
     elif plot_vals == "both":
         if op == "diff":
@@ -346,7 +346,7 @@ def get_fr_lab(plot_vals="both", op="diff", start_fr=-1):
             gen_util.accepted_values_error("op", op, ["diff", "ratio"])
     else:
         gen_util.accepted_values_error(
-            "plot_vals", plot_vals, ["both", "reg", "surp"])
+            "plot_vals", plot_vals, ["both", "exp", "unexp"])
 
     if start_fr != -1:
         labels = list(np.roll(labels, -(start_fr+1)))
@@ -366,7 +366,7 @@ def get_seg_comp(gabfr=0, plot_vals="both", op="diff", pre=0, post=1.5):
     Optional args:
         - gabfr (int)    : gabor frame of reference
                            default: 0
-        - plot_vals (str): values plotted ("surp", "reg", "both")
+        - plot_vals (str): values plotted ("unexp", "exp", "both")
                            default: "both"
         - op (str)       : operation on the values, if both ("ratio" or "diff")
                            default: "diff"
@@ -425,9 +425,10 @@ def plot_labels(ax, gabfr=0, plot_vals="both", op="none", pre=0, post=1.5,
     Optional args:
         - gabfr (int)      : gabor frame of reference
                              default: 0
-        - plot_vals (str)  : values plotted ("surp", "reg", "both")
+        - plot_vals (str)  : values plotted ("unexp", "exp", "both")
                              default: "both"
-        - op (str)         : operation on the values, if both ("ratio" or "diff")
+        - op (str)         : operation on the values, if both 
+                             ("ratio" or "diff")
                              default: "none"
         - pre (num)        : range of frames to include before reference frame 
                              (in s)
@@ -465,7 +466,7 @@ def plot_labels(ax, gabfr=0, plot_vals="both", op="none", pre=0, post=1.5,
 
     if plot_vals == "both":
         if op == "none":
-            plot_vals = ["reg", "surp"]
+            plot_vals = ["exp", "unexp"]
 
     plot_vals = gen_util.list_if_not(plot_vals)
 
@@ -535,7 +536,7 @@ def plot_gabfr_pattern(sub_ax, x_ran, alpha=0.1, offset=0, bars_omit=[],
     # get the extended shade starts
     ext_shade_st = plot_util.get_repeated_bars(
         sh_min - shade_wid, sh_max + shade_wid, 1.5, 
-        offset=-offset_s - 0.6) # surprise start
+        offset=-offset_s - 0.6) # unexpected seq start
 
     shade_st = []
     shade_end = []
@@ -602,7 +603,7 @@ def update_plt_linpla():
     """
     update_plt_linpla()
 
-    Updates rcParams for plane x line olots.
+    Updates rcParams for plane x line plots.
     """
 
     plt.rcParams.update({
@@ -638,7 +639,8 @@ def fig_init_linpla(figpar=None, kind="reg", n_sub=1, sharey=False,
                                 "reg" for single plot per layer/line, 
                                 "traces" for traces plot per session (rows), 
                                 "prog" for progression plot per session (cols), 
-                                "idx" for surprise index plot per session (rows)
+                                "idx" for unexpected data index plot per 
+                                    session (rows)
                                 default: "reg"
         - n_sub (int)         : number of subplots per line/plane combination
                                 default: 1
@@ -752,7 +754,8 @@ def adjust_linpla_y_axis_sharing(ax, kind="reg"):
                              "reg" for single plot per layer/line, 
                              "traces" for traces plot per session (rows), 
                              "prog" for progression plot per session (cols), 
-                             "idx" for surprise index plot per session (rows)
+                             "idx" for unexpected data index plot per 
+                                session (rows)
                              default: "reg"
     """
 
@@ -814,7 +817,8 @@ def get_yticklabel_info(ax, kind="reg"):
                              "reg" for single plot per layer/line, 
                              "traces" for traces plot per session (rows), 
                              "prog" for progression plot per session (cols), 
-                             "idx" for surprise index plot per session (rows)
+                             "idx" for unexpected data index plot per 
+                                session (rows)
 
     Returns:
         - add_yticks (list) : list of subplots that should have ytick labels
@@ -877,7 +881,8 @@ def add_linpla_axislabels(ax, fluor="dff", area=False, scale=False,
                              "reg" for single plot per layer/line, 
                              "traces" for traces plot per session (rows),  
                              "prog" for progression plot per session (cols), 
-                             "idx" for surprise index plot per session (rows)
+                             "idx" for unexpected data index plot per 
+                                session (rows)
     """
 
     add_yticks = get_yticklabel_info(ax, kind=kind)
@@ -973,7 +978,8 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind="reg",
                              "reg" for single plot per layer/line, 
                              "traces" for traces plot per session (rows), 
                              "prog" for progression plot per session (cols), 
-                             "idx" for surprise index plot per session (rows)
+                             "idx" for unexpected data index plot per 
+                                session (rows)
                              default: "reg"
         - single_lab (bool): if True, only one set of session labels it added 
                              to the graph
@@ -1096,7 +1102,8 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
                               "reg" for single plot per layer/line, 
                               "traces" for traces plot per session (rows), 
                               "prog" for progression plot per session (cols), 
-                              "idx" for surprise index plot per session (rows)
+                              "idx" for unexpected data index plot per 
+                                  session (rows)
                               default: "reg"
         - tight (bool)      : tight figure layout
                               default: True
@@ -1190,11 +1197,78 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
 
 
 #############################################
-def plot_ROIs(sub_ax, masks, valid_mask=None, border=None, savename=None):
+def plot_ROI_values(sub_ax, masks, values, cm=None, no_marks=False, clims=None, 
+                    savename=None):
+    """
+    plot_ROI_values(sub_ax, masks)
+
+    Plots whole ROIs from a boolean mask, colour-coded by values.
+
+    Required args:
+        - sub_ax (plt Axis subplot): subplot
+        - masks (3D array)         : boolean ROI masks, structured as
+                                     ROIs x hei x wid
+        - values (1D array)        : values for each ROI
+    
+    Optional args:
+        - cm (colormap)   : a matplotlib colormap. If None, a default colormap 
+                            is used.
+                            default: None
+        - no_marks (bool) : if True, all ticks and spines are removed
+                            default: False
+        - clims (list)    : colormap limits
+                            default: None
+        - savename (bool) : if provided, saves mask contours to file 
+                            (exact pixel size). ".png" best to avoid 
+                            anti-aliasing.
+                            default: False
+
+    Returns:
+        - masks_plot_proj (2D array): ROI image array: hei x wid
+    """
+
+    if len(masks.shape) == 2:
+        masks = np.expand_dims(masks, 0)
+    
+    values = np.asarray(values)
+    if len(values) != len(masks):
+        raise ValueError("Must provide as many values as masks.")
+
+    if cm is None:
+        color_list = ["blue", "white", "red"]
+        cm = mplcol.LinearSegmentedColormap.from_list(
+            "roi_mask_cm", color_list, N=100)
+    
+    vmin, vmax = None, None
+    if clims is not None:
+        vmin, vmax = clims
+    
+    masks = masks.astype(bool).astype(float)
+    masks[masks == 0] = np.nan
+    masks = masks * values.reshape(-1, 1, 1)
+    with gen_util.TempWarningFilter("Mean of empty slice", RuntimeWarning):
+        masks_plot_proj = np.nanmean(masks, axis=0)
+        
+    sub_ax.imshow(
+        masks_plot_proj, cmap=cm, interpolation="none", vmin=vmin, vmax=vmax
+        )
+
+    if no_marks:
+        plot_util.remove_axis_marks(sub_ax)
+
+    if savename:
+        plt.imsave(savename, masks_plot_proj, cmap=cm)
+
+    return masks_plot_proj
+
+
+#############################################
+def plot_ROIs(sub_ax, masks, valid_mask=None, border=None, no_marks=False, 
+              savename=None):
     """
     plot_ROIs(sub_ax, masks)
 
-    Plots whole ROIs contours from a boolean mask, and optionally non valid
+    Plots whole ROIs from a boolean mask, and optionally non valid
     ROIs in red.
 
     Required args:
@@ -1208,6 +1282,11 @@ def plot_ROIs(sub_ax, masks, valid_mask=None, border=None, savename=None):
                             default: None
         - border (list)   : border values to plot in red [right, left, down, up]
                             default: None
+        - cm (colormap)   : a matplotlib colormap. If None, a default colormap 
+                            is used.
+                            default: None
+        - no_marks (bool) : if True, all ticks and spines are removed
+                            default: False
         - savename (bool) : if provided, saves mask contours to file 
                             (exact pixel size). ".png" best to avoid 
                             anti-aliasing.
@@ -1250,6 +1329,9 @@ def plot_ROIs(sub_ax, masks, valid_mask=None, border=None, savename=None):
 
     sub_ax.imshow(masks_plot_proj, cmap=cm, interpolation="none")
 
+    if no_marks:
+        plot_util.remove_axis_marks(sub_ax)
+
     if savename:
         plt.imsave(savename, masks_plot_proj, cmap=cm)
 
@@ -1257,7 +1339,7 @@ def plot_ROIs(sub_ax, masks, valid_mask=None, border=None, savename=None):
 
 
 #############################################
-def plot_rec_proj(sub_ax, data, border=None, savename=None):
+def plot_rec_proj(sub_ax, data, border=None, no_marks=False, savename=None):
     """
     plot_rec_proj(sub_ax, data)
 
@@ -1271,6 +1353,8 @@ def plot_rec_proj(sub_ax, data, border=None, savename=None):
     Optional args:
         - border (list)   : border values to plot in red [right, left, down, up]
                             default: None
+        - no_marks (bool) : if True, all ticks and spines are removed
+                            default: False
         - savename (bool) : if provided, saves masks to file 
                             (exact pixel size). ".png" best to avoid 
                             anti-aliasing.
@@ -1313,6 +1397,9 @@ def plot_rec_proj(sub_ax, data, border=None, savename=None):
 
     sub_ax.imshow(av_proj, cmap=cm, interpolation="none")
 
+    if no_marks:
+        plot_util.remove_axis_marks(sub_ax)
+
     if savename:
         plt.imsave(savename, av_proj, cmap=cm)
 
@@ -1320,11 +1407,12 @@ def plot_rec_proj(sub_ax, data, border=None, savename=None):
 
 
 #############################################
-def plot_ROIs_sep(sub_ax, masks, border=None, cm=None, savename=None):
+def plot_ROIs_sep(sub_ax, masks, border=None, cm=None, no_marks=False, 
+                  savename=None):
     """
-    plot_ROIs(sub_ax, masks)
+    plot_ROIs_sep(sub_ax, masks)
 
-    Plots whole ROIs contours from a boolean mask, and optionally non valid
+    Plots whole ROIs from a boolean mask, and optionally non valid
     ROIs in red.
 
     Required args:
@@ -1337,6 +1425,8 @@ def plot_ROIs_sep(sub_ax, masks, border=None, cm=None, savename=None):
                             default: None
         - cm (plt cm)     : pyplot colormap. If None, a custom cmap is used.
                             default: None
+        - no_marks (bool) : if True, all ticks and spines are removed
+                            default: False
         - savename (bool) : if provided, saves masks to file 
                             (exact pixel size). ".png" best to avoid 
                             anti-aliasing.
@@ -1390,6 +1480,9 @@ def plot_ROIs_sep(sub_ax, masks, border=None, cm=None, savename=None):
 
     sub_ax.imshow(masks_max_proj, cmap=cm, interpolation="none")
 
+    if no_marks:
+        plot_util.remove_axis_marks(sub_ax)
+
     if savename:
         plt.imsave(savename, masks_max_proj, cmap=cm)
 
@@ -1399,7 +1492,7 @@ def plot_ROIs_sep(sub_ax, masks, border=None, cm=None, savename=None):
 #############################################
 def plot_ROI_contours(sub_ax, masks, outlier=None, tight=False, 
                       restrict=False, cw=1, outer=False, cm=None, 
-                      savename=False):
+                      no_marks=False, savename=False):
     """
     plot_ROI_contours(sub_ax, masks)
 
@@ -1429,6 +1522,8 @@ def plot_ROI_contours(sub_ax, masks, outlier=None, tight=False,
                            default: False
         - cm (plt cm)    : pyplot colormap. If None, a custom cmap is used.
                            default: None
+        - no_marks (bool): if True, all ticks and spines are removed
+                           default: False
         - savename (bool): if provided, saves mask contours to file 
                            (exact pixel size). ".png" best to avoid 
                            anti-aliasing.
@@ -1508,6 +1603,9 @@ def plot_ROI_contours(sub_ax, masks, outlier=None, tight=False,
 
     if sub_ax is not None:
         sub_ax.imshow(contour_mask, cmap=cm, interpolation="none")
+
+    if no_marks:
+        plot_util.remove_axis_marks(sub_ax)
 
     if savename:
         plt.imsave(savename, contour_mask, cmap=cm)

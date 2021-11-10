@@ -143,14 +143,14 @@ def run_sess_lstm(sessid, args):
     roi_train_pre = 0 # from A
     stim_train_pre   = 0.3 # from preceeding grayscreen
 
-    # Stim/traces for testing (separated for surp vs nonsurp)
+    # Stim/traces for testing (separated for unexp vs exp)
     test_gabfr = 3
     test_post  = 0.6 # up to grayscreen
     roi_test_pre = 0 # from D/U
     stim_test_pre   = 0.3 # from preceeding C
 
     sess = sess_gen_util.init_sessions(
-        sessid, args.datadir, args.mouse_df, args.runtype, fulldict=False, 
+        sessid, args.datadir, args.mouse_df, args.runtype, full_table=False, 
         fluor="dff", dend="extr", run=True, temp_log="warning")[0]
 
     analysdir = sess_gen_util.get_analysdir(
@@ -179,15 +179,15 @@ def run_sess_lstm(sessid, args):
         "to excessive memory requests.")
     test_stim_wins = []
     test_roi_wins  = []
-    for surp in [0, 1]:
+    for unexp in [0, 1]:
         stim_wins = sess_data_util.get_stim_data(
             sess, args.stimtype, n_stim_s, test_gabfr, stim_test_pre, 
-            test_post, surp, gabk=16, run_mean=run_stats[0], 
+            test_post, unexp, gabk=16, run_mean=run_stats[0], 
             run_std=run_stats[1])
         test_stim_wins.append(stim_wins)
         
         roi_wins = sess_data_util.get_roi_data(sess, args.stimtype, n_roi_s,  
-                           test_gabfr, roi_test_pre, test_post, surp, gabk=16, 
+                           test_gabfr, roi_test_pre, test_post, unexp, gabk=16, 
                            roi_means=roi_stats[0], roi_stds=roi_stats[1])[1]
         test_roi_wins.append(roi_wins)
 
@@ -292,7 +292,7 @@ def run_sess_lstm(sessid, args):
                 label=lab, xticks="auto")
             plot_util.set_ticks(sub_ax, "x", xran[0], xran[-1], n=7)
 
-    sess_plot_util.plot_labels(ax, train_gabfr, plot_vals="reg", pre=roi_train_pre, 
+    sess_plot_util.plot_labels(ax, train_gabfr, plot_vals="exp", pre=roi_train_pre, 
                             post=train_post)
 
     fig.suptitle(f"Target vs predicted validation traces ({n_rois} ROIs)")

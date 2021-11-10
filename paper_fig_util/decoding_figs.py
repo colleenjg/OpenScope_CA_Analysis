@@ -11,7 +11,7 @@ Note: this code uses python 3.7.
 """
 
 import logging
-from sess_util import sess_ntuple_util
+from sess_util import sess_ntuple_util, sess_gen_util
 
 from util import logger_util
 from analysis import misc_analys
@@ -75,7 +75,7 @@ def gabor_decoding_sess123(sessions, analyspar, sesspar, stimpar, logregpar,
         )
 
     n_splits = 100
-    score_df = decoding_analys.run_sess_log_regs(
+    score_df = decoding_analys.run_sess_logregs(
         sessions, 
         analyspar=analyspar, 
         stimpar=stimpar,
@@ -141,7 +141,10 @@ def gabor_Dori_decoding_sess123(sessions, analyspar, sesspar, stimpar,
     """
 
     if logregpar.comp != "Dori":
-        raise ValueError("logregpar.comp should be Uori.")
+        raise ValueError("logregpar.comp should be Dori.")
+
+    gab_ori = sess_gen_util.filter_gab_oris("D", stimpar.gab_ori)
+    stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, "gab_ori", gab_ori)
 
     gabor_decoding_sess123(
         sessions, 
@@ -198,6 +201,9 @@ def gabor_Uori_decoding_sess123(sessions, analyspar, sesspar, stimpar,
 
     # ctrl doesn't apply to U orientation decoding
     logregpar = sess_ntuple_util.get_modif_ntuple(logregpar, "ctrl", False)
+
+    gab_ori = sess_gen_util.filter_gab_oris("U", stimpar.gab_ori)
+    stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, "gab_ori", gab_ori)
 
     gabor_decoding_sess123(
         sessions, 

@@ -37,8 +37,8 @@ logger = logging.getLogger(__name__)
 
 
 ANALYSIS_DESCR = {
-    "c": "correlation between pupil and roi or run surprise-locked changes",
-    "r": "surprise-locked change correlation per ROI between stimuli",
+    "c": "correlation between pupil and roi or run unexpected-locked changes",
+    "r": "unexpected-locked change correlation per ROI between stimuli",
 }
 
 
@@ -61,33 +61,33 @@ def reformat_args(args):
 
     Required args:
         - args (Argument parser): parser with the following attributes: 
-            bri_dir (str)        : brick direction values to include
+            visflow_dir (str)    : visual flow direction values to include
                                    (e.g., "right", "left" or "both")
-            bri_size (int or str): brick size values to include
+            visflow_size (int or str): visual flow size values to include
                                    (e.g., 128, 256, "both")
             gabfr (int)          : gabor frame value to start sequences at
                                    (e.g., 0, 1, 2, 3)
             gabk (int or str)    : gabor kappa values to include 
                                    (e.g., 4, 16 or "both")
             gab_ori (int or str) : gabor orientation values to include
-                                   (e.g., 0, 45, 90, 135 or "all")
+                                   (e.g., 0, 45, 90, 135, 180, 225 or "all")
             runtype (str)        : runtype ("pilot" or "prod")
-            stimtype (str)       : stimulus to analyse (bricks or gabors)
+            stimtype (str)       : stimulus to analyse (visflow or gabors)
     
     Returns:
         - args (Argument parser): input parser, with the following attributes
                                   modified: 
-                                      bri_dir, bri_size, gabfr, gabk, gab_ori, 
-                                      grps, analyses, seed
+                                      visflow_dir, visflow_size, gabfr, gabk, 
+                                      gab_ori, grps, analyses, seed
                                   and the following attributes added:
                                       omit_sess, omit_mice, dend
     """
     args = copy.deepcopy(args)
 
-    [args.bri_dir, args.bri_size, args.gabfr, 
+    [args.visflow_dir, args.visflow_size, args.gabfr, 
         args.gabk, args.gab_ori] = sess_gen_util.get_params(
-            args.stimtype, args.bri_dir, args.bri_size, args.gabfr, args.gabk, 
-            args.gab_ori)
+            args.stimtype, args.visflow_dir, args.visflow_size, args.gabfr, 
+            args.gabk, args.gab_ori)
 
     if args.datatype == "run":
         args.fluor = "n/a"
@@ -95,7 +95,8 @@ def reformat_args(args):
         args.dend = "allen"
 
     args.omit_sess, args.omit_mice = sess_gen_util.all_omit(
-        args.stimtype, args.runtype, args.bri_dir, args.bri_size, args.gabk)
+        args.stimtype, args.runtype, args.visflow_dir, args.visflow_size, 
+        args.gabk)
 
     # chose a seed if none is provided (i.e., args.seed=-1), but seed later
     args.seed = rand_util.seed_all(
@@ -128,9 +129,9 @@ def init_param_cont(args):
     Required args:
         - args (Argument parser): parser with the following attributes:
 
-            bri_dir (str or list)  : brick direction values to include
+            visflow_dir (str or list): visual flow direction values to include
                                      ("right", "left", ["right", "left"])
-            bri_size (int or list) : brick size values to include
+            visflow_size (int or list) : visual flow size values to include
                                      (128, 256 or [128, 256])
             closest (bool)         : if False, only exact session number is 
                                      retained, otherwise the closest.
@@ -145,7 +146,7 @@ def init_param_cont(args):
             gabk (int or list)     : gabor kappa values to include 
                                      (4, 16 or [4, 16])
             gab_ori (int or list)  : gabor orientation values to include
-                                     ([0, 45, 90, 135])
+                                     ([0, 45, 90, 135, 180, 225])
             incl (str)             : 
             keepnans (str)         : if True, ROIs with NaN/Inf values are 
                                      kept in the analyses and the original 
@@ -174,7 +175,7 @@ def init_param_cont(args):
             scale (bool)           : whether to scale data (pupil, running, ROI)
             sess_n (int)           : session number
             stats (str)            : statistic parameter ("mean" or "median")
-            stimtype (str)         : stimulus to analyse ("bricks" or "gabors")
+            stimtype (str)         : stimulus to analyse ("visflow" or "gabors")
             tails (str or int)     : which tail(s) to test ("hi", "lo", 2)
 
     Returns:
@@ -217,7 +218,7 @@ def init_param_cont(args):
                                          orientation responses
                     ["oridir"] (str)   : subdirectory name for 
                                          orientation/direction analyses
-                    ["surp_qu"] (str)  : subdirectory name for surprise, 
+                    ["unexp_qu"] (str)  : subdirectory name for unexpected, 
                                          quantile analyses
                     ["tune_curv"] (str): subdirectory name for tuning curves
                     ["grped"] (str)    : subdirectory name for ROI grps data
@@ -247,8 +248,8 @@ def init_param_cont(args):
 
     # stimulus parameters
     analysis_dict["stimpar"] = sess_ntuple_util.init_stimpar(
-        args.stimtype, args.bri_dir, args.bri_size, args.gabfr, args.gabk, 
-        args.gab_ori, args.pre, args.post)
+        args.stimtype, args.visflow_dir, args.visflow_size, args.gabfr, 
+        args.gabk, args.gab_ori, args.pre, args.post)
 
     # SPECIFIC ANALYSES    
     # autocorrelation parameters
@@ -316,17 +317,17 @@ def prep_analyses(sess_n, args, mouse_df):
         )
         
     args_dict = {
-        "datadir" : args.datadir,
-        "mouse_df": mouse_df,
-        "runtype" : sesspar.runtype,
-        "fulldict": False,
-        "fluor"   : analyspar.fluor,
-        "dend"    : analyspar.dend,
-        "roi"     : roi,
-        "run"     : run,
-        "pupil"   : True,
-        "omit"    : roi,
-        "temp_log": "warning",
+        "datadir"   : args.datadir,
+        "mouse_df"  : mouse_df,
+        "runtype"   : sesspar.runtype,
+        "full_table": False,
+        "fluor"     : analyspar.fluor,
+        "dend"      : analyspar.dend,
+        "roi"       : roi,
+        "run"       : run,
+        "pupil"     : True,
+        "omit"      : roi,
+        "temp_log"  : "warning",
     }
 
     sessions = gen_util.parallel_wrap(
@@ -361,11 +362,11 @@ def get_analysis_fcts():
 
     fct_dict = dict()
 
-    # 0. Plots the correlation between pupil and roi/run surprise-locked 
+    # 0. Plots the correlation between pupil and roi/run unexpected-locked 
     # changes for each session
     fct_dict["c"] = [pup_analys.run_pupil_diff_corr, ["roi", "run"]]
 
-    # 1. Calculates Calculates surprise-locked chnge correlation per ROI 
+    # 1. Calculates Calculates unexpected-locked chnge correlation per ROI 
     # between stimuli
     fct_dict["r"] = [pup_analys.run_pup_roi_stim_corr, ["roi"]]
 
@@ -540,8 +541,8 @@ def parse_args():
     parser.add_argument("--min_rois", default=5, type=int, 
         help="min rois criterion")
         # stimulus parameters
-    parser.add_argument("--bri_dir", default="both", 
-        help="brick dir (right, left, or both)") 
+    parser.add_argument("--visflow_dir", default="both", 
+        help="visual flow dir (right, left, or both)") 
     parser.add_argument("--gabfr", default=3, type=int, 
         help="gabor frame at which to start sequences")   
     parser.add_argument("--pre", default=1.5, type=float, 
@@ -573,12 +574,12 @@ def parse_args():
     parser.add_argument("--incl", default="any",
         help="include only 'yes', 'no' or 'any'")
         # stimulus parameters
-    parser.add_argument("--bri_size", default=128, 
-        help="brick size (128, 256, or both)")
+    parser.add_argument("--visflow_size", default=128, 
+        help="visual flow size (128, 256, or both)")
     parser.add_argument("--gabk", default=16,
         help="kappa value (4, 16, or both)")    
     parser.add_argument("--gab_ori", default="all",
-        help="gabor orientation values (0, 45, 90, 135, all)")   
+        help="gabor orientation values (0, 45, 90, 135, 180, 225, all)")   
         # permutation parameters
     parser.add_argument("--n_perms", default=10000, type=int, 
         help="nbr of permutations")

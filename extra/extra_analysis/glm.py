@@ -43,7 +43,7 @@ def build_stim_beh_df(sessions, analyspar, sesspar, stimpar, each_roi=False):
 
     GLM inputs:
     - (Segments (A, B, C, D))
-    - Surprise status (only 1 for U and the following grayscreen (G))
+    - Unexpected status (only 1 for U and the following grayscreen (G))
     - Pupil dilation
     - Running velocity
     - Plane
@@ -61,13 +61,17 @@ def build_stim_beh_df(sessions, analyspar, sesspar, stimpar, each_roi=False):
         stim = sess.get_stim(stimpar.stimtype)
         sub_df = stim.get_stim_beh_sub_df(
             stimpar.pre, stimpar.post, analyspar.stats, analyspar.fluor, 
-            analyspar.remnans, stimpar.gabfr, stimpar.gabk, stimpar.gab_ori, 
-            stimpar.bri_size, stimpar.bri_dir, pupil=True, run=True)
+            analyspar.remnans, gabfr=stimpar.gabfr, gabk=stimpar.gabk, 
+            gab_ori=stimpar.gab_ori, visflow_size=stimpar.visflow_size, 
+            visflow_dir=stimpar.visflow_dir, pupil=True, run=True)
 
         full_df = full_df.append(sub_df)
     
     full_df = full_df.reset_index(drop=True)
     full_df = gen_util.drop_unique(full_df, in_place=True)
+
+
+    # Adjust Gabor angles to match for expected and unexpected? and for gabfr
 
     return full_df
 
@@ -399,8 +403,8 @@ def run_glms(sessions, analysis, seed, analyspar, sesspar, stimpar, glmpar,
     seed = rand_util.seed_all(seed, "cpu", log_seed=False)
 
     sessstr_pr = sess_str_util.sess_par_str(
-        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 
-        stimpar.bri_size, stimpar.gabk, "print")
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.visflow_dir, 
+        stimpar.visflow_size, stimpar.gabk, "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar.dend, sesspar.plane, "roi", "print")
 

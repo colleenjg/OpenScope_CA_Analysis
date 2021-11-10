@@ -38,19 +38,19 @@ logger = logging.getLogger(__name__)
 
 
 ANALYSIS_DESCR = {
-    "s": "difference between surprise and regular",
-    "l": "difference between surprise and regular, locked to surprise and v.v.",
+    "s": "difference between unexpected and expected sequences",
+    "l": "difference between unexpected and expected sequences, locked to unexpected and v.v.",
     "a": "difference between stimulus and grayscreen, locked to onset and v.v.",
-    "t": "traces for surprise and regular",
-    "r": "traces locked to surprise and to regular",
+    "t": "traces for unexpected and expected sequences",
+    "r": "traces locked to unexpected and to expected sequence onset",
     "b": "traces locked to stimulus onset and to stimulus offset",
-    "i": "surprise selectivity indices",
-    "m": "surprise selectivity indices with common orientations",
+    "i": "unexpected event selectivity indices",
+    "m": "unexpected event selectivity indices with common orientations",
     "d": "direction selectivity indices",
-    "c": "surprise seletivity index colormaps across stimulus parameters",
-    "g": "progression of surprise and regular responses",
-    "o": "surprise and regular responses for each position (1st, 2nd, etc.)",
-    "u": "surprise latency",
+    "c": "unexpected event seletivity index colormaps across stimulus parameters",
+    "g": "progression of unexpected and expected responses",
+    "o": "unexpected and expected responses for each position (1st, 2nd, etc.)",
+    "u": "unexpected reponse latency",
     "p": "proportion of responsive ROIs for each stimulus type",
 }
 
@@ -76,27 +76,27 @@ def reformat_args(args):
 
     Required args:
         - args (Argument parser): parser with the following attributes: 
-            bri_dir (str)        : brick direction values to include
+            visflow_dir (str)        : visual flow direction values to include
                                    (e.g., "right", "left" or "both")
-            bri_size (int or str): brick size values to include
+            visflow_size (int or str): visual flow size values to include
                                    (e.g., 128, 256, "both")
             gabfr (int)          : gabor frame value to start sequences at
                                    (e.g., 0, 1, 2, 3)
             gabk (int or str)    : gabor kappa values to include 
                                    (e.g., 4, 16 or "both")
             gab_ori (int or str) : gabor orientation values to include
-                                   (e.g., 0, 45, 90, 135 or "all")
+                                   (e.g., 0, 45, 90, 135, 180, 225 or "all")
             mouse_ns (str)       : mouse numbers or range 
                                    (e.g., 1, "1,3", "1-3", "all")
             runtype (str)        : runtype ("pilot" or "prod")
             sess_n (str)         : session number range (e.g., "1-1", "all")
-            stimtype (str)       : stimulus to analyse (bricks or gabors)
+            stimtype (str)       : stimulus to analyse (visflow or gabors)
     
     Returns:
         - args (Argument parser): input parser, with the following attributes
                                   modified: 
-                                      bri_dir, bri_size, gabfr, gabk, gab_ori, 
-                                      sess_n, mouse_ns, analyses, seed, 
+                                      visflow_dir, visflow_size, gabfr, gabk, 
+                                      gab_ori, sess_n, mouse_ns, analyses, seed, 
                                       lat_p_val_thr, lat_rel_std
                                   and the following attributes added:
                                       omit_sess, omit_mice, dend
@@ -107,10 +107,10 @@ def reformat_args(args):
     if args.plane == "soma":
         args.dend = "allen"
 
-    [args.bri_dir, args.bri_size, args.gabfr, 
+    [args.visflow_dir, args.visflow_size, args.gabfr, 
         args.gabk, args.gab_ori] = sess_gen_util.get_params(
-            args.stimtype, args.bri_dir, args.bri_size, args.gabfr, args.gabk, 
-            args.gab_ori)
+            args.stimtype, args.visflow_dir, args.visflow_size, args.gabfr, 
+            args.gabk, args.gab_ori)
 
     if args.datatype == "run":
         args.fluor = "n/a"
@@ -118,7 +118,8 @@ def reformat_args(args):
         args.dend = "allen"
 
     args.omit_sess, args.omit_mice = sess_gen_util.all_omit(
-        args.stimtype, args.runtype, args.bri_dir, args.bri_size, args.gabk)
+        args.stimtype, args.runtype, args.visflow_dir, args.visflow_size, 
+        args.gabk)
     
     if "-" in str(args.sess_n):
         vals = str(args.sess_n).split("-")
@@ -180,72 +181,73 @@ def init_param_cont(args):
     Required args:
         - args (Argument parser): parser with the following attributes:
 
-            base (float)            : baseline value to use
-            bri_dir (str or list)   : brick direction values to include
-                                      ("right", "left", ["right", "left"])
-            bri_size (int or list)  : brick size values to include
-                                      (128, 256 or [128, 256])
-            dend (str)              : type of dendrites to use 
-                                      ("allen" or "dend")
-            error (str)             : error statistic parameter 
-                                      ("std" or "sem")
-            fluor (str)             : if "raw", raw ROI traces are used. If 
-                                      "dff", dF/F ROI traces are used.
-            fontdir (str)           : path to directory containing additional 
-                                      fonts
-            gabfr (int)             : gabor frame at which sequences start 
-                                      (0, 1, 2, 3)
-            gabk (int or list)      : gabor kappa values to include 
-                                      (4, 16 or [4, 16])
-            gab_ori (int or list)   : gabor orientation values to include
-                                      ([0, 45, 90, 135])
-            idx_feature (str)       : feature used to calculate index
-                                      ("bysurp", "surplock", "progsurp")
-            idx_op (str)            : type of index to use 
-                                      ("d-prime", "rel_diff", "diff")
-            idx_position (int)      : position to use if using a "prog" feature 
-                                      to calculate index (e.g., 0)
-            incl (str)              : sessions to include ("yes", "no", "all") 
-            keepnans (str)          : if True, ROIs with NaN/Inf values are 
-                                      kept in the analyses.
-            lag_s (num)             : lag for autocorrelation (in sec)
-            lat_method (str)        : latency calculation method 
-                                      (ratio or ttest)
-            lat_not_surp_resp (bool): if False, only surprise responsive ROIs 
-                                      are used for latency analysis
-            lat_p_val_thr (float)   : p-value threshold for ttest latency 
-                                      method
-            lat_std (float)         : standard deviation threshold for ratio 
-                                      latency method
-            line (str)              : "L23", "L5", "any"
-            min_rois (int)          : min number of ROIs
-            n_perms (int)           : nbr of permutations to run
-            n_quants (int)          : number of quantiles
-            ncols (int)             : number of columns
-            no_datetime (bool)      : if True, figures are not saved in a 
-                                      subfolder named based on the date and 
-                                      time.
-            no_scale (bool)         : if True, data is not scaled
-            not_save_fig (bool)     : if True, figures are not saved
-            output (str)            : general directory in which to save output
-            overwrite (bool)        : if False, overwriting existing figures 
-                                      is prevented by adding suffix numbers.
-            pass_fail (str or list) : pass/fail values of interest ("P", "F")
-            p_val (float)           : p-value threshold for significane tests
-            plane (str)             : plane ("soma", "dend", "any")
-            plt_bkend (str)         : mpl backend to use
-            post (num)              : range of frames to include after each 
-                                      reference frame (in s)
-            pre (num)               : range of frames to include before each 
-                                      reference frame (in s)
-            rel_std (float)         : relative st. dev. threshold for ratio 
-                                      latency method
-            runtype (str or list)   : runtype ("pilot" or "prod")
-            sess_n (int)            : session number
-            stats (str)             : statistic parameter ("mean" or "median")
-            stimtype (str)          : stimulus to analyse 
-                                      ("bricks" or "gabors")
-            tails (str or int)      : which tail(s) to test ("hi", "lo", 2)
+            base (float)             : baseline value to use
+            visflow_dir (str or list): visual flow direction values to include
+                                       ("right", "left", ["right", "left"])
+            visflow_size (int or list): visual flow size values to include
+                                       (128, 256 or [128, 256])
+            dend (str)               : type of dendrites to use 
+                                       ("allen" or "dend")
+            error (str)              : error statistic parameter 
+                                       ("std" or "sem")
+            fluor (str)              : if "raw", raw ROI traces are used. If 
+                                       "dff", dF/F ROI traces are used.
+            fontdir (str)            : path to directory containing additional 
+                                       fonts
+            gabfr (int)              : gabor frame at which sequences start 
+                                       (0, 1, 2, 3)
+            gabk (int or list)       : gabor kappa values to include 
+                                       (4, 16 or [4, 16])
+            gab_ori (int or list)    : gabor orientation values to include
+                                       ([0, 45, 90, 135, 180, 225])
+            idx_feature (str)        : feature used to calculate index
+                                       ("by_exp", "unexp_lock", "prog_unexp")
+            idx_op (str)             : type of index to use 
+                                       ("d-prime", "rel_diff", "diff")
+            idx_position (int)       : position to use if using a "prog" feature 
+                                       to calculate index (e.g., 0)
+            incl (str)               : sessions to include ("yes", "no", "all") 
+            keepnans (str)           : if True, ROIs with NaN/Inf values are 
+                                       kept in the analyses.
+            lag_s (num)              : lag for autocorrelation (in sec)
+            lat_method (str)         : latency calculation method 
+                                       (ratio or ttest)
+            lat_not_unexp_resp (bool): if False, only unexpected event 
+                                       responsive ROIs are used for latency 
+                                       analysis
+            lat_p_val_thr (float)    : p-value threshold for ttest latency 
+                                       method
+            lat_std (float)          : standard deviation threshold for ratio 
+                                       latency method
+            line (str)               : "L23", "L5", "any"
+            min_rois (int)           : min number of ROIs
+            n_perms (int)            : nbr of permutations to run
+            n_quants (int)           : number of quantiles
+            ncols (int)              : number of columns
+            no_datetime (bool)       : if True, figures are not saved in a 
+                                       subfolder named based on the date and 
+                                       time.
+            no_scale (bool)          : if True, data is not scaled
+            not_save_fig (bool)      : if True, figures are not saved
+            output (str)             : general directory in which to save output
+            overwrite (bool)         : if False, overwriting existing figures 
+                                       is prevented by adding suffix numbers.
+            pass_fail (str or list)  : pass/fail values of interest ("P", "F")
+            p_val (float)            : p-value threshold for significane tests
+            plane (str)              : plane ("soma", "dend", "any")
+            plt_bkend (str)          : mpl backend to use
+            post (num)               : range of frames to include after each 
+                                        reference frame (in s)
+            pre (num)                : range of frames to include before each 
+                                       reference frame (in s)
+            rel_std (float)          : relative st. dev. threshold for ratio 
+                                       latency method
+            runtype (str or list)    : runtype ("pilot" or "prod")
+            sess_n (int)             : session number
+            stats (str)              : statistic parameter ("mean" or "median")
+            stimtype (str)           : stimulus to analyse 
+                                       ("visflow" or "gabors")
+            tails (str or int)       : which tail(s) to test ("hi", "lo", 2)
 
     Returns:
         - analysis_dict (dict): dictionary of analysis parameters
@@ -254,7 +256,7 @@ def init_param_cont(args):
             ["stimpar"] (StimPar)    : named tuple of stimulus parameters
             ["permpar"] (PermPar)    : named tuple of permutation parameters
             ["basepar"] (BasePar)    : named tuple of baseline parameters
-            ["idxpar"] (IdxPar)      : named tuple of surprise index parameters
+            ["idxpar"] (IdxPar)      : named tuple of unexpected index parameters
             ["latpar"] (LatPar)      : named tuple of latency parameters
             ["figpar"] (dict)        : dictionary containing following 
                                        subdictionaries:
@@ -287,7 +289,7 @@ def init_param_cont(args):
                                          orientation responses
                     ["oridir"] (str)   : subdirectory name for 
                                          orientation/direction analyses
-                    ["surp_qu"] (str)  : subdirectory name for surprise, 
+                    ["unexp_qu"] (str) : subdirectory name for unexpected, 
                                          quantile analyses
                     ["tune_curv"] (str): subdirectory name for tuning curves
                     ["grped"] (str)    : subdirectory name for ROI grps data
@@ -317,8 +319,8 @@ def init_param_cont(args):
     
     # stimulus parameters
     analysis_dict["stimpar"] = sess_ntuple_util.init_stimpar(
-        args.stimtype, args.bri_dir, args.bri_size, args.gabfr, args.gabk, 
-        args.gab_ori, args.pre, args.post)
+        args.stimtype, args.visflow_dir, args.visflow_size, args.gabfr, 
+        args.gabk, args.gab_ori, args.pre, args.post)
 
     # SPECIFIC ANALYSES
     analysis_dict["permpar"] = sess_ntuple_util.init_permpar(
@@ -331,7 +333,7 @@ def init_param_cont(args):
 
     analysis_dict["latpar"] = sess_ntuple_util.init_latpar(
         args.lat_method, args.lat_p_val_thr, args.lat_rel_std, 
-        not(args.lat_not_surp_resp))
+        not(args.lat_not_unexp_resp))
 
     # figure parameters
     analysis_dict["figpar"] = sess_plot_util.init_figpar(
@@ -396,7 +398,7 @@ def init_mouse_sess(mouse_n, all_sess_ns, sesspar, mouse_df, datadir,
                 )
         else:
             sess = sess_gen_util.init_sessions(
-                sessid[0], datadir, mouse_df, sesspar.runtype, fulldict=False, 
+                sessid[0], datadir, mouse_df, sesspar.runtype, full_table=False, 
                 fluor=fluor, dend=dend, omit=roi, roi=roi, run=run, 
                 pupil=pupil, temp_log="warning")
             if len(sess) == 0:
@@ -503,50 +505,50 @@ def get_analysis_fcts():
 
     fct_dict = dict()
 
-    # 0. Plots the difference between surprise and regular across sessions
-    fct_dict["s"] = [acr_sess_analys.run_surp_area_diff, ["roi", "run"]]
+    # 0. Plots the difference between unexpected and expected traces across sessions
+    fct_dict["s"] = [acr_sess_analys.run_unexp_area_diff, ["roi", "run"]]
 
-    # 1. Plots the difference between surprise and regular locked to surprise
-    # and v.v. across sessions
+    # 1. Plots the difference between unexpected and expected locked to unexpected
+    # onset and v.v. across sessions
     fct_dict["l"] = [acr_sess_analys.run_lock_area_diff, ["roi", "run"]]
 
     # 2. Plots the difference between stimulus and grayscreen, locked to onset 
     # and v.v., across sessions
     fct_dict["a"] = [acr_sess_analys.run_stim_grayscr_diff, ["roi", "run"]]
 
-    # 3. Plots the surprise and regular traces across sessions
-    fct_dict["t"] = [acr_sess_analys.run_surp_traces, ["roi", "run"]]
+    # 3. Plots the unexpected and expected traces across sessions
+    fct_dict["t"] = [acr_sess_analys.run_unexp_traces, ["roi", "run"]]
 
-    # 4. Plots the surprise and regular traces locked to surprise across 
+    # 4. Plots the unexpected and expected traces locked to unexpected across 
     # sessions
     fct_dict["r"] = [acr_sess_analys.run_lock_traces, ["roi", "run"]]
 
     # 5. Plots the stimulus onset traces across sessions
     fct_dict["b"] = [acr_sess_analys.run_stim_grayscr, ["roi", "run"]]
 
-    # 6. Plots surprise indices across sessions
-    fct_dict["i"] = [acr_sess_analys.run_surp_idx, ["roi", "run"]]
+    # 6. Plots unexpected event indices across sessions
+    fct_dict["i"] = [acr_sess_analys.run_unexp_idx, ["roi", "run"]]
 
-    # 7. Plots surprise indices across sessions with common orientations
-    fct_dict["m"] = [acr_sess_analys.run_surp_idx_common_oris, ["roi", "run"]]
+    # 7. Plots unexpected event indices across sessions with common orientations
+    fct_dict["m"] = [acr_sess_analys.run_unexp_idx_common_oris, ["roi", "run"]]
 
     # 8. Plots direction indices across sessions
     fct_dict["d"] = [acr_sess_analys.run_direction_idx, ["roi", "run"]]
 
-    # 9. Plot surprice index colormaps across stimulus parameters
-    fct_dict["c"] = [acr_sess_analys.run_surp_idx_cm, ["roi", "run"]]
+    # 9. Plot unexpected event index colormaps across stimulus parameters
+    fct_dict["c"] = [acr_sess_analys.run_unexp_idx_cm, ["roi", "run"]]
 
-    # 10. Plots progression of surprise or regular responses within and 
+    # 10. Plots progression of unexpected or expected responses within and 
     # across sessions
     fct_dict["g"] = [acr_sess_analys.run_prog, ["roi", "run"]]
 
-    # 11. Plots surprise or regular position responses across sessions
+    # 11. Plots unexpected or expected position responses across sessions
     fct_dict["o"] = [acr_sess_analys.run_position, ["roi", "run"]]
 
-    # 12. Plots the surprise latencies across sessions
-    fct_dict["u"] = [acr_sess_analys.run_surp_latency, ["roi", "run"]]
+    # 12. Plots the unexpected response latencies across sessions
+    fct_dict["u"] = [acr_sess_analys.run_unexp_latency, ["roi", "run"]]
 
-    # 13. Plots proportion of ROIs responses to both surprise types
+    # 13. Plots proportion of ROIs responses to both unexpected response types
     fct_dict["p"] = [acr_sess_analys.run_resp_prop, ["roi"]]
 
     return fct_dict
@@ -693,8 +695,8 @@ def parse_args():
     parser.add_argument("--min_rois", default=5, type=int, 
         help="min rois criterion")
         # stimulus parameters
-    parser.add_argument("--bri_dir", default="both", 
-        help="brick dir (right, left, or both)") 
+    parser.add_argument("--visflow_dir", default="both", 
+        help="visual flow dir (right, left, or both)") 
     parser.add_argument("--gabfr", default=3, type=int, 
         help="gabor frame at which to start sequences")  
     parser.add_argument("--post", default=0.45, type=float, 
@@ -702,8 +704,8 @@ def parse_args():
     parser.add_argument("--stimtype", default="gabors", 
         help="stimulus to analyse")   
         # roi group parameters
-    parser.add_argument("--plot_vals", default="surp", 
-        help="plot both (with op applied), surp or reg")
+    parser.add_argument("--plot_vals", default="unexp", 
+        help="plot both (with op applied), unexp or exp")
     
     # generally fixed 
         # analysis parameters
@@ -725,13 +727,14 @@ def parse_args():
     parser.add_argument("--incl", default="any",
         help="include only 'yes', 'no' or 'any'")
         # stimulus parameters
-    parser.add_argument("--bri_size", default=128, 
-        help="brick size (128, 256, or both)")
+    parser.add_argument("--visflow_size", default=128, 
+        help="visual flow size (128, 256, or both)")
     parser.add_argument("--gabk", default=16,
         help="kappa value (4, 16, or both)")    
     parser.add_argument("--gab_ori", default="all",
-        help="gabor orientation values (0, 45, 90, 135, all)")    
-    parser.add_argument("--pre", default=0, type=float, help="sec before frame")
+        help="gabor orientation values (0, 45, 90, 135, 180, 225, all)")    
+    parser.add_argument("--pre", default=0, type=float, 
+    help="sec before frame")
         # permutation parameters
     parser.add_argument("--n_perms", default=10000, type=int, 
         help="nbr of permutations")
@@ -742,16 +745,16 @@ def parse_args():
 
         # baseline parameter
     parser.add_argument("--base", default=0, type=float,
-        help="baseline for surprise difference calculations.")
+        help="baseline for unexpected difference calculations.")
 
          # index parameters 
-    parser.add_argument("--idx_feature", default="bysurp",
-        help="type of feature to use as index ('bysurp' or 'surplock' "
-            "for either stimulus or 'progsurp'.")
+    parser.add_argument("--idx_feature", default="by_exp",
+        help="type of feature to use as index ('by_exp' or 'unexp_lock' "
+            "for either stimulus or 'prog_unexp'.")
     parser.add_argument("--idx_op", default="d-prime",
         help="type of index to use ('d-prime', 'diff', 'rel_diff'.")
     parser.add_argument("--idx_position", default=0,
-        help="if using a prog feature, position of surp/reg to use in "
+        help="if using a prog feature, position of unexp/exp to use in "
             "index.")
 
         # latency parameters
@@ -761,8 +764,8 @@ def parse_args():
         help="p-value threshold for ttest method")
     parser.add_argument("--lat_rel_std", default="0.5", type=float,
         help="relative st. dev. threshold for ratio method")
-    parser.add_argument("--lat_not_surp_resp", action="store_true", 
-         help="don't use only surprise responsive ROIs")
+    parser.add_argument("--lat_not_unexp_resp", action="store_true", 
+         help="don't use only unexpected responsive ROIs")
 
         # figure parameters
     parser.add_argument("--ncols", default=4, help="number of columns")

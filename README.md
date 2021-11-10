@@ -13,7 +13,7 @@ file to create a conda environment. For example, if using Ubuntu or Mac OS, open
 
 1. `conda env create -f osca.yml`  
 2. `source activate osca`  
-3. `pip install pandas==1.1.5` # ignore the warning about a version conflict with the `allensdk` package.
+3. `pip install pandas==1.1.5 pynwb==1.4.0` # ignore the warnings about a version conflicts with the `allensdk` package.
 
 The code is written in `Python 3`. 
 

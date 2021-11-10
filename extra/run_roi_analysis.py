@@ -40,11 +40,11 @@ logger = logging.getLogger(__name__)
 
 ANALYSIS_DESCR = {
     "f": "full ROI traces",
-    "t": "ROI traces by session quantile, split by surprise and regular",
-    "l": "ROI traces by session quantile, locked to surprise or regular onset",
-    "m": "magnitude of ROI differences between surprise and regular",
+    "t": "ROI traces by session quantile, split by unexpected and expected",
+    "l": "ROI traces by session quantile, locked to unexpected or expected onset",
+    "m": "magnitude of ROI differences between unexpected and expected",
     "a": "ROI autocorrelation",
-    "g": "ROIs grouped by change in surprise sensitivity in session",
+    "g": "ROIs grouped by change in unexpected sensitivity in session",
     "o": "orientation or direction-locked response colormaps",
     "c": "ROI tuning curves for Gabor orientations",
     "p": "ROI responses by Gabor positions and mean orientation ",
@@ -73,26 +73,26 @@ def reformat_args(args):
 
     Required args:
         - args (Argument parser): parser with the following attributes: 
-            bri_dir (str)        : brick direction values to include
+            visflow_dir (str)    : visual flow direction values to include
                                    (e.g., "right", "left" or "both")
-            bri_size (int or str): brick size values to include
+            visflow_size (int or str): visual flow size values to include
                                    (e.g., 128, 256, "both")
             gabfr (int)          : gabor frame value to start sequences at
                                    (e.g., 0, 1, 2, 3)
             gabk (int or str)    : gabor kappa values to include 
                                    (e.g., 4, 16 or "both")
             gab_ori (int or str) : gabor orientation values to include
-                                   (e.g., 0, 45, 90, 135 or "all")
+                                   (e.g., 0, 45, 90, 135, 180, 225 or "all")
             runtype (str)        : runtype ("pilot" or "prod")
-            stimtype (str)       : stimulus to analyse (bricks or gabors)
+            stimtype (str)       : stimulus to analyse (visflow or gabors)
             grps (str)           : set or sets of groups to plot, 
                                    (e.g., "all change no_change reduc incr").
     
     Returns:
         - args (Argument parser): input parser, with the following attributes
                                   modified: 
-                                      bri_dir, bri_size, gabfr, gabk, gab_ori, 
-                                      grps, analyses, seed
+                                      visflow_dir, visflow_size, gabfr, gabk, 
+                                      gab_ori, grps, analyses, seed
                                   and the following attributes added:
                                       omit_sess, omit_mice, dend
     """
@@ -101,15 +101,16 @@ def reformat_args(args):
 
     if args.plane == "soma": args.dend = "allen"
 
-    [args.bri_dir, args.bri_size, args.gabfr, 
+    [args.visflow_dir, args.visflow_size, args.gabfr, 
     args.gabk, args.gab_ori] = sess_gen_util.get_params(
-        args.stimtype, args.bri_dir, args.bri_size, args.gabfr, args.gabk, 
-        args.gab_ori)
+        args.stimtype, args.visflow_dir, args.visflow_size, args.gabfr, 
+        args.gabk, args.gab_ori)
 
     args.grps = gen_util.str_to_list(args.grps)
 
     args.omit_sess, args.omit_mice = sess_gen_util.all_omit(
-        args.stimtype, args.runtype, args.bri_dir, args.bri_size, args.gabk)
+        args.stimtype, args.runtype, args.visflow_dir, args.visflow_size, 
+        args.gabk)
 
     # chose a seed if none is provided (i.e., args.seed=-1), but seed later
     args.seed = rand_util.seed_all(
@@ -144,9 +145,9 @@ def init_param_cont(args):
     Required args:
         - args (Argument parser): parser with the following attributes:
 
-            bri_dir (str or list)  : brick direction values to include
+            visflow_dir (str or list): visual flow direction values to include
                                      ("right", "left", ["right", "left"])
-            bri_size (int or list) : brick size values to include
+            visflow_size (int or list): visual flow size values to include
                                      (128, 256 or [128, 256])
             closest (bool)         : if False, only exact session number is 
                                      retained, otherwise the closest.
@@ -161,7 +162,7 @@ def init_param_cont(args):
             gabk (int or list)     : gabor kappa values to include 
                                      (4, 16 or [4, 16])
             gab_ori (int or list)  : gabor orientation values to include
-                                     ([0, 45, 90, 135])
+                                     ([0, 45, 90, 135, 180, 225])
             grps (str or list)     : set or sets of groups to return, 
                                      ("all", "change", "no_change", "reduc", 
                                      "incr".)
@@ -174,7 +175,7 @@ def init_param_cont(args):
             n_perms (int)          : nbr of permutations to run
             n_quants (int)         : number of quantiles
             ncols (int)            : number of columns
-            no_add_reg (bool)      : if True, the group of ROIs showing no 
+            no_add_exp (bool)      : if True, the group of ROIs showing no 
                                      significance in either is not added to   
                                      the groups returned
             no_datetime (bool)     : if True, figures are not saved in a 
@@ -188,7 +189,7 @@ def init_param_cont(args):
             overwrite (bool)       : if False, overwriting existing figures 
                                      is prevented by adding suffix numbers.
             pass_fail (str or list): pass/fail values of interest ("P", "F")
-            plot_vals (str)        : values to plot ("surp", "reg", "both")
+            plot_vals (str)        : values to plot ("unexp", "exp", "both")
             plane (str)            : plane ("soma", "dend", "any")
             plt_bkend (str)        : mpl backend to use
             post (num)             : range of frames to include after each 
@@ -199,14 +200,14 @@ def init_param_cont(args):
             scale (bool)           : whether to scale ROI data
             sess_n (int)           : session number
             stats (str)            : statistic parameter ("mean" or "median")
-            stimtype (str)         : stimulus to analyse ("bricks" or "gabors")
+            stimtype (str)         : stimulus to analyse ("visflow" or "gabors")
             tails (str or int)     : which tail(s) to test ("hi", "lo", 2)
             tc_gabfr (int or str)  : gabor frame at which sequences start 
                                      (0, 1, 2, 3) for tuning curve analysis
                                      (x_x, interpreted as 2 gabfrs)
-            tc_grp2 (str)          : second group: either surp, reg or rand 
-                                     (random subsample of reg, the size of 
-                                     surp)
+            tc_grp2 (str)          : second group: either unexp, exp or rand 
+                                     (random subsample of exp, the size of 
+                                     unexp)
             tc_post (num)          : range of frames to include after each 
                                      reference frame (in s) for tuning curve 
                                      analysis
@@ -258,7 +259,7 @@ def init_param_cont(args):
                                          orientation responses
                     ["oridir"] (str)   : subdirectory name for 
                                          orientation/direction analyses
-                    ["surp_qu"] (str)  : subdirectory name for surprise, 
+                    ["unexp_qu"] (str)  : subdirectory name for unexpected, 
                                          quantile analyses
                     ["tune_curv"] (str): subdirectory name for tuning curves
                     ["grped"] (str)    : subdirectory name for ROI grps data
@@ -288,7 +289,7 @@ def init_param_cont(args):
     
     # stimulus parameters
     analysis_dict["stimpar"] = sess_ntuple_util.init_stimpar(
-        args.stimtype, args.bri_dir, args.bri_size, args.gabfr, args.gabk, 
+        args.stimtype, args.visflow_dir, args.visflow_size, args.gabfr, args.gabk, 
         args.gab_ori, args.pre, args.post)
 
     # SPECIFIC ANALYSES    
@@ -306,7 +307,7 @@ def init_param_cont(args):
 
     # roi grp parameters
     analysis_dict["roigrppar"] = sess_ntuple_util.init_roigrppar(
-        args.grps, not(args.no_add_reg), args.op, args.plot_vals)
+        args.grps, not(args.no_add_exp), args.op, args.plot_vals)
 
     # tuning curve parameters
     analysis_dict["tcurvpar"] = sess_ntuple_util.init_tcurvpar(
@@ -349,14 +350,14 @@ def init_sessions(sessids, datadir, mouse_df, analyspar, runtype="prod",
     """
 
     args_dict = {
-        "datadir" : datadir,
-        "mouse_df": mouse_df,
-        "runtype" : runtype,
-        "fulldict": False,
-        "fluor"   : analyspar.fluor,
-        "dend"    : analyspar.dend,
-        "omit"    : True,
-        "temp_log": "warning",
+        "datadir"   : datadir,
+        "mouse_df"  : mouse_df,
+        "runtype"   : runtype,
+        "full_table": False,
+        "fluor"     : analyspar.fluor,
+        "dend"      : analyspar.dend,
+        "omit"      : True,
+        "temp_log"  : "warning",
     }
 
     sessions = gen_util.parallel_wrap(
@@ -470,16 +471,16 @@ def get_analysis_fcts():
     # 0. Plots the full traces for each session
     fct_dict["f"] = [gen_analys.run_full_traces, False]
 
-    # 1. Analyses and plots average traces by quantile x surprise for each 
+    # 1. Analyses and plots average traces by quantile x unexpected for each 
     # session
-    fct_dict["t"] = [gen_analys.run_traces_by_qu_surp_sess, False]
+    fct_dict["t"] = [gen_analys.run_traces_by_qu_unexp_sess, False]
 
-    # 2. Analyses and plots average traces locked to surprise by quantile x 
-    # surprise for each session 
+    # 2. Analyses and plots average traces locked to unexpected by quantile x 
+    # unexpected for each session 
     fct_dict["l"] = [gen_analys.run_traces_by_qu_lock_sess, False]
 
     # 3. Analyses and plots magnitude of change in dF/F area from first to last 
-    # quantile of surprise vs no surprise sequences, for each session
+    # quantile of unexpected vs expected sequences, for each session
     fct_dict["m"] = [gen_analys.run_mag_change, False]
 
     # 4. Analyses and plots autocorrelation
@@ -682,8 +683,8 @@ def parse_args():
     parser.add_argument("--min_rois", default=5, type=int, 
         help="min rois criterion")
         # stimulus parameters
-    parser.add_argument("--bri_dir", default="right", 
-        help="brick dir (right, left, or both)") 
+    parser.add_argument("--visflow_dir", default="right", 
+        help="visual flow dir (right, left, or both)") 
     parser.add_argument("--gabfr", default=3, type=int, 
         help="gabor frame at which to start sequences")  
     parser.add_argument("--post", default=1.5, type=float, 
@@ -691,8 +692,8 @@ def parse_args():
     parser.add_argument("--stimtype", default="gabors", 
         help="stimulus to analyse")   
         # roi group parameters
-    parser.add_argument("--plot_vals", default="surp", 
-        help="plot both (with op applied), surp or reg")
+    parser.add_argument("--plot_vals", default="unexp", 
+        help="plot both (with op applied), unexp or exp")
     
     # generally fixed 
         # analysis parameters
@@ -715,12 +716,12 @@ def parse_args():
     parser.add_argument("--incl", default="any",
         help="include only 'yes', 'no' or 'any'")
         # stimulus parameters
-    parser.add_argument("--bri_size", default=128, 
-        help="brick size (128, 256, or both)")
+    parser.add_argument("--visflow_size", default=128, 
+        help="visual flow size (128, 256, or both)")
     parser.add_argument("--gabk", default=16,
         help="kappa value (4, 16, or both)")    
     parser.add_argument("--gab_ori", default="all",
-        help="gabor orientation values (0, 45, 90, 135, all)")    
+        help="gabor orientation values (0, 45, 90, 135, 180, 225, all)")    
     parser.add_argument("--pre", default=0, type=float, help="sec before frame")
         # permutation parameters
     parser.add_argument("--n_perms", default=10000, type=int, 
@@ -737,20 +738,20 @@ def parse_args():
         help="if True, autocorrelation stats are taken across ROIs")
         # roi grp parameters
     parser.add_argument("--op", default="diff", 
-        help="calculate diff or ratio of surp to nonsurp")
+        help="calculate diff or ratio of unexp to exp")
     parser.add_argument("--grps", default="reduc incr no_change", 
         help="plot all ROI grps or grps with change or no_change")
-    parser.add_argument("--no_add_reg", action="store_true",
-        help="do not add reg_reg to ROI grp plots")
+    parser.add_argument("--no_add_exp", action="store_true",
+        help="do not add exp_exp to ROI grp plots")
         # tuning curve parameters
     parser.add_argument("--tc_gabfr", default=3, 
         help="gabor frame at which to start sequences (if x_x, interpreted as "
             "2 gabfrs)")  
     parser.add_argument("--tc_post", default=0.6, type=float, 
         help="sec after reference frames")
-    parser.add_argument("--tc_grp2", default="surp", 
-        help=("second group: either surp, reg or rand (random subsample of "
-            "reg, the size of surp)"))
+    parser.add_argument("--tc_grp2", default="unexp", 
+        help=("second group: either unexp, exp or rand (random subsample of "
+            "exp, the size of unexp)"))
     parser.add_argument("--tc_test", action="store_true",
         help="tests code on a small number of gabors and ROIs")
     parser.add_argument("--tc_vm_estim", action="store_true",

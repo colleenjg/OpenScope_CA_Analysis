@@ -729,14 +729,14 @@ def get_sess_integ_resp_dict(sess, analyspar, stimpar):
             raise ValueError(
                 f"Expected stimpar.pre and post to be 0 and 0.3, respectively."
                 )
-    elif stimpar.stimtype == "bricks":
+    elif stimpar.stimtype == "visflow":
         if stimpar.pre != 0 or stimpar.post != 1:
             raise ValueError(
                 f"Expected stimpar.pre and post to be 0 and 1, respectively."
                 )
     else:
         gen_util.accepted_values_error(
-            "stimpar.stimtype", stimpar.stimtype, ["gabors", "bricks"]
+            "stimpar.stimtype", stimpar.stimtype, ["gabors", "visflow"]
             )
 
     if analyspar.scale:
@@ -747,7 +747,7 @@ def get_sess_integ_resp_dict(sess, analyspar, stimpar):
     data_dict = {}
 
     # retrieve integrated sequences for each frame, and return as dictionary
-    for e, exp in enumerate(["exp", "unexp"]):
+    for e, unexp in enumerate(["exp", "unexp"]):
         if stimpar.stimtype == "gabors":
             cycle_gabfr = gabfrs[e]
             if e == 0:
@@ -756,22 +756,27 @@ def get_sess_integ_resp_dict(sess, analyspar, stimpar):
             cycle_gabfr = [""] # dummy variable
 
         for g, gabfr in enumerate(cycle_gabfr):
-            data_key = f"{exp}_{gabfr}" if stimpar.stimtype == "gabors" else exp
+            if stimpar.stimtype == "gabors":
+                data_key = f"{unexp}_{gabfr}" 
+            else:
+                data_key = unexp
+            
             if cycle_gabfr[g] == "G": # change it for retrieving segments
                 gabfr = 3 
             
             refs = stim.get_segs_by_criteria(
                 gabfr=gabfr, gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
-                bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, surp=e, 
-                remconsec=False, by="seg")
+                visflow_dir=stimpar.visflow_dir, 
+                visflow_size=stimpar.visflow_size, unexp=e, remconsec=False, 
+                by="seg")
             
             # adjust for G frames
             ref_type = "segs"
             if cycle_gabfr[g] == "G": # check unchanged value
                 ref_type = "twop_frs"
-                refs = stim.get_twop_fr_by_seg(
-                    refs, first=False, last=True, ch_fl=[0, 0.6]
-                    )["last_twop_fr"].to_numpy() # last frames (excl)
+                refs = stim.get_fr_by_seg(
+                    refs, start=False, stop=True, ch_fl=[0, 0.6], fr_type="twop"
+                    )["stop_frame_twop"].to_numpy() # last frames (excl)
                 if len(refs) == 0:
                     raise RuntimeError(
                         "No frames found given flank requirements."

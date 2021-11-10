@@ -93,9 +93,9 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
                     f"{stim.stimtype.capitalize()}\n{pars_str}"))
             
         if datatype == "roi":
-            if sess.only_matched_rois != analyspar.tracked:
+            if sess.only_tracked_rois != analyspar.tracked:
                 raise RuntimeError(
-                    "sess.only_matched_rois should match analyspar.tracked."
+                    "sess.only_tracked_rois should match analyspar.tracked."
                     )
             nanpol = None
             if not analyspar.remnans:
@@ -143,14 +143,14 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
     
 
 #############################################
-def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar, 
+def run_traces_by_qu_unexp_sess(sessions, analysis, analyspar, sesspar, 
                                stimpar, quantpar, figpar, datatype="roi"):
     """
-    run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar, 
+    run_traces_by_qu_unexp_sess(sessions, analysis, analyspar, sesspar, 
                                stimpar, quantpar, figpar)
 
-    Retrieves trace statistics by session x surp val x quantile and
-    plots traces across ROIs by quantile/surprise with each session in a 
+    Retrieves trace statistics by session x unexp val x quantile and
+    plots traces across ROIs by quantile/unexpected with each session in a 
     separate subplot.
     
     Also runs analysis for one quantile (full data).
@@ -172,14 +172,14 @@ def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(
-        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 
-        stimpar.bri_size, stimpar.gabk, "print")
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.visflow_dir, 
+        stimpar.visflow_size, stimpar.gabk, "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar.dend, sesspar.plane, datatype, "print")
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    logger.info(f"Analysing and plotting surprise vs non surprise {datastr} "
+    logger.info(f"Analysing and plotting unexpected vs expected {datastr} "
         f"traces by quantile ({quantpar.n_quants}) \n({sessstr_pr}"
         f"{dendstr_pr}).", extra={"spacing": "\n"})
     
@@ -194,10 +194,10 @@ def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar,
         
     for quantpar in [quantpar_one, quantpar_mult]:
         logger.info(f"{quantpar.n_quants} quant", extra={"spacing": "\n"})
-        # get the stats (all) separating by session, surprise and quantiles    
+        # get the stats (all) separating by session, unexpected and quantiles    
         trace_info = quant_analys.trace_stats_by_qu_sess(sessions, analyspar, 
             stimpar, quantpar.n_quants, quantpar.qu_idx, byroi=False, 
-            bysurp=True, datatype=datatype)
+            by_exp=True, datatype=datatype)
         
         extrapar = {"analysis": analysis,
                     "datatype": datatype,
@@ -223,7 +223,7 @@ def run_traces_by_qu_surp_sess(sessions, analysis, analyspar, sesspar,
                 "trace_stats": trace_stats
                 }
 
-        fulldir, savename = gen_plots.plot_traces_by_qu_surp_sess(
+        fulldir, savename = gen_plots.plot_traces_by_qu_unexp_sess(
             figpar=figpar, **info)
         file_util.saveinfo(info, savename, fulldir, "json")
 
@@ -236,10 +236,10 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
                                stimpar, quantpar, figpar)
 
     Retrieves trace statistics by session x quantile at the transition of
-    regular to surprise sequences (or v.v.) and plots traces across ROIs by 
+    expected to unexpected sequences (or v.v.) and plots traces across ROIs by 
     quantile with each session in a separate subplot.
     
-    Also runs analysis for one quantile (full data) with different surprise 
+    Also runs analysis for one quantile (full data) with different unexpected 
     lengths grouped separated 
     
     Saves results and parameters relevant to analysis in a dictionary.
@@ -261,15 +261,15 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(
-        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 
-        stimpar.bri_size, stimpar.gabk, "print")
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.visflow_dir, 
+        stimpar.visflow_size, stimpar.gabk, "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar.dend, sesspar.plane, datatype, "print")
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    logger.info(f"Analysing and plotting surprise vs non surprise {datastr} "
-        f"traces locked to surprise onset by quantile ({quantpar.n_quants}) "
+    logger.info(f"Analysing and plotting unexpected vs expected {datastr} "
+        f"traces locked to unexpected onset by quantile ({quantpar.n_quants}) "
         f"\n({sessstr_pr}{dendstr_pr}).", extra={"spacing": "\n"})
 
     seed = rand_util.seed_all(seed, "cpu", log_seed=False)
@@ -279,13 +279,13 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
     n_quants      = quantpar.n_quants
     quantpar_mult = sess_ntuple_util.init_quantpar(n_quants, "all")
 
-    if stimpar.stimtype == "bricks":
+    if stimpar.stimtype == "visflow":
         pre_post = [2.0, 6.0]
     elif stimpar.stimtype == "gabors":
         pre_post = [2.0, 8.0]
     else:
         gen_util.accepted_values_error(
-            "stimpar.stimtype", stimpar.stimtype, ["bricks", "gabors"])
+            "stimpar.stimtype", stimpar.stimtype, ["visflow", "gabors"])
     logger.warning("Setting pre to {}s and post to {}s.".format(*pre_post))
     
     stimpar = sess_ntuple_util.get_modif_ntuple(
@@ -298,16 +298,16 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
     for baseline in [None, stimpar.pre]:
         basestr_pr = sess_str_util.base_par_str(baseline, "print")
         for quantpar in [quantpar_one, quantpar_mult]:
-            locks = ["surp", "reg"]
+            locks = ["unexp", "exp"]
             if quantpar.n_quants == 1:
-                locks.append("surp_split")
+                locks.append("unexp_split")
             # get the stats (all) separating by session and quantiles
             for lock in locks:
                 logger.info(
                     f"{quantpar.n_quants} quant, {lock} lock{basestr_pr}", 
                     extra={"spacing": "\n"})
-                if lock == "surp_split":
-                    trace_info = quant_analys.trace_stats_by_surp_len_sess(
+                if lock == "unexp_split":
+                    trace_info = quant_analys.trace_stats_by_exp_len_sess(
                         sessions, analyspar, stimpar, quantpar.n_quants, 
                         quantpar.qu_idx, byroi=False, nan_empty=True, 
                         baseline=baseline, datatype=datatype)
@@ -317,10 +317,10 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
                         quantpar.qu_idx, byroi=False, lock=lock, nan_empty=True, 
                         baseline=baseline, datatype=datatype)
 
-                # for comparison, locking to middle of regular sample (1 quant)
-                reg_samp = quant_analys.trace_stats_by_qu_sess(
+                # for comparison, locking to middle of expected sample (1 quant)
+                exp_samp = quant_analys.trace_stats_by_qu_sess(
                     sessions, analyspar, stimpar, quantpar_one.n_quants, 
-                    quantpar_one.qu_idx, byroi=False, lock="regsamp", 
+                    quantpar_one.qu_idx, byroi=False, lock="exp_samp", 
                     nan_empty=True, baseline=baseline, datatype=datatype)
 
                 extrapar = {"analysis": analysis,
@@ -330,18 +330,18 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
 
                 xrans = [xran.tolist() for xran in trace_info[0]]
                 all_stats = [sessst.tolist() for sessst in trace_info[1]]
-                reg_stats = [regst.tolist() for regst in reg_samp[1]]
+                exp_stats = [expst.tolist() for expst in exp_samp[1]]
                 trace_stats = {"xrans"     : xrans,
                                "all_stats" : all_stats,
                                "all_counts": trace_info[2],
                                "lock"      : lock,
                                "baseline"  : baseline,
-                               "reg_stats" : reg_stats,
-                               "reg_counts": reg_samp[2]
+                               "exp_stats" : exp_stats,
+                               "exp_counts": exp_samp[2]
                                }
 
-                if lock == "surp_split":
-                    trace_stats["surp_lens"] = trace_info[3]
+                if lock == "unexp_split":
+                    trace_stats["unexp_lens"] = trace_info[3]
 
                 sess_info = sess_gen_util.get_sess_info(
                     sessions, analyspar.fluor, incl_roi=(datatype=="roi"), 
@@ -369,7 +369,7 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
                    permpar, quantpar, figpar)
 
     Calculates and plots the magnitude of change in activity of ROIs between 
-    the first and last quantile for non surprise vs surprise sequences.
+    the first and last quantile for expected vs unexpected sequences.
     Saves results and parameters relevant to analysis in a dictionary.
 
     Required args:
@@ -389,8 +389,8 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(
-        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir,
-        stimpar.bri_size, stimpar.gabk, "print")
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.visflow_dir,
+        stimpar.visflow_size, stimpar.gabk, "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar.dend, sesspar.plane, datatype, "print")
   
@@ -405,10 +405,10 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
             permpar, "multcomp", len(sessions)
             )
 
-    # get full data: session x surp x quants of interest x [ROI x seq]
+    # get full data: session x unexp x quants of interest x [ROI x seq]
     integ_info = quant_analys.trace_stats_by_qu_sess(
         sessions, analyspar, stimpar, quantpar.n_quants, quantpar.qu_idx, 
-        bysurp=True, integ=True, ret_arr=True, datatype=datatype)
+        by_exp=True, integ=True, ret_arr=True, datatype=datatype)
     all_counts = integ_info[-2]
     qu_data = integ_info[-1]
 
@@ -425,7 +425,7 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
     mags = quant_analys.qu_mags(
         qu_data, permpar, mouse_ns, lines, analyspar.stats, analyspar.error, 
-        nanpol=nanpol, op_qu="diff", op_surp="diff")
+        nanpol=nanpol, op_qu="diff", op_unexp="diff")
 
     # convert mags items to list
     mags = copy.deepcopy(mags)
@@ -482,8 +482,8 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(
-        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir,
-        stimpar.bri_size, stimpar.gabk, "print")
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.visflow_dir,
+        stimpar.visflow_size, stimpar.gabk, "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar.dend, sesspar.plane, datatype, "print")
   
@@ -495,13 +495,13 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
     xrans = []
     stats = []
     for sess in sessions:
-        if datatype == "roi" and (sess.only_matched_rois != analyspar.tracked):
+        if datatype == "roi" and (sess.only_tracked_rois != analyspar.tracked):
             raise RuntimeError(
-                "sess.only_matched_rois should match analyspar.tracked."
+                "sess.only_tracked_rois should match analyspar.tracked."
                 )
         stim = sess.get_stim(stimpar.stimtype)
         all_segs = stim.get_segs_by_criteria(
-            bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, 
+            visflow_dir=stimpar.visflow_dir, visflow_size=stimpar.visflow_size, 
             gabk=stimpar.gabk, by="block")
         sess_traces = []
         for segs in all_segs:
@@ -513,7 +513,9 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
                 raise NotImplementedError("Segments used for autocorrelation "
                     "must be contiguous within blocks.")
             if datatype == "roi":
-                frame_edges = stim.get_twop_fr_by_seg([min(segs), max(segs)])
+                frame_edges = stim.get_fr_by_seg(
+                    [min(segs), max(segs)], fr_type="twop"
+                    )
                 fr = list(range(min(frame_edges[0]), max(frame_edges[1])+1))
                 traces = gen_util.reshape_df_data(
                     sess.get_roi_traces(fr, fluor=analyspar.fluor, 
@@ -524,7 +526,9 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
                 if autocorrpar.byitem != False:
                     raise ValueError("autocorrpar.byitem must be False for "
                         "running data.")
-                frame_edges = stim.get_stim_fr_by_seg([min(segs), max(segs)])
+                frame_edges = stim.get_fr_by_seg(
+                    [min(segs), max(segs)], fr_type="stim"
+                    )
                 fr = list(range(min(frame_edges[0]), max(frame_edges[1])+1))
                 
                 traces = sess.get_run_velocity_by_fr(fr, fr_type="stim", 
@@ -589,8 +593,8 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
     run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar, 
                             stimpar, quantpar, figpar)
 
-    Retrieves trace statistics by session x surp val and calculates 
-    correlations across sessions per surp val.
+    Retrieves trace statistics by session x unexp val and calculates 
+    correlations across sessions per unexp val.
     
     Currently only logs results to the console. Does NOT save results and 
     parameters relevant to analysis in a dictionary.
@@ -608,8 +612,8 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(
-        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 
-        stimpar.bri_size, stimpar.gabk,"print")
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.visflow_dir, 
+        stimpar.visflow_size, stimpar.gabk,"print")
     # dendstr_pr = sess_str_util.dend_par_str(
     # analyspar.dend, sesspar.plane, datatype, "print")
        
@@ -618,8 +622,8 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
     if sesspar.plane in ["any", "all"] and sesspar.runtype == "pilot":
         logger.warning("Planes may not match between sessions for a mouse!")
 
-    logger.info("Analysing and plotting correlations between surprise vs non "
-        f"surprise {datastr} traces between sessions ({sessstr_pr}).", 
+    logger.info("Analysing and plotting correlations between unexpected vs "
+        f"expected {datastr} traces between sessions ({sessstr_pr}).", 
         extra={"spacing": "\n"})
 
     figpar = copy.deepcopy(figpar)
@@ -632,10 +636,10 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
         logger.warning("Temporarily lowered log level for correlation "
             "analysis results.")
 
-    surps = ["reg", "surp"]
+    unexps = ["exp", "unexp"]
 
-    # correlate average traces between sessions for each mouse and each surprise
-    # value   
+    # correlate average traces between sessions for each mouse and each 
+    # unexpected value   
     all_counts = []
     all_me_tr = []
     all_corrs = []
@@ -644,21 +648,21 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
         logger.info(f"Mouse {sess_grp[0].mouse_n}, sess {sess_grp[0].sess_n} "
             f"vs {sess_grp[1].sess_n} corr:")
         trace_info = quant_analys.trace_stats_by_qu_sess(sess_grp, analyspar, 
-            stimpar, 1, [0], byroi=False, bysurp=True, datatype=datatype)
+            stimpar, 1, [0], byroi=False, by_exp=True, datatype=datatype)
         # remove quant dim
         grp_stats = np.asarray(trace_info[1]).squeeze(2) 
         all_counts.append([[qu_c[0] for qu_c in c] for c in trace_info[2]])
-        # get mean/median per grp (sess x surp_val x frame)
+        # get mean/median per grp (sess x unexp_val x frame)
         grp_me = grp_stats[:, :, 0]
         grp_corrs = []
         # collect correlations
         corrs = [st.pearsonr(grp_me[0, s], grp_me[1, s])
-            for s in range(len(surps))]
+            for s in range(len(unexps))]
         corr_max = np.argmax([corr[0] for corr in corrs])
-        for s, (surp, corr) in enumerate(zip(surps, corrs)):
+        for s, (unexp, corr) in enumerate(zip(unexps, corrs)):
             sig_str = "*" if corr[1] < 0.05 else ""
             high_str = " +" if corr_max == s else ""
-            logger.info(f"{surp}: {corr[0]:.4f} "
+            logger.info(f"{unexp}: {corr[0]:.4f} "
                 f"(p={corr[1]:.2f}{sig_str}){high_str}", 
                 extra={"spacing": TAB})
             corr = corr[0]
@@ -666,7 +670,7 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
         all_corrs.append(grp_corrs)
         all_me_tr.append(grp_me)
 
-    # mice x sess x surp x frame
+    # mice x sess x unexp x frame
     all_me_tr = np.asarray(all_me_tr)
     logger.info("Intermouse correlations", extra={"spacing": "\n"})
     all_mouse_corrs = []
@@ -678,23 +682,23 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
                 logger.info(f"Mouse {sessions[n][0].mouse_n} vs "
                     f"{sessions[n + 1 + n_add][0].mouse_n} corr:")
                 for se, m1_s1_me in enumerate(m1_sess_mes):
-                    surp_corrs = []
+                    unexp_corrs = []
                     logger.info(f"sess {sessions[n][se].sess_n}:", 
                         extra={"spacing": TAB})
                     # collect correlations
                     corrs = [st.pearsonr(m1_s1_me[s], m2_sess_mes[se][s])
-                        for s in range(len(surps))]
+                        for s in range(len(unexps))]
                     corr_max = np.argmax([corr[0] for corr in corrs])
-                    for s, (surp, corr) in enumerate(zip(surps, corrs)):
+                    for s, (unexp, corr) in enumerate(zip(unexps, corrs)):
                         sig_str = "*" if corr[1] < 0.05 else ""
                         high_str = " +" if corr_max == s else ""
                         logger.info(
-                            f"{surp}: {corr[0]:.4f} "
+                            f"{unexp}: {corr[0]:.4f} "
                             f"(p={corr[1]:.2f}{sig_str}){high_str}", 
                             extra={"spacing": f"{TAB}{TAB}"})
                         corr = corr[0]
-                        surp_corrs.append(corr)
-                    sess_corrs.append(surp_corrs)
+                        unexp_corrs.append(corr)
+                    sess_corrs.append(unexp_corrs)
                 mouse_corrs.append(sess_corrs)
             all_mouse_corrs.append(mouse_corrs)
 

@@ -37,50 +37,47 @@ logger = logging.getLogger(__name__)
 
 
 TASK_DESCR = {
-    "run_regr"       : "runs regressions, saving results into individual folders",
-    "analyse"        : "compiles regression results produced by run_regr, and runs statistics",
-    "run_regr_sparse": "runs regressions sparsely, saving results in a csv (UNDER DEV)",
-    "analyse_sparse" : "compiles regression results produced by run_regr_sparse, and runs statistics (UNDER DEV)",
-    "plot"           : "plots statistics produced by analyse or analyse_sparse",
+    "run_regr": "runs regressions, saving results into individual folders",
+    "analyse" : "compiles regression results produced by run_regr, and runs statistics",
+    "plot"    : "plots statistics produced by analyse",
 }
 
 #############################################
-def check_args(comp="surp", stimtype="gabors", q1v4=False, regvsurp=False):
+def check_args(comp="unexp", stimtype="gabors", q1v4=False, exp_v_unexp=False):
     """
     check_args()
 
     Verifies whether the comparison type is compatible with the stimulus type, 
-    q1v4 and regvsurp.
+    q1v4 and exp_v_unexp.
 
     Optional args:
-        - comp (str)     : comparison type
-                           default: "surp"
-        - stimtype (str) : stimtype
-                           default: "gabors"
-        - q1v4 (bool)    : if True, analysis is trained on first and tested on 
-                           last quartiles
-                           default: False
-        - regvsurp (bool): if True, analysis is trained on regular and tested 
-                           on regular sequences
-                           default: False
+        - comp (str)        : comparison type
+                              default: "unexp"
+        - stimtype (str)    : stimtype
+                              default: "gabors"
+        - q1v4 (bool)       : if True, analysis is trained on first and tested 
+                              on last quartiles
+                              default: False
+        - exp_v_unexp (bool): if True, analysis is trained on expected and 
+                              tested on unexpected sequences
+                              default: False
     """
 
+    poss_comps = logreg.get_comps(stimtype, q1v4, exp_v_unexp)
 
-    poss_comps = logreg.get_comps(stimtype, q1v4, regvsurp)
-
-    if q1v4 and regvsurp:
-        raise ValueError("q1v4 and regvsurp cannot both be set to True.")
+    if q1v4 and exp_v_unexp:
+        raise ValueError("q1v4 and exp_v_unexp cannot both be set to True.")
 
     if comp not in poss_comps:
         comps_str = ", ".join(poss_comps)
         raise ValueError(f"With stimtype={stimtype}, q1v4={q1v4}, "
-            f"regvsurp={regvsurp}, can only use the following "
+            f"exp_v_unexp={exp_v_unexp}, can only use the following "
             f"comps: {comps_str}")
     return
 
 
 #############################################
-def set_ctrl(ctrl=False, comp="surp"):
+def set_ctrl(ctrl=False, comp="unexp"):
     """
     set_ctrl()
 
@@ -90,14 +87,14 @@ def set_ctrl(ctrl=False, comp="surp"):
         - ctrl (bool): whether the run is a control
                        default: False
         - comp (str) : comparison type
-                       default: "surp"
+                       default: "unexp"
     
     Returns:
         - ctrl (bool): modified control value
     """    
 
     ori_with_U = "U" in comp and "ori" in comp
-    if comp in ["surp", "DvU", "dir_surp"] or ori_with_U:
+    if comp in ["unexp", "DvU", "dir_unexp"] or ori_with_U:
         ctrl = False
     
     if comp == "all":
@@ -108,7 +105,7 @@ def set_ctrl(ctrl=False, comp="surp"):
 
 #############################################
 def format_output(output, runtype="prod", q1v4=False, bal=False, 
-                  regvsurp=False):
+                  exp_v_unexp=False):
     """
     format_output(output)
 
@@ -118,16 +115,16 @@ def format_output(output, runtype="prod", q1v4=False, bal=False,
         - output (Path): base output path
 
     Optional args:
-        - runtype (str)  : runtype
-                           default: "prod"
-        - q1v4 (bool)    : if True, analysis is trained on first and tested on 
-                           last quartiles
-                           default: False
-        - bal (bool)     : if True, all classes are balanced
-                           default: False
-        - regvsurp (bool): if True, analysis is trained on regular and tested 
-                           on regular sequences
-                           default: False
+        - runtype (str)     : runtype
+                              default: "prod"
+        - q1v4 (bool)       : if True, analysis is trained on first and tested 
+                              on last quartiles
+                              default: False
+        - bal (bool)        : if True, all classes are balanced
+                              default: False
+        - exp_v_unexp (bool): if True, analysis is trained on expected and 
+                              tested on unexpected sequences
+                              default: False
 
     Returns:
         - output (Path): output path with subdirectory added
@@ -143,7 +140,7 @@ def format_output(output, runtype="prod", q1v4=False, bal=False,
     if bal:
         subdir = f"{subdir}_bal"
 
-    if regvsurp:
+    if exp_v_unexp:
         subdir = f"{subdir}_rvs"
 
     output = Path(output, subdir)
@@ -165,10 +162,10 @@ def run_regr(args):
             bal (bool)            : if True, classes are balanced
             batchsize (int)       : nbr of samples dataloader will load per 
                                     batch (for "pytorch" alg)
-            bri_dir (str)         : brick direction to analyse
-            bri_per (float)       : number of seconds to include before Bricks 
-                                    segments
-            bri_size (int or list): brick sizes to include
+            visflow_dir (str)     : visual flow direction to analyse
+            visflow_per (float)   : number of seconds to include before visual 
+                                    flow segments
+            visflow_size (int or list): visual flow square sizes to include
             comp (str)            : type of comparison
             datadir (str)         : data directory
             dend (str)            : type of dendrites to use ("allen" or "dend")
@@ -181,7 +178,7 @@ def run_regr(args):
             fontdir (str)         : directory in which additional fonts are 
                                     located
             gabfr (int)           : gabor frame of reference if comparison 
-                                    is "surp"
+                                    is "unexp"
             gabk (int or list)    : gabor kappas to include
             gab_ori (list or str) : gabor orientations to include
             incl (str or list)    : sessions to include ("yes", "no", "all")
@@ -197,13 +194,13 @@ def run_regr(args):
             plt_bkend (str)       : pyplot backend to use
             q1v4 (bool)           : if True, analysis is trained on first and 
                                     tested on last quartiles
-            regvsurp (bool)       : if True, analysis is trained on 
-                                    regular and tested on surprise sequences
+            exp_v_unexp (bool)    : if True, analysis is trained on 
+                                    expected and tested on unexpected sequences
             runtype (str)         : type of run ("prod" or "pilot")
             seed (int)            : seed to seed random processes with
             sess_n (int)          : session number
             stats (str)           : stats to take, i.e., "mean" or "median"
-            stimtype (str)        : stim to analyse ("gabors" or "bricks")
+            stimtype (str)        : stim to analyse ("gabors" or "visflow")
             train_p (list)        : proportion of dataset to allocate to 
                                     training
             uniqueid (str or int) : unique ID for analysis
@@ -245,9 +242,9 @@ def run_regr(args):
 
     mouse_df = DEFAULT_MOUSE_DF_PATH
 
-    stimpar = logreg.get_stimpar(args.comp, args.stimtype, args.bri_dir, 
-        args.bri_size, args.gabfr, args.gabk, gab_ori=args.gab_ori, 
-        bri_pre=args.bri_pre)
+    stimpar = logreg.get_stimpar(args.comp, args.stimtype, args.visflow_dir, 
+        args.visflow_size, args.gabfr, args.gabk, gab_ori=args.gab_ori, 
+        visflow_pre=args.visflow_pre)
     
     analyspar = sess_ntuple_util.init_analyspar(args.fluor, stats=args.stats, 
         error=args.error, scale=not(args.no_scale), dend=args.dend)  
@@ -258,11 +255,11 @@ def run_regr(args):
         quantpar = sess_ntuple_util.init_quantpar(1)
     
     logregpar = sess_ntuple_util.init_logregpar(args.comp, not(args.not_ctrl), 
-        args.q1v4, args.regvsurp, args.n_epochs, args.batchsize, args.lr, 
+        args.q1v4, args.exp_v_unexp, args.n_epochs, args.batchsize, args.lr, 
         args.train_p, args.wd, args.bal, args.alg)
     
     omit_sess, omit_mice = sess_gen_util.all_omit(stimpar.stimtype, 
-        args.runtype, stimpar.bri_dir, stimpar.bri_size, stimpar.gabk)
+        args.runtype, stimpar.visflow_dir, stimpar.visflow_size, stimpar.gabk)
 
     sessids = sess_gen_util.get_sess_vals(mouse_df, "sessid", args.mouse_n, 
         args.sess_n, args.runtype, incl=args.incl, omit_sess=omit_sess, 
@@ -275,7 +272,7 @@ def run_regr(args):
 
     for sessid in sessids:
         sess = sess_gen_util.init_sessions(sessid, args.datadir, mouse_df, 
-            args.runtype, fulldict=False, fluor=analyspar.fluor, 
+            args.runtype, full_table=False, fluor=analyspar.fluor, 
             dend=analyspar.dend, temp_log="warning")[0]
         logreg.run_regr(sess, analyspar, stimpar, logregpar, quantpar, 
             extrapar, techpar)
@@ -299,13 +296,13 @@ def main(args):
 
 
     if args.comp == "all":
-        comps = logreg.get_comps(args.stimtype, args.q1v4, args.regvsurp)
+        comps = logreg.get_comps(args.stimtype, args.q1v4, args.exp_v_unexp)
     else:
-        check_args(args.comp, args.stimtype, args.q1v4, args.regvsurp)
+        check_args(args.comp, args.stimtype, args.q1v4, args.exp_v_unexp)
         comps = gen_util.list_if_not(args.comp)
 
     args.output = format_output(
-        args.output, args.runtype, args.q1v4, args.bal, args.regvsurp)
+        args.output, args.runtype, args.q1v4, args.bal, args.exp_v_unexp)
 
     args_orig = copy.deepcopy(args)
 
@@ -336,7 +333,7 @@ def main(args):
             elif args.task == "plot":
                 logreg.run_plot(
                     args.output, args.stimtype, args.comp, not(args.not_ctrl), 
-                    args.bri_dir, args.fluor, not(args.no_scale), args.CI, 
+                    args.visflow_dir, args.fluor, not(args.no_scale), args.CI, 
                     args.alg, args.plt_bkend, args.fontdir, args.modif)
 
             else:
@@ -383,11 +380,11 @@ def parse_args():
         help="logging level (does not work with --parallel)")
 
         # logregpar
-    parser.add_argument("--comp", default="surp", 
-        help="surp, AvB, AvC, BvC, DvU, Uori, dir_all, dir_reg, dir_surp, "
+    parser.add_argument("--comp", default="unexp", 
+        help="unexp, AvB, AvC, BvC, DvU, Uori, dir_all, dir_exp, dir_unexp, "
             "half_right, half_left, half_diff")
     parser.add_argument("--not_ctrl", action="store_true", 
-        help=("run comparisons not as controls for surp (ignored for surp)"))
+        help=("run comparisons not as controls for unexp (ignored for unexp)"))
     parser.add_argument("--n_epochs", default=1000, type=int)
     parser.add_argument("--batchsize", default=200, type=int)
     parser.add_argument("--lr", default=0.0001, type=float, 
@@ -398,8 +395,8 @@ def parse_args():
         help="weight decay to use")
     parser.add_argument("--q1v4", action="store_true", 
         help="run on 1st quartile and test on last")
-    parser.add_argument("--regvsurp", action="store_true", 
-        help="use with dir_reg to run on reg and test on surp")
+    parser.add_argument("--exp_v_unexp", action="store_true", 
+        help="use with dir_exp to run on reg and test on unexp")
     parser.add_argument("--bal", action="store_true", 
         help="if True, classes are balanced")
     parser.add_argument("--alg", default="sklearn", 
@@ -412,16 +409,19 @@ def parse_args():
     parser.add_argument("--incl", default="any",
         help="include only 'yes', 'no' or 'any'")
         # stimpar
-    parser.add_argument("--stimtype", default="gabors", help="gabors or bricks")
+    parser.add_argument("--stimtype", default="gabors", 
+        help="gabors or visflow")
     parser.add_argument("--gabk", default=16, type=int, 
         help="gabor kappa parameter")
     parser.add_argument("--gabfr", default=0, type=int, 
-        help="starting gab frame if comp is surp")
+        help="starting gab frame if comp is unexp")
     parser.add_argument("--gab_ori", default="all",  
         help="gabor orientations to include or 'all'.")
-    parser.add_argument("--bri_dir", default="both", help="brick direction")
-    parser.add_argument("--bri_size", default=128, help="brick size")
-    parser.add_argument("--bri_pre", default=0.0, type=float, help="brick pre")
+    parser.add_argument("--visflow_dir", default="both", 
+        help="visual flow direction")
+    parser.add_argument("--visflow_size", default=128, help="visual flow size")
+    parser.add_argument("--visflow_pre", default=0.0, type=float, 
+        help="visual flow pre")
 
         # analyspar
     parser.add_argument("--no_scale", action="store_true", 

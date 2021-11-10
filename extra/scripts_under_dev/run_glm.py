@@ -57,27 +57,28 @@ def reformat_args(args):
     Required args:
         - args (Argument parser): parser with the following attributes: 
             runtype (str)        : runtype ("pilot" or "prod")
-            stimtype (str)       : stimulus to analyse (bricks or gabors)
+            stimtype (str)       : stimulus to analyse (visflow or gabors)
     
     Returns:
         - args (Argument parser): input parser, with the following attributes 
                                   added:
-                                      bri_dir, bri_size, gabfr, gabk, gab_ori
-                                      omit_sess, omit_mice, dend, analyses, 
-                                      seed
+                                      visflow_dir, visflow_size, gabfr, gabk, 
+                                      gab_oriomit_sess, omit_mice, dend, 
+                                      analyses, seed
     """
 
     args = copy.deepcopy(args)
 
-    [args.bri_dir, args.bri_size, args.gabfr, 
-     args.gabk, args.gab_ori] = sess_gen_util.get_params(args.stimtype, 
-                                              "both", 128, "any", 16, "any")
+    [args.visflow_dir, args.visflow_size, args.gabfr, 
+     args.gabk, args.gab_ori] = sess_gen_util.get_params(
+         args.stimtype, "both", 128, "any", 16, "any")
 
     if args.plane == "soma":
         args.dend = "allen"
 
     args.omit_sess, args.omit_mice = sess_gen_util.all_omit(
-        args.stimtype, args.runtype, args.bri_dir, args.bri_size, args.gabk
+        args.stimtype, args.runtype, args.visflow_dir, args.visflow_size, 
+        args.gabk
         )
     
     # chose a seed if none is provided (i.e., args.seed=-1), but seed later
@@ -111,9 +112,9 @@ def init_param_cont(args):
     Required args:
         - args (Argument parser): parser with the following attributes:
 
-            bri_dir (str or list)  : brick direction values to include
+            visflow_dir (str or list)  : visual flow direction values to include
                                      ("right", "left", ["right", "left"])
-            bri_size (int or list) : brick size values to include
+            visflow_size (int or list) : visual flow square size values to include
                                      (128, 256 or [128, 256])
             dend (str)             : type of dendrites to use ("allen" or "dend")
             error (str)            : error statistic parameter ("std" or "sem")
@@ -126,7 +127,7 @@ def init_param_cont(args):
             gabk (int or list)     : gabor kappa values to include 
                                      (4, 16 or [4, 16])
             gab_ori (int or list)  : gabor orientation values to include
-                                     ([0, 45, 90, 135])
+                                     ([0, 45, 90, 135, 180, 225])
             incl (str)             : 
             lag_s (num)            : lag for autocorrelation (in sec)
             line (str)             : line ("L23", "L5", "any")
@@ -186,7 +187,7 @@ def init_param_cont(args):
                                          orientation responses
                     ["oridir"] (str)   : subdirectory name for 
                                          orientation/direction analyses
-                    ["surp_qu"] (str)  : subdirectory name for surprise, 
+                    ["unexp_qu"] (str) : subdirectory name for unexpected, 
                                          quantile analyses
                     ["tune_curv"] (str): subdirectory name for tuning curves
                     ["grped"] (str)    : subdirectory name for ROI grps data
@@ -215,8 +216,8 @@ def init_param_cont(args):
 
     # stimulus parameters
     analysis_dict["stimpar"] = sess_ntuple_util.init_stimpar(
-        args.stimtype, args.bri_dir, args.bri_size, args.gabfr, args.gabk, 
-        args.gab_ori, args.pre, args.post)
+        args.stimtype, args.visflow_dir, args.visflow_size, args.gabfr, 
+        args.gabk, args.gab_ori, args.pre, args.post)
 
     # SPECIFIC ANALYSES    
     # autocorrelation parameters
@@ -274,15 +275,15 @@ def prep_analyses(sess_n, args, mouse_df):
         )
         
     args_dict = {
-        "datadir" : args.datadir,
-        "mouse_df": mouse_df,
-        "runtype" : sesspar.runtype,
-        "fulldict": False,
-        "fluor"   : analyspar.fluor,
-        "dend"    : analyspar.dend,
-        "run"     : True,
-        "pupil"   : True,
-        "temp_log": "warning",
+        "datadir"   : args.datadir,
+        "mouse_df"  : mouse_df,
+        "runtype"   : sesspar.runtype,
+        "full_table": False,
+        "fluor"     : analyspar.fluor,
+        "dend"      : analyspar.dend,
+        "run"       : True,
+        "pupil"     : True,
+        "temp_log"  : "warning",
     }
 
     sessions = gen_util.parallel_wrap(
@@ -510,7 +511,7 @@ GLM TODO
 
 GLM is run by session? for all mice? Gabfr would have to be different for each 
 Predict average ROI activity across all ROIs for a segment (0.4 s)
-Weight surprise
+Weight unexpected
 
 Eventually set sessions to do 1, 2, 3... (continuous)
 Identify ROI sensitivities through F-stat and false discovery correction for 

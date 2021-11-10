@@ -90,7 +90,7 @@ def plot_pup_diff_corr(analyspar, sesspar, stimpar, extrapar,
     plot_pup_diff_corr(analyspar, sesspar, stimpar, extrapar, 
                        sess_info, corr_data)
 
-    From dictionaries, plots correlation between surprise-locked changes in 
+    From dictionaries, plots correlation between unexpected-locked changes in 
     pupil diameter and running or ROI data for each session.
 
     Required args:
@@ -133,14 +133,14 @@ def plot_pup_diff_corr(analyspar, sesspar, stimpar, extrapar,
     statstr_pr = sess_str_util.stat_par_str(
         analyspar["stats"], analyspar["error"], "print")
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"], 
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"], 
         stimpar["gabk"], "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"], "print")
 
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"],stimpar["bri_size"], stimpar["gabk"]) 
+        stimpar["visflow_dir"],stimpar["visflow_size"], stimpar["gabk"]) 
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
     
@@ -184,7 +184,7 @@ def plot_pup_diff_corr(analyspar, sesspar, stimpar, extrapar,
     
     fig, ax = plot_util.init_fig(2 * n_sess, **figpar["init"])
     suptitle = (f"Relationship between pupil diam and {datastr} changes "
-        "locked to surprise")
+        "locked to unexpected events")
     
     for i, sess_diffs in enumerate(corr_data["diffs"]):
         sub_axs = ax[:, i]
@@ -217,10 +217,10 @@ def plot_pup_diff_corr(analyspar, sesspar, stimpar, extrapar,
             if i == n_sess - 1: # only for last graph
                 art.set_label(lab)
                 sub_axs[1].legend()
-        sub_axs[1].set_xlabel("Surprise occurrence")
+        sub_axs[1].set_xlabel("Unexpected event occurrence")
         if i == 0:
             sub_axs[1].set_ylabel(
-                u"{} response locked\nto surprise (scaled)".format(delta))
+                u"{} response locked\nto unexpected onset (scaled)".format(delta))
         # shade area between lines
         plot_util.plot_btw_traces(
             sub_axs[1], scaled[0], scaled[1], color=cols, alpha=0.4)
@@ -246,8 +246,8 @@ def plot_pup_roi_stim_corr(analyspar, sesspar, stimpar, extrapar,
     plot_pup_roi_stim_corr(analyspar, sesspar, stimpar, extrapar, 
                            sess_info, corr_data)
 
-    From dictionaries, plots correlation between surprise-locked changes in 
-    pupil diameter and each ROI, for gabors versus bricks responses for each 
+    From dictionaries, plots correlation between unexpected-locked changes in 
+    pupil diameter and each ROI, for gabors versus visual flow responses for each 
     session.
     
     Required args:
@@ -269,7 +269,7 @@ def plot_pup_roi_stim_corr(analyspar, sesspar, stimpar, extrapar,
             ["stim_order"] (list): ordered list of stimtypes
             ["roi_corrs"] (list) : nested list of correlations between pupil 
                                    and ROI responses changes locked to 
-                                   surprise, structured as 
+                                   unexpected, structured as 
                                        session x stimtype x ROI
             ["corrs"] (list)     : list of correlation between stimtype
                                    correlations for each session
@@ -294,7 +294,7 @@ def plot_pup_roi_stim_corr(analyspar, sesspar, stimpar, extrapar,
     stimstr_prs = []
     for stimtype in corr_data["stim_order"]:
         stimstr_prs.append(sess_str_util.stim_par_str(
-            stimtype, stimpar["bri_dir"], stimpar["bri_size"], 
+            stimtype, stimpar["visflow_dir"], stimpar["visflow_size"], 
             stimpar["gabk"], "print"))
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"], "print")
@@ -329,7 +329,7 @@ def plot_pup_roi_stim_corr(analyspar, sesspar, stimpar, extrapar,
     
     fig, ax = plot_util.init_fig(n_sess, **figpar["init"])
     suptitle = (u"Relationship between pupil diam and {} changes locked to "
-        "surprise{} for each ROI for {} vs {}".format(
+        "unexpected{} for each ROI for {} vs {}".format(
             label_str, lab_app, *corr_data["stim_order"]))
     
     for i, sess_roi_corrs in enumerate(corr_data["roi_corrs"]):

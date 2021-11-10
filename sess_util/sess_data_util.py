@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 #############################################
 def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5, 
-                  surp="any", step_size=1, gabk=16, run=True, run_mean=None, 
+                  unexp="any", step_size=1, gabk=16, run=True, run_mean=None, 
                   run_std=None):
 
     """
@@ -37,42 +37,42 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
 
     Required args:
         - sess (Session)    : session
-        - stimtype (str)    : stimulus type ("gabors"or "bricks")
+        - stimtype (str)    : stimulus type ("gabors"or "visflow")
         - win_leng_s (num)  : window length in seconds
     
     Optional args:
-        - gabfr (int)            : gabor reference frame for determining the
-                                   2p frames in each sequence
-                                   default: 0 
-        - pre (num)              : number of frames to include before reference
-                                   gabor frame in each sequence (in sec)
-                                   default: 0
-        - post (num)             : number of frames to include after reference
-                                   gabor frame in each sequence (in sec)
-                                   default: 1.5
-        - surp (str, list or int): surprise value criteria for including 
-                                   reference gabor frames (0, 1, or "any")
-                                   default: "any"
-        - step_size (int)        : step size between windows
-                                   default: 1
-        - gabk (int or list)     : gabor kappa criteria for including reference
-                                   gabor frames (4, 16 or "any")
-                                   default: 16
-        - run (bool)             : if True, running data is appended to the
-                                   end of the stimulus data
-                                   default: True
-        - run_mean (num)         : mean value with which to scale running 
-                                   data, if running data is included. If 
-                                   run_mean or run_std is None, both are 
-                                   calculated from the running data retrieved 
-                                   and returned as outputs.
-                                   default: None
-        - run_std (num)          : standard deviation value with which to 
-                                   scale running data, if running data is 
-                                   included. If run_mean or run_std is None, 
-                                   both are calculated from the running data 
-                                   retrieved and returned as outputs.
-                                   default: None
+        - gabfr (int)             : gabor reference frame for determining the
+                                    2p frames in each sequence
+                                    default: 0 
+        - pre (num)               : number of frames to include before reference
+                                    gabor frame in each sequence (in sec)
+                                    default: 0
+        - post (num)              : number of frames to include after reference
+                                    gabor frame in each sequence (in sec)
+                                    default: 1.5
+        - unexp (str, list or int): unexpected value criteria for including 
+                                    reference gabor frames (0, 1, or "any")
+                                    default: "any"
+        - step_size (int)         : step size between windows
+                                    default: 1
+        - gabk (int or list)      : gabor kappa criteria for including reference
+                                    gabor frames (4, 16 or "any")
+                                    default: 16
+        - run (bool)              : if True, running data is appended to the
+                                    end of the stimulus data
+                                    default: True
+        - run_mean (num)          : mean value with which to scale running 
+                                    data, if running data is included. If 
+                                    run_mean or run_std is None, both are 
+                                    calculated from the running data retrieved 
+                                    and returned as outputs.
+                                    default: None
+        - run_std (num)           : standard deviation value with which to 
+                                    scale running data, if running data is 
+                                    included. If run_mean or run_std is None, 
+                                    both are calculated from the running data 
+                                    retrieved and returned as outputs.
+                                    default: None
     
     Returns:
         - stim_wins (3D array): array of stimulus data, structured as:
@@ -92,13 +92,13 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
     stim = sess.get_stim(stimtype)
 
     segs = stim.get_segs_by_criteria(
-        gabfr=gabfr, gabk=gabk, surp=surp, by="seg")
-    twopfr = stim.get_twop_fr_by_seg(segs, first=True)["first_twop_fr"]
+        gabfr=gabfr, gabk=gabk, unexp=unexp, by="seg")
+    twopfr = stim.get_fr_by_seg(segs, start=True, fr_type="twop")["start_frame_twop"]
 
     # get stim params in df with indices seg x frame x gabor x par 
     # (x, y, ori, size). Each param scaled to between -1 and 1 based on known 
     # ranges from which they were sampled
-    pars_df = stim.get_stim_par_by_twopfr(twopfr, pre, post, scale=True)
+    pars_df = stim.get_stim_par_by_fr(twopfr, pre, post, scale=True, fr_type="twop")
     targ = [len(pars_df.index.unique(lev)) for lev in pars_df.index.names] + \
         [len(pars_df.columns.unique("parameters"))]
     targ[1] = -1 # 2p frame number is not repeated across sequences
@@ -106,7 +106,8 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
 
     if run:
         twop_fr_seqs = gen_util.reshape_df_data(
-            sess.get_twop_fr_ran(twopfr, pre, post), squeeze_cols=True)
+            sess.get_fr_ran(twopfr, pre, post, fr_type="twop"), 
+            squeeze_cols=True)
         run_velocity = gen_util.reshape_df_data(
             sess.get_run_velocity_by_fr(
                 twop_fr_seqs, remnans=True, scale=False), squeeze_cols=True)
@@ -142,7 +143,7 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
 
 #############################################
 def get_roi_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5, 
-                 surp="any", step_size=1, gabk=16, roi_means=None, 
+                 unexp="any", step_size=1, gabk=16, roi_means=None, 
                  roi_stds=None):
     """
     get_roi_data(sess, stimtype, win_leng_s)
@@ -153,39 +154,39 @@ def get_roi_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
 
     Required args:
         - sess (Session)    : session
-        - stimtype (str)    : stimulus type ("gabors"or "bricks")
+        - stimtype (str)    : stimulus type ("gabors"or "visflow")
         - win_leng_s (num)  : window length in seconds
     
     Optional args:
-        - gabfr (int)            : gabor reference frame for determining the
-                                   2p frames in each sequence
-                                   default: 0 
-        - pre (num)              : number of frames to include before reference
-                                   gabor frame in each sequence (in sec)
-                                   default: 0
-        - post (num)             : number of frames to include after reference
-                                   gabor frame in each sequence (in sec)
-                                   default: 1.5
-        - surp (str, list or int): surprise value criteria for including 
-                                   reference gabor frames (0, 1, or "any")
-                                   default: "any"
-        - step_size (int)        : step size between windows
-                                   default: 1
-        - gabk (int or list)     : gabor kappa criteria for including reference
-                                   gabor frames (4, 16 or "any")
-                                   default: 16
-        - roi_means (1D array)   : mean values for each ROI with which to 
-                                   scale trace data. If roi_means or 
-                                   roi_stds is None, both are calculated from 
-                                   the trace data retrieved and returned as 
-                                   outputs.
-                                   default: None
-        - roi_stds (1D array)    : standard deviation values for each ROI with 
-                                   which to scale trace data. If roi_means 
-                                   or roi_stds is None, both are calculated 
-                                   from the trace data retrieved and returned  
-                                   as outputs.
-                                   default: None
+        - gabfr (int)             : gabor reference frame for determining the
+                                    2p frames in each sequence
+                                    default: 0 
+        - pre (num)               : number of frames to include before reference
+                                    gabor frame in each sequence (in sec)
+                                    default: 0
+        - post (num)              : number of frames to include after reference
+                                    gabor frame in each sequence (in sec)
+                                    default: 1.5
+        - unexp (str, list or int): unexpected value criteria for including 
+                                    reference gabor frames (0, 1, or "any")
+                                    default: "any"
+        - step_size (int)         : step size between windows
+                                    default: 1
+        - gabk (int or list)      : gabor kappa criteria for including reference
+                                    gabor frames (4, 16 or "any")
+                                    default: 16
+        - roi_means (1D array)    : mean values for each ROI with which to 
+                                    scale trace data. If roi_means or 
+                                    roi_stds is None, both are calculated from 
+                                    the trace data retrieved and returned as 
+                                    outputs.
+                                    default: None
+        - roi_stds (1D array)     : standard deviation values for each ROI with 
+                                    which to scale trace data. If roi_means 
+                                    or roi_stds is None, both are calculated 
+                                    from the trace data retrieved and returned  
+                                    as outputs.
+                                    default: None
     
     Returns:
         - xran (1D array)      : time values for the 2p frames
@@ -205,8 +206,8 @@ def get_roi_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
     stim = sess.get_stim(stimtype)
 
     segs = stim.get_segs_by_criteria(
-        gabfr=gabfr, gabk=gabk, surp=surp, by="seg")
-    twopfr = stim.get_twop_fr_by_seg(segs, first=True)["first_twop_fr"]
+        gabfr=gabfr, gabk=gabk, unexp=unexp, by="seg")
+    twopfr = stim.get_fr_by_seg(segs, start=True, fr_type="twop")["start_frame_twop"]
     
     roi_data_df = stim.get_roi_data(twopfr, pre, post, remnans=True, 
         scale=False)
@@ -297,10 +298,10 @@ def get_mapping(par, act_vals=None):
 
     if par == "gabk":
         vals = [4, 16]
-    elif par == "bri_size":
+    elif par == "visflow_size":
         vals = [128, 256]
-    elif par == "bri_dir":
-        vals = [sess_gen_util.get_bri_screen_mouse_direc(direc) 
+    elif par == "visflow_dir":
+        vals = [sess_gen_util.get_visflow_screen_mouse_direc(direc) 
             for direc in ["right", "left"]]
     elif par == "line":
         vals = ["L23-Cux2", "L5-Rbp4"]
@@ -308,7 +309,7 @@ def get_mapping(par, act_vals=None):
         vals = ["soma", "dend"]
     else:
         gen_util.accepted_values_error(
-            "par", par, ["gabk", "bri_size", "bri_dir", "line", "plane"])
+            "par", par, ["gabk", "visflow_size", "visflow_dir", "line", "plane"])
     
     if act_vals is not None:
         if not set(act_vals).issubset(set(vals)):
@@ -416,7 +417,7 @@ def add_categ_stim_cols(df):
             vals = ["G", 0, 1, 2, 3]
             targ_vals = ["G", "A", "B", "C", "D"]
             df = convert_to_binary_cols(df, col, vals, targ_vals)
-        elif col in ["gabk", "bri_size", "bri_dir", "plane", "line"]:
+        elif col in ["gabk", "visflow_size", "visflow_dir", "plane", "line"]:
             uniq_vals = df[col].unique().tolist()
             mapping = get_mapping(col, uniq_vals)
             df = df.replace({col: mapping})
@@ -430,60 +431,10 @@ def add_categ_stim_cols(df):
 
 
 #############################################
-def add_G_rows_gabors(df):
-    """
-    add_G_rows_gabors(df)
-
-    Returns dataframe with grayscreen (G) rows added between Gabor D/U and 
-    Gabor A segments.
-
-    Required args:
-        - df (pd DataFrame): gabor stimulus dataframe with columns "gabfr", 
-                             "stimSeg", "start2pfr", "end2pfr", "start_stim_fr", 
-                             "end_stim_fr", "surp"
-
-    Returns:
-        - df (pd DataFrame): gabor stimulus dataframe with grayscreen (G) rows 
-                             added
-    """
-
-    df = df.copy()
-
-    df = df.sort_values("start2pfr").reset_index(drop=True)
-
-    if "gabfr" not in df.columns:
-        raise KeyError("Should only be used with dataframes containing "
-                       "gabor frame information")
-
-    # add in lines for grayscreen (G) with parameters of previous segment
-    # except gabfr and start/end frames          
-    pre_seg = df.loc[(df["gabfr"] == 3)].reset_index(drop=True)
-    pre_seg = pre_seg.loc[(pre_seg["stimSeg"] < max(df["stimSeg"]))]
-
-    post_seg = df.loc[(df["gabfr"] == 0)].reset_index(drop=True)
-    post_seg = post_seg.loc[(post_seg["stimSeg"] > min(df["stimSeg"]))]
-
-    G_seg = pre_seg.copy()
-    G_seg["gabfr"] = "G"
-
-    G_seg["start2pfr"]     = pre_seg["end2pfr"].values
-    G_seg["start_stim_fr"] = pre_seg["end_stim_fr"].values
-    G_seg["end2pfr"]       = post_seg["start2pfr"].values
-    G_seg["end_stim_fr"]   = post_seg["start_stim_fr"].values
-
-    df = df.append(G_seg).sort_values("start2pfr").reset_index(drop=True)
-
-    df["surp"] = df["surp"].astype(int)
-    
-    return df
-
-
-#############################################
-def format_stim_criteria(stim_df, stimtype="gabors", stimPar1="any", 
-                         stimPar2="any", surp="any", stimSeg="any", 
-                         gabfr="any", start2pfr="any", end2pfr="any", 
-                         num2pfr="any", gabk=None, gab_ori=None, 
-                         bri_size=None, bri_dir=None):
+def format_stim_criteria(stim_df, stimtype="gabors", unexp="any", 
+                         stim_seg="any", gabfr="any", gabk=None, gab_ori=None, 
+                         visflow_size=None, visflow_dir=None, start2pfr="any", 
+                         end2pfr="any", num2pfr="any"):
     """
     format_stim_criteria()
 
@@ -498,21 +449,27 @@ def format_stim_criteria(stim_df, stimtype="gabors", stimPar1="any",
     Optional args:
         - stimtype (str)               : stimulus type
                                             default: "gabors"
-        - stimPar1 (str, int or list)  : stimPar1 value(s) of interest 
-                                            (sizes: 128, 256, 
-                                            oris: 0, 45, 90, 135)
+        - unexp (str, int or list)     : unexpected value(s) of interest (0, 1)
                                             default: "any"
-        - stimPar2 (str, int or list)  : stimPar2 value(s) of interest 
-                                            ("right", "left", "temp", 
-                                             "nasal", 4, 16)
-                                            default: "any"
-        - surp (str, int or list)      : surp value(s) of interest (0, 1)
-                                            default: "any"
-        - stimSeg (str, int or list)   : stimSeg value(s) of interest
+        - stim_seg (str, int or list)  : stimulus segment value(s) of interest
                                             default: "any"
         - gabfr (str, int or list)     : gaborframe value(s) of interest 
-                                            (0, 1, 2, 3)
+                                            (0, 1, 2, 3, 4 or letters)
                                             default: "any"
+        - gabk (int or list)           : if not None, will overwrite 
+                                            stimPar2 (4, 16, or "any")
+                                            default: None
+        - gab_ori (int or list)        : if not None, will overwrite 
+                                            stimPar1 (0, 45, 90, 135, 180, 225, 
+                                            or "any")
+                                            default: None
+        - visflow_size (int or list)   : if not None, will overwrite 
+                                            stimPar1 (128, 256, or "any")
+                                            default: None
+        - visflow_dir (str or list)    : if not None, will overwrite 
+                                            stimPar2 ("right", "left", "temp", 
+                                             "nasal", or "any")
+                                            default: None
         - start2pfr (str or list)      : 2p start frames range of interest
                                             [min, max (excl)] 
                                             default: "any"
@@ -522,26 +479,15 @@ def format_stim_criteria(stim_df, stimtype="gabors", stimPar1="any",
         - num2pfr (str or list)        : 2p num frames range of interest
                                             [min, max (excl)]
                                             default: "any"
-        - gabk (int or list)           : if not None, will overwrite 
-                                            stimPar2 (4, 16, or "any")
-                                            default: None
-        - gab_ori (int or list)        : if not None, will overwrite 
-                                            stimPar1 (0, 45, 90, 135, or "any")
-                                            default: None
-        - bri_size (int or list)       : if not None, will overwrite 
-                                            stimPar1 (128, 256, or "any")
-                                            default: None
-        - bri_dir (str or list)        : if not None, will overwrite 
-                                            stimPar2 ("right", "left", "temp", 
-                                             "nasal", or "any")
-                                            default: None
     
     Returns:
-        - stimPar1 (list)    : stimPar1 value(s) of interest 
-        - stimPar2 (list)    : stimPar2 value(s) of interest 
-        - surp (list)        : surp value(s) of interest (0, 1)
-        - stimSeg (list)     : stimSeg value(s) of interest
+        - unexp (list)       : unexpected value(s) of interest (0, 1)
+        - stim_seg (list)    : stim_seg value(s) of interest
         - gabfr (list)       : gaborframe value(s) of interest 
+        - gabk (list)        : gabor kappa value(s) of interest 
+        - gab_ori (list)     : gabor mean orientation value(s) of interest 
+        - visflow_size (list): visual flow square size value(s) of interest 
+        - visflow_dir (list) : visual flow direction value(s) of interest 
         - start2pfr_min (int): minimum of 2p start2pfr range of interest 
         - start2pfr_max (int): maximum of 2p start2pfr range of interest 
                                 (excl)
@@ -553,79 +499,83 @@ def format_stim_criteria(stim_df, stimtype="gabors", stimPar1="any",
                                 (excl)
     """
 
-    # remove brick criteria for gabors and vv
+    # remove visual flow criteria for gabors and vv
     if stimtype == "gabors":
-        bri_size = None
-        bri_dir = None
-    elif stimtype == "bricks":
+        visflow_size = None
+        visflow_dir = None
+    elif stimtype == "visflow":
+        stimtype = "visual_flow"
         gabfr = None
         gabk = None
         gab_ori = None
     else:
         gen_util.accepted_values_error(
-            "stimtype", stimtype, ["gabors", "bricks"])
-
-    # if passed, replace StimPar1 and StimPar2 with the gabor and brick
-    # arguments
-    pars = [gabk, gab_ori, bri_size, bri_dir]
-    stimpar_names = ["stimPar2", "stimPar1", "stimPar1", "stimPar2"]
-    sp1 = []
-    sp2 = []
-
-    for i in range(len(pars)):
-        if pars[i] == "any":
-            pars[i] = gen_util.get_df_vals(
-                stim_df, "stimType", stimtype, stimpar_names[i])
-        if pars[i] is not None:
-            pars[i] = gen_util.list_if_not(pars[i])
-            if stimpar_names[i] == "stimPar1":
-                sp1.extend(pars[i])
-            elif stimpar_names[i] == "stimPar2":
-                sp2.extend(pars[i])
-    
-    if len(sp1) != 0:
-        stimPar1 = sp1
-    if len(sp2) != 0:
-        stimPar2 = sp2
-        # change direction names
-        for i in range(len(stimPar2)):
-            if stimPar2[i] in ["right", "left", "temp", "nasal"]:
-                stimPar2[i] = sess_gen_util.get_bri_screen_mouse_direc(
-                    stimPar2[i])
+            "stimtype", stimtype, ["gabors", "visflow"])
 
     # converts values to lists or gets all possible values, if "any"
-    stimPar1 = gen_util.get_df_label_vals(stim_df, "stimPar1", stimPar1)
-    stimPar2 = gen_util.get_df_label_vals(stim_df, "stimPar2", stimPar2)
-    surp     = gen_util.get_df_label_vals(stim_df, "surp", surp)
-    stimSeg  = gen_util.get_df_label_vals(stim_df, "stimSeg", stimSeg)
-    # here, ensure that the -1s are removed
-    stimSeg = gen_util.remove_if(stimSeg, -1)
-    gabfr   = gen_util.get_df_label_vals(stim_df, "gabfr", gabfr)
-    
+    unexp    = gen_util.get_df_label_vals(stim_df, "unexpected", unexp)    
+    gabk     = gen_util.get_df_label_vals(stim_df, "gabor_kappa", gabk)
+    gabfr    = gen_util.get_df_label_vals(stim_df, "gabor_frame", gabfr)
+    gab_ori  = gen_util.get_df_label_vals(
+        stim_df, "gabor_mean_orientation", gab_ori
+        )
+    visflow_dir = gen_util.get_df_label_vals(
+        stim_df, "main_flow_direction", visflow_dir
+        )
+    visflow_size = gen_util.get_df_label_vals(
+        stim_df, "square_size", visflow_size
+        )
+
+    if stim_seg in ["any", "all"]:
+        stim_seg = stim_df.index
+    else:
+        stim_seg = gen_util.list_if_not(stim_seg)
+
+    for fr in gabfr:
+        if str(fr) == "0":
+            gabfr.append("A")
+        elif str(fr) == "1":
+            gabfr.append("B")
+        elif str(fr) == "2":
+            gabfr.append("C")
+        elif str(fr) == "3":
+            gabfr.extend(["D", "U"])
+        elif str(fr) == "4":
+            gabfr.append("G")
+
+    for i in range(len(visflow_dir)):
+        if visflow_dir[i] in ["right", "left", "temp", "nasal"]:
+            visflow_dir[i] = \
+                sess_gen_util.get_visflow_screen_mouse_direc(
+                    visflow_dir[i
+                    ])
+
     if start2pfr in ["any", None]:
-        start2pfr_min = int(stim_df["start2pfr"].min())
-        start2pfr_max = int(stim_df["start2pfr"].max()+1)
+        start2pfr_min = int(stim_df["start_frame_twop"].min())
+        start2pfr_max = int(stim_df["start_frame_twop"].max()+1)
+
     elif len(start2pfr) == 2:
         start2pfr_min, start2pfr_max = start2pfr
     else:
         raise ValueError("'start2pfr' must be of length 2 if passed.")
 
     if end2pfr in ["any", None]:
-        end2pfr_min = int(stim_df["end2pfr"].min())
-        end2pfr_max = int(stim_df["end2pfr"].max() + 1)
+        end2pfr_min = int(stim_df["stop_frame_twop"].min())
+        end2pfr_max = int(stim_df["stop_frame_twop"].max() + 1)
     elif len(start2pfr) == 2:
         end2pfr_min, end2pfr_max = end2pfr
     else:
         raise ValueError("'end2pfr' must be of length 2 if passed.")
 
     if num2pfr in ["any", None]:
-        num2pfr_min = int(stim_df["num2pfr"].min())
-        num2pfr_max = int(stim_df["num2pfr"].max() + 1)
+        num2pfr_min = int(stim_df["num_frames_twop"].min())
+        num2pfr_max = int(stim_df["num_frames_twop"].max() + 1)
     elif len(start2pfr) == 2:
         num2pfr_min, num2pfr_max = num2pfr
     else:
         raise ValueError("'num2pfr' must be of length 2 if passed.")
 
-    return [stimPar1, stimPar2, surp, stimSeg, gabfr, start2pfr_min, 
-        start2pfr_max, end2pfr_min, end2pfr_max, num2pfr_min, num2pfr_max] 
+    return [unexp, stim_seg, gabfr, gabk, gab_ori, visflow_size, visflow_dir, 
+        start2pfr_min, start2pfr_max, end2pfr_min, end2pfr_max, num2pfr_min, 
+        num2pfr_max] 
 

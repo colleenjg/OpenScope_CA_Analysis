@@ -37,11 +37,11 @@ TAB = "    "
 
 
 #### ALWAYS SET TO FALSE - CHANGE ONLY FOR TESTING PURPOSES
-TEST_BRICKS_VARIATIONS = False
+TEST_VISFLOW_VARIATIONS = False
 
 
 #############################################
-def get_comps(stimtype="gabors", q1v4=False, regvsurp=False):
+def get_comps(stimtype="gabors", q1v4=False, exp_v_unexp=False):
     """
     get_comps()
 
@@ -53,8 +53,8 @@ def get_comps(stimtype="gabors", q1v4=False, regvsurp=False):
         - q1v4 (bool)    : if True, analysis is trained on first and tested on 
                            last quartiles
                            default: False
-        - regvsurp (bool): if True, analysis is trained on regular and tested 
-                           on regular sequences
+        - exp_v_unexp (bool): if True, analysis is trained on expected and tested 
+                           on unexpected sequences
                            default: False
     
     Returns:
@@ -62,99 +62,100 @@ def get_comps(stimtype="gabors", q1v4=False, regvsurp=False):
     """
 
     if stimtype == "gabors":
-        if regvsurp:
-            raise ValueError("regvsurp can only be used with bricks.")
-        comps = ["surp", "AvB", "AvC", "BvC", "DvU", "Aori", "Bori", "Cori", 
+        if exp_v_unexp:
+            raise ValueError("exp_v_unexp can only be used with visual flow.")
+        comps = ["unexp", "AvB", "AvC", "BvC", "DvU", "Aori", "Bori", "Cori", 
             "Dori", "Uori", "DoriU", "DoriA", "BCDoriA", "BCDoriU", "ABCoriD", 
             "ABCoriU"]
-    elif stimtype == "bricks":
-        comps = ["surp", "dir_all", "dir_surp", "dir_reg", "half_right", 
+    elif stimtype == "visflow":
+        comps = ["unexp", "dir_all", "dir_unexp", "dir_exp", "half_right", 
             "half_left", "half_diff"] 
-        if regvsurp:
+        if exp_v_unexp:
             comps = gen_util.remove_if(
-                comps, ["surp", "dir_surp", "dir_all", "half_right", 
+                comps, ["unexp", "dir_unexp", "dir_all", "half_right", 
                 "half_left", "half_diff"])
         if q1v4:
             comps = gen_util.remove_if(
                 comps, ["half_left", "half_right", "half_diff"])
     else:
         gen_util.accepted_values_error(
-            "stimtype", stimtype, ["gabors", "bricks"])
+            "stimtype", stimtype, ["gabors", "visflow"])
 
     return comps
 
 
 #############################################
-def get_class_pars(comp="surp", stimtype="gabors"):
+def get_class_pars(comp="unexp", stimtype="gabors"):
     """
     get_class_pars()
     
-    Returns name of the class determining variable, and the surprise values to 
+    Returns name of the class determining variable, and the unexpected values to 
     use for the classes.
 
     Optional args:
         - comp (str)            : type of comparison
-                                  default: "surp"
+                                  default: "unexp"
         - stimtype (str)        : stimulus type
                                   default: "gabors"
 
     Returns:
-        - class_var (str)    : variable separating classes (e.g., "surps", 
-                              "gab_ori", "bri_dir")
-        - surps (str or list): surprise values (for each class, if list)
+        - class_var (str)    : variable separating classes (e.g., "unexps", 
+                              "gab_ori", "visflow_dir")
+        - unexps (str or list): unexpected values (for each class, if list)
     """
 
     if stimtype == "gabors":
-        if comp == "surp":
-            class_var = "surps"
-            surps = [0, 1]
+        if comp == "unexp":
+            class_var = "unexps"
+            unexps = [0, 1]
         elif comp == "DvU":
-            class_var = "surps"
-            surps = [0, 1]
+            class_var = "unexps"
+            unexps = [0, 1]
         elif "ori" in comp:
             class_var = "gab_ori"
             gab_letts = [lett.upper() for lett in comp.split("ori") 
                 if len(lett) > 0]
-            surps = []
+            unexps = []
             for lett in gab_letts:
                 if ("D" in lett) ^ ("U" in lett): # exclusive or
-                    surp_val = 1 if "U" in lett else 0
-                    surps.append(surp_val)
+                    unexp_val = 1 if "U" in lett else 0
+                    unexps.append(unexp_val)
                 else:
-                    surps.append("any")
+                    unexps.append("any")
             if len(gab_letts) == 1:
-                surps = surps[0]
+                unexps = unexps[0]
             
         elif "dir" in comp:
             raise ValueError("dir comparison not valid for gabors.")
         else:
             class_var = "gabfr"
-            surps = "any"
+            unexps = "any"
 
-    elif stimtype == "bricks":
-        class_var = "bri_dir"
+    elif stimtype == "visflow":
+        class_var = "visflow_dir"
         if comp == "dir_all":
-            surps = "any"
-        elif comp == "dir_reg":
-            surps = 0
-        elif comp == "dir_surp":
-            surps = 1
-        elif comp == "surp":
-            surps = [0, 1]
-            class_var = "surps"
+            unexps = "any"
+        elif comp == "dir_exp":
+            unexps = 0
+        elif comp == "dir_unexp":
+            unexps = 1
+        elif comp == "unexp":
+            unexps = [0, 1]
+            class_var = "unexps"
         elif comp in ["half_right", "half_left", "half_diff"]:
-            surps = "any"
+            unexps = "any"
             class_var = comp
         else:
-            raise ValueError("Only surp, dir_all, dir_reg, dir_surp, "
-                "samehalf, diffhalf comparisons supported for Bricks.")
+            raise ValueError("Only unexp, dir_all, dir_exp, dir_unexp, "
+                "samehalf, diffhalf comparisons supported for Visflow.")
 
-    return class_var, surps
+    return class_var, unexps
 
 
 #############################################
-def get_stimpar(comp="surp", stimtype="gabors", bri_dir="both", bri_size=128, 
-                gabfr=0, gabk=16, gab_ori="all", bri_pre=0.0):
+def get_stimpar(comp="unexp", stimtype="gabors", visflow_dir="both", 
+                visflow_size=128, gabfr=0, gabk=16, gab_ori="all", 
+                visflow_pre=0.0):
     """
     get_stimpar()
     
@@ -162,45 +163,47 @@ def get_stimpar(comp="surp", stimtype="gabors", bri_dir="both", bri_size=128,
     passed and comparison type.
 
     Optional args:
-        - comp (str)            : type of comparison
-                                  default: "surp"
-        - stimtype (str)        : stimulus type
-                                  default: "gabors"
-        - bri_dir (str or list) : brick direction
-                                  default: "both"
-        - bri_size (int or list): brick direction
-                                  default: 128
-        - gabfr (int or list)   : gabor frame of reference (may be a list 
-                                  depending on "comp")
-                                  default: 0
-        - gabk (int or list)    : gabor kappa
-                                  default: 16
-        - gab_ori (str)         : gabor orientations (e.g., "all"), 
-                                  for comp values like DoriU, DoriA, etc.
-                                  default: "all"
-        - bri_pre (int)         : pre parameter for Bricks
-                                  default: 0.0 
+        - comp (str)                : type of comparison
+                                      default: "unexp"
+        - stimtype (str)            : stimulus type
+                                      default: "gabors"
+        - visflow_dir (str or list) : visual flow direction
+                                      default: "both"
+        - visflow_size (int or list): visual flow direction
+                                      default: 128
+        - gabfr (int or list)       : gabor frame of reference (may be a list 
+                                      depending on "comp")
+                                      default: 0
+        - gabk (int or list)        : gabor kappa
+                                      default: 16
+        - gab_ori (str or list)     : gabor orientations (e.g., "all"), 
+                                      for comp values like DoriU, DoriA, etc.
+                                      default: "all"
+        - visflow_pre (int)         : pre parameter for Visflow
+                                      default: 0.0 
 
     Returns:
         - stimpar (StimPar)  : named tuple containing stimulus parameters
     """
 
-    if stimtype == "bricks" and "half" in bri_dir or "dir" in bri_dir:
-        logger.info("Ignoring brick dir setting.")
+    if stimtype == "visflow" and "half" in visflow_dir or "dir" in visflow_dir:
+        logger.info("Ignoring visual flow direction setting.")
 
-    [bri_dir, bri_size, gabfr, 
+    [visflow_dir, visflow_size, gabfr, 
         gabk, gab_ori] = sess_gen_util.get_params(
-            stimtype, bri_dir, bri_size, gabfr, gabk, gab_ori)
+            stimtype, visflow_dir, visflow_size, gabfr, gabk, gab_ori)
 
     if stimtype == "gabors":
         # DO NOT ALLOW OVERLAPPING
-        if comp == "surp":
+        if comp == "unexp":
             stimpar = sess_ntuple_util.init_stimpar(
-                stimtype, bri_dir,  bri_size, gabfr, gabk, gab_ori, 0, 1.5)
+                stimtype, visflow_dir,  visflow_size, gabfr, gabk, gab_ori, 
+                0, 1.5)
         elif comp == "DvU":
             gabfr   = sess_str_util.gabfr_nbrs(comp[0])
             stimpar = sess_ntuple_util.init_stimpar(
-                stimtype, bri_dir, bri_size, gabfr, gabk, gab_ori, 0, 0.45)
+                stimtype, visflow_dir, visflow_size, gabfr, gabk, gab_ori, 
+                0, 0.45)
         elif "ori" in comp:
             gab_letts = [lett.upper() for lett in comp.split("ori")
                 if len(lett) > 0]
@@ -211,35 +214,41 @@ def get_stimpar(comp="surp", stimtype="gabors", bri_dir="both", bri_size=128,
                 if comp in ["Dori", "Uori"]:
                     pre, post = 0, 0.6
                 act_gabfr = act_gabfr[0]
+                poss_gab_oris = [0, 45, 90, 135]
+                if comp == "Uori":
+                    poss_gab_oris = [ori + 90 for ori in poss_gab_oris]
+                gab_oris = [ori for ori in gab_ori if ori in poss_gab_oris]
                 if act_gabfr != gabfr:
                     logger.info(
                         f"Setting gabfr to {act_gabfr} instead of {gabfr}.")
             else:
                 pre, post = -0.15, 0.45
-                gab_ori = sess_gen_util.gab_oris_common_U(gab_letts, gab_ori)
+                gab_ori = sess_gen_util.gab_oris_common_U(gab_ori)
             stimpar = sess_ntuple_util.init_stimpar(
-                stimtype, bri_dir, bri_size, act_gabfr, gabk, gab_ori, 
+                stimtype, visflow_dir, visflow_size, act_gabfr, gabk, gab_ori, 
                 pre, post)
         elif "dir" in comp or "half" in comp:
             raise ValueError("dir/half comparison not valid for gabors.")
         else:
             gabfrs = sess_str_util.gabfr_nbrs([comp[0], comp[2]])
             stimpar = sess_ntuple_util.init_stimpar(
-                stimtype, bri_dir, bri_size, gabfrs, gabk, gab_ori, 0, 0.45)
-    elif stimtype == "bricks":
+                stimtype, visflow_dir, visflow_size, gabfrs, gabk, gab_ori, 
+                0, 0.45)
+    elif stimtype == "visflow":
         # DO NOT ALLOW OVERLAPPING
         if "right" in comp:
-            bri_dir = "right"
+            visflow_dir = "right"
         elif "left" in comp:
-            bri_dir = "left"
+            visflow_dir = "left"
         stimpar = sess_ntuple_util.init_stimpar(
-            stimtype, bri_dir, bri_size, gabfr, gabk, gab_ori, bri_pre, 1.0)
+            stimtype, visflow_dir, visflow_size, gabfr, gabk, gab_ori, 
+            visflow_pre, 1.0)
 
-        # for brick logreg test analyses
-        if TEST_BRICKS_VARIATIONS:
-            logger.warning("Setting bricks pre/post to 2 for testing purposes.")
+        # for visual flow logreg test analyses
+        if TEST_VISFLOW_VARIATIONS:
+            logger.warning("Setting visual flow pre/post to 2 for testing purposes.")
             stimpar = sess_ntuple_util.init_stimpar(
-                stimtype, bri_dir, bri_size, gabfr, gabk, gab_ori, 2, 2)
+                stimtype, visflow_dir, visflow_size, gabfr, gabk, gab_ori, 2, 2)
 
     return stimpar
 
@@ -303,24 +312,25 @@ def get_compdir_dict(rundir, no_lists=False):
     
     Returns:
         - compdir_dict (dict): parameter dictionary
-            - bri_dir (str or list) : Bricks direction parameter ("right", 
-                                      "left", ["right", "left"] or "none") 
-            - bri_size (int or list): Bricks size parameter (128, 256, 
-                                      [128, 256] or "none")
-            - comp (str)            : comparison parameter ("surp", "AvB",
-                                      "AvC", "BvC" or "DvU", None)
-            - fluor (str)           : fluorescence parameter ("raw" or "dff")
-            - gabk (int or list)    : Gabor kappa parameter (4, 16, [4, 16] or 
-                                      "none")
-            - plane (str)           : plane ("soma" or "dend")
-            - mouse_n (int)         : mouse number
-            - sess_n (int)          : session number
-            - scale (bool)          : scaling parameter
-            - run_n (int)           : run number
-            - shuffle (bool)        : shuffle parameter
-            - stimtype (str)        : stimulus type ("gabors" or "bricks")
-            - uniqueid (str)        : unique ID (datetime, 6 digit number or 
-                                      None)
+            - visflow_dir (str or list): visual flow direction parameter 
+                                         ("right", "left", ["right", "left"] 
+                                         or "none") 
+            - visflow_size (int or list): visual flow size parameter (128, 256, 
+                                          [128, 256] or "none")
+            - comp (str)                : comparison parameter ("unexp", "AvB",
+                                          "AvC", "BvC" or "DvU", None)
+            - fluor (str)               : fluorescence parameter ("raw" or "dff")
+            - gabk (int or list)        : Gabor kappa parameter 
+                                          (4, 16, [4, 16] or "none")
+            - plane (str)               : plane ("soma" or "dend")
+            - mouse_n (int)             : mouse number
+            - sess_n (int)              : session number
+            - scale (bool)              : scaling parameter
+            - run_n (int)               : run number
+            - shuffle (bool)            : shuffle parameter
+            - stimtype (str)            : stimulus type ("gabors" or "visflow")
+            - uniqueid (str)            : unique ID (datetime, 6 digit number or 
+                                          None)
     """
 
     param_str = rundir.parts[-2]
@@ -340,7 +350,7 @@ def get_compdir_dict(rundir, no_lists=False):
 
 
 #############################################
-def get_df_name(task="analyse", stimtype="gabors", comp="surp", ctrl=False, 
+def get_df_name(task="analyse", stimtype="gabors", comp="unexp", ctrl=False, 
                 alg="sklearn"):
     """
     get_df_name()
@@ -354,7 +364,7 @@ def get_df_name(task="analyse", stimtype="gabors", comp="surp", ctrl=False,
         - stimtype (str): type of stimulus
                           default: "gabors"
         - comp (str)    : type of comparison
-                          default: "surp"
+                          default: "unexp"
         - ctrl (bool)   : if True, control comparisons are analysed
                           default: False
         - alg (str)     : algorithm used to run logistic regression 
@@ -385,7 +395,7 @@ def get_df_name(task="analyse", stimtype="gabors", comp="surp", ctrl=False,
 
 #############################################
 def info_dict(analyspar=None, sesspar=None, stimpar=None, extrapar=None, 
-              comp="surp", alg="sklearn", n_rois=None, epoch_n=None):
+              comp="unexp", alg="sklearn", n_rois=None, epoch_n=None):
     """
     info_dict()
 
@@ -410,7 +420,7 @@ def info_dict(analyspar=None, sesspar=None, stimpar=None, extrapar=None,
 
     Optional args:
         - comp (str)   : comparison type
-                         default: "surp"
+                         default: "unexp"
         - alg (str)    : algorithm used to run logistic regression 
                          ("sklearn" or "pytorch")
                          default: "sklearn"
@@ -427,28 +437,28 @@ def info_dict(analyspar=None, sesspar=None, stimpar=None, extrapar=None,
     """
 
     if not any(par is None for par in [analyspar, sesspar, stimpar, extrapar]):
-        if stimpar.stimtype == "bricks":
-            bri_dir = gen_util.list_if_not(stimpar.bri_dir)
-            if len(bri_dir) == 2:
-                bri_dir = "both"
+        if stimpar.stimtype == "visflow":
+            visflow_dir = gen_util.list_if_not(stimpar.visflow_dir)
+            if len(visflow_dir) == 2:
+                visflow_dir = "both"
             else:
-                bri_dir = bri_dir[0]
+                visflow_dir = visflow_dir[0]
         else:
-            bri_dir = stimpar.bri_dir
+            visflow_dir = stimpar.visflow_dir
 
-        info = {"mouse_n" : sesspar.mouse_n,
-                "sess_n"  : sesspar.sess_n,
-                "plane"   : sesspar.plane,
-                "line"    : sesspar.line,
-                "fluor"   : analyspar.fluor,
-                "scale"   : analyspar.scale,
-                "shuffle" : extrapar["shuffle"],
-                "stimtype": stimpar.stimtype,
-                "bri_dir" : bri_dir,
-                "comp"    : comp,
-                "uniqueid": extrapar["uniqueid"],
-                "runtype" : sesspar.runtype,
-                "n_rois"  : n_rois
+        info = {"mouse_n"    : sesspar.mouse_n,
+                "sess_n"     : sesspar.sess_n,
+                "plane"      : sesspar.plane,
+                "line"       : sesspar.line,
+                "fluor"      : analyspar.fluor,
+                "scale"      : analyspar.scale,
+                "shuffle"    : extrapar["shuffle"],
+                "stimtype"   : stimpar.stimtype,
+                "visflow_dir": visflow_dir,
+                "comp"       : comp,
+                "uniqueid"   : extrapar["uniqueid"],
+                "runtype"    : sesspar.runtype,
+                "n_rois"     : n_rois
                 }
 
         if alg == "pytorch":
@@ -460,7 +470,7 @@ def info_dict(analyspar=None, sesspar=None, stimpar=None, extrapar=None,
     # if no args are passed, just returns keys
     else:
         info = ["mouse_n", "sess_n", "plane", "line", "fluor", "scale", 
-            "shuffle", "stimtype", "bri_dir", "comp", "uniqueid", "run_n", 
+            "shuffle", "stimtype", "visflow_dir", "comp", "uniqueid", "run_n", 
             "runtype", "n_rois", "epoch_n"]
     return info
 
@@ -499,7 +509,7 @@ def save_hyperpar(analyspar, logregpar, sesspar, stimpar, extrapar):
 
 
 #############################################
-def get_classes(comp="surp", gab_ori="all"):
+def get_classes(comp="unexp", gab_ori="all"):
     """
     get_classes()
 
@@ -507,7 +517,7 @@ def get_classes(comp="surp", gab_ori="all"):
     
     Optional args:
         - comp (str)           : type of comparison
-                                 default: "surp"
+                                 default: "unexp"
         - gab_ori (str or list): Gabor orientations
                                  default: "all"
     Returns:
@@ -517,8 +527,8 @@ def get_classes(comp="surp", gab_ori="all"):
     if gab_ori == "all":
         gab_ori = [0, 45, 90, 135]
 
-    if comp == "surp":
-        classes = ["Regular", "Surprise"]
+    if comp == "unexp":
+        classes = ["Expected", "Unexpected"]
     elif comp in ["AvB", "AvC", "BvC", "DvU"]:
         classes = [f"Gabor {fr}" for fr in [comp[0], comp[2]]]    
     elif "ori" in comp:
@@ -533,20 +543,20 @@ def get_classes(comp="surp", gab_ori="all"):
     elif "dir" in comp:
         classes = [sess_str_util.dir_par_str(
             direc, str_type="print").replace(
-                "bricks (", "").replace(", ", " (").capitalize() 
+                "visflow (", "").replace(", ", " (").capitalize() 
             for direc in ["right", "left"]]
     elif "half" in comp:
         classes = ["First half", "Second half"]
     else:
         gen_util.accepted_values_error("comp", comp, 
-            ["surp", "AvB", "AvC", "BvC", "DvU", "dir...", "...ori..."])
+            ["unexp", "AvB", "AvC", "BvC", "DvU", "dir...", "...ori..."])
 
     return classes
 
 
 #############################################
-def get_data(stim, analyspar, stimpar, quantpar, qu_i=0, surp=[0, 1], 
-             n=1, remconsec_surps=False, get_2nd=False):
+def get_data(stim, analyspar, stimpar, quantpar, qu_i=0, unexp=[0, 1], 
+             n=1, remconsec_unexps=False, get_2nd=False):
     """
     get_data(sess, quantpar, stimpar)
 
@@ -561,61 +571,61 @@ def get_data(stim, analyspar, stimpar, quantpar, qu_i=0, surp=[0, 1],
     Optional args:
         - qu_i (int)            : quartile index
                                   default: 0
-        - surp (list)           : surprise values
+        - unexp (list)           : unexpected values
                                   default: [0, 1]
         - n (int)               : factor by which to multiply number of 
-                                  surprise values
+                                  unexpected values
                                   default: 1
-        - remconsec_surps (bool): whether consecutive segments are removed for 
-                                  surprise segments
+        - remconsec_unexps (bool): whether consecutive segments are removed for 
+                                  unexpected segments
                                   default: False
         - get_2nd (bool)        : if True, every second segment is retained
                                   default: False
 
     Returns:
         - roi_data (3D array): ROI data, as sequences x frames x ROIs
-        - surp_n (int)       : Number of surprise sequences
+        - unexp_n (int)       : Number of unexpected sequences
     """
    
     # data for single quartile
-    # first number of surprises, then segs
-    for t, surp_use in enumerate([1, surp]):
-        remconsec = (remconsec_surps and surp_use == 1)
+    # first number of unexpecteds, then segs
+    for t, unexp_use in enumerate([1, unexp]):
+        remconsec = (remconsec_unexps and unexp_use == 1)
         segs = quant_analys.quant_segs(
-            stim, stimpar, quantpar.n_quants, qu_i, surp_use, 
+            stim, stimpar, quantpar.n_quants, qu_i, unexp_use, 
             remconsec=remconsec)[0][0]
         # get alternating for consecutive segments
         if get_2nd and not remconsec: 
             segs = gen_util.get_alternating_consec(segs, first=False)
         if t == 0:
-            surp_n = len(segs) * n
-    twop_fr = stim.get_twop_fr_by_seg(segs, first=True)["first_twop_fr"]
+            unexp_n = len(segs) * n
+    twop_fr = stim.get_fr_by_seg(segs, start=True, fr_type="twop")["start_frame_twop"]
     
     # do not scale (scaling factors cannot be based on test data)
-    if stim.sess.only_matched_rois != analyspar.tracked:
+    if stim.sess.only_tracked_rois != analyspar.tracked:
         raise RuntimeError(
-            "stim.sess.only_matched_rois should match analyspar.tracked."
+            "stim.sess.only_tracked_rois should match analyspar.tracked."
             )
     roi_data = gen_util.reshape_df_data(
         stim.get_roi_data(twop_fr, stimpar.pre, stimpar.post, 
         analyspar.fluor, remnans=True, scale=False), squeeze_cols=True)
     
-    # for brick logreg test analyses
-    if TEST_BRICKS_VARIATIONS:
-        if remconsec_surps:
+    # for visual flow logreg test analyses
+    if TEST_VISFLOW_VARIATIONS:
+        if remconsec_unexps:
             # Normalize to first half
             mid = roi_data.shape[-1]  // 2
             div = np.median(roi_data[:, :, : mid], axis=-1)
             roi_data = roi_data - np.expand_dims(div, -1)
             
             # # Mean only
-            if TEST_BRICKS_VARIATIONS == "mean":
+            if TEST_VISFLOW_VARIATIONS == "mean":
                 logger.warning("Using mean across ROIs, for testing purposes.")
                 # 1 x seqs x frames
                 roi_data = np.expand_dims(np.nanmean(roi_data, axis=0), axis=0)
 
             # Mean and std
-            elif TEST_BRICKS_VARIATIONS == "mean_std":
+            elif TEST_VISFLOW_VARIATIONS == "mean_std":
                 logger.warning("Using mean and standard deviation across ROIs, "
                     "for testing purposes.")
                 roi_data = np.stack([np.nanmean(roi_data, axis=0),
@@ -625,17 +635,17 @@ def get_data(stim, analyspar, stimpar, quantpar, qu_i=0, surp=[0, 1],
     # transpose to seqs x frames x ROIs
     roi_data = np.transpose(roi_data, [1, 2, 0])
 
-    return roi_data, surp_n
+    return roi_data, unexp_n
 
 
 #############################################
-def get_sess_data(sess, analyspar, stimpar, quantpar, class_var="surps", 
-                  surps=[0, 1], regvsurp=False, split_oris=False):
+def get_sess_data(sess, analyspar, stimpar, quantpar, class_var="unexps", 
+                  unexps=[0, 1], exp_v_unexp=False, split_oris=False):
     """
     get_sess_data(sess, analyspar, stimpar, quantpar)
 
     Logs session information and returns ROI trace segments, target classes 
-    and class information and number of surprise segments in the dataset.
+    and class information and number of unexpected segments in the dataset.
     
     Required args:
         - sess (Session)       : session
@@ -644,14 +654,14 @@ def get_sess_data(sess, analyspar, stimpar, quantpar, class_var="surps",
         - quantpar (QuantPar)  : named tuple containing quantile parameters
 
     Optional args:
-        - class_var (str)          : class determining variable ("surps" or 
+        - class_var (str)          : class determining variable ("unexps" or 
                                      stimpar attribute)
-                                     default: "surps"
-        - surps (list, str, int)   : surprise value(s) (list if class_var is 
-                                     "surps", otherwise 0, 1 or "any")
-        - regvsurp (bool)          : if True, the first dataset will include 
-                                     regular sequences and the second will 
-                                     include surprise sequences
+                                     default: "unexps"
+        - unexps (list, str, int)   : unexpected value(s) (list if class_var is 
+                                     "unexps", otherwise 0, 1 or "any")
+        - exp_v_unexp (bool)       : if True, the first dataset will include 
+                                     expected sequences and the second will 
+                                     include unexpected sequences
                                      default: False
         - split_oris (bool or list): List of Gabor frames for each split, or 
                                      False if splitting orientation comparison 
@@ -664,7 +674,7 @@ def get_sess_data(sess, analyspar, stimpar, quantpar, class_var="surps",
         - seq_classes (list): list of 2D arrays of sequence classes
                               (1 or 2 if an additional test set is included), 
                               each structured as class values x 1
-        - n_surps (list)    : list of lists of number of surprise sequences
+        - n_unexps (list)    : list of lists of number of unexpected sequences
                               (doubled if "half" comparison), 
                               structured as datasets x class 
     """
@@ -673,10 +683,10 @@ def get_sess_data(sess, analyspar, stimpar, quantpar, class_var="surps",
 
     split_oris = split_oris is not False # set to boolean
 
-    if (regvsurp + (len(quantpar.qu_idx) > 1) + ("half" in class_var)
+    if (exp_v_unexp + (len(quantpar.qu_idx) > 1) + ("half" in class_var)
         + split_oris) > 1:
         raise ValueError("Cannot combine any of the following: separating "
-            "quartiles, regvsurp, half comparisons, multiple Gabor frame "
+            "quartiles, exp_v_unexp, half comparisons, multiple Gabor frame "
             "orientation comparisons.")
     elif len(quantpar.qu_idx) > 2:
         raise ValueError("Max of 2 quartiles expected.")
@@ -686,11 +696,11 @@ def get_sess_data(sess, analyspar, stimpar, quantpar, class_var="surps",
 
     # check for stimulus pre/post problems
     pre_post_err = False
-    get_2nd, remconsec_surps = False, False
+    get_2nd, remconsec_unexps = False, False
     if stimpar.pre > 0:
-        if stimpar.stimtype == "bricks":
-            if class_var == "surps":
-                remconsec_surps = True
+        if stimpar.stimtype == "visflow":
+            if class_var == "unexps":
+                remconsec_unexps = True
             elif stimpar.pre == 1:
                 get_2nd = True
             else:
@@ -706,11 +716,11 @@ def get_sess_data(sess, analyspar, stimpar, quantpar, class_var="surps",
             f"for {class_var} classification")
 
     n = 1
-    if class_var == "surps":
-        n_cl = len(surps)
+    if class_var == "unexps":
+        n_cl = len(unexps)
     elif "half" in class_var:
         n_cl = 2
-        # DOUBLE surp ns to compensate for shorter blocks, if using control
+        # DOUBLE unexp ns to compensate for shorter blocks, if using control
         n = 2
         if "diff" in class_var:
             quantpar = sess_ntuple_util.init_quantpar(
@@ -724,44 +734,44 @@ def get_sess_data(sess, analyspar, stimpar, quantpar, class_var="surps",
     else:
         n_cl = len(stimpar._asdict()[class_var])
 
-    # modify surps, qu_idx, gabfr to cycle through datasets
+    # modify unexps, qu_idx, gabfr to cycle through datasets
     if len(quantpar.qu_idx) == 2:
-        surps = [surps, surps]
+        unexps = [unexps, unexps]
         gabfr_idxs = ["ignore", "ignore"]
-        if regvsurp:
+        if exp_v_unexp:
             raise ValueError(
-                "Cannot set regvsurp to True if more than 1 quantile.")
+                "Cannot set exp_v_unexp to True if more than 1 quantile.")
         if "part" in class_var:
             raise ValueError("Cannot do half comparisons with quartiles.")
-    elif regvsurp:
-        surps = [surps, 1-surps]
+    elif exp_v_unexp:
+        unexps = [unexps, 1-unexps]
         gabfr_idxs = ["ignore", "ignore"]
         quantpar = sess_ntuple_util.init_quantpar(
             1, [0, 0], [None, None], [None, None])
     elif split_oris:
-        surps = surps
+        unexps = unexps
         gabfr_idxs = [0, 1]
         quantpar = sess_ntuple_util.init_quantpar(
             1, [0, 0], [None, None], [None, None])
     else:
-        surps = [surps]
+        unexps = [unexps]
         gabfr_idxs = ["ignore"]
     gabfr_idxs = [0, 1] if split_oris else ["ignore", "ignore"]
 
     # cycle through classes
     roi_seqs    = [[] for _ in range(len(quantpar.qu_idx))]
     seq_classes = [[] for _ in range(len(quantpar.qu_idx))]
-    surp_ns     = [[] for _ in range(len(quantpar.qu_idx))]
+    unexp_ns     = [[] for _ in range(len(quantpar.qu_idx))]
 
-    # cycle through data groups (quant or regvsurp or gabfr for oris)        
-    for d, (qu_i, subsurps, gabfr_idx) in enumerate(
-        zip(quantpar.qu_idx, surps, gabfr_idxs)):
+    # cycle through data groups (quant or exp_v_unexp or gabfr for oris)        
+    for d, (qu_i, sub_unexps, gabfr_idx) in enumerate(
+        zip(quantpar.qu_idx, unexps, gabfr_idxs)):
         for cl in range(n_cl):
             use_qu_i = [qu_i]
-            surp = subsurps
+            unexp = sub_unexps
             stimpar_sp = stimpar
-            if class_var == "surps":
-                surp = subsurps[cl]
+            if class_var == "unexps":
+                unexp = sub_unexps[cl]
             elif "half" in class_var:
                 use_qu_i = [qu_i[cl]]
             else:
@@ -770,19 +780,19 @@ def get_sess_data(sess, analyspar, stimpar, quantpar, class_var="surps",
                 if split_oris:
                     keys = [keys, "gabfr", "gab_ori"]
                     vals = [vals, stimpar.gabfr[gabfr_idx], 
-                        stimpar.gab_ori[gabfr_idx][cl]]
+                        stimpar.gab_ori[cl]]
                 # modify stimpar
                 stimpar_sp = sess_ntuple_util.get_modif_ntuple(
                     stimpar, keys, vals)
 
-            roi_data, surp_n = get_data(
+            roi_data, unexp_n = get_data(
                 stim, analyspar, stimpar_sp, quantpar, qu_i=use_qu_i, 
-                surp=surp, remconsec_surps=remconsec_surps, n=n,  
+                unexp=unexp, remconsec_unexps=remconsec_unexps, n=n,  
                 get_2nd=get_2nd)
 
             roi_seqs[d].append(roi_data)
             seq_classes[d].append(np.full(len(roi_data), cl))
-            surp_ns[d].append(surp_n)
+            unexp_ns[d].append(unexp_n)
 
         # concatenate data split by class along trial seqs axis
         roi_seqs[d] = np.concatenate(roi_seqs[d], axis=0)
@@ -793,20 +803,20 @@ def get_sess_data(sess, analyspar, stimpar, quantpar, class_var="surps",
     n_fr, nrois = roi_seqs[0].shape[1:] # in training set
 
     if stimpar.stimtype == "gabors":
-        surp_use = surps[0]
-        if surp_use == [0, 1] and not isinstance(stimpar.gabfr, list):
-            surp_use = "any"
+        unexp_use = unexps[0]
+        if unexp_use == [0, 1] and not isinstance(stimpar.gabfr, list):
+            unexp_use = "any"
         if split_oris:
             gabfr_lett = [sess_str_util.gabfr_letters(
-                gabfr, surp=surp_use) for gabfr in stimpar.gabfr]
+                gabfr, unexp=unexp_use) for gabfr in stimpar.gabfr]
             gabfr_lett = " -> ".join([str(lett) for lett in gabfr_lett])
         else:
             gabfr_lett = sess_str_util.gabfr_letters(
-                stimpar.gabfr, surp=surp_use)
+                stimpar.gabfr, unexp=unexp_use)
         stim_info = f"\nGab fr: {gabfr_lett}\nGab K: {stimpar.gabk}"
-    elif stimpar.stimtype == "bricks":
-        stim_info = (f"\nBri dir: {stimpar.bri_dir}\n"
-            f"Bri size: {stimpar.bri_size}")
+    elif stimpar.stimtype == "visflow":
+        stim_info = (f"\nVisual flow dir: {stimpar.visflow_dir}\n"
+            f"Visual flow size: {stimpar.visflow_size}")
 
     logger.info(f"Runtype: {sess.runtype}\nMouse: {sess.mouse_n}\n"
         f"Sess: {sess.sess_n}\nPlane: {sess.plane}\nLine: {sess.line}\n"
@@ -814,15 +824,15 @@ def get_sess_data(sess, analyspar, stimpar, quantpar, class_var="surps",
         f"Frames per seg: {n_fr}\nLogvar: {log_var:.2f}", 
         extra={"spacing": "\n"})
 
-    return roi_seqs, seq_classes, surp_ns
+    return roi_seqs, seq_classes, unexp_ns
 
 
 #############################################
-def sample_seqs(roi_seqs, seq_classes, n_surp):
+def sample_seqs(roi_seqs, seq_classes, n_unexp):
     """
-    sample_seqs(roi_seqs, seq_classes, n_surp)
+    sample_seqs(roi_seqs, seq_classes, n_unexp)
 
-    Samples sequences to correspond to the ratio of surprise to regular 
+    Samples sequences to correspond to the ratio of unexpected to expected 
     sequences.
     
     Required args:
@@ -830,7 +840,7 @@ def sample_seqs(roi_seqs, seq_classes, n_surp):
                                   as: sequences x frames x ROIs
         - seq_classes (2D array): array of all sequence classes (0, 1), 
                                   structured as class values x 1
-        - n_surp (int)          : number of surprise sequences
+        - n_unexp (int)          : number of unexpected sequences
 
     Returns:
         - roi_seqs (3D array)   : array of selected ROI trace sequences, 
@@ -843,10 +853,10 @@ def sample_seqs(roi_seqs, seq_classes, n_surp):
 
     class0_all = np.where(seq_classes == 0)[0]
     class1_all = np.where(seq_classes == 1)[0]
-    n_reg = (len(class0_all) + len(class1_all))//2 - n_surp
+    n_exp = (len(class0_all) + len(class1_all))//2 - n_unexp
 
-    class0_idx = np.random.choice(class0_all, n_reg, replace=False)
-    class1_idx = np.random.choice(class1_all, n_surp, replace=False)
+    class0_idx = np.random.choice(class0_all, n_exp, replace=False)
+    class1_idx = np.random.choice(class1_all, n_unexp, replace=False)
     
     roi_seqs = np.concatenate(
         [roi_seqs[class0_idx], roi_seqs[class1_idx]], axis=0)
@@ -1065,7 +1075,7 @@ def save_scores(info, scores, key_order=None, dirname="."):
 
 
 #############################################
-def setup_run(quantpar, extrapar, techpar, sess_data, comp="surp", 
+def setup_run(quantpar, extrapar, techpar, sess_data, comp="unexp", 
               gab_ori="all"):
     """
     setup_run(quantpar, extrapar, techpar, sess_data)
@@ -1096,13 +1106,13 @@ def setup_run(quantpar, extrapar, techpar, sess_data, comp="surp",
                                   (1 or 2 if an additional test set is 
                                   included), each structured as 
                                       class values x 1
-            - n_surps (list)    : list of lists of number of surprise sequences
+            - n_unexps (list)    : list of lists of number of unexpected sequences
                                   (doubled if "half" comparison), 
                                   structured as datasets x class 
 
     Optional args:
         - comp (str)           : comparison
-                                 default: "surp"
+                                 default: "unexp"
         - gab_ori (str or list): Gabor orientations,
                                  for comp values like DoriU, DoriA, etc.
                                  default: "all"
@@ -1120,7 +1130,7 @@ def setup_run(quantpar, extrapar, techpar, sess_data, comp="surp",
         - seq_classes (list): list of 2D arrays of sequence classes
                               (1 or 2 if an additional test set is included), 
                               each structured as class values x 1
-        - n_surps (list)    : list of lists of number of surprise sequences
+        - n_unexps (list)    : list of lists of number of unexpected sequences
                               (doubled if "half" comparison),
                               structured as datasets x class
 
@@ -1134,10 +1144,10 @@ def setup_run(quantpar, extrapar, techpar, sess_data, comp="surp",
         seed_torch=(techpar["alg"] == "pytorch")) # seed torch, if needed
     extrapar["classes"] = get_classes(comp, gab_ori)
     
-    [roi_seqs, seq_classes, n_surps] = copy.deepcopy(sess_data)
+    [roi_seqs, seq_classes, n_unexps] = copy.deepcopy(sess_data)
     extrapar["n_rois"]  = roi_seqs[0].shape[-1]
 
-    return extrapar, roi_seqs, seq_classes, n_surps
+    return extrapar, roi_seqs, seq_classes, n_unexps
 
 
 #############################################
@@ -1180,7 +1190,7 @@ def all_runs_sk(n_runs, analyspar, logregpar, quantpar, sesspar, stimpar,
                                   (1 or 2 if an additional test set is 
                                   included), each structured as 
                                       class values x 1
-            - n_surps (list)    : list of lists of number of surprise sequences
+            - n_unexps (list)    : list of lists of number of unexpected sequences
                                   (doubled if "half" comparison), 
                                   structured as datasets x class
     """
@@ -1192,18 +1202,18 @@ def all_runs_sk(n_runs, analyspar, logregpar, quantpar, sesspar, stimpar,
             category=RuntimeWarning, stacklevel=1
             )
 
-    [extrapar, roi_seqs, seq_classes, n_surps] = setup_run(
+    [extrapar, roi_seqs, seq_classes, n_unexps] = setup_run(
          quantpar, extrapar, techpar, sess_data, logregpar.comp, 
          gab_ori=stimpar.gab_ori)
     main_data = [roi_seqs[0], seq_classes[0]]
 
-    samples = [False for _ in n_surps]
+    samples = [False for _ in n_unexps]
     if logregpar.ctrl:
-        # get n_surp for last class
-        samples = [n_surp[-1] for n_surp in n_surps]
-        keep_all = [val in logregpar.comp for val in ["ori", "dir_reg", "half"]]
-        if sum(keep_all) > 0: # get n_surp for all classes
-            samples = n_surps
+        # get n_unexp for last class
+        samples = [n_unexp[-1] for n_unexp in n_unexps]
+        keep_all = [val in logregpar.comp for val in ["ori", "dir_exp", "half"]]
+        if sum(keep_all) > 0: # get n_unexp for all classes
+            samples = n_unexps
 
     plot_util.manage_mpl(techpar["plt_bkend"], fontdir=techpar["fontdir"])
 
@@ -1236,7 +1246,7 @@ def all_runs_sk(n_runs, analyspar, logregpar, quantpar, sesspar, stimpar,
     set_names  = ["train", "test"]
     extra_data, extra_cv = None, None
     extra_name = sess_str_util.ext_test_str(
-        logregpar.q1v4, logregpar.regvsurp, logregpar.comp)
+        logregpar.q1v4, logregpar.exp_v_unexp, logregpar.comp)
     if cv._split_test:
         set_names.append("test_out")
     if len(roi_seqs) == 2:
@@ -1334,14 +1344,14 @@ def single_run_pt(run_n, analyspar, logregpar, quantpar, sesspar, stimpar,
                                   (1 or 2 if an additional test set is 
                                   included), each structured as 
                                       class values x 1
-            - n_surps (list)    : number of surprise sequences, listed by 
+            - n_unexps (list)    : number of unexpected sequences, listed by 
                                   quantile, (doubled if "half" comparison)
     """
     
     extrapar = copy.deepcopy(extrapar)
     extrapar["seed"] *= run_n + 1 # ensure different seed for each run
 
-    [extrapar, roi_seqs, seq_classes, n_surps] = setup_run(
+    [extrapar, roi_seqs, seq_classes, n_unexps] = setup_run(
         quantpar, extrapar, techpar, sess_data, logregpar.comp, 
         gab_ori=stimpar.gab_ori)
 
@@ -1355,7 +1365,7 @@ def single_run_pt(run_n, analyspar, logregpar, quantpar, sesspar, stimpar,
     for i in range(len(roi_seqs)):
         if logregpar.ctrl: # select a random subsample
             roi_seqs[i], seq_classes[i] = sample_seqs(
-                roi_seqs[i], seq_classes[i], n_surps[i][-1])  
+                roi_seqs[i], seq_classes[i], n_unexps[i][-1])  
         if logregpar.bal: # balance classes
             roi_seqs[i], seq_classes[i] = data_util.bal_classes(
                 roi_seqs[i], seq_classes[i])
@@ -1382,7 +1392,7 @@ def single_run_pt(run_n, analyspar, logregpar, quantpar, sesspar, stimpar,
 
     data_names = ["train"]
     extra_name = sess_str_util.ext_test_str(
-        logregpar.q1v4, logregpar.regvsurp, logregpar.comp)
+        logregpar.q1v4, logregpar.exp_v_unexp, logregpar.comp)
     idx = [0]
     if len(roi_seqs) == 2:
         idx.append(-1)
@@ -1443,7 +1453,7 @@ def run_regr(sess, analyspar, stimpar, logregpar, quantpar, extrapar, techpar):
             ["ep_freq"] (int)  : frequency at which to log loss to console
             ["fontdir"] (str)  : directory in which additional fonts are 
                                  located
-            ["n_reg"] (int)    : number of regular runs
+            ["n_reg"] (int)    : number of expected runs
             ["n_shuff"] (int)  : number of shuffled runs
             ["output"] (str)   : general directory in which to save output
             ["parallel"] (bool): if True, runs are done in parallel
@@ -1456,13 +1466,13 @@ def run_regr(sess, analyspar, stimpar, logregpar, quantpar, extrapar, techpar):
         sess.sess_n, False, sess.plane, sess.line, runtype=sess.runtype, 
         mouse_n=sess.mouse_n)
 
-    class_var, surps = get_class_pars(logregpar.comp, stimpar.stimtype)
+    class_var, unexps = get_class_pars(logregpar.comp, stimpar.stimtype)
     split_oris = sess_str_util.get_split_oris(logregpar.comp)
 
     try:
         sess_data = get_sess_data(
-            sess, analyspar, stimpar, quantpar, class_var, surps, 
-            regvsurp=logregpar.regvsurp, split_oris=split_oris)
+            sess, analyspar, stimpar, quantpar, class_var, unexps, 
+            exp_v_unexp=logregpar.exp_v_unexp, split_oris=split_oris)
     except RuntimeError as err:
         catch_phr = ["fit these criteria", "No frames"]
         catch = sum(phr in str(err) for phr in catch_phr)
@@ -1481,8 +1491,8 @@ def run_regr(sess, analyspar, stimpar, logregpar, quantpar, extrapar, techpar):
         techpar = copy.deepcopy(techpar)
         techpar["compdir"] = str(sess_gen_util.get_analysdir(
             sesspar.mouse_n, sesspar.sess_n, sesspar.plane, analyspar.fluor, 
-            analyspar.scale, stimpar.stimtype, stimpar.bri_dir, 
-            stimpar.bri_size, stimpar.gabk, logregpar.comp, logregpar.ctrl, 
+            analyspar.scale, stimpar.stimtype, stimpar.visflow_dir, 
+            stimpar.visflow_size, stimpar.gabk, logregpar.comp, logregpar.ctrl, 
             extrapar["shuffle"]))
         if logregpar.alg == "pytorch":
             techpar["compdir"] = f"{techpar['compdir']}_pt"
@@ -1550,7 +1560,7 @@ def collate_scores(direc, all_labels, alg="sklearn"):
 
 
 #############################################
-def remove_overlap_comp_dir(gen_dirs, stimtype="gabors", comp="surp"):
+def remove_overlap_comp_dir(gen_dirs, stimtype="gabors", comp="unexp"):
     """
     remove_overlap_comp_dir(gen_dirs)
 
@@ -1564,7 +1574,7 @@ def remove_overlap_comp_dir(gen_dirs, stimtype="gabors", comp="surp"):
         - stimtype (str) : stimulus type
                            default: "gabors"
         - comp (str)     : type of comparison
-                           default: "surp"
+                           default: "unexp"
     """
 
     all_comps = get_comps(stimtype)
@@ -1614,7 +1624,7 @@ def adjust_duplicate_runs(all_scores):
 
 
 #############################################
-def run_collate(output, stimtype="gabors", comp="surp", ctrl=False, 
+def run_collate(output, stimtype="gabors", comp="unexp", ctrl=False, 
                 alg="sklearn", parallel=False):
     """
     run_collate(output)
@@ -1631,7 +1641,7 @@ def run_collate(output, stimtype="gabors", comp="surp", ctrl=False,
         - stimtype (str) : stimulus type
                            default: "gabors"
         - comp (str)     : type of comparison
-                           default: "surp"
+                           default: "unexp"
         - ctrl (bool)    : if True, control comparisons are analysed
                            default: False
         - alg (str)      : algorithm used to run logistic regression 
@@ -1818,7 +1828,7 @@ def calc_stats(scores_summ, curr_lines, curr_idx, CI=0.95, ext_test=None,
 
 
 #############################################
-def run_analysis(output, stimtype="gabors", comp="surp", ctrl=False, 
+def run_analysis(output, stimtype="gabors", comp="unexp", ctrl=False, 
                  CI=0.95, alg="sklearn", parallel=False, all_scores_df=None):  
     """
     run_analysis(output)
@@ -1835,7 +1845,7 @@ def run_analysis(output, stimtype="gabors", comp="surp", ctrl=False,
         - stimtype (str)       : stimulus type
                                  default: "gabors"
         - comp (str)           : type of comparison
-                                 default: "surp"
+                                 default: "unexp"
         - ctrl (bool)          : if True, control comparisons are analysed
                                  default: False
         - CI (num)             : CI for shuffled data
@@ -1901,9 +1911,9 @@ def run_analysis(output, stimtype="gabors", comp="surp", ctrl=False,
 
 
 #############################################    
-def run_plot(output, stimtype="gabors", comp="surp", ctrl=False, bri_dir="both", 
-             fluor="dff", scale=True, CI=0.95, alg="sklearn", plt_bkend=None, 
-             fontdir=None, modif=False):
+def run_plot(output, stimtype="gabors", comp="unexp", ctrl=False, 
+             visflow_dir="both", fluor="dff", scale=True, CI=0.95, 
+             alg="sklearn", plt_bkend=None, fontdir=None, modif=False):
     """
     run_plot(output)
 
@@ -1914,37 +1924,37 @@ def run_plot(output, stimtype="gabors", comp="surp", ctrl=False, bri_dir="both",
         - output (Path): general directory in which summary dataframe is saved
     
     Optional args:
-        - stimtype (str) : stimulus type
-                           default: "gabors"
-        - comp (str)     : type of comparison
-                           default: "surp"
-        - ctrl (bool)    : if True, control comparisons are analysed
-                           default: False
-        - bri_dir (str)  : brick direction
-                           default: "both"
-        - fluor (str)    : fluorescence trace type
-                           default: "dff"
-        - scale (bool)   : whether data is scaled by ROI
-                           default: True
-        - CI (num)       : CI for shuffled data
-                           default: 0.95
-        - alg (str)      : algorithm used to run logistic regression 
-                           ("sklearn" or "pytorch")
-                           default: "sklearn"
-        - plt_bkend (str): pyplot backend to use
-                           default: None
-        - fontdir (str)  : directory in which additional fonts are located
-                           default: None
-        - modif (bool)   : if True, plots are made in a modified (simplified 
-                           way)
-                           default: False
+        - stimtype (str)   : stimulus type
+                             default: "gabors"
+        - comp (str)       : type of comparison
+                             default: "unexp"
+        - ctrl (bool)      : if True, control comparisons are analysed
+                             default: False
+        - visflow_dir (str): visual flow direction
+                             default: "both"
+        - fluor (str)      : fluorescence trace type
+                             default: "dff"
+        - scale (bool)     : whether data is scaled by ROI
+                             default: True
+        - CI (num)         : CI for shuffled data
+                             default: 0.95
+        - alg (str)        : algorithm used to run logistic regression 
+                             ("sklearn" or "pytorch")
+                             default: "sklearn"
+        - plt_bkend (str)  : pyplot backend to use
+                             default: None
+        - fontdir (str)    : directory in which additional fonts are located
+                             default: None
+        - modif (bool)     : if True, plots are made in a modified (simplified 
+                             way)
+                             default: False
     """
 
     if comp in ["half_right", "half_left"]:
-        bri_dir = comp.replace("half_", "")
+        visflow_dir = comp.replace("half_", "")
 
     savename = get_df_name("analyse", stimtype, comp, ctrl, alg)
 
-    logreg_plots.plot_summ(output, savename, stimtype, comp, ctrl, bri_dir, 
+    logreg_plots.plot_summ(output, savename, stimtype, comp, ctrl, visflow_dir, 
         fluor, scale, CI, plt_bkend, fontdir, modif)
 

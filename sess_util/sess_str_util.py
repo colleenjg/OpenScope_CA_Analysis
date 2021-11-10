@@ -1,7 +1,7 @@
 """
 sess_str_util.py
 
-This module contains basic math functions for getting strings to print or save
+This module contains basic functions for getting strings to print or save
 files for Allen Institute OpenScope experiments for the Credit Assignment 
 Project.
 
@@ -249,7 +249,7 @@ def op_par_str(plot_vals="both", op="diff", str_type="file"):
     for a filename.
 
     Optional args:
-        - plot_vals (str): "both", "surp" or "reg"
+        - plot_vals (str): "both", "unexp" or "exp"
         - op (str)       : "diff", "ratio"
                            default: "diff"
         - str_type (str) : use of output str, i.e., for a filename ("file") or
@@ -264,13 +264,13 @@ def op_par_str(plot_vals="both", op="diff", str_type="file"):
     if op not in ["diff", "ratio"]:
         gen_util.accepted_values_error("op", op, ["diff", "ratio"])
     
-    if plot_vals not in ["both", "reg", "surp"]:
+    if plot_vals not in ["both", "exp", "unexp"]:
         gen_util.accepted_values_error(
-            "plot_vals", plot_vals, ["both", "reg", "surp"])
+            "plot_vals", plot_vals, ["both", "exp", "unexp"])
     
     if plot_vals == "both":
         if str_type == "print":
-            op_str = "for surp v reg"
+            op_str = "for unexp v. exp"
         elif str_type == "file":
             op_str = op
         else:
@@ -451,7 +451,7 @@ def gabfr_nbrs(gabfr):
 
 
 #############################################
-def gabfr_letters(gabfr, surp="any"):
+def gabfr_letters(gabfr, unexp="any"):
     """
     gabfr_letters(gabfr)
 
@@ -461,10 +461,10 @@ def gabfr_letters(gabfr, surp="any"):
         - gabfr (int or list): gabor frame number(s)
 
     Optional args:
-        - surp (str, int or list): surprise values for all or each gabor frame 
-                                   number. If only value, applies to all.
-                                   (0, 1 or "any")
-                                   default: "any"
+        - unexp (str, int or list): unexpected values for all or each gabor 
+                                    frame number. If only value, applies to all.
+                                    (0, 1 or "any")
+                                    default: "any"
 
     Returns:
         - gab_letts (str or list): gabor frame letter(s)
@@ -476,12 +476,12 @@ def gabfr_letters(gabfr, surp="any"):
     else:
         gabfr_list = True
 
-    surp = gen_util.list_if_not(surp)
-    if len(surp) == 1:
-        surp = surp * len(gabfr)    
+    unexp = gen_util.list_if_not(unexp)
+    if len(unexp) == 1:
+        unexp = unexp * len(gabfr)    
     else:
-        if len(gabfr) != len(surp):
-            raise ValueError("If passing more than one surp value, must "
+        if len(gabfr) != len(unexp):
+            raise ValueError("If passing more than one unexp value, must "
                 "pass as many as gabfr.")
 
     if min(gabfr) < 0 or max(gabfr) > 3:
@@ -491,8 +491,8 @@ def gabfr_letters(gabfr, surp="any"):
 
     gab_letts = []
     for i, gf in enumerate(gabfr):
-        if gf == 3 and surp[i] != "any":
-            gab_letts.append(all_gabfr[gf][-surp[i]]) # D or U is retained
+        if gf == 3 and unexp[i] != "any":
+            gab_letts.append(all_gabfr[gf][-unexp[i]]) # D or U is retained
         else:
             gab_letts.append(all_gabfr[gf])
 
@@ -553,11 +553,11 @@ def size_par_str(size, str_type="file"):
     """
     size_par_str(size)
 
-    Returns a string with stim type, as well as size parameters
+    Returns a string with stimulus type, as well as size parameters
     (e.g., 128, 256), unless only 128 is passed.
 
     Required args:
-        - size (int or list): brick size parameter
+        - size (int or list): visual flow square size parameter
 
     Optional args:
         - str_type (str) : use of output str, i.e., for a filename ("file") or
@@ -565,7 +565,7 @@ def size_par_str(size, str_type="file"):
                            default: "file"
 
     Returns:
-        - pars (str): string containing stim type (bricks) and size, 
+        - pars (str): string containing stim type (visual flow) and size, 
                       unless only 128 is passed.
     """
 
@@ -573,9 +573,9 @@ def size_par_str(size, str_type="file"):
     size = [int(s) for s in size]
 
     if str_type == "file":
-        pars = "bri"
+        pars = "visflow"
     elif str_type == "print":
-        pars = "bricks"
+        pars = "vis. flow"
     else:
         gen_util.accepted_values_error("str_type", str_type, ["print", "file"])
 
@@ -584,7 +584,7 @@ def size_par_str(size, str_type="file"):
             if str_type == "file":
                 pars = f"{pars}_both_siz"
             elif str_type == "print":
-                pars = f"{pars} (both sizes)"
+                pars = f"{pars} (both square sizes)"
         else:
             if str_type == "file":
                 pars = f"{pars}{size[0]}"
@@ -603,7 +603,7 @@ def dir_par_str(direc, str_type="file"):
     (e.g., "right", "left"), unless both possible values are passed.
 
     Required args:
-        - direc (str or list): brick direction parameter
+        - direc (str or list): visual flow direction parameter
 
     Optional args:
         - str_type (str) : use of output str, i.e., for a filename ("file") or
@@ -611,21 +611,21 @@ def dir_par_str(direc, str_type="file"):
                            default: "file"
 
     Returns:
-        - pars (str): string containing stim type (bricks) and direction, 
+        - pars (str): string containing stim type (visual flow) and direction, 
                       unless both possible values are passed.
     """
 
     direc = gen_util.list_if_not(direc)
     if str_type == "file":
-        pars = "bri"
+        pars = "visflow"
     elif str_type == "print":
-        pars = "bricks"
+        pars = "vis. flow"
     else:
         gen_util.accepted_values_error("str_type", str_type, ["print", "file"])
     
     if len(direc) == 1 and direc[0] != "both":
         direc = direc[0]
-        direc_detailed = sess_gen_util.get_bri_screen_mouse_direc(direc)
+        direc_detailed = sess_gen_util.get_visflow_screen_mouse_direc(direc)
         if str_type == "file":
             direc = direc_detailed[:5].strip(" ") # get left/right
             pars = f"{pars}_{direc}"
@@ -637,17 +637,17 @@ def dir_par_str(direc, str_type="file"):
 
 
 #############################################
-def bri_par_str(direc, size, str_type="file"):
+def visflow_par_str(direc, size, str_type="file"):
     """
-    bri_par_str()
+    visflow_par_str()
 
     Returns a string with stim type, as well as size (e.g., 128, 256) and 
-    direction (e.g., "right", "left") parameters, unless all possible bricks 
-    parameters values are passed.
+    direction (e.g., "right", "left") parameters, unless all possible visual 
+    flow parameters values are passed.
 
     Required args:
-        - direc (str or list) : brick direction parameter values
-        - size (int or list): brick size parameter values
+        - direc (str or list) : visual flow direction parameter values
+        - size (int or list): visual flow square size parameter values
 
     Optional args:
         - str_type (str) : use of output str, i.e., for a filename ("file") or
@@ -655,29 +655,30 @@ def bri_par_str(direc, size, str_type="file"):
                            default: "file"
 
     Returns:
-        - pars (str): string containing stim type (bricks) and parameter values, 
-                      unless all parameter values for bricks are passed.
+        - pars (str): string containing stim type (visual flow) and parameter 
+                      values, unless all parameter values for visual flow are 
+                      passed.
     """
     
     if size is None or direc is None:
-        raise ValueError("Must pass value for brick size or direction "
-                         "parameter.")
+        raise ValueError("Must pass value for visual flow square size or "
+                         "direction parameter.")
 
     dirstr = dir_par_str(direc, str_type=str_type)
     sizestr = size_par_str(size, str_type=str_type)
     if str_type == "print":
-        if len(dirstr) > 6: # specified direction
-            if len(sizestr) > 6: # specified size
+        if len(dirstr) > 10: # specified direction
+            if len(sizestr) > 10: # specified size
                 pars = (f"{sizestr.replace(')', '')}, "
-                    f"{dirstr.replace('bricks (', '')}")
+                    f"{dirstr.replace('vis. flow (', '')}")
             else:
                 pars = dirstr
         else:
             pars = sizestr
     elif str_type == "file":
-        if len(dirstr) > 3: # specified direction
-            if len(sizestr) > 3:
-                pars = f"{sizestr}_{dirstr[4:]}"
+        if len(dirstr) > 8: # specified direction
+            if len(sizestr) > 8:
+                pars = f"{sizestr}_{dirstr[8:]}"
             else:
                 pars = dirstr
         else:
@@ -689,28 +690,28 @@ def bri_par_str(direc, size, str_type="file"):
 
 
 #############################################
-def stim_par_str(stimtype="gabors", bri_dir=None, bri_size=None, gabk=None,  
-                 str_type="file"):
+def stim_par_str(stimtype="gabors", visflow_dir=None, visflow_size=None, 
+                 gabk=None,  str_type="file"):
     """
     stim_par_str(par)
 
-    Returns a string with stim type, as well as gabor kappa or brick size and 
-    direction parameters, unless all possible parameters values for the stim 
-    type are passed.
+    Returns a string with stim type, as well as gabor kappa or visual flow 
+    square size and direction parameters, unless all possible parameters values 
+    for the stim type are passed.
 
     Optional args:
-        - stimtype (str)        : type of stimulus
-                                  default: "gabors"
-        - bri_dir (str or list) : brick direction parameter
-                                  default: None
-        - bri_size (int or list): brick size parameter
-                                  default: None
-        - gabk (int or list)    : gabor kappa parameter
-                                  default: None
-        - str_type (str)        : use of output str, i.e., for a filename 
-                                  ("file") or to print the info to console 
-                                  ("print")
-                                  default: "file"
+        - stimtype (str)            : type of stimulus
+                                      default: "gabors"
+        - visflow_dir (str or list) : visual flow direction parameter
+                                      default: None
+        - visflow_size (int or list): visual flow square size parameter
+                                      default: None
+        - gabk (int or list)        : gabor kappa parameter
+                                      default: None
+        - str_type (str)            : use of output str, i.e., for a filename 
+                                      ("file") or to print the info to console 
+                                      ("print")
+                                      default: "file"
 
     Returns:
         - pars (str): string containing stim type and parameter values, unless
@@ -725,16 +726,16 @@ def stim_par_str(stimtype="gabors", bri_dir=None, bri_size=None, gabk=None,
         pars = gabk_par_str(gabk, str_type)
         if stimtype == "both":
             all_pars.append(pars)
-    elif stimtype in ["bricks", "both"]:
-        if bri_size is None or bri_dir is None:
-            raise ValueError("If stimulus is bricks, must pass direction and "
-                "size parameters.")
-        pars = bri_par_str(bri_dir, bri_size, str_type=str_type)
+    elif stimtype in ["visflow", "both"]:
+        if visflow_size is None or visflow_dir is None:
+            raise ValueError("If stimulus is visual flow, must pass direction "
+                "and square size parameters.")
+        pars = visflow_par_str(visflow_dir, visflow_size, str_type=str_type)
         if stimtype == "both":
             all_pars.append(pars)
     else:
         gen_util.accepted_values_error(
-            "stimtype", stimtype, ["gabors", "bricks", "both"])
+            "stimtype", stimtype, ["gabors", "visflow", "both"])
 
     if stimtype == "both":
         if str_type == "file":
@@ -749,8 +750,8 @@ def stim_par_str(stimtype="gabors", bri_dir=None, bri_size=None, gabk=None,
 
 
 #############################################
-def sess_par_str(sess_n, stimtype="gabors", layer="soma", bri_dir=None, 
-                 bri_size=None, gabk=None, str_type="file"):
+def sess_par_str(sess_n, stimtype="gabors", layer="soma", visflow_dir=None, 
+                 visflow_size=None, gabk=None, str_type="file"):
     """
     sess_par_str(sess_n)
 
@@ -761,35 +762,35 @@ def sess_par_str(sess_n, stimtype="gabors", layer="soma", bri_dir=None,
         - sess_n (int or list)  : session number aimed for
 
     Optional args:
-        - stimtype (str)        : type of stimulus
-                                  default: "gabors"
-        - layer (str)           : layer ("soma", "dend", "L23_soma", "L5_soma", 
-                                         "L23_dend", "L5_dend", "L23_all", 
-                                         "L5_all")
-                                  default: "soma"
-        - bri_dir (str or list) : brick direction parameter
-                                  default: None
-        - bri_size (int or list): brick size parameter
-                                  default: None
-        - gabk (int or list)    : gabor kappa parameter
-                                  default: None
-        - str_type (str)        : use of output str, i.e., for a filename 
-                                  ("file") or to print the info to console 
-                                  ("print")
-                                  default: "file"
+        - stimtype (str)            : type of stimulus
+                                      default: "gabors"
+        - layer (str)               : layer ("soma", "dend", "L23_soma", 
+                                             "L5_soma", "L23_dend", "L5_dend", 
+                                             "L23_all", "L5_all")
+                                      default: "soma"
+        - visflow_dir (str or list) : visual flow direction parameter
+                                      default: None
+        - visflow_size (int or list): visual flow square size parameter
+                                      default: None
+        - gabk (int or list)        : gabor kappa parameter
+                                      default: None
+        - str_type (str)            : use of output str, i.e., for a filename 
+                                      ("file") or to print the info to console 
+                                      ("print")
+                                      default: "file"
     Returns:
         - sess_str (list): string containing info on session and stimulus  
                            parameters
     """
-    if gabk is None and (bri_size is None or bri_dir is None):
-        raise ValueError("Must pass value for gabor k parameter or brick "
-            "size and direction.")
+    if gabk is None and (visflow_size is None or visflow_dir is None):
+        raise ValueError("Must pass value for gabor k parameter or visual "
+            "flow square size and direction.")
     elif gabk is None:
-        stimtype = "bricks"
-    elif bri_size is None or bri_dir is None:
+        stimtype = "visflow"
+    elif visflow_size is None or visflow_dir is None:
         stimtype = "gabors"
 
-    stim_str = stim_par_str(stimtype, bri_dir, bri_size, gabk, str_type)
+    stim_str = stim_par_str(stimtype, visflow_dir, visflow_size, gabk, str_type)
 
     if isinstance(sess_n, list):
         sess_n = gen_util.intlist_to_str(sess_n)
@@ -907,22 +908,22 @@ def get_split_oris(comp="DoriA"):
 
 
 #############################################
-def ext_test_str(q1v4=False, rvs=False, comp="surp", str_type="file"):
+def ext_test_str(q1v4=False, evu=False, comp="unexp", str_type="file"):
     """
     ext_test_str()
     
     Returns the string for the extra test set for logistic regressions, based 
-    on the parameters. Returns "" if neither q1v4 nor regvsurp is True.
+    on the parameters. Returns "" if neither q1v4 nor exp_v_unexp is True.
 
     Optional args:
         - q1v4 (bool)    : if True, analysis is separated across first and last 
                            quartiles
                            default: False
-        - rvs (bool)     : if True, analysis is separated across regular and 
-                           surprise sequences 
+        - evu (bool)     : if True, analysis is separated across expected and 
+                           unexpected sequences 
                            default: False
         - comp (str)     : type of comparison
-                           default: "surp"
+                           default: "unexp"
         - str_type (str) : use of output str, i.e., for a filename 
                            ("file") or to print the info to console ("print")
                            or for a label ("label")
@@ -930,10 +931,10 @@ def ext_test_str(q1v4=False, rvs=False, comp="surp", str_type="file"):
 
     Returns:
         - ext_str (str): string for the extra dataset ("" if neither 
-                         q1v4 nor rvs is True), and comparison details
+                         q1v4 nor evu is True), and comparison details
     """
-    if q1v4 + rvs > 1:
-        raise ValueError("'q1v4' and 'rvs' cannot both be True.")
+    if q1v4 + evu > 1:
+        raise ValueError("'q1v4' and 'evu' cannot both be True.")
 
     if str_type not in ["file", "print", "label"]:
         gen_util.accepted_values_error(
@@ -948,13 +949,13 @@ def ext_test_str(q1v4=False, rvs=False, comp="surp", str_type="file"):
             ext_str = " (only Q1)"
         else:
             ext_str = " (trained on Q1 and tested on Q4)"
-    elif rvs:
+    elif evu:
         if str_type == "file":
-            ext_str = "test_surp"
+            ext_str = "test_unexp"
         elif str_type == "label":
-            ext_str = " (only reg)"
+            ext_str = " (only exp)"
         else:
-            ext_str = " (trained on reg and tested on surp)"
+            ext_str = " (trained on exp and tested on unexp)"
     elif split_oris is not False:
         if str_type == "file":
             ext_str = f"test_{split_oris[1]}"
