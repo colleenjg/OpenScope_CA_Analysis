@@ -20,6 +20,116 @@ from util import file_util, gen_util, logger_util
 
 
 #############################################
+def get_nwb_sess_paths(maindir, dandi_id, mouseid=None):
+    """
+    get_nwb_sess_paths(maindir, dandi_id)
+
+    Returns a list of NWB session data path names for the DANDI Credit 
+    Assignment session requested.
+
+    Several files may be found if they contain different types of information 
+    (e.g., behavior, image, ophys).
+ 
+    Required arguments:
+        - maindir (str) : path of the main data directory
+        - dandi_id (str): DANDI ID (yyyymmddThhmmss digits)
+
+    Optional arguments
+        - mouseid (str) : mouse 6-digit ID string optionally used to check 
+                          whether files are for the expected mouse number
+                          e.g. "389778"
+
+    Returns:
+        - sess_files (Path): full path names of the session files
+    """
+
+    if dandi_id is None:
+        raise ValueError(
+            "Dandi ID is None. Session may not exist in NWB version."
+            )
+    
+    dandi_form = f"*ses-{dandi_id}*.nwb"
+    if mouseid is not None:
+        dandi_form = f"sub-{mouseid}_{dandi_form}"
+    dandi_glob_path = Path(maindir, "**", dandi_form)
+    sess_files = glob.glob(str(dandi_glob_path), recursive=True)
+
+    if len(sess_files) == 0:
+        raise RuntimeError(
+            "Found no NWB sessions of the expected form "
+            f"{dandi_form} under {maindir}."
+            )
+
+    else:
+        sess_files = [Path(sess_file) for sess_file in sess_files]
+        return sess_files
+
+
+#############################################
+def get_sess_dirs(maindir, sessid, expid, segid, mouseid, runtype="prod",
+                  mouse_dir=True, check=True):
+    """
+    get_sess_dirs(maindir, sessid, expid, segid, mouseid)
+
+    Returns the full path names of the session directory and subdirectories for 
+    the specified session and experiment on the given date that can be used for 
+    the Credit Assignment analysis.
+
+    Also checks existence of expected directories.
+ 
+    Required arguments:
+        - maindir (str): path of the main data directory
+        - sessid (int) : session ID (9 digits)
+        - expid (str)  : experiment ID (9 digits)
+        - segid (str)  : segmentation ID (9 digits)
+        - mouseid (str): mouse 6-digit ID string used for session files
+                         e.g. "389778" 
+
+    Optional arguments
+        - runtype (str)   : "prod" (production) or "pilot" data
+                            default: "prod"
+        - mouse_dir (bool): if True, session information is in a "mouse_*"
+                            subdirectory
+                            default: True
+        - check (bool)    : if True, checks whether the directories in the 
+                            output dictionary exist
+                            default: True
+
+    Returns:
+        - sessdir (Path) : full path name of the session directory
+        - expdir (Path)  : full path name of the experiment directory
+        - procdir (Path) : full path name of the processed 
+                           data directory
+        - demixdir (Path): full path name of the demixing data directory
+        - segdir (Path)  : full path name of the segmentation directory
+    """
+    
+    # get the name of the session and experiment data directories
+    if mouse_dir:
+        sessdir = Path(maindir, runtype, f"mouse_{mouseid}", 
+            f"ophys_session_{sessid}")
+    else:
+        sessdir = Path(maindir, runtype, f"ophys_session_{sessid}")
+
+    expdir   = Path(sessdir, f"ophys_experiment_{expid}")
+    procdir  = Path(expdir, "processed")
+    demixdir = Path(expdir, "demix")
+    segdir   = Path(procdir, f"ophys_cell_segmentation_run_{segid}")
+
+    # check that directory exists
+    if check:
+        try:
+            file_util.checkdir(sessdir)
+        except OSError as err:
+            raise OSError(
+                f"{sessdir} does not conform to expected OpenScope "
+                f"structure: {err}."
+                )
+
+    return sessdir, expdir, procdir, demixdir, segdir
+
+
+#############################################
 def get_sess_dirs(maindir, sessid, expid, segid, mouseid, runtype="prod",
                   mouse_dir=True, check=True):
     """

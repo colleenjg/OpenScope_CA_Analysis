@@ -18,6 +18,7 @@ import warnings
 
 import numpy as np
 import pandas as pd
+import pynwb
 from scipy import signal as scisig
 from scipy import stats as scist
 from allensdk.brain_observatory import sync_dataset, sync_utilities
@@ -46,6 +47,68 @@ ADJUST_SECOND_ALIGNMENT = [833704570]
 
 #### ALWAYS SET TO FALSE - CHANGE ONLY FOR TESTING PURPOSES
 TEST_RUNNING_BLIPS = False
+
+
+#############################################
+def get_frame_timestamps_nwb(sess_files):
+    """
+    get_frame_timestamps_nwb(sess_files)
+
+    Returns time stamps for stimulus and two-photon frames.
+
+    Required args:
+        - sess_files (Path): full path names of the session files
+
+    Returns:
+        - twop_timestamps (1D array): time stamp for each two-photon frame
+        - stim_timestamps (1D array): time stamp for each stimulus frame
+    """
+
+
+    # check whether behavior is included in file
+    sess_files = gen_util.list_if_not(sess_files)
+
+    files = []
+    for datatype in ["ophys", "behavior"]:
+        sub_files = [
+            sess_file for sess_file in sess_files if datatype in str(sess_file)
+            ]
+
+        if datatype == "behavior":
+            datatype_str = "Behaviour"
+        else:
+            datatype_str = "Optical physiology"
+
+        if len(sub_files) == 0:
+            raise RuntimeError(
+                f"{datatype_str} data not included in session NWB files."
+                )
+        
+        sub_file = sub_files[0]
+        if len(sub_files) == 1:
+            warnings.warn(
+                f"Several session files with {datatype_str.lower()} data "
+                f"found. Using the first listed: {sub_file}."
+                )
+        files.append(sub_file)
+
+    ophys_file, beh_file = files        
+    
+    with pynwb.NWBHDF5IO(ophys_file, "r") as f:
+        nwbfile_in = f.read()
+        twop_timestamps = np.asarray(
+            nwbfile_in.get_processing_module("ophys")["DfOverF"][
+                "RoiResponseSeries"].timestamps
+        )
+
+    with pynwb.NWBHDF5IO(beh_file, "r") as f:
+        nwbfile_in = f.read()
+        stim_timestamps = np.asarray(
+            nwbfile_in.get_processing_module("behavior")[
+                "BehavioralTimeSeries"]["running_velocity"].timestamps
+        )
+    
+    return twop_timestamps, stim_timestamps
 
 
 #############################################
@@ -103,7 +166,6 @@ def get_monitor_delay(syn_file_name):
     monitor_display_lag = Dataset2p.Dataset2p(str(syn_file_name)).display_lag
 
     return monitor_display_lag
-
 
 
 #############################################
@@ -212,12 +274,15 @@ def get_stim_frames(pkl_file_name, syn_file_name, time_sync_h5, df_pkl_name,
     file_util.checkfile(pkl_file_name)
 
     # read the pickle file and call it "pkl"
-    pkl = file_util.loadfile(pkl_file_name, filetype="pickle")
+    if isinstance(pkl_file_name, dict):
+        pkl = pkl_file_name
+    else:
+        pkl = file_util.loadfile(pkl_file_name, filetype="pickle")
 
     if runtype == "pilot":
-        num_stimtypes = 2 # bricks and Gabors
+        num_stimtypes = 2 # visual flow (bricks) and Gabors
     elif runtype == "prod":
-        num_stimtypes = 3 # 2 bricks and 1 set of Gabors
+        num_stimtypes = 3 # 2 visual flow (bricks) and 1 set of Gabors
     if len(pkl["stimuli"]) != num_stimtypes:
         raise ValueError(
             f"{num_stimtypes} stimuli types expected, but "
@@ -357,8 +422,8 @@ def get_seg_params(stim_types, stype_n, stim_df, zz, pkl, segment,
     get_seg_params(stim_types, stype_n, stim_df, zz, pkl, segment)
 
     Populates the parameter columns for a segment in stim_df depending on 
-    whether the segment is from a bricks or gabors stimulus block and whether 
-    it is a pilot or production session.
+    whether the segment is from a visual flow or gabors stimulus block and 
+    whether it is a pilot or production session.
 
     Required args:
         - stim_types (list): list of stimulus types for each stimulus, 

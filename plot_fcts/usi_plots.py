@@ -893,7 +893,6 @@ def plot_tracked_idx_stats(idx_stats_df, sesspar, figpar, permpar=None,
     figpar["init"]["gs"] = {"wspace": 0.25, "hspace": 0.2}
     if wide:
         figpar["init"]["subplot_wid"] = 3.3
-        figpar["init"]["gs"]["wspace"] = 0.25
 
     fig, ax = plot_util.init_fig(plot_helper_fcts.N_LINPLA, **figpar["init"])
 

@@ -26,11 +26,11 @@ TAB = "    "
 
 
 #############################################
-def get_sorted_sess_pairs(idx_corr_df):
+def get_sorted_sess_pairs(idx_corr_df, norm=True):
     """
     get_sorted_sess_pairs(idx_corr_df)
 
-    Returns list of session pairs, sorted by session number
+    Returns list of session pairs, sorted by session number.
 
     Required args:
         - idx_corr_df (pd.DataFrame):
@@ -38,7 +38,7 @@ def get_sorted_sess_pairs(idx_corr_df):
             following columns, in addition to the basic sess_df columns:
 
             for session comparisons, e.g. 1v2
-            - {}v{}_norm_corrs (float): normalized intersession ROI index 
+            - {}v{}{norm_str}_corrs (float): intersession ROI index 
                 correlations
 
     Returns:
@@ -46,10 +46,14 @@ def get_sorted_sess_pairs(idx_corr_df):
             sorted session number pairs, e.g. [[s1, s2], [s2, s3], ...]
     """
 
+    norm_str = "_norm" if norm else ""
+    corr_str = f"{norm_str}_corrs"
     sess_pairs = [
-        [int(n) for n in col.replace("_norm_corrs", "").split("v")] 
+        [
+        int(n) 
+        for n in col.replace(corr_str, "").split("v")] 
         for col in idx_corr_df.columns
-        if "_norm_corrs" in col
+        if corr_str in col
         ]
 
     sorted_pairs = [
@@ -271,7 +275,7 @@ def plot_rand_corr_ex_data(idx_corr_norm_df, title=None):
     if len(idx_corr_norm_df) != 1:
         raise ValueError("Expected idx_corr_norm_df to contain only one row.")
     
-    sorted_pairs = get_sorted_sess_pairs(idx_corr_norm_df)
+    sorted_pairs = get_sorted_sess_pairs(idx_corr_norm_df, norm=True)
 
     if len(sorted_pairs) != 1:
         raise RuntimeError(
@@ -304,7 +308,7 @@ def plot_rand_corr_ex_data(idx_corr_norm_df, title=None):
 
 
 #############################################
-def get_idx_corr_ylims(idx_corr_df):
+def get_idx_corr_ylims(idx_corr_df, norm=False):
     """
     get_idx_corr_ylims(idx_corr_df)
 
@@ -316,10 +320,10 @@ def get_idx_corr_ylims(idx_corr_df):
             following columns, in addition to the basic sess_df columns:
 
             for session comparisons, e.g. 1v2
-            - {}v{}_norm_corrs (float): normalized intersession ROI index 
+            - {}v{}{norm_str}_corrs (float): intersession ROI index 
                 correlations
-            - {}v{}_norm_corr_stds (float): bootstrapped normalized 
-                intersession ROI index correlation standard deviation
+            - {}v{}{norm_str}_corr_stds (float): bootstrapped intersession ROI 
+                index correlation standard deviation
             - {}v{}_null_CIs (list): adjusted null CI for normalized 
                 intersession ROI index correlations
         
@@ -329,7 +333,9 @@ def get_idx_corr_ylims(idx_corr_df):
             indices
     """  
 
-    sess_pairs = get_sorted_sess_pairs(idx_corr_df)
+    sess_pairs = get_sorted_sess_pairs(idx_corr_df, norm=norm)
+
+    norm_str = "_norm" if norm else ""
 
     plane_pts = []
     plane_idxs = []
@@ -352,13 +358,13 @@ def get_idx_corr_ylims(idx_corr_df):
 
             # get data
             data_low = (
-                plane_df[f"{base}_norm_corrs"] - 
-                plane_df[f"{base}_norm_corr_stds"]
+                plane_df[f"{base}{norm_str}_corrs"] - 
+                plane_df[f"{base}{norm_str}_corr_stds"]
                 ).min()
             
             data_high = (
-                plane_df[f"{base}_norm_corrs"] + 
-                plane_df[f"{base}_norm_corr_stds"]
+                plane_df[f"{base}{norm_str}_corrs"] + 
+                plane_df[f"{base}{norm_str}_corr_stds"]
                 ).max()
 
             low_pts.extend([null_CI_low, data_low])
@@ -382,7 +388,8 @@ def get_idx_corr_ylims(idx_corr_df):
 
 
 #############################################
-def plot_idx_correlations(idx_corr_df, permpar, figpar, title=None, small=True):
+def plot_idx_correlations(idx_corr_df, permpar, figpar, permute="sess", 
+                          corr_type="corr", title=None, small=True):
     """
     plot_idx_correlations(idx_corr_df, permpar, figpar)
 
@@ -394,16 +401,14 @@ def plot_idx_correlations(idx_corr_df, permpar, figpar, title=None, small=True):
             following columns, in addition to the basic sess_df columns:
 
             for session comparisons, e.g. 1v2
-            - {}v{}_norm_corrs (float): normalized intersession ROI index 
-                correlations
-            - {}v{}_norm_corr_stds (float): bootstrapped normalized 
-                intersession ROI index correlation standard deviation
-            - {}v{}_null_CIs (list): adjusted null CI for normalized 
-                intersession ROI index correlations
-            - {}v{}_raw_p_vals (float): p-value for normalized intersession 
-                correlations
-            - {}v{}_p_vals (float): p-value for normalized intersession 
-                correlations, corrected for multiple comparisons and tails
+            - {}v{}{norm_str}_corrs (float): intersession ROI index correlations
+            - {}v{}{norm_str}_corr_stds (float): bootstrapped intersession ROI 
+                index correlation standard deviation
+            - {}v{}_null_CIs (list): adjusted null CI for intersession ROI 
+                index correlations
+            - {}v{}_raw_p_vals (float): p-value for intersession correlations
+            - {}v{}_p_vals (float): p-value for intersession correlations, 
+                corrected for multiple comparisons and tails
 
         - permpar (dict): 
             dictionary with keys of PermPar namedtuple
@@ -414,6 +419,12 @@ def plot_idx_correlations(idx_corr_df, permpar, figpar, title=None, small=True):
             ["dirs"] (dict): dictionary with additional figure parameters
 
     Optional args:
+        - permute (bool):
+            type of permutation to due ("tracking", "sess" or "all")
+            default: "sess"
+        - corr_type (str):
+            type of correlation run, i.e. "corr" or "R_sqr"
+            default: "corr"
         - title (str):
             plot title
             default: None
@@ -426,7 +437,16 @@ def plot_idx_correlations(idx_corr_df, permpar, figpar, title=None, small=True):
             array of subplots
     """
 
-    sess_pairs = get_sorted_sess_pairs(idx_corr_df)
+    norm = False
+    if permute in ["sess", "all"]:
+        corr_type = f"diff_{corr_type}"
+        if corr_type == "diff_corr":
+            norm = True
+            title = title.replace("Correlations", "Normalized correlations")        
+
+    norm_str = "_norm" if norm else ""
+
+    sess_pairs = get_sorted_sess_pairs(idx_corr_df, norm=norm)
     n_pairs = int(np.ceil(len(sess_pairs) / 2) * 2) # multiple of 2
 
     figpar = sess_plot_util.fig_init_linpla(
@@ -443,15 +463,14 @@ def plot_idx_correlations(idx_corr_df, permpar, figpar, title=None, small=True):
         figpar["init"]["gs"]["wspace"] = 0.2
     else:
         figpar["init"]["subplot_wid"] = 3.3
-        figpar["init"]["subplot_hei"] = 5.2
+        figpar["init"]["subplot_hei"] = 4.7
         figpar["init"]["gs"]["wspace"] = 0.3 
         
-
     fig, ax = plot_util.init_fig(n_pairs * 2, **figpar["init"])
     if title is not None:
         fig.suptitle(title, y=0.98, weight="bold")
 
-    plane_pts = get_idx_corr_ylims(idx_corr_df)
+    plane_pts = get_idx_corr_ylims(idx_corr_df, norm=norm)
     lines = [None, None]
 
     comp_info = misc_analys.get_comp_info(permpar)
@@ -479,9 +498,9 @@ def plot_idx_correlations(idx_corr_df, permpar, figpar, title=None, small=True):
                 sub_ax, extr, med=CI[1], x=li, width=0.45, med_rat=0.025
                 )
 
-            y = row[f"{col_base}_norm_corrs"]
+            y = row[f"{col_base}{norm_str}_corrs"]
 
-            err = row[f"{col_base}_norm_corr_stds"]
+            err = row[f"{col_base}{norm_str}_corr_stds"]
             plot_util.plot_ufo(
                 sub_ax, x=li, y=y, err=err, color=col, capsize=8
                 )

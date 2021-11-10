@@ -42,7 +42,7 @@ def get_frame_numbers(stim, refs, ch_fl=None, ref_type="segs", datatype="roi"):
             default: None
         - ref_type (str):
             type of references provided 
-            ("segs", "twop_frs", "stim_frs", "pup_frs")
+            ("segs", "twop_frs", "stim_frs")
             default: "segs"
         - datatype (str):
             type of data to return ("roi", "run" or "pupil")
@@ -62,14 +62,13 @@ def get_frame_numbers(stim, refs, ch_fl=None, ref_type="segs", datatype="roi"):
     ch_fl = [0, 0] if ch_fl is None else ch_fl
     if ref_type == "segs":
         if datatype == "run":
-            fr_ns = stim.get_stim_fr_by_seg(
-                refs, first=True, ch_fl=ch_fl)["first_stim_fr"]
-        elif datatype == "pupil":
-            fr_ns = stim.get_twop_fr_by_seg(refs, first=True)["first_twop_fr"]
-            fr_ns = stim.sess.get_pup_fr_by_twop_fr(fr_ns, ch_fl=ch_fl)
-        elif datatype == "roi":
-            fr_ns = stim.get_twop_fr_by_seg(
-                refs, first=True, ch_fl=ch_fl)["first_twop_fr"]
+            fr_ns = stim.get_fr_by_seg(
+                refs, start=True, ch_fl=ch_fl, fr_type="stim"
+                )["start_frame_stim"]
+        elif datatype in ["roi", "pupil"]:
+            fr_ns = stim.get_fr_by_seg(
+                refs, start=True, ch_fl=ch_fl, fr_type="twop"
+                )["start_frame_twop"]
 
         if len(fr_ns) == 0:
             raise RuntimeError("No frames found given flank requirements.")
@@ -82,11 +81,11 @@ def get_frame_numbers(stim, refs, ch_fl=None, ref_type="segs", datatype="roi"):
         if datatype == "run":
             fr_ns = stim.sess.check_flanks(refs, ch_fl, fr_type="stim")
         else:
-            fr_ns = stim.sess.stim2twopfr[np.asarray(refs)]
-            if datatype == "pupil":
-                fr_ns = stim.sess.get_pup_fr_by_twop_fr(fr_ns, ch_fl=ch_fl)
-            elif datatype == "roi":
-                fr_ns = stim.sess.check_flanks(fr_ns, ch_fl, fr_type="twop")
+            ref_type = "twop_frs"
+            fr_ns = stim.sess.convert_frames(
+                refs, src_fr_type="stim", targ_fr_type="twop", raise_nans=True
+                )
+            fr_ns = stim.sess.check_flanks(fr_ns, ch_fl, fr_type="twop")
     
     elif ref_type == "twop_frs":
         if datatype == "run":
@@ -94,21 +93,12 @@ def get_frame_numbers(stim, refs, ch_fl=None, ref_type="segs", datatype="roi"):
                 "Converting twop_frs to stim_frs for running data is not "
                 "implemented."
                 )
-        elif datatype == "pupil":
-            fr_ns = stim.sess.get_pup_fr_by_twop_fr(refs, ch_fl=ch_fl)
-        elif datatype == "roi":
+        elif datatype in ["roi", "pupil"]:
             fr_ns = stim.sess.check_flanks(refs, ch_fl, fr_type="twop")
-
-    elif ref_type == "pup_frs":
-        if datatype != "pupil":
-            raise NotImplementedError(
-                "'pup_frs' ref_type only implemented for 'pupil' datatype."
-                )
-        fr_ns = stim.sess.check_flanks(refs, ch_fl, fr_type="pup")
 
     else:
         gen_util.accepted_values_error(
-            "ref_type", ref_type, ["segs", "twop_frs", "stim_frs", "pup_frs"]
+            "ref_type", ref_type, ["segs", "twop_frs", "stim_frs"]
             )
 
     fr_ns = np.asarray(fr_ns)
@@ -148,7 +138,7 @@ def get_data(stim, refs, analyspar, pre=0, post=1, ch_fl=None, integ=False,
             default: False
         - ref_type (str):
             type of references provided 
-            ("segs", "twop_frs", "stim_frs", "pup_frs")
+            ("segs", "twop_frs", "stim_frs")
             default: "segs"
         - datatype (str):
             type of data to return ("roi", "run" or "pupil")
@@ -162,9 +152,9 @@ def get_data(stim, refs, analyspar, pre=0, post=1, ch_fl=None, integ=False,
             values for each frame, in seconds
     """
     
-    if stim.sess.only_matched_rois != analyspar.tracked:
+    if stim.sess.only_tracked_rois != analyspar.tracked:
         raise RuntimeError(
-            "stim.sess.only_matched_rois should match analyspar.tracked."
+            "stim.sess.only_tracked_rois should match analyspar.tracked."
             )
 
     fr_ns = get_frame_numbers(
@@ -193,7 +183,7 @@ def get_data(stim, refs, analyspar, pre=0, post=1, ch_fl=None, integ=False,
             fr_ns, pre, post, remnans=analyspar.remnans, scale=analyspar.scale
         )
         col_name = "pup_diam"
-        integ_dt = stim.sess.pup_fps
+        integ_dt = stim.sess.twop_fps
     else:
         gen_util.accepted_values_error(
             "datatype", datatype, ["roi", "run", "pupil"]
@@ -230,8 +220,7 @@ def get_common_oris(stimpar, split="by_exp"):
             default: "by_exp"
 
     Returns:
-        - gab_oris (list):
-            Gabor orientations for [exp, unexp] sequences, respectively
+        - gab_oris (list): Gabor orientations
     """
 
     if split != "by_exp":
@@ -241,14 +230,7 @@ def get_common_oris(stimpar, split="by_exp"):
         raise ValueError("Exp/unexp index analysis with common "
             "orientations can only be run on Gabors.")
 
-    if (isinstance(stimpar.gab_ori, list) and (len(stimpar.gab_ori) == 2) 
-        and isinstance(stimpar.gab_ori[0], list) 
-        and isinstance(stimpar.gab_ori[1], list)):
-        gab_oris = stimpar.gab_ori
-
-    else:
-        gab_oris = sess_gen_util.get_params(gab_ori=stimpar.gab_ori)
-        gab_oris = sess_gen_util.gab_oris_common_U("D", "all")
+    gab_oris = sess_gen_util.gab_oris_common_U(stimpar.gab_ori)
 
     return gab_oris
 
@@ -291,17 +273,17 @@ def get_by_exp_data(sess, analyspar, stimpar, integ=False, common_oris=False,
 
     stim = sess.get_stim(stimpar.stimtype)
 
-    gab_oris = [stimpar.gab_ori] * 2
+    gab_ori = stimpar.gab_ori
     if common_oris:
-        gab_oris = get_common_oris(stimpar, split="by_exp")
+        gab_ori = get_common_oris(stimpar, split="by_exp")
 
     by_exp_data = []
-    for e, exp in enumerate([0, 1]):
+    for e, unexp in enumerate([0, 1]):
         
         segs = stim.get_segs_by_criteria(
-            gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=gab_oris[e],
-            bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, surp=exp, 
-            remconsec=False, by="seg")
+            gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=gab_ori,
+            visflow_dir=stimpar.visflow_dir, visflow_size=stimpar.visflow_size, 
+            unexp=unexp, remconsec=False, by="seg")
 
         data, time_values = get_data(
             stim, segs, analyspar, pre=stimpar.pre, post=stimpar.post, 
@@ -355,15 +337,15 @@ def get_locked_data(sess, analyspar, stimpar, split="unexp_lock", integ=False,
 
     stim = sess.get_stim(stimpar.stimtype)
 
-    exp = 1 if split == "unexp_lock" else 0
+    unexp = 1 if split == "unexp_lock" else 0
 
     locked_data = []
     for i in range(2):
 
         segs = stim.get_segs_by_criteria(
             gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
-            bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, surp=exp, 
-            remconsec=True, by="seg")
+            visflow_dir=stimpar.visflow_dir, visflow_size=stimpar.visflow_size, 
+            unexp=unexp, remconsec=True, by="seg")
 
         if i == 0:
             pre, post = [stimpar.pre, 0]
@@ -428,19 +410,20 @@ def get_stim_on_off_data(sess, analyspar, stimpar, split="stim_onset",
             "stimulus on/off data.")
 
     stim = None
-    for stimtype in ["gabors", "bricks"]: # use any stimulus to retrieve data
+    for stimtype in ["gabors", "visflow"]: # use any stimulus to retrieve data
         if hasattr(sess, stimtype):
             stim = sess.get_stim(stimtype)
             break
     
     if split == "stim_onset":
-        stim_fr = sess.grayscr.get_last_nongab_stim_fr()["last_stim_fr"][:-1] + 1
+        stim_fr = sess.grayscr.get_stop_fr(fr_type="twop")[
+            f"stop_frame_twop"][:-1]
     elif split == "stim_offset":
-        stim_fr = sess.grayscr.get_first_nongab_stim_fr()["first_stim_fr"][1:]
+        stim_fr = sess.grayscr.get_start_fr(fr_type="twop")[
+            f"start_frame_twop"][1:]
 
     stim_on_off_data = []
     for i in range(2):
-
         if i == 0:
             pre, post = [stimpar.pre, 0]
         else:
@@ -449,7 +432,7 @@ def get_stim_on_off_data(sess, analyspar, stimpar, split="stim_onset",
         # ROI x seq (x frames)
         data, time_values = get_data(
             stim, stim_fr, analyspar, pre=pre, post=post, 
-            ch_fl=[stimpar.pre, stimpar.post], integ=integ, ref_type="stim_frs", 
+            ch_fl=[stimpar.pre, stimpar.post], integ=integ, ref_type="twop_frs", 
             datatype=datatype,
             )
         
@@ -715,11 +698,11 @@ def get_block_data(sess, analyspar, stimpar, datatype="roi", integ=False):
 
     by_exp_fr_ns = []
     by_exp_data = []
-    for exp in [0, 1]:
+    for unexp in [0, 1]:
         segs = stim.get_segs_by_criteria(
             gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
-            bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, surp=exp, 
-            remconsec=False, by="seg")
+            visflow_dir=stimpar.visflow_dir, visflow_size=stimpar.visflow_size, 
+            unexp=unexp, remconsec=False, by="seg")
 
         fr_ns = get_frame_numbers(
             stim, segs, ch_fl=ch_fl, ref_type="segs", datatype=datatype
@@ -730,7 +713,7 @@ def get_block_data(sess, analyspar, stimpar, datatype="roi", integ=False):
         if datatype == "run":
             frame_type = "stim_frs"
         elif datatype == "pupil":
-            frame_type = "pup_frs"
+            frame_type = "twop_frs"
         elif datatype == "roi":
             frame_type = "twop_frs"
         else:

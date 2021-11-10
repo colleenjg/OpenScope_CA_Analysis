@@ -706,9 +706,9 @@ def get_stim_stats_df(sessions, analyspar, stimpar, permpar, comp_sess=[1, 3],
                 "statistics, analyspar.tracked must be set to True."
                 )
 
-    if set(stimpar.stimtype) != set(["gabors", "bricks"]):
+    if set(stimpar.stimtype) != set(["gabors", "visflow"]):
         raise ValueError(
-            "Expected stimpar.stimtype to list 'gabors' and 'bricks'."
+            "Expected stimpar.stimtype to list 'gabors' and 'visflow'."
             )
     if (not (isinstance(stimpar.pre, list) and isinstance(stimpar.post, list))
         or not (len(stimpar.pre) == 2 and len(stimpar.post) == 2)):
@@ -762,7 +762,6 @@ def get_stim_stats_df(sessions, analyspar, stimpar, permpar, comp_sess=[1, 3],
     stim_stats_df = stim_stats_df.drop(data_cols, axis=1)
 
     stim_stats_df["sess_ns"] = f"comp{comp_sess[0]}v{comp_sess[1]}"
-    stim_stats_df = stim_stats_df.rename(columns={"bricks": "visflow"})
 
     # corrected p-values
     stim_stats_df = misc_analys.add_corr_p_vals(stim_stats_df, permpar)

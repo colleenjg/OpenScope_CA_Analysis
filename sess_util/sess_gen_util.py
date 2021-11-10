@@ -465,7 +465,7 @@ def sess_comp_per_mouse(mouse_df, mouse_n="any", sess_n="1v2", runtype="prod",
 
 
 #############################################
-def init_sessions(sessids, datadir, mouse_df, runtype="prod", fulldict=True, 
+def init_sessions(sessids, datadir, mouse_df, runtype="prod", full_table=True, 
                   fluor="dff", dend="extr", omit=False, roi=True, run=False, 
                   pupil=False, temp_log=None):
     """
@@ -482,8 +482,9 @@ def init_sessions(sessids, datadir, mouse_df, runtype="prod", fulldict=True,
     Optional args:
         - runtype (str)    : the type of run, either "pilot" or "prod"
                              default: "prod"
-        - fulldict (bool)  : if True, the full stimulus dictionary is loaded 
-                             (with all the brick positions).
+        - full_table (bool): if True, the full stimulus dataframe is loaded 
+                             (with all the visual flow square positions and 
+                             individual Gabor patch orientations).
                              default: True
         - dend (str)       : type of dendrites to use ("allen" or "extr")
                              default: "extr"
@@ -504,7 +505,6 @@ def init_sessions(sessids, datadir, mouse_df, runtype="prod", fulldict=True,
     Returns:
         - sessions (list): list of Session objects
     """
-
     
     with logger_util.TempChangeLogLevel(level=temp_log):
         sessions = []
@@ -518,7 +518,7 @@ def init_sessions(sessids, datadir, mouse_df, runtype="prod", fulldict=True,
                 datadir, sessid, runtype=runtype, mouse_df=mouse_df) 
             # extracts necessary info for analysis
             sess.extract_info(
-                fulldict=fulldict, fluor=fluor, dend=dend, roi=roi, run=run
+                full_table=full_table, fluor=fluor, dend=dend, roi=roi, run=run
                 )
             if omit and sess.plane == "dend" and sess.dend != dend:
                 logger.info(
@@ -704,7 +704,7 @@ def get_sess_info(sessions, fluor="dff", add_none=False, incl_roi=True,
 
 
 #############################################
-def get_params(stimtype="both", bri_dir="both", bri_size=128, gabfr=0, 
+def get_params(stimtype="both", visflow_dir="both", visflow_size=128, gabfr=0, 
                gabk=16, gab_ori="all"):
     """
     get_params()
@@ -715,22 +715,23 @@ def get_params(stimtype="both", bri_dir="both", bri_size=128, gabfr=0,
 
     Required args:
         - stimtype  (str)            : stimulus to analyse 
-                                       ("bricks", "gabors", "both")
-        - bri_dir (str or list)      : brick direction values 
+                                       ("visflow", "gabors", "both")
+        - visflow_dir (str or list)  : visual flow direction values 
                                        ("right", "left", "both")
-        - bri_size (int, str or list): brick size values (128, 256, "both")
+        - visflow_size (int, str or list): visual flow square size values 
+                                       (128, 256, "both")
         - gabfr (int, list or str)   : gabor frame value (0, 1, 2, 3, "0_3", 
                                                           [0, 3])
         - gabk (int, str or list)    : gabor kappa values (4, 16, "both")
         - gab_ori (int, str or list) : gabor orientation values 
-                                       (0, 45, 90, 135 or "all")
+                                       (0, 45, 90, 135, 180, 225 or "all")
 
     Returns:
-        - bri_dir (str or list) : brick direction values
-        - bri_size (int or list): brick size values
-        - gabfr (int or list)   : gabor frame values
-        - gabk (int or list)    : gabor kappa values
-        - gab_ori (int or list) : gabor orientation values
+        - visflow_dir (str or list) : visual flow direction values
+        - visflow_size (int or list): visual flow square size values
+        - gabfr (int or list)       : gabor frame values
+        - gabk (int or list)        : gabor kappa values
+        - gab_ori (int or list)     : gabor orientation values
 
     """
 
@@ -742,7 +743,7 @@ def get_params(stimtype="both", bri_dir="both", bri_size=128, gabfr=0,
         gabk = int(gabk)
 
     if gab_ori in ["any", "all"]:
-        gab_ori = [0, 45, 90, 135]
+        gab_ori = [0, 45, 90, 135, 180, 225]
     elif not isinstance(gab_ori, list):
         gab_ori = int(gab_ori)
 
@@ -751,34 +752,34 @@ def get_params(stimtype="both", bri_dir="both", bri_size=128, gabfr=0,
     elif not isinstance(gabfr, list) and gabfr not in ["G", "gray"]:
         gabfr = int(gabfr)
 
-    if bri_size in ["both", "any", "all"]:
-        bri_size = [128, 256]
+    if visflow_size in ["both", "any", "all"]:
+        visflow_size = [128, 256]
     else:
-        bri_size = int(bri_size)
+        visflow_size = int(visflow_size)
 
-    if bri_dir in ["both", "any", "all"]:
-        bri_dir = [get_bri_screen_mouse_direc(direc) 
+    if visflow_dir in ["both", "any", "all"]:
+        visflow_dir = [get_visflow_screen_mouse_direc(direc) 
             for direc in ["right", "left"]]
 
     # set to "none" any parameters that are irrelevant
     if stimtype == "gabors":
-        bri_size = "none"
-        bri_dir = "none"
-    elif stimtype == "bricks":
+        visflow_size = "none"
+        visflow_dir = "none"
+    elif stimtype == "visflow":
         gabfr = "none"
         gabk = "none"
         gab_ori = "none"
-    elif stimtype != "both" and set(stimtype) != set(["gabors", "bricks"]):
+    elif stimtype != "both" and set(stimtype) != set(["gabors", "visflow"]):
         gen_util.accepted_values_error(
-            "stim argument", stimtype, ["gabors", "bricks"])
+            "stim argument", stimtype, ["gabors", "visflow"])
 
-    return bri_dir, bri_size, gabfr, gabk, gab_ori
+    return visflow_dir, visflow_size, gabfr, gabk, gab_ori
 
 
 #############################################
-def get_bri_screen_mouse_direc(direc="right"):
+def get_visflow_screen_mouse_direc(direc="right"):
     """
-    get_bri_screen_mouse_direc()
+    get_visflow_screen_mouse_direc()
 
     Returns direction for screen and mouse.
 
@@ -795,12 +796,16 @@ def get_bri_screen_mouse_direc(direc="right"):
         direc = "left (nasal)"
     elif "right" in direc and "nasal" in direc:
         raise ValueError(
-            f"Invalid brick direction {direc}, as rightward motion is temp.")
+            f"Invalid visual flow direction {direc}, "
+            "as rightward motion is temp."
+            )
     elif "left" in direc and "temp" in direc:
         raise ValueError(
-            f"Invalid brick direction {direc}, as leftward motion is nasal.")
+            f"Invalid visual flow direction {direc}, "
+            "as leftward motion is nasal."
+            )
     else:
-        raise ValueError(f"Brick direction {direc} not recognized.")
+        raise ValueError(f"Visual flow direction {direc} not recognized.")
 
     return direc
 
@@ -827,34 +832,75 @@ def gab_adjacent_gabfrs(gab_frs):
 
 
 #############################################
-def gab_oris_common_U(gab_letters, gab_oris):
+def filter_gab_oris(gab_oris, gab_lett):
     """
-    gab_oris_common_U(gab_letters, gab_oris)
+    gab_oris_common_U(gab_oris)
 
-    Returns Gabor orientations that are common to U frames and other frames, 
-    for each gabor letter, ordered together.
+    Returns Gabor orientations that are common to U frames and other frames.
 
     Required args:
-        - gab_letters (list): Gabor letters for which to retrieve orientations
-        - gab_oris (list)   : Gabor orientations that can be included
+        - gab_oris (list): Gabor orientations that can be included
 
     Returns:
-        - new_oris (list): list of orientations for each Gabor letter or 
-                           letter group in list
+        - new_oris (list): orientations common to U and other frames
     """
 
     gab_oris = get_params(gab_ori=gab_oris)[-1]
 
     common_oris = [90, 135] # oris common to ABCD and U frames
 
-    new_oris = []
-    for letters in gab_letters:
-        is_U = (letters.upper() == "U")
-        if is_U and len(letters) > 1:
-            raise NotImplementedError("Cannot return common orientations if "
-                "U Gabors are grouped with other Gabor letters.")
-        oris = [ori - 90 * is_U for ori in common_oris if ori in gab_oris]
-        new_oris.append(oris) 
+    new_oris = [ori for ori in common_oris if ori in gab_oris]
+
+    return new_oris
+
+#############################################
+def filter_gab_oris(gab_letters, gab_oris):
+    """
+    filter_gab_oris(gab_letters, gab_oris)
+
+    Returns Gabor orientations that fit with the specified frames.
+
+    Required args:
+        - gab_letters (list): Gabor letters for which to retrieve orientations
+        - gab_oris (list)   : Gabor orientations that can be included
+    
+    Returns:
+        - new_oris (list): list of orientations retained
+    """
+
+    gab_oris = get_params(gab_ori=gab_oris)[-1]
+
+    if gab_letters.upper() == "U":
+        poss_gab_oris = [90, 135, 180, 225]
+    elif "U" in gab_letters.upper():
+        poss_gab_oris = [0, 45, 90, 135, 180, 225]
+    else:
+        poss_gab_oris = [0, 45, 90, 135]
+    
+    new_oris = [ori for ori in gab_oris if ori in poss_gab_oris] 
+
+    return new_oris
+
+
+#############################################
+def gab_oris_common_U(gab_oris):
+    """
+    gab_oris_common_U(gab_oris)
+
+    Returns Gabor orientations that are common to U frames and other frames.
+
+    Required args:
+        - gab_oris (list): Gabor orientations that can be included
+
+    Returns:
+        - new_oris (list): orientations common to U and other frames
+    """
+
+    gab_oris = get_params(gab_ori=gab_oris)[-1]
+
+    common_oris = [90, 135] # oris common to ABCD and U frames
+
+    new_oris = [ori for ori in common_oris if ori in gab_oris]
 
     return new_oris
 
@@ -884,58 +930,61 @@ def pilot_gab_omit(gabk):
 
 
 #############################################
-def pilot_bri_omit(bri_dir, bri_size):
+def pilot_visflow_omit(visflow_dir, visflow_size):
     """
-    pilot_bri_omit(bri_dir, bri_size)
+    pilot_visflow_omit(visflow_dir, visflow_size)
 
-    Returns IDs of pilot mice to omit based on brick direction and size values 
-    to include.
+    Returns IDs of pilot mice to omit based on visual flow direction and square 
+    size values to include.
 
     Required args:
-        - bri_dir (str or list) : brick direction values ("right", "left")
-        - bri_size (int or list): brick size values (128, 256, [128, 256])
+        - visflow_dir (str or list) : visual flow direction values 
+                                      ("right", "left")
+        - visflow_size (int or list): visual flow square size values 
+                                      (128, 256, [128, 256])
                                     
     Returns:
         - omit_mice (list): list IDs of mice to omit
     """
 
-    bri_dir = gen_util.list_if_not(bri_dir)
-    bri_size = gen_util.list_if_not(bri_size)
+    visflow_dir = gen_util.list_if_not(visflow_dir)
+    visflow_size = gen_util.list_if_not(visflow_size)
     omit_mice = []
 
-    right_incl = len(list(filter(lambda x: "right" in x, bri_dir)))
-    left_incl = len(list(filter(lambda x: "left" in x, bri_dir)))
+    right_incl = len(list(filter(lambda x: "right" in x, visflow_dir)))
+    left_incl = len(list(filter(lambda x: "left" in x, visflow_dir)))
 
     if not right_incl:
-        # mouse 3 only got bri_dir="right"
+        # mouse 3 only got visflow_dir="right"
         omit_mice.extend([3]) 
-        if 128 not in bri_size:
-            # mouse 1 only got bri_dir="left" with bri_size=128
+        if 128 not in visflow_size:
+            # mouse 1 only got visflow_dir="left" with visflow_size=128
             omit_mice.extend([1])
-    elif not left_incl and 256 not in bri_size:
-        # mouse 1 only got bri_dir="right" with bri_size=256
+    elif not left_incl and 256 not in visflow_size:
+        # mouse 1 only got visflow_dir="right" with visflow_size=256
         omit_mice.extend([1]) 
     return omit_mice
 
     
 #############################################
-def all_omit(stimtype="gabors", runtype="prod", bri_dir="both", bri_size=128, 
-             gabk=16):
+def all_omit(stimtype="gabors", runtype="prod", visflow_dir="both", 
+             visflow_size=128, gabk=16):
     """
     all_omit()
 
     Returns list of mice and sessions to omit, based on analysis parameters 
-    (runtype, gabk, bri_dir and bri_size) and throws an error if the parameter 
-    combination requested does not occur in the dataset.
+    (runtype, gabk, visflow_dir and visflow_size) and throws an error if the 
+    parameter combination requested does not occur in the dataset.
 
     Required args:
-        - stimtype  (str)       : stimulus to analyse ("bricks", "gabors")
-        - runtype (str)         : runtype ("pilot", "prod")
-        - bri_dir (str or list) : brick direction values ("right", "left")
-        - bri_size (int or list): brick size values to include
-                                  (128, 256, [128, 256])
-        - gabk (int or list)    : gabor kappa values to include 
-                                  (4, 16 or [4, 16])
+        - stimtype  (str)           : stimulus to analyse ("visflow", "gabors")
+        - runtype (str)             : runtype ("pilot", "prod")
+        - visflow_dir (str or list) : visual flow direction values 
+                                      ("right", "left")
+        - visflow_size (int or list): visual flow square size values to include
+                                      (128, 256, [128, 256])
+        - gabk (int or list)        : gabor kappa values to include 
+                                      (4, 16 or [4, 16])
 
     Returns:
         - omit_sess (list): sessions to omit
@@ -949,8 +998,8 @@ def all_omit(stimtype="gabors", runtype="prod", bri_dir="both", bri_size=128,
         omit_sess = [721038464] # alignment didn't work
         if stimtype == "gabors":
             omit_mice = pilot_gab_omit(gabk)
-        elif stimtype == "bricks":
-            omit_mice = pilot_bri_omit(bri_dir, bri_size)
+        elif stimtype == "visflow":
+            omit_mice = pilot_visflow_omit(visflow_dir, visflow_size)
 
     elif runtype == "prod":
         omit_sess = [828754259] # stim pickle not saved correctly
@@ -959,10 +1008,10 @@ def all_omit(stimtype="gabors", runtype="prod", bri_dir="both", bri_size=128,
                 logger.warning("The production data only includes gabor "
                     "stimuli with kappa=16")
                 omit_mice = list(range(1, 9)) # all
-        elif stimtype == "bricks":
-            if 128 not in gen_util.list_if_not(bri_size):
-                logger.warning("The production data only includes bricks "
-                    "stimuli with size=128")
+        elif stimtype == "visflow":
+            if 128 not in gen_util.list_if_not(visflow_size):
+                logger.warning("The production data only includes visual flow "
+                    "stimuli with square size=128")
                 omit_mice = list(range(1, 9)) # all
 
     return omit_sess, omit_mice
@@ -970,8 +1019,8 @@ def all_omit(stimtype="gabors", runtype="prod", bri_dir="both", bri_size=128,
 
 #############################################
 def get_analysdir(mouse_n, sess_n, plane, fluor="dff", scale=True, 
-                  stimtype="gabors", bri_dir="right", bri_size=128, gabk=16, 
-                  comp="surp", ctrl=False, shuffle=False):
+                  stimtype="gabors", visflow_dir="right", visflow_size=128, 
+                  gabk=16, comp="unexp", ctrl=False, shuffle=False):
     """
     get_analysdir(mouse_n, sess_n, plane)
 
@@ -984,25 +1033,25 @@ def get_analysdir(mouse_n, sess_n, plane, fluor="dff", scale=True,
         - plane (str)  : plane name
 
     Optional arguments:
-        - fluor (str)           : fluorescence trace type
-                                  default: "dff"
-        - scale (str or bool)   : if scaling is used or type of scaling used 
-                                  (e.g., "roi", "all", "none")
-                                  default: None
-        - stimtype (str)        : stimulus type
-                                  default: "gabors"
-        - bri_dir (str)         : brick direction
-                                  default: "right"
-        - bri_size (int or list): brick size values to include
-                                  (128, 256, [128, 256])
-        - gabk (int or list)    : gabor kappa values to include 
-                                  (4, 16 or [4, 16])        
-        - comp (str)            : type of comparison
-                                  default: "surp"
-        - ctrl (bool)           : whether analysis is a control for "surp"
-                                  default: False
-        - shuffle (bool)        : whether analysis is on shuffled data
-                                  default: False
+        - fluor (str)               : fluorescence trace type
+                                      default: "dff"
+        - scale (str or bool)       : if scaling is used or type of scaling  
+                                      used (e.g., "roi", "all", "none")
+                                      default: None
+        - stimtype (str)            : stimulus type
+                                      default: "gabors"
+        - visflow_dir (str)         : visual flow direction
+                                      default: "right"
+        - visflow_size (int or list): visual flow square size values to include
+                                      (128, 256, [128, 256])
+        - gabk (int or list)        : gabor kappa values to include 
+                                      (4, 16 or [4, 16])        
+        - comp (str)                : type of comparison
+                                      default: "unexp"
+        - ctrl (bool)               : whether analysis is a control for "exp"
+                                      default: False
+        - shuffle (bool)            : whether analysis is on shuffled data
+                                      default: False
 
     Returns:
         - analysdir (str): name of directory to save analysis in, of the form:
@@ -1010,7 +1059,7 @@ def get_analysdir(mouse_n, sess_n, plane, fluor="dff", scale=True,
     """
 
     stim_str = sess_str_util.stim_par_str(
-        stimtype, bri_dir, bri_size, gabk, "file")
+        stimtype, visflow_dir, visflow_size, gabk, "file")
 
     scale_str = sess_str_util.scale_par_str(scale)
     shuff_str = sess_str_util.shuff_par_str(shuffle)
@@ -1044,21 +1093,23 @@ def get_params_from_str(param_str, no_lists=False):
                            False
     Returns:
         - params (dict): parameter dictionary
-            - bri_dir (str or list) : Bricks direction parameter ("right", 
-                                      "left", ["right", "left"] or "none") 
-            - bri_size (int or list): Bricks size parameter (128, 256, 
-                                      [128, 256] or "none")
-            - comp (str)            : comparison parameter ("surp", "AvB",
-                                      "AvC", "BvC" or "DvU", None)
-            - fluor (str)           : fluorescence parameter ("raw" or "dff")
-            - gabk (int or list)    : Gabor kappa parameter (4, 16, [4, 16] or 
-                                      "none")
-            - plane (str)           : plane ("soma" or "dend")
-            - mouse_n (int)         : mouse number
-            - sess_n (int)          : session number
-            - scale (bool)          : scaling parameter
-            - shuffle (bool)        : shuffle parameter
-            - stimtype (str)        : stimulus type ("gabors" or "bricks")
+            - visflow_dir (str or list) : visual flow direction parameter 
+                                          ("right", "left", ["right", "left"] 
+                                          or "none") 
+            - visflow_size (int or list): visual flow square size parameter 
+                                          (128, 256, [128, 256] or "none")
+            - comp (str)                : comparison parameter ("exp", "AvB",
+                                          "AvC", "BvC" or "DvU", None)
+            - fluor (str)               : fluorescence parameter 
+                                          ("raw" or "dff")
+            - gabk (int or list)        : Gabor kappa parameter 
+                                          (4, 16, [4, 16] or "none")
+            - plane (str)               : plane ("soma" or "dend")
+            - mouse_n (int)             : mouse number
+            - sess_n (int)              : session number
+            - scale (bool)              : scaling parameter
+            - shuffle (bool)            : shuffle parameter
+            - stimtype (str)            : stimulus type ("gabors" or "visflow")
     """
 
     params = dict()
@@ -1066,7 +1117,7 @@ def get_params_from_str(param_str, no_lists=False):
     params["mouse_n"] = int(param_str.split("_")[0][1:])
     params["sess_n"]  = int(param_str.split("_")[1][1:])
 
-    [params["bri_dir"], params["bri_size"], params["gabk"]] = \
+    [params["visflow_dir"], params["visflow_size"], params["gabk"]] = \
         "none", "none", "none"
     
     if "gab" in param_str:
@@ -1079,24 +1130,24 @@ def get_params_from_str(param_str, no_lists=False):
                 params["gabk"] = [4, 16]
         elif "gab4" in param_str:
             params["gabk"] = 4
-    elif "bri" in param_str:
-        params["stimtype"] = "bricks"
-        params["bri_size"] = 128
+    elif "visflow" in param_str:
+        params["stimtype"] = "visflow"
+        params["visflow_size"] = 128
         if "both" in param_str:
             if no_lists:
-                params["bri_size"] = "both"
+                params["visflow_size"] = "both"
             else:
-                params["bri_size"] = [128, 256]
-        elif "bri256" in param_str:
-            params["bri_size"] = 256
+                params["visflow_size"] = [128, 256]
+        elif "visflow256" in param_str:
+            params["visflow_size"] = 256
         if no_lists:
-            params["bri_dir"] = "both"
+            params["visflow_dir"] = "both"
         else:
-            params["bri_dir"] = ["right", "left"]
+            params["visflow_dir"] = ["right", "left"]
         if "right" in param_str:
-            params["bri_dir"] = "right"
+            params["visflow_dir"] = "right"
         elif "left" in param_str:
-            params["bri_dir"] = "left"
+            params["visflow_dir"] = "left"
     else:
         raise RuntimeError("Stimtype not identified.")
 
@@ -1119,7 +1170,7 @@ def get_params_from_str(param_str, no_lists=False):
         params["scale"] = True
 
     params["comp"] = None
-    for comptype in ["surp", "AvB", "AvC", "BvC", "DvU"]:
+    for comptype in ["exp", "AvB", "AvC", "BvC", "DvU"]:
         if comptype in param_str:
             params["comp"] = comptype
 
@@ -1136,7 +1187,7 @@ def check_both_stimuli(sessions):
     """
     check_both_stimuli(sessions)
 
-    Returns only sessions that have both stimuli ("gabors" and "bricks").
+    Returns only sessions that have both stimuli ("gabors" and "visflow").
         
     Required args:
         - sessions (list) :  list of Session objects
@@ -1146,7 +1197,7 @@ def check_both_stimuli(sessions):
     """
 
     keep_sess = []
-    all_stims = ["gabors", "bricks"]
+    all_stims = ["gabors", "visflow"]
     for sess in sessions:
         check = np.product([stim in sess.stimtypes for stim in all_stims])
         if check:

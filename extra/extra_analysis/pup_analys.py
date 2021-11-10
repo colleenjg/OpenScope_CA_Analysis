@@ -36,8 +36,8 @@ def get_ran_s(ran_s=None, datatype="both"):
 
     Optional args:
         - ran_s (dict, list or num): number of frames to take before and after 
-                                     surprise for each datatype (ROI, run, 
-                                     pupil) (in sec). 
+                                     unexpected events for each datatype 
+                                     (ROI, run, pupil) (in sec). 
                                         If dictionary, expected keys are:
                                             "pup_pre", "pup_post", 
                                             ("roi_pre", "roi_post"), 
@@ -55,9 +55,10 @@ def get_ran_s(ran_s=None, datatype="both"):
                                      default: "both"
     Returns:                
         - ran_s (dict): dictionary specifying number of frames to take before 
-                        and after surprise for each datatype (ROI, run, pupil), 
-                        with keys: ("roi_pre", "roi_post"), ("run_pre", 
-                                   "run_post"), "pup_pre", "pup_post"
+                        and after unexpected events for each datatype 
+                        (ROI, run, pupil), with keys: 
+                        ("roi_pre", "roi_post"), ("run_pre", "run_post"), 
+                        "pup_pre", "pup_post"
     """
 
     ran_s = copy.deepcopy(ran_s)
@@ -98,12 +99,12 @@ def get_ran_s(ran_s=None, datatype="both"):
 #############################################
 def peristim_data(sess, stimpar, ran_s=None, datatype="both",
                   returns="diff", fluor="dff", stats="mean", 
-                  remnans=True, scale=False, first_surp=True, trans_all=False):
+                  remnans=True, scale=False, first_unexp=True, trans_all=False):
     """
     peristim_data(sess, stimpar)
 
-    Returns pupil, ROI and run data around surprise onset, or the difference 
-    between post and pre surprise onset, or both.
+    Returns pupil, ROI and run data around unexpected onset, or the difference 
+    between post and pre unexpected onset, or both.
 
     Required args:
         - sess (Session)   : session object
@@ -111,7 +112,7 @@ def peristim_data(sess, stimpar, ran_s=None, datatype="both",
 
     Optional args:
         - ran_s (dict, list or num): number of frames to take before and after 
-                                     surprise for each datatype (ROI, run, 
+                                     unexpected for each datatype (ROI, run, 
                                      pupil) (in sec).  
                                          If dictionary, expected keys are:
                                             "pup_pre", "pup_post", 
@@ -129,14 +130,14 @@ def peristim_data(sess, stimpar, ran_s=None, datatype="both",
                                      "roi", "run" or "both"
                                      default: "roi" 
         - returns (str)            : type of data to return (data around 
-                                     surprise, difference between post and pre 
-                                     surprise)
+                                     unexpected, difference between post and pre 
+                                     unexpected)
                                      default: "diff"
         - fluor (str)              : if "dff", dF/F is used, if "raw", ROI 
                                      traces
                                      default: "dff"
         - stats (str)              : measure on which to take the pre and post
-                                     surprise difference: either mean ("mean") 
+                                     unexpected difference: either mean ("mean") 
                                      or median ("median")
                                      default: "mean"
         - remnans (bool)           : if True, removes ROIs with NaN/Inf values 
@@ -148,8 +149,8 @@ def peristim_data(sess, stimpar, ran_s=None, datatype="both",
                                      default: True
         - scale (bool)             : if True, data is scaled
                                      default: False
-        - first_surp (bool)        : if True, only the first of consecutive 
-                                     surprises are retained
+        - first_unexp (bool)        : if True, only the first of consecutive 
+                                     unexpecteds are retained
                                      default: True
         - trans_all (bool)         : if True, only ROIs with transients are 
                                      retained
@@ -173,27 +174,25 @@ def peristim_data(sess, stimpar, ran_s=None, datatype="both",
         ran_s = [stimpar.pre, stimpar.post]
     ran_s = get_ran_s(ran_s, datatype)
 
-    if first_surp:
-        surp_segs = stim.get_segs_by_criteria(
-            bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, 
-            gabk=stimpar.gabk, surp=1, remconsec=True, by="seg")
+    if first_unexp:
+        unexp_segs = stim.get_segs_by_criteria(
+            visflow_dir=stimpar.visflow_dir, visflow_size=stimpar.visflow_size, 
+            gabk=stimpar.gabk, unexp=1, remconsec=True, by="seg")
         if stimpar.stimtype == "gabors":
-            surp_segs = [seg + stimpar.gabfr for seg in surp_segs]
+            unexp_segs = [seg + stimpar.gabfr for seg in unexp_segs]
     else:
-        surp_segs = stim.get_segs_by_criteria(
-            bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, 
-            gabk=stimpar.gabk, gabfr=stimpar.gabfr, surp=1, remconsec=False, 
+        unexp_segs = stim.get_segs_by_criteria(
+            visflow_dir=stimpar.visflow_dir, visflow_size=stimpar.visflow_size, 
+            gabk=stimpar.gabk, gabfr=stimpar.gabfr, unexp=1, remconsec=False, 
             by="seg")
     
-    surp_twopfr = stim.get_twop_fr_by_seg(
-        surp_segs, first=True)["first_twop_fr"]
-    surp_stimfr = stim.get_stim_fr_by_seg(
-        surp_segs, first=True)["first_stim_fr"]
-    surp_pupfr  = sess.get_pup_fr_by_twop_fr(surp_twopfr)
-
+    unexp_twopfr = stim.get_fr_by_seg(
+        unexp_segs, start=True, fr_fype="twop")["start_frame_twop"]
+    unexp_stimfr = stim.get_fr_by_seg(
+        unexp_segs, start=True, fr_fype="stim")["start_frame_stim"]
     # get data dataframes
     pup_data = gen_util.reshape_df_data(stim.get_pup_diam_data(
-        surp_pupfr, ran_s["pup_pre"], ran_s["pup_post"], 
+        unexp_twopfr, ran_s["pup_pre"], ran_s["pup_post"], 
         remnans=remnans, scale=scale)["pup_diam"], squeeze_cols=True)
 
     datasets = [pup_data]
@@ -201,14 +200,14 @@ def peristim_data(sess, stimpar, ran_s=None, datatype="both",
     if datatype in ["roi", "both"]:
         # ROI x trial x fr
         roi_data = gen_util.reshape_df_data(stim.get_roi_data(
-            surp_twopfr, ran_s["roi_pre"], ran_s["roi_post"], fluor=fluor, 
+            unexp_twopfr, ran_s["roi_pre"], ran_s["roi_post"], fluor=fluor, 
             integ=False, remnans=remnans, scale=scale, 
             transients=trans_all)["roi_traces"], squeeze_cols=True) 
         datasets.append(roi_data.transpose([1, 2, 0])) # ROIs last
         datanames.append("roi")
     if datatype in ["run", "both"]:
         run_data = gen_util.reshape_df_data(stim.get_run_data(
-            surp_stimfr, ran_s["run_pre"], ran_s["run_post"], remnans=remnans, 
+            unexp_stimfr, ran_s["run_pre"], ran_s["run_post"], remnans=remnans, 
             scale=scale), squeeze_cols=True)
         datasets.append(run_data)
         datanames.append("run")
@@ -258,7 +257,7 @@ def run_pupil_diff_corr(sessions, analysis, analyspar, sesspar,
                         stimpar, figpar)
     
     Calculates and plots between pupil and ROI/running changes
-    locked to each surprise, as well as the correlation.
+    locked to each unexpected, as well as the correlation.
 
     Saves results and parameters relevant to analysis in a dictionary.
 
@@ -275,28 +274,28 @@ def run_pupil_diff_corr(sessions, analysis, analyspar, sesspar,
     """
 
     sessstr_pr = sess_str_util.sess_par_str(
-        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.bri_dir, 
-        stimpar.bri_size, stimpar.gabk, "print")
+        sesspar.sess_n, stimpar.stimtype, sesspar.plane, stimpar.visflow_dir, 
+        stimpar.visflow_size, stimpar.gabk, "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar.dend, sesspar.plane, datatype, "print")
        
     datastr = sess_str_util.datatype_par_str(datatype)
 
-    logger.info("Analysing and plotting correlations between surprise vs non "
-        f"surprise {datastr} traces between sessions ({sessstr_pr}"
+    logger.info("Analysing and plotting correlations between unexpected vs "
+        f"expected {datastr} traces between sessions ({sessstr_pr}"
         f"{dendstr_pr}).", extra={"spacing": "\n"})
 
     sess_diffs = []
     sess_corr = []
     
     for sess in sessions:
-        if datatype == "roi" and (sess.only_matched_rois != analyspar.tracked):
+        if datatype == "roi" and (sess.only_tracked_rois != analyspar.tracked):
             raise RuntimeError(
-                "sess.only_matched_rois should match analyspar.tracked."
+                "sess.only_tracked_rois should match analyspar.tracked."
                 )
         diffs = peristim_data(
             sess, stimpar, datatype=datatype, returns="diff", 
-            scale=analyspar.scale, first_surp=True)
+            scale=analyspar.scale, first_unexp=True)
         [pup_diff, data_diff] = diffs 
         # trials (x ROIs)
         if datatype == "roi":
@@ -345,7 +344,7 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
                           figpar)
     
     Calculates and plots correlation between pupil and ROI changes locked to
-    surprise for gabors vs bricks.
+    unexpected for gabors vs visflow.
     
     Saves results and parameters relevant to analysis in a dictionary.
 
@@ -367,7 +366,7 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
     if datatype != "roi":
         raise NotImplementedError("Analysis only implemented for roi datatype.")
 
-    stimtypes = ["gabors", "bricks"]
+    stimtypes = ["gabors", "visflow"]
     if stimpar.stimtype != "both":
         non_stimtype = stimtypes[1 - stimtypes.index(stimpar.stimtype)]
         warnings.warn("stimpar.stimtype will be set to 'both', but non default "
@@ -388,27 +387,27 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
         stimpar_dict["gabfr"] = 3
         stimpars.append(sess_ntuple_util.init_stimpar(**stimpar_dict))
         stimstr_pr.append(sess_str_util.stim_par_str(
-            stimtype, stimpars[-1].bri_dir, stimpars[-1].bri_size, 
+            stimtype, stimpars[-1].visflow_dir, stimpars[-1].visflow_size, 
             stimpars[-1].gabk, "print"))
     stimpar_dict = stimpars[0]._asdict()
     stimpar_dict["stimtype"] = "both"
     
 
-    logger.info("Analysing and plotting correlations between surprise vs non "
-          f"surprise ROI traces between sessions ({sessstr_pr}{dendstr_pr}).", 
+    logger.info("Analysing and plotting correlations between unexpected vs "
+          f"expected ROI traces between sessions ({sessstr_pr}{dendstr_pr}).", 
           extra={"spacing": "\n"})
     sess_corrs = []
     sess_roi_corrs = []
     for sess in sessions:
-        if datatype == "roi" and (sess.only_matched_rois != analyspar.tracked):
+        if datatype == "roi" and (sess.only_tracked_rois != analyspar.tracked):
             raise RuntimeError(
-                "sess.only_matched_rois should match analyspar.tracked."
+                "sess.only_tracked_rois should match analyspar.tracked."
                 )
         stim_corrs = []
         for sub_stimpar in stimpars:
             diffs = peristim_data(
                 sess, sub_stimpar, datatype="roi", returns="diff", 
-                first_surp=True, remnans=analyspar.remnans, 
+                first_unexp=True, remnans=analyspar.remnans, 
                 scale=analyspar.scale)
             [pup_diff, roi_diff] = diffs 
             nrois = roi_diff.shape[-1]

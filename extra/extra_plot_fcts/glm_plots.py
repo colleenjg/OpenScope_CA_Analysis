@@ -126,14 +126,14 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
         - savename (str): name under which the figure is saved
     """
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"], 
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"], 
         stimpar["gabk"], "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], "roi", "print")
 
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"],stimpar["bri_size"], stimpar["gabk"]) 
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"]) 
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], "roi")
 
@@ -149,10 +149,10 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
     n_sess = sum(plot_bools)
 
     if stimpar["stimtype"] == "gabors":
-        xyzc_dims = ["surp", "gabfr", "pup_diam_data", "run_data"]
+        xyzc_dims = ["unexp", "gabfr", "pup_diam_data", "run_data"]
         log_dims = xyzc_dims + ["gab_ori"]
-    elif stimpar["stimtype"] == "bricks":
-        xyzc_dims = ["surp", "bri_dir", "pup_diam_data", "run_data"]
+    elif stimpar["stimtype"] == "visflow":
+        xyzc_dims = ["unexp", "visflow_dir", "pup_diam_data", "run_data"]
         log_dims = xyzc_dims
 
     logger.info("Plotting GLM full and unique explained variance for "

@@ -11,7 +11,6 @@ Note: this code uses python 3.7.
 """
 
 import logging
-from re import I
 
 import numpy as np
 from matplotlib import pyplot as plt

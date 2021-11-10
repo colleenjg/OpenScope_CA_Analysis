@@ -699,7 +699,7 @@ def get_ex_idx_df(sess, analyspar, stimpar, basepar, idxpar, permpar,
 def get_idx_only_df(sessions, analyspar, stimpar, basepar, idxpar, 
                     parallel=False):
     """
-    get_idx_only_df(sessions, analyspar, stimpar, basepar)
+    get_idx_only_df(sessions, analyspar, stimpar, basepar, idxpar)
 
     Returns indices for each session, without significance information
 
@@ -752,7 +752,117 @@ def get_idx_only_df(sessions, analyspar, stimpar, basepar, idxpar,
 
     return idx_only_df
     
+
+ #############################################
+def get_idx_sig_df(sessions, analyspar, stimpar, basepar, idxpar, permpar, 
+                   randst=None, aggreg_sess=False, parallel=False):
+    """
+    get_idx_sig_df(sessions, analyspar, stimpar, basepar, idxpar, permpar)
+
+    Returns indices for each session, specifying which indices are significant.
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - basepar (BasePar): 
+            named tuple containing baseline parameters
+        - idxpar (IdxPar): 
+            named tuple containing index parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
     
+    Optional args:
+        - randst (int or np.random.RandomState): 
+            random state or seed value to use. (-1 treated as None)
+            default: None
+        - aggreg_sess (bool):
+            if True, ROI significance is assessed across all sessions for each 
+            mouse (analyspar.tracked must be True).
+            default: False
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+    
+    Returns:
+        - sig_idx_df (pd.DataFrame):
+            dataframe with one row per session, and the following columns, in 
+            addition to the basic sess_df columns:
+            - roi_idxs (list)   : index for each ROI
+            - sig_idxs (list)   : numbers of ROIs with signif. indices
+            - sig_idxs_lo (list): numbers of ROIs with signif. indices (low)
+            - sig_idxs_hi (list): numbers of ROIs with signif. indices (high)
+    """
+
+    sig_idx_df = misc_analys.get_check_sess_df(sessions, analyspar=analyspar)
+
+    args_dict = {
+        "analyspar"  : analyspar, 
+        "stimpar"    : stimpar, 
+        "split"      : idxpar.feature, 
+        "op"         : idxpar.op, 
+        "baseline"   : basepar.baseline, 
+        "randst"     : randst,
+        "run_random" : True,
+    }    
+
+    logger.info(
+        "Calculating ROI USIs and significance for each session...", 
+        extra={"spacing": TAB}
+        )
+
+    roi_idxs, roi_percs, _ = gen_util.parallel_wrap(
+        sess_stim_idxs, sessions, args_dict=args_dict, parallel=parallel, 
+        zip_output=True
+        )
+   
+    misc_analys.get_check_sess_df(sessions, sig_idx_df)
+    sig_idx_df["roi_idxs"] = [
+        sess_roi_idxs.tolist() for sess_roi_idxs in roi_idxs
+        ]
+
+    # identify significant ROIs (sig, sig_low, sig_high)
+    rand_util.check_n_rand(permpar.n_perms, permpar.p_val)
+    p_low, p_high = math_util.get_percentiles(
+        CI=(1 - permpar.p_val), tails=permpar.tails
+        )[0]
+
+    sig, sig_low, sig_high = [], [], []
+    for sess_roi_percs in roi_percs:
+        sig_bool_low = (sess_roi_percs < p_low)
+        sig_bool_high = (sess_roi_percs > p_high)
+        sig_bool = sig_bool_low + sig_bool_high
+
+        sig.append(np.where(sig_bool)[0].tolist())
+        sig_low.append(np.where(sig_bool_low)[0].tolist())
+        sig_high.append(np.where(sig_bool_high)[0].tolist())
+        
+    sig_idx_df["sig_idxs"] = sig
+    sig_idx_df["sig_idxs_lo"] = sig_low
+    sig_idx_df["sig_idxs_hi"] = sig_high
+
+    # aggregate significant ROIs across sessions
+    if aggreg_sess:
+        if not analyspar.tracked:
+            raise ValueError(
+                "If aggreg_sess is True, analyspar.tracked must be True."
+                )
+
+        columns = ["lines", "planes", "mouse_ns"]
+        for _, grp_df in sig_idx_df.groupby(columns):
+            for col in ["sig_idxs", "sig_idxs_lo", "sig_idxs_hi"]:
+                sigs = np.sort(
+                    np.unique(np.concatenate(grp_df[col].tolist()))
+                    ).astype(int).tolist()
+                for row_idx in grp_df.index:
+                    sig_idx_df.at[row_idx, col] = sigs
+
+    return sig_idx_df
+    
+       
 #############################################
 def get_idx_df(sessions, analyspar, stimpar, basepar, idxpar, permpar, 
                n_bins=40, common_oris=False, by_mouse=False, randst=None, 

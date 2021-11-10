@@ -317,9 +317,9 @@ def gabor_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar,
         )
 
     if common_oris:
-        gab_oris = sess_gen_util.gab_oris_common_U(["D", "U"], stimpar.gab_ori)
+        gab_ori = sess_gen_util.gab_oris_common_U(stimpar.gab_ori)
         stimpar = sess_ntuple_util.get_modif_ntuple(
-            stimpar, "gab_ori", gab_oris
+            stimpar, "gab_ori", gab_ori
             )
 
     by_mouse = False

@@ -29,6 +29,8 @@ from util import gen_util, logger_util
 def init_analyspar(fluor="dff", remnans=True, stats="mean", error="sem", 
                    scale=False, dend="extr", tracked=False):
     """
+    init_analyspar()
+
     Returns a AnalysPar namedtuple with the inputs arguments as named 
     attributes.
 
@@ -67,6 +69,8 @@ def init_analyspar(fluor="dff", remnans=True, stats="mean", error="sem",
 def init_sesspar(sess_n=1, closest=False, plane="soma", line="any", min_rois=1, 
                  pass_fail="P", incl="yes", runtype="prod", mouse_n="any"):
     """
+    init_sesspar()
+
     Returns a SessPar namedtuple with the inputs arguments as named 
     attributes.
 
@@ -109,45 +113,52 @@ def init_sesspar(sess_n=1, closest=False, plane="soma", line="any", min_rois=1,
 
 
 #############################################
-def init_stimpar(stimtype="both", bri_dir=["right", "left"], bri_size=128, 
-                 gabfr=0, gabk=16, gab_ori=[0, 45, 90, 135], pre=0, post=1.5):
+def init_stimpar(stimtype="both", visflow_dir=["right", "left"], 
+                 visflow_size=128, gabfr=0, gabk=16, gab_ori=[0, 45, 90, 135, 180, 225], 
+                 pre=0, post=1.5):
     """
+    init_stimpar()
+
     Returns a StimPar namedtuple with the inputs arguments as named 
     attributes.
 
     Optional args:
-        - stimtype (str)         : stimulus to analyse ("bricks", "gabors" or 
-                                   "both")
-                                   default: "both"
-        - bri_dir (str or list)  : brick direction values to include
-                                   ("right", "left", ["right", "left"])
-                                   default: ["right", "left"]
-        - bri_size (int or list) : brick size values to include
-                                   (128, 256 or [128, 256])
-                                   default: 128
-        - gabfr (int)            : gabor frame at which segments start 
-                                   (0, 1, 2, 3) (or to include, for GLM)
-                                   default: 0
-        - gabk (int or list)     : gabor kappa values to include 
-                                   (4, 16 or [4, 16])
-                                   default: 16
-        - gab_ori (int or list)  : gabor orientation values to include
-                                   default: [0, 45, 90, 135]
-        - pre (num)              : range of frames to include before each
-                                   reference frame (in s)
-                                   default: 0
-        - post (num)             : range of frames to include after each 
-                                   reference frame (in s)
-                                   default: 1.5
+        - stimtype (str)            : stimulus to analyse ("visflow", "gabors" 
+                                      of "both")
+                                      default: "both"
+        - visflow_dir (str or list) : visual flow direction values to include
+                                      ("right", "left", ["right", "left"])
+                                      default: ["right", "left"]
+        - visflow_size (int or list): visual flow square size values to include
+                                      (128, 256 or [128, 256])
+                                      default: 128
+        - gabfr (int)               : gabor frame at which segments start 
+                                      (0, 1, 2, 3) (or to include, for GLM)
+                                      default: 0
+        - gabk (int or list)        : gabor kappa values to include 
+                                      (4, 16 or [4, 16])
+                                      default: 16
+        - gab_ori (int or list)     : gabor orientation values to include
+                                      default: [0, 45, 90, 135, 180, 225]
+        - pre (num)                 : range of frames to include before each
+                                      reference frame (in s)
+                                      default: 0
+        - post (num)                : range of frames to include after each 
+                                      reference frame (in s)
+                                      default: 1.5
     
     Returns:
         - stimpar (StimPar namedtuple): StimPar with input arguments as 
                                         attributes
     """
 
-    stim_keys = ["stimtype", "bri_dir", "bri_size", "gabfr", "gabk", "gab_ori", 
-        "pre", "post"]
-    stim_pars = [stimtype, bri_dir, bri_size, gabfr, gabk, gab_ori, pre, post]
+    stim_keys = [
+        "stimtype", "visflow_dir", "visflow_size", "gabfr", "gabk", 
+        "gab_ori", "pre", "post"
+        ]
+    stim_pars = [
+        stimtype, visflow_dir, visflow_size, gabfr, gabk, gab_ori, pre, post
+        ]
     StimPar   = namedtuple("StimPar", stim_keys)
     stimpar   = StimPar(*stim_pars)
     return stimpar
@@ -156,6 +167,8 @@ def init_stimpar(stimtype="both", bri_dir=["right", "left"], bri_size=128,
 #############################################
 def init_autocorrpar(lag_s=4, byitem=True):
     """
+    init_autocorrpar()
+
     Returns a Autocorr namedtuple with the inputs arguments as named attributes.
 
     Optional args:
@@ -179,6 +192,8 @@ def init_autocorrpar(lag_s=4, byitem=True):
 #############################################
 def init_permpar(n_perms=10000, p_val=0.05, tails=2, multcomp=False):
     """
+    init_permpar()
+
     Returns a PermPar namedtuple with the inputs arguments as named attributes.
 
     Optional args:
@@ -208,6 +223,8 @@ def init_permpar(n_perms=10000, p_val=0.05, tails=2, multcomp=False):
 #############################################
 def init_quantpar(n_quants=4, qu_idx="all", qu_lab=None, qu_lab_pr=None):
     """
+    init_quantpar()
+
     Returns a QuantPar namedtuple with the inputs arguments as named attributes.
 
     Optional args:
@@ -255,8 +272,10 @@ def init_quantpar(n_quants=4, qu_idx="all", qu_lab=None, qu_lab_pr=None):
 
 
 #############################################
-def init_roigrppar(grps="all", add_reg=True, op="diff", plot_vals="surp"):
+def init_roigrppar(grps="all", add_reg=True, op="diff", plot_vals="unexp"):
     """
+    init_roigrppar()
+
     Returns a RoiGrpPar namedtuple with the inputs arguments as named 
     attributes.
 
@@ -274,8 +293,8 @@ def init_roigrppar(grps="all", add_reg=True, op="diff", plot_vals="surp"):
         - op (str)          : operation on values, if plotvals is "both" 
                               ("ratio" or "diff") 
                               default: "diff"
-        - plot_vals (str)   : values to plot ("surp", "reg", "both")
-                              default: "surp" 
+        - plot_vals (str)   : values to plot ("unexp", "exp", "both")
+                              default: "unexp" 
     
     Returns:
         - roigrppar (RoiGrpPar namedtuple): RoiGrpPar with input arguments as 
@@ -290,9 +309,11 @@ def init_roigrppar(grps="all", add_reg=True, op="diff", plot_vals="surp"):
 
 
 #############################################
-def init_tcurvpar(gabfr=3, pre=0, post=0.6, grp2="surp", test=False, 
+def init_tcurvpar(gabfr=3, pre=0, post=0.6, grp2="unexp", test=False, 
                   vm_estim=False):
     """
+    init_tcurvpar()
+
     Returns a TCurvPar namedtuple with the inputs arguments as named 
     attributes.
     
@@ -307,9 +328,9 @@ def init_tcurvpar(gabfr=3, pre=0, post=0.6, grp2="surp", test=False,
         - post (num)        : range of frames to include after each 
                               reference frame (in s) for tuning curve analysis
                               default: 0.6
-        - tc_grp2 (str)     : second group: either surp, reg or rand (random 
-                              subsample of reg, the size of surp)
-                              default: "surp"
+        - tc_grp2 (str)     : second group: either unexp, exp or rand (random 
+                              subsample of expected, the size of unexp)
+                              default: "unexp"
         - test (bool)       : if True, tuning curve analysis is run on a 
                               small subset of ROIs and gabors
                               default: False
@@ -333,49 +354,51 @@ def init_tcurvpar(gabfr=3, pre=0, post=0.6, grp2="surp", test=False,
 
 
 #############################################
-def init_logregpar(comp="surp", ctrl=False, q1v4=False, regvsurp=False, 
+def init_logregpar(comp="unexp", ctrl=False, q1v4=False, exp_v_unexp=False, 
                    n_epochs=1000, batchsize=200, lr=0.0001, train_p=0.75, 
                    wd=0, bal=False, alg="sklearn"):
     """
+    init_logregpar()
+
     Returns a LogRegPar namedtuple with the inputs arguments as named 
     attributes.
 
     Optional args:
-        - comp (str)     : comparison to run regression on 
-                           (e.g., "surp", "AvB", "AvC", "BvC", "DvU")
-                           default: "surp"
-        - ctrl (bool)    : if True, regression is run as a control for surp 
-                           comparison
-                           default: False
-        - q1v4 (bool)    : if True, regression is run on quartile 1 and tested 
-                           on quartile 4
-                           default: False
-        - regvsurp (bool): if True, regression is run on regular bricks 
-                           direction and tested on surprise trials
-        - n_epochs (int) : number of epochs to run
-                           default: 1000
-        - batchsize (int): batch size
-                           default: 200
-        - lr (num)       : learning rate
-                           default: 0.0001
-        - train_p (num)  : proportion of dataset used in training set
-                           default: 0.75
-        - wd (num)       : weight decay
-                           default: 0
-        - bal (bool)     : if True, classes are balanced
-                           default: False
-        - alg (str)      : algorithm to use ("sklearn" or "pytorch")
-                           default: "sklearn"
+        - comp (str)        : comparison to run regression on 
+                              (e.g., "exp", "AvB", "AvC", "BvC", "DvU")
+                              default: "unexp"
+        - ctrl (bool)       : if True, regression is run as a control for exp 
+                              comparison
+                              default: False
+        - q1v4 (bool)       : if True, regression is run on quartile 1 and 
+                              tested on quartile 4
+                              default: False
+        - exp_v_unexp (bool): if True, regression is run on expected visual flow 
+                              direction and tested on unexpected trials
+        - n_epochs (int)    : number of epochs to run
+                              default: 1000
+        - batchsize (int)   : batch size
+                              default: 200
+        - lr (num)          : learning rate
+                              default: 0.0001
+        - train_p (num)     : proportion of dataset used in training set
+                              default: 0.75
+        - wd (num)          : weight decay
+                              default: 0
+        - bal (bool)        : if True, classes are balanced
+                              default: False
+        - alg (str)         : algorithm to use ("sklearn" or "pytorch")
+                              default: "sklearn"
 
     Returns:
         - logregpar (LogRegPar namedtuple): LogRegPar with input arguments as 
                                             attributes
     """
 
-    logreg_pars = [comp, ctrl, q1v4, regvsurp, n_epochs, batchsize, lr, 
+    logreg_pars = [comp, ctrl, q1v4, exp_v_unexp, n_epochs, batchsize, lr, 
         train_p, wd, bal, alg]
-    logreg_keys = ["comp", "ctrl", "q1v4", "regvsurp", "n_epochs", "batchsize", 
-        "lr", "train_p", "wd", "bal", "alg"]
+    logreg_keys = ["comp", "ctrl", "q1v4", "exp_v_unexp", "n_epochs", 
+        "batchsize", "lr", "train_p", "wd", "bal", "alg"]
     LogRegPar   = namedtuple("LogRegPar", logreg_keys)
     logregpar   = LogRegPar(*logreg_pars)
     return logregpar
@@ -384,6 +407,8 @@ def init_logregpar(comp="surp", ctrl=False, q1v4=False, regvsurp=False,
 #############################################
 def init_glmpar(each_roi=False, k=10, test=False):
     """
+    init_glmpar()
+
     Returns a GLMPar namedtuple with the inputs arguments as named attributes.
 
     Optional args:
@@ -404,8 +429,10 @@ def init_glmpar(each_roi=False, k=10, test=False):
 
 
 #############################################
-def init_latpar(method="ttest", p_val_thr=0.005, rel_std=0.5, surp_resp=True):
+def init_latpar(method="ttest", p_val_thr=0.005, rel_std=0.5, unexp_resp=True):
     """
+    init_latpar()
+
     Returns a latency namedtuple with the inputs arguments as named attributes.
 
     Optional args:
@@ -416,15 +443,15 @@ def init_latpar(method="ttest", p_val_thr=0.005, rel_std=0.5, surp_resp=True):
         - rel_std (flot)   : relative standard deviation threshold for ratio 
                              method
                              default: 0.5
-        - surp_resp (bool) : if True, only surprise responsive ROIs are 
+        - unexp_resp (bool): if True, only unexpected responsive ROIs are 
                              retained for analysis
                              default: True
     Returns:
         - latpar (LatPar namedtuple): LatPar with input arguments as attributes
     """
 
-    lat_pars = [method, p_val_thr, rel_std, surp_resp]
-    lat_keys = ["method", "p_val_thr", "rel_std", "surp_resp"]
+    lat_pars = [method, p_val_thr, rel_std, unexp_resp]
+    lat_keys = ["method", "p_val_thr", "rel_std", "unexp_resp"]
     LatPar   = namedtuple("LatPar", lat_keys)
     latpar   = LatPar(*lat_pars)
     return latpar
@@ -433,6 +460,8 @@ def init_latpar(method="ttest", p_val_thr=0.005, rel_std=0.5, surp_resp=True):
 #############################################
 def init_basepar(baseline=0):
     """
+    init_basepar()
+
     Returns a baseline namedtuple with the inputs arguments as named attributes.
 
     Optional args:
@@ -451,20 +480,22 @@ def init_basepar(baseline=0):
 
 
 #############################################
-def init_idxpar(op="d-prime", feature="bysurp", position=0):
+def init_idxpar(op="d-prime", feature="by_exp", position=0):
     """
+    init_idxpar()
+
     Returns an index namedtuple with the inputs arguments as named attributes.
 
     Optional args:
         - op (str)      : type of index to use.
                           default: "d-prime"
-        - feature (str) : stimulus feature to use as index ('bysurp' for 
-                          either stimulus or 'progsurp' for gabors or 
-                          'surplock' for bricks.
-                          default: "bysurp"
+        - feature (str) : stimulus feature to use as index ('by_exp' for 
+                          either stimulus or 'prog_unexp' for gabors or 
+                          'unexp_lock' for visual flow.
+                          default: "by_exp"
         - position (str): stimulus feature position to use if the feature is a 
-                          "progsurp" or "progreg" 
-                          default: "bysurp"
+                          "prog_unexp" or "prog_exp" 
+                          default: "by_exp"
 
     Returns:
         - idxpar (IdxPar namedtuple): IdxPar with input arguments as 

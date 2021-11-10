@@ -247,7 +247,7 @@ def tune_curv_estims(gab_oris, roi_data, ngabs_tot, nrois="all", ngabs="all",
 
 #############################################
 def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all", 
-                    grp2="surp", comb_gabs=True, vm_estim=False, collapse=True, 
+                    grp2="unexp", comb_gabs=True, vm_estim=False, collapse=True, 
                     parallel=True):
     """
     calc_tune_curvs(sess, analyspar, stimpar)
@@ -266,9 +266,9 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all",
         - ngabs (int)     : number of gabors to include in analysis (set to 1 
                             if comb_gabs, as all gabors are combined)
                             default: "all"
-        - grp2 (str)      : second group: either surp, reg or rand (random 
-                            subsample of reg, the size of surp)
-                            default: "surp"
+        - grp2 (str)      : second group: either unexp, exp or rand (random 
+                            subsample of exp, the size of unexp)
+                            default: "unexp"
         - comb_gabs (bool): if True, all gabors have been combined for 
                             gab_oris and roi_data 
                             default: False
@@ -282,41 +282,41 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all",
     Returns:
         - tc_oris (list)     : list of orientation values corresponding to the 
                                tc_data:
-                                   surp x gabor (1 if comb_gabs) x oris
+                                   unexp x gabor (1 if comb_gabs) x oris
         - tc_data (list)     : list of mean integrated fluorescence data per 
                                orientation, for each ROI, structured as 
-                                  ROI x surp x gabor (1 if comb_gabs) 
+                                  ROI x unexp x gabor (1 if comb_gabs) 
                                       x oris
-        - tc_nseqs (list)    : number of sequences per surp
+        - tc_nseqs (list)    : number of sequences per unexp
 
         if vm_estim, also:
         - tc_vm_pars (list)  : nested list of Von Mises parameters for each ROI: 
-                                  ROI x surp x gabor (1 if comb_gabs) x par
+                                  ROI x unexp x gabor (1 if comb_gabs) x par
         - tc_vm_mean (list)  : nested list of mean Von Mises means for each ROI, 
                                not weighted by kappa value or weighted (if not 
                                comb_gabs) (in rad): 
-                                   ROI x surp x kappa weighted (False, (True))
+                                   ROI x unexp x kappa weighted (False, (True))
         - tc_hist_pars (list): parameters used to convert tc_data to histogram 
                                values (sub, mult) used in Von Mises parameter 
                                estimation, structured as:
-                                   ROI x surp x gabor (1 if comb_gabs) x 
+                                   ROI x unexp x gabor (1 if comb_gabs) x 
                                    param (sub, mult)
     """
 
-    if sess.only_matched_rois != analyspar.tracked:
+    if sess.only_tracked_rois != analyspar.tracked:
         raise RuntimeError(
-            "sess.only_matched_rois should match analyspar.tracked."
+            "sess.only_tracked_rois should match analyspar.tracked."
             )
 
     gabfrs = gen_util.list_if_not(stimpar.gabfr)
     if len(gabfrs) == 1:
         gabfrs = gabfrs * 2
-    if grp2 == "surp":
-        surps = [0, 1]
-    elif grp2 in ["reg", "rand"]:
-        surps = [0, 0]
+    if grp2 == "unexp":
+        unexps = [0, 1]
+    elif grp2 in ["exp", "rand"]:
+        unexps = [0, 0]
     else:
-        gen_util.accepted_values_error("grp2", grp2, ["surp", "reg", "rand"])
+        gen_util.accepted_values_error("grp2", grp2, ["unexp", "exp", "rand"])
     
     stim = sess.get_stim(stimpar.stimtype)
     nrois_tot = sess.get_nrois(analyspar.remnans, analyspar.fluor)
@@ -336,20 +336,23 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all",
     if vm_estim:
         tc_vm_pars, tc_vm_mean, tc_hist_pars = [], [], []
 
-    for i, (gf, s) in enumerate(zip(gabfrs, surps)):
+    for i, (gf, e) in enumerate(zip(gabfrs, unexps)):
         # get segments
         segs = stim.get_segs_by_criteria(
-            gabfr=gf, bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, 
-            gabk=stimpar.gabk, surp=s, by="seg")
+            gabfr=gf, visflow_dir=stimpar.visflow_dir, 
+            visflow_size=stimpar.visflow_size, 
+            gabk=stimpar.gabk, unexp=e, by="seg")
         
         if grp2 == "rand" and i == 1:
             n_segs = len(stim.get_segs_by_criteria(
-                gabfr=gf, bri_dir=stimpar.bri_dir, bri_size=stimpar.bri_size, 
-                gabk=stimpar.gabk, surp=1, by="seg"))
+                gabfr=gf, visflow_dir=stimpar.visflow_dir, 
+                visflow_size=stimpar.visflow_size, 
+                gabk=stimpar.gabk, unexp=1, by="seg"))
             np.random.shuffle(segs)
             segs = sorted(segs[: n_segs])
         tc_nseqs.append(len(segs))
-        twopfr = stim.get_twop_fr_by_seg(segs, first=True)["first_twop_fr"]
+        twopfr = stim.get_fr_by_seg(
+            segs, start=True, fr_type="twop")["start_frame_twop"]
         # ROI x seq
         roi_data = gen_util.reshape_df_data(
             stim.get_roi_data(

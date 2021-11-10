@@ -16,16 +16,18 @@ Note: this code uses python 3.7.
 import copy
 import logging
 from pathlib import Path
+import warnings
 
 import h5py
 import numpy as np
 import pandas as pd
+import pynwb
 import scipy.sparse as sparse
 import scipy.linalg as linalg
 from allensdk.brain_observatory import dff, r_neuropil, roi_masks
 from allensdk.internal.brain_observatory import mask_set
 
-from util import file_util, logger_util
+from util import file_util, logger_util, gen_util
 from sess_util import sess_file_util
 
 logger = logging.getLogger(__name__)
@@ -33,6 +35,101 @@ logger = logging.getLogger(__name__)
 EXCLUSION_LABELS = ["motion_border", "union", "duplicate", "empty", 
     "empty_neuropil"]
 
+
+#############################################
+def load_roi_traces_nwb(sess_files, roi_n=None, frame_ns=None):
+    """
+    load_run_traces_nwb(sess_files)
+
+    Returns ROI traces from NWB files. 
+
+    Required args:
+        - sess_files (Path): full path names of the session files
+
+    Returns:
+        - roi_traces (1 or 2D array): ROI traces (ROI x frame) or 
+                                      if n is not None: ROI trace (frame) 
+    """
+
+    # check whether behavior is included in file
+    sess_files = gen_util.list_if_not(sess_files)
+    ophys_files = [
+        sess_file for sess_file in sess_files if "ophys" in str(sess_file)
+        ]
+
+    if len(ophys_files) == 0:
+        raise RuntimeError(
+            "Optical physiology data not included in session NWB files."
+            )
+    
+    ophys_file = ophys_files[0]
+    if len(ophys_files) == 1:
+        warnings.warn(
+            "Several session files with optical physiology data found. "
+            f"Using the first listed: {ophys_file}."
+            )
+
+    roi_n = slice(None, None, None) if roi_n is None else roi_n
+    frame_ns = slice(None, None, None) if frame_ns is None else frame_ns
+
+    with pynwb.NWBHDF5IO(ophys_file, "r") as f:
+        nwbfile_in = f.read()
+        roi_data = nwbfile_in.get_processing_module("ophys")["DfOverF"][
+                "RoiResponseSeries"].data
+        # avoid loading full dataset if frames are strictly increasing
+        if np.min(np.diff(frame_ns)) > 0:
+            roi_traces = roi_data[roi_n, frame_ns]
+        else:
+            roi_traces = np.asarray(roi_data)[roi_n, frame_ns]
+
+    return roi_traces
+
+
+#############################################
+def load_roi_data_nwb(sess_files):
+    """
+    load_run_data_nwb(sess_files)
+
+    Returns ROI data from NWB files. 
+
+    Required args:
+        - sess_files (Path): full path names of the session files
+
+    Returns:
+        - roi_ids (list)   : ROI IDs
+        - nrois (int)      : total number of ROIs
+        - tot_twop_fr (int): total number of two-photon frames recorded
+    """
+
+    # check whether behavior is included in file
+    sess_files = gen_util.list_if_not(sess_files)
+    ophys_files = [
+        sess_file for sess_file in sess_files if "ophys" in str(sess_file)
+        ]
+
+    if len(ophys_files) == 0:
+        raise RuntimeError(
+            "Optical physiology data not included in session NWB files."
+            )
+    
+    ophys_file = ophys_files[0]
+    if len(ophys_files) == 1:
+        warnings.warn(
+            "Several session files with optical physiology data found. "
+            f"Using the first listed: {ophys_file}."
+            )
+
+    with pynwb.NWBHDF5IO(ophys_file, "r") as f:
+        nwbfile_in = f.read()
+        roi_ids = list(
+            nwbfile_in.get_processing_module("ophys")[
+                "ImageSegmentation"]["PlaneSegmentation"]["id"].data
+                )
+        nrois, tot_twop_fr = nwbfile_in.get_processing_module("ophys")[
+            "DfOverF"]["RoiResponseSeries"].data.shape
+
+    return roi_ids, nrois, tot_twop_fr
+    
 
 #############################################
 def get_roi_locations(roi_extract_dict):
@@ -174,6 +271,66 @@ def get_roi_metrics(roi_extract_dict, objectlist_txt):
     roi_metrics["cell_index"] = cell_index
 
     return roi_metrics
+
+
+#############################################
+def get_roi_masks_nwb(sess_files, make_bool=True):
+    """
+    get_roi_masks(sess_files)
+
+    Returns ROI masks, optionally converted to boolean.
+
+    Required args:
+        - sess_files (Path): full path names of the session files
+
+    Optional args:
+        - make_bool (bool)       : if True, ROIs are converted to boolean 
+                                   before being returned
+                                   default: True 
+        
+    Returns:
+        - roi_masks (3D array): ROI masks, structured as 
+                                ROI x height x width
+        - roi_ids (list)      : ID for each ROI
+    """
+
+    # check whether behavior is included in file
+    sess_files = gen_util.list_if_not(sess_files)
+    ophys_files = [
+        sess_file for sess_file in sess_files if "ophys" in str(sess_file)
+        ]
+
+    if len(ophys_files) == 0:
+        raise RuntimeError(
+            "Optical physiology data not included in session NWB files."
+            )
+    
+    ophys_file = ophys_files[0]
+    if len(ophys_files) == 1:
+        warnings.warn(
+            "Several session files with optical physiology data found. "
+            f"Using the first listed: {ophys_file}."
+            )
+
+    with pynwb.NWBHDF5IO(ophys_file, "r") as f:
+        nwbfile_in = f.read()
+        roi_masks = np.asarray(
+            nwbfile_in.get_processing_module("ophys")[
+            "ImageSegmentation"]["PlaneSegmentation"]["image_mask"
+            ].data
+        )
+        roi_ids = list(
+            nwbfile_in.get_processing_module("ophys")[
+                "ImageSegmentation"]["PlaneSegmentation"]["id"].data
+                )
+
+    roi_masks = np.transpose(roi_masks, (0, 2, 1)) # ROI x w x h -> ROI x h x w
+
+    if make_bool:
+        roi_masks = roi_masks.astype(bool)
+
+
+    return roi_masks, roi_ids
 
 
 #############################################

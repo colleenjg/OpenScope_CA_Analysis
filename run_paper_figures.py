@@ -88,7 +88,8 @@ def init_analysis(args):
             ["sesspar"] (SessPar): named tuple with session parameters
             ["stimpar"] (StimPar): named tuple with stimulus parameters
             ["basepar"] (LatPar): named tuple with latency parameters
-            ["idxpar"] (PermPar): named tuple with surprise index parameters
+            ["idxpar"] (PermPar): named tuple with unexpected event index 
+                parameters
             ["logregpar"] (LogRegPar): 
                 named tuple with logistic regression parameters
             ["permpar"] (PermPar): named tuple with permutation parameters
@@ -114,7 +115,7 @@ def init_analysis(args):
         plt_bkend=args.plt_bkend,
         fontdir=fontdir,
         )
-    
+
     specific_params = fig_panel_analysis.specific_params
     sess_n = reformat_sess_n(specific_params["sess_n"])
 
@@ -144,8 +145,8 @@ def init_analysis(args):
     # stimulus analysis parameters
     analysis_dict["stimpar"] = sess_ntuple_util.init_stimpar(
         stimtype=specific_params["stimtype"], # stimulus to analyse
-        bri_dir=specific_params["bri_dir"], # brick directions
-        bri_size=specific_params["bri_size"], # brick sizes
+        visflow_dir=specific_params["visflow_dir"], # visual flow directions
+        visflow_size=specific_params["visflow_size"], # visual flow square sizes
         gabfr=specific_params["gabfr"], # Gabor frame to center analyses on
         gabk=specific_params["gabk"], # Gabor orientation kappas
         gab_ori=specific_params["gab_ori"], # mean Gabor orientations
@@ -193,6 +194,7 @@ def init_analysis(args):
         fontdir=args.fontdir,
         paper=True,
         )
+
     analysis_dict["figpar"]["fig_panel_analysis"] = fig_panel_analysis
 
     return analysis_dict
@@ -279,16 +281,16 @@ def init_sessions(analyspar, sesspar, mouse_df, datadir, sessions=None,
             )
 
         args_dict = {
-            "datadir" : datadir,
-            "mouse_df": mouse_df,
-            "runtype" : sesspar.runtype,
-            "fulldict": False,
-            "fluor"   : analyspar.fluor,
-            "dend"    : analyspar.dend,
-            "roi"     : roi,
-            "run"     : run,
-            "pupil"   : pupil,
-            "temp_log": "critical" # suppress almost all logs 
+            "datadir"   : datadir,
+            "mouse_df"  : mouse_df,
+            "runtype"   : sesspar.runtype,
+            "full_table": False,
+            "fluor"     : analyspar.fluor,
+            "dend"      : analyspar.dend,
+            "roi"       : roi,
+            "run"       : run,
+            "pupil"     : pupil,
+            "temp_log"  : "critical" # suppress almost all logs 
         }
 
         new_sessions = gen_util.parallel_wrap(
@@ -306,7 +308,7 @@ def init_sessions(analyspar, sesspar, mouse_df, datadir, sessions=None,
 
     # update ROI tracking parameters
     for sess in sessions:
-        sess.set_only_matched_rois(analyspar.tracked)
+        sess.set_only_tracked_rois(analyspar.tracked)
 
     return sessions
 
@@ -387,7 +389,7 @@ def run_single_panel(args, sessions=None, new_fig=False):
     )
 
     analysis_dict["seed"] = fig_panel_analysis.seed
-    analysis_dict["parallel"] = args.parallel
+    analysis_dict["parallel"] = False # args.parallel
 
     analysis_fct = fig_panel_analysis.analysis_fct
     analysis_dict_use = gen_util.keep_dict_keys(
@@ -517,5 +519,6 @@ def parse_args():
 if __name__ == "__main__":
 
     args = parse_args()
+
     main(args)
 

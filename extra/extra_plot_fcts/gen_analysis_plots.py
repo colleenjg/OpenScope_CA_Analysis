@@ -71,16 +71,16 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False,
     if analysis == "f": # full traces
         plot_full_traces(figpar=figpar, savedir=savedir, **info)
 
-    # 1. Plot average traces by quantile x surprise for each session 
+    # 1. Plot average traces by quantile x unexpected for each session 
     elif analysis == "t": # traces
-        plot_traces_by_qu_surp_sess(figpar=figpar, savedir=savedir, **info)
+        plot_traces_by_qu_unexp_sess(figpar=figpar, savedir=savedir, **info)
 
-    # 2. Plot average traces by quantile, locked to surprise for each session 
-    elif analysis == "l": # surprise locked traces
+    # 2. Plot average traces by quantile, locked to unexpected for each session 
+    elif analysis == "l": # unexpected locked traces
         plot_traces_by_qu_lock_sess(figpar=figpar, savedir=savedir, **info)
 
     # 3. Plot magnitude of change in dF/F area from first to last quantile of 
-    # surprise vs no surprise sequences, for each session
+    # unexpected vs no unexpected sequences, for each session
     elif analysis == "m": # mag
         plot_mag_change(figpar=figpar, savedir=savedir, **info)
 
@@ -252,14 +252,14 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
 
 
 #############################################
-def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar, 
+def plot_traces_by_qu_unexp_sess(analyspar, sesspar, stimpar, extrapar, 
                                 quantpar, sess_info, trace_stats, figpar=None, 
                                 savedir=None):
     """
-    plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar, 
+    plot_traces_by_qu_unexp_sess(analyspar, sesspar, stimpar, extrapar, 
                                 quantpar, sess_info, trace_stats)
 
-    From dictionaries, plots traces by quantile/surprise with each session in a 
+    From dictionaries, plots traces by quantile/unexpected with each session in a 
     separate subplot.
     
     Returns figure name and save directory path.
@@ -288,10 +288,10 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
             ["all_stats"] (list)       : list of 4D arrays or lists of trace 
                                          data statistics across ROIs for each
                                          session, structured as:
-                                            sess x surp x quantiles x
+                                            sess x unexp x quantiles x
                                             stats (me, err) x frames
             ["all_counts"] (array-like): number of sequences, structured as:
-                                                sess x surp x quantiles
+                                                sess x unexp x quantiles
                 
     Optional args:
         - figpar (dict): dictionary containing the following figure parameter 
@@ -311,7 +311,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
     """
  
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"],
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"],
         stimpar["gabk"], "print")
     statstr_pr = sess_str_util.stat_par_str(
         analyspar["stats"], analyspar["error"], "print")
@@ -320,7 +320,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
         
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
      
@@ -341,7 +341,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
     cols, lab_cols = sess_plot_util.get_quant_cols(quantpar["n_quants"])
     alpha = np.min([0.4, 0.8/quantpar["n_quants"]])
 
-    surps = ["reg", "surp"]
+    unexps = ["exp", "unexp"]
     n = 6
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
@@ -349,7 +349,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
     fig, ax = plot_util.init_fig(n_sess, **figpar["init"])
     for i in range(n_sess):
         sub_ax = plot_util.get_subax(ax, i)
-        for s, [col, leg_ext] in enumerate(zip(cols, surps)):
+        for s, [col, leg_ext] in enumerate(zip(cols, unexps)):
             for q, qu_lab in enumerate(quantpar["qu_lab"]):
                 if qu_lab != "":
                     qu_lab = f"{qu_lab.capitalize()} "
@@ -376,7 +376,7 @@ def plot_traces_by_qu_surp_sess(analyspar, sesspar, stimpar, extrapar,
     if savedir is None:
         savedir = Path(
             figpar["dirs"][datatype], 
-            figpar["dirs"]["surp_qu"])
+            figpar["dirs"]["unexp_qu"])
 
     qu_str = f"_{quantpar['n_quants']}q"
     if quantpar["n_quants"] == 1:
@@ -397,7 +397,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                                 quantpar, sess_info, trace_stats)
 
     From dictionaries, plots traces by quantile, locked to transitions from 
-    surprise to regular or v.v. with each session in a separate subplot.
+    unexpected to expected or v.v. with each session in a separate subplot.
     
     Returns figure name and save directory path.
     
@@ -425,26 +425,26 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             ["all_stats"] (list)       : list of 4D arrays or lists of trace 
                                          data statistics across ROIs for each 
                                          session, structured as:
-                                            (surp_len x) quantiles x
+                                            (unexp_len x) quantiles x
                                             stats (me, err) x frames
             ["all_counts"] (array-like): number of sequences, structured as:
-                                                sess x (surp_len x) quantiles
+                                                sess x (unexp_len x) quantiles
             ["lock"] (str)             : value to which segments are locked:
-                                         "surp", "reg" or "surp_split"
+                                         "unexp", "exp" or "unexp_split"
             ["baseline"] (num)         : number of seconds used for baseline
-            ["reg_stats"] (list)       : list of 3D arrays or lists of trace 
+            ["exp_stats"] (list)       : list of 3D arrays or lists of trace 
                                          data statistics across ROIs for
-                                         regular sampled sequences, 
+                                         expected sampled sequences, 
                                          structured as:
                                             quantiles (1) x stats (me, err) 
                                             x frames
-            ["reg_counts"] (array-like): number of sequences corresponding to
-                                         reg_stats, structured as:
+            ["exp_counts"] (array-like): number of sequences corresponding to
+                                         exp_stats, structured as:
                                             sess x quantiles (1)
             
-            if data is by surp_len:
-            ["surp_lens"] (list)       : number of consecutive segments for
-                                         each surp_len, structured by session
+            if data is by unexp_len:
+            ["unexp_lens"] (list)       : number of consecutive segments for
+                                         each unexp_len, structured by session
                 
     Optional args:
         - figpar (dict): dictionary containing the following figure parameter 
@@ -464,7 +464,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
     """
     analyspar["dend"] = None
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"],
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"],
         stimpar["gabk"], "print")
     statstr_pr = sess_str_util.stat_par_str(
         analyspar["stats"], analyspar["error"], "print")
@@ -473,7 +473,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"])
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"])
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
      
@@ -492,28 +492,28 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
 
     xrans      = [np.asarray(xran) for xran in trace_stats["xrans"]]
     all_stats  = [np.asarray(sessst) for sessst in trace_stats["all_stats"]]
-    reg_stats  = [np.asarray(regst) for regst in trace_stats["reg_stats"]]
+    exp_stats  = [np.asarray(expst) for expst in trace_stats["exp_stats"]]
     all_counts = trace_stats["all_counts"]
-    reg_counts = trace_stats["reg_counts"]
+    exp_counts = trace_stats["exp_counts"]
 
     lock  = trace_stats["lock"]
     col_idx = 0
-    if "surp" in lock:
-        lock = "surp"
+    if "unexp" in lock:
+        lock = "unexp"
         col_idx = 1
     
-    surp_lab, len_ext = "", ""
-    surp_lens = [[None]] * n_sess
+    unexp_lab, len_ext = "", ""
+    unexp_lens = [[None]] * n_sess
     offset = 0
     if (stimpar["stimtype"] == "gabors" and 
         stimpar["gabfr"] not in ["any", "all"]):
         offset = stimpar["gabfr"]
-    if "surp_lens" in trace_stats.keys():
-        surp_lens = trace_stats["surp_lens"]
+    if "unexp_lens" in trace_stats.keys():
+        unexp_lens = trace_stats["unexp_lens"]
         len_ext = "_bylen"
         if stimpar["stimtype"] == "gabors":
-            surp_lens = \
-                [[sl * 1.5/4 - 0.3 * offset for sl in sls] for sls in surp_lens]
+            unexp_lens = \
+                [[sl * 1.5/4 - 0.3 * offset for sl in sls] for sls in unexp_lens]
     
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
@@ -522,7 +522,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
     n_ticks = 21
 
     fig, ax = plot_util.init_fig(n_sess, **figpar["init"])
-    reg_min, reg_max = np.inf, -np.inf
+    exp_min, exp_max = np.inf, -np.inf
     for i, (stats, counts) in enumerate(zip(all_stats, all_counts)):
         sub_ax = plot_util.get_subax(ax, i)
         title=(f"Mouse {mouse_ns[i]} - {stimstr_pr} "
@@ -532,7 +532,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         sess_plot_util.add_axislabels(
             sub_ax, fluor=analyspar["fluor"], datatype=datatype)
         plot_util.add_bars(sub_ax, hbars=0)
-        n_lines = quantpar["n_quants"] * len(surp_lens[i])
+        n_lines = quantpar["n_quants"] * len(unexp_lens[i])
         if col_idx < n_lines:
             cols = sess_plot_util.get_quant_cols(n_lines)[0][col_idx]
         else:
@@ -540,32 +540,32 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         alpha = np.min([0.4, 0.8/n_lines])
         if stimpar["stimtype"] == "gabors":
             sess_plot_util.plot_gabfr_pattern(
-                sub_ax, xrans[i], offset=offset, bars_omit=[0] + surp_lens[i])
-        # plot regular data
-        if reg_stats[i].shape[0] != 1:
-            raise ValueError("Expected only one quantile for reg_stats.")
-        leg = f"reg (no lock) ({reg_counts[i][0]})"
+                sub_ax, xrans[i], offset=offset, bars_omit=[0] + unexp_lens[i])
+        # plot expected data
+        if exp_stats[i].shape[0] != 1:
+            raise ValueError("Expected only one quantile for exp_stats.")
+        leg = f"exp (no lock) ({exp_counts[i][0]})"
         plot_util.plot_traces(
-            sub_ax, xrans[i], reg_stats[i][0][0], reg_stats[i][0][1:], 
+            sub_ax, xrans[i], exp_stats[i][0][0], exp_stats[i][0][1:], 
             alpha=alpha, label=leg, alpha_line=0.8, color="darkgray", 
             xticks="auto")
 
-        # get regular data range to adjust y lims
-        reg_min = np.min([reg_min, np.nanmin(reg_stats[i][0][0])])
-        reg_max = np.max([reg_max, np.nanmax(reg_stats[i][0][0])])
+        # get expected data range to adjust y lims
+        exp_min = np.min([exp_min, np.nanmin(exp_stats[i][0][0])])
+        exp_max = np.max([exp_max, np.nanmax(exp_stats[i][0][0])])
 
         n = 0 # count lines plotted
-        for s, surp_len in enumerate(surp_lens[i]):
-            if surp_len is not None:
+        for s, unexp_len in enumerate(unexp_lens[i]):
+            if unexp_len is not None:
                 counts, stats = all_counts[i][s], all_stats[i][s]       
                 # remove offset   
-                surp_lab = f"surp len {surp_len+0.3*offset}"
+                unexp_lab = f"unexp len {unexp_len+0.3*offset}"
             else:
-                surp_lab = f"{lock} lock"
+                unexp_lab = f"{lock} lock"
             for q, qu_lab in enumerate(quantpar["qu_lab"]):
                 if qu_lab != "":
                     qu_lab = f"{qu_lab.capitalize()} "
-                lab = f"{qu_lab}{surp_lab}"
+                lab = f"{qu_lab}{unexp_lab}"
                 if n == 2 and cols[n] is None:
                     sub_ax.plot([], []) # to advance the color cycle (past gray)
                 leg = f"{lab} ({counts[q]})"
@@ -574,9 +574,9 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                     n_xticks=n_ticks, alpha_line=0.8, color=cols[n], 
                     xticks="auto")
                 n += 1
-            if surp_len is not None:
+            if unexp_len is not None:
                 plot_util.add_bars(
-                    sub_ax, hbars=surp_len, color=sub_ax.lines[-1].get_color(), 
+                    sub_ax, hbars=unexp_len, color=sub_ax.lines[-1].get_color(), 
                     alpha=1)
     
     plot_util.turn_off_extra(ax, n_sess)
@@ -584,11 +584,11 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
     if savedir is None:
         savedir = Path(
             figpar["dirs"][datatype], 
-            figpar["dirs"]["surp_qu"], 
+            figpar["dirs"]["unexp_qu"], 
             f"{lock}_lock", basestr.replace("_", ""))
 
-    if stimpar["stimtype"] == "bricks":
-        plot_util.rel_confine_ylims(sub_ax, [reg_min, reg_max], 5)
+    if stimpar["stimtype"] == "visflow":
+        plot_util.rel_confine_ylims(sub_ax, [exp_min, exp_max], 5)
 
     qu_str = f"_{quantpar['n_quants']}q"
     if quantpar["n_quants"] == 1:
@@ -608,7 +608,7 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quantpar,
     plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quantpar, 
                     sess_info, mags) 
 
-    From dictionaries, plots magnitude of change in surprise and regular
+    From dictionaries, plots magnitude of change in unexpected and expected
     responses across quantiles.
 
     Returns figure name and save directory path.
@@ -636,7 +636,7 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quantpar,
         - mags (dict)     : dictionary containing magnitude data to plot
             ["L2"] (array-like)    : nested list containing L2 norms, 
                                      structured as: 
-                                         sess x scaling x surp
+                                         sess x scaling x unexp
             ["L2_sig"] (list)      : L2 significance results for each session 
                                          ("hi", "lo" or "no")
             ["mag_sig"] (list)     : magnitude significance results for each 
@@ -644,7 +644,7 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quantpar,
                                          ("hi", "lo" or "no")
             ["mag_st"] (array-like): array or nested list containing magnitude 
                                      stats across ROIs, structured as: 
-                                         sess x scaling x surp x stats
+                                         sess x scaling x unexp x stats
 
     Optional args:
         - figpar (dict): dictionary containing the following figure parameter 
@@ -665,7 +665,7 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quantpar,
     
     sessstr_pr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"], stimpar["bri_size"], stimpar["gabk"], "print")
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"], "print")
     statstr_pr = sess_str_util.stat_par_str(
         analyspar["stats"], analyspar["error"], "print")
     dendstr_pr = sess_str_util.dend_par_str(
@@ -673,7 +673,7 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quantpar,
         
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"],stimpar["bri_size"], stimpar["gabk"]) 
+        stimpar["visflow_dir"],stimpar["visflow_size"], stimpar["gabk"]) 
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
      
@@ -710,7 +710,7 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quantpar,
     # get plot elements
     barw = 0.75
     # scaling strings for printing and filenames
-    leg = ["reg", "surp"]    
+    leg = ["exp", "unexp"]    
     cent, bar_pos, xlims = plot_util.get_barplot_xpos(n_sess, len(leg), barw)   
     title = (u"Magnitude ({}) of difference in activity".format(statstr_pr) +
         f"\nbetween Q{qu_ns[0]} and {qu_ns[1]} across {dimstr} "
@@ -755,7 +755,7 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quantpar,
     if savedir is None:
         savedir = Path(
             figpar["dirs"][datatype], 
-            figpar["dirs"]["surp_qu"], 
+            figpar["dirs"]["unexp_qu"], 
             figpar["dirs"]["mags"])
     
     log_dir = False
@@ -826,14 +826,14 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
     statstr_pr = sess_str_util.stat_par_str(
         analyspar["stats"], analyspar["error"], "print")
     stimstr_pr = sess_str_util.stim_par_str(
-        stimpar["stimtype"], stimpar["bri_dir"], stimpar["bri_size"], 
+        stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"], 
         stimpar["gabk"], "print")
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"], "print")
 
     sessstr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["bri_dir"],stimpar["bri_size"], stimpar["gabk"]) 
+        stimpar["visflow_dir"],stimpar["visflow_size"], stimpar["gabk"]) 
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"])
      
