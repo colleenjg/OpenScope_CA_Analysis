@@ -18,30 +18,33 @@ from paper_fig_util import helper_fcts
 
 logger = logging.getLogger(__name__)
 
-ORDERED_COLORS = ["orange", "crimson", "mediumblue"]
-
-
 
 ############################################
-def roi_overlays_sess123(sessions):
+def roi_overlays_sess123(sessions, sesspar, figpar, parallel=False):
     print("NOT YET IMPLEMENTED")
     return
 
 
 ############################################
-def roi_tracking(sessions):
+def roi_overlays_sess123_enlarged(sessions, sesspar, figpar, parallel=False):
     print("NOT YET IMPLEMENTED")
     return
 
 
 ############################################
-def dendritic_roi_tracking_example(sessions):
+def roi_tracking(sessions, sesspar, figpar, parallel=False):
+    print("NOT YET IMPLEMENTED")
+    return
+
+
+############################################
+def dendritic_roi_tracking_example(sessions, sesspar, figpar, parallel=False):
     print("NOT YET IMPLEMENTED")
     return
     
 
 ############################################
-def somatic_roi_tracking_example(sessions):
+def somatic_roi_tracking_example(sessions, sesspar, figpar, parallel=False):
     print("NOT YET IMPLEMENTED")
     return
     

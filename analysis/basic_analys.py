@@ -23,6 +23,37 @@ TAB = "    "
 
 
 #############################################
+def get_frame_type_by_datatype(datatype="roi"):
+    """
+    get_frame_type_by_datatype()
+
+    Returns frame type corresponding to datatype.
+
+    Required args:
+        - datatype (str):
+            type of data ("roi", "run" or "pupil")
+            default: "roi"
+        
+    Returns:
+        - frame_type (str):
+            correct frame type needed for the data type
+    """
+
+    if datatype == "run":
+        frame_type = "stim"
+    elif datatype == "pupil":
+        frame_type = "twop"
+    elif datatype == "roi":
+        frame_type = "twop"
+    else:
+        gen_util.accepted_values_error(
+            "datatype", datatype, ["roi", "run", "pupil"]
+            )
+
+    return frame_type
+
+
+#############################################
 def get_frame_numbers(stim, refs, ch_fl=None, ref_type="segs", datatype="roi"):
     """
     get_frame_numbers(stim, refs)
@@ -42,7 +73,7 @@ def get_frame_numbers(stim, refs, ch_fl=None, ref_type="segs", datatype="roi"):
             default: None
         - ref_type (str):
             type of references provided 
-            ("segs", "twop_frs", "stim_frs")
+            ("segs", "twop", "stim")
             default: "segs"
         - datatype (str):
             type of data to return ("roi", "run" or "pupil")
@@ -51,59 +82,52 @@ def get_frame_numbers(stim, refs, ch_fl=None, ref_type="segs", datatype="roi"):
     Returns:
         - fr_ns (1D array):
             frame numbers
+        - fr_type (str):
+            type of frame returned
     """
 
-    if datatype not in ["roi", "run", "pupil"]:
-        gen_util.accepted_values_error(
-            "datatype", datatype, ["roi", "run", "pupil"]
-            )
+    fr_type = get_frame_type_by_datatype(datatype=datatype)
+    
+    if np.min(refs) < 0:
+        raise ValueError("refs cannot include negative values.")
 
     # convert frames to correct type for ROI or pupil data
     ch_fl = [0, 0] if ch_fl is None else ch_fl
+    
     if ref_type == "segs":
-        if datatype == "run":
-            fr_ns = stim.get_fr_by_seg(
-                refs, start=True, ch_fl=ch_fl, fr_type="stim"
-                )["start_frame_stim"]
-        elif datatype in ["roi", "pupil"]:
-            fr_ns = stim.get_fr_by_seg(
-                refs, start=True, ch_fl=ch_fl, fr_type="twop"
-                )["start_frame_twop"]
+        fr_ns = stim.get_fr_by_seg(
+            refs, start=True, ch_fl=ch_fl, fr_type=fr_type
+            )[f"start_frame_{fr_type}"]
 
         if len(fr_ns) == 0:
             raise RuntimeError("No frames found given flank requirements.")
     
-    elif ref_type == "stim_frs":
-        if np.max(refs) >= stim.sess.tot_stim_fr: 
-            raise ValueError("Some refs values are out of bounds.")
-        elif np.min(refs) < 0:
-            raise ValueError("refs cannot include negative values.")
-        if datatype == "run":
-            fr_ns = stim.sess.check_flanks(refs, ch_fl, fr_type="stim")
-        else:
-            ref_type = "twop_frs"
-            fr_ns = stim.sess.convert_frames(
-                refs, src_fr_type="stim", targ_fr_type="twop", raise_nans=True
-                )
-            fr_ns = stim.sess.check_flanks(fr_ns, ch_fl, fr_type="twop")
-    
-    elif ref_type == "twop_frs":
-        if datatype == "run":
-            raise NotImplementedError(
-                "Converting twop_frs to stim_frs for running data is not "
-                "implemented."
-                )
-        elif datatype in ["roi", "pupil"]:
-            fr_ns = stim.sess.check_flanks(refs, ch_fl, fr_type="twop")
-
     else:
-        gen_util.accepted_values_error(
-            "ref_type", ref_type, ["segs", "twop_frs", "stim_frs"]
-            )
+        if ref_type != fr_type:
+            fr_ns = stim.sess.convert_frames(
+                refs, src_fr_type=ref_type, targ_fr_type=fr_type, 
+                raise_nans=True
+                )
+        else:
+            if ref_type == "stim":
+                max_fr = stim.sess.tot_stim_fr
+            elif ref_type == "twop":
+                max_fr = stim.sess.tot_twop_fr
+            else:
+                gen_util.accepted_values_error(
+                    "ref_type", ref_type, ["stim", "twop"]
+                )  
+        
+            if np.max(refs) >= max_fr: 
+                raise ValueError("Some refs values are out of bounds.")
+
+            fr_ns = refs
+
+        fr_ns = stim.sess.check_flanks(fr_ns, ch_fl, fr_type=fr_type)
 
     fr_ns = np.asarray(fr_ns)
 
-    return fr_ns
+    return fr_ns, fr_type
 
 
 #############################################
@@ -138,7 +162,8 @@ def get_data(stim, refs, analyspar, pre=0, post=1, ch_fl=None, integ=False,
             default: False
         - ref_type (str):
             type of references provided 
-            ("segs", "twop_frs", "stim_frs")
+            (segments, twop frames or stimulus frames)
+            ("segs", "twop", "stim")
             default: "segs"
         - datatype (str):
             type of data to return ("roi", "run" or "pupil")
@@ -157,7 +182,7 @@ def get_data(stim, refs, analyspar, pre=0, post=1, ch_fl=None, integ=False,
             "stim.sess.only_tracked_rois should match analyspar.tracked."
             )
 
-    fr_ns = get_frame_numbers(
+    fr_ns, _ = get_frame_numbers(
         stim, 
         refs, 
         ch_fl=ch_fl, 
@@ -278,7 +303,7 @@ def get_by_exp_data(sess, analyspar, stimpar, integ=False, common_oris=False,
         gab_ori = get_common_oris(stimpar, split="by_exp")
 
     by_exp_data = []
-    for e, unexp in enumerate([0, 1]):
+    for unexp in [0, 1]:
         
         segs = stim.get_segs_by_criteria(
             gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=gab_ori,
@@ -415,12 +440,14 @@ def get_stim_on_off_data(sess, analyspar, stimpar, split="stim_onset",
             stim = sess.get_stim(stimtype)
             break
     
+    fr_type = get_frame_type_by_datatype(datatype)
+
     if split == "stim_onset":
-        stim_fr = sess.grayscr.get_stop_fr(fr_type="twop")[
-            f"stop_frame_twop"][:-1]
+        fr_ns = sess.grayscr.get_stop_fr(fr_type=fr_type)[
+            f"stop_frame_{fr_type}"][:-1]
     elif split == "stim_offset":
-        stim_fr = sess.grayscr.get_start_fr(fr_type="twop")[
-            f"start_frame_twop"][1:]
+        fr_ns = sess.grayscr.get_start_fr(fr_type=fr_type)[
+            f"start_frame_{fr_type}"][1:]
 
     stim_on_off_data = []
     for i in range(2):
@@ -431,14 +458,14 @@ def get_stim_on_off_data(sess, analyspar, stimpar, split="stim_onset",
 
         # ROI x seq (x frames)
         data, time_values = get_data(
-            stim, stim_fr, analyspar, pre=pre, post=post, 
-            ch_fl=[stimpar.pre, stimpar.post], integ=integ, ref_type="twop_frs", 
+            stim, fr_ns, analyspar, pre=pre, post=post, 
+            ch_fl=[stimpar.pre, stimpar.post], integ=integ, ref_type=fr_type, 
             datatype=datatype,
             )
         
         # very few stim onset/offset sequences, so best to retain all
         axis = -1 if integ else -2
-        if data.shape[axis] != len(stim_fr):
+        if data.shape[axis] != len(fr_ns):
             raise RuntimeError("Not all sequences could be retained for "
                 f"{split} with stimpar.pre={stimpar.pre} and "
                 f"stimpar.post={stimpar.post}.")
@@ -704,28 +731,15 @@ def get_block_data(sess, analyspar, stimpar, datatype="roi", integ=False):
             visflow_dir=stimpar.visflow_dir, visflow_size=stimpar.visflow_size, 
             unexp=unexp, remconsec=False, by="seg")
 
-        fr_ns = get_frame_numbers(
+        fr_ns, fr_type = get_frame_numbers(
             stim, segs, ch_fl=ch_fl, ref_type="segs", datatype=datatype
             )
-
-        # MUST obtain frame numbers and check flanks for 
-        # to ensure later data indexing is correct
-        if datatype == "run":
-            frame_type = "stim_frs"
-        elif datatype == "pupil":
-            frame_type = "twop_frs"
-        elif datatype == "roi":
-            frame_type = "twop_frs"
-        else:
-            gen_util.accepted_values_error(
-                "datatype", datatype, ["roi", "run", "pupil"]
-                )
 
         by_exp_fr_ns.append(np.asarray(fr_ns))
 
         data, _ = get_data(
             stim, fr_ns, analyspar, pre=stimpar.pre, post=stimpar.post, 
-            integ=integ, datatype=datatype, ref_type=frame_type
+            integ=integ, datatype=datatype, ref_type=fr_type
             )
         
         if not integ: # take statistic across frames

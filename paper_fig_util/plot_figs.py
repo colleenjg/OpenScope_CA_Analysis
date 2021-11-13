@@ -18,19 +18,48 @@ import pandas as pd
 from util import logger_util, plot_util
 from paper_fig_util import helper_fcts
 from plot_fcts import behav_plots, corr_plots, misc_plots, seq_plots, \
-    stim_plots, usi_plots
+    stim_plots, tracking_plots, usi_plots
 
 logger = logging.getLogger(__name__)
 
 
 #############################################
-def plot_roi_tracking(figpar, **kwargs):
+def plot_roi_tracking(sesspar, extrapar, roi_mask_df, figpar):
     """
+    plot_roi_tracking(sesspar, extrapar, roi_mask_df, figpar)
+
+    From dictionaries, plots tracked ROI masks.
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+        - roi_mask_df (pd.DataFrame in dict format):
+            dataframe with a row for each mouse, and the following 
+            columns, in addition to the basic sess_df columns: 
+            - "registered_roi_mask_idxs" (list): list of indices where masks 
+                appear (val x (sess, hei, wid))
+            - "roi_mask_shapes" (list): shape into which ROI mask indices index 
+                appear (sess x hei x wid)
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+    
+    Returns:
+        - fulldir (Path): 
+            final path of the directory in which the figure is saved
+        - savename (str): 
+            name under which the figure is saved
     """
 
-    title = ""
+    title = "Tracked ROI examples"
     
-    # df = pd.DataFrame.from_dict(df)
+    roi_mask_df = pd.DataFrame.from_dict(roi_mask_df)
 
 
     fig = None
@@ -891,7 +920,6 @@ def plot_gabor_tracked_roi_abs_usi_means_sess123(
                           is saved
         - savename (str): name under which the figure is saved
     """
- 
 
     title = "Means of absolute tracked Gabor USIs"
 
@@ -920,6 +948,89 @@ def plot_gabor_tracked_roi_abs_usi_means_sess123(
     return fulldir, savename
 
 
+#############################################
+def plot_gabor_tracked_roi_usi_variances_sess123(
+        analyspar, sesspar, stimpar, basepar, idxpar, permpar, extrapar, 
+        idx_stats_df, figpar):
+    """
+    plot_gabor_tracked_roi_usi_variances_sess123(
+        analyspar, sesspar, stimpar, basepar, idxpar, permpar, extrapar, 
+        idx_stats_df, figpar)
+
+    From dictionaries, plots variances for tracked Gabor USIs across sessions. 
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - basepar (dict): 
+            dictionary with keys of BasePar namedtuple
+        - idxpar (dict): 
+            dictionary with keys of IdxPar namedtuple
+        - permpar (dict): 
+            dictionary with keys of PermPar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+            ["absolute"] (bool): whether statistics are for absolute USIs
+            ["by_mouse"] (bool): whether data is by mouse
+            ["seed"] (int): seed
+            ["stat"] (str): statistic used
+        - idx_stats_df (pd.DataFrame):
+            dataframe with one row per (mouse/)session/line/plane, and the 
+            following columns, in addition to the basic sess_df columns:
+            - roi_idxs or abs_roi_idxs (list): 
+                USI statistics or absolute USI statistics
+            for session comparisons, e.g. 1v2 (if permpar is not None):
+            - raw_p_vals_{}v{} (float): uncorrected p-value for differences
+                between sessions 
+            - p_vals_{}v{} (float): p-value for differences between sessions, 
+                corrected for multiple comparisons and tails
+
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+
+    Returns:
+        - fulldir (Path): final path of the directory in which the figure 
+                          is saved
+        - savename (str): name under which the figure is saved
+    """
+
+    title = "Variances of tracked Gabor USIs"
+
+    idx_stats_df = pd.DataFrame.from_dict(idx_stats_df)
+    
+    ax = usi_plots.plot_tracked_idx_stats(
+        idx_stats_df, 
+        sesspar=sesspar, 
+        figpar=figpar, 
+        permpar=permpar,
+        absolute=extrapar["absolute"],
+        by_mouse=extrapar["by_mouse"],
+        bootstr_err=True,
+        title=title, 
+        wide=True
+        )
+    fig = ax.reshape(-1)[0].figure
+    
+    savedir, savename = helper_fcts.get_save_path(
+        figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
+    )
+
+    fulldir = plot_util.savefig(
+        fig, savename, savedir, log_dir=True, **figpar["save"]
+    )
+
+    return fulldir, savename
+    
+    
 #############################################
 def plot_gabor_Dori_decoding_sess123(analyspar, sesspar, stimpar, logregpar, 
                                      permpar, extrapar, scores_df, figpar):
@@ -1063,93 +1174,6 @@ def plot_gabor_Uori_decoding_sess123(analyspar, sesspar, stimpar, logregpar,
 
 
 #############################################
-def plot_gabor_corr_norm_res_ex(analyspar, sesspar, stimpar, basepar, idxpar, 
-                                permpar, extrapar, idx_corr_norm_df, figpar):
-    """
-    plot_gabor_corr_norm_res_ex(analyspar, sesspar, stimpar, basepar, idxpar, 
-                                permpar, extrapar, idx_corr_norm_df, figpar)
-
-    From dictionaries, plots ROI USI correlations across essions for tracked 
-    Gabor USIs. 
-    
-    Returns figure name and save directory path.
-
-    Required args:
-        - analyspar (dict): 
-            dictionary with keys of AnalysPar namedtuple
-        - sesspar (dict):
-            dictionary with keys of SessPar namedtuple
-        - stimpar (dict): 
-            dictionary with keys of StimPar namedtuple
-        - basepar (dict): 
-            dictionary with keys of BasePar namedtuple
-        - idxpar (dict): 
-            dictionary with keys of IdxPar namedtuple
-        - permpar (dict): 
-            dictionary with keys of PermPar namedtuple
-        - extrapar (dict): 
-            dictionary containing additional analysis parameters
-            ["n_bins"] (int): number of bins used to bin random correlation 
-                data
-            ["permute"] (str): type of permutations used 
-                ("sess", "tracking", "all")
-            ["seed"] (int): seed
-            ["sig_only"] (bool): if True, only ROIs with significant USIs are 
-                retained
-        - idx_corr_df (pd.DataFrame):
-            dataframe with one row for a line/plane, and the 
-            following columns, in addition to the basic sess_df columns:
-
-            for a specific session comparison, e.g. 1v2
-            - {}v{}_corrs (float): unnormalized intersession ROI index 
-                correlations
-            - {}v{}_norm_corrs (float): normalized intersession ROI index 
-                correlations
-            - {}v{}_rand_ex_corrs (float): unnormalized intersession 
-                ROI index correlations for an example of randomized data
-            - {}v{}_rand_corr_meds (float): median of randomized correlations
-
-            - {}v{}_corr_data (list): intersession values to correlate
-            - {}v{}_rand_ex (list): intersession values for an example of 
-                randomized data
-            - {}v{}_rand_corrs_binned (list): binned random unnormalized 
-                intersession ROI index correlations
-            - {}v{}_rand_corrs_bin_edges (list): bins edges
-
-        - figpar (dict): 
-            dictionary containing the following figure parameter dictionaries
-            ["init"] (dict): dictionary with figure initialization parameters
-            ["save"] (dict): dictionary with figure saving parameters
-            ["dirs"] (dict): dictionary with additional figure parameters  
-
-    Returns:
-        - fulldir (Path): final path of the directory in which the figure 
-                          is saved
-        - savename (str): name under which the figure is saved
-    """
- 
-    title = "Example calculation of normalized residual correlations"
-
-    idx_corr_norm_df = pd.DataFrame.from_dict(idx_corr_norm_df)
-    
-    ax = corr_plots.plot_rand_corr_ex_data(
-        idx_corr_norm_df, 
-        title=title, 
-        )
-    fig = ax.reshape(-1)[0].figure
-    
-    savedir, savename = helper_fcts.get_save_path(
-        figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
-    )
-
-    fulldir = plot_util.savefig(
-        fig, savename, savedir, log_dir=True, **figpar["save"]
-    )
-
-    return fulldir, savename
-
-
-#############################################
 def plot_gabor_corrs_sess123_comps(analyspar, sesspar, stimpar, basepar, 
                                    idxpar, permpar, extrapar, idx_corr_df, 
                                    figpar):
@@ -1239,16 +1263,111 @@ def plot_gabor_corrs_sess123_comps(analyspar, sesspar, stimpar, basepar,
 
 
 #############################################
-def plot_roi_overlays_sess123(figpar, **kwargs):
+def plot_roi_overlays_sess123(sesspar, extrapar, roi_mask_df, figpar):
     """
-    """
- 
-    title = ""
+    plot_roi_overlays_sess123(sesspar, extrapar, roi_mask_df, figpar)
+
+    From dictionaries, plots tracked ROI masks.
     
-    # df = pd.DataFrame.from_dict(df)
+    Returns figure name and save directory path.
+    
+    Required args:
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+        - roi_mask_df (pd.DataFrame in dict format):
+            dataframe with a row for each mouse, and the following 
+            columns, in addition to the basic sess_df columns: 
+            - "registered_roi_mask_idxs" (list): list of indices where masks 
+                appear (val x (sess, hei, wid))
+            - "roi_mask_shapes" (list): shape into which ROI mask indices index 
+                appear (sess x hei x wid)
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+    
+    Returns:
+        - fulldir (Path): 
+            final path of the directory in which the figure is saved
+        - savename (str): 
+            name under which the figure is saved
+    """
+
+    title = "Tracked ROI examples (full)"
+    
+    roi_mask_df = pd.DataFrame.from_dict(roi_mask_df)
+
+    ax = tracking_plots.plot_roi_masks_overlayed(
+        roi_mask_df, 
+        figpar=figpar, 
+        title=title,
+        )
+    fig = ax.reshape(-1)[0].figure
+    
+    savedir, savename = helper_fcts.get_save_path(
+        figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
+    )
+
+    fulldir = plot_util.savefig(
+        fig, savename, savedir, log_dir=True, **figpar["save"]
+    )
+
+    return fulldir, savename
 
 
-    fig = None
+#############################################
+def plot_roi_overlays_sess123_enlarged(sesspar, extrapar, roi_mask_df, figpar):
+    """
+    plot_roi_overlays_sess123_enlarged(sesspar, extrapar, roi_mask_df, figpar)
+
+    From dictionaries, plots enlarged tracked ROI masks.
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+        - roi_mask_df (pd.DataFrame in dict format):
+            dataframe with a row for each mouse, and the following 
+            columns, in addition to the basic sess_df columns: 
+            - "registered_roi_mask_idxs" (list): list of indices where masks 
+                appear (val x (sess, hei, wid))
+            - "roi_mask_shapes" (list): shape into which ROI mask indices index 
+                appear (sess x hei x wid)
+            - "crop_fact" (num): factor by which to crop masks (> 1) 
+            - "shift_prop_wid" (float): proportion by which to shift cropped 
+                mask center horizontally from left edge [0, 1]
+            - "shift_prop_hei" (float): proportion by which to shift cropped 
+                mask center vertically from top edge [0, 1] 
+
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+    
+    Returns:
+        - fulldir (Path): 
+            final path of the directory in which the figure is saved
+        - savename (str): 
+            name under which the figure is saved
+    """
+
+    title = "Tracked ROI examples (enlarged)"
+    
+    roi_mask_df = pd.DataFrame.from_dict(roi_mask_df)
+
+    ax = tracking_plots.plot_roi_masks_overlayed(
+        roi_mask_df, 
+        figpar=figpar, 
+        title=title,
+        )
+    fig = ax.reshape(-1)[0].figure
     
     savedir, savename = helper_fcts.get_save_path(
         figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
@@ -1421,6 +1540,66 @@ def plot_nrois_sess123(analyspar, sesspar, extrapar, nrois_df, figpar):
 
 
 #############################################
+def plot_roi_crosscorr_sess123(analyspar, sesspar, extrapar, crosscorr_df, 
+                               figpar):
+    """
+    plot_roi_crosscorr_sess123(analyspar, sesspar, extrapar, crosscorr_df, 
+                               figpar)
+    
+    Plots ROI cross-correlations.
+
+    Returns figure name and save directory path.
+
+    Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+        - crosscorr_df (pd.DataFrame in dict format):
+            dataframe with one row per session/line/plane, and the 
+            following columns, in addition to the basic sess_df columns:
+            - bin_edges (list): first and last bin edge
+            - cross_corrs_binned (list): number of cross-correlation values per 
+                bin
+
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+    
+    Returns:
+        - fulldir (Path): 
+            final path of the directory in which the figure is saved
+        - savename (str): 
+            name under which the figure is saved
+    """
+ 
+    title = "ROI cross-correlations"
+    
+    crosscorr_df = pd.DataFrame.from_dict(crosscorr_df)
+
+    ax = misc_plots.plot_roi_cross_correlations(
+        crosscorr_df, 
+        figpar=figpar, 
+        title=title
+        )
+    fig = ax.reshape(-1)[0].figure
+    
+    savedir, savename = helper_fcts.get_save_path(
+        figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
+    )
+
+    fulldir = plot_util.savefig(
+        fig, savename, savedir, log_dir=True, **figpar["save"]
+    )
+
+    return fulldir, savename
+    
+    
+#############################################
 def plot_stimulus_onset_sess123(analyspar, sesspar, stimpar, basepar, extrapar, 
                                 trace_df, figpar):
     """
@@ -1515,13 +1694,16 @@ def plot_gabor_ex_roi_responses_sess1(analyspar, sesspar, stimpar, basepar,
         - extrapar (dict): 
             dictionary containing additional analysis parameters
             ["n_ex"] (int): number of example ROIs retained per line/plane
+            ["rolling_win"] (int): window used in rolling mean over individual 
+                trial traces 
             ["seed"] (int): seed
         - ex_traces_df (pd.DataFrame):
             dataframe with a row for each ROI, and the following columns, 
             in addition to the basic sess_df columns: 
             - time_values (list): values for each frame, in seconds
             - roi_ns (list): selected ROI number
-            - traces (list): selected ROI sequence traces, dims: seq x frames
+            - traces_sm (list): selected ROI sequence traces, smoothed, with 
+                dims: seq x frames
             - trace_stat (list): selected ROI trace mean or median
         - figpar (dict): 
             dictionary containing the following figure parameter dictionaries
@@ -2438,19 +2620,280 @@ def plot_visual_flow_corrs_sess123_comps(analyspar, sesspar, stimpar, basepar,
 
     return fulldir, savename
 
-    
+
 #############################################
-def plot_dendritic_roi_tracking_example(figpar, **kwargs):
+def plot_scatterplots(analyspar, sesspar, stimpar, basepar, idxpar, permpar, 
+                      extrapar, idx_corr_df, figpar, title=None):
     """
+    plot_scatterplots(analyspar, sesspar, stimpar, basepar, idxpar, permpar, 
+                      extrapar, idx_corr_df, figpar)
+
+    From dictionaries, plots ROI USI correlation scatterplots. 
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - basepar (dict): 
+            dictionary with keys of BasePar namedtuple
+        - idxpar (dict): 
+            dictionary with keys of IdxPar namedtuple
+        - permpar (dict): 
+            dictionary with keys of PermPar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+            ["permute"] (str): type of permutations used 
+                ("sess", "tracking", "all")
+            ["seed"] (int): seed
+            ["sig_only"] (bool): if True, only ROIs with significant USIs are 
+                retained
+        - idx_corr_df (pd.DataFrame):
+            dataframe with one row per line/plane, and the 
+            following columns, in addition to the basic sess_df columns:
+
+
+
+
+
+
+
+
+
+
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+
+    Returns:
+        - fulldir (Path): final path of the directory in which the figure 
+                          is saved
+        - savename (str): name under which the figure is saved
+    """
+
+    idx_corr_df = pd.DataFrame.from_dict(idx_corr_df)
+
+    ax = corr_plots.plot_idx_corr_scatterplots(
+        idx_corr_df, 
+        sesspar=sesspar, 
+        permpar=permpar, 
+        figpar=figpar, 
+        permute=extrapar["permute"], 
+        title=title,
+        )
+    fig = ax.reshape(-1)[0].figure
+    
+    savedir, savename = helper_fcts.get_save_path(
+        figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
+    )
+
+    fulldir = plot_util.savefig(
+        fig, savename, savedir, log_dir=True, **figpar["save"]
+    )
+
+    return fulldir, savename
+
+
+#############################################
+def plot_gabor_corr_scatterplots_sess12(analyspar, sesspar, stimpar, basepar, 
+                                        idxpar, permpar, extrapar, idx_corr_df, 
+                                        figpar):
+    """
+    plot_gabor_corr_scatterplots_sess12(analyspar, sesspar, stimpar, basepar, 
+                                        idxpar, permpar, extrapar, idx_corr_df, 
+                                        figpar)
+
+    Retrieves tracked ROI Gabor USI correlation scatterplot data for 
+    sessions 1 and 2.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    See plot_scatterplots().
     """
  
-    title = ""
-    
-    # df = pd.DataFrame.from_dict(df)
+    title = "Correlation scatterplot for Gabor USIs (session 1 vs 2)"
+
+    fulldir, savename = plot_scatterplots(
+        analyspar=analyspar, 
+        sesspar=sesspar, 
+        stimpar=stimpar, 
+        basepar=basepar, 
+        idxpar=idxpar, 
+        permpar=permpar, 
+        extrapar=extrapar, 
+        idx_corr_df=idx_corr_df, 
+        figpar=figpar, 
+        title=title
+        )
+
+    return fulldir, savename
 
 
-    fig = None
+#############################################
+def plot_gabor_corr_scatterplots_sess23(analyspar, sesspar, stimpar, basepar, 
+                                        idxpar, permpar, extrapar, idx_corr_df, 
+                                        figpar):
+    """
+    plot_gabor_corr_scatterplots_sess23(analyspar, sesspar, stimpar, basepar, 
+                                        idxpar, permpar, extrapar, idx_corr_df, 
+                                        figpar)
+
+    Retrieves tracked ROI Gabor USI correlation scatterplot data for 
+    sessions 2 and 3.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    See plot_scatterplots().
+    """
+ 
+    title = "Correlation scatterplot for Gabor USIs (session 2 vs 3)"
+
+    fulldir, savename = plot_scatterplots(
+        analyspar=analyspar, 
+        sesspar=sesspar, 
+        stimpar=stimpar, 
+        basepar=basepar, 
+        idxpar=idxpar, 
+        permpar=permpar, 
+        extrapar=extrapar, 
+        idx_corr_df=idx_corr_df, 
+        figpar=figpar, 
+        title=title
+        )
+
+    return fulldir, savename
+
     
+#############################################
+def plot_visual_flow_corr_scatterplots_sess12(
+        analyspar, sesspar, stimpar, basepar, idxpar, permpar, extrapar, 
+        idx_corr_df, figpar):
+    """
+    plot_visual_flow_corr_scatterplots_sess12(
+        analyspar, sesspar, stimpar, basepar, idxpar, permpar, extrapar, 
+        idx_corr_df, figpar)
+
+    Retrieves tracked ROI visual flow USI correlation scatterplot data for 
+    sessions 1 and 2.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    See plot_scatterplots().
+    """
+ 
+    title = "Correlation scatterplot for visual flow USIs (session 1 vs 2)"
+
+    fulldir, savename = plot_scatterplots(
+        analyspar=analyspar, 
+        sesspar=sesspar, 
+        stimpar=stimpar, 
+        basepar=basepar, 
+        idxpar=idxpar, 
+        permpar=permpar, 
+        extrapar=extrapar, 
+        idx_corr_df=idx_corr_df, 
+        figpar=figpar, 
+        title=title
+        )
+
+    return fulldir, savename
+
+    
+#############################################
+def plot_visual_flow_corr_scatterplots_sess23(
+        analyspar, sesspar, stimpar, basepar, idxpar, permpar, extrapar, 
+        idx_corr_df, figpar):
+    """
+    plot_visual_flow_corr_scatterplots_sess23(
+        analyspar, sesspar, stimpar, basepar, idxpar, permpar, extrapar, 
+        idx_corr_df, figpar)
+
+    Retrieves tracked ROI visual flow USI correlation scatterplot data for 
+    sessions 2 and 3.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    See plot_scatterplots().
+    """
+ 
+    title = "Correlation scatterplot for visual flow USIs (session 2 vs 3)"
+
+    fulldir, savename = plot_scatterplots(
+        analyspar=analyspar, 
+        sesspar=sesspar, 
+        stimpar=stimpar, 
+        basepar=basepar, 
+        idxpar=idxpar, 
+        permpar=permpar, 
+        extrapar=extrapar, 
+        idx_corr_df=idx_corr_df, 
+        figpar=figpar, 
+        title=title
+        )
+
+    return fulldir, savename
+
+
+#############################################
+def plot_dendritic_roi_tracking_example(sesspar, extrapar, roi_mask_df, 
+                                        figpar):
+    """
+    plot_dendritic_roi_tracking_example(sesspar, extrapar, roi_mask_df, 
+                                        figpar)
+
+    From dictionaries, plots tracked ROI masks for different session orderings 
+    for an example dendritic session.
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+        - roi_mask_df (pd.DataFrame in dict format):
+            dataframe with a row for each mouse, and the following 
+            columns, in addition to the basic sess_df columns: 
+            - "roi_mask_shapes" (list): shape into which ROI mask indices index 
+                appear (sess x hei x wid)
+            - "union_n_conflicts" (int): number of conflicts after union
+            for "union", "fewest" and "most"
+            - "{}_registered_roi_mask_idxs" (list): list of indices where masks 
+            - "{}_n_tracked" (int): number of tracked ROIs 
+                (for union: after conflicts are removed)
+            for "fewest", "most":
+            - "{}_sess_ns" (list): ordered session number 
+
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+    
+    Returns:
+        - fulldir (Path): 
+            final path of the directory in which the figure is saved
+        - savename (str): 
+            name under which the figure is saved
+    """
+
+    title = "Dendritic ROI tracking example"
+
+    roi_mask_df = pd.DataFrame.from_dict(roi_mask_df)
+
+    ax = tracking_plots.plot_roi_tracking(
+        roi_mask_df, 
+        figpar=figpar, 
+        title=title
+        )
+    fig = ax.reshape(-1)[0].figure
+
     savedir, savename = helper_fcts.get_save_path(
         figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
     )
@@ -2463,16 +2906,58 @@ def plot_dendritic_roi_tracking_example(figpar, **kwargs):
 
     
 #############################################
-def plot_somatic_roi_tracking_example(figpar, **kwargs):
+def plot_somatic_roi_tracking_example(sesspar, extrapar, roi_mask_df, figpar):
     """
-    """
- 
-    title = ""
+    plot_somatic_roi_tracking_example(sesspar, extrapar, roi_mask_df, figpar)
+
+    From dictionaries, plots tracked ROI masks for different session orderings 
+    for an example somatic session.
     
-    # df = pd.DataFrame.from_dict(df)
+    Returns figure name and save directory path.
+    
+    Required args:
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+        - roi_mask_df (pd.DataFrame in dict format):
+            dataframe with a row for each mouse, and the following 
+            columns, in addition to the basic sess_df columns: 
+            - "n_tracked_union" (int): final number of tracked ROIs after union 
+            - "n_tracked_union_conflicts" (int): number of tracked ROI 
+                                                 conflicts
+            - "registered_roi_mask_idxs" (list): list of indices where masks 
+                appear (val x (sess, hei, wid))
+            - "roi_mask_shapes" (list): shape into which ROI mask indices index 
+                appear (sess x hei x wid)
+            - sess{ns}_registered_roi_mask_idxs (list): list of indices where 
+                masks appear (val x (sess, hei, wid)), for specified session 
+                ordering
+            - sess{ns}_n_tracked (int): number of tracked ROIs for specified 
+                session ordering
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+    
+    Returns:
+        - fulldir (Path): 
+            final path of the directory in which the figure is saved
+        - savename (str): 
+            name under which the figure is saved
+    """
 
+    title = "Somatic ROI tracking example"
 
-    fig = None
+    roi_mask_df = pd.DataFrame.from_dict(roi_mask_df)
+
+    ax = tracking_plots.plot_roi_tracking(
+        roi_mask_df, 
+        figpar=figpar, 
+        title=title
+        )
+    fig = ax.reshape(-1)[0].figure
     
     savedir, savename = helper_fcts.get_save_path(
         figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]

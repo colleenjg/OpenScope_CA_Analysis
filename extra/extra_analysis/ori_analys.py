@@ -13,6 +13,8 @@ Note: this code uses python 3.7.
 
 """
 
+import copy
+
 from joblib import Parallel, delayed
 import numpy as np
 import scipy.stats as st
@@ -26,26 +28,26 @@ def collapse_dir(oris):
     """
     collapse_dir(oris)
 
-    Collapses opposite orientations in the -180 to 180 degree range to the -90 
-    to 90 range.
+    Collapses opposite orientations in the 0 to 360 degree range to the 0 
+    to 180 range.
 
     Required args:
-        - oris (list or nd array): array of orientations in the -180 to 180 
+        - oris (list or nd array): array of orientations in the 0 to 360 
                                    range
     
     Return:
         - oris_nodir (nd array): array of orientations collapsed to within the 
-                                 -90 to 90 range
+                                 0 to 180 range
     """
 
-    oris_nodir = np.copy(oris)
-    if (np.absolute(oris) > 180).any():
+    oris_nodir = copy.deepcopy(oris)
+    if (oris > 360).any() or (oris < 0).any():
         raise ValueError(
-            "Only orientations between -180 and 180 are accepted."
+            "Only orientations between 0 and 360 are accepted."
             )
 
-    ori_ch = np.where(np.absolute(oris) > 90)
-    new_vals = oris[ori_ch] - np.sign(oris[ori_ch]) * 180.0
+    ori_ch = np.where(oris > 180)
+    new_vals = oris[ori_ch] - 180
     oris_nodir[ori_ch] = new_vals
 
     return oris_nodir
@@ -173,8 +175,8 @@ def tune_curv_estims(gab_oris, roi_data, ngabs_tot, nrois="all", ngabs="all",
         - hist_n (int)    : value by which to multiply fluorescence data to 
                             obtain histogram values
                             default: 1000
-        - collapse (bool) : if True, opposite orientations in the -180 to 180 
-                            range are collapsed to the -90 to 90 range 
+        - collapse (bool) : if True, opposite orientations in the 0 to 360 
+                            range are collapsed to the 0 to 180 range 
         - parallel (bool) : if True, some of the analysis is parallelized 
                             across CPU cores
 
@@ -274,8 +276,8 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all",
                             default: False
         - vm_estim (bool) : if True, analysis is run using a von Mises tuning 
                             curve estimation method
-        - collapse (bool) : if True, opposite orientations in the -180 to 180 
-                            range are collapsed to the -90 to 90 range 
+        - collapse (bool) : if True, opposite orientations in the 0 to 360 
+                            range are collapsed to the 0 to 180 range 
         - parallel (bool) : if True, some of the analysis is parallelized 
                             across CPU cores
 

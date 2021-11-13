@@ -43,7 +43,6 @@ TAB = "    "
 TEST_USE_PLATEAU = False
 
 
-
 #############################################
 #############################################
 class Session(object):
@@ -236,6 +235,8 @@ class Session(object):
             - dir (Path)               : path of session directory
             - expdir (Path)            : path name of experiment directory
             - expid (int)              : experiment ID (8 digits)
+            - max_proj_png (Path)      : full path to max projection of stack
+                                          in png format
             - mouse_dir (bool)         : whether path includes a mouse directory
             - procdir (Path)           : path name of the processed data 
                                          directory
@@ -294,6 +295,7 @@ class Session(object):
         
             self.expdir           = dirpaths["expdir"]
             self.procdir          = dirpaths["procdir"]
+            self.max_proj_png     = filepaths["max_proj_png"]
             self.stim_pkl         = filepaths["stim_pkl"]
             self.stim_sync_h5     = filepaths["stim_sync_h5"]
             self.behav_video_h5   = filepaths["behav_video_h5"]
@@ -334,6 +336,31 @@ class Session(object):
 
     #############################################
     @property
+    def max_proj(self):
+        """
+        self.max_proj()
+
+        Returns:
+            - _max_proj (2D array): maximum projection image across downsampled 
+                                    z-stack (hei x wei), with pixel intensity 
+                                    in 0 (incl) to 256 (excl) range.
+        """
+
+        if self.nwb:
+            raise NotImplementedError(
+                "Retrieving max projection not implemented for NWB data."
+                )
+
+        if not hasattr(self, "_max_proj"):
+            self._max_proj = sess_load_util.load_max_projection(
+                self.max_proj_png
+                )
+
+        return self._max_proj
+
+
+    #############################################
+    @property
     def pup_data_h5(self):
         """
         self.pup_data_h5
@@ -368,7 +395,7 @@ class Session(object):
                                      ROI x height x width
         """
 
-        if not hasattr(self, "_dend"):
+        if not hasattr(self, "_nrois"):
             raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
                 "attributes correctly.")
 
@@ -399,7 +426,7 @@ class Session(object):
             - _dend (str): type of dendrites loaded ("allen" or "extr")
         """
 
-        if not hasattr(self, "_dend"):
+        if not hasattr(self, "_nrois"):
             raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
                 "attributes correctly.")
 
@@ -451,7 +478,7 @@ class Session(object):
 
         if not hasattr(self, '_stim2twopfr'):
             if self.nwb:
-                twop_timestamps, stim_timestamps = \
+                stim_timestamps, twop_timestamps = \
                     sess_sync_util.get_frame_timestamps_nwb(self.sess_files)
                 self._stim2twopfr = gen_util.get_closest_idx(
                     twop_timestamps, stim_timestamps
@@ -480,7 +507,7 @@ class Session(object):
 
         if not hasattr(self, '_twop2stimfr'):
             if self.nwb:
-                twop_timestamps, stim_timestamps = \
+                stim_timestamps, twop_timestamps = \
                     sess_sync_util.get_frame_timestamps_nwb(self.sess_files)
 
                 self._twop2stimfr = gen_util.get_closest_idx(
@@ -493,14 +520,45 @@ class Session(object):
                 self._twop2stimfr[end :] = np.nan
 
             else:
-                if not hasattr(self, "_dend"):
-                    raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
+                if not hasattr(self, "tot_twop_fr"):
+                    raise RuntimeError("Run 'self.load_roi_info()' or "
+                        "self.load_pup_data() to set two-photon "
                         "attributes correctly.")                    
                 self._twop2stimfr = sess_sync_util.get_twop2stimfr(
                     self.stim2twopfr, self.tot_twop_fr, sessid=self.sessid
                     )
 
         return self._twop2stimfr
+
+
+    #############################################
+    def _load_stim_dict(self, full_table=True):
+        """
+        self._load_stim_dict()
+
+        Returns stimulus dictionary, if applicable.
+
+        Optional args:
+            - full_table (bool): if True, the full stimulus information is 
+                                 loaded. Otherwise, exact Gabor orientations 
+                                 and visual flow square positions per frame are 
+                                 omitted
+                                 default: True
+        """
+
+        if self.nwb:
+            raise RuntimeError(
+                "Cannot load stimulus dictionary if data is in NWB format."
+                )
+
+        if full_table:
+            stim_dict = file_util.loadfile(self.stim_pkl)
+        else:
+            stim_dict = sess_load_util.load_small_stim_pkl(
+                self.stim_pkl, self.runtype
+            )
+
+        return stim_dict
 
 
     #############################################
@@ -511,10 +569,51 @@ class Session(object):
         Loads the stimulus dataframe.
         
         Attributes: 
-            - stim_df (pd.DataFrame): stimulus dataframe
             - stim_fps (num)        : stimulus frames per second
             - twop_fps (num)        : two-photon frames per second
             - tot_stim_fr (num)     : total number of stimulus frames
+
+            - stim_df (pd.DataFrame): stimulus dataframe, with columns 
+                                      indicating for each segment:
+                stimulus_type            : type of stimulus 
+                                           ("gabors", "visflow", "grayscreen")
+                unexpected               : whether segment is expected or not
+                                           for Gabors, full sequences (A to G) 
+                                           are marked as unexpected, if a U 
+                                           occurs
+                gabor_frame              : Gabors frame 
+                                           ("A", "B", "C", "D", "U" or "G")
+                gabor_kappa              : Gabors orientation dispersion
+                gabor_mean_orientation   : mean Gabor orientation (deg)
+                gabor_number             : number of Gabors
+                gabor_locations_x        : x locations for each Gabor patch (pix) 
+                gabor_locations_y        : y locations for each Gabor patch (pix)
+                gabor_sizes              : size of each Gabor patch (pix)
+                main_flow_direction      : main visual flow direction
+                square_size              : visual flow square sizes (in pix)
+                square_number            : number of visual flow squares
+                square_proportion_flipped: proportion of visual flow squares 
+                                           going in direction opposite to main 
+                                           flow
+                start_frame_stim         : first stimulus frame number (incl)
+                stop_frame_stim          : last stimulus frame number (excl)
+                num_frames_stim          : number of stimulus frames
+                start_frame_twop         : first twop-photon frame number (incl)
+                stop_frame_twop          : last twop-photon frame number (excl)
+                num_frames_twop          : number of twop-photon frames
+                start_time_sec           : starting time (sec, incl)
+                stop_time_sec            : stopping time (sec, excl)
+                duration_sec             : duration (sec)
+
+                if full_table:
+                gabor_orientations       : orientation of each Gabor patch (deg)
+                square_locations_x       : x locations for each square 
+                                           (square x stimulus frame) (pix) 
+                square_locations_y       : y locations for each square 
+                                           (square x stimulus frame) (pix)
+
+                if self.nwb:
+                stimulus_template_name   : name of the template image stored
 
         Optional args:
             - full_table (bool): if True, the full stimulus information is 
@@ -522,39 +621,54 @@ class Session(object):
                                  and visual flow square positions per frame are 
                                  omitted
                                  default: True
+        
+        Returns:
+            - stim_dict (dict): stimulus dictionary 
+                                (None returned if self.nwb if True)
         """
 
+        reloading = False
         if hasattr(self, "stim_df"):
+            if full_table == self._full_table:
+                return
+
             if not full_table:
+                logger.info(
+                    "Dropping full table columns from stimulus dataframe .", 
+                    extra={"spacing": TAB})
+                
+                self.stim_df = self.stim_df.drop(
+                    columns=sess_stim_df_util.FULL_TABLE_COLUMNS
+                    )
+                self._full_table = full_table
                 return
+            
+            reloading = True
+            logger.info("Stimulus dataframe being reloaded with "
+                f"full table columns.", extra={"spacing": TAB})
 
-            if full_table and "gabor_orientations" in self.stim_df.columns:
-                return
 
-            logger.info("Stimulus dictionary being reloaded with "
-                f"full_table as {full_table}.", extra={"spacing": TAB})
-
+        self._full_table = full_table
         if self.nwb:
-            stim_df = sess_stim_df_util.load_stimulus_table_nwb(
+            self.stim_df = sess_stim_df_util.load_stimulus_table_nwb(
                 self.sess_files, full_table=full_table
                 )
+            stim_dict = None
         
         else:
-            if full_table:
-                stim_dict = file_util.loadfile(self.stim_pkl)
-            else:
-                stim_dict = sess_load_util.load_small_stim_pkl(
-                    self.stim_pkl, self.runtype
-                )
+            stim_dict = self._load_stim_dict(full_table=full_table)
 
             stim_df, stim2twopfr = sess_stim_df_util.load_stimulus_table(
                 stim_dict, self.stim_sync_h5, self.time_sync_h5, 
                 self.align_pkl, self.sessid, self.runtype
                 )
-            stim_df = stim_df.drop(columns=sess_stim_df_util.NWB_ONLY_COLUMNS)
+            
+            self.stim_df = stim_df.drop(
+                columns=sess_stim_df_util.NWB_ONLY_COLUMNS
+                )
             self._stim2twopfr = stim2twopfr
 
-            if not hasattr(self, "stim_df"):
+            if not reloading:
                 drop_stim_fr = stim_dict["droppedframes"]
                 n_drop_stim_fr = len(drop_stim_fr[0])
                 sess_sync_util.check_stim_drop_tolerance(
@@ -562,10 +676,10 @@ class Session(object):
                     self.drop_tol, self.sessid, raise_exc=False)
 
             
-        if not hasattr(self, "stim_df"):
+        if not reloading:
             start_row = stim_df.loc[0]
             last_row = stim_df.loc[len(stim_df) - 1]
-            num_sec = start_row["start_time"] - last_row["stop_time"]
+            num_sec = start_row["start_time_sec"] - last_row["stop_time_sec"]
             num_stim_fr = (
                 start_row["start_frame_stim"] - last_row["stop_frame_stim"]
             )
@@ -576,8 +690,8 @@ class Session(object):
             self.stim_fps = num_stim_fr / num_sec
             self.twop_fps = num_twop_fr / num_sec
             self.tot_stim_fr = last_row["stop_frame_stim"]
-        
-        self.stim_df = stim_df
+
+        return stim_dict
 
 
     #############################################
@@ -799,7 +913,9 @@ class Session(object):
 
         self.pup_data = pup_data.sort_index(axis="columns")
 
-        if n_frames != self.tot_twop_fr:
+        if not hasattr(self, "tot_twop_fr"):
+            self.tot_twop_fr = n_frames
+        elif n_frames != self.tot_twop_fr:
             raise RuntimeError(
                 "Number of pupil frames expected to match number of "
                 "two-photon frames."
@@ -807,7 +923,7 @@ class Session(object):
 
 
     #############################################
-    def _set_nanrois(self, fluor="dff"):
+    def _set_nanrois(self, fluor="dff", roi_traces=None):
         """
         self._set_nanrois()
 
@@ -823,14 +939,19 @@ class Session(object):
                                        the ROI raw processed traces
 
         Optional args:
-            - fluor (str): if "dff", a nanrois attribute is added for dF/F 
-                           traces. If "raw, it is created for raw processed 
-                           traces.
-                           default: "dff"
+            - fluor (str)         : if "dff", a nanrois attribute is added for 
+                                    dF/F traces. If "raw, it is created for raw 
+                                    processed traces.
+                                    default: "dff"
+            - roi_trace (2D array): ROI traces (can be passed to avoid 
+                                    re-loading them into memory, for example).
+                                    Assumes that fluorescence type matches 
+                                    'fluor'.
+                                    default: None
         """
         
         
-        if not hasattr(self, "_dend"):
+        if not hasattr(self, "_nrois"):
             raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
                 "attributes correctly.")
 
@@ -841,39 +962,33 @@ class Session(object):
 
         else:
             rem_noisy = True
+            if roi_traces is None:
+                roi_trace_path = self.get_roi_trace_path(fluor)
+                roi_traces = sess_trace_util.load_roi_traces(roi_trace_path)
 
-            if fluor == "dff":
-                full_trace_file = self.roi_trace_dff_h5
-                dataset_name = "data"
-            elif fluor == "raw":
-                full_trace_file = self.roi_trace_h5
-                dataset_name = "FC"
             else:
-                gen_util.accepted_values_error("fluor", fluor, ["raw", "dff"])
-            
-            if not full_trace_file.is_file():
-                raise OSError(
-                    "Specified ROI traces file does not exist: "
-                    f"{full_trace_file}"
-                    )
-            
-            with h5py.File(full_trace_file, "r") as f:
-                traces = f[dataset_name][()]
+                expected_shape = (self._nrois, self.tot_twop_fr)
+                if roi_traces.shape != (self._nrois, self.tot_twop_fr):
+                    raise RuntimeError(
+                        f"Expected roi_traces to have shape {expected_shape}, "
+                        f"but found {roi_traces.shape}."
+                        )
 
-            nan_arr = np.isnan(traces).any(axis=1) + np.isinf(traces).any(axis=1)
+            nan_arr = (np.isnan(roi_traces).any(axis=1) + 
+                np.isinf(roi_traces).any(axis=1))
 
             if rem_noisy:
-                min_roi = np.min(traces, axis=1)
+                min_roi = np.min(roi_traces, axis=1)
 
                 # suppress a few NaN-related warnings
                 msgs = ["Mean of empty slice", "invalid value"]
                 categs = [RuntimeWarning, RuntimeWarning]
                 with gen_util.TempWarningFilter(msgs, categs):
                     high_med = (
-                        ((np.median(traces, axis=1) - min_roi)/
-                        (np.max(traces, axis=1) - min_roi)) 
+                        ((np.median(roi_traces, axis=1) - min_roi)/
+                        (np.max(roi_traces, axis=1) - min_roi)) 
                         > 0.5)            
-                    sub0_mean = np.nanmean(traces, axis=1) < 0
+                    sub0_mean = np.nanmean(roi_traces, axis=1) < 0
                 
                 roi_ns = np.where(high_med + sub0_mean)[0]
 
@@ -935,7 +1050,7 @@ class Session(object):
     
 
     #############################################
-    def set_only_tracked_rois(self, only_tracked_rois=False):
+    def set_only_tracked_rois(self, only_tracked_rois=True):
         """
         self.set_only_tracked_rois()
 
@@ -944,11 +1059,12 @@ class Session(object):
         Attributes:
             - tracked_rois (1D array): ordered indices of ROIs tracked across 
                                        sessions
+                                       default: True
         """
 
         self._only_tracked_rois = bool(only_tracked_rois)
         
-        if not hasattr(self, "_dend"): # ROIs not yet loaded, anyway
+        if not hasattr(self, "_nrois"): # ROIs not yet loaded, anyway
             return
 
         if self.only_tracked_rois:
@@ -987,7 +1103,6 @@ class Session(object):
                 raise UserWarning(f"No tracked ROIs file found for {self}.")
             else:
                 raise err
-
 
         with open(nway_match_path, 'r') as fp:
             tracked_rois_df = pd.DataFrame(json.load(fp)['rois'])
@@ -1068,19 +1183,9 @@ class Session(object):
             roi_traces = sess_trace_util.load_roi_traces_nwb(self.sess_files)
 
         else:
-            if fluor == "dff":
-                roi_trace_use = self.roi_trace_dff_h5
-                dataset = "data"
-            elif fluor == "raw":
-                roi_trace_use = self.roi_trace_h5
-                dataset = "FC"
-            else:
-                gen_util.accepted_values_error("fluor", fluor, ["raw", "dff"])
+            roi_trace_path = self.get_roi_trace_path(fluor)
+            roi_traces = sess_trace_util.load_roi_traces(roi_trace_path)
 
-            file_util.checkfile(roi_trace_use)
-
-            with h5py.File(roi_trace_use, "r") as f:
-                roi_traces = f[dataset][()]
         
         # obtain scaling facts while filtering All-NaN warning.
         with gen_util.TempWarningFilter("All-NaN", RuntimeWarning):
@@ -1090,10 +1195,8 @@ class Session(object):
                 sc_type="stand_rob", extrem="perc", nanpol="omit",
                 allow_0=True
                 )[0:2]).reshape(-1)
-        
-        del roi_traces
 
-        self._set_nanrois(fluor)
+        self._set_nanrois(fluor, roi_traces=roi_traces) # avoid re-loading
         if self.only_tracked_rois:
             self._set_tracked_rois()
 
@@ -1301,50 +1404,27 @@ class Session(object):
             if self.nwb:
                 roi_ids, nrois, tot_twop_fr = \
                     sess_trace_util.load_roi_data_nwb(self.sess_files)
-                self.roi_names = roi_ids
-                self._nrois = nrois
-                self.tot_twop_fr = tot_twop_fr
 
             else:
-                if fluor == "raw":
-                    use_roi_file = self.roi_trace_h5
-                    dataset_name = "FC"
+                roi_trace_path = self.get_roi_trace_path(fluor)
+                roi_ids, nrois, tot_twop_fr = \
+                    sess_trace_util.load_roi_data(roi_trace_path)
 
-                elif fluor == "dff":
-                    use_roi_file = self.roi_trace_dff_h5
-                    dataset_name = "data"
-                else:
-                    gen_util.accepted_values_error(
-                        "fluor", fluor, ["raw", "dff"]
-                        )
-                
-                try:
-                    # open the roi file and get the info
-                    with h5py.File(use_roi_file, "r") as f:
-                        # get the names of the rois
-                        self.roi_names = f["roi_names"][()].tolist()
+            self.roi_names = roi_ids
+            self._nrois = nrois
+            self.tot_twop_fr = tot_twop_fr
 
-                        # get the number of rois
-                        self._nrois = f[dataset_name].shape[0]
-
-                        # get the number of data points in the traces
-                        self.tot_twop_fr = f[dataset_name].shape[1]
-
-                except Exception as err:
-                    raise OSError(f"Could not open {use_roi_file} for reading: "
-                        f"{err}.")
-                
-                if self.stim_df["stop_frame_twop"].max() > self.tot_twop_fr:
-                    raise RuntimeError(
-                        "Number of two-photon frames in stimulus dataframe "
-                        "is higher than number of recorded frames."
-                        )
+            if self.stim_df["stop_frame_twop"].max() > self.tot_twop_fr:
+                raise RuntimeError(
+                    "Number of two-photon frames in stimulus dataframe "
+                    "is higher than number of recorded frames."
+                    )
         
         self._set_roi_attributes(fluor)
 
 
     #############################################
-    def _load_stims(self):
+    def _load_stims(self, full_table=True):
         """
         self._load_stims()
         
@@ -1364,6 +1444,8 @@ class Session(object):
                                         session
         """
 
+        stim_dict = self._load_stim_df(full_table=full_table)
+
         if hasattr(self, "stimtypes"):
             return
 
@@ -1375,12 +1457,12 @@ class Session(object):
             if stimtype == "grayscreen":
                 continue
             elif stimtype == "gabors":
-                self.stimtypes.append("gabors")
-                self.stims.append(Gabors(self))
+                self.stimtypes.append(stimtype)
+                self.stims.append(Gabors(self, stim_dict))
                 self.gabors = self.stims[-1]
-            elif stimtype == "visual_flow":
-                self.stimtypes.append("visflow")
-                self.stims.append(Visflow(self))
+            elif stimtype == "visflow":
+                self.stimtypes.append(stimtype)
+                self.stims.append(Visflow(self, stim_dict))
                 self.visflow = self.stims[-1]
             else:
                 logger.info(f"{stimtype} stimulus type not recognized. No Stim " 
@@ -1405,7 +1487,6 @@ class Session(object):
         stimtypes have not been initialized, also initializes stimtypes.
 
         Calls:
-            self._load_stim_df()
             self._load_stims()
 
             optionally:
@@ -1439,11 +1520,8 @@ class Session(object):
 
         # load the stimulus dataframe         
         logger.info("Loading stimulus and alignment info...")
-        self._load_stim_df(full_table=full_table)
-
-        logger.info("Creating stimulus objects...")
-        self._load_stims()
-
+        self._load_stims(full_table=full_table)
+   
         if roi:
             logger.info("Loading ROI trace info...")
             self.load_roi_info(fluor=fluor, dend=dend)
@@ -1469,9 +1547,9 @@ class Session(object):
             - sess (Session): Session object
 
         Optional args:
-            - stimtype (str): stimulus type to return ("visflow", "gabors" or 
-                              "grayscr")
-                              default: "gabors"
+            - stimtype (str ): stimulus type to return ("visflow", "gabors" or 
+                               "grayscr")
+                               default: "gabors"
 
         Return:
             - stim (Stim): Stim object (either Gabors or Visflow)
@@ -1680,14 +1758,10 @@ class Session(object):
                 "targ_fr_type", targ_fr_type, fr_types
                 )
         
-        if not hasattr(self, "_dend"):
+        if not hasattr(self, "tot_twop_fr") :
             raise RuntimeError(
-                "Must load ROI info to convert from or to twop frames."
-                )
-
-        if not hasattr(self, "run_data"):
-            raise RuntimeError(
-                "Must load running data to convert frames from or to stim_fr."
+                "Must load ROI info or pupil data to set two-photon "
+                "attributes correctly."
                 )
 
         if fr.min() < 0: 
@@ -1781,6 +1855,46 @@ class Session(object):
 
 
     #############################################
+    def get_roi_trace_path(self, fluor="dff", check_exists=True):
+        """
+        self.get_roi_trace_path()
+
+        Returns correct ROI trace path.
+
+        Optional args:
+            - fluor (str)        : if "dff", remnans is assessed on ROIs using 
+                                   dF/F traces. If "raw", on raw processed 
+                                   traces.
+                                   default: "dff"
+            - check_exists (bool): if True, checks whether file exists before 
+                                   returning the path, and raises an error if 
+                                   it doesn't.
+                                   default: True
+        Returns:
+            - roi_trace_path (Path): indices of ROIs containing NaNs or Infs 
+                       (indexed into full ROI array, even if 
+                       self.only_tracked_rois)
+        """
+
+        if self.nwb:
+            raise RuntimeError(
+                "get_roi_trace_path() is not applicable for NWB data."
+                )
+
+        if fluor == "dff":
+            roi_trace_path = self.roi_trace_dff_h5
+        elif fluor == "raw":
+            roi_trace_path = self.roi_trace_h5
+        else:
+            gen_util.accepted_values_error("fluor", fluor, ["raw", "dff"])
+
+        if check_exists and not Path(roi_trace_path).is_file():
+            raise OSError(f"No {fluor} traces found under {roi_trace_path}.")
+
+        return roi_trace_path
+
+
+    #############################################
     def get_nanrois(self, fluor="dff"):
         """
         self.get_nanrois()
@@ -1792,9 +1906,9 @@ class Session(object):
                            traces. If "raw", on raw processed traces.
                            default: "dff"
         Returns:
-            - nanrois: indices of ROIs containing NaNs or Infs 
-                       (indexed into full ROI array, even if 
-                       self.only_tracked_rois)
+            - nanrois (1D array): indices of ROIs containing NaNs or Infs 
+                                  (indexed into full ROI array, even if 
+                                  self.only_tracked_rois)
         """
 
         if fluor == "dff":
@@ -2000,8 +2114,12 @@ class Session(object):
             raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
                 "attributes correctly.")
 
-        if not hasattr(self, "plateau_traces"):
-            logger.info("Retrieving plateau traces.", extra={"spacing": "\n"})
+        if replace or not hasattr(self, "plateau_traces"):
+
+            calc_str = "Calculating"
+            if hasattr(self, "plateau_traces"):
+                calc_str = "Recalculating"
+            logger.info(f"{calc_str} plateau traces.", extra={"spacing": "\n"})
 
             plateau_traces = gen_util.reshape_df_data(
                 self.get_roi_traces(None, fluor, remnans), squeeze_cols=True)
@@ -2054,25 +2172,14 @@ class Session(object):
         if n >= self._nrois:
             raise ValueError(f"ROI {n} does not exist.")
 
+        n = int(n)
+
         # read the data points into the return array
         if self.nwb:
             trace = sess_trace_util.load_roi_traces_nwb(self.sess_files, n=n)
         else:
-            if fluor == "dff":
-                roi_trace_h5 = self.roi_trace_dff_h5
-                dataset_name = "data"
-            elif fluor == "raw":
-                roi_trace_h5 = self.roi_trace_h5
-                dataset_name = "FC"
-            else:
-                gen_util.accepted_values_error("fluor", fluor, ["raw", "dff"])
-
-            with h5py.File(roi_trace_h5, "r") as f:
-                try:
-                    trace = f[dataset_name][n]
-                except Exception as err:
-                    raise OSError(f"Could not read {self.roi_trace_h5}: {err}")
-
+            roi_trace_path = self.get_roi_trace_path(fluor)
+            trace = sess_trace_util.load_roi_traces(roi_trace_path, roi_ns=n)
 
         return trace
 
@@ -2124,7 +2231,7 @@ class Session(object):
 
         # check whether the frames to retrieve are within range
         if frames is None:
-            frames = np.arange(self.tot_twop_fr)
+            frames = frames
         elif max(frames) >= self.tot_twop_fr or min(frames) < 0:
             raise UserWarning("Some of the specified frames are out of range")
         else:
@@ -2133,36 +2240,38 @@ class Session(object):
         remnans_str = "yes" if remnans else "no"
         scale_str = "yes" if scale else "no"
 
-        # read the data points into the return array
+        roi_ids = None
+        if self.only_tracked_rois:
+            roi_ids = self.tracked_rois
+
+        if remnans:
+            nanrois = self.get_nanrois(fluor)
+            if len(nanrois):
+                if self.only_tracked_rois:
+                    raise ValueError("remnans not implemented for tracked ROIs.")
+                roi_ids = np.delete(np.arange(self._nrois), nanrois)
+
         if self.nwb:
             if fluor != "dff":
                 raise ValueError("NWB session files only include dF/F data.")
             traces = sess_trace_util.load_roi_traces_nwb(
-                sess_files, frame_ns=frames
+                self.sess_files, roi_ns=roi_ids, frame_ns=frames
                 )
 
         else:
-            if fluor == "dff":
-                roi_trace_h5 = self.roi_trace_dff_h5
-                dataset_name = "data"
-            elif fluor == "raw":
-                roi_trace_h5 = self.roi_trace_h5
-                dataset_name = "FC"
-            else:
-                gen_util.accepted_values_error("fluor", fluor, ["raw", "dff"])
+            roi_trace_path = self.get_roi_trace_path(fluor)
+            traces = sess_trace_util.load_roi_traces(
+                roi_trace_path, roi_ns=roi_ids, frame_ns=frames
+            )
 
-            with h5py.File(roi_trace_h5, "r") as f:
-                try:
-                    # avoid loading full dataset if frames are strictly increasing
-                    if np.min(np.diff(frames)) > 0:
-                        traces = f[dataset_name][:, frames]
-                    else:
-                        traces = f[dataset_name][()][:, frames]
-                except Exception as err:
-                    raise OSError(f"Could not read {self.roi_trace_h5}: {err}")
+        if roi_ids is None:
+            roi_ids = np.arange(self._nrois)
+        if frames is None:
+            frames = np.arange(self.tot_twop_fr)
 
         if scale:
             factors = self._get_roi_facts(fluor)
+
             factor_names = factors.index.unique(level="factors")
             sub_names =  list(filter(lambda x: "sub" in x, factor_names))
             if len(sub_names) != 1:
@@ -2170,23 +2279,11 @@ class Session(object):
             div_names =  list(filter(lambda x: "div" in x, factor_names))
             if len(div_names) != 1:
                 raise RuntimeError("Only one row should contain 'div'.")
-            traces = (traces - factors.loc[sub_names[0]].values)/factors.loc[
-                div_names[0]].values
 
-        # do this BEFORE building dataframe - much faster
-        if self.only_tracked_rois:
-            ROI_ids = self.tracked_rois
-            traces = traces[ROI_ids]
-            if remnans and len(self.get_nanrois(fluor)):
-                raise ValueError("remnans not implemented for tracked ROIs.")
-        else:
-            ROI_ids = np.arange(self._nrois)
-            if remnans:
-                rem_rois = self.get_nanrois(fluor)
-                # remove ROIs with NaNs or Infs in dataframe
-                if len(rem_rois):
-                    ROI_ids = np.delete(ROI_ids, rem_rois)
-                    traces = traces[ROI_ids]
+            traces = (
+                (traces - factors.loc[sub_names[0]].loc[roi_ids].values) /
+                factors.loc[div_names[0]].loc[roi_ids].values
+                )
 
         # initialize the return dataframe
         index_cols = pd.MultiIndex.from_product(
@@ -2194,7 +2291,7 @@ class Session(object):
             names=["datatype", "nan_rois_removed", "scaled", 
             "fluorescence"])
         index_rows = pd.MultiIndex.from_product(
-            [ROI_ids, *[range(dim) for dim in frames.shape]], 
+            [roi_ids, *[range(dim) for dim in frames.shape]], 
             names=["ROIs", "frames"])
         
         roi_data_df = pd.DataFrame(
@@ -2399,13 +2496,13 @@ class Session(object):
             else:
                 frames_flat = frames_flat[: last_idx]
 
-        traces_flat = self.get_roi_traces(
-            frames_flat.astype(int), fluor, remnans, scale=scale)
         if use_plateau:
-            traces_flat_fill = self.get_plateau_roi_traces(
+            traces_flat = self.get_plateau_roi_traces(
                 fluor=fluor, remnans=remnans
                 )[:, frames_flat.astype(int)].reshape(-1, 1)
-            traces_flat[:] = traces_flat_fill
+        else:
+            traces_flat = self.get_roi_traces(
+                frames_flat.astype(int), fluor, remnans, scale=scale)
 
         index_rows = pd.MultiIndex.from_product(
             [traces_flat.index.unique("ROIs").tolist(), 
@@ -2456,9 +2553,10 @@ class Session(object):
             - all_idx (list): list of original indices retained
         """
 
-        if not hasattr(self, "_dend"):
-            raise RuntimeError("Run 'self.load_roi_info()' to load the ROI "
-                "attributes correctly.")
+        if not hasattr(self, "tot_twop_fr"):
+            raise RuntimeError(
+                "Run 'self.load_roi_info()' or 'self.load_pup_data()' to load "
+                "two-photon attributes correctly.")
 
         if not isinstance(ch_fl, list) or len(ch_fl) != 2:
             raise ValueError("'ch_fl' must be a list of length 2.")
@@ -2503,7 +2601,7 @@ class Stim(object):
     stimulus specific information is initialized.
     """
 
-    def __init__(self, sess, stimtype):
+    def __init__(self, sess, stimtype, stim_dict=None):
         """
         self.__init__(sess, stimtype)
 
@@ -2515,57 +2613,84 @@ class Stim(object):
             - self._set_block_params()
 
         Attributes:
-            - exp_max_s (int)             : max duration of an expecte seq 
-            - exp_min_s (int)             : min duration of an expected seq
-            - seg_len_s (sec)             : length of each segment 
-                                            (1 sec for visual flow, 
-                                            0.3 sec for gabors)
-            - sess (Session object)       : session to which the stimulus 
-                                            belongs
-            - stim_fps (int)              : fps of the stimulus
-            - stimtype (str)              : "gabors" or "visflow"
-            - unexp_max_s (int)           : max duration of an unexpected seq.
-            - unexp_min_s (int)           : min duration of an unexpected seq.
+            - deg_per_pix (float)  : deg / pixel conversion used to generate 
+                                     stimuli
+            - exp_max_s (int)      : max duration of an expected seq (sec)
+            - exp_min_s (int)      : min duration of an expected seq (sec)
+            - seg_len_s (sec)      : length of each segment (sec)
+                                     (1 sec for visual flow, 
+                                     0.3 sec for gabors)
+            - sess (Session object): session to which the stimulus belongs
+            - stim_fps (int)       : fps of the stimulus
+            - stimtype (str)       : "gabors" or "visflow"
+            - unexp_max_s (int)    : max duration of an unexpected seq (sec)
+            - unexp_min_s (int)    : min duration of an unexpected seq (sec)
+            - win_size (list)      : window size (in pixels) [wid, hei]
 
             if stimtype == "gabors":
-                - n_seg_per_set (int)     : number of segments per set (4)
+            - n_segs_per_seq (int) : number of segments per set (5)
             
         Required args:
             - sess (Session object): session to which the stimulus belongs
             - stimtype (str)       : type of stimulus ("gabors" or "visflow")  
 
+        Optional args:
+            - stim_dict (dict): stimulus dictionary 
+                                (only applicable if self.sess.nwb is False, in 
+                                which case it will be loaded if not passed)
+                                default: None
         """
 
         self.sess      = sess
         self.stimtype  = stimtype
         self.stim_fps  = self.sess.stim_fps
 
-        if self.stimtype == "gabors":
-            # segment length (sec) (0.3 sec)
-            self.seg_len_s = 0.3 
-            # num seg per set (4: A, B, C, D/U, G)
-            self.n_seg_per_set = 5 
+        if self.sess.nwb:
+            if self.stimtype == "gabors":
+                # segment length (sec) (0.3 sec)
+                self.seg_len_s = 0.3 
+                # num seg per set (4: A, B, C, D/U, G)
+                self.n_segs_per_seq = 5 
 
-            unexp_len = [3, 6]
-            exp_len = [30, 90]
+                unexp_len = [3, 6]
+                exp_len = [30, 90]
+            
+            elif self.stimtype == "visflow":
+                # segment length (sec) (1 sec)
+                self.seg_len_s = 1
+
+                unexp_len = [2, 4]
+                exp_len = [30, 90]
+
+            else:
+                raise ValueError(f"{self.stimtype} stim type not recognized. "
+                    "Stim object cannot be initialized.")
         
-        elif self.stimtype == "visflow":
-            # segment length (sec) (1 sec)
-            self.seg_len_s = 1
-
-            unexp_len = [2, 4]
-            exp_len = [30, 90]
-
+            # sequence parameters
+            self.unexp_min_s = unexp_len[0]
+            self.unexp_max_s = unexp_len[1]
+            self.exp_min_s   = exp_len[0]
+            self.exp_max_s   = exp_len[1]
         else:
-            raise ValueError(f"{self.stimtype} stim type not recognized. Stim "
-                "object cannot be initialized.")
-        
-        # sequence parameters
-        self.unexp_min_s = unexp_len[0]
-        self.unexp_max_s = unexp_len[1]
-        self.exp_min_s   = exp_len[0]
-        self.exp_max_s   = exp_len[1]
-                                                                                                
+            if stim_dict is None:
+                stim_dict = self.sess._load_stim_dict(full_table=False)
+            
+            gen_stim_props = sess_stim_df_util.load_gen_stim_properties(
+                stim_dict, stimtype=stimtype, runtype=self.sess.runtype
+                )
+            self.seg_len_s = gen_stim_props["seg_len_s"]
+            if stimtype == "gabors":            
+                self.n_segs_per_seq = gen_stim_props["n_segs_per_seq"]
+            
+            # sequence parameters
+            self.unexp_min_s = gen_stim_props["unexp_len_s"][0]
+            self.unexp_max_s = gen_stim_props["unexp_len_s"][1]
+            self.exp_min_s   = gen_stim_props["exp_len_s"][0]
+            self.exp_max_s   = gen_stim_props["exp_len_s"][1]
+
+            self.win_size    = gen_stim_props["win_size"]
+            self.deg_per_pix = gen_stim_props["deg_per_pix"]
+
         self._set_block_params()
 
 
@@ -2586,45 +2711,50 @@ class Stim(object):
 
         NOTE: A block, here, is a sequence of stimulus presentations of the 
         same stimulus type, and there can be multiple blocks in one experiment. 
+
+        They are almost always separated by a grayscreen stimulus.
         
         For Gabors, segments refer to the stim_df index, where each gabor frame 
         (lasting 0.3 s) and each visual flow segment (lasting 1s) occupies a 
-        separate row,. 
+        separate row.
 
         Attributes:
             - block_params (pd DataFrame): dataframe containing stimulus 
-                                           parameters and start/stop info for 
-                                           each block
+                                           parameters and start (incl), 
+                                           stop (excl) info for each block
         """
 
         if self.stimtype == "gabors":
             stimulus_type = "gabors"
-            stim_columns = \
-                ["gabor_kappa", "gabor_mean_orientation", "gabor_number"]
+            stim_columns = ["gabor_kappa"]
         elif self.stimtype == "visflow":
-            stimulus_type = "visual_flow"
-            stim_columns = ["square_size", "square_number"]
+            stimulus_type = "visflow"
+            stim_columns = \
+                ["main_flow_direction", "square_size", "square_number"]
 
         segments = self.sess.stim_df.loc[
             self.sess.stim_df["stimulus_type"] == stimulus_type
             ].index.to_numpy()
 
-        starts = np.where(np.diff(np.insert(segments, 0, -2)) != 1)[0]
-        stops = np.append(starts[1:], segments.max() + 1)
+        start_idxs = np.where(np.diff(np.insert(segments, 0, -2)) != 1)[0]
+        stop_idxs_incl = np.append(start_idxs[1:], len(segments)) - 1
 
         self.block_params = pd.DataFrame()
-        for start, stop in zip(starts, stops):
+        for start_idx, stop_idx_incl in zip(start_idxs, stop_idxs_incl):
             row_idx = len(self.block_params)
-            self.block_params.loc[row_idx, "start_seg"] = start
-            self.block_params.loc[row_idx, "stop_seg"] = stop
-            self.block_params.loc[row_idx, "num_segs"] = stop - start
+            start_seg = segments[start_idx]
+            stop_seg = segments[stop_idx_incl] + 1
 
-            start_row = self.sess.stim_df.loc[start]
-            stop_row = self.sess.stim_df.loc[stop]                
+            self.block_params.loc[row_idx, "start_seg"] = start_seg
+            self.block_params.loc[row_idx, "stop_seg"] = stop_seg
+            self.block_params.loc[row_idx, "num_segs"] = stop_seg - start_seg
 
-            for datatype in ["time", "frame_stim", "frame_twop"]:
+            start_row = self.sess.stim_df.loc[start_seg]
+            stop_row_incl = self.sess.stim_df.loc[stop_seg - 1]                
+
+            for datatype in ["time_sec", "frame_stim", "frame_twop"]:
                 start_val = start_row[f"start_{datatype}"]
-                stop_val = stop_row[f"stop_{datatype}"]
+                stop_val = stop_row_incl[f"stop_{datatype}"]
                 diff_val = stop_val - start_val
 
                 self.block_params.loc[row_idx, f"start_{datatype}"] = \
@@ -2632,8 +2762,8 @@ class Stim(object):
                 self.block_params.loc[row_idx, f"stop_{datatype}"] = \
                     stop_val
                 
-                if datatype == "time":
-                    column = "duration"
+                if datatype == "time_sec":
+                    column = "duration_sec"
                 else:
                     column = f"num_{datatype}".replace("frame", "frames")
                     
@@ -2644,7 +2774,7 @@ class Stim(object):
                     start_row[stim_column]
 
         for col in self.block_params.columns:
-            if "frame" in col: 
+            if "_sec" not in col and "direction" not in col: 
                 self.block_params[col] = self.block_params[col].astype(int)
 
 
@@ -2912,11 +3042,10 @@ class Stim(object):
                                      fitting the criteria provided
         """
 
-        stimtype = "visual_flow" if self.stimtype == "visflow" else self.stimtype
         stimtypes = self.sess.stim_df["stimulus_type"].unique()
-        if stimtype not in stimtypes:
+        if self.stimtype not in stimtypes:
             raise RuntimeError(
-                f"Stimulus {stimtype} not found amoung dataframe stimuli: "
+                f"Stimulus {self.stimtype} not found amoung dataframe stimuli: "
                 f"{', '.join(stimtypes)}."
                 )
 
@@ -2933,7 +3062,7 @@ class Stim(object):
 
         sub_df = self.sess.stim_df.loc[
             (self.sess.stim_df.index.isin(stim_seg))                        &
-            (self.sess.stim_df["stimulus_type"]==stimtype)                  & 
+            (self.sess.stim_df["stimulus_type"]==self.stimtype)             & 
             (self.sess.stim_df["unexpected"].isin(unexp))                   &
             (self.sess.stim_df["gabor_frame"].isin(gabfr))                  &
             (self.sess.stim_df["gabor_kappa"].isin(gabk))                   &
@@ -4151,28 +4280,104 @@ class Gabors(Stim):
     specific properties.
     """
 
-    def __init__(self, sess):
+    def __init__(self, sess, stim_dict=None):
         """
         self.__init__(sess)
         
         Initializes and returns a Gabors object, and the attributes below. 
         
         Attributes:
-            - n_patches (int): number of gabor patches
-            - phase (num)    : phase of the gabors (0-1)
-            - sf (num)       : spatial frequency of the gabors (in cyc/pix)
-            - size_ran (list): Gabor patch size range (in deg)
-        
+            - n_patches (int)   : number of gabor patches
+            - ori_ran (list)    : Gabor orientation range (deg)
+            - phase (num)       : phase of the gabors (0-1)
+            - sf (num)          : spatial frequency of the gabors (cyc/pix)
+            - size_ran (list)   : Gabor patch size range (deg)
+            
+            Block parameters:
+            - kappas (list)     : Gabor kappas (unordered)
+
+            Gabor frame attributes
+            - all_gabfr (list)  : Gabor frames 
+                                  (["A", "B", "C", "D", "U", "G"])
+            - exp_gabfr (list)  : expected Gabor frames 
+                                  (["A", "B", "C", "D", "G"])
+            - unexp_gabfr (list): unexpected Gabor frames 
+                                  (["U"])
+            - all_gabfr_mean_oris (list)  : possible mean orientations for all 
+                                            frames (deg)
+            - exp_gabfr_mean_oris (list)  : possible mean orientations for 
+                                            expected frames (deg)
+            - unexp_gabfr_mean_oris (list): possible mean orientations for 
+                                            unexpected frames (deg)
+
         Required args:
             - sess (Session)  : session to which the gabors belongs
+        
+        Optional args:
+            - stim_dict (dict): stimulus dictionary 
+                                (only applicable if self.sess.nwb is False, in 
+                                which case it will be loaded if not passed)
+                                default: None
         """
 
-        super().__init__(sess, stimtype="gabors")
+        super().__init__(sess, stimtype="gabors", stim_dict=stim_dict)
         
-        self.sf        = 0.04
-        self.phase     = 0.25  
-        self.n_patches = 30
-        self.size_ran  = [10, 20]
+        if self.sess.nwb:
+            self.sf        = 0.04
+            self.phase     = 0.25
+            self.size_ran  = [10, 20]
+        else:
+            if stim_dict is None:
+                stim_dict = self.sess._load_stim_dict(full_table=False)
+
+            gen_stim_props = sess_stim_df_util.load_gen_stim_properties(
+                stim_dict, stimtype="gabors", runtype=self.sess.runtype
+                )
+        
+            self.sf        = gen_stim_props["sf"]
+            self.phase     = gen_stim_props["phase"]
+            self.size_ran  = gen_stim_props["size_ran"]
+        
+        # collect information from sess.stim_df
+        stimtype_df = self.sess.stim_df.loc[
+            self.sess.stim_df["stimulus_type"] == "gabors"
+            ]
+
+        # number of Gabor patches
+        n_patches = stimtype_df.loc[
+            stimtype_df["gabor_frame"] != "G"
+            ]["gabor_number"].unique()
+
+        if len(n_patches) != 1:
+            n_patch_info = n_patches if len(n_patches) else "none" 
+            raise RuntimeError(
+                "Expected exactly one value for number of Gabor patches, "
+                f"but found {n_patch_info}."
+                )
+        self.n_patches = int(n_patches[0]) 
+
+        # Gabor frames and mean orientations
+        self.ori_ran = sess_stim_df_util.GABOR_ORI_RANGE
+        self.exp_gabfr = ["A", "B", "C", "D", "G"]
+        self.unexp_gabfr = ["U"]
+        self.all_gabfr = self.exp_gabfr + self.unexp_gabfr
+
+        all_mean_oris = []
+        for gab_fr in [self.exp_gabfr, self.unexp_gabfr, self.all_gabfr]:
+            if "G" in gab_fr:
+                gab_fr.remove("G")
+
+            mean_oris = stimtype_df.loc[
+                stimtype_df["gabor_frame"].isin(gab_fr)
+                ]["gabor_mean_orientation"].unique()
+            all_mean_oris.append(np.sort(mean_oris).tolist())
+
+        self.exp_gabfr_mean_oris   = all_mean_oris[0]
+        self.unexp_gabfr_mean_oris = all_mean_oris[1]
+        self.all_gabfr_mean_oris   = all_mean_oris[2]
+
+        # collect Gabor kappas from block parameters
+        self.kappas = sorted(self.block_params["gabor_kappa"].unique())
 
 
     #############################################
@@ -4181,6 +4386,8 @@ class Gabors(Stim):
         self.get_A_segs()
 
         Returns lists of A gabor segment numbers.
+
+        Included here as a basic example.
 
         Optional args:
             - by (str): determines whether segment numbers are returned in a 
@@ -4202,6 +4409,8 @@ class Gabors(Stim):
 
         Returns list of start frame number for each A gabor segment number.
 
+        Included here as a basic example.
+
         Optional args:
             - fr_type (str): type of frame to return 
                              default: "twop"
@@ -4214,7 +4423,9 @@ class Gabors(Stim):
                               segment number
         """
         
-        A_frames = self.get_frames_by_criteria(gabfr=0, fr_type=fr_type, by=by)
+        A_frames = self.get_frames_by_criteria(
+            gabfr=0, fr_type=fr_type, by=by, start_fr=True
+            )
 
         return A_frames
     
@@ -4268,6 +4479,9 @@ class Gabors(Stim):
             raise ValueError("At least one of the following must be True: "
                 "pos, ori, size.")
         
+        if ori and not self.sess._full_table:
+            self.sess._load_stim_df(full_table=True)
+        
         if (segs < 0).any():
             raise NotImplementedError("segs should not contain negative values.")
         if segs.max() >= len(self.sess.stim_df):
@@ -4301,18 +4515,24 @@ class Gabors(Stim):
                 continue
             if param_name == "ori":
                 column = "gabor_orientations"
-                ran = [0, 360]
+                ran = self.ori_ran
             elif param_name == "size":
                 column = "gabor_sizes"
                 ran = self.size_ran
             elif param_name == "pos_x":
                 column = "gabor_locations_x"
-                ran = [-0.5, 0.5]
+                ran = self.win_size
             elif param_name == "pos_y":
                 column = "gabor_locations_y"
-                ran = [-0.5, 0.5]
+                ran = self.win_size
             
             vals = np.asarray(sub_df.loc[main_gab_segs, column].to_list())
+            if vals.max() > ran[1] or vals.min < ran[0]:
+                raise RuntimeError(
+                    f"Expected {column} data to be between {ran[0]} and "
+                    f"{ran[1]}, but found values outside that range."
+                    )
+
             if scale:
                 sub = ran[0]
                 div = ran[1] - ran[0]
@@ -4426,27 +4646,70 @@ class Visflow(Stim):
     specific properties.
     """
 
-    def __init__(self, sess):
+    def __init__(self, sess, stim_dict=None):
         """
         self.__init__(sess)
         
         Initializes and returns a visual flow object, and the attributes below. 
-        
-        Calls:
-            - self._update_block_params()
 
         Attributes:
-            - speed (num): speed at which the visual flow squares 
-                           are moving (in pix/sec)
-        
+            - prop_flipped (float): proportion of squares that flip direction 
+                                    following unexpected sequence onset (0-1)
+            - speed (num)         : speed at which the visual flow squares 
+                                    are moving (pix/sec)
+
+            Block parameters:
+            - main_flow_direcs (list): main directions of flow (unordered)
+            - n_squares (list)       : number of squares (unordered)
+            - square_sizes (list)    : square sizes (unordered) (pix)
+
         Required args:
             - sess (Session)  : session to which the visual flow stimulus 
                                 belongs
+
+        Optional args:
+            - stim_dict (dict): stimulus dictionary 
+                                (only applicable if self.sess.nwb is False, in 
+                                which case it will be loaded if not passed)
+                                default: None
         """
 
-        super().__init__(sess, stimtype="visflow")
+        super().__init__(sess, stimtype="visflow", stim_dict=stim_dict)
+
+        if self.sess.nwb:
+            self.speed = 50 # pix/sec
+        else:
+            if stim_dict is None:
+                stim_dict = self.sess._load_stim_dict(full_table=False)
+            gen_stim_props = sess_stim_df_util.load_gen_stim_properties(
+                stim_dict, stimtype="visflow", runtype=self.sess.runtype
+                )
         
-        self.speed = 50 # deg/sec
+            self.speed = gen_stim_props["speed"]
+
+        # collect visual flow information from sess.stim_df
+        stimtype_df = self.sess.stim_df.loc[
+            self.sess.stim_df["stimulus_type"] == "visflow"
+            ]
+            
+        prop_flipped = stimtype_df.loc[
+                stimtype_df["unexpected"] == 1
+                ]["square_proportion_flipped"].unique()
+
+        if len(prop_flipped) != 1:
+            prop_info = prop_flipped if len(prop_flipped) else "none" 
+            raise RuntimeError(
+                "Expected exactly one value for number of proportion flipped "
+                f"squares, but found {prop_info}."
+                )
+        self.prop_flipped = prop_flipped[0] 
+
+        # collect visual flow information from block parameters
+        self.main_flow_direcs = sorted(
+            self.block_params["main_flow_direction"].unique()
+            )
+        self.square_sizes = sorted(self.block_params["square_size"].unique())
+        self.n_squares = sorted(self.block_params["square_number"].unique())
 
 
     #############################################
@@ -4469,8 +4732,12 @@ class Visflow(Stim):
                                  numbers, excluding unexpected segments.
         """
 
-        temp_segs = self.get_segs_by_criteria(visflow_dir="temp", unexp=0, by=by)
-        nasal_segs = self.get_segs_by_criteria(visflow_dir="nasal", unexp=0, by=by)
+        temp_segs = self.get_segs_by_criteria(
+            visflow_dir="temp", unexp=0, by=by
+            )
+        nasal_segs = self.get_segs_by_criteria(
+            visflow_dir="nasal", unexp=0, by=by
+            )
 
         return temp_segs, nasal_segs
 
@@ -4480,8 +4747,6 @@ class Visflow(Stim):
 class Grayscr():
     """
     The Grayscr object describes describes grayscreen specific properties.
-
-    NOTE: Not well fleshed out, currently.
     """
 
     
@@ -4493,18 +4758,12 @@ class Grayscr():
 
         Attributes:
             - sess (Session object): session to which the grayscr belongs
-            - gabors (bool): if True, the session to which the grayscreen 
-                             belongs has a gabors attribute
         
         Required args:
             - sess (Session object): session to which the grayscr belongs
         """
 
         self.sess = sess
-        if hasattr(self.sess, "gabors"):
-            self.gabors = True
-        else:
-            self.gabors = False
         
 
     #############################################

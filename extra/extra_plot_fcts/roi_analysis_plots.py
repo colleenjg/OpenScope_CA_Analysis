@@ -1558,14 +1558,17 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
     """
 
     flat_oris = [o for gos in tc_oris for oris in gos for o in oris]
-    max_val = 90
-    if np.max(np.absolute(flat_oris)) > max_val:
-        max_val = 180
-        if np.max(np.absolute(flat_oris)) > max_val:
+
+    if np.min(flat_oris) < 0:
+        raise ValueError("Orientations expected to be positive.")  
+    max_val = 180
+    if np.max(flat_oris) > max_val:
+        max_val = 360
+        if np.max(flat_oris) > max_val:
             raise ValueError(
-                "Orientations expected to be at most between -180 and 180."
+                "Orientations expected to be at most between 0 and 360."
                 )
-    xran = np.linspace(-max_val, max_val, 360)
+    xran = np.linspace(0, max_val, 360)
 
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
@@ -1621,7 +1624,7 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
                 xlab = u"Orientations ({})".format(deg)
                 sess_plot_util.add_axislabels(
                     ax[0, s], fluor=fluor, area=True, x_ax=xlab, datatype="roi")
-                plot_util.set_ticks(ax[0, s], "x", -max_val, max_val, 5)
+                plot_util.set_ticks(ax[0, s], "x", 0, max_val, 5)
 
     # share y axis ranges within rows
     plot_util.share_lims(ax, "row")
@@ -1688,15 +1691,17 @@ def plot_tune_curve_regr(vm_means, vm_regr, seq_info, gentitle="",
     vm_means = np.asarray(vm_means)
     vm_regr = np.asarray(vm_regr)
 
-    max_val = 90
-    if np.max(np.absolute(vm_means)) > max_val:
-        max_val = 180
-        if np.max(np.absolute(vm_means)) > max_val:
+    if np.min(vm_means) < 0:
+        raise ValueError("Orientations expected to be positive.")  
+    max_val = 180
+    if np.max(vm_means) > max_val:
+        max_val = 360
+        if np.max(vm_means) > max_val:
             raise ValueError(
-                "Orientations expected to be at most between -180 and 180."
+                "Orientations expected to be at most between 0 and 360."
                 )
-    xvals = [-max_val, max_val]
-
+    xvals = [0, max_val]
+    
     deg = u"\u00B0"
     
     kapw = [0, 1]

@@ -512,7 +512,7 @@ def bin_idxs(roi_idxs, roi_percs, rand_idxs, permpar, n_bins=40):
     """
     bin_idxs(roi_idxs, roi_percs, rand_idxs, permpar)
 
-    Bins indices.
+    Bin indices.
 
     Required args:
         - roi_idxs (1D array): 
@@ -1122,8 +1122,8 @@ def get_perc_sig_df(idx_df, analyspar, permpar, randst=None):
 
 #############################################
 def get_idx_stats_df(sessions, analyspar, stimpar, basepar, idxpar, 
-                     permpar=None, absolute=True, by_mouse=False, randst=None, 
-                     parallel=False):
+                     permpar=None, absolute=True, by_mouse=False, stat=None, 
+                     randst=None, parallel=False):
     """
     get_idx_stats_df(sessions, analyspar, stimpar, basepar)
 
@@ -1151,6 +1151,10 @@ def get_idx_stats_df(sessions, analyspar, stimpar, basepar, idxpar,
         - by_mouse (bool): 
             if True, data is kept separated by mouse
             default: False
+        - stat (str): 
+            type of statistic to take, if not using analypar stats, 
+            e.g. "variance"
+            default: None
         - randst (int or np.random.RandomState): 
             random state or seed value to use. (-1 treated as None)
             default: None
@@ -1228,18 +1232,30 @@ def get_idx_stats_df(sessions, analyspar, stimpar, basepar, idxpar,
                 roi_idxs = np.absolute(roi_idxs)
 
             # take statistics
-            roi_idx_stats = math_util.get_stats(
-                roi_idxs, stats=analyspar.stats, error=analyspar.error, 
-                nanpol=nanpol
-                )
-            idx_stats_df.at[row_idx, data_col] = roi_idx_stats.tolist()
+            if stat is None:
+                perm_stat = analyspar.stats
+                roi_idx_stats = math_util.get_stats(
+                    roi_idxs, stats=analyspar.stats, error=analyspar.error, 
+                    nanpol=nanpol
+                    ).tolist()
+            elif stat == "var":
+                perm_stat = stat
+                var = math_util.calc_stat(roi_idxs, stats=stat, nanpol=nanpol)
+                var_std = rand_util.bootstrapped_std(
+                    roi_idxs, n_samples=misc_analys.N_BOOTSTRP, stats=stat, 
+                    randst=randst, nanpol=nanpol)
+                roi_idx_stats = [var, var_std]
+            else:
+                raise NotImplementedError("If not None, stat must be 'var'.")
+
+            idx_stats_df.at[row_idx, data_col] = roi_idx_stats
 
             sess_roi_idxs.append(roi_idxs)
 
         # calculate p-values between sessions (0-1, 0-2, 1-2...)
         if permpar is not None:
             p_vals = rand_util.comp_vals_acr_groups(
-                sess_roi_idxs, n_perms=permpar.n_perms, stats=analyspar.stats, 
+                sess_roi_idxs, n_perms=permpar.n_perms, stats=perm_stat,
                 paired=analyspar.tracked, nanpol=nanpol, randst=randst
                 )
             p = 0

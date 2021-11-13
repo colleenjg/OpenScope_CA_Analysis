@@ -158,6 +158,49 @@ def nrois_sess123(sessions, analyspar, sesspar, figpar):
     helper_fcts.plot_save_all(info, figpar)
 
 
-            
+############################################
+def roi_crosscorr_sess123(sessions, analyspar, sesspar, figpar, parallel=False):
+    """
+    roi_crosscorr_sess123(sessions, analyspar, sesspar, figpar)
 
+    Retrieves ROI cross-correlation values for sessions 1 to 3.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - session (Session):
+            Session object
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - figpar (dict): 
+            dictionary containing figure parameters
+    
+    Optional args:
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+    """
+
+    logger.info("Compiling ROI cross-correlations from session 1 to 3.", 
+        extra={"spacing": "\n"})
+
+    logger.info("Calculating ROI cross-correlations for each session...", 
+        extra={"spacing": TAB})
+    crosscorr_df = misc_analys.get_all_crosscorrelations(
+        sessions, 
+        analyspar=analyspar,  
+        parallel=parallel
+        )
+
+    extrapar = dict()
+
+    info = {"analyspar"   : analyspar._asdict(),
+            "sesspar"     : sesspar._asdict(),
+            "extrapar"    : extrapar,
+            "crosscorr_df": crosscorr_df.to_dict()
+            }
+
+    helper_fcts.plot_save_all(info, figpar)
                 

@@ -60,55 +60,91 @@ def get_frame_timestamps_nwb(sess_files):
         - sess_files (Path): full path names of the session files
 
     Returns:
-        - twop_timestamps (1D array): time stamp for each two-photon frame
         - stim_timestamps (1D array): time stamp for each stimulus frame
+        - twop_timestamps (1D array): time stamp for each two-photon frame
     """
-
 
     # check whether behavior is included in file
     sess_files = gen_util.list_if_not(sess_files)
 
-    files = []
-    for datatype in ["ophys", "behavior"]:
-        sub_files = [
-            sess_file for sess_file in sess_files if datatype in str(sess_file)
+    behav_files = [
+        sess_file for sess_file in sess_files if "behavior" in str(sess_file)
+        ]
+
+    if len(behav_files) == 0:
+        raise RuntimeError(f"Behaviour data not included in session NWB files.")
+    
+    behav_file = behav_files[0]
+    if len(behav_files) == 1:
+        warnings.warn(
+            "Several session files with behavior data found. "
+            f"Using the first listed: {behav_file}."
+            )
+
+    use_ophys = False
+    with pynwb.NWBHDF5IO(behav_file, "r") as f:
+        nwbfile_in = f.read()
+        behav_module = nwbfile_in.get_processing_module("behavior")
+        main_field = "BehavioralTimeSeries"
+        data_field = "running_velocity"
+        if (main_field not in behav_module.fields() or 
+            data_field not in behav_module[main_field].fields):
+                raise OSError(
+                    "No running velocity behavioral time series data found "
+                    f"in {behav_file}"
+                    )
+        stim_timestamps = np.asarray(
+            behav_module[main_field][data_field].timestamps
+        )
+
+        main_field = "PupilTracking"
+        data_field = "pupil_diameter"
+        if (main_field not in behav_module.fields() or 
+            data_field not in behav_module[main_field].fields):
+            use_ophys = True
+        else:
+            twop_timestamps = np.asarray(
+                behav_module[main_field][data_field].timestamps
+                )
+
+    # if timestamps weren't found with pupil data, look for optical physiology 
+    # data
+    if use_ophys:
+        ophys_files = [
+            sess_file for sess_file in sess_files if "ophys" in str(sess_file)
             ]
 
-        if datatype == "behavior":
-            datatype_str = "Behaviour"
-        else:
-            datatype_str = "Optical physiology"
-
-        if len(sub_files) == 0:
+        if len(ophys_files) == 0:
             raise RuntimeError(
-                f"{datatype_str} data not included in session NWB files."
+                f"Optical physiology data not included in session NWB files."
                 )
         
-        sub_file = sub_files[0]
-        if len(sub_files) == 1:
+        ophys_file = ophys_files[0]
+        if len(ophys_files) == 1:
             warnings.warn(
-                f"Several session files with {datatype_str.lower()} data "
-                f"found. Using the first listed: {sub_file}."
+                "Several session files with optical physiology data found. "
+                f"Using the first listed: {ophys_file}."
                 )
-        files.append(sub_file)
 
-    ophys_file, beh_file = files        
+        with pynwb.NWBHDF5IO(ophys_file, "r") as f:
+            nwbfile_in = f.read()
+            ophys_module = nwbfile_in.get_processing_module("ophys")
+            main_field = "DfOverF"
+            data_field = "RoiResponseSeries"
+            if (main_field not in ophys_module.fields() or 
+                data_field not in ophys_module[main_field].fields):
+                    file_str = f"{behav_file} or {ophys_file}"
+                    if behav_file == ophys_file:
+                        file_str = behav_file
+                    raise OSError(
+                        "Two-photon timestamps cannot be collected, as no "
+                        f"pupil or ROI series data was found in {file_str}."
+                        )
+            twop_timestamps = nwbfile_in.get_processing_module("ophys")[
+                main_field][data_field].timestamps
     
-    with pynwb.NWBHDF5IO(ophys_file, "r") as f:
-        nwbfile_in = f.read()
-        twop_timestamps = np.asarray(
-            nwbfile_in.get_processing_module("ophys")["DfOverF"][
-                "RoiResponseSeries"].timestamps
-        )
 
-    with pynwb.NWBHDF5IO(beh_file, "r") as f:
-        nwbfile_in = f.read()
-        stim_timestamps = np.asarray(
-            nwbfile_in.get_processing_module("behavior")[
-                "BehavioralTimeSeries"]["running_velocity"].timestamps
-        )
-    
-    return twop_timestamps, stim_timestamps
+    return stim_timestamps, twop_timestamps
 
 
 #############################################

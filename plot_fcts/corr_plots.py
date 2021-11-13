@@ -559,3 +559,155 @@ def plot_idx_correlations(idx_corr_df, permpar, figpar, permute="sess",
     
     return ax
 
+
+#############################################
+def plot_idx_corr_scatterplots(idx_corr_df, sesspar, permpar, figpar, 
+                               permute="sess", title=None):
+    """
+    plot_idx_corr_scatterplots(idx_corr_df, sesspar, permpar, figpar)
+
+
+
+
+
+
+
+
+    """
+
+    diffs = False
+    if permute in ["sess", "all"]:
+        diffs = True
+
+    figpar = sess_plot_util.fig_init_linpla(figpar, kind="reg")
+
+    figpar["init"]["sharex"] = False
+    figpar["init"]["sharey"] = False
+    figpar["init"]["subplot_hei"] = 4
+    figpar["init"]["subplot_wid"] = 4
+    figpar["init"]["gs"] = {"hspace": 0.4, "wspace": 0.4}
+
+    fig, ax = plot_util.init_fig(4, **figpar["init"])
+
+    if title is not None:
+        fig.suptitle(title, fontweight="bold", y=0.97)
+
+    sess_ns = None
+
+    for (line, plane), lp_df in idx_corr_df.groupby(["lines", "planes"]):
+        li, pl, col, _ = plot_helper_fcts.get_line_plane_idxs(line, plane)
+        sub_ax = ax[pl, li]
+
+        if len(lp_df) != 1:
+            raise RuntimeError("Expected exactly one row.")
+        lp_row = lp_df.loc[lp_df.index[0]]
+
+        if sess_ns is None:
+            sess_ns = lp_row["sess_ns"]
+            xlabel = f"Session {sess_ns[0]} USIs"
+            ylabel = f"Session {sess_ns[1]} USIs"
+            if diffs:
+                ylabel = f"Session {sess_ns[1]} - {sess_ns[0]} USIs"
+
+        elif sess_ns != lp_row["sess_ns"]:
+            raise RuntimeError("Expected all sess_ns to match.")
+
+        density_data = [
+            lp_row["x_bin_mids"], lp_row["y_bin_mids"], 
+            np.asarray(lp_row["binned_rand_stats"]).T
+        ]
+        sub_ax.contour(
+            *density_data, levels=6, cmap="Greys", zorder=-13, linewidths=4
+            )
+
+        alpha = 0.3 ** (len(lp_row["corr_data_x"]) / 300)
+        sub_ax.scatter(
+            lp_row["corr_data_x"], lp_row["corr_data_y"], color=col, 
+            alpha=alpha, lw=2, s=35
+            )
+    
+    # Add plane, line info to plots
+    sess_plot_util.format_linpla_subaxes(
+        ax, datatype="roi", xticks=None, ylab=ylabel, xlab=xlabel, kind="reg"
+        )
+
+    for (line, plane), lp_df in idx_corr_df.groupby(["lines", "planes"]):
+        li, pl, col, _ = plot_helper_fcts.get_line_plane_idxs(line, plane)
+        sub_ax = ax[pl, li]
+
+        sub_ax.tick_params(axis="x", which="both", bottom=True, top=False) 
+        sub_ax.spines["bottom"].set_visible(True)
+
+        lp_row = lp_df.loc[lp_df.index[0]]
+        
+        # match x and y limits
+        if not diffs:
+            lims = (
+                np.min([sub_ax.get_xlim()[0], sub_ax.get_ylim()[0]]), 
+                np.max([sub_ax.get_xlim()[1], sub_ax.get_ylim()[1]])
+            )
+            sub_ax.set_xlim(lims)
+            sub_ax.set_ylim(lims)
+
+        for axis in ["x", "y"]:
+            plot_util.set_interm_ticks(
+                np.asarray(sub_ax), n_ticks=4, axis=axis, share=False, 
+                fontweight="bold", update_ticks=True
+                )
+
+        # plot lines
+        lims = sub_ax.get_xlim()
+        line_kwargs = {
+            "ls"    : plot_helper_fcts.VDASH,
+            "color" : "k",
+            "alpha" : 0.2,
+            "zorder": -15,
+            "lw"    : 4,
+        }
+
+        if diffs:
+            # y=0 line
+            sub_ax.axhline(y=0, **line_kwargs)
+        else:
+            # identity line
+            sub_ax.plot([lims[0], lims[1]], [lims[0], lims[1]], **line_kwargs)
+        
+        # shade in opposite quadrants
+        sub_ax.fill_between(
+            [lims[0], 0], 0, lims[1], alpha=0.075, facecolor="k", 
+            edgecolor="none", zorder=-16
+            )
+        sub_ax.fill_between(
+            [0, lims[1]], lims[0], 0, alpha=0.075, facecolor="k", 
+            edgecolor="none", zorder=-16
+            )
+
+        # regression line
+        slope = lp_row["regr_coef"]
+        intercept = lp_row["regr_intercept"]
+        x_line = lims
+        y_line = np.array(x_line) * slope + intercept
+        sub_ax.plot(
+            x_line, y_line, ls=plot_helper_fcts.VDASH, color=col, alpha=0.8, 
+            lw=line_kwargs["lw"]
+        )
+
+        # get significance info and slope
+        side = np.sign(lp_row["corrs"] - lp_row["rand_corr_med"])
+        sensitivity = misc_analys.get_sensitivity(permpar)          
+        sig_str = misc_analys.get_sig_symbol(
+            lp_row["p_vals"], sensitivity=sensitivity, side=side, 
+            tails=permpar["tails"], p_thresh=permpar["p_val"]
+            )
+        
+        lim_range = lims[1] - lims[0]
+        x_pos = lims[0] + lim_range * 0.97
+        y_pos = lims[0] + lim_range * 0.05
+        slope_str = f"{sig_str} slope: {slope:.2f}"
+        sub_ax.text(
+            x_pos, y_pos, slope_str, fontweight="bold", style="italic", 
+            fontsize=16, ha="right"
+            )
+
+    return ax
+

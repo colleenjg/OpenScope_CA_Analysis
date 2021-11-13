@@ -158,7 +158,7 @@ def load_small_stim_pkl(stim_pkl, runtype="prod"):
     stim_pkl_no_ext = Path(stim_pkl.parent, stim_pkl.stem)
     small_stim_pkl_name = Path(f"{stim_pkl_no_ext}_small.pkl")
     
-    if small_stim_pkl_name.exists():
+    if small_stim_pkl_name.is_file():
         return file_util.loadfile(small_stim_pkl_name)
     else:
         logger.info("Creating smaller stimulus pickle.", extra={"spacing": TAB})
@@ -231,7 +231,7 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid,
     sessdir = align_pkl.parent
 
     # create stim_df if doesn't exist
-    if not align_pkl.exists():
+    if not align_pkl.is_file():
         logger.info(f"Stimulus alignment pickle not found in {sessdir}, and "
             "will be created.", extra={"spacing": TAB})
         sess_sync_util.get_stim_frames(
@@ -289,6 +289,32 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid,
     twop_fr_stim = int(max(align["stim_align"]))
 
     return stim_df, stimtype_order, stim2twopfr, twop_fps, twop_fr_stim
+
+
+#############################################
+def load_max_projection(max_proj_png):
+    """
+    load_max_projection(max_proj_png)
+
+    Returns maximum projection image of downsampled z-stack as an array. 
+
+    Required args:
+        - max_proj_png (Path): full path names of the maximum projection png
+
+    Returns:
+        - max_proj (2D array): maximum projection image across downsampled 
+                               z-stack (hei x wei), with pixel intensity 
+                               in 0 (incl) to 256 (excl) range.
+
+    """
+
+    if not Path(max_proj_png).is_file():
+        raise OSError(f"{max_proj_png} does not exist.")
+
+    import imageio
+    max_proj = imageio.imread(max_proj_png)
+
+    return max_proj
 
 
 #############################################
@@ -465,10 +491,19 @@ def load_run_data_nwb(sess_files, diff_thr=50, drop_tol=0.0003, sessid=None):
 
     with pynwb.NWBHDF5IO(behav_file, "r") as f:
         nwbfile_in = f.read()
+        behav_module = nwbfile_in.get_processing_module("behavior")
+        main_field = "BehavioralTimeSeries"
+        data_field = "running_velocity"
+        if (main_field not in behav_module.fields() or 
+            data_field not in behav_module[main_field].fields):
+                raise OSError(
+                    "No running velocity behavioral time series data found "
+                    f"in {behav_file}"
+                    )
+        
         run_velocity = np.asarray(
-            nwbfile_in.get_processing_module("behavior")[
-            "BehavioralTimeSeries"]["running_velocity"].data
-        )
+            behav_module[main_field][data_field].data
+            )
 
     run_velocity = nan_large_run_differences(
         run_velocity, diff_thr, warn_nans=True, drop_tol=drop_tol, 
@@ -576,20 +611,27 @@ def load_pup_data_nwb(sess_files):
 
     with pynwb.NWBHDF5IO(behav_file, "r") as f:
         nwbfile_in = f.read()
+        behav_module = nwbfile_in.get_processing_module("behavior")
+        main_field = "PupilTracking"
+        data_field = "pupil_diameter"
+        if (main_field not in behav_module.fields() or 
+            data_field not in behav_module[main_field].fields):
+                raise OSError(
+                    "No pupil diameter pupil tracking data found "
+                    f"in {behav_file}"
+                    )
+        
         pup_data = np.asarray(
-            nwbfile_in.get_processing_module("behavior")[
-            "PupilTracking"]["pupil_diameter"].data
-        )
+            behav_module[main_field][data_field].data
+            )
 
     column_names = {
         "pupil_diameter": "pup_diam",
-        "pupil_x"       : "pup_center_x",
-        "pupil_y"       : "pup_center_y",
     }
 
+    pup_data = pup_data.rename(columns=column_names)
     pup_data["pup_diam"] = pup_data["pup_diam"] / sess_sync_util.MM_PER_PIXEL
 
-    pup_data = pup_data.rename(columns=column_names)
     pup_data.insert(0, "frames", value=range(len(pup_data)))
 
     return pup_data  

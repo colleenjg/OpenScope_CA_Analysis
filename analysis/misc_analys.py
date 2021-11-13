@@ -14,6 +14,7 @@ import logging
 import warnings
 
 import numpy as np
+import pandas as pd
 import scipy.stats as scist
 
 from util import gen_util, logger_util, math_util
@@ -667,4 +668,114 @@ def get_snr(session, analyspar, datatype="snrs"):
             )[index]
 
     return data
+
+
+#############################################
+def get_crosscorrelation(session, analyspar):
+    """
+    get_crosscorrelation(session, analyspar)
+
+    Returns ROI cross-correlations for a session.
+
+    Required args:
+        - session (Session):
+            Session object
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+
+    Returns:
+        - cc_triu (1D array):
+            all cross-correlations
+    """
+    
+    if session.only_tracked_rois != analyspar.tracked:
+        raise RuntimeError(
+            "session.only_tracked_rois should match analyspar.tracked."
+            )
+
+    if analyspar.scale:
+        raise ValueError(
+            "analyspar.scale must be False for cross-correlation analysis."
+            )
+    
+    full_traces_df = session.get_roi_traces(
+        fluor=analyspar.fluor, 
+        remnans=analyspar.remnans 
+        )
+
+    full_traces = gen_util.reshape_df_data(full_traces_df, squeeze_cols=True)
+
+    cc = np.corrcoef(full_traces)
+    cc_triu = cc[np.triu_indices(len(cc), k=1)]
+
+    import pdb; pdb.set_trace()
+
+    return cc_triu
+
+
+#############################################
+def get_all_crosscorrelations(sessions, analyspar, n_bins=40, parallel=False):
+    """
+    get_all_crosscorrelations(sessions, analyspar)
+
+    Returns ROI cross-correlation data for each line/plane/session.
+
+    Required args:
+        - session (Session):
+            Session object
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+    
+    Optional args:
+        - n_bins (int):
+            number of bins for cross-correlation data
+            default: 40
+        - parallel (bool):
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+
+        - binned_cc_df (pd.DataFrame):
+            dataframe with one row per session/line/plane, and the 
+            following columns, in addition to the basic sess_df columns:
+            - bin_edges (list): first and last bin edge
+            - crosscorrs_binned (list): number of cross-correlation values per 
+                bin
+    """
+
+    all_crosscorrs = gen_util.parallel_wrap(
+        get_crosscorrelation, sessions, [analyspar], parallel=parallel
+        )
+
+    cc_df = get_check_sess_df(sessions, analyspar=analyspar)
+    initial_columns = cc_df.columns
+
+    cc_df["cross_corrs"] = [cc.tolist() for cc in all_crosscorrs]
+
+    # group within line/plane
+    group_columns = ["lines", "planes", "sess_ns"]
+
+    columns = initial_columns.tolist() + ["bin_edges", "cross_corrs_binned"]
+    binned_cc_df = pd.DataFrame(columns=columns)
+    aggreg_cols = [col for col in initial_columns if col not in group_columns]
+    for grp_vals, grp_df in cc_df.groupby(group_columns):
+        grp_df = grp_df.sort_values("mouse_ns")
+        row_idx = len(binned_cc_df)
+        for g, group_column in enumerate(group_columns):
+            binned_cc_df.loc[row_idx, group_column] = grp_vals[g]
+
+        # add aggregated values for initial columns
+        binned_cc_df = aggreg_columns(
+            grp_df, binned_cc_df, aggreg_cols, row_idx=row_idx, in_place=True
+            )
+
+        cc_data = np.concatenate(grp_df["cross_corrs"].tolist())
+
+        cc_data_binned, bin_edges = np.histogram(cc_data, bins=n_bins)
+
+        binned_cc_df.at[row_idx, "cross_corrs_binned"] = cc_data_binned.tolist()
+        binned_cc_df.at[row_idx, "bin_edges"] = [bin_edges[0], bin_edges[1]]
+
+    binned_cc_df["sess_ns"] = binned_cc_df["sess_ns"].astype(int)
+
+    return binned_cc_df
 

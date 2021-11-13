@@ -36,15 +36,98 @@ EXCLUSION_LABELS = ["motion_border", "union", "duplicate", "empty",
     "empty_neuropil"]
 
 
+
 #############################################
-def load_roi_traces_nwb(sess_files, roi_n=None, frame_ns=None):
+def load_traces_optionally(roi_data_handle, roi_ns=None, frame_ns=None):
     """
-    load_run_traces_nwb(sess_files)
+    load_traces_optionally(roi_data_handle)
+
+    Updates indices, possibly reordered, for optimal loading of ROI traces.
+
+    Optional args:
+        - roi_ns (int or array-like)  : ROIs to load (None for all)
+                                        default: None
+        - frame_ns (int or array-like): frames to load (None for all) 
+                                        default: None
+
+    Returns:
+        - load_full (bool)                 : if True, full data must be loaded 
+                                             (optimal loading is not possible)
+        - roi_ns (int, slice or 1D array)  : ROI index to use
+        - frame_ns (int, slice or 1D array): frame index to use
+        - resort_rois (1D array)           : if not None, array for re-sorting 
+                                             ROIs after loading
+        - resort_frames (1D array)         : if not None, array for re-sorting 
+                                             frames after loading
+    """
+
+    # if no ROIs are specified
+    if roi_ns is None and frame_ns is None:
+        roi_traces = roi_data_handle[()]
+        return roi_traces
+
+    # if ROI_ns is an int
+    elif isinstance(roi_ns, int):
+        roi_traces = roi_data_handle[roi_ns]
+        if frame_ns is not None:
+            roi_traces = roi_traces[frame_ns]
+        
+    # if frame_ns is an int
+    elif isinstance(frame_ns, int):
+        roi_traces = roi_data_handle[:, frame_ns]
+        if roi_ns is not None:
+            roi_traces = roi_traces[roi_ns]
+
+    # if both are vectors, if possible, load frames, then select ROIs
+    elif frame_ns is not None and (len(np.unique(frame_ns)) == len(frame_ns)):
+        if roi_ns is None:
+            roi_ns = slice(None, None, None)
+        frame_ns = np.asarray(frame_ns)
+        resort = None
+        if (np.sort(frame_ns) != frame_ns).any(): # sort if not sorted
+            resort = np.argsort(np.argsort(frame_ns))
+            frame_ns = np.sort(frame_ns)
+        roi_traces = roi_data_handle[:, frame_ns][roi_ns]
+        if resort is not None:
+            roi_traces = roi_traces[:, resort]
+
+    # alternatively, if possible, load ROIs, then select frames    
+    elif roi_ns is not None and len(np.unique(roi_ns)) == len(roi_ns):
+        if frame_ns is None:
+            frame_ns = slice(None, None, None)
+        roi_ns = np.asarray(roi_ns)
+        resort = None
+        if (np.sort(roi_ns) != roi_ns).any(): # sort if not sorted
+            resort = np.argsort(np.argsort(roi_ns))
+            roi_ns = np.sort(roi_ns)
+        roi_traces = roi_data_handle[np.sort(roi_ns)][:, frame_ns]
+        if resort is not None:
+            roi_traces = roi_traces[resort]
+
+    # load fully and select
+    else:
+        roi_traces = roi_data_handle[()][roi_ns][:, frame_ns]
+
+
+
+    return roi_traces
+
+
+#############################################
+def load_roi_traces_nwb(sess_files, roi_ns=None, frame_ns=None):
+    """
+    load_roi_traces_nwb(sess_files)
 
     Returns ROI traces from NWB files. 
 
     Required args:
-        - sess_files (Path): full path names of the session files
+        - sess_files (list): full path names of the session files
+
+    Optional args:
+        - roi_ns (int or array-like)  : ROIs to load (None for all)
+                                        default: None
+        - frame_ns (int or array-like): frames to load (None for all) 
+                                        default: None
 
     Returns:
         - roi_traces (1 or 2D array): ROI traces (ROI x frame) or 
@@ -69,18 +152,57 @@ def load_roi_traces_nwb(sess_files, roi_n=None, frame_ns=None):
             f"Using the first listed: {ophys_file}."
             )
 
-    roi_n = slice(None, None, None) if roi_n is None else roi_n
-    frame_ns = slice(None, None, None) if frame_ns is None else frame_ns
-
+    # get data
     with pynwb.NWBHDF5IO(ophys_file, "r") as f:
         nwbfile_in = f.read()
-        roi_data = nwbfile_in.get_processing_module("ophys")["DfOverF"][
-                "RoiResponseSeries"].data
-        # avoid loading full dataset if frames are strictly increasing
-        if np.min(np.diff(frame_ns)) > 0:
-            roi_traces = roi_data[roi_n, frame_ns]
-        else:
-            roi_traces = np.asarray(roi_data)[roi_n, frame_ns]
+        ophys_module = nwbfile_in.get_processing_module("ophys")
+        main_field = "DfOverF"
+        data_field = "RoiResponseSeries"
+        if (main_field not in ophys_module.fields() or 
+            data_field not in ophys_module[main_field].fields):
+                raise OSError(
+                    "No ROI response series data found for dF/F "
+                    f"in {ophys_file}"
+                    )
+        roi_data_handle = nwbfile_in.get_processing_module("ophys")[
+            main_field][data_field].data
+        
+        roi_traces = load_traces_optionally(
+            roi_data_handle, roi_ns=roi_ns, frame_ns=frame_ns
+            )
+
+
+    return roi_traces
+
+
+#############################################
+def load_roi_traces(roi_trace_path, roi_ns=None, frame_ns=None):
+    """
+    load_roi_traces(roi_trace_path)
+
+    Returns ROI traces from ROI data file. 
+
+    Required args:
+        - roi_trace_path (Path): full path name of the ROI data file
+
+    Optional args:
+        - roi_ns (int or array-like)  : ROIs to load (None for all)
+                                        default: None
+        - frame_ns (int or array-like): frames to load (None for all) 
+                                        default: None
+
+    Returns:
+        - roi_traces (1 or 2D array): ROI traces (ROI x frame) or 
+                                      if n is not None: ROI trace (frame) 
+    """
+
+    with h5py.File(roi_trace_path, "r") as f:
+        dataset_name = "data" if "data" in f.keys() else "FC"
+        roi_data_handle = f[dataset_name]
+
+        roi_traces = load_traces_optionally(
+            roi_data_handle, roi_ns=roi_ns, frame_ns=frame_ns
+            )
 
     return roi_traces
 
@@ -88,7 +210,7 @@ def load_roi_traces_nwb(sess_files, roi_n=None, frame_ns=None):
 #############################################
 def load_roi_data_nwb(sess_files):
     """
-    load_run_data_nwb(sess_files)
+    load_roi_data_nwb(sess_files)
 
     Returns ROI data from NWB files. 
 
@@ -121,15 +243,68 @@ def load_roi_data_nwb(sess_files):
 
     with pynwb.NWBHDF5IO(ophys_file, "r") as f:
         nwbfile_in = f.read()
+        ophys_module = nwbfile_in.get_processing_module("ophys")
+        main_field = "ImageSegmentation"
+        data_field = "PlaneSegmentation"
+        if (main_field not in ophys_module.fields() or 
+            data_field not in ophys_module[main_field].fields):
+                raise OSError(
+                    "No plane segmentation data found in image segmentation "
+                    f"in {ophys_file}"
+                    )
+
+        # ROI IDs
         roi_ids = list(
-            nwbfile_in.get_processing_module("ophys")[
-                "ImageSegmentation"]["PlaneSegmentation"]["id"].data
-                )
+            nwbfile_in.get_processing_module("ophys")[main_field][
+                data_field]["id"].data
+        )
+
+        # Number of ROIs and frames
+        main_field = "DfOverF"
+        data_field = "RoiResponseSeries"
+        if (main_field not in ophys_module.fields() or 
+            data_field not in ophys_module[main_field].fields):
+                raise OSError(
+                    "No ROI response series data found for dF/F "
+                    f"in {ophys_file}"
+                    )
         nrois, tot_twop_fr = nwbfile_in.get_processing_module("ophys")[
-            "DfOverF"]["RoiResponseSeries"].data.shape
+            main_field][data_field].data.shape
+
 
     return roi_ids, nrois, tot_twop_fr
     
+
+#############################################
+def load_roi_data(roi_trace_path):
+    """
+    load_roi_data(roi_trace_path)
+
+    Returns ROI data from ROI data file. 
+
+    Required args:
+        - roi_trace_path (Path): full path name of the ROI data file
+
+    Returns:
+        - roi_ids (list)   : ROI IDs
+        - nrois (int)      : total number of ROIs
+        - tot_twop_fr (int): total number of two-photon frames recorded
+    """
+
+    with h5py.File(roi_trace_path, "r") as f:
+        dataset_name = "data" if "data" in f.keys() else "FC"
+
+        # get the names of the rois
+        roi_ids = f["roi_names"][()].tolist()
+
+        # get the number of rois
+        nrois = f[dataset_name].shape[0]
+
+        # get the number of data points in the traces
+        tot_twop_fr = f[dataset_name].shape[1]
+    
+    return roi_ids, nrois, tot_twop_fr
+
 
 #############################################
 def get_roi_locations(roi_extract_dict):
@@ -314,15 +489,24 @@ def get_roi_masks_nwb(sess_files, make_bool=True):
 
     with pynwb.NWBHDF5IO(ophys_file, "r") as f:
         nwbfile_in = f.read()
+        ophys_module = nwbfile_in.get_processing_module("ophys")
+        main_field = "ImageSegmentation"
+        data_field = "PlaneSegmentation"
+        if (main_field not in ophys_module.fields() or 
+            data_field not in ophys_module[main_field].fields):
+                raise OSError(
+                    "No plane segmentation data found in image segmentation "
+                    f"in {ophys_file}"
+                    )
+
         roi_masks = np.asarray(
-            nwbfile_in.get_processing_module("ophys")[
-            "ImageSegmentation"]["PlaneSegmentation"]["image_mask"
-            ].data
+            nwbfile_in.get_processing_module("ophys")[main_field][
+                data_field]["image_mask"].data
         )
         roi_ids = list(
-            nwbfile_in.get_processing_module("ophys")[
-                "ImageSegmentation"]["PlaneSegmentation"]["id"].data
-                )
+            nwbfile_in.get_processing_module("ophys")[main_field][
+                data_field]["id"].data
+        )
 
     roi_masks = np.transpose(roi_masks, (0, 2, 1)) # ROI x w x h -> ROI x h x w
 

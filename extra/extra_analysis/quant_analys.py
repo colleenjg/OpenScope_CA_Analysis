@@ -484,8 +484,9 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quants=4,
         for unexp in unexp_vals:
             stimpar_use = stimpar
             if incr_unexp_ori and unexp == 1:
+                incr_ori = sess_gen_util.get_unexp_gab_ori(stimpar.gab_ori)
                 stimpar_use = sess_ntuple_util.get_modif_ntuple(
-                    stimpar, "gab_ori", stimpar.gab_ori + 90
+                    stimpar, "gab_ori", incr_ori
                     )
 
             qu_segs, qu_counts = quant_segs(

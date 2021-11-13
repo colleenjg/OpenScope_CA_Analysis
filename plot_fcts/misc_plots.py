@@ -74,7 +74,7 @@ def plot_decoder_data(scores_df, analyspar, sesspar, permpar, figpar,
         permpar=permpar, 
         figpar=figpar, 
         title=title, 
-        wide=False,
+        wide=True,
         between_sess_sig=False,
         data_col=score_col,
         decoder_data=True,
@@ -220,4 +220,76 @@ def plot_nrois(sub_ax, sess_df, sess_ns=None, col="k", dash=None):
             mew=5, markersize=8, xticks="auto"
             ) 
 
+#############################################
+def plot_roi_cross_correlations(crosscorr_df, figpar, title="ROI SNRs"):
+    """
+    plot_roi_cross_correlations(crosscorr_df, figpar)
+
+    Plots cross-correlation histograms.
+
+    Required args:
+        - crosscorr_df (pd.DataFrame):
+            dataframe with one row per session/line/plane, and the 
+            following columns, in addition to the basic sess_df columns:
+            - bin_edges (list): first and last bin edge
+            - cross_corrs_binned (list): number of cross-correlation values per 
+                bin
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters
+
+    Optional args:
+        - datatype (str):
+            type of data to plot, also corresponding to column name
+            default: "snrs"
+        - title (str):
+            plot title
+            default: "ROI SNRs"
+
+    Returns:
+        - ax (2D array): 
+            array of subplots
+    """
+
+    sess_ns = np.arange(
+        crosscorr_df.sess_ns.min(), crosscorr_df.sess_ns.max() + 1
+        )
+
+    figpar = sess_plot_util.fig_init_linpla(
+        figpar, kind="prog", n_sub=len(sess_ns)
+        )
+    figpar["init"]["subplot_hei"] = 4
+    figpar["init"]["subplot_wid"] = 4
+        
+    fig, ax = plot_util.init_fig(4 * len(sess_ns), **figpar["init"])
+    if title is not None:
+        fig.suptitle(title, y=0.97, weight="bold")
+
+    for (line, plane), lp_df in crosscorr_df.groupby(["lines", "planes"]):
+        li, pl, col, _ = plot_helper_fcts.get_line_plane_idxs(line, plane)
+        for s, sess_n in enumerate(sess_ns):
+            sess_rows = lp_df.loc[lp_df["sess_ns"] == sess_n]
+            if len(sess_rows) == 0:
+                continue
+            elif len(sess_rows) > 1:
+                raise RuntimeError("Expected exactly one row.")
+            sess_row = sess_rows.loc[sess_rows.index[0]]
+
+            sub_ax = ax[pl, s + li * len(sess_ns)]
+
+            weights = sess_row["cross_corrs_binned"]
+            bin_edges = np.linspace(*sess_row["bin_edges"], len(weights) + 1)
+
+            sub_ax.hist(
+                bin_edges[:-1], bin_edges, weights=weights, color=col, 
+                alpha=0.4, density=True
+                )
+            sub_ax.set_yscale("log")
+
+    sess_plot_util.format_linpla_subaxes(ax, datatype="roi", 
+        ylab="Density", sess_ns=sess_ns, kind="prog", single_lab=True)       
+        
+    return ax
 

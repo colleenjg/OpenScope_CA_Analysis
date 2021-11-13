@@ -231,6 +231,8 @@ def get_file_names(maindir, sessid, expid, segid, date, mouseid,
         - filepaths (dict): dictionary of file paths
             ["behav_video_h5"] (Path)    : full path name of the behavioral hdf5
                                            video file
+            ["max_proj_png"] (Path)      : full path to max projection of stack
+                                           in png format
             ["pupil_video_h5"] (Path)    : full path name of the pupil hdf5 
                                            video file
             ["roi_extract_json"] (Path)  : full path name of the ROI extraction 
@@ -276,6 +278,8 @@ def get_file_names(maindir, sessid, expid, segid, date, mouseid,
     filepaths = {"align_pkl"         : Path(sessdir, f"{sess_m_d}_df.pkl"),
                  "behav_video_h5"    : Path(sessdir, f"{sess_m_d}_video-0.h5"),
                  "correct_data_h5"   : Path(procdir, "concat_31Hz_0.h5"),
+                 "max_proj_png"      : Path(procdir, 
+                                       "max_downsample_4Hz_0.png"),
                  "pupil_video_h5"    : Path(sessdir, f"{sess_m_d}_video-1.h5"),
                  "roi_extract_json"  : Path(procdir, 
                                        f"{expid}_input_extract_traces.json"),

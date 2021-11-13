@@ -328,19 +328,22 @@ def gabor_ex_roi_responses_sess1(sessions, analyspar, sesspar, stimpar,
         extra={"spacing": "\n"})
 
     n_ex = 6
+    rolling_win = 4
     ex_traces_df = seq_analys.get_ex_traces_df(
         sessions, 
         analyspar, 
         stimpar, 
         basepar, 
         n_ex=n_ex,
+        rolling_win=rolling_win,
         randst=seed,
         parallel=parallel,
         )
 
     extrapar = {
-        "n_ex": n_ex,
-        "seed": seed,
+        "n_ex"       : n_ex,
+        "rolling_win": rolling_win,
+        "seed"       : seed,
     }
 
     info = {"analyspar"   : analyspar._asdict(),
