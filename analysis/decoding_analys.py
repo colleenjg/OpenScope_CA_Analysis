@@ -90,8 +90,9 @@ def get_decoding_data(sess, analyspar, stimpar, comp="Dori", ctrl=False):
 
         # sample as many sequences as are usable for unexpected data
         if ctrl:
+            ctrl_gab_ori = sess_gen_util.get_unexp_gab_ori(gab_ori)
             segs_ctrl = stim.get_segs_by_criteria(
-                gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=gab_ori, 
+                gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=ctrl_gab_ori, 
                 unexp=1, remconsec=False, by="seg")
             fr_ns_ctrl = stim.get_fr_by_seg(
                 segs_ctrl, start=True, ch_fl=[stimpar.pre, stimpar.post], 

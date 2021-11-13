@@ -411,7 +411,7 @@ def add_categ_stim_cols(df):
 
     for col in df.columns:
         if col == "gab_ori":
-            vals = [0, 45, 90, 135, 180, 225]
+            vals = sess_gen_util.filter_gab_oris("ABCDUG")
             df = convert_to_binary_cols(df, col, vals, vals)
         elif col == "gabfr":
             vals = ["G", 0, 1, 2, 3]
@@ -504,7 +504,6 @@ def format_stim_criteria(stim_df, stimtype="gabors", unexp="any",
         visflow_size = None
         visflow_dir = None
     elif stimtype == "visflow":
-        stimtype = "visual_flow"
         gabfr = None
         gabk = None
         gab_ori = None

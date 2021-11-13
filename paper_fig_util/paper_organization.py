@@ -474,7 +474,9 @@ class FigurePanelAnalysis():
 
     def roi_tracking(self):
         self.description = "Example ROI tracking overlays."
-        self.specific_params = get_specific_params() # most values are not used
+        self.specific_params = get_specific_params(
+            mouse_n=[3, 4, 6, 11]
+        )
         self.analysis_fct = tracking_figs.roi_tracking
         self.plot_fct = plot_figs.plot_roi_tracking
         self.warnings.append(
@@ -563,6 +565,7 @@ class FigurePanelAnalysis():
         self.warnings.append(stats_plot_fct_warning())
 
 
+    ### Figure 3 ###
     def pupil_run_responses(self):
         self.description = "Running and pupil responses to Gabor sequences."
         self.specific_params = get_specific_params(
@@ -600,7 +603,7 @@ class FigurePanelAnalysis():
         self.plot_fct = plot_figs.plot_pupil_run_block_diffs
 
 
-    ### Figure 3 ###
+    ### Figure 4 ###
     def gabor_sequences_sess123(self):
         self.description = "ROI responses to Gabor sequences."
         self.specific_params = get_specific_params(
@@ -659,7 +662,20 @@ class FigurePanelAnalysis():
         self.warnings.append(stats_plot_fct_warning())
 
 
-    ### Figure 4 ###
+    def gabor_tracked_roi_usi_variances_sess123(self):
+        self.description = ("Variances of tracked ROI Gabor USIs "
+            "across sessions.")
+        self.specific_params = get_specific_params(
+            tracked=True,
+            error="std",
+        )
+        self.n_perms_full = 1e5
+        self.analysis_fct = usi_figs.gabor_tracked_roi_usi_variances_sess123
+        self.plot_fct = plot_figs.plot_gabor_tracked_roi_usi_variances_sess123
+        self.warnings.append(stats_plot_fct_warning())
+
+
+    ### Figure 5 ###
     def gabor_Dori_decoding_sess123(self):
         self.description = ("Mean Gabor D orientation decoder performances "
             "across sessions.")
@@ -686,21 +702,6 @@ class FigurePanelAnalysis():
         self.warnings.append(decoder_warning())
 
 
-    def gabor_corr_norm_res_ex(self):
-        self.description = ("Example normalized residual Gabor USI correlation "
-            "between session 1 and 2.")
-        self.specific_params = get_specific_params(
-            line="L5",
-            plane="soma",
-            sess_n="1-2",
-            tracked=True,
-            error="std",
-        )
-        self.n_perms_full = 1e5
-        self.analysis_fct = corr_figs.gabor_corr_norm_res_ex
-        self.plot_fct = plot_figs.plot_gabor_corr_norm_res_ex
-
-
     def gabor_corrs_sess123_comps(self):
         self.description = "Gabor USI correlations between sessions."
         self.specific_params = get_specific_params(
@@ -711,8 +712,10 @@ class FigurePanelAnalysis():
         self.n_perms_full = 1e5
         self.analysis_fct = corr_figs.gabor_corrs_sess123_comps
         self.plot_fct = plot_figs.plot_gabor_corrs_sess123_comps
+        self.warnings.append(stats_plot_fct_warning())
         
 
+    ### Figure 6 ###
     def model_illustration(self):
         self.description = ("Schematic illustration of a conceptual model "
             "based on the data.")
@@ -725,7 +728,9 @@ class FigurePanelAnalysis():
     ### Figure S1 ###
     def roi_overlays_sess123(self):
         self.description = "Example ROI tracking overlays (large)."
-        self.specific_params = get_specific_params() # most values are not used
+        self.specific_params = get_specific_params(
+            mouse_n=[3, 4, 6, 11]
+        )
         self.analysis_fct = tracking_figs.roi_overlays_sess123
         self.plot_fct = plot_figs.plot_roi_overlays_sess123
         self.warnings.append(
@@ -738,10 +743,17 @@ class FigurePanelAnalysis():
 
     def roi_overlays_sess123_enlarged(self):
         self.description = "Example ROI tracking overlay close-ups (large)."
-        self.specific_params = None
-        self.analysis_fct = None
-        self.plot_fct = None
-        no_plot_fct(reason="was enlarged manually from overlays")
+        self.specific_params = get_specific_params(
+            mouse_n=[3, 4, 6, 11]
+        )
+        self.analysis_fct = tracking_figs.roi_overlays_sess123_enlarged
+        self.plot_fct = plot_figs.plot_roi_overlays_sess123_enlarged
+        self.warnings.append(
+            partial_plot_fct_warning(
+                message=("Only overlays will be generated, without "
+                         "additional manual formatting.")
+            )
+        )
 
 
     ### Figure S2 ###
@@ -768,7 +780,16 @@ class FigurePanelAnalysis():
         self.specific_params = get_specific_params()
         self.analysis_fct = misc_figs.nrois_sess123
         self.plot_fct = plot_figs.plot_nrois_sess123
-        
+
+
+    def roi_crosscorr_sess123(self):
+        self.description = "ROI cross-correlations per session."
+        self.specific_params = get_specific_params(
+            scale=False
+        )
+        self.analysis_fct = misc_figs.roi_crosscorr_sess123
+        self.plot_fct = plot_figs.plot_roi_crosscorr_sess123
+
 
     ### Figure S3 ###
     def stimulus_onset_sess123(self):
@@ -831,6 +852,7 @@ class FigurePanelAnalysis():
         )
         self.analysis_fct = usi_figs.gabor_tracked_roi_abs_usi_means_sess123_by_mouse
         self.plot_fct = plot_figs.plot_gabor_tracked_roi_abs_usi_means_sess123_by_mouse
+        self.warnings.append(stats_plot_fct_warning())
         
 
     ### Figure S5 ###
@@ -864,6 +886,7 @@ class FigurePanelAnalysis():
         self.n_perms_full = 1e5
         self.analysis_fct = seq_figs.visual_flow_diffs_sess123
         self.plot_fct = plot_figs.plot_visual_flow_diffs_sess123
+        self.warnings.append(stats_plot_fct_warning())
         
 
     ### Figure S6 ###
@@ -925,6 +948,7 @@ class FigurePanelAnalysis():
         self.n_perms_full = 1e5
         self.analysis_fct = usi_figs.visual_flow_tracked_roi_abs_usi_means_sess123
         self.plot_fct = plot_figs.plot_visual_flow_tracked_roi_abs_usi_means_sess123
+        self.warnings.append(stats_plot_fct_warning())
         
 
     def tracked_roi_usis_stimulus_comp_sess1v3(self):
@@ -960,11 +984,73 @@ class FigurePanelAnalysis():
         
 
     ### Figure S7 ###
+    def gabor_corr_scatterplots_sess12(self):
+        self.description = "Gabor USI session 1 vs 2 correlation scatterplots."
+        self.specific_params = get_specific_params(
+            sess_n="1-2",
+            error="std",
+            tracked=True,
+            tails="lo",
+        )
+        self.n_perms_full = 1e5
+        self.analysis_fct = corr_figs.gabor_corr_scatterplots_sess12
+        self.plot_fct = plot_figs.plot_gabor_corr_scatterplots_sess12
+
+
+    def gabor_corr_scatterplots_sess23(self):
+        self.description = "Gabor USI session 2 vs 3 correlation scatterplots."
+        self.specific_params = get_specific_params(
+            sess_n="2-3",
+            error="std",
+            tracked=True,
+            tails="lo",
+        )
+        self.n_perms_full = 1e5
+        self.analysis_fct = corr_figs.gabor_corr_scatterplots_sess23
+        self.plot_fct = plot_figs.plot_gabor_corr_scatterplots_sess23
+
+
+    def visual_flow_corr_scatterplots_sess12(self):
+        self.description = "Visual flow USI session 1 vs 2 correlation scatterplots."
+        self.specific_params = get_specific_params(
+            sess_n="1-2",
+            stimtype="visflow",
+            pre=2,
+            post=2,
+            idx_feature="unexp_lock",
+            error="std",
+            tails="lo",
+            tracked=True,
+        )
+        self.n_perms_full = 1e5
+        self.analysis_fct = corr_figs.visual_flow_corr_scatterplots_sess12
+        self.plot_fct = plot_figs.plot_visual_flow_corr_scatterplots_sess12
+        
+
+    def visual_flow_corr_scatterplots_sess23(self):
+        self.description = "Visual flow USI session 2 vs 3 correlation scatterplots."
+        self.specific_params = get_specific_params(
+            sess_n="2-3",
+            stimtype="visflow",
+            pre=2,
+            post=2,
+            idx_feature="unexp_lock",
+            error="std",
+            tails="lo",
+            tracked=True,
+        )
+        self.n_perms_full = 1e5
+        self.analysis_fct = corr_figs.visual_flow_corr_scatterplots_sess23
+        self.plot_fct = plot_figs.plot_visual_flow_corr_scatterplots_sess23
+
+
+    ### Figure S8 ###
     def dendritic_roi_tracking_example(self):
         self.description = "Dendritic ROI matching examples."
         self.specific_params = get_specific_params(
-            plane="dend"
-        ) # most values are not used
+            plane="dend",
+            mouse_n=6,
+        )
         self.analysis_fct = tracking_figs.dendritic_roi_tracking_example
         self.plot_fct = plot_figs.plot_dendritic_roi_tracking_example
         self.warnings.append(
@@ -978,8 +1064,9 @@ class FigurePanelAnalysis():
     def somatic_roi_tracking_example(self):
         self.description = "Somatic ROI matching examples."
         self.specific_params = get_specific_params(
-            plane="soma"
-        ) # most values are not used
+            plane="soma",
+            mouse_n=4,
+        )
         self.analysis_fct = tracking_figs.somatic_roi_tracking_example
         self.plot_fct = plot_figs.plot_somatic_roi_tracking_example
         self.warnings.append(
@@ -1013,22 +1100,26 @@ class FigurePanelAnalysis():
                     "E": self.gabor_roi_usi_distr,
                     "F": self.gabor_roi_usi_sig,
                     "G": self.gabor_roi_usi_sig_common_oris,
-                    "H": self.pupil_run_responses,
-                    "I": self.pupil_run_block_diffs,
                     },
                 "3": {
+                    "A": self.pupil_run_responses,
+                    "B": self.pupil_run_block_diffs,
+                    },
+                "4": {
                     "A": self.gabor_sequences_sess123,
                     "B": self.gabor_sequence_diffs_sess123,
                     "C": self.gabor_rel_resp_sess123,
                     "D": self.gabor_tracked_roi_usis_sess123,
                     "E": self.gabor_tracked_roi_abs_usi_means_sess123,
+                    "F": self.gabor_tracked_roi_usi_variances_sess123,
                     },
-                "4": {
-                    "A_left": self.gabor_Dori_decoding_sess123,
-                    "A_right": self.gabor_Uori_decoding_sess123,
-                    "B": self.gabor_corr_norm_res_ex,
+                "5": {
+                    "A": self.gabor_Dori_decoding_sess123,
+                    "B": self.gabor_Uori_decoding_sess123,
                     "C": self.gabor_corrs_sess123_comps,
-                    "D": self.model_illustration,
+                    },
+                "6": {
+                    "A": self.model_illustration,
                     },
                 "S1": {
                     "A": self.roi_overlays_sess123,
@@ -1038,6 +1129,7 @@ class FigurePanelAnalysis():
                     "A": self.snrs_sess123,
                     "B": self.mean_signal_sess123,
                     "C": self.nrois_sess123,
+                    "D": self.roi_crosscorr_sess123,
                     },
                 "S3": {
                     "A": self.stimulus_onset_sess123,
@@ -1062,6 +1154,12 @@ class FigurePanelAnalysis():
                     "F": self.visual_flow_corrs_sess123_comps,
                     },
                 "S7":  {
+                    "A": self.gabor_corr_scatterplots_sess12,
+                    "B": self.gabor_corr_scatterplots_sess23,
+                    "C": self.visual_flow_corr_scatterplots_sess12,
+                    "D": self.visual_flow_corr_scatterplots_sess23,
+                    },
+                "S8":  {
                     "A": self.dendritic_roi_tracking_example,
                     "B": self.somatic_roi_tracking_example,
                     }

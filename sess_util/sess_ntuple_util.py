@@ -114,8 +114,8 @@ def init_sesspar(sess_n=1, closest=False, plane="soma", line="any", min_rois=1,
 
 #############################################
 def init_stimpar(stimtype="both", visflow_dir=["right", "left"], 
-                 visflow_size=128, gabfr=0, gabk=16, gab_ori=[0, 45, 90, 135, 180, 225], 
-                 pre=0, post=1.5):
+                 visflow_size=128, gabfr=0, gabk=16, 
+                 gab_ori=[0, 45, 90, 135, 180, 225], pre=0, post=1.5):
     """
     init_stimpar()
 

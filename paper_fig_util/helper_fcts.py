@@ -127,7 +127,7 @@ def check_if_data_exists(figpar, filetype="json", overwrite_plot_only=False,
 
     run_analysis = True
 
-    if data_path.exists():
+    if data_path.is_file():
         warn_str = f"Analysis data already exists under {data_path}."
         if figpar["save"]["overwrite"] and not overwrite_plot_only:
             warn_str = f"{warn_str}\nFile will be overwritten."

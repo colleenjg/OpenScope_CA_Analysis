@@ -534,7 +534,7 @@ def plot_perc_sig_usis(perc_sig_df, analyspar, permpar, figpar, by_mouse=False,
                     )
                 CI_dummy = np.repeat(mouse_data_mean, 2)
                 plot_util.plot_CI(sub_ax, CI_dummy, med=mouse_data_mean, 
-                    x=x_index, width=0.4, med_col=col, med_rat=0.01)
+                    x=x_index, width=0.6, med_col=col, med_rat=0.01)
             else:
                 # collect confidence interval data
                 row = lp_df.loc[df_indices[0]]
@@ -836,7 +836,8 @@ def plot_tracked_idxs(idx_only_df, sesspar, figpar, title=None, wide=False):
 #############################################
 def plot_tracked_idx_stats(idx_stats_df, sesspar, figpar, permpar=None,
                            absolute=True, between_sess_sig=True, 
-                           by_mouse=False, title=None, wide=False):
+                           by_mouse=False, bootstr_err=None, title=None, 
+                           wide=False):
     """
     plot_tracked_idx_stats(idx_stats_df, sesspar, figpar)
 
@@ -870,6 +871,9 @@ def plot_tracked_idx_stats(idx_stats_df, sesspar, figpar, permpar=None,
             default: True
         - by_mouse (bool):
             if True, plotting is done per mouse
+            default: False
+        - bootstr_err (bool):
+            if True, error is bootstrapped standard deviation
             default: False
         - title (str):
             plot title
@@ -937,9 +941,10 @@ def plot_tracked_idx_stats(idx_stats_df, sesspar, figpar, permpar=None,
 
             # plot errorbars
             alpha = 0.6 if by_mouse else 0.8
+            capsize = 8 if bootstr_err else None
             plot_util.plot_errorbars(
                 sub_ax, data[:, 0], data[:, 1:].T, sub_sess_ns, color=col, 
-                alpha=alpha, xticks="auto", line_dash=dash
+                alpha=alpha, xticks="auto", line_dash=dash, capsize=capsize,
                 )
 
     if between_sess_sig:

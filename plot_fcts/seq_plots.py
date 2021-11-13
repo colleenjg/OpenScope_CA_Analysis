@@ -624,13 +624,13 @@ def plot_ex_gabor_roi_traces(sub_ax, df_row, col="k", dash=None):
         alpha=0.5, zorder=-12)
 
     time_values = df_row["time_values"]
-    traces = np.asarray(df_row["traces"])
-    trace_stat = df_row["trace_stat"]
+    traces_sm = np.asarray(df_row["traces_sm"])
+    trace_stat = df_row["trace_stats"]
 
-    alpha = 2 / np.log(len(traces))
+    alpha = 2 / np.log(len(traces_sm))
 
     sub_ax.plot(
-        time_values, traces.T, lw=1, color="gray", alpha=alpha, zorder=-13
+        time_values, traces_sm.T, lw=1, color="gray", alpha=alpha, zorder=-13
         )
 
     sub_ax.plot(
@@ -638,14 +638,14 @@ def plot_ex_gabor_roi_traces(sub_ax, df_row, col="k", dash=None):
         )
     
     # use percentiles for bounds, asymmetrically
-    ymin = np.min([np.min(trace_stat), np.percentile(traces, 0.01)])
-    ymax = np.max([np.max(trace_stat), np.percentile(traces, 99.99)])
+    ymin_near = np.min([np.min(trace_stat), np.percentile(traces_sm, 0.01)])
+    ymax_near = np.max([np.max(trace_stat), np.percentile(traces_sm, 99.99)])
 
-    yrange = ymax - ymin
-    ymin_use = ymin - yrange * 0.05
-    ymax_use = ymax + yrange * 0.05
+    yrange_near = ymax_near - ymin_near
+    ymin = ymin_near - yrange_near * 0.05
+    ymax = ymax_near + yrange_near * 0.05
 
-    ylims = plot_util.rounded_lims([ymin_use, ymax_use])
+    ylims = [ymin, ymax]
 
     return ylims
 
@@ -664,7 +664,8 @@ def plot_ex_gabor_traces(ex_traces_df, stimpar, figpar, title=None):
             in addition to the basic sess_df columns: 
             - time_values (list): values for each frame, in seconds
             - roi_ns (list): selected ROI number
-            - traces (list): selected ROI sequence traces, dims: seq x frames
+             - traces_sm (list): selected ROI sequence traces, smoothed, with 
+                dims: seq x frames
             - trace_stat (list): selected ROI trace mean or median
         - stimpar (dict):
             dictionary with keys of StimPar namedtuple
@@ -698,7 +699,7 @@ def plot_ex_gabor_traces(ex_traces_df, stimpar, figpar, title=None):
         figpar, kind="traces", n_sub=per_rows
         )
     figpar["init"]["subplot_hei"] = 1.35
-    figpar["init"]["subplot_wid"] = 2.45
+    figpar["init"]["subplot_wid"] = 2.47
     figpar["init"]["ncols"] = per_cols * 2
 
     fig, ax = plot_util.init_fig(
@@ -744,9 +745,10 @@ def plot_ex_gabor_traces(ex_traces_df, stimpar, figpar, title=None):
             if not np.isfinite(ylims[r, c].sum()):
                 continue
             ax[r, c].set_ylim(ylims[r, c])
-            ax[r, c].set_yticks(ylims[r, c])
 
-    plot_util.set_interm_ticks(ax, 2, axis="y", share=False, weight="bold")  
+    plot_util.set_interm_ticks(
+        ax, 2, axis="y", share=False, weight="bold", update_ticks=True
+        )  
 
     # rasterize the gray lines
     logger.info("Rasterizing individual traces...", extra={"spacing": TAB})
@@ -810,10 +812,10 @@ def plot_rel_resp_data(rel_resp_df, analyspar, sesspar, stimpar, permpar,
     figpar = sess_plot_util.fig_init_linpla(figpar)
 
     figpar["init"]["sharey"] = "row"
-    figpar["init"]["gs"] = {"hspace": 0.2}
     if small:
         figpar["init"]["subplot_hei"] = 4.1
         figpar["init"]["subplot_wid"] = 2.6
+        figpar["init"]["gs"] = {"hspace": 0.2, "wspace": 0.25}
         figpar["init"]["gs"]["wspace"] = 0.25
     else:
         figpar["init"]["subplot_hei"] = 4.4

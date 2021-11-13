@@ -322,7 +322,7 @@ def plot_traces_scores(hyperpars, tr_stats=None, full_scores=None,
 
     if tr_stats is None:
         tr_stats_path = Path(savedir, "tr_stats.json")
-        if tr_stats_path.exists():
+        if tr_stats_path.is_file():
             tr_stats = file_util.loadfile(tr_stats_path)
         else:
             warnings.warn("No trace statistics found.", 
@@ -330,7 +330,7 @@ def plot_traces_scores(hyperpars, tr_stats=None, full_scores=None,
     
     if full_scores is None:
         full_scores_path = Path(savedir, "scores_df.csv")
-        if full_scores_path.exists():
+        if full_scores_path.is_file():
             full_scores = file_util.loadfile(full_scores_path)
             if plot_wei and logregpar["alg"] == "sklearn":
                 saved = full_scores.loc[
@@ -892,7 +892,7 @@ def plot_summ(output, savename, stimtype="gabors", comp="unexp", ctrl=False,
 
     summ_scores_file = Path(output, savename)
     
-    if summ_scores_file.exists():
+    if summ_scores_file.is_file():
         summ_scores = file_util.loadfile(summ_scores_file)
     else:
         warnings.warn(f"{summ_scores_file} not found.", 

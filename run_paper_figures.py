@@ -389,7 +389,7 @@ def run_single_panel(args, sessions=None, new_fig=False):
     )
 
     analysis_dict["seed"] = fig_panel_analysis.seed
-    analysis_dict["parallel"] = False # args.parallel
+    analysis_dict["parallel"] = bool(args.parallel  * (not args.debug))
 
     analysis_fct = fig_panel_analysis.analysis_fct
     analysis_dict_use = gen_util.keep_dict_keys(
@@ -509,6 +509,8 @@ def parse_args():
         help="paper random seed, a different value or -1 for a random seed")
     parser.add_argument("--log_level", default="info", 
         help="logging level (does not work with --parallel)")
+    parser.add_argument("--debug", action="store_true", 
+        help="only session loading is enabled in parallel")
 
     args = parser.parse_args()
 

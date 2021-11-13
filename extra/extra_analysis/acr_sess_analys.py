@@ -723,8 +723,9 @@ def split_data_by_sess(sess, analyspar, stimpar, datatype="roi",
             stimpar, ["pre", "post"], [pre, post])
         
         if incr_unexp_ori and s == 1:
+            incr_ori = sess_gen_util.get_unexp_gab_ori(stimpar.gab_ori)
             stimpar_use = sess_ntuple_util.get_modif_ntuple(
-                stimpar, "gab_ori", stimpar.gab_ori + 90
+                stimpar, "gab_ori", incr_ori
                 )
 
         data_arr.append(data_from_refs(

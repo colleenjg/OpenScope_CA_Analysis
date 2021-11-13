@@ -15,6 +15,8 @@ import logging
 
 import numpy as np
 import pandas as pd
+from sklearn.linear_model import LinearRegression
+import scipy.ndimage as scind
 
 from util import logger_util, gen_util, math_util, rand_util
 from sess_util import sess_ntuple_util
@@ -68,7 +70,7 @@ def get_corr_pairs(sess_df, consec_only=True):
 
 
 #############################################
-def set_multcomp(permpar, sessions, analyspar, consec_only=True):
+def set_multcomp(permpar, sessions, analyspar, consec_only=True, factor=1):
     """
     set_multcomp(permpar, sessions, analyspar)
 
@@ -87,6 +89,9 @@ def set_multcomp(permpar, sessions, analyspar, consec_only=True):
         - consec_only (bool):
             if True, only consecutive session numbers are correlated
             default: True
+        - factor (int):
+            multiplicative factor
+            default: 1
 
     Returns:
         - permpar (PermPar):
@@ -100,6 +105,8 @@ def set_multcomp(permpar, sessions, analyspar, consec_only=True):
         corr_ns = get_corr_pairs(lp_df, consec_only=consec_only)
         n_comps += len(corr_ns)
     
+    n_comps = n_comps * factor
+
     permpar = sess_ntuple_util.get_modif_ntuple(permpar, "multcomp", n_comps)
 
     return permpar
@@ -293,8 +300,8 @@ def corr_bootstrapped_std(data, n_samples=1000, randst=None, corr_type="corr",
 #############################################
 def get_corr_data(sess_pair, data_df, analyspar, permpar, 
                   corr_type="corr", permute="sess", absolute=False, norm=True, 
-                  return_data=False, return_rand=False, randst=None, 
-                  raise_no_pair=True):
+                  return_data=False, return_rand=False, n_rand_ex=1, 
+                  randst=None, raise_no_pair=True):
     """
     get_corr_data(sess_pair, data_df, analyspar, permpar)
 
@@ -334,6 +341,9 @@ def get_corr_data(sess_pair, data_df, analyspar, permpar,
             if True, random normalized correlation values are returned, along 
             with random data to correlate for one example permutation
             default: False
+        - n_rand_ex (int):
+            number of examples to return, if return_rand is True
+            default: 1
         - randst (int or np.random.RandomState): 
             random state or seed value to use. (-1 treated as None)
             default: None
@@ -360,10 +370,11 @@ def get_corr_data(sess_pair, data_df, analyspar, permpar,
         if return_rand:
         - rand_corrs (1D array):
             (normalized) random correlation between sessions
-        - rand_ex (2D array):
-            example randomized data pair to correlate (grps (2) x datapoints)
-        - rand_ex_corr (float):
-            correlation for example randomized data pair
+        - rand_ex (3D array):
+            example randomized data pairs to correlate 
+            (grps (2) x datapoints x n_rand_ex)
+        - rand_ex_corr (1D array):
+            correlation for example randomized data pairs
     """
 
     nanpol = None if analyspar.remnans else "omit"
@@ -417,12 +428,15 @@ def get_corr_data(sess_pair, data_df, analyspar, permpar,
             perm_data = corr_data.T # groups x datapoints (2)
         else:
             perm_data = corr_data.reshape(1, -1) # 2 groups concatenate
-        rand_ex = rand_util.run_permute(
-            perm_data, n_perms=1, paired=paired, randst=use_randst
-            )[..., 0].T
+        rand_exs = rand_util.run_permute(
+            perm_data, n_perms=n_rand_ex, paired=paired, randst=use_randst
+            )
+        rand_exs = np.transpose(rand_exs, [1, 0, 2])
         if not paired:
-            rand_ex = rand_ex.reshape(2, -1)
-        rand_ex_corr = math_util.calc_op(rand_ex, nanpol=nanpol, op=corr_type)
+            rand_exs = rand_exs.reshape(2, -1, n_rand_ex)
+        rand_ex_corrs = math_util.calc_op(
+            rand_exs, nanpol=nanpol, op=corr_type, axis=1
+            )
 
     # get random correlation info
     returns = rand_util.get_op_p_val(
@@ -466,190 +480,8 @@ def get_corr_data(sess_pair, data_df, analyspar, permpar,
                 rand_corrs, med=med, corr_type=corr_type
                 )
         if "diff" in corr_type: # take diff
-            rand_ex[1] = rand_ex[1] - rand_ex[0]
-        returns = returns + [rand_corrs, rand_ex, rand_ex_corr]
-    
-    return returns
-    
-    
-#############################################
-def get_corr_data(sess_pair, data_df, analyspar, permpar, 
-                  corr_type="corr", permute="sess", absolute=False, norm=True, 
-                  return_data=False, return_rand=False, randst=None, 
-                  raise_no_pair=True):
-    """
-    get_corr_data(sess_pair, data_df, analyspar, permpar)
-
-    Returns correlation data for a session pair.
-
-    Required args:
-        - sess_pair (list):
-            sessions to correlate, e.g. [1, 2]
-        - data_df (pd.DataFrame):
-            dataframe with one row per line/plane/session, and the following 
-            columns, in addition to the basic sess_df columns:
-            - roi_idxs (list): index for each ROI
-        - analyspar (AnalysPar): 
-            named tuple containing analysis parameters
-        - permpar (PermPar): 
-            named tuple containing permutation parameters.
-
-    Optional args:
-        - corr_type (str):
-            type of correlation to run, i.e. "corr" or "R_sqr"
-            default: "corr"
-        - permute (str):
-            type of permutation to due ("tracking", "sess" or "all")
-            default: "sess"
-        - absolute (bool):
-            if True, absolute USIs are used for correlation calculation instead 
-            of signed USIs
-            default: False
-        - norm (bool):
-            if True, normalized correlation data is returned, if corr_type if 
-            "diff_corr"
-            default: True
-        - return_data (bool):
-            if True, data to correlate is returned
-            default: False
-        - return_rand (bool):
-            if True, random normalized correlation values are returned, along 
-            with random data to correlate for one example permutation
-            default: False
-        - randst (int or np.random.RandomState): 
-            random state or seed value to use. (-1 treated as None)
-            default: None
-        - raise_no_pair (bool):
-            if True, if sess_pair session numbers are not found, an error is 
-            raised. Otherwise, None is returned.
-            default: True
-
-    Returns:
-        - roi_corr (float):
-             (normalized) correlation between sessions
-        - roi_corr_std (float):
-            bootstrapped standard deviation for the (normalized) correlation 
-            between sessions
-        - null_CI (1D array):
-            adjusted, null CI for the (normalized) correlation between sessions
-        - p_val (float):
-            uncorrected p-value for the correlation between sessions
-        
-        if return_data:
-        - corr_data (2D array):
-            data to correlate (grps (2) x datapoints)            
-        
-        if return_rand:
-        - rand_corrs (1D array):
-            (normalized) random correlation between sessions
-        - rand_ex (2D array):
-            example randomized data pair to correlate (grps (2) x datapoints)
-        - rand_ex_corr (float):
-            correlation for example randomized data pair
-    """
-
-    nanpol = None if analyspar.remnans else "omit"
-
-    if analyspar.stats != "mean" or analyspar.error != "std":
-        raise NotImplementedError(
-            "analyspar.stats must be set to 'mean', and "
-            "analyspar.error must be set to 'std'."
-            )
-
-    roi_idxs = []
-    for sess_n in sess_pair:
-        row = data_df.loc[data_df["sess_ns"] == sess_n]
-        if len(row) < 1:
-            continue
-        elif len(row) > 1:
-            raise RuntimeError("Expected at most one row.")
-
-        data = np.asarray(row.loc[row.index[0], "roi_idxs"])
-        roi_idxs.append(data)
-
-    if len(roi_idxs) != 2:
-        if raise_no_pair:
-            raise RuntimeError("Session pairs not found.")
-        else:
-            return None
-
-    if roi_idxs[0].shape != roi_idxs[1].shape:
-        raise RuntimeError(
-            "Sessions should have the same number of ROI indices."
-            )
-
-    # get updated correlation parameters
-    corr_type, paired, norm = get_corr_info(
-        permpar, corr_type=corr_type, permute=permute, norm=norm
-        )
-
-    # check correlation type and related parameters
-    corr_data = np.vstack([roi_idxs[0], roi_idxs[1]]) # 2 x datapoints
-
-    if absolute:
-        corr_data = np.absolute(corr_data)
-
-    # get actual correlation
-    roi_corr = math_util.calc_op(corr_data, nanpol=nanpol, op=corr_type)
-
-    # get first set of random values
-    if return_rand:
-        use_randst = copy.deepcopy(randst)
-        if paired:
-            perm_data = corr_data.T # groups x datapoints (2)
-        else:
-            perm_data = corr_data.reshape(1, -1) # 2 groups concatenate
-        rand_ex = rand_util.run_permute(
-            perm_data, n_perms=1, paired=paired, randst=use_randst
-            )[..., 0].T
-        if not paired:
-            rand_ex = rand_ex.reshape(2, -1)
-        rand_ex_corr = math_util.calc_op(rand_ex, nanpol=nanpol, op=corr_type)
-
-    # get random correlation info
-    returns = rand_util.get_op_p_val(
-        corr_data, n_perms=permpar.n_perms, 
-        stats=analyspar.stats, op=corr_type, return_CIs=True, 
-        p_thresh=permpar.p_val, tails=permpar.tails, 
-        multcomp=permpar.multcomp, paired=paired, nanpol=nanpol, 
-        return_rand=return_rand, randst=randst
-        )
-    
-    if return_rand:
-        p_val, null_CI, rand_corrs = returns
-    else:
-        p_val, null_CI = returns
-
-    med = null_CI[1]
-    null_CI = np.asarray(null_CI)
-    if norm:
-        # normalize all data
-        roi_corr = float(get_norm_corrs(roi_corr, med=med, corr_type=corr_type))
-        null_CI = get_norm_corrs(null_CI, med=med, corr_type=corr_type)
-    
-    # get bootstrapped std over corr
-    roi_corr_std = corr_bootstrapped_std(
-        corr_data, n_samples=misc_analys.N_BOOTSTRP, randst=randst, 
-        return_rand=False, nanpol=nanpol, norm=norm, med=med, 
-        corr_type=corr_type
-        )
-
-    returns = [roi_corr, roi_corr_std, null_CI, p_val]
-    
-    if return_data:
-        corr_data = np.vstack(corr_data)
-        if "diff" in corr_type: # take diff
-            corr_data[1] = corr_data[1] - corr_data[0]
-        returns = returns + [corr_data]
-
-    if return_rand:
-        if norm:
-            rand_corrs = get_norm_corrs(
-                rand_corrs, med=med, corr_type=corr_type
-                )
-        if "diff" in corr_type: # take diff
-            rand_ex[1] = rand_ex[1] - rand_ex[0]
-        returns = returns + [rand_corrs, rand_ex, rand_ex_corr]
+            rand_exs[1] = rand_exs[1] - rand_exs[0]
+        returns = returns + [rand_corrs, rand_exs, rand_ex_corrs]
     
     return returns
 
@@ -941,11 +773,15 @@ def get_ex_idx_corr_norm_df(sessions, analyspar, stimpar, basepar, idxpar,
         absolute=False,
         norm=False,
         return_data=True,
-        return_rand=True, 
+        return_rand=True,
+        n_rand_ex=1, 
         randst=randst
         )
 
-    roi_corr, _, _, _, corr_data, rand_corrs, rand_ex, rand_ex_corr = returns
+    roi_corr, _, _, _, corr_data, rand_corrs, rand_exs, rand_ex_corrs = returns
+    rand_ex = rand_exs[..., 0]
+    rand_ex_corr = rand_ex_corrs[0]
+
     rand_corr_med = math_util.mean_med(
         rand_corrs, stats="median", nanpol=nanpol
         )
@@ -992,7 +828,7 @@ def get_idx_corrs_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
     """
     get_idx_corrs_df(sessions, analyspar, stimpar, basepar, idxpar, permpar)
 
-    Returns ROI index correlation data for each line/plane/session.
+    Returns ROI index correlation data for each line/plane/session comparison.
 
     Required args:
         - sessions (list): 
@@ -1058,7 +894,7 @@ def get_idx_corrs_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
         parallel=parallel,
         )
 
-    idx_corr_df = get_basic_idx_corr_df(lp_idx_df, consec_only=False)
+    idx_corr_df = get_basic_idx_corr_df(lp_idx_df, consec_only=consec_only)
 
     # get correlation pairs
     corr_ns = get_corr_pairs(lp_idx_df, consec_only=consec_only)
@@ -1110,18 +946,6 @@ def get_idx_corrs_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
             zip_output=False
         )
 
-        # obtain slope / intercept data
-        args_dict = {
-            "data_df"  : grp_df,
-            "analyspar": analyspar,
-            "permpar"  : permpar,
-            "permute"  : permute,
-            "corr_type": corr_type,
-            "absolute" : False,
-            "norm"     : norm,
-            "randst"   : use_randst,
-        }
-
         # add to dataframe
         for sess_pair, corr_data in zip(corr_ns, all_corr_data):
 
@@ -1136,6 +960,171 @@ def get_idx_corrs_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
                 roi_corr_std
             idx_corr_df.at[row_idx, f"{corr_name}_null_CIs"] = null_CI.tolist()
             idx_corr_df.loc[row_idx, f"{corr_name}_p_vals"] = p_val
+
+    # corrected p-values
+    idx_corr_df = misc_analys.add_corr_p_vals(idx_corr_df, permpar)
+
+    return idx_corr_df
+
+
+#############################################
+def corr_scatterplots(sessions, analyspar, stimpar, basepar, idxpar, permpar, 
+                      permute="sess", sig_only=False, randst=None, n_bins=200, 
+                      parallel=False):
+    """
+    corr_scatterplots(sessions, analyspar, stimpar, basepar, idxpar, permpar)
+
+    Returns ROI index correlation scatterplot data for each line/plane/session 
+    comparison.
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - basepar (BasePar): 
+            named tuple containing baseline parameters
+        - idxpar (IdxPar): 
+            named tuple containing index parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters.
+    
+    Optional args:
+        - permute (bool):
+            type of permutation to due ("tracking", "sess" or "all")
+            default: "sess"
+        - sig_only (bool):
+            if True, ROIs with significant USIs are included 
+            (only possible if analyspar.tracked is True)
+            default: False
+        - randst (int or np.random.RandomState): 
+            seed value to use. (-1 treated as None)
+            default: None
+        - n_bins (int): 
+            number of bins for random data
+            default: 200
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+   
+    Returns:
+        - idx_corr_df (pd.DataFrame):
+            dataframe with one row per line/plane, and the 
+            following columns, in addition to the basic sess_df columns:
+
+
+
+
+
+
+
+
+
+    """
+    
+    lp_idx_df = get_lp_idx_df(
+        sessions, 
+        analyspar=analyspar, 
+        stimpar=stimpar, 
+        basepar=basepar, 
+        idxpar=idxpar,
+        permpar=permpar,
+        sig_only=sig_only,
+        randst=randst,
+        parallel=parallel,
+        )
+
+    idx_corr_df = get_basic_idx_corr_df(lp_idx_df, consec_only=False)
+
+    # get correlation pairs
+    corr_ns = get_corr_pairs(lp_idx_df)
+    if len(corr_ns) != 1:
+        raise ValueError("Expected only 1 session correlation pair.")
+    sess_pair = corr_ns[0]
+
+    # get norm information
+    norm = False
+    corr_type = "corr"
+    if permute in ["sess", "all"]:
+        corr_type = "diff_corr"
+        norm = True
+
+    # add array columns
+    columns = ["corr_data_x", "corr_data_y", "binned_rand_stats", 
+        "x_bin_mids", "y_bin_mids"]
+    idx_corr_df = gen_util.set_object_columns(idx_corr_df, columns)
+
+    logger.info(
+        ("Calculating ROI USI correlations across sessions..."), 
+        extra={"spacing": TAB}
+        )
+    group_columns = ["lines", "planes"]
+    for grp_vals, grp_df in lp_idx_df.groupby(group_columns):
+        grp_df = grp_df.sort_values("sess_ns") # mice already aggregated
+        line, plane = grp_vals
+        row_idx = idx_corr_df.loc[
+            (idx_corr_df["lines"] == line) &
+            (idx_corr_df["planes"] == plane)
+        ].index
+
+        if len(row_idx) != 1:
+            raise RuntimeError("Expected exactly one row to match.")
+        row_idx = row_idx[0]
+
+        if len(grp_df) > 2:
+            raise RuntimeError("Expected no more than 2 rows to correlate.")
+        if len(grp_df) < 2:
+            continue # no pair
+    
+        use_randst = copy.deepcopy(randst) # reset each time
+
+        # obtain correlation data
+        args_dict = {
+            "data_df"    : grp_df,
+            "analyspar"  : analyspar,
+            "permpar"    : permpar,
+            "permute"    : permute,
+            "corr_type"  : corr_type,
+            "absolute"   : False,
+            "norm"       : norm,
+            "randst"     : use_randst,
+            "return_data": True,
+            "return_rand": True,
+            "n_rand_ex"  : 1000,
+        }
+
+        all_corr_data = get_corr_data(sess_pair, **args_dict)
+        [roi_corr, _, null_CI, p_val, corr_data, _, rand_exs, _] = all_corr_data
+
+        regr = LinearRegression().fit(corr_data[0].reshape(-1, 1), corr_data[1])
+
+        # bin data
+        rand_stats, x_edge, y_edge = np.histogram2d(
+            rand_exs[0].reshape(-1), rand_exs[1].reshape(-1), bins=n_bins, 
+            density=False
+            )
+        x_mids = np.diff(x_edge) / 2 + x_edge[:-1]
+        y_mids = np.diff(y_edge) / 2 + y_edge[:-1]
+
+        rand_binned = scind.gaussian_filter(
+            rand_stats, n_bins / 20, mode="constant"
+            )
+
+        idx_corr_df.loc[row_idx, "corrs"] = roi_corr
+        idx_corr_df.loc[row_idx, "rand_corr_med"] = null_CI[1]
+        idx_corr_df.loc[row_idx, "regr_coef"] = regr.coef_
+        idx_corr_df.loc[row_idx, "regr_intercept"] = regr.intercept_
+
+        idx_corr_df.at[row_idx, "corr_data_x"] = corr_data[0].tolist()
+        idx_corr_df.at[row_idx, "corr_data_y"] = corr_data[1].tolist()
+
+        idx_corr_df.at[row_idx, "binned_rand_stats"] = rand_binned.tolist()
+        idx_corr_df.at[row_idx, "x_bin_mids"] = x_mids.tolist()
+        idx_corr_df.at[row_idx, "y_bin_mids"] = y_mids.tolist()
+
+        idx_corr_df.loc[row_idx, "p_vals"] = p_val
 
     # corrected p-values
     idx_corr_df = misc_analys.add_corr_p_vals(idx_corr_df, permpar)

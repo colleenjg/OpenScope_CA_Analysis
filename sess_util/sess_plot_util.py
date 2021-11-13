@@ -762,7 +762,7 @@ def adjust_linpla_y_axis_sharing(ax, kind="reg"):
     # check whether any y axes are shared
     set_sharey = (len(plot_util.get_shared_axes(ax, axis="y")) == 0)
 
-    if kind == "reg" or not set_sharey:
+    if kind in ["reg", "map"] or not set_sharey:
         return
 
     n_rows, n_cols = ax.shape
@@ -785,7 +785,7 @@ def adjust_linpla_y_axis_sharing(ax, kind="reg"):
                 for i in range(2) for r in range(2)]
     else:
         gen_util.accepted_values_error(
-            "kind", kind, ["reg", "traces", "prog", "idx"])
+            "kind", kind, ["reg", "traces", "prog", "idx", "map"])
 
     for axis_set in to_share:
         plot_util.set_shared_axes(axis_set, "y")
@@ -813,16 +813,20 @@ def get_yticklabel_info(ax, kind="reg"):
         - ax (plt Axis): ax
 
     Optional args:
-        - kind (str)       : kind of plot 
-                             "reg" for single plot per layer/line, 
-                             "traces" for traces plot per session (rows), 
-                             "prog" for progression plot per session (cols), 
-                             "idx" for unexpected data index plot per 
-                                session (rows)
+        - kind (str): kind of plot 
+                      "reg" for single plot per layer/line, 
+                      "traces" for traces plot per session (rows), 
+                      "prog" for progression plot per session (cols), 
+                      "idx" for unexpected data index plot per 
+                           session (rows)
+                      "map" for ROI maps
 
     Returns:
         - add_yticks (list) : list of subplots that should have ytick labels
     """
+
+    if kind == "map":
+        return []
 
     # establish which subplots should have y tick labels
     axgrps = plot_util.get_shared_axes(ax, axis="y")
@@ -883,7 +887,11 @@ def add_linpla_axislabels(ax, fluor="dff", area=False, scale=False,
                              "prog" for progression plot per session (cols), 
                              "idx" for unexpected data index plot per 
                                 session (rows)
+                             "map" for ROI maps
     """
+
+    if kind == "map":
+        return
 
     add_yticks = get_yticklabel_info(ax, kind=kind)
 
@@ -1005,8 +1013,20 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind="reg",
         if n_cols % 2 != 0:
             raise RuntimeError("Expected even number of columns")
         col_per_grp = int(n_cols/2)
+    
+    elif kind == "map":
+        for sub_ax in ax.reshape(-1):
+            plot_util.remove_axis_marks(sub_ax)
+            for spine in ["right", "left", "top", "bottom"]:
+                sub_ax.spines[spine].set_visible(True)
+                
     elif kind not in ["traces", "idx"]:
-        gen_util.accepted_values_error("kind", kind, ["reg", "traces", "prog"])
+        gen_util.accepted_values_error(
+            "kind", kind, ["reg", "traces", "prog", "idx", "map"]
+            )
+
+    if kind == "map":
+        return
 
     for r in range(n_rows):
         for c in range(n_cols):
@@ -1122,15 +1142,17 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
     # get information based on kind of graph
     n_rows, n_cols = ax.shape
     row_per_grp, col_per_grp = 1, 1
-    if kind == "reg":
+    if kind in ["reg", "map"]:
         fig_xpos = 0.9 # for plane names (x pos)
+        fig_ypos = 1 if kind == "reg" else 1.02 # for line names (y pos)
         n = 4
         if n_rows != 2 or n_cols != 2:
             raise RuntimeError(
-                "Regular plots should have 2 rows and 2 columns."
+                "Regular or map plots should have 2 rows and 2 columns."
                 )
     elif kind in ["traces", "idx"]:
         fig_xpos = 1.0 # for plane names (x pos)
+        fig_ypos = 1.0 # for line names (y pos)
         if n_rows % 2 != 0:
             raise RuntimeError("Expected even number of rows")
         row_per_grp = int(n_rows/2)
@@ -1138,7 +1160,8 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
         n = 4
     elif kind == "prog":
         n = 3
-        fig_xpos = 1.0 # for plane names (x pos)            
+        fig_xpos = 1.0 # for plane names (x pos)
+        fig_ypos = 1.0 # for line names (y pos)
         if n_cols % 2 != 0:
             raise RuntimeError("Expected even number of columns")
         col_per_grp = int(n_cols/2)
@@ -1154,7 +1177,7 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
         xlab = "Time (s)" if xlab is None else xlab
     elif kind == "idx":
         xlab = "Index" if xlab is None else xlab
-    else:
+    elif kind != "map":
         xlab = "Sessions" if xlab is None else xlab
 
     # get and check lines and planes
@@ -1184,10 +1207,11 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
     for c, (line, pos) in enumerate(zip(lines, line_pos)):
         line_name = f"{line} Pyr" if len(line) and line[1].isdigit() else line
         if kind != "prog" and col_per_grp == 1:
-            ax[0, c].set_title(line_name, weight="bold") 
+            ax[0, c].set_title(line_name, weight="bold", y=fig_ypos) 
         else:
             # get ypos based on plane positions
-            ypos = np.max(plane_pos) + np.absolute(np.diff(plane_pos)) * 0.5
+            fact = 0.5 * fig_ypos
+            ypos = np.max(plane_pos) + np.absolute(np.diff(plane_pos)) * fact
             fig.text(pos, ypos, line_name, fontsize="xx-large", 
                 horizontalalignment="center", weight="bold")
 

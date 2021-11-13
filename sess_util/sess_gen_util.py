@@ -832,37 +832,58 @@ def gab_adjacent_gabfrs(gab_frs):
 
 
 #############################################
-def filter_gab_oris(gab_oris, gab_lett):
+def get_reg_gab_ori(gab_ori_unexp):
     """
-    gab_oris_common_U(gab_oris)
+    get_reg_gab_ori(gab_ori_unexp)
 
-    Returns Gabor orientations that are common to U frames and other frames.
+    Returns mean Gabor orientation of the regular part of a sequence for the 
+    specified unexpected frame orientation.
 
     Required args:
-        - gab_oris (list): Gabor orientations that can be included
-
+        - gab_ori_unexp (int): mean Gabor orientation of unexpected frames
+    
     Returns:
-        - new_oris (list): orientations common to U and other frames
+        - gab_ori_reg (int): mean Gabor orientation of regular frame
     """
 
-    gab_oris = get_params(gab_ori=gab_oris)[-1]
+    gab_ori_reg = gab_ori_unexp - 90
 
-    common_oris = [90, 135] # oris common to ABCD and U frames
+    return gab_ori_reg
 
-    new_oris = [ori for ori in common_oris if ori in gab_oris]
-
-    return new_oris
 
 #############################################
-def filter_gab_oris(gab_letters, gab_oris):
+def get_unexp_gab_ori(gab_ori_reg):
     """
-    filter_gab_oris(gab_letters, gab_oris)
+    get_unexp_gab_ori(gab_ori_reg)
+
+    Returns mean Gabor orientation of the unexpected part of a sequence for the 
+    specified regular frame orientation.
+
+    Required args:
+        - gab_ori_reg (int): mean Gabor orientation of regular frames
+    
+    Returns:
+        - gab_ori_unexp (int): mean Gabor orientation of unexpected frame
+    """
+
+    gab_ori_unexp = gab_ori_reg + 90
+
+    return gab_ori_unexp
+
+
+#############################################
+def filter_gab_oris(gab_letters, gab_oris="any"):
+    """
+    filter_gab_oris(gab_letters)
 
     Returns Gabor orientations that fit with the specified frames.
 
     Required args:
         - gab_letters (list): Gabor letters for which to retrieve orientations
-        - gab_oris (list)   : Gabor orientations that can be included
+
+    Optional args:
+        - gab_oris (list or str): Gabor orientations that can be included
+                                  default: "any"
     
     Returns:
         - new_oris (list): list of orientations retained

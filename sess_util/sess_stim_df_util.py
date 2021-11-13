@@ -31,11 +31,12 @@ MS_TO_S = 1 / 1_000
 
 ##########################################
 
-STIMULUS_NAME_MAP = {"b": "visual_flow", "g": "gabors", -1: "grayscreen"}
+STIMULUS_NAME_MAP = {"b": "visflow", "g": "gabors", -1: "grayscreen"}
 FLIP_FRACTION = 0.25
 SQUARE_SIZE_TO_NUMBER = {128: 105, 256: 26, -1: -1}
 VISFLOW_DIR = {"right": "right (temp)", "left": "left (nasal)", -1: -1}
 
+GABOR_ORI_RANGE = [0, 360]
 GABORS_KAPPAS = [4, 16]
 GABORS_NUMBER = 30
 GABORS_SETS_TO_LETTER = {
@@ -72,9 +73,9 @@ FINAL_COLUMN_ORDER = [
     "start_frame_twop",
     "stop_frame_twop",
     "num_frames_twop",
-    "start_time",
-    "stop_time",
-    "duration",
+    "start_time_sec",
+    "stop_time_sec",
+    "duration_sec",
 ]
 STIMPAR = {
     "gabor_kappa": "stimPar2",
@@ -95,10 +96,111 @@ NWB_ONLY_COLUMNS = [
 
 
 #############################################
+def load_gen_stim_properties(stim_dict, stimtype="gabors", runtype="prod"):
+    """
+    load_gen_stim_properties(stim_dict)
+
+    Creates the alignment dataframe (stim_df) and saves it as a pickle
+    in the session directory, if it does not already exist. Returns dataframe.
+    
+    Arguments:
+        - stim_dict (dict)   : experiment stim dictionary, loaded from pickle
+        - stim_sync_h5 (Path): full path name of the experiment sync hdf5 file
+        - time_sync_h5 (Path): full path name of the time synchronization hdf5 
+                               file
+        - align_pkl (Path)   : full path name of the output pickle file to 
+                               create
+        - sessid (int)       : session ID, needed the check whether this 
+                               session needs to be treated differently 
+                               (e.g., for alignment bugs)
+
+    Optional arguments:
+        - runtype (str): runtype ("prod" or "pilot")
+                         default: "prod"):
+    
+    Returns:
+        - gen_stim_props (dict): dictionary with stimulus properties.
+            ["deg_per_pix"]: deg / pixel conversion used to generate stimuli
+            ["exp_len_s"]  : duration of an expected seq (sec) [min, max]
+            ["seg_len_s"]  : duration of an expected seq (sec) [min, max]
+            ["unexp_len_s"]: duration of an unexpected seq (sec) [min, max]
+            ["win_size"]   : window size [wid, hei] (in pixels)
+
+            if stimtype == "gabors":
+            ["n_segs_per_seq"]: number of segments in a sequence (including G)
+            ["phase"]         : phase (0-1)
+            ["sf"]            : spatial frequency (cyc/pix)
+            ["size_ran"]      : size range (in pixels)
+
+            if stimtype == "visflow":
+            ["speed"]         : visual flow speed (pix/sec)
+    """
+
+    if not isinstance(stim_dict, dict):
+        stim_dict = file_util.loadfile(stim_dict, filetype="pickle")
+
+    # run checks
+    runtypes = ["prod", "pilot"]
+    if runtype not in ["prod", "pilot"]:
+        gen_util.accepted_values_error("runtype", runtype, runtypes)
+
+    stimtypes = ["gabors", "visflow"]
+    if stimtype not in stimtypes:
+        gen_util.accepted_values_error("stimtype", stimtype, stimtypes)
+
+    # find a stimulus of the correct type in dictionary
+    stim_params_key = "stimParams" if runtype == "pilot" else "stim_params"
+    stimtype_key = "gabor_params" if stimtype == "gabors" else "square_params"
+    stim_ns = [
+        stim_n for stim_n, all_stim_info in enumerate(stim_dict["stimuli"]) 
+        if stimtype_key in all_stim_info[stim_params_key].keys()
+        ]
+    
+    if len(stim_ns) == 0:
+        raise RuntimeError(
+            f"No {stimtype} stimulus found in stimulus dictionary."
+            )
+    else:
+        stim_n = stim_ns[0] # same general stimulus properties expected for all
+
+    # collect information
+    all_stim_info = stim_dict["stimuli"][stim_n]
+
+    if runtype == "prod":
+        sess_par = all_stim_info[stim_params_key]["session_params"]
+    else:
+        sess_par = all_stim_info[stim_params_key]["subj_params"]
+
+    gen_stim_props = {
+        "win_size"   : sess_par["windowpar"][0],
+        "deg_per_pix": sess_par["windowpar"][1],
+    }
+
+    stimtype_info = all_stim_info[stim_params_key][stimtype_key]
+    gen_stim_props["exp_len_s"]   = stimtype_info["reg_len"]        
+    gen_stim_props["unexp_len_s"] = stimtype_info["surp_len"]
+
+    deg_per_pix = gen_stim_props["deg_per_pix"] 
+    if stimtype == "gabors":
+        gen_stim_props["seg_len_s"] = stimtype_info["im_len"]
+        gen_stim_props["n_segs_per_seq"] = stimtype_info["n_im"] + 1 # for G 
+
+        gen_stim_props["phase"]     = stimtype_info["phase"]
+        gen_stim_props["sf"]        = stimtype_info["sf"]
+        gen_stim_props["size_ran"]  = \
+            [x / deg_per_pix for x in stimtype_info["size_ran"]]
+    else:
+        gen_stim_props["seg_len_s"] = stimtype_info["seg_len"]
+        gen_stim_props["speed"]     = stimtype_info["speed"] / deg_per_pix
+    
+    return gen_stim_props
+
+
+#############################################
 def load_basic_stimulus_table(stim_dict, stim_sync_h5, time_sync_h5, align_pkl, 
                               sessid, runtype="prod"):
     """
-    load_basic_stimulus_table(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, 
+    load_basic_stimulus_table(stim_dict, stim_sync_h5, time_sync_h5, align_pkl, 
                               sessid)
 
     Creates the alignment dataframe (stim_df) and saves it as a pickle
@@ -128,7 +230,7 @@ def load_basic_stimulus_table(stim_dict, stim_sync_h5, time_sync_h5, align_pkl,
     sessdir = align_pkl.parent
 
     # create stim_df if doesn't exist
-    if not align_pkl.exists():
+    if not align_pkl.is_file():
         logger.info(f"Stimulus alignment pickle not found in {sessdir}, and "
             "will be created.", extra={"spacing": TAB})
         sess_sync_util.get_stim_frames(
@@ -177,7 +279,7 @@ def update_basic_stimulus_table(df):
             df[column] = -1
 
     # visual flow columns
-    stimulus_location = df["stimulus_type"] == "visual_flow"
+    stimulus_location = df["stimulus_type"] == "visflow"
 
     # set parameters from stimPar1 and stimPar2
     for key in ["square_size", "main_flow_direction"]:
@@ -214,7 +316,7 @@ def update_basic_stimulus_table(df):
 
     # drop non Gabors, visual flow rows and reindex
     df = (
-        df.loc[df["stimulus_type"].isin(["visual_flow", "gabors"])]
+        df.loc[df["stimulus_type"].isin(["visflow", "gabors"])]
         .sort_values("start_frame_twop")
         .reset_index(drop=True)
     )
@@ -261,8 +363,8 @@ def add_stimulus_frame_num(df, stim_dict, stim_align, runtype="prod"):
 
     df = df.sort_values("start_frame_twop").reset_index(drop=True)
 
-    stimulus_num_dict = {"gabors": [], "visual_flow": []}
-    stimulus_start_frame = {"gabors": [], "visual_flow": []}
+    stimulus_num_dict = {"gabors": [], "visflow": []}
+    stimulus_start_frame = {"gabors": [], "visflow": []}
 
     if runtype == "pilot":
         key = "stimParams"
@@ -283,7 +385,7 @@ def add_stimulus_frame_num(df, stim_dict, stim_align, runtype="prod"):
     num_pre_blank_frames = _num_pre_blank_frames(stim_dict)
 
     df = df.reset_index()
-    for stimulus in ["gabors", "visual_flow"]:
+    for stimulus in ["gabors", "visflow"]:
         order = np.argsort(stimulus_start_frame[stimulus])
         for dictionary in [stimulus_num_dict, stimulus_start_frame]:
             dictionary[stimulus] = [dictionary[stimulus][n] for n in order]
@@ -327,7 +429,7 @@ def add_stimulus_frame_num(df, stim_dict, stim_align, runtype="prod"):
                         f"Values in `{key}` do not match expected values."
                     )
 
-    df = df.drop("index", axis="columns")
+    df = df.drop(columns=["index"])
 
     return df
 
@@ -379,6 +481,10 @@ def add_stimulus_locations(df, stim_dict, runtype="prod"):
             "the pickle has stimuli."
         )
 
+    drop_columns = [
+        "gabor_orientations", "square_locations_x", "square_locations_y"
+        ]
+
     for s, (stimulus, stimulus_start) in enumerate(
         zip(sorted_stimuli, stimulus_starts)
     ):
@@ -415,17 +521,21 @@ def add_stimulus_locations(df, stim_dict, runtype="prod"):
             if gabor_orientations in stim_params.keys():
                 orientations = np.asarray(stim_params[gabor_orientations])
 
-                # adjust for Us, then set all to between 0 and 360
+                # adjust for Us, then set all to within pre-set range
                 U_rows = np.where(
                     (df.loc[basic_loc, "gabor_frame"] == "U").to_numpy()
                     )[0]
                 orientations[U_rows] += 90
-                orientations[orientations < 0] += 360
-                orientations[orientations > 360] -= 360
+                orientations[orientations < GABOR_ORI_RANGE[0]] += 360
+                orientations[orientations > GABOR_ORI_RANGE[1]] -= 360
 
                 df.loc[basic_loc, "gabor_orientations"] = pd.Series(
                     list(orientations), index=df.loc[basic_loc].index
                 )
+
+                # ensure column is kept
+                if "gabor_orientations" in drop_columns:
+                    drop_columns.remove("gabor_orientations")
 
             locations, sizes = [
                 np.asarray(sub)
@@ -453,7 +563,7 @@ def add_stimulus_locations(df, stim_dict, runtype="prod"):
                     index=df.loc[loc].index,
                 )
 
-        elif stimulus_type == "visual_flow":
+        elif stimulus_type == "visflow":
             if runtype == "pilot":
                 # different stimulus blocks are consecutive in locations array for pilot
                 seg_nbrs = list(filter(lambda x: x != -1, stimulus["frame_list"]))
@@ -491,12 +601,20 @@ def add_stimulus_locations(df, stim_dict, runtype="prod"):
                 df.loc[basic_loc, "square_locations_y"] = pd.Series(
                     list(np.transpose(locations[frames_stim_within, :, 1], [1, 2, 0])),
                     index=df.loc[basic_loc].index,
-            )
+                )
+
+                # ensure columns are kept
+                for col in ["square_locations_x", "square_locations_y"]:
+                    if col in drop_columns:
+                        drop_columns.remove(col)
 
         else:
             raise RuntimeError(
                 f"`stimulus_type` value {stimulus_type} not recognized."
                 )
+
+    if len(drop_columns):
+        df = df.drop(columns=drop_columns)
 
     return df
 
@@ -518,7 +636,7 @@ def modify_segment_num(df):
     df = df.sort_values("start_frame_twop").reset_index(drop=True)
     df = df.reset_index()
 
-    stimulus_types = ["gabors", "visual_flow"]
+    stimulus_types = ["gabors", "visflow"]
     for stimulus in stimulus_types:
         stimulus_location = df["stimulus_type"] == stimulus
         stimulus_df_start_idx = df.loc[
@@ -534,7 +652,7 @@ def modify_segment_num(df):
                 df.loc[sub_stimulus_location, "stimulus_segment"].max() + 1
             )
 
-    df = df.drop("index", axis="columns")
+    df = df.drop(columns=["index"])
 
     return df
 
@@ -751,12 +869,12 @@ def add_time(df, stim_dict, stimulus_timestamps):
 
     df = df.sort_values("start_frame_twop").reset_index(drop=True)
 
-    df["start_time"] = stimulus_timestamps[
+    df["start_time_sec"] = stimulus_timestamps[
         df["start_frame_stim"].values.astype(int)
     ]
 
     non_final = range(0, len(df) - 1)
-    df.loc[non_final, "stop_time"] = stimulus_timestamps[
+    df.loc[non_final, "stop_time_sec"] = stimulus_timestamps[
         df["stop_frame_stim"].values[:-1].astype(int)
     ]
 
@@ -766,10 +884,10 @@ def add_time(df, stim_dict, stimulus_timestamps):
         df.loc[final_row, "stop_frame_stim"] - 
         df.loc[final_row, "start_frame_stim"]
     ) / stim_dict["fps"]
-    df.loc[final_row, "stop_time"] = \
-        df.loc[final_row, "start_time"] + last_duration
+    df.loc[final_row, "stop_time_sec"] = \
+        df.loc[final_row, "start_time_sec"] + last_duration
 
-    df["duration"] = df["stop_time"] - df["start_time"]
+    df["duration_sec"] = df["stop_time_sec"] - df["start_time_sec"]
 
     return df
 
@@ -803,8 +921,8 @@ def add_stimulus_template_names_and_frames(df, stimulus_timestamps,
     df["stimulus_template_name"] = df["stimulus_type"].values
 
     if runtype == "pilot":
-        # visual_flow
-        stimulus = "visual_flow"
+        # visual flow
+        stimulus = "visflow"
         for square_size in df["square_size"].unique():
             for direction in df["main_flow_direction"].unique():
                 if direction == -1:
@@ -839,8 +957,8 @@ def add_stimulus_template_names_and_frames(df, stimulus_timestamps,
         ].values
 
     elif runtype == "prod":
-        # visual_flow
-        stimulus = "visual_flow"
+        # visual flow
+        stimulus = "visflow"
         for direction in df["main_flow_direction"].unique():
             if direction == -1:
                 continue
@@ -861,7 +979,7 @@ def add_stimulus_template_names_and_frames(df, stimulus_timestamps,
             df.loc[loc, "start_frame_stim_template"] = 0
         elif "gabors" in stimulus_template_name:
             df.loc[loc, "start_frame_stim_template"] = range(len(df.loc[loc]))
-        elif "visual_flow" in stimulus_template_name:
+        elif "visflow" in stimulus_template_name:
             start_frames = df.loc[loc, "start_frame_stim"]
             df.loc[loc, "start_frame_stim_template"] = start_frames - start_frames.min()
 
@@ -869,13 +987,14 @@ def add_stimulus_template_names_and_frames(df, stimulus_timestamps,
 
 
 #############################################
-def load_stimulus_table(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, 
+def load_stimulus_table(stim_dict, stim_sync_h5, time_sync_h5, align_pkl, 
                         sessid, runtype="prod"):
     """
     Retrieves and expands stimulus dataframe.
 
     Arguments:
-        stim_dict (dict)   : experiment stim dictionary, loaded from pickle
+        stim_dict (dict)   : experiment stim dictionary, loaded from pickle 
+                             (or full path to load it from)
         stim_sync_h5 (Path): full path name of the experiment sync hdf5 file
         time_sync_h5 (Path): full path name of the time synchronization hdf5 
                              file
@@ -894,15 +1013,14 @@ def load_stimulus_table(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl,
         stim_align (1D array): stimulus to 2p alignment array
     """
 
+    # PRE-LOAD EVERYTHING TO AVOID RE-LOADING
     # read the pickle file and call it "pkl"
-    if isinstance(stim_pkl, dict):
-        stim_dict = stim_pkl
-    else:
-        stim_dict = file_util.loadfile(stim_pkl, filetype="pickle")
+    if not isinstance(stim_dict, dict):
+        stim_dict = file_util.loadfile(stim_dict, filetype="pickle")
 
-    # load dataframe as is (or triggers creation, if it doesn't exist)
+    # load dataframe as is (or trigger creation, if it doesn't exist)
     df, stim_align = load_basic_stimulus_table(
-        stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid, 
+        stim_dict, stim_sync_h5, time_sync_h5, align_pkl, sessid, 
         runtype=runtype
     )
 
@@ -911,6 +1029,7 @@ def load_stimulus_table(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl,
         stim_dict, stim_align, time_sync_h5
         )
 
+    # CREATE DATAFRAME
     # load dataframe with updated column names
     df = update_basic_stimulus_table(df)
 
@@ -949,9 +1068,9 @@ def load_stimulus_table(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl,
         "start_frame_twop",
         "stop_frame_twop",
         "num_frames_twop",
-        "start_time",
-        "stop_time",
-        "duration",
+        "start_time_sec",
+        "stop_time_sec",
+        "duration_sec",
     ]
 
     for column in check_for_values:
@@ -999,9 +1118,9 @@ def add_frames_from_timestamps(df, twop_timestamps, stim_timestamps):
 
     df = df.copy()
 
-    start_times = df["start_time"].to_numpy()
+    start_times = df["start_time_sec"].to_numpy()
 
-    start_times = np.append(start_times, df.loc[len(df) - 1, "stop_time"])
+    start_times = np.append(start_times, df.loc[len(df) - 1, "stop_time_sec"])
 
     for fr_type, timestamps in zip(
         ["twop", "stim"], [twop_timestamps, stim_timestamps]
@@ -1040,6 +1159,13 @@ def load_stimulus_table_nwb(sess_files, full_table=True):
     with pynwb.NWBHDF5IO(sess_file, "r") as f:
         nwbfile_in = f.read()
         df = nwbfile_in.trials.to_dataframe(exclude=exclude)
+    
+    # rename time columns
+    df = df.rename(
+        {"start_time": "start_time_sec", 
+         "stop_time": "stop_time_sec"}
+    )
+    df["duration_sec"] = df["stop_time_sec"] - df["start_time_sec"]
 
     # add 2p and stimulus frames back in, if necessary
     if "start_frame_stim" not in df.columns:

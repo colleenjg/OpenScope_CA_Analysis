@@ -214,10 +214,7 @@ def get_stimpar(comp="unexp", stimtype="gabors", visflow_dir="both",
                 if comp in ["Dori", "Uori"]:
                     pre, post = 0, 0.6
                 act_gabfr = act_gabfr[0]
-                poss_gab_oris = [0, 45, 90, 135]
-                if comp == "Uori":
-                    poss_gab_oris = [ori + 90 for ori in poss_gab_oris]
-                gab_oris = [ori for ori in gab_ori if ori in poss_gab_oris]
+                gab_oris = sess_gen_util.filter_gab_oris(act_gabfr[0])
                 if act_gabfr != gabfr:
                     logger.info(
                         f"Setting gabfr to {act_gabfr} instead of {gabfr}.")
@@ -524,9 +521,6 @@ def get_classes(comp="unexp", gab_ori="all"):
         - classes (list): list of class names
     """
 
-    if gab_ori == "all":
-        gab_ori = [0, 45, 90, 135]
-
     if comp == "unexp":
         classes = ["Expected", "Unexpected"]
     elif comp in ["AvB", "AvC", "BvC", "DvU"]:
@@ -534,10 +528,7 @@ def get_classes(comp="unexp", gab_ori="all"):
     elif "ori" in comp:
         deg_vals = gab_ori
         stripped = comp.replace("ori", "")
-        if stripped == "U":
-            deg_vals = [val + 90 for val in deg_vals]
-        elif len(stripped) == 2:
-            deg_vals = gab_ori[0]
+        gab_ori = sess_gen_util.filter_gab_oris(stripped, gab_ori)
         deg = u"\u00B0"
         classes = [f"{val}{deg}" for val in deg_vals]
     elif "dir" in comp:

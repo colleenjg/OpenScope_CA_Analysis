@@ -485,7 +485,7 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
 
 
 #############################################
-def get_sess_ex_traces(sess, analyspar, stimpar, basepar):
+def get_sess_ex_traces(sess, analyspar, stimpar, basepar, rolling_win=4):
     """
     get_sess_ex_traces(sess, analyspar, stimpar, basepar)
 
@@ -508,14 +508,20 @@ def get_sess_ex_traces(sess, analyspar, stimpar, basepar):
         - basepar (BasePar): 
             named tuple containing baseline parameters
 
+    Optional args:
+        - rolling_win (int):
+            window to use in rolling mean over individual trial traces before 
+            computing cross-correlation across trials
+            default: 4 
+
     Returns:
         - selected_roi_data (dict):
             ["time_values"] (1D array): values for each frame, in seconds
                 (only 0 to stimpar.post, unless split is "by_exp")
             ["roi_ns"] (1D array): selected ROI numbers
-            ["roi_traces"] (3D array): selected ROI sequence traces,
-                dims: ROIs x seq x frames
-            ["roi_trace_stat"] (2D array): selected ROI trace mean or median, 
+            ["roi_traces_sm"] (3D array): selected ROI sequence traces, 
+                smoothed, with dims: ROIs x seq x frames
+            ["roi_trace_stats"] (2D array): selected ROI trace mean or median, 
                 dims: ROIs x frames
     """
 
@@ -532,6 +538,10 @@ def get_sess_ex_traces(sess, analyspar, stimpar, basepar):
     snrs = misc_analys.get_snr(sess, snr_analyspar, "snrs")
     snr_median = np.median(snrs)
 
+    # identify ROIs that meet the SNR threshold
+    snr_thr_rois = np.where(snrs > snr_median)[0]
+
+    # collect all data, and compute statistics
     traces, time_values = basic_analys.get_split_data_by_sess(
         sess,
         analyspar=analyspar,
@@ -540,41 +550,43 @@ def get_sess_ex_traces(sess, analyspar, stimpar, basepar):
         baseline=basepar.baseline,
         )
 
-    traces_exp = np.asarray(traces[0])
+    traces_exp = np.asarray(traces[0]) # get expected split
     traces_exp_stat = math_util.mean_med(
         traces_exp, stats=analyspar.stats, axis=1, nanpol=nanpol
         )
 
-    # select for SNR threshold
-    snr_thr_rois = np.where(snrs > snr_median)[0]
+    # smooth individual traces, then compute cross-correlations
+    traces_exp = math_util.rolling_mean(traces_exp, win=rolling_win)
     
-    # get upper diagonal indices for cross-correlations
-    triu_idx = np.triu_indices(traces_exp[snr_thr_rois].shape[1])
+    triu_idx = np.triu_indices(traces_exp[snr_thr_rois].shape[1], k=1)
     cc_medians = [
         np.median(np.corrcoef(roi_trace)[triu_idx]) 
         for roi_trace in traces_exp[snr_thr_rois]
         ]
 
-    trace_stds = np.std(traces_exp_stat[snr_thr_rois], axis=1)
-    trace_skews = scist.skew(traces_exp_stat[snr_thr_rois], axis=1)
+    # calculate std and skew over trace statistics
+    trace_stat_stds = np.std(traces_exp_stat[snr_thr_rois], axis=1)
+    trace_stat_skews = scist.skew(traces_exp_stat[snr_thr_rois], axis=1)
     
-    std_thr = np.percentile(trace_stds, 75)
-    skew_thr = np.percentile(trace_skews, 75)
-    cc_thr = np.percentile(cc_medians, 75)
+    # identify ROIs that meet thresholds (from those with high enough SNR)
+    std_thr = np.percentile(trace_stat_stds, 75)
+    skew_thr = np.percentile(trace_stat_skews, 75)
+    cc_thr = np.percentile(cc_medians, 50)
     
     selected_idx = np.where(
-        ((trace_stds > std_thr) * 
+        ((trace_stat_stds > std_thr) * 
          (cc_medians > cc_thr) * 
-         (trace_skews > skew_thr))
+         (trace_stat_skews > skew_thr))
          )[0]
     
+    # re-index into all ROIs
     roi_ns = snr_thr_rois[selected_idx]
 
     selected_roi_data = {
-        "time_values"   : time_values,
-        "roi_ns"        : roi_ns,
-        "roi_traces"    : traces_exp[roi_ns], 
-        "roi_trace_stat": traces_exp_stat[roi_ns]
+        "time_values"    : time_values,
+        "roi_ns"         : roi_ns,
+        "roi_traces_sm"  : traces_exp[roi_ns], 
+        "roi_trace_stats": traces_exp_stat[roi_ns]
     }
 
     return selected_roi_data
@@ -582,7 +594,7 @@ def get_sess_ex_traces(sess, analyspar, stimpar, basepar):
 
 #############################################
 def get_ex_traces_df(sessions, analyspar, stimpar, basepar, n_ex=6, 
-                     randst=None, parallel=False):
+                     rolling_win=4, randst=None, parallel=False):
     """
     get_ex_traces_df(sessions, analyspar, stimpar, basepar)
 
@@ -602,6 +614,9 @@ def get_ex_traces_df(sessions, analyspar, stimpar, basepar, n_ex=6,
         - n_ex (int):
             number of example traces to retain
             default: 6
+        - rolling_win (int):
+            window to use in rolling mean over individual trial traces
+            default: 4 
         - randst (int or np.random.RandomState): 
             random state or seed value to use. (-1 treated as None)
             default: None
@@ -616,8 +631,9 @@ def get_ex_traces_df(sessions, analyspar, stimpar, basepar, n_ex=6,
             - time_values (list): values for each frame, in seconds
                 (only 0 to stimpar.post, unless split is "by_exp")
             - roi_ns (list): selected ROI number
-            - traces (list): selected ROI sequence traces, dims: seq x frames
-            - trace_stat (list): selected ROI trace mean or median
+            - traces_sm (list): selected ROI sequence traces, smoothed, with 
+                dims: seq x frames
+            - trace_stats (list): selected ROI trace mean or median
     """
 
     retained_traces_df = misc_analys.get_check_sess_df(
@@ -629,8 +645,10 @@ def get_ex_traces_df(sessions, analyspar, stimpar, basepar, n_ex=6,
         f"Identifying example ROIs for each session...", 
         extra={"spacing": TAB}
         )
+
     retained_roi_data = gen_util.parallel_wrap(
-        get_sess_ex_traces, sessions, [analyspar, stimpar, basepar], 
+        get_sess_ex_traces, sessions, 
+        [analyspar, stimpar, basepar, rolling_win], 
         parallel=parallel
         )
     
@@ -682,7 +700,7 @@ def get_ex_traces_df(sessions, analyspar, stimpar, basepar, n_ex=6,
                 source_row["time_values"].tolist()
             
             roi_idx = concat_idx - n_per[: sess_idx].sum()
-            for col in ["roi_ns", "traces", "trace_stat"]: 
+            for col in ["roi_ns", "traces_sm", "trace_stats"]: 
                 source_col = col.replace("trace", "roi_trace")
                 selected_traces_df.at[row_idx, col] = \
                     source_row[source_col][roi_idx].tolist()
@@ -761,31 +779,16 @@ def get_sess_integ_resp_dict(sess, analyspar, stimpar):
             else:
                 data_key = unexp
             
-            if cycle_gabfr[g] == "G": # change it for retrieving segments
-                gabfr = 3 
-            
             refs = stim.get_segs_by_criteria(
                 gabfr=gabfr, gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
                 visflow_dir=stimpar.visflow_dir, 
                 visflow_size=stimpar.visflow_size, unexp=e, remconsec=False, 
                 by="seg")
             
-            # adjust for G frames
-            ref_type = "segs"
-            if cycle_gabfr[g] == "G": # check unchanged value
-                ref_type = "twop_frs"
-                refs = stim.get_fr_by_seg(
-                    refs, start=False, stop=True, ch_fl=[0, 0.6], fr_type="twop"
-                    )["stop_frame_twop"].to_numpy() # last frames (excl)
-                if len(refs) == 0:
-                    raise RuntimeError(
-                        "No frames found given flank requirements."
-                        )
-            
             # ROI x seq
             data, _ = basic_analys.get_data(
                 stim, refs, analyspar, pre=stimpar.pre, post=stimpar.post, 
-                integ=True, ref_type=ref_type
+                integ=True, ref_type="segs"
                 )
             
             # take stats across sequences

@@ -573,6 +573,100 @@ def gabor_tracked_roi_abs_usi_means_sess123(
 
 
 ############################################
+def gabor_tracked_roi_usi_variances_sess123(
+        sessions, analyspar, sesspar, stimpar, basepar, idxpar, permpar, 
+        figpar, seed=None, parallel=False):
+    """
+    gabor_tracked_roi_usi_variances_sess123(
+        sessions, analyspar, sesspar, stimpar, basepar, idxpar, permpar, 
+        figpar)
+
+    Retrieves tracked ROI Gabor USI variances for session 1 to 3.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - basepar (BasePar): 
+            named tuple containing baseline parameters
+        - idxpar (IdxPar): 
+            named tuple containing index parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
+        - figpar (dict): 
+            dictionary containing figure parameters
+    
+    Optional args:
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+    """
+
+    logger.info(
+        "Compiling tracked ROI Gabor USI variances for sessions 1 to 3.", 
+        extra={"spacing": "\n"})
+
+    if not analyspar.tracked:
+        raise ValueError("analyspar.tracked should be set to True.")
+
+    # remove incomplete session series and warn
+    sessions = misc_analys.check_sessions_complete(sessions)
+
+    # calculate multiple comparisons
+    dummy_df = misc_analys.get_check_sess_df(
+        sessions, None, analyspar).drop_duplicates(
+            subset=["lines", "planes", "sess_ns"])
+
+    permpar = misc_analys.set_multcomp(permpar, sess_df=dummy_df, CIs=False)
+
+    absolute = False
+    by_mouse = False
+    stat = "var"
+    idx_stats_df = usi_analys.get_idx_stats_df(
+        sessions, 
+        analyspar=analyspar, 
+        stimpar=stimpar, 
+        basepar=basepar, 
+        idxpar=idxpar, 
+        permpar=permpar, 
+        absolute=absolute, 
+        by_mouse=by_mouse, 
+        stat=stat,
+        randst=seed,
+        parallel=parallel, 
+        )
+
+    extrapar = {
+        "absolute": absolute,
+        "by_mouse": by_mouse,
+        "seed"    : seed,
+        "stat"    : stat,
+        }
+
+    info = {"analyspar"   : analyspar._asdict(),
+            "sesspar"     : sesspar._asdict(),
+            "stimpar"     : stimpar._asdict(),
+            "basepar"     : basepar._asdict(),
+            "idxpar"      : idxpar._asdict(),
+            "permpar"     : permpar._asdict(),
+            "extrapar"    : extrapar,
+            "idx_stats_df": idx_stats_df.to_dict()
+            }
+
+    helper_fcts.plot_save_all(info, figpar)
+
+                
+############################################
 def gabor_roi_usi_sig_by_mouse(sessions, analyspar, sesspar, stimpar, basepar, 
                                idxpar, permpar, figpar, seed=None, 
                                parallel=False):
