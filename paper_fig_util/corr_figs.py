@@ -1,7 +1,7 @@
 """
 corr_figs.py
 
-This script contains functions defining correlation figure panel analyses.
+This script contains functions defining USI correlation figure panel analyses.
 
 Authors: Colleen Gillon
 

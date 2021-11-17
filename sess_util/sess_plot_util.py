@@ -143,8 +143,10 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                "fontdir"  : fontdir,
                 }
 
-    subdir = Path("paper", "figures") if paper else "figures"
-    figdir = Path(output, "results", subdir)
+    if paper:
+        figdir = Path(output, "paper_figures")
+    else:
+        figdir = Path(output, "results", "figures")
 
     fig_dirs = {"figdir"   : figdir,
                 "roi"      : Path(figdir, f"{runtype}_roi"),
@@ -311,12 +313,12 @@ def add_axislabels(sub_ax, fluor="dff", area=False, scale=False, datatype="roi",
 
 
 #############################################
-def get_fr_lab(plot_vals="both", op="diff", start_fr=-1):
+def get_fr_lab(plot_vals="both", op="diff", start_fr=0):
     """
     get_fr_lab()
 
     Returns a list of labels for gabor frames based on values that are plotted,
-    and operation on unexpected v expected, starting with grayscreen (G).
+    and operation on unexpected v expected, ending with grayscreen (G).
 
     Optional args:
         - plot_vals (str): values plotted ("unexp", "exp", "both")
@@ -324,14 +326,14 @@ def get_fr_lab(plot_vals="both", op="diff", start_fr=-1):
         - op (str)       : operation on the values, if both ("ratio" or "diff")
                            default: "diff"
         - start_fr (int) : starting gabor frame 
-                           (-1: G, 0: A, 1: B, 2:C, 3:D/U)
+                           (0: A, 1: B, 2:C, 3:D/U, 4: G)
                            default: -1
     
     Returns:
         - labels (list)  : list of labels for gabor frames
     """
 
-    labels = ["G", "A", "B", "C"]
+    labels = ["A", "B", "C"]
 
     if plot_vals == "unexp":
         labels.extend(["U"])
@@ -348,8 +350,10 @@ def get_fr_lab(plot_vals="both", op="diff", start_fr=-1):
         gen_util.accepted_values_error(
             "plot_vals", plot_vals, ["both", "exp", "unexp"])
 
-    if start_fr != -1:
-        labels = list(np.roll(labels, -(start_fr+1)))
+    labels.append("G")
+
+    if start_fr != 0:
+        labels = list(np.roll(labels, -start_fr))
 
     return labels
 
@@ -609,7 +613,10 @@ def update_plt_linpla():
     plt.rcParams.update({
         "lines.linewidth"      : 5.0, 
         "patch.linewidth"      : 5.0, 
+        "axes.labelsize"       : "x-large",
         "axes.linewidth"       : 4.0, 
+        "axes.titlesize"       : "x-large",
+        "figure.titlesize"     : "x-large",
         "xtick.major.width"    : 4.0, 
         "ytick.major.width"    : 4.0, 
         "lines.markeredgewidth": 4.0, 
@@ -902,28 +909,26 @@ def add_linpla_axislabels(ax, fluor="dff", area=False, scale=False,
     n_rows, n_cols = ax.shape
     if n_rows % 2 != 0 or n_cols % 2 != 0:
         raise RuntimeError("Expected even number of rows and columns.")
-    row_per_grp = int(n_rows/2)
-    col_per_grp = int(n_cols/2)
+    row_per_grp = int(n_rows / 2)
+    col_per_grp = int(n_cols / 2)
     
     # add x label
     if single_lab:    
         if kind == "reg":
-            fig_ypos = 0.02
+            fig_ypos = 0.03
         elif kind in ["traces", "idx"]:
             fig_ypos = -0.01
         else:
-            fig_ypos = 0
-        fig.text(0.5, fig_ypos, x_str, fontsize="xx-large", 
+            fig_ypos = -0.02
+        fig.text(0.5, fig_ypos, x_str, fontsize="x-large", 
             horizontalalignment="center", weight="bold")
     else:
         for sub_ax in ax.reshape(-1):
             if sub_ax.is_last_row():
                 if kind == "prog":
-                    if x_str == "Sessions":
-                        x_str = "Session"
                     x_pos = fig.transFigure.inverted().transform(
                         sub_ax.transAxes.transform([0.5, 0]))[0]
-                    fig.text(x_pos, 0, x_str, fontsize="xx-large", 
+                    fig.text(x_pos, 0, x_str, fontsize="x-large", 
                         horizontalalignment="center", weight="bold")
                 else:
                     sub_ax.set_xlabel(x_str, weight="bold")
@@ -939,7 +944,7 @@ def add_linpla_axislabels(ax, fluor="dff", area=False, scale=False,
     y_lab_xpos = fig_transform(ax[0, 0].yaxis.label.get_window_extent())[0, 0]
     
     for y_pos in add_y_pos:
-        fig.text(y_lab_xpos, y_pos, y_str, rotation=90, fontsize="xx-large", 
+        fig.text(y_lab_xpos, y_pos, y_str, rotation=90, fontsize="x-large", 
             verticalalignment="center", weight="bold")
 
     # remove tick labels for all but last row and first column
@@ -963,7 +968,7 @@ def add_linpla_axislabels(ax, fluor="dff", area=False, scale=False,
 
 #############################################
 def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind="reg", 
-                               single_lab=True):
+                               single_lab=True, sess_text=True):
     """
     format_each_linpla_subaxis(ax)
 
@@ -992,6 +997,9 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind="reg",
         - single_lab (bool): if True, only one set of session labels it added 
                              to the graph
                              default: True 
+        - sess_text (bool) : if True, session numbers are included as text in 
+                             the subplots
+                             default: True
     """
     # make sure to autoscale subplots after this, otherwise bugs emerge
     for sub_ax in ax.reshape(-1):
@@ -1041,16 +1049,27 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind="reg",
                 if len(xticks) == 1:
                     sub_ax.set_xlim(xticks[0] - 1, xticks[0] + 1)
             # add session numbers
-            if kind in ["traces", "idx", "prog"] and sess_ns is not None :
-                if kind in ["traces", "idx"] and c == 1 and r < len(sess_ns): # RIGHT
-                    sess_lab = f"sess {sess_ns[r]}"
-                    sub_ax.text(0.65, 0.75, sess_lab, fontsize="xx-large", 
-                        transform=sub_ax.transAxes, style="italic")
-                elif (kind == "prog" and sub_ax.is_last_row() and 
-                    (c < len(sess_ns) or not(single_lab))): # BOTTOM
-                    sub_ax.text(0.5, -0.5, sess_ns[c % len(sess_ns)], 
-                        fontsize="xx-large", transform=sub_ax.transAxes, 
-                        weight="bold")
+            if kind in ["traces", "idx", "prog"] and sess_ns is not None:
+                if sess_text:
+                    # place session labels in right/top subplots
+                    if kind == "prog":
+                        sess_idx = c % len(sess_ns)
+                        if r != 0 or c < len(sess_ns):
+                            sess_idx = None
+                    else:
+                        sess_idx = r
+                        if c != 1 or r >= len(sess_ns):
+                            sess_idx = None
+                    if sess_idx is not None:
+                        sess_lab = f"sess {sess_ns[sess_idx]}"
+                        sub_ax.text(0.65, 0.75, sess_lab, fontsize="x-large", 
+                            transform=sub_ax.transAxes, style="italic")
+                elif kind == "prog": # alternative session labels for "prog"
+                    if (sub_ax.is_last_row() and 
+                        (c < len(sess_ns) or not(single_lab))): # BOTTOM
+                        sub_ax.text(0.5, -0.5, sess_ns[c % len(sess_ns)], 
+                            fontsize="x-large", transform=sub_ax.transAxes, 
+                            weight="bold")
             
             # remove x ticks and spines from graphs
             if not sub_ax.is_last_row() and kind != "idx": # NOT BOTTOM
@@ -1065,6 +1084,7 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind="reg",
 
             yticks = [np.around(v, 10) for v in sub_ax.get_yticks()]
             if kind in ["traces", "idx"] and len(yticks) > 3:
+
                 max_abs = np.max(np.absolute(yticks))
                 new = [-max_abs, 0, max_abs]
                 yticks = list(filter(lambda x: x == 0 or x in yticks, new))
@@ -1137,13 +1157,16 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
     if kind != "idx" and modif_share:
         adjust_linpla_y_axis_sharing(ax, kind=kind)
 
-    format_each_linpla_subaxis(ax, xticks=xticks, sess_ns=sess_ns, kind=kind)
+    sess_text = False if (kind == "prog" and xlab is None) else True
+    format_each_linpla_subaxis(
+        ax, xticks=xticks, sess_ns=sess_ns, kind=kind, sess_text=sess_text
+        )
 
     # get information based on kind of graph
     n_rows, n_cols = ax.shape
     row_per_grp, col_per_grp = 1, 1
     if kind in ["reg", "map"]:
-        fig_xpos = 0.9 # for plane names (x pos)
+        fig_xpos = 0.93 # for plane names (x pos)
         fig_ypos = 1 if kind == "reg" else 1.02 # for line names (y pos)
         n = 4
         if n_rows != 2 or n_cols != 2:
@@ -1152,7 +1175,7 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
                 )
     elif kind in ["traces", "idx"]:
         fig_xpos = 1.0 # for plane names (x pos)
-        fig_ypos = 1.0 # for line names (y pos)
+        fig_ypos = 1.04 # for line names (y pos)
         if n_rows % 2 != 0:
             raise RuntimeError("Expected even number of rows")
         row_per_grp = int(n_rows/2)
@@ -1161,7 +1184,7 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
     elif kind == "prog":
         n = 3
         fig_xpos = 1.0 # for plane names (x pos)
-        fig_ypos = 1.0 # for line names (y pos)
+        fig_ypos = 1.02 # for line names (y pos)
         if n_cols % 2 != 0:
             raise RuntimeError("Expected even number of columns")
         col_per_grp = int(n_cols/2)
@@ -1178,7 +1201,7 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
     elif kind == "idx":
         xlab = "Index" if xlab is None else xlab
     elif kind != "map":
-        xlab = "Sessions" if xlab is None else xlab
+        xlab = "Session" if xlab is None else xlab
 
     # get and check lines and planes
     if lines is None:
@@ -1199,7 +1222,7 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
     # adds plane labels (vertical)
     plane_pos = plot_util.get_fig_rel_pos(ax, row_per_grp, axis="y")
     for plane, pos in zip(planes, plane_pos):
-        fig.text(fig_xpos, pos, plane, rotation=90, fontsize="xx-large", 
+        fig.text(fig_xpos, pos, plane, rotation=90, fontsize="x-large", 
             verticalalignment="center", weight="bold")
 
     # adds line names (horizontal)
@@ -1212,7 +1235,7 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
             # get ypos based on plane positions
             fact = 0.5 * fig_ypos
             ypos = np.max(plane_pos) + np.absolute(np.diff(plane_pos)) * fact
-            fig.text(pos, ypos, line_name, fontsize="xx-large", 
+            fig.text(pos, ypos, line_name, fontsize="x-large", 
                 horizontalalignment="center", weight="bold")
 
     # add axis labels

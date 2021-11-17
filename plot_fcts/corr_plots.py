@@ -1,7 +1,7 @@
 """
 corr_plots.py
 
-This script contains functions for plotting correlation analyses.
+This script contains functions for plotting USI correlation analyses.
 
 Authors: Colleen Gillon
 
@@ -224,7 +224,7 @@ def plot_corr_ex_data_histogram(sub_ax, idx_corr_norm_row, corr_name="1v2",
     sub_ax.set_xlabel("Raw correlations", fontweight="bold")
     sub_ax.set_title(
         f"Normalized residual\ncorrelation: {norm_corr:.2f}", 
-        fontweight="bold", y=1.07, fontsize=20
+        fontweight="bold", y=1.07
     )
 
 
@@ -459,11 +459,11 @@ def plot_idx_correlations(idx_corr_df, permpar, figpar, permute="sess",
     figpar["init"]["gs"] = {"hspace": 0.25}
     if small:
         figpar["init"]["subplot_wid"] = 2.7
-        figpar["init"]["subplot_hei"] = 4.2
+        figpar["init"]["subplot_hei"] = 4.21
         figpar["init"]["gs"]["wspace"] = 0.2
     else:
         figpar["init"]["subplot_wid"] = 3.3
-        figpar["init"]["subplot_hei"] = 4.7
+        figpar["init"]["subplot_hei"] = 4.71
         figpar["init"]["gs"]["wspace"] = 0.3 
         
     fig, ax = plot_util.init_fig(n_pairs * 2, **figpar["init"])
@@ -561,18 +561,160 @@ def plot_idx_correlations(idx_corr_df, permpar, figpar, permute="sess",
 
 
 #############################################
-def plot_idx_corr_scatterplots(idx_corr_df, sesspar, permpar, figpar, 
-                               permute="sess", title=None):
+def add_scatterplot_markers(sub_ax, permpar, regr_corr, rand_corr_med, slope, 
+                            intercept, p_val, col="k", diffs=False):
     """
-    plot_idx_corr_scatterplots(idx_corr_df, sesspar, permpar, figpar)
+    add_scatterplot_markers(sub_ax, permpar, regr_corr, rand_corr_med, slope, 
+                            intercept)
+    
+    Adds markers to a scatterplot plot (regression line, quadrant shading, 
+    slope and significance text).
+
+    Required args:
+        - sub_ax (plt subplot): 
+            subplot
+        - permpar (dict): 
+            dictionary with keys of PermPar namedtuple
+        - regr_corr (float):
+            regression correlation
+        - rand_corr_med (float):
+            median of the random correlations            
+        - slope (float):
+            regression slope
+        - intercept (float):
+            regression intercept            
+        - p_val (float):
+            correlation p-value for significance marker
+    
+    Optional args:
+        - col (str):
+            regression line colour
+            default: "k"
+        - diffs (bool):
+            if True, and a horizontal line at 0 is plotted instead of the 
+            identity line
+            default: False
+    """
+    
+    # match x and y limits
+    if not diffs:
+        lims = (
+            np.min([sub_ax.get_xlim()[0], sub_ax.get_ylim()[0]]), 
+            np.max([sub_ax.get_xlim()[1], sub_ax.get_ylim()[1]])
+        )
+        sub_ax.set_xlim(lims)
+        sub_ax.set_ylim(lims)
+
+    for axis in ["x", "y"]:
+        plot_util.set_interm_ticks(
+            np.asarray(sub_ax), n_ticks=4, axis=axis, share=False, 
+            fontweight="bold", update_ticks=True
+            )
+
+    # plot lines
+    lims = sub_ax.get_xlim()
+    line_kwargs = {
+        "ls"    : plot_helper_fcts.VDASH,
+        "color" : "k",
+        "alpha" : 0.2,
+        "zorder": -15,
+        "lw"    : 4,
+    }
+
+    if diffs:
+        sub_ax.axhline(y=0, **line_kwargs)
+    else:
+        # identity line
+        sub_ax.plot([lims[0], lims[1]], [lims[0], lims[1]], **line_kwargs)
+    
+    # shade in opposite quadrants
+    sub_ax.fill_between(
+        [lims[0], 0], 0, lims[1], alpha=0.075, facecolor="k", 
+        edgecolor="none", zorder=-16
+        )
+    sub_ax.fill_between(
+        [0, lims[1]], lims[0], 0, alpha=0.075, facecolor="k", 
+        edgecolor="none", zorder=-16
+        )
+
+    # regression line
+    x_line = lims
+    y_line = np.array(x_line) * slope + intercept
+    sub_ax.plot(
+        x_line, y_line, ls=plot_helper_fcts.VDASH, color=col, alpha=0.8, 
+        lw=line_kwargs["lw"]
+    )
+
+    # get significance info and slope
+    side = np.sign(regr_corr - rand_corr_med)
+    sensitivity = misc_analys.get_sensitivity(permpar)          
+    sig_str = misc_analys.get_sig_symbol(
+        p_val, sensitivity=sensitivity, side=side, 
+        tails=permpar["tails"], p_thresh=permpar["p_val"]
+        )
+
+    # write slope on subplot
+    lim_range = lims[1] - lims[0]
+    x_pos = lims[0] + lim_range * 0.97
+    y_pos = lims[0] + lim_range * 0.05
+    slope_str = f"{sig_str} slope: {slope:.2f}"
+    sub_ax.text(
+        x_pos, y_pos, slope_str, fontweight="bold", style="italic", 
+        fontsize=16, ha="right"
+        )
+
+    return sig_str
 
 
+#############################################
+def plot_idx_corr_scatterplots(idx_corr_df, permpar, figpar, permute="sess", 
+                               title=None):
+    """
+    plot_idx_corr_scatterplots(idx_corr_df, permpar, figpar)
 
+    Plots ROI USI index correlation scatterplots for individual session 
+    comparisons.
 
+    Required args:
+        - idx_corr_df (pd.DataFrame):
+            dataframe with one row per line/plane, and the 
+            following columns, in addition to the basic sess_df columns:
 
+            for correlation data (normalized if corr_type is "diff_corr") for 
+            session comparisons (x, y), e.g. 1v2
+            - binned_rand_stats (list): number of random correlation values per 
+                bin (xs x ys)
+            - corr_data_xs (list): USI values for x
+            - corr_data_ys (list): USI values for y
+            - corrs (float): correlation between session data (x and y)
+            - p_vals (float): p-value for correlation, corrected for 
+                multiple comparisons and tails
+            - rand_corr_meds (float): median of the random correlations
+            - raw_p_vals (float): p-value for intersession correlations
+            - regr_coefs (float): regression correlation coefficient (slope)
+            - regr_intercepts (float): regression correlation intercept
+            - x_bin_mids (list): x mid point for each random correlation bin
+            - y_bin_mids (list): y mid point for each random correlation bin
 
+        - permpar (dict): 
+            dictionary with keys of PermPar namedtuple
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters
 
+    Optional args:
+        - permute (bool):
+            type of permutation to due ("tracking", "sess" or "all")
+            default: "sess"
+        - title (str):
+            plot title
+            default: None
 
+    Returns:
+        - ax (2D array): 
+            array of subplots
     """
 
     diffs = False
@@ -594,6 +736,7 @@ def plot_idx_corr_scatterplots(idx_corr_df, sesspar, permpar, figpar,
 
     sess_ns = None
 
+    # first pass to plot
     for (line, plane), lp_df in idx_corr_df.groupby(["lines", "planes"]):
         li, pl, col, _ = plot_helper_fcts.get_line_plane_idxs(line, plane)
         sub_ax = ax[pl, li]
@@ -620,9 +763,9 @@ def plot_idx_corr_scatterplots(idx_corr_df, sesspar, permpar, figpar,
             *density_data, levels=6, cmap="Greys", zorder=-13, linewidths=4
             )
 
-        alpha = 0.3 ** (len(lp_row["corr_data_x"]) / 300)
+        alpha = 0.3 ** (len(lp_row["corr_data_xs"]) / 300)
         sub_ax.scatter(
-            lp_row["corr_data_x"], lp_row["corr_data_y"], color=col, 
+            lp_row["corr_data_xs"], lp_row["corr_data_ys"], color=col, 
             alpha=alpha, lw=2, s=35
             )
     
@@ -631,83 +774,36 @@ def plot_idx_corr_scatterplots(idx_corr_df, sesspar, permpar, figpar,
         ax, datatype="roi", xticks=None, ylab=ylabel, xlab=xlabel, kind="reg"
         )
 
+    # second pass to add plot markings
+    comp_info = misc_analys.get_comp_info(permpar)
+    logger.info(f"Corrected p-values ({comp_info}):", extra={"spacing": "\n"})
+    sig_str = ""
     for (line, plane), lp_df in idx_corr_df.groupby(["lines", "planes"]):
         li, pl, col, _ = plot_helper_fcts.get_line_plane_idxs(line, plane)
+        line_plane_name = plot_helper_fcts.get_line_plane_name(
+            line, plane
+            )
         sub_ax = ax[pl, li]
 
+        # add markers back in (removed due to kind='reg')
         sub_ax.tick_params(axis="x", which="both", bottom=True, top=False) 
         sub_ax.spines["bottom"].set_visible(True)
 
         lp_row = lp_df.loc[lp_df.index[0]]
-        
-        # match x and y limits
-        if not diffs:
-            lims = (
-                np.min([sub_ax.get_xlim()[0], sub_ax.get_ylim()[0]]), 
-                np.max([sub_ax.get_xlim()[1], sub_ax.get_ylim()[1]])
-            )
-            sub_ax.set_xlim(lims)
-            sub_ax.set_ylim(lims)
 
-        for axis in ["x", "y"]:
-            plot_util.set_interm_ticks(
-                np.asarray(sub_ax), n_ticks=4, axis=axis, share=False, 
-                fontweight="bold", update_ticks=True
-                )
-
-        # plot lines
-        lims = sub_ax.get_xlim()
-        line_kwargs = {
-            "ls"    : plot_helper_fcts.VDASH,
-            "color" : "k",
-            "alpha" : 0.2,
-            "zorder": -15,
-            "lw"    : 4,
-        }
-
-        if diffs:
-            # y=0 line
-            sub_ax.axhline(y=0, **line_kwargs)
-        else:
-            # identity line
-            sub_ax.plot([lims[0], lims[1]], [lims[0], lims[1]], **line_kwargs)
-        
-        # shade in opposite quadrants
-        sub_ax.fill_between(
-            [lims[0], 0], 0, lims[1], alpha=0.075, facecolor="k", 
-            edgecolor="none", zorder=-16
-            )
-        sub_ax.fill_between(
-            [0, lims[1]], lims[0], 0, alpha=0.075, facecolor="k", 
-            edgecolor="none", zorder=-16
+        p_val_corr = lp_row["p_vals"]
+        lp_sig_str = add_scatterplot_markers(
+            sub_ax, permpar, lp_row["corrs"], lp_row["rand_corr_meds"], 
+            lp_row["regr_coefs"], lp_row["regr_intercepts"], 
+            lp_row["p_vals"], col=col, diffs=diffs
             )
 
-        # regression line
-        slope = lp_row["regr_coef"]
-        intercept = lp_row["regr_intercept"]
-        x_line = lims
-        y_line = np.array(x_line) * slope + intercept
-        sub_ax.plot(
-            x_line, y_line, ls=plot_helper_fcts.VDASH, color=col, alpha=0.8, 
-            lw=line_kwargs["lw"]
-        )
+        sig_str = (
+            f"{sig_str}{TAB}{line_plane_name}: "
+            f"{p_val_corr:.5f}{lp_sig_str:3}"
+            )
 
-        # get significance info and slope
-        side = np.sign(lp_row["corrs"] - lp_row["rand_corr_med"])
-        sensitivity = misc_analys.get_sensitivity(permpar)          
-        sig_str = misc_analys.get_sig_symbol(
-            lp_row["p_vals"], sensitivity=sensitivity, side=side, 
-            tails=permpar["tails"], p_thresh=permpar["p_val"]
-            )
-        
-        lim_range = lims[1] - lims[0]
-        x_pos = lims[0] + lim_range * 0.97
-        y_pos = lims[0] + lim_range * 0.05
-        slope_str = f"{sig_str} slope: {slope:.2f}"
-        sub_ax.text(
-            x_pos, y_pos, slope_str, fontweight="bold", style="italic", 
-            fontsize=16, ha="right"
-            )
+    logger.info(sig_str, extra={"spacing": TAB})
 
     return ax
 

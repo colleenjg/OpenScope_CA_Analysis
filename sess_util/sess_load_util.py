@@ -83,9 +83,8 @@ def load_info_from_mouse_df(sessid, mouse_df="mouse_df.csv"):
     Optional args:
         - mouse_df (Path): path name of dataframe containing information on each 
                            session. Dataframe should have the following columns:
-                               sessid, mouse_n, depth, plane, line, sess_gen, 
-                               sess_within, sess_n, pass_fail, all_files, 
-                               any_files, notes
+                               sessid, mouse_n, depth, plane, line, sess_n, 
+                               pass_fail, all_files, any_files, notes
                            default: "mouse_df.csv"
 
     Returns:
@@ -305,7 +304,6 @@ def load_max_projection(max_proj_png):
         - max_proj (2D array): maximum projection image across downsampled 
                                z-stack (hei x wei), with pixel intensity 
                                in 0 (incl) to 256 (excl) range.
-
     """
 
     if not Path(max_proj_png).is_file():

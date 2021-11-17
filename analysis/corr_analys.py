@@ -1,7 +1,7 @@
 """
 corr_analys.py
 
-This script contains functions for correlation analysis.
+This script contains functions for USI correlation analysis.
 
 Authors: Colleen Gillon
 
@@ -590,12 +590,12 @@ def get_lp_idx_df(sessions, analyspar, stimpar, basepar, idxpar, permpar=None,
 
 
 #############################################
-def get_basic_idx_corr_df(lp_idx_df, consec_only=False):
+def get_basic_idx_corr_df(lp_idx_df, consec_only=False, null_CI_cols=True):
     """
     get_basic_idx_corr_df(lp_idx_df)
 
-    Returns index correlation dataframe for each line/plane, and columns added
-    for null confidence intervals.
+    Returns index correlation dataframe for each line/plane, and optionally 
+    columns added for null confidence intervals.
 
     Required args:
         - lp_idx_df (pd.DataFrame):
@@ -607,6 +607,8 @@ def get_basic_idx_corr_df(lp_idx_df, consec_only=False):
         - consec_only (bool):
             if True, only consecutive session numbers are correlated
             default: True
+        - null_CI_cols (bool):
+            if True, null CI columns are included in the dataframe.
 
     Returns:
         - idx_corr_df (pd.DataFrame):
@@ -614,6 +616,7 @@ def get_basic_idx_corr_df(lp_idx_df, consec_only=False):
             columns, in addition to the basic sess_df columns:
             - roi_idxs (list): index for each ROI
 
+            if null_CI_cols:
             for session comparisons, e.g. 1v2
             - {}v{}_null_CIs (object): empty
     """
@@ -626,10 +629,14 @@ def get_basic_idx_corr_df(lp_idx_df, consec_only=False):
     # aggregate by line/plane for correlation dataframe
     group_columns = ["lines", "planes"]
     
-    CI_cols = [
-        f"{corr_pair[0]}v{corr_pair[1]}_null_CIs" for corr_pair in corr_ns
-        ]
-    idx_corr_df = pd.DataFrame(columns=initial_columns + CI_cols)
+    all_columns = initial_columns
+    if null_CI_cols:
+        CI_columns = [
+            f"{corr_pair[0]}v{corr_pair[1]}_null_CIs" for corr_pair in corr_ns
+            ]
+        all_columns = initial_columns + CI_columns
+    
+    idx_corr_df = pd.DataFrame(columns=all_columns)
     aggreg_cols = [
         col for col in initial_columns if col not in group_columns
         ]
@@ -1014,14 +1021,21 @@ def corr_scatterplots(sessions, analyspar, stimpar, basepar, idxpar, permpar,
             dataframe with one row per line/plane, and the 
             following columns, in addition to the basic sess_df columns:
 
-
-
-
-
-
-
-
-
+            for correlation data (normalized if corr_type is "diff_corr") for 
+            session comparisons (x, y), e.g. 1v2
+            - binned_rand_stats (list): number of random correlation values per 
+                bin (xs x ys)
+            - corr_data_xs (list): USI values for x
+            - corr_data_ys (list): USI values for y
+            - corrs (float): correlation between session data (x and y)
+            - p_vals (float): p-value for correlation, corrected for 
+                multiple comparisons and tails
+            - rand_corr_meds (float): median of the random correlations
+            - raw_p_vals (float): p-value for intersession correlations
+            - regr_coefs (float): regression correlation coefficient (slope)
+            - regr_intercepts (float): regression correlation intercept
+            - x_bin_mids (list): x mid point for each random correlation bin
+            - y_bin_mids (list): y mid point for each random correlation bin
     """
     
     lp_idx_df = get_lp_idx_df(
@@ -1036,7 +1050,9 @@ def corr_scatterplots(sessions, analyspar, stimpar, basepar, idxpar, permpar,
         parallel=parallel,
         )
 
-    idx_corr_df = get_basic_idx_corr_df(lp_idx_df, consec_only=False)
+    idx_corr_df = get_basic_idx_corr_df(
+        lp_idx_df, consec_only=False, null_CI_cols=False
+        )
 
     # get correlation pairs
     corr_ns = get_corr_pairs(lp_idx_df)
@@ -1052,7 +1068,7 @@ def corr_scatterplots(sessions, analyspar, stimpar, basepar, idxpar, permpar,
         norm = True
 
     # add array columns
-    columns = ["corr_data_x", "corr_data_y", "binned_rand_stats", 
+    columns = ["corr_data_xs", "corr_data_ys", "binned_rand_stats", 
         "x_bin_mids", "y_bin_mids"]
     idx_corr_df = gen_util.set_object_columns(idx_corr_df, columns)
 
@@ -1113,12 +1129,12 @@ def corr_scatterplots(sessions, analyspar, stimpar, basepar, idxpar, permpar,
             )
 
         idx_corr_df.loc[row_idx, "corrs"] = roi_corr
-        idx_corr_df.loc[row_idx, "rand_corr_med"] = null_CI[1]
-        idx_corr_df.loc[row_idx, "regr_coef"] = regr.coef_
-        idx_corr_df.loc[row_idx, "regr_intercept"] = regr.intercept_
+        idx_corr_df.loc[row_idx, "rand_corr_meds"] = null_CI[1]
+        idx_corr_df.loc[row_idx, "regr_coefs"] = regr.coef_
+        idx_corr_df.loc[row_idx, "regr_intercepts"] = regr.intercept_
 
-        idx_corr_df.at[row_idx, "corr_data_x"] = corr_data[0].tolist()
-        idx_corr_df.at[row_idx, "corr_data_y"] = corr_data[1].tolist()
+        idx_corr_df.at[row_idx, "corr_data_xs"] = corr_data[0].tolist()
+        idx_corr_df.at[row_idx, "corr_data_ys"] = corr_data[1].tolist()
 
         idx_corr_df.at[row_idx, "binned_rand_stats"] = rand_binned.tolist()
         idx_corr_df.at[row_idx, "x_bin_mids"] = x_mids.tolist()

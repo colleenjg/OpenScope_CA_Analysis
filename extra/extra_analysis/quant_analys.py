@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 
 from util import gen_util, logger_util, math_util, rand_util
-from sess_util import sess_ntuple_util
+from sess_util import sess_ntuple_util, sess_gen_util
 
 logger = logging.getLogger(__name__)
 
@@ -118,16 +118,16 @@ def quant_segs(stim, stimpar, n_quants=4, qu_idx="all", unexp="any",
                             segment numbers for that quantile
         - qu_counts (list): list of number of segments in each quantile
         if by_exp_len:
-            - qu_n_consec (list): list of sublists for each quantile, each
-                                  containing the number of consecutive segments
-                                  corresponding to the values in qu_segs
+        - qu_n_consec (list): list of sublists for each quantile, each
+                                containing the number of consecutive segments
+                                corresponding to the values in qu_segs
     """
 
     if qu_idx == "all":
         qu_idx = list(range(n_quants))
     else:
         qu_idx = gen_util.pos_idx(qu_idx, n_quants)
-
+    
     # get all seg values (for all gabor frames and orientations)
     try:
         all_segs = stim.get_segs_by_criteria(gabk=stimpar.gabk, 
@@ -138,20 +138,15 @@ def quant_segs(stim, stimpar, n_quants=4, qu_idx="all", unexp="any",
             all_segs = []
         else:
             raise err
-    # get seg ranges for each quantile [[start, end], [start, end], etc.] 
-    qu_segs = []
-    qu_counts = []
 
-    # get the min and max seg numbers for stimulus
-    if len(all_segs) != 0:
-        seg_min = np.min(all_segs)
-        seg_max = np.max(all_segs)+1
+    if len(all_segs):
+        all_segs.append(np.max(all_segs) + 1)
+        qu_percs = [
+            np.percentile(all_segs, q=perc) 
+            for perc in np.linspace(0, 100, n_quants + 1)
+            ]
     else:
-        seg_min = 0
-        seg_max = 0
-    
-    # calculate number of segments in each quantile (ok if not round number)
-    qu_len = (seg_max - seg_min)/float(n_quants)
+        qu_percs = [0] * (n_quants + 1) # dummy list
 
     # get all seg values
     try:
@@ -169,15 +164,27 @@ def quant_segs(stim, stimpar, n_quants=4, qu_idx="all", unexp="any",
         all_segs, n_consec = gen_util.consec(all_segs)
         qu_n_consec = []
 
-    for q in qu_idx:
-        qu_segs.append([seg for seg in all_segs 
-            if (seg >= q * qu_len + seg_min and 
-                seg < (q + 1) * qu_len + seg_min)])
+    # get seg ranges for each quantile [[start, end], [start, end], etc.] 
+    qu_segs, qu_counts = [], []
+    for q, qu_perc in enumerate(qu_percs[:-1]):
+        if q not in qu_idx:
+            continue
+        qu_segs.append(
+            [seg for seg in all_segs 
+            if (seg >= qu_perc and seg < qu_percs[q + 1])]
+            )
         qu_counts.extend([len(qu_segs[-1])])
         if by_exp_len: # also include lengths
-            qu_n_consec.append([n for i, n in enumerate(n_consec) 
-                if (all_segs[i] >= q * qu_len + seg_min and 
-                    all_segs[i] < (q + 1) * qu_len + seg_min)])
+            qu_n_consec.append(
+                [n for i, n in enumerate(n_consec) 
+                if (all_segs[i] >= qu_perc and 
+                    all_segs[i] < qu_percs[q + 1])
+                    ]
+                )
+
+    empty_quants = (np.min([len(segs) for segs in qu_segs]) == 0)
+    if not empty_ok and empty_quants:
+        raise RuntimeError("Some quantiles are empty.")
 
     if by_exp_len:
         return qu_segs, qu_counts, qu_n_consec
@@ -186,7 +193,7 @@ def quant_segs(stim, stimpar, n_quants=4, qu_idx="all", unexp="any",
 
 
 #############################################
-def samp_quant_segs(qu_segs, seg_pre=0, seg_post=0):
+def samp_quant_segs(qu_segs, seg_pre=0, seg_post=0, randst=None):
     """
     samp_quant_segs(qu_segs, seg_pre, seg_post)
 
@@ -206,6 +213,8 @@ def samp_quant_segs(qu_segs, seg_pre=0, seg_post=0):
                           and the highest segment number in each consecutive 
                           series  
                           default: 0
+        - randst (int)  : random state or seed for sampling segments
+                          default: None
 
     Returns:
         - qu_segs (list)  : list of sublists for each quantile, each containing 
@@ -218,13 +227,14 @@ def samp_quant_segs(qu_segs, seg_pre=0, seg_post=0):
 
     qu_segs_flat = [seg for segs in qu_segs for seg in segs]
 
-    if min(np.diff(qu_segs_flat)) not in [1, 4]:
+    if min(np.diff(qu_segs_flat)) not in [1, 5]:
         raise ValueError(
-            "No consecutive segments (1 or 4 interval) found in qu_segs."
+            "No consecutive segments (1 or 5 interval) found in qu_segs."
             )
 
     all_segs, n_consec = gen_util.consec(qu_segs_flat, smallest=True)
 
+    randst = rand_util.get_np_rand_state(randst)
 
     samp_segs = []
     i = 0
@@ -234,7 +244,7 @@ def samp_quant_segs(qu_segs, seg_pre=0, seg_post=0):
         max_seg = max(qu_sub) - seg_post
         if min_seg < max_seg:
             qu_samp = [seg for seg in qu_sub if seg in range(min_seg, max_seg)]
-            samp_seg = np.random.choice(qu_samp)
+            samp_seg = randst.choice(qu_samp)
             samp_segs.append(samp_seg)
         i += n
     
@@ -335,8 +345,9 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
                     gen_util.accepted_values_error(
                         "datatype", datatype, ["roi", "run"])
                 break # break out of for loop if successful
-            except RuntimeError as err:
-                if nan_empty and "No frames" in str(err):
+            except Exception as err: # RuntimeError or ValueError
+                empty = ("No frames" in str(err) or "No segments" in str(err))
+                if nan_empty and empty:
                     segs = [10]     # dummy segment to use
                     rep_nan = True # later, replace values with NaNs
                 else:
@@ -380,7 +391,7 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
 def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quants=4, 
                            qu_idx="all", byroi=True, by_exp=False, integ=False, 
                            ret_arr=False, nan_empty=False, lock="no", 
-                           baseline=None, datatype="roi"):
+                           baseline=None, datatype="roi", randst=None):
     """
     trace_stats_by_qu_sess(sessions, analyspar, stimpar)
 
@@ -421,6 +432,8 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quants=4,
                                 default: None
         - datatype (str)      : datatype, i.e. ROIs or running
                                 default: "roi"
+        - randst (int)        : random state or seed for sampling segments
+                                default: None
 
     Returns:
         - xrans (list)             : time values for the 2p frames (None if 
@@ -497,7 +510,9 @@ def trace_stats_by_qu_sess(sessions, analyspar, stimpar, n_quants=4,
             if sample:
                 pre_seg = stimpar.pre / stim.seg_len_s
                 post_seg = stimpar.post / stim.seg_len_s
-                qu_segs, qu_counts = samp_quant_segs(qu_segs, pre_seg, post_seg)
+                qu_segs, qu_counts = samp_quant_segs(
+                    qu_segs, pre_seg, post_seg, randst=randst
+                    )
             sess_counts.append(qu_counts)
             trace_info = trace_stats_by_qu(
                 stim, qu_segs, stimpar.pre, stimpar.post, analyspar, 

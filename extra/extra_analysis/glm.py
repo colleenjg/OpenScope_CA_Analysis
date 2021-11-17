@@ -31,9 +31,9 @@ logger = logging.getLogger(__name__)
 
 
 #############################################
-def build_stim_beh_df(sessions, analyspar, sesspar, stimpar, each_roi=False):
+def build_stim_beh_df(sessions, analyspar, sesspar, stimpar):
     """
-    build_stim_beh_df(sessions, stimpar)
+    build_stim_beh_df(sessions, analyspar, sesspar, stimpar)
 
     Builds a dataframe containing the stimulus and behavioural information, for 
     each of the specified segments.
@@ -42,19 +42,21 @@ def build_stim_beh_df(sessions, analyspar, sesspar, stimpar, each_roi=False):
     (ROI)
 
     GLM inputs:
-    - (Segments (A, B, C, D))
-    - Unexpected status (only 1 for U and the following grayscreen (G))
-    - Pupil dilation
+    - Unexpected status (e.g., only 1 for U and the following grayscreen (G))
+    - Pupil dilation, if not using pilot data
     - Running velocity
+    - ROI data (by ROI)
     - Plane
     - Line
     - SessID
+    - Stimulus parameters
 
     """
 
     full_df = pd.DataFrame()
     
     sessions = gen_util.list_if_not(sessions)
+    pupil = (sesspar.runtype != "pilot")
     for sess in sessions:
         logger.info(f"Building dataframe for session {sess.sessid}", 
             extra={"spacing": "\n"})
@@ -63,23 +65,64 @@ def build_stim_beh_df(sessions, analyspar, sesspar, stimpar, each_roi=False):
             stimpar.pre, stimpar.post, analyspar.stats, analyspar.fluor, 
             analyspar.remnans, gabfr=stimpar.gabfr, gabk=stimpar.gabk, 
             gab_ori=stimpar.gab_ori, visflow_size=stimpar.visflow_size, 
-            visflow_dir=stimpar.visflow_dir, pupil=True, run=True)
+            visflow_dir=stimpar.visflow_dir, pupil=pupil, run=True, 
+            roi_stats=False
+            )
 
         full_df = full_df.append(sub_df)
     
+    # set unexpected status for any gabor frames other than D_U, G to 0.
+    if "gabor_frame" in full_df.columns:
+        full_df.loc[
+            (~full_df["gabor_frame"].isin(["D", "U", "D_U", "G"])) & 
+            (full_df["unexpected"] == 1), 
+            "unexpected"
+            ] = 0
+        
+    # set mean orientations to the sequence's expected frame orientation for 
+    # unexpected frames
+    if "gabor_mean_orientation" in full_df.columns:
+        unique_oris = full_df.loc[
+            (full_df["gabor_frame"].isin(["D", "U", "D_U", "G"])) &
+            (full_df["unexpected"] == 1), 
+            "gabor_mean_orientation"
+            ].unique()
+        for unique_ori in unique_oris:
+            full_df.loc[
+                (full_df["gabor_frame"].isin(["D", "U", "D_U", "G"])) &
+                (full_df["unexpected"] == 1) &
+                (full_df["gabor_mean_orientation"] == unique_ori), 
+                "gabor_mean_orientation"
+                ] = sess_gen_util.get_reg_gab_ori(unique_ori)
+    
+    # drop unnecessary or redundant columns
+    drop = [
+        "stimulus_template_name", # unnecessary
+        "square_proportion_flipped", # redundant 
+        "square_number", # redundant
+        "gabor_number", # single value, NaN for "G" frames
+        "gabor_locations_x", # full table / array / NaN for "G" frames
+        "gabor_locations_y",  # full table / array / NaN for "G" frames
+        "gabor_sizes", # full table / array / NaN for "G" frames
+        "gabor_orientations" # full table / array / NaN for "G" frames
+
+        ]
+    drop_cols = [col for col in full_df.columns if col in drop]
+    full_df = full_df.drop(columns=drop_cols)
+
+
     full_df = full_df.reset_index(drop=True)
     full_df = gen_util.drop_unique(full_df, in_place=True)
-
-
-    # Adjust Gabor angles to match for expected and unexpected? and for gabfr
 
     return full_df
 
 
 #############################################
 def log_sklearn_results(model, analyspar, name="bayes_ridge", var_names=None):
+    """
+    log_sklearn_results(model, analyspar)
+    """
 
-    
     logger.info(f"{name.replace('_', ' ').upper()} regression", 
         extra={"spacing": "\n"})
     if var_names is None:
@@ -107,6 +150,9 @@ def log_sklearn_results(model, analyspar, name="bayes_ridge", var_names=None):
 
 #############################################
 def run_ridge_cv(x_df, y_df, analyspar, alphas=None):
+    """
+    run_ridge_cv(x_df, y_df, analyspar)
+    """
 
     if alphas is None:
         alphas=(0.1, 0.1, 2.0)
@@ -123,6 +169,9 @@ def run_ridge_cv(x_df, y_df, analyspar, alphas=None):
 
 #############################################
 def run_bayesian_ridge(x_df, y_df, analyspar):
+    """
+    run_bayesian_ridge(x_df, y_df, analyspar)
+    """
 
     steps = [("scaler", preprocessing.StandardScaler()), 
         ("model", linear_model.BayesianRidge(compute_score=True))] 
@@ -134,7 +183,10 @@ def run_bayesian_ridge(x_df, y_df, analyspar):
 
 
 #############################################
-def fit_expl_var(x_df, y_df, train_idx, test_idx, stimpar):
+def fit_expl_var(x_df, y_df, train_idx, test_idx):
+    """
+    fit_expl_var(x_df, y_df, train_idx, test_idx)
+    """
 
     x_df = sess_data_util.add_categ_stim_cols(copy.deepcopy(x_df))
 
@@ -154,6 +206,10 @@ def fit_expl_var(x_df, y_df, train_idx, test_idx, stimpar):
 
 #############################################
 def is_bool_var(df_col):
+    """
+    is_bool_var(df_col)
+    """
+
     if set(df_col.unique()).issubset({0, 1}):
         is_bool = True
     else:
@@ -164,6 +220,10 @@ def is_bool_var(df_col):
 
 #############################################
 def get_categ(col_name):
+    """
+    get_categ(col_name)
+    """
+
     categ_symb = "$"
     if categ_symb in col_name:
         categ_name = col_name[ : col_name.find(categ_symb)]
@@ -174,6 +234,10 @@ def get_categ(col_name):
 
 #############################################
 def shuffle_col_idx(full_df, col, idx=None):
+    """
+    shuffle_col_idx(full_df, col)
+    """
+
     full_df = copy.deepcopy(full_df)
     if idx is None:
         other_vals = full_df[col].tolist()
@@ -187,7 +251,10 @@ def shuffle_col_idx(full_df, col, idx=None):
 
 
 #############################################
-def fit_expl_var_per_coeff(x_df, y_df, train_idx, test_idx, stimpar):
+def fit_expl_var_per_coeff(x_df, y_df, train_idx, test_idx):
+    """
+    fit_expl_var_per_coeff(x_df, y_df, train_idx, test_idx)
+    """
 
     # get df with categorical variables split up
     x_df_cat = sess_data_util.add_categ_stim_cols(copy.deepcopy(x_df))
@@ -224,15 +291,18 @@ def fit_expl_var_per_coeff(x_df, y_df, train_idx, test_idx, stimpar):
                     curr_x_df.loc[train_idx] = shuffle_col_idx(
                         curr_x_df.loc[train_idx], oth_col)
 
-            expl_var[key] = fit_expl_var(
-                curr_x_df, y_df, train_idx, test_idx, stimpar)
+            expl_var[key] = fit_expl_var(curr_x_df, y_df, train_idx, test_idx)
     
     return expl_var
 
 
 #############################################
-def fit_unique_expl_var_per_coeff(x_df, y_df, train_idx, test_idx, stimpar, 
+def fit_unique_expl_var_per_coeff(x_df, y_df, train_idx, test_idx, 
                                   full_expl_var):
+    """
+    fit_unique_expl_var_per_coeff(x_df, y_df, train_idx, test_idx, 
+                                  full_expl_var):
+    """
 
     # get df with categorical variables split up
     x_df_cat = sess_data_util.add_categ_stim_cols(copy.deepcopy(x_df))
@@ -252,7 +322,7 @@ def fit_unique_expl_var_per_coeff(x_df, y_df, train_idx, test_idx, stimpar,
         curr_x_df = copy.deepcopy(x_df)
         curr_x_df.loc[train_idx] = shuffle_col_idx(
             curr_x_df.loc[train_idx], col)
-        varsc   = fit_expl_var(curr_x_df, y_df, train_idx, test_idx, stimpar)
+        varsc = fit_expl_var(curr_x_df, y_df, train_idx, test_idx)
         expl_var[col] = full_expl_var - varsc
 
     return expl_var
@@ -260,6 +330,9 @@ def fit_unique_expl_var_per_coeff(x_df, y_df, train_idx, test_idx, stimpar,
 
 #############################################
 def compile_dict_fold_stats(dict_list, analyspar):
+    """
+    compile_dict_fold_stats(dict_list, analyspar)
+    """
     
     full_dict = dict()
     all_keys = dict_list[0].keys()
@@ -274,6 +347,7 @@ def compile_dict_fold_stats(dict_list, analyspar):
 #############################################
 def scale_across_rois(y_df, tr_idx, sessids, stats="mean"):
     """
+    scale_across_rois(y_df, tr_idx, sessids)
     """
 
     y_df_new = copy.deepcopy(y_df)
@@ -304,27 +378,28 @@ def scale_across_rois(y_df, tr_idx, sessids, stats="mean"):
 
 
 #############################################
-def run_explained_variance(x_df, y_df, analyspar, stimpar, k=10):
+def run_explained_variance(x_df, y_df, analyspar, k=10, log_roi_n=True):
     """
-    Consider splitting 80:20 for a test set?
+    run_explained_variance(x_df, y_df, analyspar)
 
-    y: series or dataframe
+    Consider splitting 80:20 for a test set?
     """
 
     x_df = copy.deepcopy(x_df)
-    
     y_df_cols = y_df.columns
 
     if len(y_df_cols) > 1: # multiple ROIs (to scale and average)
         all_rois = True
-        if "sessid" in x_df.columns:
-            sessids = x_df["sessid"].tolist()
+        if "session_id" in x_df.columns:
+            sessids = x_df["session_id"].tolist()
         else:
             sessids = [1] * len(x_df)
-        logger.info("Running all ROIs")
+        logger.info("Calculating explained variance for all ROIs together...")
     else:
         all_rois = False
-        logger.info(f"Running for ROI {y_df_cols[0].replace('roi_data_', '')}")
+        if log_roi_n:
+            roi_n = int(y_df_cols[0].replace('roi_data_', ''))
+            logger.info(f"Calculating explained variance for ROI {roi_n}...")
 
     kf = model_selection.KFold(k, shuffle=True, random_state=None)
 
@@ -333,11 +408,12 @@ def run_explained_variance(x_df, y_df, analyspar, stimpar, k=10):
         if all_rois:
             y_df = scale_across_rois(y_df, tr_idx, sessids, analyspar.stats)
         # one model per category
-        full.append(fit_expl_var(x_df, y_df, tr_idx, test_idx, stimpar))
+        full.append(fit_expl_var(x_df, y_df, tr_idx, test_idx))
         coef_all.append(fit_expl_var_per_coeff(
-            x_df, y_df, tr_idx, test_idx, stimpar))
+            x_df, y_df, tr_idx, test_idx))
         coef_uni.append(fit_unique_expl_var_per_coeff(
-            x_df, y_df, tr_idx, test_idx, stimpar, full[-1]))
+            x_df, y_df, tr_idx, test_idx, full[-1]))
+
 
     full = math_util.get_stats(
         np.asarray(full), stats=analyspar.stats, error=analyspar.error).tolist()
@@ -350,9 +426,11 @@ def run_explained_variance(x_df, y_df, analyspar, stimpar, k=10):
 
 #############################################
 def run_glm(sessions, analyspar, sesspar, stimpar, glmpar, parallel=False):
+    """
+    run_glm(sessions, analyspar, stimpar, glmpar)
+    """
 
-    full_df = build_stim_beh_df(sessions, analyspar, sesspar, stimpar, 
-                                glmpar.each_roi)
+    full_df = build_stim_beh_df(sessions, analyspar, sesspar, stimpar)
     # run_bayesian_ridge(x_df, y_df, analyspar)
     # run_ridge_cv(x_df, y_df, analyspar)
     # run_ols_summary(x_df, y_df)
@@ -360,9 +438,16 @@ def run_glm(sessions, analyspar, sesspar, stimpar, glmpar, parallel=False):
     roi_nbrs = [-1]
     roi_cols = [[col for col in full_df.columns if "roi_data_" in col]]
     if glmpar.each_roi:
+        indiv_roi_cols = []
         for col in roi_cols[0]:
-            roi_cols.append([col])
+            indiv_roi_cols.append([col])
             roi_nbrs.append(int(col.replace("roi_data_", "")))
+        # sort columns by ROI, if needed
+        sorting = np.argsort(roi_nbrs)
+        if (sorting != np.arange(len(roi_nbrs))).all():
+            indiv_roi_cols = [indiv_roi_cols[n] for n in sorting]
+            roi_nbrs = [roi_nbrs[n] for n in sorting]
+        roi_cols = roi_cols + indiv_roi_cols
 
     x_df = full_df.drop(columns=roi_cols[0])
 
@@ -372,16 +457,21 @@ def run_glm(sessions, analyspar, sesspar, stimpar, glmpar, parallel=False):
 
     # optionally runs in parallel
     if parallel and glmpar.each_roi and len(roi_cols) > 1:
+        logger.info("Calculating explained variance per ROI in parallel...")
         n_jobs = gen_util.get_n_jobs(len(roi_cols))
         outs = Parallel(n_jobs=n_jobs)(delayed(run_explained_variance)
-            (x_df, full_df[cols], analyspar, stimpar, glmpar.k) 
+            (x_df, full_df[cols], analyspar, glmpar.k, log_roi_n=False) 
             for cols in roi_cols)
         fulls, coef_alls, coef_unis = zip(*outs)
     else:
         fulls, coef_alls, coef_unis = [], [], []
-        for cols in roi_cols:
+        log_freq = math_util.round_by_order_of_mag((len(roi_cols) - 1) / 10)
+        log_freq = np.max([1, log_freq])
+        for c, cols in enumerate(roi_cols):
+            log_roi_n = (c == 0 or not ((c - 1) % log_freq))
             out = run_explained_variance(
-                x_df, full_df[cols], analyspar, stimpar, glmpar.k)
+                x_df, full_df[cols], analyspar, glmpar.k, log_roi_n=log_roi_n
+                )
             fulls.append(out[0])
             coef_alls.append(out[1])
             coef_unis.append(out[2])
@@ -398,7 +488,10 @@ def run_glm(sessions, analyspar, sesspar, stimpar, glmpar, parallel=False):
 #############################################
 def run_glms(sessions, analysis, seed, analyspar, sesspar, stimpar, glmpar, 
              figpar, parallel=False):
-
+    """
+    run_glms(sessions, analysis, seed, analyspar, sesspar, stimpar, glmpar, 
+             figpar)
+    """
 
     seed = rand_util.seed_all(seed, "cpu", log_seed=False)
 
@@ -458,10 +551,6 @@ def run_glms(sessions, analysis, seed, analyspar, sesspar, stimpar, glmpar,
     fulldir, savename = glm_plots.plot_glm_expl_var(figpar=figpar, **info)
 
     file_util.saveinfo(info, savename, fulldir, "json")
-
-
-        # Sensitivity:
-        # - (Average response to A - Average response to not A)/std(data)
 
     return
 

@@ -36,7 +36,7 @@ DARKRED = "#871719"
 
 #############################################
 def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False, 
-                   datetime=True):
+                   datetime=True, overwrite=False):
     """
     plot_from_dict(dict_path)
 
@@ -46,23 +46,28 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False,
         - dict_path (Path): path to dictionary to plot data from
     
     Optional_args:
-        - plt_bkend (str): mpl backend to use for plotting (e.g., "agg")
-                           default: None
-        - fontdir (Path) : path to directory where additional fonts are stored
-                           default: None
-        - parallel (bool): if True, some of the plotting is parallelized across 
-                           CPU cores
-                           default: False
-        - datetime (bool): figpar["save"] datatime parameter (whether to 
-                           place figures in a datetime folder)
-                           default: True
+        - plt_bkend (str) : mpl backend to use for plotting (e.g., "agg")
+                            default: None
+        - fontdir (Path)  : path to directory where additional fonts are stored
+                            default: None
+        - parallel (bool) : if True, some of the plotting is parallelized 
+                            across CPU cores
+                            default: False
+        - datetime (bool) : figpar["save"] datatime parameter (whether to 
+                            place figures in a datetime folder)
+                            default: True
+        - overwrite (bool): figpar["save"] overwrite parameter (whether to 
+                            overwrite figures)
+                            default: False
     """
 
     logger.info(f"Plotting from dictionary: {dict_path}", 
         extra={"spacing": "\n"})
     
     figpar = sess_plot_util.init_figpar(
-        plt_bkend=plt_bkend, fontdir=fontdir, datetime=datetime)
+        plt_bkend=plt_bkend, fontdir=fontdir, datetime=datetime, 
+        overwrite=overwrite
+        )
     plot_util.manage_mpl(cmap=False, **figpar["mng"])
 
     sess_plot_util.update_plt_linpla()
@@ -749,7 +754,7 @@ def plot_area_diff_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar["fluor"], 
         area=True, datatype=datatype, lines=lines, planes=planes, 
-        xticks=sess_ns, xlab="Sessions", kind="reg")
+        xticks=sess_ns, kind="reg")
 
     return fig
    
@@ -2154,23 +2159,25 @@ def plot_stim_idx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
                 p_val=permpar["p_val"], tails=permpar["tails"], 
                 col=pla_cols[pl], n_bins=n_bins, plot=plot)
 
+    # Add plane, line info to plots
+    sess_plot_util.format_linpla_subaxes(ax, datatype=datatype, lines=lines, 
+        planes=planes, ylab=f"N {dim_str}", xticks=None, sess_ns=sess_ns, 
+        kind="idx")
+
+    # After formatting axes
     if plot == "percs":
         nticks = 5
         xticks = [int(np.around(x, 0)) for x in np.linspace(0, 100, nticks)]
         for sub_ax in ax[-1]:
             sub_ax.set_xticks(xticks)
             sub_ax.set_xticklabels(xticks, weight="bold")
-    
+
     elif plot == "items":
         nticks = 3
         plot_util.set_interm_ticks(
-            ax, nticks, axis="x", weight="bold", share=False, skip=False
+            ax, nticks, axis="x", weight="bold", share=False, skip=False, 
+            update_ticks=True
             )
-
-    # Add plane, line info to plots
-    sess_plot_util.format_linpla_subaxes(ax, datatype=datatype, lines=lines, 
-        planes=planes, ylab=f"N {dim_str}", xticks=None, sess_ns=sess_ns, 
-        kind="idx")
 
     return fig, perc_sig_info
 
@@ -2319,7 +2326,7 @@ def plot_perc_sig_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
     ax[1, 0].set_yticklabels(
         [int(v) if i % 2 == 0 else "" for i, v in enumerate(yticks)], 
         fontdict={"weight": "bold"})
-    print("sdafgf")
+
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(ax, datatype=datatype, lines=lines, 
         planes=planes, ylab=f"% signif.", xticks=sess_ns, sess_ns=sess_ns, 
@@ -2441,7 +2448,7 @@ def plot_unexp_idx(analyspar, sesspar, stimpar, basepar, permpar, idxpar,
         if plot == "percs":
             savename = gen_savename.replace("idx", "idx_percs")
         elif plot == "perc_sig":
-            savename = gen_savename.replace("idx", "_perc_sig")
+            savename = gen_savename.replace("idx", "idx_perc_sig")
 
         fulldir = plot_util.savefig(
             fig, savename, savedir, **figpar["save"])
@@ -2565,7 +2572,7 @@ def plot_unexp_idx_common_oris(analyspar, sesspar, stimpar, basepar, permpar,
         if plot == "percs":
             savename = gen_savename.replace("idx", "idx_percs")
         elif plot == "perc_sig":
-            savename = gen_savename.replace("idx", "_perc_sig")
+            savename = gen_savename.replace("idx", "idx_perc_sig")
 
         fulldir = plot_util.savefig(
             fig, savename, savedir, **figpar["save"])
@@ -2687,7 +2694,7 @@ def plot_direction_idx(analyspar, sesspar, stimpar, basepar, permpar, idxpar,
             if plot == "percs":
                 savename = gen_savename.replace("idx", "idx_percs")
             elif plot == "perc_sig":
-                savename = gen_savename.replace("idx", "_perc_sig")
+                savename = gen_savename.replace("idx", "idx_perc_sig")
             savename = savename.replace("dir", direc)
 
             fulldir = plot_util.savefig(
@@ -2804,7 +2811,7 @@ def plot_unexp_idx_cms_acr_sess(analyspar, sesspar, stimpar, extrapar,
             raise ValueError("Must include at least 2 gabor orientations "
                 "for colormap unexpected index analysis.")
         stim_vals = [0, 45, 90, 135]
-        stim_name = "Gabor oris"
+        stim_name = "Gabor orientations"
     elif stimpar["stimtype"] == "visflow":
         if (stimpar["visflow_dir"] not in ["all", "any", "both"] and 
             len(stimpar["visflow_dir"]) < 2):
@@ -2812,7 +2819,7 @@ def plot_unexp_idx_cms_acr_sess(analyspar, sesspar, stimpar, extrapar,
                 "for colormap unexpected index analysis.")
         stim_vals = [sess_gen_util.get_visflow_screen_mouse_direc(val) 
             for val in ["left", "right"]]
-        stim_name = "Visual flow dirs"
+        stim_name = "Visual flow directions"
 
     [lines, planes, linpla_iter, 
      pla_cols, _, n_plots] = sess_plot_util.fig_linpla_pars(
@@ -2825,7 +2832,7 @@ def plot_unexp_idx_cms_acr_sess(analyspar, sesspar, stimpar, extrapar,
 
     feature_str = "unexpected"
 
-    subtitle = (f"{dim_str} {feature_str}")
+    subtitle = (f"{dim_str} {feature_str} indices")
     
     title = (f"{subtitle} ({prepost_str} seqs)\nfor {stimstr_pr} "
         f"(sess {sess_ns_str}{dendstr_pr})")
@@ -2833,17 +2840,24 @@ def plot_unexp_idx_cms_acr_sess(analyspar, sesspar, stimpar, extrapar,
     fig, ax = plot_util.init_fig(n_plots, **figpar["init"])
     fig.suptitle(title, y=1, weight="bold")
 
+    y_maxes = np.full(ax.shape, np.nan)
     for i, (line, pla) in enumerate(linpla_iter):
         li = lines.index(line)
         pl = planes.index(pla)
         l_idx = get_linpla_idx(
-            unexp_idx_info["linpla_ord"], line, pla, verbose=True, newline=(i==0))
+            unexp_idx_info["linpla_ord"], line, pla, verbose=True, 
+            newline=(i==0)
+            )
         if l_idx is None:
             continue
         for s in range(n_sess):
-            sub_ax = ax[s + pl * n_sess, li]
+            row_n = s + pl * n_sess
+            sub_ax = ax[row_n, li]
+            data = np.asarray(unexp_idx_info["item_idxs"][l_idx][s])
             im = plot_unexp_idx_cm(
-                sub_ax, unexp_idx_info["item_idxs"][l_idx][s], col=pla_cols[pl])
+                sub_ax, data, col=pla_cols[pl]
+                )
+            y_maxes[row_n, li] = data.shape[-1]
     
     xticks = np.linspace(1, len(stim_vals), len(stim_vals))
     for sub_ax in ax.reshape(-1):
@@ -2853,8 +2867,24 @@ def plot_unexp_idx_cms_acr_sess(analyspar, sesspar, stimpar, extrapar,
 
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(ax, datatype=datatype, lines=lines, 
-        planes=planes, ylab=None, xticks=None, sess_ns=sess_ns, 
+        planes=planes, ylab=None, xticks=None, sess_ns=sess_ns, xlab=stim_name,
         kind="idx")
+
+    # re-adjust y ticks
+    incr = 10
+    for sub_ax, y_max in zip(ax.reshape(-1), y_maxes.reshape(-1)):
+        if not np.isfinite(y_max) or y_max < incr:
+            continue
+        y_max = int(y_max)
+        sub_ax.set_ylim([0, y_max])
+        max_tick = int(y_max // incr) * incr
+        yticks = np.linspace(0, max_tick, 5)
+        ytick_labels = [
+            str(int(ytick)) if not y % 2 else "" 
+            for y, ytick in enumerate(yticks)
+            ]
+        sub_ax.set_yticks(yticks)
+        sub_ax.set_yticklabels(ytick_labels, fontweight="bold")
 
 
     return fig
@@ -3419,7 +3449,7 @@ def plot_position_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar["fluor"], 
         area=True, datatype=datatype, lines=lines, planes=planes, 
-        xticks=sess_ns, xlab="Sessions", kind="reg")
+        xticks=sess_ns, kind="reg")
 
     return fig
 
@@ -3781,8 +3811,7 @@ def plot_unexp_latency(analyspar, sesspar, stimpar, permpar, latpar, extrapar,
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(
         ax, fluor=analyspar["fluor"], datatype=datatype, lines=lines, 
-        planes=planes, xticks=sess_ns, ylab="Latency (s)", xlab="Sessions", 
-        kind="reg")
+        planes=planes, xticks=sess_ns, ylab="Latency (s)", kind="reg")
 
     if savedir is None:
         savedir = Path(
@@ -3924,7 +3953,7 @@ def plot_resp_prop(analyspar, sesspar, stimpar, latpar, extrapar, sess_info,
     # Add plane, line info to plots
     sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar["fluor"], 
         datatype=datatype, lines=lines, planes=planes, 
-        xticks=sess_ns, ylab="Prop (%)", xlab="Sessions", kind="reg")
+        xticks=sess_ns, ylab="Prop (%)", kind="reg")
 
     for sub_ax in ax.reshape(-1):
         plot_util.set_ticks(

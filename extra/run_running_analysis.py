@@ -95,7 +95,7 @@ def reformat_args(args):
         args.stimtype, args.runtype, args.visflow_dir, args.visflow_size, 
         args.gabk)
 
-    # chose a seed if none is provided (i.e., args.seed=-1), but seed later
+    # choose a seed if none is provided (i.e., args.seed=-1), but seed later
     args.seed = rand_util.seed_all(
         args.seed, "cpu", log_seed=False, seed_now=False)
 
@@ -331,8 +331,14 @@ def prep_analyses(sess_n, args, mouse_df):
     if sesspar.runtype != "prod":
         runtype_str = f" ({sesspar.runtype} data)"
 
+    stim_str = stimpar.stimtype
+    if stimpar.stimtype == "gabors":
+        stim_str = "gabor"
+    elif stimpar.stimtype == "visflow":
+        stim_str = "visual flow"
+
     logger.info(
-        f"Analysis of {sesspar.plane} responses to {stimpar.stimtype[:-1]} "
+        f"Analysis of {sesspar.plane} responses to {stim_str} "
         f"stimuli{runtype_str}.\nSession {sesspar.sess_n}", 
         extra={"spacing": "\n"})
 
@@ -439,7 +445,7 @@ def main(args):
         plot_dicts.plot_from_dicts(
             Path(args.dict_path), source=source, plt_bkend=args.plt_bkend, 
             fontdir=args.fontdir, parallel=args.parallel, 
-            datetime=not(args.no_datetime))
+            datetime=not(args.no_datetime), overwrite=args.overwrite)
     else:
         args = reformat_args(args)
         if args.datadir is None: 
@@ -464,6 +470,7 @@ def main(args):
             parallel=args.parallel)
 
         # split analyses between parallel and sequential
+        bool(args.parallel  * (not args.debug))
         if args.parallel:
             run_seq = "" # should be run parallel within analysis
             all_analyses = gen_util.remove_lett(args.analyses, run_seq)
@@ -522,6 +529,8 @@ def parse_args():
         help="switch mpl backend when running on server")
     parser.add_argument("--parallel", action="store_true", 
         help="do runs in parallel.")
+    parser.add_argument("--debug", action="store_true", 
+        help="only enable session loading in parallel")
     parser.add_argument("--seed", default=-1, type=int, 
         help="random seed (-1 for None)")
     parser.add_argument("--log_level", default="info", 

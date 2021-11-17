@@ -31,7 +31,7 @@ warnings.filterwarnings("ignore", message="This figure includes*")
 
 #############################################
 def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False, 
-                   datetime=True):
+                   datetime=True, overwrite=False):
     """
     plot_from_dict(dict_path)
 
@@ -41,23 +41,28 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False,
         - dict_path (Path): path to dictionary to plot data from
     
     Optional_args:
-        - plt_bkend (str): mpl backend to use for plotting (e.g., "agg")
-                           default: None
-        - fontdir (Path) : path to directory where additional fonts are stored
-                           default: None
-        - parallel (bool): if True, some of the analysis is parallelized across 
-                           CPU cores
-                           default: False
-        - datetime (bool): figpar["save"] datatime parameter (whether to 
-                           place figures in a datetime folder)
-                           default: True
+        - plt_bkend (str) : mpl backend to use for plotting (e.g., "agg")
+                            default: None
+        - fontdir (Path)  : path to directory where additional fonts are stored
+                            default: None
+        - parallel (bool) : if True, some of the analysis is parallelized 
+                            across CPU cores
+                            default: False
+        - datetime (bool) : figpar["save"] datatime parameter (whether to 
+                            place figures in a datetime folder)
+                            default: True
+        - overwrite (bool): figpar["save"] overwrite parameter (whether to 
+                            overwrite figures)
+                            default: False
     """
 
     logger.info(f"Plotting from dictionary: {dict_path}", 
         extra={"spacing": "\n"})
     
     figpar = sess_plot_util.init_figpar(
-        plt_bkend=plt_bkend, fontdir=fontdir, datetime=datetime)
+        plt_bkend=plt_bkend, fontdir=fontdir, datetime=datetime, 
+        overwrite=overwrite
+        )
     plot_util.manage_mpl(cmap=False, **figpar["mng"])
 
     dict_path = Path(dict_path)
@@ -183,22 +188,22 @@ def plot_pup_diff_corr(analyspar, sesspar, stimpar, extrapar,
     figpar["init"]["ncols"] = n_sess
     
     fig, ax = plot_util.init_fig(2 * n_sess, **figpar["init"])
-    suptitle = (f"Relationship between pupil diam and {datastr} changes "
+    suptitle = (f"Relationship between pupil diam. and {datastr} changes, "
         "locked to unexpected events")
     
     for i, sess_diffs in enumerate(corr_data["diffs"]):
         sub_axs = ax[:, i]
         title = (f"Mouse {mouse_ns[i]} - {stimstr_pr} " + 
             u"{}".format(statstr_pr) + f"\n(sess {sess_ns[i]}, {lines[i]} "
-            f"{planes[i]}{dendstr_pr},{nroi_strs[i]})")
+            f"{planes[i]}{dendstr_pr}{nroi_strs[i]})")
         
         # top plot: correlations
         corr = f"Corr = {corr_data['corrs'][i]:.2f}"
         sub_axs[0].plot(
             sess_diffs[0], sess_diffs[1], marker=".", linestyle="None", 
             label=corr)
-        sub_axs[0].set_title(title)
-        sub_axs[0].set_xlabel(u"{} pupil diam{}".format(delta, lab_app))
+        sub_axs[0].set_title(title, y=1.01)
+        sub_axs[0].set_xlabel(u"{} pupil diam.{}".format(delta, lab_app))
         if i == 0:
             sub_axs[0].set_ylabel(u"{} {}\n{}".format(
                 delta, full_label_str, lab_app))
@@ -206,7 +211,7 @@ def plot_pup_diff_corr(analyspar, sesspar, stimpar, extrapar,
         
         # bottom plot: differences across occurrences
         data_lab = u"{} {}".format(delta, label_str)   
-        pup_lab = u"{} pupil diam".format(delta)
+        pup_lab = u"{} pupil diam.".format(delta)
         cols = []
         scaled = []
         for d, lab in enumerate([pup_lab, data_lab]):
@@ -247,8 +252,8 @@ def plot_pup_roi_stim_corr(analyspar, sesspar, stimpar, extrapar,
                            sess_info, corr_data)
 
     From dictionaries, plots correlation between unexpected-locked changes in 
-    pupil diameter and each ROI, for gabors versus visual flow responses for each 
-    session.
+    pupil diameter and each ROI, for gabors versus visual flow responses for 
+    each session.
     
     Required args:
         - analyspar (dict)    : dictionary with keys of AnalysPar namedtuple
@@ -293,9 +298,12 @@ def plot_pup_roi_stim_corr(analyspar, sesspar, stimpar, extrapar,
 
     stimstr_prs = []
     for stimtype in corr_data["stim_order"]:
-        stimstr_prs.append(sess_str_util.stim_par_str(
+        stimstr_pr = sess_str_util.stim_par_str(
             stimtype, stimpar["visflow_dir"], stimpar["visflow_size"], 
-            stimpar["gabk"], "print"))
+            stimpar["gabk"], "print")
+        stimstr_pr = stimstr_pr[:-1] if stimstr_pr[-1] == "s" else stimstr_pr
+        stimstr_prs.append(stimstr_pr)
+        
     dendstr_pr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], extrapar["datatype"], "print")
 
@@ -328,25 +336,25 @@ def plot_pup_roi_stim_corr(analyspar, sesspar, stimpar, extrapar,
     figpar["init"]["sharey"] = True
     
     fig, ax = plot_util.init_fig(n_sess, **figpar["init"])
-    suptitle = (u"Relationship between pupil diam and {} changes locked to "
-        "unexpected{} for each ROI for {} vs {}".format(
+    suptitle = (u"Relationship between pupil diam. and {} changes, locked to "
+        "unexpected events\n{} for each ROI ({} vs {})".format(
             label_str, lab_app, *corr_data["stim_order"]))
     
     for i, sess_roi_corrs in enumerate(corr_data["roi_corrs"]):
         sub_ax = plot_util.get_subax(ax, i)
         title = (f"Mouse {mouse_ns[i]} (sess {sess_ns[i]}, {lines[i]} "
-            f"{planes[i]}{dendstr_pr},{nroi_strs[i]})")
+            f"{planes[i]}{dendstr_pr}{nroi_strs[i]})")
         
         # top plot: correlations
         corr = f"Corr = {corr_data['corrs'][i]:.2f}"
         sub_ax.plot(
             sess_roi_corrs[0], sess_roi_corrs[1], marker=".", linestyle="None", 
             label=corr)
-        sub_ax.set_title(title)
+        sub_ax.set_title(title, y=1.01)
         if sub_ax.is_last_row():
-            sub_ax.set_xlabel(f"{stimstr_prs[0]} correlations")
+            sub_ax.set_xlabel(f"{stimstr_prs[0].capitalize()} correlations")
         if sub_ax.is_first_col():
-            sub_ax.set_ylabel(f"{stimstr_prs[1]} correlations")
+            sub_ax.set_ylabel(f"{stimstr_prs[1].capitalize()} correlations")
         sub_ax.legend()
 
     plot_util.turn_off_extra(ax, n_sess)

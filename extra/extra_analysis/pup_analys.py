@@ -187,9 +187,9 @@ def peristim_data(sess, stimpar, ran_s=None, datatype="both",
             by="seg")
     
     unexp_twopfr = stim.get_fr_by_seg(
-        unexp_segs, start=True, fr_fype="twop")["start_frame_twop"]
+        unexp_segs, start=True, fr_type="twop")["start_frame_twop"]
     unexp_stimfr = stim.get_fr_by_seg(
-        unexp_segs, start=True, fr_fype="stim")["start_frame_stim"]
+        unexp_segs, start=True, fr_type="stim")["start_frame_stim"]
     # get data dataframes
     pup_data = gen_util.reshape_df_data(stim.get_pup_diam_data(
         unexp_twopfr, ran_s["pup_pre"], ran_s["pup_post"], 
@@ -392,7 +392,6 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
     stimpar_dict = stimpars[0]._asdict()
     stimpar_dict["stimtype"] = "both"
     
-
     logger.info("Analysing and plotting correlations between unexpected vs "
           f"expected ROI traces between sessions ({sessstr_pr}{dendstr_pr}).", 
           extra={"spacing": "\n"})
@@ -412,7 +411,7 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
             [pup_diff, roi_diff] = diffs 
             nrois = roi_diff.shape[-1]
             # optionally runs in parallel
-            if parallel and len(corrs) > 1:
+            if parallel and nrois > 1:
                 n_jobs = gen_util.get_n_jobs(nrois)
                 corrs = Parallel(n_jobs=n_jobs)(delayed(np.corrcoef)
                     (roi_diff[:, r], pup_diff) for r in range(nrois))

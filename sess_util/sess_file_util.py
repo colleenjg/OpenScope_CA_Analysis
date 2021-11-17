@@ -385,7 +385,7 @@ def get_sess_dir_path(maindir, sessid, runtype="prod"):
         mouse_dir = True
 
     if len(name_dir) == 0:
-        raise OSError(f"Could not find directory for session {sessid} "
+        raise OSError(f"Could not find the directory for session {sessid} "
             f"(runtype {runtype}) in {maindir} subfolders.")
     elif len(name_dir) > 1:
         raise OSError(f"Found {len(name_dir)} matching session folders in "

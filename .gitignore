@@ -8,6 +8,7 @@
 !/plot_fcts/
 !/examples/
 !/roi_tracking/
+!/paper_figures/
 
 /paper_fig_util/intermediate_results
 .ipynb_checkpoints

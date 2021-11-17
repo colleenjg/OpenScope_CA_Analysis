@@ -418,7 +418,8 @@ def gabfr_nbrs(gabfr):
     """
     gabfr_nbrs(gabfr)
 
-    Returns the numbers corresponding to the Gabor frame letters (A, B, C, D/U).
+    Returns the numbers corresponding to the Gabor frame letters 
+    (A, B, C, D/U, G).
 
     Required args:
         - gabfr (str or list): gabor frame letter(s)
@@ -433,12 +434,17 @@ def gabfr_nbrs(gabfr):
     else:
         gabfr_list = True
 
-    all_gabfr  = ["A", "B", "C", "D", "U", "D/U"]
-    all_gabnbr = [0, 1, 2, 3, 3, 3]
+    all_gabfr  = ["A", "B", "C", "D", "U", "D/U", "G"]
+    all_gabnbr = [0, 1, 2, 3, 3, 3, 4]
 
+    gabfr = [
+        all_gabfr[all_gabnbr.index(fr)] 
+        if fr in all_gabnbr else fr 
+        for fr in gabfr
+        ]
 
     if sum([g not in all_gabfr for g in gabfr]):
-        raise ValueError("Gabor frames letters include A, B, C, D and U only.")
+        raise ValueError("Gabor frames letters include A, B, C, D, U and G only.")
     
     
     if gabfr_list:
@@ -455,7 +461,8 @@ def gabfr_letters(gabfr, unexp="any"):
     """
     gabfr_letters(gabfr)
 
-    Returns the letters corresponding to the Gabor frame numbers (0, 1, 2, 3).
+    Returns the letters corresponding to the Gabor frame numbers 
+    (0, 1, 2, 3, 4). 
 
     Required args:
         - gabfr (int or list): gabor frame number(s)
@@ -484,10 +491,13 @@ def gabfr_letters(gabfr, unexp="any"):
             raise ValueError("If passing more than one unexp value, must "
                 "pass as many as gabfr.")
 
-    if min(gabfr) < 0 or max(gabfr) > 3:
-        raise ValueError("Gabor frames are only between 0 and 3, inclusively.")
+    if isinstance(gabfr, int):
+        if min(gabfr) < 0 or max(gabfr) > 4:
+            raise ValueError(
+                "Gabor frames are only between 0 and 4, inclusively."
+                )
 
-    all_gabfr = ["A", "B", "C", "D/U"]
+    all_gabfr = ["A", "B", "C", "D/U", "G"]
 
     gab_letts = []
     for i, gf in enumerate(gabfr):
@@ -1026,14 +1036,12 @@ def get_stimdir(stimtype="gabors", gabfr=0):
         - stimdir (str): stimulus directory
     """
 
-    stimdir = stimtype[:3]
+    stimdir = stimtype
     if stimtype == "gabors":
+        stimdir = "gab"
         gab_lett = gabfr_letters(gabfr)
         if "/" in gab_lett:
             gab_lett = gab_lett.replace("/", "")
-        stimdir = f"{stimdir}{gab_lett}"
-    elif stimtype == "both":
-        stimdir = stimtype
 
     return stimdir
 

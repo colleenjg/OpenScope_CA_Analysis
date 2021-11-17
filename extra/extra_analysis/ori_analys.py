@@ -237,12 +237,13 @@ def tune_curv_estims(gab_oris, roi_data, ngabs_tot, nrois="all", ngabs="all",
     kaps  = gab_vm_pars[:, :, 0]
 
     gab_vm_mean = np.empty([nrois, len(kapw_bool)])
-    gab_vm_mean[:, 0] = st.circmean(means, np.pi/2., -np.pi/2, axis=1)
+    gab_vm_mean[:, 0] = st.circmean(means, 0, np.pi, axis=1)
     if not comb_gabs:
         import astropy.stats as astrost
-        # astropy only implemented with -pi to pi range
-        gab_vm_mean[:, 1] = astrost.circmean(
-            means * 2., axis=1, weights=kaps)/2.
+        # astropy only implemented with -pi to pi range -> 0 to pi
+        gab_vm_mean[:, 1] = (astrost.circmean(
+            means * 2., axis=1, weights=kaps
+            ) + np.pi) / 2
     
     return gab_tc_oris, gab_tc_data, gab_vm_pars, gab_vm_mean, gab_hist_pars
 

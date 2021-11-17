@@ -198,14 +198,14 @@ def plot_sess_traces(data_df, analyspar, sesspar, figpar,
         )
 
     if size == "small":
-        figpar["init"]["subplot_hei"] = 1.5
+        figpar["init"]["subplot_hei"] = 1.51
         figpar["init"]["subplot_wid"] = 3.7
     elif size == "wide":
-        figpar["init"]["subplot_hei"] = 1.35
+        figpar["init"]["subplot_hei"] = 1.36
         figpar["init"]["subplot_wid"] = 4.8
         figpar["init"]["gs"] = {"wspace": 0.3, "hspace": 0.5}
     elif size == "reg":
-        figpar["init"]["subplot_hei"] = 1.35
+        figpar["init"]["subplot_hei"] = 1.36
         figpar["init"]["subplot_wid"] = 3.4
     else:
         gen_util.accepted_values_error("size", size, ["small", "wide", "reg"])
@@ -595,7 +595,7 @@ def plot_sess_data(data_df, analyspar, sesspar, permpar, figpar,
 
 
 #############################################
-def plot_ex_gabor_roi_traces(sub_ax, df_row, col="k", dash=None):
+def plot_ex_gabor_roi_traces(sub_ax, df_row, col="k", dash=None, zorder=-13):
     """
     plot_ex_gabor_roi_traces(sub_ax, df_row)
 
@@ -614,6 +614,10 @@ def plot_ex_gabor_roi_traces(sub_ax, df_row, col="k", dash=None):
         - dash (tuple or None):
             dash pattern to use for trace statistic
             default: None
+        - zorder (int):
+            zorder for the individual traces 
+            (zorder + 1 used for vertical dash line at 0)
+            default: -13
 
     Returns:
         - ylims (list): 
@@ -621,7 +625,7 @@ def plot_ex_gabor_roi_traces(sub_ax, df_row, col="k", dash=None):
     """
 
     sub_ax.axvline(x=0, ls=plot_helper_fcts.VDASH, c="k", lw=3.0, 
-        alpha=0.5, zorder=-12)
+        alpha=0.5, zorder=zorder + 1)
 
     time_values = df_row["time_values"]
     traces_sm = np.asarray(df_row["traces_sm"])
@@ -630,7 +634,8 @@ def plot_ex_gabor_roi_traces(sub_ax, df_row, col="k", dash=None):
     alpha = 2 / np.log(len(traces_sm))
 
     sub_ax.plot(
-        time_values, traces_sm.T, lw=1, color="gray", alpha=alpha, zorder=-13
+        time_values, traces_sm.T, lw=1, color="gray", alpha=alpha, 
+        zorder=zorder
         )
 
     sub_ax.plot(
@@ -648,7 +653,6 @@ def plot_ex_gabor_roi_traces(sub_ax, df_row, col="k", dash=None):
     ylims = [ymin, ymax]
 
     return ylims
-
 
 
 #############################################
@@ -698,7 +702,7 @@ def plot_ex_gabor_traces(ex_traces_df, stimpar, figpar, title=None):
     figpar = sess_plot_util.fig_init_linpla(
         figpar, kind="traces", n_sub=per_rows
         )
-    figpar["init"]["subplot_hei"] = 1.35
+    figpar["init"]["subplot_hei"] = 1.36
     figpar["init"]["subplot_wid"] = 2.47
     figpar["init"]["ncols"] = per_cols * 2
 
@@ -706,10 +710,11 @@ def plot_ex_gabor_traces(ex_traces_df, stimpar, figpar, title=None):
         plot_helper_fcts.N_LINPLA * n_per, **figpar["init"]
         )
     if title is not None:
-        fig.suptitle(title, y=1.03, weight="bold", fontsize=22)
+        fig.suptitle(title, y=1.03, weight="bold")
 
     ylims = np.full(ax.shape + (2, ), np.nan)
     logger.info("Plotting individual traces...", extra={"spacing": TAB})
+    raster_zorder = -12
     for (line, plane), lp_df in ex_traces_df.groupby(["lines", "planes"]):
         li, pl, col, dash = plot_helper_fcts.get_line_plane_idxs(line, plane)
         for i, idx in enumerate(lp_df.index):
@@ -721,7 +726,8 @@ def plot_ex_gabor_traces(ex_traces_df, stimpar, figpar, title=None):
                 sub_ax, 
                 lp_df.loc[idx],
                 col=col,
-                dash=dash
+                dash=dash,
+                zorder=raster_zorder - 1
             )
 
         time_values = np.asarray(lp_df.loc[lp_df.index[-1], "time_values"])
@@ -753,7 +759,7 @@ def plot_ex_gabor_traces(ex_traces_df, stimpar, figpar, title=None):
     # rasterize the gray lines
     logger.info("Rasterizing individual traces...", extra={"spacing": TAB})
     for sub_ax in ax.reshape(-1):
-        sub_ax.set_rasterization_zorder(-12)
+        sub_ax.set_rasterization_zorder(raster_zorder)
 
     return ax
 

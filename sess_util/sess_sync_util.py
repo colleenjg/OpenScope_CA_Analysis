@@ -306,13 +306,13 @@ def get_stim_frames(pkl_file_name, syn_file_name, time_sync_h5, df_pkl_name,
                            default: "prod"
     """
 
-    # check that the pickle file exists
-    file_util.checkfile(pkl_file_name)
 
     # read the pickle file and call it "pkl"
     if isinstance(pkl_file_name, dict):
         pkl = pkl_file_name
     else:
+        # check that the pickle file exists
+        file_util.checkfile(pkl_file_name)
         pkl = file_util.loadfile(pkl_file_name, filetype="pickle")
 
     if runtype == "pilot":

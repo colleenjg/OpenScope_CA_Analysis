@@ -214,7 +214,7 @@ def get_stimpar(comp="unexp", stimtype="gabors", visflow_dir="both",
                 if comp in ["Dori", "Uori"]:
                     pre, post = 0, 0.6
                 act_gabfr = act_gabfr[0]
-                gab_oris = sess_gen_util.filter_gab_oris(act_gabfr[0])
+                gab_ori = sess_gen_util.filter_gab_oris(gab_letts[0], gab_ori)
                 if act_gabfr != gabfr:
                     logger.info(
                         f"Setting gabfr to {act_gabfr} instead of {gabfr}.")
@@ -590,7 +590,9 @@ def get_data(stim, analyspar, stimpar, quantpar, qu_i=0, unexp=[0, 1],
             segs = gen_util.get_alternating_consec(segs, first=False)
         if t == 0:
             unexp_n = len(segs) * n
-    twop_fr = stim.get_fr_by_seg(segs, start=True, fr_type="twop")["start_frame_twop"]
+    twop_fr = stim.get_fr_by_seg(
+        segs, start=True, fr_type="twop"
+        )["start_frame_twop"]
     
     # do not scale (scaling factors cannot be based on test data)
     if stim.sess.only_tracked_rois != analyspar.tracked:
@@ -716,7 +718,7 @@ def get_sess_data(sess, analyspar, stimpar, quantpar, class_var="unexps",
         if "diff" in class_var:
             quantpar = sess_ntuple_util.init_quantpar(
                 4, [[1, 2]], [None], [None])
-            if len(np.unique(stim.direcs)) != 2:
+            if len(np.unique(stim.main_flow_direcs)) != 2:
                 raise RuntimeError(
                     "Segments do not fit these criteria (missing directions).")
         else:
@@ -1465,7 +1467,7 @@ def run_regr(sess, analyspar, stimpar, logregpar, quantpar, extrapar, techpar):
             sess, analyspar, stimpar, quantpar, class_var, unexps, 
             exp_v_unexp=logregpar.exp_v_unexp, split_oris=split_oris)
     except RuntimeError as err:
-        catch_phr = ["fit these criteria", "No frames"]
+        catch_phr = ["No frames", "No segments", "Some quantiles are empty"]
         catch = sum(phr in str(err) for phr in catch_phr)
         if catch:            
             warnings.warn(str(err), category=RuntimeWarning, stacklevel=1)

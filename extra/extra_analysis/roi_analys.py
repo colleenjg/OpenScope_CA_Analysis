@@ -929,7 +929,7 @@ def posori_resp(sess, analyspar, stimpar, nrois="all"):
             )
 
     stim = sess.get_stim(stimpar.stimtype)
-    oris = stim.oris
+    oris = stim.exp_gabfr_mean_oris
     nrois_tot = sess.get_nrois(analyspar.remnans, analyspar.fluor)
     if nrois == "all":
         sess_nrois = nrois_tot
@@ -943,11 +943,12 @@ def posori_resp(sess, analyspar, stimpar, nrois="all"):
         ori_stats = []
         ori_nseqs = []
         for gf in range(5):
-            if gf == 3:
+            if gf == 3: # D
                 s = 0
-            elif gf == 4:
+            elif gf == 4: # U
                 s = 1
                 gf = 3
+                ori = sess_gen_util.get_unexp_gab_ori(ori)
             else:
                 s = "any"
             # get segments
