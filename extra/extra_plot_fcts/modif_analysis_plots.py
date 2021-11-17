@@ -33,7 +33,7 @@ TAB = "    "
 
 #############################################
 def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True, 
-                   parallel=False, datetime=True):
+                   parallel=False, datetime=True, overwrite=False):
     """
     plot_from_dict(dict_path)
 
@@ -43,25 +43,31 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
         - dict_path (Path): path to dictionary to plot data from
     
     Optional_args:
-        - plt_bkend (str): mpl backend to use for plotting (e.g., "agg")
-                           default: None
-        - fontdir (Path) : path to directory where additional fonts are stored
-                           default: None
-        - plot_tc (bool) : if True, tuning curves are plotted for each ROI 
-                           default: True
-        - parallel (bool): if True, some of the analysis is parallelized across 
-                           CPU cores
-                           default: False
-        - datetime (bool): figpar["save"] datatime parameter (whether to 
-                           place figures in a datetime folder)
-                           default: True
+        - plt_bkend (str) : mpl backend to use for plotting (e.g., "agg")
+                            default: None
+        - fontdir (Path)  : path to directory where additional fonts are stored
+                            default: None
+        - plot_tc (bool)  : if True, tuning curves are plotted for each ROI 
+                            (dummy argument)
+                            default: True
+        - parallel (bool) : if True, some of the analysis is parallelized 
+                            across CPU cores
+                            default: False
+        - datetime (bool) : figpar["save"] datatime parameter (whether to 
+                            place figures in a datetime folder)
+                            default: True
+        - overwrite (bool): figpar["save"] overwrite parameter (whether to 
+                            overwrite figures)
+                            default: False
     """
 
     logger.info(f"Plotting from dictionary: {dict_path}", 
         extra={"spacing": "\n"})
     
     figpar = sess_plot_util.init_figpar(
-        plt_bkend=plt_bkend, fontdir=fontdir, datetime=datetime)
+        plt_bkend=plt_bkend, fontdir=fontdir, datetime=datetime,
+        overwrite=overwrite
+        )
     plot_util.manage_mpl(cmap=False, **figpar["mng"])
 
     plt.rcParams["figure.titlesize"] = "xx-large"
@@ -192,7 +198,7 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
             f"{planes[i]}{dendstr_pr}{nroi_strs[i]})")
 
         sub_axs = ax[:, i]
-        sub_axs[0].set_title(title)
+        sub_axs[0].set_title(title, y=1.02)
         if datatype == "roi":
             # average trace
             av_tr = np.asarray(trace_info["all_tr"][i][1])
@@ -782,7 +788,7 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
                 yticks=yticks, alpha=0.2, label=lab)
         plot_util.add_bars(sub_ax, hbars=seq_bars)
         sub_ax.set_ylim([0, 1])
-        sub_ax.set_title(title)
+        sub_ax.set_title(title, y=1.02)
         sub_ax.set_xlabel("Lag (s)")
 
     plot_util.turn_off_extra(ax, n_sess)

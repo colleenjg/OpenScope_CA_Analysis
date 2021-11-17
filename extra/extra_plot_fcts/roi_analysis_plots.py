@@ -36,7 +36,7 @@ warnings.filterwarnings("ignore", message="This figure includes*")
 
 #############################################
 def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True, 
-                   parallel=False, datetime=True):
+                   parallel=False, datetime=True, overwrite=False):
     """
     plot_from_dict(dict_path)
 
@@ -46,25 +46,30 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
         - dict_path (Path): path to dictionary to plot data from
     
     Optional_args:
-        - plt_bkend (str): mpl backend to use for plotting (e.g., "agg")
-                           default: None
-        - fontdir (Path) : path to directory where additional fonts are stored
-                           default: None
-        - plot_tc (bool) : if True, tuning curves are plotted for each ROI 
-                           default: True
-        - parallel (bool): if True, some of the analysis is parallelized across 
-                           CPU cores
-                           default: False
-        - datetime (bool): figpar["save"] datatime parameter (whether to 
-                           place figures in a datetime folder)
-                           default: True
+        - plt_bkend (str) : mpl backend to use for plotting (e.g., "agg")
+                            default: None
+        - fontdir (Path)  : path to directory where additional fonts are stored
+                            default: None
+        - plot_tc (bool)  : if True, tuning curves are plotted for each ROI 
+                            default: True
+        - parallel (bool) : if True, some of the analysis is parallelized 
+                            across CPU cores
+                            default: False
+        - datetime (bool) : figpar["save"] datatime parameter (whether to 
+                            place figures in a datetime folder)
+                            default: True
+        - overwrite (bool): figpar["save"] overwrite parameter (whether to 
+                            overwrite figures)
+                            default: False
     """
 
     logger.info(f"Plotting from dictionary: {dict_path}", 
         extra={"spacing": "\n"})
         
     figpar = sess_plot_util.init_figpar(
-        plt_bkend=plt_bkend, fontdir=fontdir, datetime=datetime)
+        plt_bkend=plt_bkend, fontdir=fontdir, datetime=datetime, 
+        overwrite=overwrite
+        )
     
     plot_util.manage_mpl(cmap=False, **figpar["mng"])
     
@@ -1093,6 +1098,7 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quantpar,
             figpar["dirs"]["roi"], 
             figpar["dirs"]["oridir"])
 
+    # must update matplotlib settings within parallel
     figpar_mng = {
         key: val for key, val in figpar["mng"].items() if key != "linclab"
         }
@@ -1476,14 +1482,14 @@ def plot_vm_estim_analysis(subax_col, xran, gab_oris, gab_data, gab_vm_pars,
     # Top: Von Mises fits
     vm_fit = st.vonmises.pdf(np.radians(xran), *gab_vm_pars)
     subax_col[0].plot(xran, vm_fit)
-    subax_col[0].set_title(f"Von Mises fits{title_str}")
+    subax_col[0].set_title(f"Von Mises fits{title_str}", y=1.02)
     subax_col[0].set_ylabel("Probability density")
     col = subax_col[0].lines[-1].get_color()
     
     # Mid: actual data
     subax_col[1].plot(gab_oris, gab_data, marker=".", lw=0, alpha=0.3, 
                        color=col)
-    subax_col[1].set_title("Mean AUC per orientation")
+    subax_col[1].set_title("Mean AUC per orientation", y=1.02)
     y_str = sess_str_util.fluor_par_str(fluor, str_type="print")
     subax_col[1].set_ylabel(u"{} area (mean)".format(y_str))
 
@@ -1493,7 +1499,7 @@ def plot_vm_estim_analysis(subax_col, xran, gab_oris, gab_data, gab_vm_pars,
         ).astype(int)
     freq_data = np.repeat(np.asarray(gab_oris), counts)                
     subax_col[2].hist(freq_data, 360, color=col)
-    subax_col[2].set_title("Orientation histogram")
+    subax_col[2].set_title("Orientation histogram", y=1.02)
     subax_col[2].set_xlabel(u"Orientations ({})".format(deg))
     subax_col[2].set_ylabel("Artificial counts")
     plot_util.set_ticks(subax_col[2], "x", np.min(xran), np.max(xran), 10)
@@ -1580,6 +1586,7 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
     figpar["init"]["sharey"] = False
     figpar["save"]["fig_ext"] = "png" # svg too big
 
+    # must update matplotlib settings within parallel
     plot_util.manage_mpl(**figpar["mng"])
 
     if savedir is None:
@@ -1620,7 +1627,8 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
                 ax[0, s].plot(
                     gab_oris, roi_data[s], marker=".", lw=0, alpha=0.3)
                 ax[0, s].set_title(
-                    f"AUC per orientation{title_str}", fontsize="large")
+                    f"AUC per orientation{title_str}", fontsize="large", y=1.02
+                    )
                 xlab = u"Orientations ({})".format(deg)
                 sess_plot_util.add_axislabels(
                     ax[0, s], fluor=fluor, area=True, x_ax=xlab, datatype="roi")
@@ -1693,12 +1701,12 @@ def plot_tune_curve_regr(vm_means, vm_regr, seq_info, gentitle="",
 
     if np.min(vm_means) < 0:
         raise ValueError("Orientations expected to be positive.")  
-    max_val = 180
+    max_val = np.pi
     if np.max(vm_means) > max_val:
-        max_val = 360
+        max_val = 2 * np.pi
         if np.max(vm_means) > max_val:
             raise ValueError(
-                "Orientations expected to be at most between 0 and 360."
+                "Orientations expected to be at most between 0 and 2 * pi."
                 )
     xvals = [0, max_val]
     

@@ -531,12 +531,19 @@ def get_seg_info(sess, stimpar, split="by_exp", prog_pos=0, common_oris=False):
 
     # identify info for retrieving segments
     if split == "by_exp":
-        if (stimpar.stimtype == "gabors" and 
-            (stimpar.gabfr * 0.3 + stimpar.post) < 0.9):
-            raise RuntimeError(f"{stimpar.post}s after gaborframe "
-                f"{stimpar.gabfr} is too short to include unexpected period.")
+        gab_oris = [gab_ori, gab_ori]
+        if stimpar.stimtype == "gabors":
+            # if single Gabor orientation value, adjust by shifting orientation for unexp
+            if stimpar.gabfr in [3, 4] and isinstance(gab_ori, int):
+                gab_oris[1] = sess_gen_util.get_unexp_gab_ori(gab_ori)
+
+            # check if unexpected component is included
+            if (stimpar.gabfr * 0.3 + stimpar.post) < 0.9:
+                raise RuntimeError(f"{stimpar.post}s after gaborframe "
+                    f"{stimpar.gabfr} is too short to include unexpected period.")
+
         segs = [stim.get_segs_by_criteria(
-            gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=gab_ori,
+            gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=gab_oris[unexp],
             visflow_dir=stimpar.visflow_dir, visflow_size=stimpar.visflow_size, 
             unexp=unexp, 
             by="seg") for unexp in [0, 1]]
@@ -664,17 +671,6 @@ def split_data_by_sess(sess, analyspar, stimpar, datatype="roi",
     progs = ["prog_exp", "prog_unexp"]
     stim_on_offset = ["stim_onset", "stim_offset"]
 
-    incr_unexp_ori = False
-    if stimpar.stimtype == "gabors":
-        if split == "by_exp" and isinstance(stimpar.gab_ori, int):
-            if stimpar.gabfr == 3:
-                incr_unexp_ori = True
-                warnings.warn(
-                    "Incrementing orientation for unexpected segments to "
-                    "ensure data is paired for by_exp split.", 
-                    category=RuntimeWarning, stacklevel=1
-                    )
-
     if split in (["by_exp"] + locks + progs):
         stim = sess.get_stim(stimpar.stimtype)
         refs, pre_posts = get_seg_info(
@@ -721,12 +717,6 @@ def split_data_by_sess(sess, analyspar, stimpar, datatype="roi",
 
         stimpar_use = sess_ntuple_util.get_modif_ntuple(
             stimpar, ["pre", "post"], [pre, post])
-        
-        if incr_unexp_ori and s == 1:
-            incr_ori = sess_gen_util.get_unexp_gab_ori(stimpar.gab_ori)
-            stimpar_use = sess_ntuple_util.get_modif_ntuple(
-                stimpar, "gab_ori", incr_ori
-                )
 
         data_arr.append(data_from_refs(
             sess, subrefs, analyspar, stimpar_use, datatype, integ=integ, 
@@ -1241,7 +1231,7 @@ def stim_idx_by_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05,
             "each mouse.")
     sessions_zipped = zip(*sessions)
 
-    n_bins = 4/p_val
+    n_bins = 4 / p_val
     if n_bins != int(n_bins):
         raise NotImplementedError(f"Analysis not well adapted to binning "
             f"with p-value of {p_val}.")
@@ -3129,6 +3119,7 @@ def run_unexp_idx_common_oris(sessions, analysis, seed, analyspar, sesspar,
         baseline=basepar.baseline, common_oris=True, seed=seed, 
         parallel=parallel)
 
+
     extrapar = {"analysis": analysis,
                 "datatype": datatype,
                 "seed"    : seed,
@@ -3583,15 +3574,28 @@ def run_unexp_idx_cm(sessions, analysis, analyspar, sesspar, stimpar, basepar,
             gen_util.accepted_values_error(
                 "idxpar.feature", idxpar.feature, features)
 
-    if stimtype == "gabors":
-        if "unexp" in gabor_features and stimpar.gabfr == 3:
-            gab_oris = sess_gen_util.filter_gab_oris("U", stimpar.gab_ori)
-        else:
+    stimpar_use = stimpar
+    if stimpar.stimtype == "gabors":
+        if "unexp" in idxpar.feature: 
+            if stimpar.gabfr in [3, 4]:
+                gab_oris = sess_gen_util.filter_gab_oris("U", stimpar.gab_ori)
+            else:
+                gab_oris = sess_gen_util.filter_gab_oris("D", stimpar.gab_ori)
+
+            stimpar = sess_ntuple_util.get_modif_ntuple(
+                stimpar, "gab_ori", gab_oris
+                )
+
+        # for unexp segments, orientation will be adjusted
+        if idxpar.feature == "by_exp":
             gab_oris = sess_gen_util.filter_gab_oris("D", stimpar.gab_ori)
-    stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, "gab_ori", gab_oris)
+
+            stimpar_use = sess_ntuple_util.get_modif_ntuple(
+                stimpar, "gab_ori", gab_oris
+                )
 
     unexp_idx_info, sess_info = stimpar_split_idx_by_linpla(
-        sessions, analyspar, stimpar, datatype=datatype, 
+        sessions, analyspar, stimpar_use, datatype=datatype, 
         n_perms=permpar.n_perms, feature=idxpar.feature, op=idxpar.op, 
         position=idxpar.position, baseline=basepar.baseline, parallel=parallel)
 

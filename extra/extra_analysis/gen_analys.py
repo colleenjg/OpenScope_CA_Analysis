@@ -67,30 +67,30 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
     if figpar["save"]["use_dt"] is None:
         figpar["save"]["use_dt"] = gen_util.create_time_str()
     
-    param_names = ["kappa", "direction", "size", "number"]
     all_tr, roi_tr, all_edges, all_pars = [], [], [], []
     for sess in sessions:
         # get the block edges and parameters
         edge_fr, par_descrs = [], []
         for stim in sess.stims:
+            stim_str = stim.stimtype
+            if stim.stimtype == "visflow":
+                stim_str = "vis. flow"
             if datatype == "roi":
-                fr_type = "twop_fr"
+                fr_type = "twop"
             elif datatype == "run":
-                fr_type = "stim_fr"
+                fr_type = "stim"
             else:
                 gen_util.accepted_values_error(
                     "datatype", datatype, ["roi", "run"])
-            for b in stim.block_params.index.unique("block_n"):
-                row = stim.block_params.loc[pd.IndexSlice[:, b], ]
-                edge_fr.append([row[f"start_{fr_type}", ].tolist()[0], 
-                    row[f"end_{fr_type}", ].tolist()[0]])
-                params = filter(lambda par: 
-                    par in stim.block_params.columns.unique("parameters"), 
-                    param_names)
-                par_vals = [row[param, ].values[0] for param in params]
+            for b in stim.block_params.index:
+                row = stim.block_params.loc[b]
+                edge_fr.append([int(row[f"start_frame_{fr_type}"]), 
+                    int(row[f"stop_frame_{fr_type}"])])
+                par_vals = [row[param] for param in stim.stim_params]
                 pars_str = "\n".join([str(par) for par in par_vals][0:2])
+                
                 par_descrs.append(sess_str_util.pars_to_descr(
-                    f"{stim.stimtype.capitalize()}\n{pars_str}"))
+                    f"{stim_str.capitalize()}\n{pars_str}"))
             
         if datatype == "roi":
             if sess.only_tracked_rois != analyspar.tracked:
@@ -704,34 +704,5 @@ def run_trace_corr_acr_sess(sessions, analysis, analyspar, sesspar,
 
     # reset logger level
     logger.setLevel(prev_level)
-
-    # CURRENTLY RESULTS ARE ONLY PRINTED TO THE CONSOLE, NOT SAVED
-    # extrapar = {"analysis": analysis,
-    #             "datatype": datatype,
-    #             }
-
-    # corr_data = {"all_corrs"      : all_corrs,
-    #              "all_mouse_corrs": all_mouse_corrs,
-    #              "all_counts"     : all_counts
-    #             }
-    
-    # sess_info = []
-    # for sess_grp in sessions:
-    #     sess_info.append(
-    #           sess_gen_util.get_sess_info(
-    #               sess_grp, analyspar.fluor, incl_roi=(datatype=="roi"), 
-    #               remnans=analyspar.remnans)
-    #     )
-
-    # info = {"analyspar": analyspar._asdict(),
-    #         "sesspar"  : sesspar._asdict(),
-    #         "stimpar"  : stimpar._asdict(),
-    #         "extrapar" : extrapar,
-    #         "sess_info": sess_info,
-    #         "corr_data": corr_data
-    #         }
-
-    # savename = "trace_corr" # should be modified to include session info
-    # file_util.saveinfo(info, savename, fulldir, "json")
 
 

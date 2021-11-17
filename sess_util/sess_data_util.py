@@ -93,12 +93,16 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
 
     segs = stim.get_segs_by_criteria(
         gabfr=gabfr, gabk=gabk, unexp=unexp, by="seg")
-    twopfr = stim.get_fr_by_seg(segs, start=True, fr_type="twop")["start_frame_twop"]
+    twopfr = stim.get_fr_by_seg(
+        segs, start=True, fr_type="twop"
+        )["start_frame_twop"]
 
     # get stim params in df with indices seg x frame x gabor x par 
     # (x, y, ori, size). Each param scaled to between -1 and 1 based on known 
     # ranges from which they were sampled
-    pars_df = stim.get_stim_par_by_fr(twopfr, pre, post, scale=True, fr_type="twop")
+    pars_df = stim.get_stim_par_by_fr(
+        twopfr, pre, post, scale=True, fr_type="twop"
+        )
     targ = [len(pars_df.index.unique(lev)) for lev in pars_df.index.names] + \
         [len(pars_df.columns.unique("parameters"))]
     targ[1] = -1 # 2p frame number is not repeated across sequences
@@ -262,7 +266,7 @@ def convert_to_binary_cols(df, col, vals, targ_vals):
     uniq_vals = df[col].unique().tolist()    
     if not set(uniq_vals).issubset(set(vals)):
         raise ValueError(f"Unexpected values for {col}.")
-    
+
     mapping = dict()
     for val in vals:
         mapping[val] = 0
@@ -296,20 +300,12 @@ def get_mapping(par, act_vals=None):
         - mapping (dict): value (between 0 and 1) for each parameter value
     """
 
-    if par == "gabk":
-        vals = [4, 16]
-    elif par == "visflow_size":
-        vals = [128, 256]
-    elif par == "visflow_dir":
-        vals = [sess_gen_util.get_visflow_screen_mouse_direc(direc) 
-            for direc in ["right", "left"]]
-    elif par == "line":
+    if par == "line":
         vals = ["L23-Cux2", "L5-Rbp4"]
     elif par == "plane":
         vals = ["soma", "dend"]
     else:
-        gen_util.accepted_values_error(
-            "par", par, ["gabk", "visflow_size", "visflow_dir", "line", "plane"])
+        vals = sess_gen_util.get_param_vals(par)
     
     if act_vals is not None:
         if not set(act_vals).issubset(set(vals)):
@@ -409,21 +405,50 @@ def add_categ_stim_cols(df):
                              information split into binary columns
     """
 
+    two_level_categ_cols = [
+        "gabor_kappa", 
+        "gabor_number",
+        "main_flow_direction",
+        "square_size", 
+        "square_number", 
+        "square_proportion_flipped",
+        "plane", 
+        "line"
+        ]
+
     for col in df.columns:
-        if col == "gab_ori":
-            vals = sess_gen_util.filter_gab_oris("ABCDUG")
+        if col == "session_id":
+            vals = df["session_id"].unique().tolist()
             df = convert_to_binary_cols(df, col, vals, vals)
-        elif col == "gabfr":
-            vals = ["G", 0, 1, 2, 3]
-            targ_vals = ["G", "A", "B", "C", "D"]
+        
+        elif col == "gabor_mean_orientation":
+            vals = sess_gen_util.get_param_vals("gab_ori")
+            # remove U-only orientations, if they are not present
+            unique_vals = df[col].unique()
+            if vals[-2] not in unique_vals and vals[-1] not in unique_vals:
+                vals = vals[:-2]
+            df = convert_to_binary_cols(df, col, vals, vals)
+        
+        elif col == "gabor_frame":
+            gabfr_lett = sess_gen_util.get_param_vals("gabfr", gabfr_lett=True)
+            
+            if isinstance(df[col].tolist()[0], int):
+                vals = sess_gen_util.get_param_vals("gabfr", gabfr_lett=False)
+                targ_vals = [lett for lett in gabfr_lett if lett != "U"]
+                targ_vals[targ_vals.index("D")] = "D_U"
+            
+            else:
+                vals = gabfr_lett
+                targ_vals = [
+                    lett if lett not in ["D", "U"] else "D_U" 
+                    for lett in gabfr_lett
+                    ]
             df = convert_to_binary_cols(df, col, vals, targ_vals)
-        elif col in ["gabk", "visflow_size", "visflow_dir", "plane", "line"]:
+        
+        elif col in two_level_categ_cols:
             uniq_vals = df[col].unique().tolist()
             mapping = get_mapping(col, uniq_vals)
             df = df.replace({col: mapping})
-        elif col == "sessid":
-            vals = df["sessid"].unique().tolist()
-            df = convert_to_binary_cols(df, col, vals, vals)
         else:
             continue
 
@@ -530,6 +555,7 @@ def format_stim_criteria(stim_df, stimtype="gabors", unexp="any",
     else:
         stim_seg = gen_util.list_if_not(stim_seg)
 
+    gabfr = copy.deepcopy(gabfr)
     for fr in gabfr:
         if str(fr) == "0":
             gabfr.append("A")

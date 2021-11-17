@@ -505,12 +505,12 @@ def parse_args():
         help="switch mpl backend when running on server")
     parser.add_argument("--parallel", action="store_true", 
         help="do analyses in parallel.")
+    parser.add_argument("--debug", action="store_true", 
+        help="only enable session loading in parallel")
     parser.add_argument("--seed", default="paper", 
         help="paper random seed, a different value or -1 for a random seed")
     parser.add_argument("--log_level", default="info", 
         help="logging level (does not work with --parallel)")
-    parser.add_argument("--debug", action="store_true", 
-        help="only session loading is enabled in parallel")
 
     args = parser.parse_args()
 

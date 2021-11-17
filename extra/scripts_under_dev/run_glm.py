@@ -19,13 +19,15 @@ import inspect
 import logging
 from pathlib import Path
 
+import numpy as np
+
 # try to set cache/config as early as possible (for clusters)
 from util import gen_util 
 gen_util.CC_config_cache()
 
 gen_util.extend_sys_path(__file__, parents=3)
 from extra_analysis import glm
-from util import gen_util, logger_util, rand_util
+from util import gen_util, logger_util, rand_util, plot_util
 from sess_util import sess_gen_util, sess_ntuple_util, sess_plot_util
 from extra_plot_fcts import plot_from_dicts_tool as plot_dicts
 
@@ -81,7 +83,7 @@ def reformat_args(args):
         args.gabk
         )
     
-    # chose a seed if none is provided (i.e., args.seed=-1), but seed later
+    # choose a seed if none is provided (i.e., args.seed=-1), but seed later
     args.seed = rand_util.seed_all(
         args.seed, "cpu", log_seed=False, seed_now=False)
 
@@ -282,7 +284,7 @@ def prep_analyses(sess_n, args, mouse_df):
         "fluor"     : analyspar.fluor,
         "dend"      : analyspar.dend,
         "run"       : True,
-        "pupil"     : True,
+        "pupil"     : (sesspar.runtype != "pilot"),
         "temp_log"  : "warning",
     }
 
@@ -291,12 +293,25 @@ def prep_analyses(sess_n, args, mouse_df):
         parallel=args.parallel, use_tqdm=True
         )
 
+    # flatten list of sessions
+    sessions = [sess for singles in sessions for sess in singles]
+
+    # sort by mouse number
+    sort_order = np.argsort([sess.mouse_n for sess in sessions])
+    sessions = [sessions[s] for s in sort_order]
+
     runtype_str = ""
     if sesspar.runtype != "prod":
         runtype_str = f" ({sesspar.runtype} data)"
 
+    stim_str = stimpar.stimtype
+    if stimpar.stimtype == "gabors":
+        stim_str = "gabor"
+    elif stimpar.stimtype == "visflow":
+        stim_str = "visual flow"
+
     logger.info(
-        f"Analysis of {sesspar.plane} responses to {stimpar.stimtype[:-1]} "
+        f"Analysis of {sesspar.plane} responses to {stim_str} "
         f"stimuli{runtype_str}.\nSession {sesspar.sess_n}", 
         extra={"spacing": "\n"})
 
@@ -348,6 +363,9 @@ def run_analyses(sessions, analysis_dict, analyses, seed=None, parallel=False):
         logger.warning("No sessions meet these criteria.")
         return
 
+    # changes backend and defaults
+    plot_util.manage_mpl(cmap=False, **analysis_dict["figpar"]["mng"])
+
     fct_dict = get_analysis_fcts()
 
     args_dict = copy.deepcopy(analysis_dict)
@@ -385,7 +403,8 @@ def main(args):
     if args.dict_path != "":
         plot_dicts.plot_from_dicts(Path(args.dict_path), source="glm", 
                    plt_bkend=args.plt_bkend, fontdir=args.fontdir, 
-                   parallel=args.parallel, datetime=not(args.no_datetime))
+                   parallel=args.parallel, datetime=not(args.no_datetime), 
+                   overwrite=args.overwrite)
     else:
         if args.datadir is None: 
             args.datadir = DEFAULT_DATADIR
@@ -407,8 +426,10 @@ def main(args):
 
         for sess_n in all_sess_ns:
             analys_pars = prep_analyses(sess_n, args, mouse_df)
+
+            analyses_parallel = bool(args.parallel  * (not args.debug))
             run_analyses(*analys_pars, analyses=args.analyses, 
-                         parallel=args.parallel)
+                         parallel=analyses_parallel)
 
 
 #############################################
@@ -441,6 +462,8 @@ def parse_args():
         help="switch mpl backend when running on server")
     parser.add_argument("--parallel", action="store_true", 
         help="do runs in parallel.")
+    parser.add_argument("--debug", action="store_true", 
+        help="only enable session loading in parallel")
     parser.add_argument("--seed", default=-1, type=int, 
         help="random seed (-1 for None)")
     parser.add_argument("--log_level", default="info", 
@@ -509,14 +532,16 @@ if __name__ == "__main__":
 """
 GLM TODO
 
-GLM is run by session? for all mice? Gabfr would have to be different for each 
-Predict average ROI activity across all ROIs for a segment (0.4 s)
-Weight unexpected
+- GLM is run by session. If for all mice, the gabor frame levels would have to 
+be different for each, or session ID could be used. 
+- If running GLMs for all sessions, within mice, only tracked ROIs should be 
+used.
+- Could also predict average ROI activity across all ROIs for a segment (0.4 s)
+- Weight unexpected vs expected, to compensate for frequency imbalance.
 
-Eventually set sessions to do 1, 2, 3... (continuous)
-Identify ROI sensitivities through F-stat and false discovery correction for 
+- Identify ROI sensitivities through F-stat and false discovery correction for 
 multiple comparisons
 
-Change regression criterion: Baysian information criterion or 
-                             log-likelihood of the data
+- Change regression criterion: Baysian information criterion or 
+                               log-likelihood of the data
 """

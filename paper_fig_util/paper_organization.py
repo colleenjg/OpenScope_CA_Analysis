@@ -21,7 +21,7 @@ import numpy as np
 from util import logger_util, rand_util
 from sess_util import sess_gen_util
 from paper_fig_util import behav_figs, corr_figs, decoding_figs, misc_figs, \
-    seq_figs, stim_figs, tracking_figs, usi_figs, plot_figs
+    seq_figs, stim_figs, roi_figs, usi_figs, plot_figs
 
 logger = logging.getLogger(__name__)
 
@@ -322,6 +322,8 @@ class FigurePanelAnalysis():
 
         Sets the following attributes:
             - n_perms (int or list): number of permutations that will be used
+
+        Sets or updates the following attributes:
             - randomness (bool): whether randomness is involved in the analysis
 
         Updates the following attributes:
@@ -333,7 +335,8 @@ class FigurePanelAnalysis():
         if not hasattr(self, "description"):
             raise RuntimeError("Must run self._set_plot_info() first.")
 
-        self.randomness = False
+        if not hasattr(self, "randomness"):
+            self.randomness = False
 
         if hasattr(self, "n_perms_full"):
             self.randomness = True
@@ -354,7 +357,6 @@ class FigurePanelAnalysis():
         if not self.full_power:
             self.warnings.append(power_warning())
 
-
     def _set_seed(self):
         """
         self._set_seed()
@@ -368,7 +370,7 @@ class FigurePanelAnalysis():
                 False
         """
         
-        if not hasattr(self, "randomness"):
+        if not hasattr(self, "n_perms"):
             raise RuntimeError("Must run self._set_power() first.")
 
         if not self.randomness:
@@ -457,10 +459,15 @@ class FigurePanelAnalysis():
 
     def imaging_planes(self):
         self.description = "Example projections of 2p imaging planes."
-        self.specific_params = None
+        self.specific_params = get_specific_params(
+            mouse_n=[1, 4, 6, 11],
+            sess_n=1,
+            roi=False,
+        )
         self.analysis_fct = None
         self.plot_fct = None
-        no_plot_fct(reason="was drawn manually from images")
+        self.analysis_fct = roi_figs.imaging_planes
+        self.plot_fct = plot_figs.plot_imaging_planes
 
 
     def imaging_plane_schematic(self):
@@ -477,14 +484,8 @@ class FigurePanelAnalysis():
         self.specific_params = get_specific_params(
             mouse_n=[3, 4, 6, 11]
         )
-        self.analysis_fct = tracking_figs.roi_tracking
+        self.analysis_fct = roi_figs.roi_tracking
         self.plot_fct = plot_figs.plot_roi_tracking
-        self.warnings.append(
-            partial_plot_fct_warning(
-                message=("Only overlays will be generated, without "
-                         "additional manual formatting.")
-            )
-        )
 
 
     ### Figure 2 ###
@@ -586,7 +587,6 @@ class FigurePanelAnalysis():
             )
         )
 
-
     def pupil_run_block_diffs(self):
         self.description = ("Trial differences in running and pupil "
             "responses U-G vs D-G Gabor sequences.")
@@ -599,6 +599,7 @@ class FigurePanelAnalysis():
             pupil=True,
         )
         self.n_perms_full = 1e4
+        self.randomness = True # for plotting, also
         self.analysis_fct = behav_figs.pupil_run_block_diffs
         self.plot_fct = plot_figs.plot_pupil_run_block_diffs
 
@@ -632,7 +633,7 @@ class FigurePanelAnalysis():
         self.specific_params = get_specific_params(
             pre=0,
             post=0.3,
-            gabfr=[[0, 1, 2], [3, "G"]],
+            gabfr=[[0, 1, 2], [3, 4]],
             scale=False,
         )
         self.n_perms_full = 1e5
@@ -731,14 +732,8 @@ class FigurePanelAnalysis():
         self.specific_params = get_specific_params(
             mouse_n=[3, 4, 6, 11]
         )
-        self.analysis_fct = tracking_figs.roi_overlays_sess123
+        self.analysis_fct = roi_figs.roi_overlays_sess123
         self.plot_fct = plot_figs.plot_roi_overlays_sess123
-        self.warnings.append(
-            partial_plot_fct_warning(
-                message=("Only overlays will be generated, without "
-                         "additional manual formatting.")
-            )
-        )
 
 
     def roi_overlays_sess123_enlarged(self):
@@ -746,14 +741,8 @@ class FigurePanelAnalysis():
         self.specific_params = get_specific_params(
             mouse_n=[3, 4, 6, 11]
         )
-        self.analysis_fct = tracking_figs.roi_overlays_sess123_enlarged
+        self.analysis_fct = roi_figs.roi_overlays_sess123_enlarged
         self.plot_fct = plot_figs.plot_roi_overlays_sess123_enlarged
-        self.warnings.append(
-            partial_plot_fct_warning(
-                message=("Only overlays will be generated, without "
-                         "additional manual formatting.")
-            )
-        )
 
 
     ### Figure S2 ###
@@ -782,13 +771,13 @@ class FigurePanelAnalysis():
         self.plot_fct = plot_figs.plot_nrois_sess123
 
 
-    def roi_crosscorr_sess123(self):
-        self.description = "ROI cross-correlations per session."
+    def roi_corr_sess123(self):
+        self.description = "ROI correlations per session."
         self.specific_params = get_specific_params(
             scale=False
         )
-        self.analysis_fct = misc_figs.roi_crosscorr_sess123
-        self.plot_fct = plot_figs.plot_roi_crosscorr_sess123
+        self.analysis_fct = misc_figs.roi_corr_sess123
+        self.plot_fct = plot_figs.plot_roi_corr_sess123
 
 
     ### Figure S3 ###
@@ -810,6 +799,7 @@ class FigurePanelAnalysis():
             pre=0.9,
             post=0.6,
             )
+        self.randomness = True # for example selection
         self.analysis_fct = seq_figs.gabor_ex_roi_responses_sess1
         self.plot_fct = plot_figs.plot_gabor_ex_roi_responses_sess1
         self.warnings.append(slow_plot_warning())
@@ -834,7 +824,7 @@ class FigurePanelAnalysis():
         self.specific_params = get_specific_params(
             pre=0,
             post=0.3,
-            gabfr=[[0, 1, 2], [3, "G"]],
+            gabfr=[[0, 1, 2], [3, 4]],
             scale=False,
             tracked=True,
         )
@@ -912,7 +902,7 @@ class FigurePanelAnalysis():
             stimtype=["gabors", "visflow"],
             pre=[0, 0],
             post=[0.3, 1],
-            gabfr=[[0, 1, 2], [3, "G"]],
+            gabfr=[[0, 1, 2], [3, 4]],
             scale=False,
             error="std",
         ) 
@@ -1051,14 +1041,8 @@ class FigurePanelAnalysis():
             plane="dend",
             mouse_n=6,
         )
-        self.analysis_fct = tracking_figs.dendritic_roi_tracking_example
+        self.analysis_fct = roi_figs.dendritic_roi_tracking_example
         self.plot_fct = plot_figs.plot_dendritic_roi_tracking_example
-        self.warnings.append(
-            partial_plot_fct_warning(
-                message=("Only overlays will be generated, without "
-                         "additional manual formatting.")
-            )
-        )
 
 
     def somatic_roi_tracking_example(self):
@@ -1067,14 +1051,8 @@ class FigurePanelAnalysis():
             plane="soma",
             mouse_n=4,
         )
-        self.analysis_fct = tracking_figs.somatic_roi_tracking_example
+        self.analysis_fct = roi_figs.somatic_roi_tracking_example
         self.plot_fct = plot_figs.plot_somatic_roi_tracking_example
-        self.warnings.append(
-            partial_plot_fct_warning(
-                message=("Only overlays will be generated, without "
-                         "additional manual formatting.")
-            )
-        )
 
 
     @property
@@ -1129,7 +1107,7 @@ class FigurePanelAnalysis():
                     "A": self.snrs_sess123,
                     "B": self.mean_signal_sess123,
                     "C": self.nrois_sess123,
-                    "D": self.roi_crosscorr_sess123,
+                    "D": self.roi_corr_sess123,
                     },
                 "S3": {
                     "A": self.stimulus_onset_sess123,

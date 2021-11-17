@@ -18,17 +18,17 @@ import pandas as pd
 from util import logger_util, plot_util
 from paper_fig_util import helper_fcts
 from plot_fcts import behav_plots, corr_plots, misc_plots, seq_plots, \
-    stim_plots, tracking_plots, usi_plots
+    stim_plots, roi_plots, usi_plots
 
 logger = logging.getLogger(__name__)
 
 
 #############################################
-def plot_roi_tracking(sesspar, extrapar, roi_mask_df, figpar):
+def plot_imaging_planes(sesspar, extrapar, imaging_plane_df, figpar):
     """
-    plot_roi_tracking(sesspar, extrapar, roi_mask_df, figpar)
+    plot_roi_tracking(sesspar, extrapar, imaging_plane_df, figpar)
 
-    From dictionaries, plots tracked ROI masks.
+    From dictionaries, plots imaging planes.
     
     Returns figure name and save directory path.
     
@@ -37,13 +37,83 @@ def plot_roi_tracking(sesspar, extrapar, roi_mask_df, figpar):
             dictionary with keys of SessPar namedtuple
         - extrapar (dict): 
             dictionary containing additional analysis parameters
+        - imaging_plane_df (pd.DataFrame in dict format):
+            dataframe with a row for each mouse, and the following 
+            columns, in addition to the basic sess_df columns: 
+            - "max_projections" (list): pixel intensities of maximum projection 
+                for the plane (hei x wid)
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+    
+    Returns:
+        - fulldir (Path): 
+            final path of the directory in which the figure is saved
+        - savename (str): 
+            name under which the figure is saved
+    """
+
+    title = "Imaging plane examples"
+    
+    imaging_plane_df = pd.DataFrame.from_dict(imaging_plane_df)
+
+    ax = roi_plots.plot_imaging_planes(
+        imaging_plane_df, 
+        figpar, 
+        title=title
+        )
+
+    fig = ax.reshape(-1)[0].figure
+    
+    savedir, savename = helper_fcts.get_save_path(
+        figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
+    )
+
+    fulldir = plot_util.savefig(
+        fig, savename, savedir, log_dir=True, **figpar["save"]
+    )
+
+    return fulldir, savename
+
+
+#############################################
+def plot_roi_tracking(analyspar, sesspar, extrapar, roi_mask_df, figpar):
+    """
+    plot_roi_tracking(analyspar, sesspar, extrapar, roi_mask_df, figpar)
+
+    From dictionaries, plots tracked ROI masks.
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
         - roi_mask_df (pd.DataFrame in dict format):
             dataframe with a row for each mouse, and the following 
             columns, in addition to the basic sess_df columns: 
-            - "registered_roi_mask_idxs" (list): list of indices where masks 
-                appear (val x (sess, hei, wid))
+
+            - "max_projections" (list): pixel intensities of maximum projection 
+                for the plane (hei x wid)
+            - "registered_roi_mask_idxs" (list): list of mask indices, 
+                registered across sessions, for each session 
+                ((sess, hei, wid) x val)
+            - "roi_mask_idxs" (list): list of mask indices for each session, 
+                and each ROI (sess x (ROI, hei, wid) x val) (not registered)
             - "roi_mask_shapes" (list): shape into which ROI mask indices index 
-                appear (sess x hei x wid)
+                (sess x hei x wid)
+
+            - "crop_fact" (num): factor by which to crop masks (> 1) 
+            - "shift_prop_hei" (float): proportion by which to shift cropped 
+                mask center vertically from left edge [0, 1]
+            - "shift_prop_wid" (float): proportion by which to shift cropped 
+                mask center horizontally from left edge [0, 1]
+
         - figpar (dict): 
             dictionary containing the following figure parameter dictionaries
             ["init"] (dict): dictionary with figure initialization parameters
@@ -61,8 +131,13 @@ def plot_roi_tracking(sesspar, extrapar, roi_mask_df, figpar):
     
     roi_mask_df = pd.DataFrame.from_dict(roi_mask_df)
 
+    ax = roi_plots.plot_roi_masks_overlayed_with_proj(
+        roi_mask_df, 
+        figpar, 
+        title=title
+        )
 
-    fig = None
+    fig = ax.reshape(-1)[0].figure
     
     savedir, savename = helper_fcts.get_save_path(
         figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
@@ -1263,15 +1338,17 @@ def plot_gabor_corrs_sess123_comps(analyspar, sesspar, stimpar, basepar,
 
 
 #############################################
-def plot_roi_overlays_sess123(sesspar, extrapar, roi_mask_df, figpar):
+def plot_roi_overlays_sess123(analyspar, sesspar, extrapar, roi_mask_df, figpar):
     """
-    plot_roi_overlays_sess123(sesspar, extrapar, roi_mask_df, figpar)
+    plot_roi_overlays_sess123(analyspar, sesspar, extrapar, roi_mask_df, figpar)
 
     From dictionaries, plots tracked ROI masks.
     
     Returns figure name and save directory path.
     
     Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
         - sesspar (dict):
             dictionary with keys of SessPar namedtuple
         - extrapar (dict): 
@@ -1279,10 +1356,11 @@ def plot_roi_overlays_sess123(sesspar, extrapar, roi_mask_df, figpar):
         - roi_mask_df (pd.DataFrame in dict format):
             dataframe with a row for each mouse, and the following 
             columns, in addition to the basic sess_df columns: 
-            - "registered_roi_mask_idxs" (list): list of indices where masks 
-                appear (val x (sess, hei, wid))
+            - "registered_roi_mask_idxs" (list): list of mask indices, 
+                registered across sessions, for each session 
+                ((sess, hei, wid) x val)
             - "roi_mask_shapes" (list): shape into which ROI mask indices index 
-                appear (sess x hei x wid)
+                (sess x hei x wid)
         - figpar (dict): 
             dictionary containing the following figure parameter dictionaries
             ["init"] (dict): dictionary with figure initialization parameters
@@ -1300,7 +1378,7 @@ def plot_roi_overlays_sess123(sesspar, extrapar, roi_mask_df, figpar):
     
     roi_mask_df = pd.DataFrame.from_dict(roi_mask_df)
 
-    ax = tracking_plots.plot_roi_masks_overlayed(
+    ax = roi_plots.plot_roi_masks_overlayed(
         roi_mask_df, 
         figpar=figpar, 
         title=title,
@@ -1319,15 +1397,19 @@ def plot_roi_overlays_sess123(sesspar, extrapar, roi_mask_df, figpar):
 
 
 #############################################
-def plot_roi_overlays_sess123_enlarged(sesspar, extrapar, roi_mask_df, figpar):
+def plot_roi_overlays_sess123_enlarged(analyspar, sesspar, extrapar, 
+                                       roi_mask_df, figpar):
     """
-    plot_roi_overlays_sess123_enlarged(sesspar, extrapar, roi_mask_df, figpar)
+    plot_roi_overlays_sess123_enlarged(analyspar, sesspar, extrapar, 
+                                       roi_mask_df, figpar)
 
     From dictionaries, plots enlarged tracked ROI masks.
     
     Returns figure name and save directory path.
     
     Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
         - sesspar (dict):
             dictionary with keys of SessPar namedtuple
         - extrapar (dict): 
@@ -1335,15 +1417,16 @@ def plot_roi_overlays_sess123_enlarged(sesspar, extrapar, roi_mask_df, figpar):
         - roi_mask_df (pd.DataFrame in dict format):
             dataframe with a row for each mouse, and the following 
             columns, in addition to the basic sess_df columns: 
-            - "registered_roi_mask_idxs" (list): list of indices where masks 
-                appear (val x (sess, hei, wid))
+            - "registered_roi_mask_idxs" (list): list of mask indices, 
+                registered across sessions, for each session 
+                ((sess, hei, wid) x val)
             - "roi_mask_shapes" (list): shape into which ROI mask indices index 
-                appear (sess x hei x wid)
+                (sess x hei x wid)
             - "crop_fact" (num): factor by which to crop masks (> 1) 
+            - "shift_prop_hei" (float): proportion by which to shift cropped 
+                mask center vertically from left edge [0, 1]
             - "shift_prop_wid" (float): proportion by which to shift cropped 
                 mask center horizontally from left edge [0, 1]
-            - "shift_prop_hei" (float): proportion by which to shift cropped 
-                mask center vertically from top edge [0, 1] 
 
         - figpar (dict): 
             dictionary containing the following figure parameter dictionaries
@@ -1362,7 +1445,7 @@ def plot_roi_overlays_sess123_enlarged(sesspar, extrapar, roi_mask_df, figpar):
     
     roi_mask_df = pd.DataFrame.from_dict(roi_mask_df)
 
-    ax = tracking_plots.plot_roi_masks_overlayed(
+    ax = roi_plots.plot_roi_masks_overlayed(
         roi_mask_df, 
         figpar=figpar, 
         title=title,
@@ -1540,13 +1623,11 @@ def plot_nrois_sess123(analyspar, sesspar, extrapar, nrois_df, figpar):
 
 
 #############################################
-def plot_roi_crosscorr_sess123(analyspar, sesspar, extrapar, crosscorr_df, 
-                               figpar):
+def plot_roi_corr_sess123(analyspar, sesspar, extrapar, corr_df, figpar):
     """
-    plot_roi_crosscorr_sess123(analyspar, sesspar, extrapar, crosscorr_df, 
-                               figpar)
+    plot_roi_corr_sess123(analyspar, sesspar, extrapar, corr_df, figpar)
     
-    Plots ROI cross-correlations.
+    Plots ROI correlations.
 
     Returns figure name and save directory path.
 
@@ -1557,12 +1638,13 @@ def plot_roi_crosscorr_sess123(analyspar, sesspar, extrapar, crosscorr_df,
             dictionary with keys of SessPar namedtuple
         - extrapar (dict): 
             dictionary containing additional analysis parameters
-        - crosscorr_df (pd.DataFrame in dict format):
+            ["rolling_win"] (int): window used in rolling mean over individual 
+                traces 
+        - corr_df (pd.DataFrame in dict format):
             dataframe with one row per session/line/plane, and the 
             following columns, in addition to the basic sess_df columns:
             - bin_edges (list): first and last bin edge
-            - cross_corrs_binned (list): number of cross-correlation values per 
-                bin
+            - corrs_binned (list): number of correlation values per bin
 
         - figpar (dict): 
             dictionary containing the following figure parameter dictionaries
@@ -1577,12 +1659,12 @@ def plot_roi_crosscorr_sess123(analyspar, sesspar, extrapar, crosscorr_df,
             name under which the figure is saved
     """
  
-    title = "ROI cross-correlations"
+    title = "ROI correlations"
     
-    crosscorr_df = pd.DataFrame.from_dict(crosscorr_df)
+    corr_df = pd.DataFrame.from_dict(corr_df)
 
-    ax = misc_plots.plot_roi_cross_correlations(
-        crosscorr_df, 
+    ax = misc_plots.plot_roi_correlations(
+        corr_df, 
         figpar=figpar, 
         title=title
         )
@@ -2656,14 +2738,21 @@ def plot_scatterplots(analyspar, sesspar, stimpar, basepar, idxpar, permpar,
             dataframe with one row per line/plane, and the 
             following columns, in addition to the basic sess_df columns:
 
-
-
-
-
-
-
-
-
+            for correlation data (normalized if corr_type is "diff_corr") for 
+            session comparisons (x, y), e.g. 1v2
+            - binned_rand_stats (list): number of random correlation values per 
+                bin (xs x ys)
+            - corr_data_xs (list): USI values for x
+            - corr_data_ys (list): USI values for y
+            - corrs (float): correlation between session data (x and y)
+            - p_vals (float): p-value for correlation, corrected for 
+                multiple comparisons and tails
+            - rand_corr_meds (float): median of the random correlations
+            - raw_p_vals (float): p-value for intersession correlations
+            - regr_coefs (float): regression correlation coefficient (slope)
+            - regr_intercepts (float): regression correlation intercept
+            - x_bin_mids (list): x mid point for each random correlation bin
+            - y_bin_mids (list): y mid point for each random correlation bin
 
         - figpar (dict): 
             dictionary containing the following figure parameter dictionaries
@@ -2681,7 +2770,6 @@ def plot_scatterplots(analyspar, sesspar, stimpar, basepar, idxpar, permpar,
 
     ax = corr_plots.plot_idx_corr_scatterplots(
         idx_corr_df, 
-        sesspar=sesspar, 
         permpar=permpar, 
         figpar=figpar, 
         permute=extrapar["permute"], 
@@ -2841,11 +2929,11 @@ def plot_visual_flow_corr_scatterplots_sess23(
 
 
 #############################################
-def plot_dendritic_roi_tracking_example(sesspar, extrapar, roi_mask_df, 
-                                        figpar):
+def plot_dendritic_roi_tracking_example(analyspar, sesspar, extrapar, 
+                                        roi_mask_df, figpar):
     """
-    plot_dendritic_roi_tracking_example(sesspar, extrapar, roi_mask_df, 
-                                        figpar)
+    plot_dendritic_roi_tracking_example(analyspar, sesspar, extrapar, 
+                                        roi_mask_df, figpar)
 
     From dictionaries, plots tracked ROI masks for different session orderings 
     for an example dendritic session.
@@ -2853,6 +2941,8 @@ def plot_dendritic_roi_tracking_example(sesspar, extrapar, roi_mask_df,
     Returns figure name and save directory path.
     
     Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
         - sesspar (dict):
             dictionary with keys of SessPar namedtuple
         - extrapar (dict): 
@@ -2861,13 +2951,15 @@ def plot_dendritic_roi_tracking_example(sesspar, extrapar, roi_mask_df,
             dataframe with a row for each mouse, and the following 
             columns, in addition to the basic sess_df columns: 
             - "roi_mask_shapes" (list): shape into which ROI mask indices index 
-                appear (sess x hei x wid)
+                (sess x hei x wid)
             - "union_n_conflicts" (int): number of conflicts after union
-            for "union", "fewest" and "most"
-            - "{}_registered_roi_mask_idxs" (list): list of indices where masks 
+            for "union", "fewest" and "most" tracked ROIs:
+            - "{}_registered_roi_mask_idxs" (list): list of mask indices, 
+                registered across sessions, for each session 
+                ((sess, hei, wid) x val)
             - "{}_n_tracked" (int): number of tracked ROIs 
                 (for union: after conflicts are removed)
-            for "fewest", "most":
+            for "fewest", "most" tracked ROIs:
             - "{}_sess_ns" (list): ordered session number 
 
         - figpar (dict): 
@@ -2887,7 +2979,7 @@ def plot_dendritic_roi_tracking_example(sesspar, extrapar, roi_mask_df,
 
     roi_mask_df = pd.DataFrame.from_dict(roi_mask_df)
 
-    ax = tracking_plots.plot_roi_tracking(
+    ax = roi_plots.plot_roi_tracking(
         roi_mask_df, 
         figpar=figpar, 
         title=title
@@ -2906,9 +2998,11 @@ def plot_dendritic_roi_tracking_example(sesspar, extrapar, roi_mask_df,
 
     
 #############################################
-def plot_somatic_roi_tracking_example(sesspar, extrapar, roi_mask_df, figpar):
+def plot_somatic_roi_tracking_example(analyspar, sesspar, extrapar, roi_mask_df, 
+                                      figpar):
     """
-    plot_somatic_roi_tracking_example(sesspar, extrapar, roi_mask_df, figpar)
+    plot_somatic_roi_tracking_example(analyspar, sesspar, extrapar, roi_mask_df, 
+                                      figpar)
 
     From dictionaries, plots tracked ROI masks for different session orderings 
     for an example somatic session.
@@ -2916,6 +3010,8 @@ def plot_somatic_roi_tracking_example(sesspar, extrapar, roi_mask_df, figpar):
     Returns figure name and save directory path.
     
     Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
         - sesspar (dict):
             dictionary with keys of SessPar namedtuple
         - extrapar (dict): 
@@ -2923,18 +3019,18 @@ def plot_somatic_roi_tracking_example(sesspar, extrapar, roi_mask_df, figpar):
         - roi_mask_df (pd.DataFrame in dict format):
             dataframe with a row for each mouse, and the following 
             columns, in addition to the basic sess_df columns: 
-            - "n_tracked_union" (int): final number of tracked ROIs after union 
-            - "n_tracked_union_conflicts" (int): number of tracked ROI 
-                                                 conflicts
-            - "registered_roi_mask_idxs" (list): list of indices where masks 
-                appear (val x (sess, hei, wid))
             - "roi_mask_shapes" (list): shape into which ROI mask indices index 
-                appear (sess x hei x wid)
-            - sess{ns}_registered_roi_mask_idxs (list): list of indices where 
-                masks appear (val x (sess, hei, wid)), for specified session 
-                ordering
-            - sess{ns}_n_tracked (int): number of tracked ROIs for specified 
-                session ordering
+                (sess x hei x wid)
+            - "union_n_conflicts" (int): number of conflicts after union
+            for "union", "fewest" and "most" tracked ROIs:
+            - "{}_registered_roi_mask_idxs" (list): list of mask indices, 
+                registered across sessions, for each session 
+                ((sess, hei, wid) x val)
+            - "{}_n_tracked" (int): number of tracked ROIs 
+                (for union: after conflicts are removed)
+            for "fewest", "most" tracked ROIs:
+            - "{}_sess_ns" (list): ordered session number 
+
         - figpar (dict): 
             dictionary containing the following figure parameter dictionaries
             ["init"] (dict): dictionary with figure initialization parameters
@@ -2952,7 +3048,7 @@ def plot_somatic_roi_tracking_example(sesspar, extrapar, roi_mask_df, figpar):
 
     roi_mask_df = pd.DataFrame.from_dict(roi_mask_df)
 
-    ax = tracking_plots.plot_roi_tracking(
+    ax = roi_plots.plot_roi_tracking(
         roi_mask_df, 
         figpar=figpar, 
         title=title

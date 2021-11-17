@@ -159,11 +159,11 @@ def nrois_sess123(sessions, analyspar, sesspar, figpar):
 
 
 ############################################
-def roi_crosscorr_sess123(sessions, analyspar, sesspar, figpar, parallel=False):
+def roi_corr_sess123(sessions, analyspar, sesspar, figpar, parallel=False):
     """
-    roi_crosscorr_sess123(sessions, analyspar, sesspar, figpar)
+    roi_corr_sess123(sessions, analyspar, sesspar, figpar)
 
-    Retrieves ROI cross-correlation values for sessions 1 to 3.
+    Retrieves ROI correlation values for sessions 1 to 3.
         
     Saves results and parameters relevant to analysis in a dictionary.
 
@@ -183,23 +183,28 @@ def roi_crosscorr_sess123(sessions, analyspar, sesspar, figpar, parallel=False):
             default: False
     """
 
-    logger.info("Compiling ROI cross-correlations from session 1 to 3.", 
+    logger.info("Compiling ROI correlations from session 1 to 3.", 
         extra={"spacing": "\n"})
 
-    logger.info("Calculating ROI cross-correlations for each session...", 
+    logger.info("Calculating ROI correlations for each session...", 
         extra={"spacing": TAB})
-    crosscorr_df = misc_analys.get_all_crosscorrelations(
+
+    rolling_win = 4
+    corr_df = misc_analys.get_all_correlations(
         sessions, 
-        analyspar=analyspar,  
+        analyspar=analyspar,
+        rolling_win=rolling_win,
         parallel=parallel
         )
 
-    extrapar = dict()
+    extrapar = {
+        "rolling_win": rolling_win,
+    }
 
-    info = {"analyspar"   : analyspar._asdict(),
-            "sesspar"     : sesspar._asdict(),
-            "extrapar"    : extrapar,
-            "crosscorr_df": crosscorr_df.to_dict()
+    info = {"analyspar": analyspar._asdict(),
+            "sesspar"  : sesspar._asdict(),
+            "extrapar" : extrapar,
+            "corr_df"  : corr_df.to_dict()
             }
 
     helper_fcts.plot_save_all(info, figpar)

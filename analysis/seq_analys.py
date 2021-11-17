@@ -466,7 +466,7 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
         # calculate p-values between sessions (0-1, 0-2, 1-2...)
         p_vals = rand_util.comp_vals_acr_groups(
             sess_diffs, n_perms=permpar.n_perms, stats=analyspar.stats,
-            paired=analyspar.tracked, nanpol=nanpol
+            paired=analyspar.tracked, nanpol=nanpol, randst=randst
             )
         p = 0
         for i, sess_n in enumerate(sess_ns):
@@ -494,7 +494,7 @@ def get_sess_ex_traces(sess, analyspar, stimpar, basepar, rolling_win=4):
 
     Criteria:
     - Above median SNR
-    - Sequence response cross-correlation above 75th percentile.
+    - Sequence response correlation above 75th percentile.
     - Mean sequence standard deviation above 75th percentile.
     - Mean sequence skew above 75th percentile.
 
@@ -511,7 +511,7 @@ def get_sess_ex_traces(sess, analyspar, stimpar, basepar, rolling_win=4):
     Optional args:
         - rolling_win (int):
             window to use in rolling mean over individual trial traces before 
-            computing cross-correlation across trials
+            computing correlation between trials (None for no smoothing)
             default: 4 
 
     Returns:
@@ -555,11 +555,12 @@ def get_sess_ex_traces(sess, analyspar, stimpar, basepar, rolling_win=4):
         traces_exp, stats=analyspar.stats, axis=1, nanpol=nanpol
         )
 
-    # smooth individual traces, then compute cross-correlations
-    traces_exp = math_util.rolling_mean(traces_exp, win=rolling_win)
+    # smooth individual traces, then compute correlations
+    if rolling_win is not None:
+        traces_exp = math_util.rolling_mean(traces_exp, win=rolling_win)
     
     triu_idx = np.triu_indices(traces_exp[snr_thr_rois].shape[1], k=1)
-    cc_medians = [
+    corr_medians = [
         np.median(np.corrcoef(roi_trace)[triu_idx]) 
         for roi_trace in traces_exp[snr_thr_rois]
         ]
@@ -571,11 +572,11 @@ def get_sess_ex_traces(sess, analyspar, stimpar, basepar, rolling_win=4):
     # identify ROIs that meet thresholds (from those with high enough SNR)
     std_thr = np.percentile(trace_stat_stds, 75)
     skew_thr = np.percentile(trace_stat_skews, 75)
-    cc_thr = np.percentile(cc_medians, 50)
+    corr_thr = np.percentile(corr_medians, 75)
     
     selected_idx = np.where(
         ((trace_stat_stds > std_thr) * 
-         (cc_medians > cc_thr) * 
+         (corr_medians > corr_thr) * 
          (trace_stat_skews > skew_thr))
          )[0]
     
@@ -740,7 +741,7 @@ def get_sess_integ_resp_dict(sess, analyspar, stimpar):
 
     # a few checks
     if stimpar.stimtype == "gabors":
-        gabfrs = [[0, 1, 2], [3, "G"]]
+        gabfrs = [[0, 1, 2], [3, 4]]
         if stimpar.gabfr != gabfrs:
             raise ValueError(f"Expected stimpar.gabfrs to be {gabfrs}")
         if stimpar.pre != 0 or stimpar.post != 0.3:

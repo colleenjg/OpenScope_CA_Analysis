@@ -21,7 +21,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 from util import file_util, gen_util, logger_util, plot_util
-from sess_util import sess_plot_util, sess_str_util
+from sess_util import sess_gen_util, sess_plot_util, sess_str_util
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ warnings.filterwarnings("ignore", message="This figure includes*")
 
 #############################################
 def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False, 
-                   datetime=True):
+                   datetime=True, overwrite=False):
     """
     plot_from_dict(dict_path)
 
@@ -41,23 +41,28 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False,
         - dict_path (Path): path to dictionary to plot data from
     
     Optional_args:
-        - plt_bkend (str): mpl backend to use for plotting (e.g., "agg")
-                           default: None
-        - fontdir (Path) : path to directory where additional fonts are stored
-                           default: None
-        - parallel (bool): if True, some of the plotting is parallelized across 
-                           CPU cores
-                           default: False
-        - datetime (bool): figpar["save"] datatime parameter (whether to 
-                           place figures in a datetime folder)
-                           default: True
+        - plt_bkend (str) : mpl backend to use for plotting (e.g., "agg")
+                            default: None
+        - fontdir (Path)  : path to directory where additional fonts are stored
+                            default: None
+        - parallel (bool) : if True, some of the plotting is parallelized 
+                            across CPU cores
+                            default: False
+        - datetime (bool) : figpar["save"] datatime parameter (whether to 
+                            place figures in a datetime folder)
+                            default: True
+        - overwrite (bool): figpar["save"] overwrite parameter (whether to 
+                            overwrite figures)
+                            default: False
     """
 
     logger.info(f"Plotting from dictionary: {dict_path}", 
         extra={"spacing": "\n"})
     
     figpar = sess_plot_util.init_figpar(
-        plt_bkend=plt_bkend, fontdir=fontdir, datetime=datetime)
+        plt_bkend=plt_bkend, fontdir=fontdir, datetime=datetime, 
+        overwrite=overwrite
+        )
     plot_util.manage_mpl(cmap=False, **figpar["mng"])
 
     dict_path = Path(dict_path)
@@ -202,7 +207,7 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
         title = (f"Mouse {mouse_ns[i]} (sess {sess_ns[i]}, {lines[i]} "
             f"{planes[i]}{dendstr_pr}{nroi_strs[i]})")
         sub_axs = ax[:, i]
-        sub_axs[0].set_title(title)
+        sub_axs[0].set_title(title, y=1.02)
         if datatype == "roi":
             xran = range(len(trace_info["all_tr"][i][1]))   
             # each ROI (top subplot)
@@ -215,8 +220,9 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
             av_tr = np.asarray(trace_info["all_tr"][i])
             subtitle = u"{} across ROIs".format(statstr_pr)
             plot_util.plot_traces(
-                sub_axs[1], xran, av_tr[0], av_tr[1:], lw=0.2, title=subtitle, 
-                xticks="auto")
+                sub_axs[1], xran, av_tr[0], av_tr[1:], lw=0.2, xticks="auto",
+                title=subtitle
+                )
         else:
             xran = range(len(trace_info["all_tr"][i]))
             run_tr = np.asarray(trace_info["all_tr"][i])
@@ -339,7 +345,7 @@ def plot_traces_by_qu_unexp_sess(analyspar, sesspar, stimpar, extrapar,
     all_counts = trace_stats["all_counts"]
 
     cols, lab_cols = sess_plot_util.get_quant_cols(quantpar["n_quants"])
-    alpha = np.min([0.4, 0.8/quantpar["n_quants"]])
+    alpha = np.min([0.4, 0.8 / quantpar["n_quants"]])
 
     unexps = ["exp", "unexp"]
     n = 6
@@ -507,13 +513,13 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
     offset = 0
     if (stimpar["stimtype"] == "gabors" and 
         stimpar["gabfr"] not in ["any", "all"]):
-        offset = stimpar["gabfr"]
+        offset = sess_str_util.gabfr_nbrs(stimpar["gabfr"])
     if "unexp_lens" in trace_stats.keys():
         unexp_lens = trace_stats["unexp_lens"]
         len_ext = "_bylen"
         if stimpar["stimtype"] == "gabors":
             unexp_lens = \
-                [[sl * 1.5/4 - 0.3 * offset for sl in sls] for sls in unexp_lens]
+                [[sl * 1.5/5 - 0.3 * offset for sl in sls] for sls in unexp_lens]
     
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
@@ -533,14 +539,14 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             sub_ax, fluor=analyspar["fluor"], datatype=datatype)
         plot_util.add_bars(sub_ax, hbars=0)
         n_lines = quantpar["n_quants"] * len(unexp_lens[i])
-        if col_idx < n_lines:
-            cols = sess_plot_util.get_quant_cols(n_lines)[0][col_idx]
-        else:
+        cols = sess_plot_util.get_quant_cols(n_lines)[0][col_idx]
+        if len(cols) < n_lines:
             cols = [None] * n_lines
-        alpha = np.min([0.4, 0.8/n_lines])
+        alpha = np.min([0.4, 0.8 / n_lines])
         if stimpar["stimtype"] == "gabors":
             sess_plot_util.plot_gabfr_pattern(
-                sub_ax, xrans[i], offset=offset, bars_omit=[0] + unexp_lens[i])
+                sub_ax, xrans[i], offset=offset, bars_omit=[0] + unexp_lens[i]
+                )
         # plot expected data
         if exp_stats[i].shape[0] != 1:
             raise ValueError("Expected only one quantile for exp_stats.")
@@ -559,7 +565,7 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             if unexp_len is not None:
                 counts, stats = all_counts[i][s], all_stats[i][s]       
                 # remove offset   
-                unexp_lab = f"unexp len {unexp_len+0.3*offset}"
+                unexp_lab = f"unexp len {unexp_len + 0.3 * offset}"
             else:
                 unexp_lab = f"{lock} lock"
             for q, qu_lab in enumerate(quantpar["qu_lab"]):
@@ -846,7 +852,7 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
             title_str = f"{title_str} across ROIs" 
     elif datatype == "run":
         datastr = sess_str_util.datatype_par_str(datatype)
-        title_str = u"{}\nautocorrelation".format(datastr)
+        title_str = u"\n{} autocorrelation".format(datastr)
 
     if stimpar["stimtype"] == "gabors":
         seq_bars = [-1.5, 1.5] # light lines
@@ -890,9 +896,10 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
             plot_util.plot_traces(
                 sub_ax, xrans[i], sub_stats[0], sub_stats[1:], xticks=xticks, 
                 yticks=yticks, alpha=0.2, label=lab)
+
         plot_util.add_bars(sub_ax, hbars=seq_bars)
         sub_ax.set_ylim([0, 1])
-        sub_ax.set_title(title)
+        sub_ax.set_title(title, y=1.02)
         if sub_ax.is_last_row():
             sub_ax.set_xlabel("Lag (s)")
 

@@ -22,12 +22,13 @@ import pandas as pd
 import pynwb
 
 from util import file_util, gen_util, logger_util
-from sess_util import sess_gen_util, sess_load_util, sess_sync_util
+from sess_util import sess_gen_util, sess_sync_util
 
 logger = logging.getLogger(__name__)
 
 TAB = "    "
 MS_TO_S = 1 / 1_000
+
 
 ##########################################
 
@@ -50,7 +51,7 @@ GABORS_SETS_TO_LETTER = {
 FINAL_COLUMN_ORDER = [
     "stimulus_type",
     "stimulus_template_name",
-    "stimulus_segment",  # to be dropped
+    "orig_stimulus_segment",  # to be dropped
     "unexpected",
     "gabor_frame",
     "gabor_kappa",
@@ -94,29 +95,41 @@ NWB_ONLY_COLUMNS = [
     "start_frame_stim_template",
 ]
 
+# ADDITIONAL HARD_CODED STIMULUS FEATURES (PRODUCTION ONLY) TO ACCOMPANY NWB DATA
+DEG_PER_PIXEL = 0.06251912565744862
+EXP_LEN_SEC = [30, 90]
+WIN_SIZE = [1920, 1200] # pixels
+
+GABORS_SEG_LEN_SEC = 0.3
+GABORS_UNEXP_LEN_SEC = [3, 6]
+
+GABORS_N_SEGS_PER_SEQ = 5
+GABORS_PHASE = 0.25 # 0 to 1
+GABORS_SIZE_RAN = [204, 408] # in pixels
+GABORS_SPATIAL_FREQ = 0.04 # in cyc/pix
+
+VISFLOW_SEG_LEN_SEC = 1
+VISFLOW_UNEXP_LEN_SEC = [2, 4]
+
+VISFLOW_SPEED = 799.7552664756905 # in pix/sec
+
 
 #############################################
 def load_gen_stim_properties(stim_dict, stimtype="gabors", runtype="prod"):
     """
     load_gen_stim_properties(stim_dict)
 
-    Creates the alignment dataframe (stim_df) and saves it as a pickle
-    in the session directory, if it does not already exist. Returns dataframe.
+    Returns dictionary with general stimulus properties loaded from the 
+    stimulus dictionary.
     
     Arguments:
         - stim_dict (dict)   : experiment stim dictionary, loaded from pickle
-        - stim_sync_h5 (Path): full path name of the experiment sync hdf5 file
-        - time_sync_h5 (Path): full path name of the time synchronization hdf5 
-                               file
-        - align_pkl (Path)   : full path name of the output pickle file to 
-                               create
-        - sessid (int)       : session ID, needed the check whether this 
-                               session needs to be treated differently 
-                               (e.g., for alignment bugs)
 
     Optional arguments:
-        - runtype (str): runtype ("prod" or "pilot")
-                         default: "prod"):
+        - stimtype (str): stimulus type
+                          default: "gabors"
+        - runtype (str) : runtype ("prod" or "pilot")
+                          default: "prod"):
     
     Returns:
         - gen_stim_props (dict): dictionary with stimulus properties.
@@ -188,7 +201,14 @@ def load_gen_stim_properties(stim_dict, stimtype="gabors", runtype="prod"):
         gen_stim_props["phase"]     = stimtype_info["phase"]
         gen_stim_props["sf"]        = stimtype_info["sf"]
         gen_stim_props["size_ran"]  = \
-            [x / deg_per_pix for x in stimtype_info["size_ran"]]
+            [np.around(x / deg_per_pix) for x in stimtype_info["size_ran"]]
+
+        # Gabor size conversion based on psychopy definition
+        # full-width half-max -> 6 std
+        size_conv = 1.0 / (2 * np.sqrt(2 * np.log(2))) * stimtype_info["sd"]
+        gen_stim_props["size_ran"]  = \
+            [int(np.around(x * size_conv)) for x in gen_stim_props["size_ran"]]
+
     else:
         gen_stim_props["seg_len_s"] = stimtype_info["seg_len"]
         gen_stim_props["speed"]     = stimtype_info["speed"] / deg_per_pix
@@ -196,6 +216,72 @@ def load_gen_stim_properties(stim_dict, stimtype="gabors", runtype="prod"):
     return gen_stim_props
 
 
+#############################################
+def load_hard_coded_stim_properties(stimtype="gabors", runtype="prod"):
+    """
+    load_hard_coded_stim_properties()
+
+    Returns dictionary with general stimulus properties hard-coded.
+    
+    Optional arguments:
+        - stimtype (str): stimulus type
+                          default: "gabors"
+
+        - runtype (str): runtype ("prod" or "pilot")
+                         default: "prod"):
+    
+    Returns:
+        - gen_stim_props (dict): dictionary with stimulus properties.
+            ["deg_per_pix"]: deg / pixel conversion used to generate stimuli
+            ["exp_len_s"]  : duration of an expected seq (sec) [min, max]
+            ["seg_len_s"]  : duration of an expected seq (sec) [min, max]
+            ["unexp_len_s"]: duration of an unexpected seq (sec) [min, max]
+            ["win_size"]   : window size [wid, hei] (in pixels)
+
+            if stimtype == "gabors":
+            ["n_segs_per_seq"]: number of segments in a sequence (including G)
+            ["phase"]         : phase (0-1)
+            ["sf"]            : spatial frequency (cyc/pix)
+            ["size_ran"]      : size range (in pixels)
+
+            if stimtype == "visflow":
+            ["speed"]         : visual flow speed (pix/sec)
+    """
+
+    if runtype != "prod":
+        raise ValueError(
+            "Hard-coded properties are only available for production data."
+            )
+
+    gen_stim_props = {
+        "deg_per_pix": DEG_PER_PIXEL,
+        "exp_len_s"  : EXP_LEN_SEC,
+        "win_size"   : WIN_SIZE,
+    }
+
+    if stimtype == "gabors":
+        gen_stim_props["seg_len_s"]      = GABORS_SEG_LEN_SEC
+        gen_stim_props["unexp_len_s"]    = GABORS_UNEXP_LEN_SEC
+
+        gen_stim_props["n_segs_per_seq"] = GABORS_N_SEGS_PER_SEQ
+        gen_stim_props["phase"]          = GABORS_PHASE
+        gen_stim_props["size_ran"]       = GABORS_SIZE_RAN
+        gen_stim_props["sf"]             = GABORS_SPATIAL_FREQ
+
+    elif stimtype == "visflow":
+        gen_stim_props["seg_len_s"]    = VISFLOW_SEG_LEN_SEC
+        gen_stim_props["unexp_len_s"]  = VISFLOW_UNEXP_LEN_SEC
+
+        gen_stim_props["speed"]        = VISFLOW_SPEED
+
+    else:
+        gen_util.accepted_values_error(
+            "stimtype", stimtype, ["gabors", "visflow"]
+            )
+
+    return gen_stim_props
+    
+    
 #############################################
 def load_basic_stimulus_table(stim_dict, stim_sync_h5, time_sync_h5, align_pkl, 
                               sessid, runtype="prod"):
@@ -263,7 +349,7 @@ def update_basic_stimulus_table(df):
             "stimType": "stimulus_type",
             "GABORFRAME": "gabor_frame",
             "surp": "unexpected",
-            "stimSeg": "stimulus_segment",
+            "stimSeg": "orig_stimulus_segment",
             "start_frame": "start_frame_twop",
             "end_frame": "stop_frame_twop",
             "num_frames": "num_frames_twop",
@@ -392,13 +478,15 @@ def add_stimulus_frame_num(df, stim_dict, stim_align, runtype="prod"):
 
         stimulus_location = df["stimulus_type"] == stimulus
         stimulus_df_start_idx = df.loc[
-            stimulus_location & (df["stimulus_segment"] == 0), "index"
+            stimulus_location & (df["orig_stimulus_segment"] == 0), "index"
         ].tolist() + [len(df)]
         for i, n in enumerate(stimulus_num_dict[stimulus]):
             sub_stimulus_location = stimulus_location & df["index"].isin(
                 range(stimulus_df_start_idx[i], stimulus_df_start_idx[i + 1])
             )
-            segments = df.loc[sub_stimulus_location, "stimulus_segment"].to_numpy()
+            segments = df.loc[
+                sub_stimulus_location, "orig_stimulus_segment"
+                ].to_numpy()
             frame_list = stim_dict["stimuli"][n]["frame_list"]
             segment_frames = [
                 np.where(frame_list == val)[0] + num_pre_blank_frames
@@ -467,7 +555,7 @@ def add_stimulus_locations(df, stim_dict, runtype="prod"):
         df[column] = df[column].astype(object)
         df[column] = [[]] * len(df)
 
-    stimulus_starts = df.loc[df["stimulus_segment"] == 0].index
+    stimulus_starts = df.loc[df["orig_stimulus_segment"] == 0].index
     stimulus_edges = stimulus_starts.to_list() + [len(df)]
     stimuli = stim_dict["stimuli"]
     stimulus_sorter = np.argsort(
@@ -542,10 +630,6 @@ def add_stimulus_locations(df, stim_dict, runtype="prod"):
                 for sub in list(zip(*stim_params[gabor_locations_sizes]))
             ]
 
-            # center and normalize
-            locations[..., 0] = locations[..., 0] / win_size[0] - 0.5
-            locations[..., 1] = locations[..., 1] / win_size[1] - 0.5
-
             for i, gabor_set in enumerate(["A", "B", "C", "D", "U"]):
                 loc = basic_loc & (df["gabor_frame"] == gabor_set)
                 n_rows = len(df.loc[loc])
@@ -589,10 +673,6 @@ def add_stimulus_locations(df, stim_dict, runtype="prod"):
             # may be omitted for size
             if square_locations in stim_params.keys():
                 locations = np.asarray(stim_params[square_locations]).astype(int)
-
-                # center and normalize
-                locations[..., 0] = locations[..., 0] / win_size[0] - 0.5
-                locations[..., 1] = locations[..., 1] / win_size[1] - 0.5
 
                 df.loc[basic_loc, "square_locations_x"] = pd.Series(
                     list(np.transpose(locations[frames_stim_within, :, 0], [1, 2, 0])),
@@ -640,16 +720,20 @@ def modify_segment_num(df):
     for stimulus in stimulus_types:
         stimulus_location = df["stimulus_type"] == stimulus
         stimulus_df_start_idx = df.loc[
-            stimulus_location & (df["stimulus_segment"] == 0), "index"
+            stimulus_location & (df["orig_stimulus_segment"] == 0), "index"
         ].tolist() + [len(df)]
         add_segment_num = 0
         for i in range(len(stimulus_df_start_idx[:-1])):
             sub_stimulus_location = stimulus_location & df["index"].isin(
                 range(stimulus_df_start_idx[i], stimulus_df_start_idx[i + 1])
             )
-            df.loc[sub_stimulus_location, "stimulus_segment"] += add_segment_num
+            df.loc[
+                sub_stimulus_location, "orig_stimulus_segment"
+                ] += add_segment_num
             add_segment_num = (
-                df.loc[sub_stimulus_location, "stimulus_segment"].max() + 1
+                df.loc[
+                    sub_stimulus_location, "orig_stimulus_segment"
+                    ].max() + 1
             )
 
     df = df.drop(columns=["index"])
@@ -1100,7 +1184,7 @@ def load_stimulus_table(stim_dict, stim_sync_h5, time_sync_h5, align_pkl,
             df[column] = df[column].replace([-1, "-1"], np.nan)
 
     # drop stimulus_segment
-    df = df.drop(columns="stimulus_segment")
+    df = df.drop(columns="orig_stimulus_segment")
 
     return df, stim_align
 

@@ -832,7 +832,7 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
         n_sess_keep = 3
         ylab = ax[0, 0].get_ylabel()
         ax[0, 0].set_ylabel("")
-        sess_plot_util.format_linpla_subaxes(ax, ylab=ylab, xlab="Sessions", 
+        sess_plot_util.format_linpla_subaxes(ax, ylab=ylab, 
             xticks=np.arange(1, n_sess_keep + 1))
 
         yticks = ax[0, 0].get_yticks()

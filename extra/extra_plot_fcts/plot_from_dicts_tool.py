@@ -41,8 +41,8 @@ DEFAULT_FONTDIR = Path("..", "tools", "fonts")
 
 #############################################
 def plot_from_dicts(direc, source="roi", plt_bkend=None, fontdir=None, 
-                    plot_tc=True, parallel=False, datetime=True, pattern="", 
-                    depth=0):
+                    plot_tc=True, parallel=False, datetime=True, 
+                    overwrite=False, pattern="", depth=10):
     """
     plot_from_dicts(direc)
 
@@ -54,26 +54,29 @@ def plot_from_dicts(direc, source="roi", plt_bkend=None, fontdir=None,
                         from are located or path to a single json file
     
     Optional_args:
-        - source (str)   : plotting source ("roi", "run", "gen", "pup", 
-                           "modif", "logreg", "glm")
-        - plt_bkend (str): mpl backend to use for plotting (e.g., "agg")
-                           default: None
-        - fontdir (Path) : directory in which additional fonts are stored
-                           default: None
-        - plot_tc (bool) : if True, tuning curves are plotted for each ROI 
-                           default: True
-        - parallel (bool): if True, some of the analysis is parallelized across 
-                           CPU cores
-                           default: False
-        - datetime (bool): figpar["save"] datatime parameter (whether to 
-                           place figures in a datetime folder)
-                           default: True
-        - pattern (str)  : pattern based on which to include json files in 
-                           direc if direc is a directory
-                           default: ""
-        - depth (int)    : maximum depth at which to check for json files if 
-                           direc is a directory
-                           default: 0
+        - source (str)    : plotting source ("roi", "run", "gen", "pup", 
+                            "modif", "logreg", "glm")
+        - plt_bkend (str) : mpl backend to use for plotting (e.g., "agg")
+                            default: None
+        - fontdir (Path)  : directory in which additional fonts are stored
+                            default: None
+        - plot_tc (bool)  : if True, tuning curves are plotted for each ROI 
+                            default: True
+        - parallel (bool) : if True, some of the analysis is parallelized 
+                            across CPU cores
+                            default: False
+        - datetime (bool) : figpar["save"] datatime parameter (whether to 
+                            place figures in a datetime folder)
+                            default: True
+        - overwrite (bool): figpar["save"] overwrite parameter (whether to 
+                            overwrite figures)
+                            default: False
+        - pattern (str)   : pattern based on which to include json files in 
+                            direc if direc is a directory
+                            default: ""
+        - depth (int)     : maximum depth at which to check for json files if 
+                            direc is a directory
+                            default: 0
     """
     
     file_util.checkexists(direc)
@@ -120,6 +123,7 @@ def plot_from_dicts(direc, source="roi", plt_bkend=None, fontdir=None,
         "fontdir"  : fontdir,
         "plot_tc"  : plot_tc,
         "datetime" : datetime,
+        "overwrite": overwrite,
         }
 
     pass_parallel = True

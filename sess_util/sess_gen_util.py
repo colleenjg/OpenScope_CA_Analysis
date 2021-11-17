@@ -27,6 +27,53 @@ logger = logging.getLogger(__name__)
 
 
 #############################################
+def get_param_vals(param="gabk", gabfr_lett=False):
+    """
+    get_param_vals()
+
+    Returns all possible parameter values for the requested parameter.
+
+    Optional args:
+        - param (str)      : parameter name
+                             default: "gabk"
+    
+        - gabfr_lett (bool): if True, and gabor frames are requested, 
+                             Gabor frame letters (A, B, C, D, U, G) are 
+                             returned instead of numbers (0, 1, 2, 3, 4)
+                             default: False
+
+    Returns:
+        - param_vals (list): parameter values
+    """
+    
+    if param in ["gabk", "gabor_kappa"]:
+        param_vals = [4, 16]
+    elif param in ["gab_ori", "gabor_orientation", "gabor_mean_orientation"]:
+        param_vals = [0, 45, 90, 135, 180, 225]
+    elif param in ["gabfr", "gabor_frame"]:
+        if gabfr_lett:
+            param_vals = ["A", "B", "C", "D", "U", "G"]
+        else:
+            param_vals = [0, 1, 2, 3, 4]
+    elif param in ["gabor_number", "gab_nbr"]:
+        param_vals = [30]
+    elif param in ["visflow_size", "square_size"]:
+        param_vals = [128, 256]
+    elif param in ["visflow_number", "square_number"]:
+        param_vals = [105, 26]
+    elif param in ["visflow_dir", "main_flow_direction"]:
+        param_vals = [
+            get_visflow_screen_mouse_direc(direc) for direc in ["right", "left"]
+            ]
+    elif param in ["square_proportion_flipped"]:
+        param_vals = [0, 0.25]
+    else:
+        raise ValueError(f"{param} not recognized as a parameter.")
+
+    return param_vals
+
+
+#############################################
 def depth_vals(plane, line):
     """
     depth_vals(plane, line)
@@ -515,7 +562,7 @@ def init_sessions(sessids, datadir, mouse_df, runtype="prod", full_table=True,
                 )
             # creates a session object to work with
             sess = session.Session(
-                datadir, sessid, runtype=runtype, mouse_df=mouse_df) 
+                sessid, datadir, runtype=runtype, mouse_df=mouse_df) 
             # extracts necessary info for analysis
             sess.extract_info(
                 full_table=full_table, fluor=fluor, dend=dend, roi=roi, run=run
@@ -736,30 +783,28 @@ def get_params(stimtype="both", visflow_dir="both", visflow_size=128, gabfr=0,
     """
 
     # get all the parameters
-
     if gabk in ["both", "any", "all"]:
-        gabk = [4, 16]
+        gabk = get_param_vals("gabk")
     else:
         gabk = int(gabk)
 
     if gab_ori in ["any", "all"]:
-        gab_ori = [0, 45, 90, 135, 180, 225]
+        gab_ori = get_param_vals("gab_ori")
     elif not isinstance(gab_ori, list):
         gab_ori = int(gab_ori)
 
     if gabfr in ["any", "all"]:
-        gabfr = [0, 1, 2, 3, "G"]
-    elif not isinstance(gabfr, list) and gabfr not in ["G", "gray"]:
+        gabfr = get_param_vals("gabfr", gabfr_lett=False)
+    elif not isinstance(gabfr, (list, int)) and gabfr.isdigit():
         gabfr = int(gabfr)
 
     if visflow_size in ["both", "any", "all"]:
-        visflow_size = [128, 256]
+        visflow_size = get_param_vals("visflow_size")
     else:
         visflow_size = int(visflow_size)
 
     if visflow_dir in ["both", "any", "all"]:
-        visflow_dir = [get_visflow_screen_mouse_direc(direc) 
-            for direc in ["right", "left"]]
+        visflow_dir = get_param_vals("visflow_dir")
 
     # set to "none" any parameters that are irrelevant
     if stimtype == "gabors":
@@ -818,7 +863,7 @@ def gab_adjacent_gabfrs(gab_frs):
     Returns whether at least 2 Gabor frames in list are consecutive.
 
     Required args:
-        - gab_frs (list): list of Gabor frames (0, 1, 2, 3)
+        - gab_frs (list): list of Gabor frames (0, 1, 2, 3, 4)
 
     Returns:
         - adjacent (bool): True, if any 2 Gabor frames are adjacent. False, 
@@ -931,7 +976,8 @@ def pilot_gab_omit(gabk):
     """
     pilot_gab_omit(gabk)
 
-    Returns IDs of pilot mice to omit based on gabor kappa values to include.
+    Returns numbers of pilot mice to omit based on gabor kappa values to 
+    include.
 
     Required args:
         - gabk (int or list): gabor kappa values (4, 16, [4, 16])
@@ -942,9 +988,9 @@ def pilot_gab_omit(gabk):
 
     gabk = gen_util.list_if_not(gabk)
     if 4 not in gabk:
-        omit_mice = [1] # mouse 1 only got K=4
+        omit_mice = [3] # mouse 3 only got K=4
     elif 16 not in gabk:
-        omit_mice = [3] # mouse 3 only got K=16
+        omit_mice = [4] # mouse 4 only got K=16
     else: 
         omit_mice = []
     return omit_mice
@@ -955,8 +1001,8 @@ def pilot_visflow_omit(visflow_dir, visflow_size):
     """
     pilot_visflow_omit(visflow_dir, visflow_size)
 
-    Returns IDs of pilot mice to omit based on visual flow direction and square 
-    size values to include.
+    Returns numbers of pilot mice to omit based on visual flow direction and 
+    square size values to include.
 
     Required args:
         - visflow_dir (str or list) : visual flow direction values 
@@ -976,14 +1022,14 @@ def pilot_visflow_omit(visflow_dir, visflow_size):
     left_incl = len(list(filter(lambda x: "left" in x, visflow_dir)))
 
     if not right_incl:
-        # mouse 3 only got visflow_dir="right"
-        omit_mice.extend([3]) 
+        # mouse 4 only got visflow_dir="right"
+        omit_mice.extend([4]) 
         if 128 not in visflow_size:
-            # mouse 1 only got visflow_dir="left" with visflow_size=128
-            omit_mice.extend([1])
+            # mouse 3 only got visflow_dir="left" with visflow_size=128
+            omit_mice.extend([3])
     elif not left_incl and 256 not in visflow_size:
-        # mouse 1 only got visflow_dir="right" with visflow_size=256
-        omit_mice.extend([1]) 
+        # mouse 3 only got visflow_dir="right" with visflow_size=256
+        omit_mice.extend([3]) 
     return omit_mice
 
     
@@ -1016,14 +1062,13 @@ def all_omit(stimtype="gabors", runtype="prod", visflow_dir="both",
     omit_mice = []
 
     if runtype == "pilot":
-        omit_sess = [721038464] # alignment didn't work
+        omit_sess = [714893802] # no data
         if stimtype == "gabors":
             omit_mice = pilot_gab_omit(gabk)
         elif stimtype == "visflow":
             omit_mice = pilot_visflow_omit(visflow_dir, visflow_size)
 
     elif runtype == "prod":
-        omit_sess = [828754259] # stim pickle not saved correctly
         if stimtype == "gabors": 
             if 16 not in gen_util.list_if_not(gabk):
                 logger.warning("The production data only includes gabor "
@@ -1148,7 +1193,7 @@ def get_params_from_str(param_str, no_lists=False):
             if no_lists:
                 params["gabk"] = "both"
             else:
-                params["gabk"] = [4, 16]
+                params["gabk"] = get_param_vals("gabk")
         elif "gab4" in param_str:
             params["gabk"] = 4
     elif "visflow" in param_str:
@@ -1158,7 +1203,7 @@ def get_params_from_str(param_str, no_lists=False):
             if no_lists:
                 params["visflow_size"] = "both"
             else:
-                params["visflow_size"] = [128, 256]
+                params["visflow_size"] = get_param_vals("visflow_size")
         elif "visflow256" in param_str:
             params["visflow_size"] = 256
         if no_lists:

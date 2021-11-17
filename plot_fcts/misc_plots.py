@@ -200,8 +200,12 @@ def plot_nrois(sub_ax, sess_df, sess_ns=None, col="k", dash=None):
     
     if sess_ns is None:
         sess_ns = np.arange(sess_df.sess_ns.min(), sess_df.sess_ns.max() + 1)
-    unique_mice = sess_df["mouse_ns"].unique()
-    for mouse in unique_mice:
+    unique_mice = sorted(sess_df["mouse_ns"].unique())
+
+    mouse_cols = plot_util.get_hex_color_range(
+        len(unique_mice), col=col, interval=plot_helper_fcts.MOUSE_COL_INTERVAL
+        )
+    for mouse, mouse_col in zip(unique_mice, mouse_cols):
         nrois = []
         for sess_n in sess_ns:
             row = sess_df.loc[
@@ -216,24 +220,85 @@ def plot_nrois(sub_ax, sess_df, sess_ns=None, col="k", dash=None):
                 nrois.append(np.nan)
 
         plot_util.plot_errorbars(
-            sub_ax, nrois, x=sess_ns, color=col, alpha=0.6, ls=dash, lw=5, 
+            sub_ax, nrois, x=sess_ns, color=mouse_col, alpha=0.6, ls=dash, lw=5, 
             mew=5, markersize=8, xticks="auto"
             ) 
 
-#############################################
-def plot_roi_cross_correlations(crosscorr_df, figpar, title="ROI SNRs"):
-    """
-    plot_roi_cross_correlations(crosscorr_df, figpar)
 
-    Plots cross-correlation histograms.
+#############################################
+def set_symlog_scale(ax, log_base=2, col_per_grp=3, n_ticks=4):
+    """
+    set_symlog_scale(ax)
+
+    Converts y axis to symmetrical log scale (log scale with a linear range 
+    to 0), and updates ticks.
 
     Required args:
-        - crosscorr_df (pd.DataFrame):
+        - ax (2D array): 
+            array of subplots
+
+    Optional args:
+        - log_base (int):
+            log base for the log scale
+            default: 2
+        - col_per_grp (int):
+            number of columns in subplot axis groups that share y axis markers
+            default: 3
+        - n_ticks (int):
+            number of log ticks
+            default: 4
+    """
+
+    for i in range(ax.shape[0]):
+        for j in range(ax.shape[1]):
+            sub_ax = ax[i, j]
+            if i == 0 and j == 0:
+                # adjust to avoid bins going to negative infinity
+                base_lin = sub_ax.get_ylim()[0]
+                sub_ax.set_yscale(
+                    "symlog", base=log_base, linthresh=base_lin, linscale=0.5
+                    )
+                yticks = sub_ax.get_yticks()
+                n_ticks = 4
+                n = len(yticks) // n_ticks
+                yticks = [
+                    ytick for y, ytick in enumerate(yticks) if not(y % n)
+                    ]
+                sub_ax.set_yticks(yticks)
+
+            if not (j % col_per_grp):
+                # use minor ticks to create a break in the axis between the 
+                # linear and log ranges
+                yticks = sub_ax.get_yticks()
+                low = yticks[0] + (base_lin - yticks[0]) * 0.55
+                high = base_lin
+                sub_ax.set_yticks([low, high], minor=True)
+                sub_ax.set_yticklabels(["", ""], minor=True)
+                sub_ax.tick_params(
+                    axis="y", direction="inout", which="minor", length=16, 
+                    width=3
+                    )
+                
+            if i == 1:
+                xticks = sub_ax.get_xticks()
+                xticks = [int(t) if int(t) == t else t for t in xticks]
+                sub_ax.set_xticks(xticks)
+                sub_ax.set_xticklabels(xticks, fontweight="bold")
+
+
+#############################################
+def plot_roi_correlations(corr_df, figpar, title=None, log_scale=True):
+    """
+    plot_roi_correlations(corr_df, figpar)
+
+    Plots correlation histograms.
+
+    Required args:
+        - corr_df (pd.DataFrame):
             dataframe with one row per session/line/plane, and the 
             following columns, in addition to the basic sess_df columns:
             - bin_edges (list): first and last bin edge
-            - cross_corrs_binned (list): number of cross-correlation values per 
-                bin
+            - corrs_binned (list): number of correlation values per bin
         - figpar (dict): 
             dictionary containing the following figure parameter dictionaries
             ["init"] (dict): dictionary with figure initialization parameters
@@ -241,33 +306,42 @@ def plot_roi_cross_correlations(crosscorr_df, figpar, title="ROI SNRs"):
             ["dirs"] (dict): dictionary with additional figure parameters
 
     Optional args:
-        - datatype (str):
-            type of data to plot, also corresponding to column name
-            default: "snrs"
         - title (str):
             plot title
-            default: "ROI SNRs"
+            default: None
+        - log_scale (bool):
+            if True, a near logarithmic scale is used for the y axis (with a 
+            linear range to reach 0, and break marks to mark the transition 
+            from linear to log range)
+            default: True
 
     Returns:
         - ax (2D array): 
             array of subplots
     """
 
-    sess_ns = np.arange(
-        crosscorr_df.sess_ns.min(), crosscorr_df.sess_ns.max() + 1
-        )
+    sess_ns = np.arange(corr_df.sess_ns.min(), corr_df.sess_ns.max() + 1)
+    n_sess = len(sess_ns)
 
     figpar = sess_plot_util.fig_init_linpla(
         figpar, kind="prog", n_sub=len(sess_ns)
         )
-    figpar["init"]["subplot_hei"] = 4
-    figpar["init"]["subplot_wid"] = 4
-        
+    figpar["init"]["subplot_hei"] = 3.0
+    figpar["init"]["subplot_wid"] = 2.8
+    figpar["init"]["sharex"] = log_scale
+    if log_scale:
+        figpar["init"]["sharey"] = True
+
     fig, ax = plot_util.init_fig(4 * len(sess_ns), **figpar["init"])
     if title is not None:
-        fig.suptitle(title, y=0.97, weight="bold")
+        fig.suptitle(title, y=1.02, weight="bold")
 
-    for (line, plane), lp_df in crosscorr_df.groupby(["lines", "planes"]):
+    sess_plot_util.format_linpla_subaxes(ax, datatype="roi", 
+        ylab="Density", xlab="Correlation", sess_ns=sess_ns, kind="prog", 
+        single_lab=True)
+
+    log_base = 2
+    for (line, plane), lp_df in corr_df.groupby(["lines", "planes"]):
         li, pl, col, _ = plot_helper_fcts.get_line_plane_idxs(line, plane)
         for s, sess_n in enumerate(sess_ns):
             sess_rows = lp_df.loc[lp_df["sess_ns"] == sess_n]
@@ -277,19 +351,45 @@ def plot_roi_cross_correlations(crosscorr_df, figpar, title="ROI SNRs"):
                 raise RuntimeError("Expected exactly one row.")
             sess_row = sess_rows.loc[sess_rows.index[0]]
 
-            sub_ax = ax[pl, s + li * len(sess_ns)]
+            sub_ax = ax[pl, s + li * n_sess]
+ 
+            weights = np.asarray(sess_row["corrs_binned"])
 
-            weights = sess_row["cross_corrs_binned"]
             bin_edges = np.linspace(*sess_row["bin_edges"], len(weights) + 1)
 
             sub_ax.hist(
                 bin_edges[:-1], bin_edges, weights=weights, color=col, 
-                alpha=0.4, density=True
+                alpha=0.6, density=True
                 )
-            sub_ax.set_yscale("log")
+            sub_ax.axvline(
+                0, ls=plot_helper_fcts.VDASH,  c="k", lw=3.0, alpha=0.5
+                )
+            
+            sub_ax.spines["bottom"].set_visible(True)
+            sub_ax.tick_params(axis="x", which="both", bottom=True, top=False)
+            
+            if log_scale:
+                sub_ax.set_yscale("log", base=log_base)
+                sub_ax.set_xlim(-1, 1)
+            else:
+                sub_ax.autoscale(axis="x", tight=True)
 
-    sess_plot_util.format_linpla_subaxes(ax, datatype="roi", 
-        ylab="Density", sess_ns=sess_ns, kind="prog", single_lab=True)       
-        
+            sub_ax.autoscale(axis="y", tight=True)
+
+    if log_scale: # update x ticks
+        set_symlog_scale(ax, log_base=log_base, col_per_grp=n_sess, n_ticks=4)
+                    
+    else: # update x and y ticks
+        for i in range(ax.shape[0]):
+            for j in range(int(ax.shape[1] / n_sess)):
+                sub_axes = ax[i, j * n_sess : (j + 1) * n_sess]
+                plot_util.set_interm_ticks(
+                    sub_axes, 4, axis="y", share=True, update_ticks=True
+                )
+
+    plot_util.set_interm_ticks(
+        ax, 4, axis="x", share=log_scale, update_ticks=True, fontweight="bold"
+    )
+
     return ax
 

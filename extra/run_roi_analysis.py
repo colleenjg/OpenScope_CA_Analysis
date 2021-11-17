@@ -112,7 +112,7 @@ def reformat_args(args):
         args.stimtype, args.runtype, args.visflow_dir, args.visflow_size, 
         args.gabk)
 
-    # chose a seed if none is provided (i.e., args.seed=-1), but seed later
+    # choose a seed if none is provided (i.e., args.seed=-1), but seed later
     args.seed = rand_util.seed_all(
         args.seed, "cpu", log_seed=False, seed_now=False)
 
@@ -326,7 +326,7 @@ def init_param_cont(args):
 
 #############################################
 def init_sessions(sessids, datadir, mouse_df, analyspar, runtype="prod", 
-                  parallel=False):
+                  full_table=False, parallel=False):
     """
     init_sessions(sessids, datadir, mouse_df, analyspar)
 
@@ -340,10 +340,12 @@ def init_sessions(sessids, datadir, mouse_df, analyspar, runtype="prod",
         - analyspar (AnalysPar): named tuple containing analysis parameters
 
     Optional args:
-        - runtype (str)  : runtype ("pilot" or "prod")
-        - parallel (bool): if True, some analyses are parallelized 
-                           across CPU cores 
-                           default: False
+        - runtype (str)    : runtype ("pilot" or "prod")
+        - full_table (bool): if True, full stimulus dataframe is loaded
+                             default: False
+        - parallel (bool)  : if True, some analyses are parallelized 
+                             across CPU cores 
+                             default: False
 
     Returns:
         - sessions (list): list of sessions
@@ -353,7 +355,7 @@ def init_sessions(sessids, datadir, mouse_df, analyspar, runtype="prod",
         "datadir"   : datadir,
         "mouse_df"  : mouse_df,
         "runtype"   : runtype,
-        "full_table": False,
+        "full_table": full_table,
         "fluor"     : analyspar.fluor,
         "dend"      : analyspar.dend,
         "omit"      : True,
@@ -418,7 +420,8 @@ def prep_analyses(sess_n, args, mouse_df):
         for ids in sessids:
             subs = init_sessions(
                 ids, args.datadir, mouse_df, analyspar, 
-                runtype=sesspar.runtype, parallel=args.parallel
+                runtype=sesspar.runtype, full_table=args.tc_vm_estim,
+                parallel=args.parallel
                 )
             if len(subs) == 2:
                 sessions.append(subs)
@@ -435,7 +438,8 @@ def prep_analyses(sess_n, args, mouse_df):
             )
         sessions = init_sessions(
             sessids, args.datadir, mouse_df, analyspar, 
-            runtype=sesspar.runtype, parallel=args.parallel
+            runtype=sesspar.runtype, full_table=args.tc_vm_estim,
+            parallel=args.parallel
             )
 
     if len(sessids) == 0:
@@ -445,8 +449,14 @@ def prep_analyses(sess_n, args, mouse_df):
     if sesspar.runtype != "prod":
         runtype_str = f" ({sesspar.runtype} data)"
 
+    stim_str = stimpar.stimtype
+    if stimpar.stimtype == "gabors":
+        stim_str = "gabor"
+    elif stimpar.stimtype == "visflow":
+        stim_str = "visual flow"
+
     logger.info(
-        f"Analysis of {sesspar.plane} responses to {stimpar.stimtype[:-1]} "
+        f"Analysis of {sesspar.plane} responses to {stim_str} "
         f"stimuli{runtype_str}.\nSession {sesspar.sess_n}", 
         extra={"spacing": "\n"})
 
@@ -584,7 +594,8 @@ def main(args):
         plot_dicts.plot_from_dicts(
             Path(args.dict_path), source=source, plt_bkend=args.plt_bkend, 
             fontdir=args.fontdir, plot_tc=not(args.no_plot_tc), 
-            parallel=args.parallel, datetime=not(args.no_datetime))
+            parallel=args.parallel, datetime=not(args.no_datetime), 
+            overwrite=args.overwrite)
 
     else:
         args = reformat_args(args)
@@ -610,6 +621,7 @@ def main(args):
             parallel=args.parallel)
 
         # split analyses between parallel and sequential
+        args.parallel = bool(args.parallel  * (not args.debug))
         if args.parallel:
             run_seq = "oc" # should be run parallel within analysis
             all_analyses = gen_util.remove_lett(args.analyses, run_seq)
@@ -627,7 +639,7 @@ def main(args):
                 "analyses": analyses,
                 "seed"    : args.seed,
                 "parallel": analyses_parallel,
-                "plot_tc": not(args.no_plot_tc)
+                "plot_tc" : not(args.no_plot_tc),
                 }
 
             # run analyses for each parameter set
@@ -672,6 +684,8 @@ def parse_args():
         help="switch mpl backend when running on server")
     parser.add_argument("--parallel", action="store_true", 
         help="do runs in parallel.")
+    parser.add_argument("--debug", action="store_true", 
+        help="only enable session loading in parallel")
     parser.add_argument("--seed", default=-1, type=int, 
         help="random seed (-1 for None)")
     parser.add_argument("--log_level", default="info", 

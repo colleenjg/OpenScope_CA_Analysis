@@ -18,7 +18,6 @@ import logging
 import warnings
 from pathlib import Path
 
-import h5py
 import itertools
 import numpy as np
 import pandas as pd
@@ -56,7 +55,7 @@ class Session(object):
     pointers to the 2p data.
     """
     
-    def __init__(self, datadir=None, sessid=None, mouse_df="mouse_df.csv", 
+    def __init__(self, sessid=None, datadir=None, mouse_df="mouse_df.csv", 
                  runtype="prod", drop_tol=0.0003, verbose=False, 
                  only_tracked_rois=False, mouse_n=1, sess_n=1):
         """
@@ -85,11 +84,11 @@ class Session(object):
             - sess_n (int)            : session number
         
         Required args:
+            - sessid (int)            : the ID for this session.
+                                        default: None
             - datadir (Path)          : full path to the directory where session 
                                         folders are stored. If None, default 
                                         data directory is used.
-                                        default: None
-            - sessid (int)            : the ID for this session.
                                         default: None
             - mouse_df (Path)         : path to the mouse dataframe
                                         default: "mouse_df.csv"
@@ -135,10 +134,19 @@ class Session(object):
 
         self.drop_tol = drop_tol
 
-        self.nwb
+        self.nwb # set _nwb attribute
 
         self._extract_sess_attribs()
-        self._init_directory()
+
+        try:
+            self._init_directory()
+        except Exception as err:
+            if str(err).startswith("Could not find the directory"):
+                err = str(err).replace(
+                    "find the directory", "find the directory or NWB file"
+                    )
+            raise OSError(err)
+
         self.set_only_tracked_rois(only_tracked_rois)
 
         if verbose:
@@ -338,7 +346,7 @@ class Session(object):
     @property
     def max_proj(self):
         """
-        self.max_proj()
+        self.max_proj
 
         Returns:
             - _max_proj (2D array): maximum projection image across downsampled 
@@ -586,8 +594,10 @@ class Session(object):
                 gabor_kappa              : Gabors orientation dispersion
                 gabor_mean_orientation   : mean Gabor orientation (deg)
                 gabor_number             : number of Gabors
-                gabor_locations_x        : x locations for each Gabor patch (pix) 
-                gabor_locations_y        : y locations for each Gabor patch (pix)
+                gabor_locations_x        : x locations for each Gabor patch (pix), 
+                                           centered on middle of the screen 
+                gabor_locations_y        : y locations for each Gabor patch (pix), 
+                                           centered on middle of the screen 
                 gabor_sizes              : size of each Gabor patch (pix)
                 main_flow_direction      : main visual flow direction
                 square_size              : visual flow square sizes (in pix)
@@ -595,6 +605,7 @@ class Session(object):
                 square_proportion_flipped: proportion of visual flow squares 
                                            going in direction opposite to main 
                                            flow
+                stimulus_template_name   : name of the template image stored
                 start_frame_stim         : first stimulus frame number (incl)
                 stop_frame_stim          : last stimulus frame number (excl)
                 num_frames_stim          : number of stimulus frames
@@ -607,13 +618,12 @@ class Session(object):
 
                 if full_table:
                 gabor_orientations       : orientation of each Gabor patch (deg)
-                square_locations_x       : x locations for each square 
+                square_locations_x       : x locations for each square, 
+                                           centered on middle of the screen 
                                            (square x stimulus frame) (pix) 
-                square_locations_y       : y locations for each square 
+                square_locations_y       : y locations for each square, 
+                                           centered on middle of the screen 
                                            (square x stimulus frame) (pix)
-
-                if self.nwb:
-                stimulus_template_name   : name of the template image stored
 
         Optional args:
             - full_table (bool): if True, the full stimulus information is 
@@ -993,7 +1003,7 @@ class Session(object):
                 roi_ns = np.where(high_med + sub0_mean)[0]
 
                 n_noisy_rois = len(roi_ns)
-                if n_noisy_rois != 0:
+                if n_noisy_rois != 0 and not self._only_tracked_rois:
                     warn_str = ", ".join([str(x) for x in roi_ns])
                     logger.warning(f"Session {self.sessid}: {n_noisy_rois} "
                         "noisy ROIs (mean below 0 or median above midrange) "
@@ -1088,7 +1098,7 @@ class Session(object):
             raise NotImplementedError("Not implemented for NWB!")
 
         if self.plane == "dend" and self.dend != "extr":
-            raise UserWarning("ROIs not tracked for Allen extracted dendritic "
+            raise RuntimeError("ROIs not tracked for Allen extracted dendritic "
                 "ROIs.")
 
         if hasattr(self, "_tracked_rois"):
@@ -1100,12 +1110,12 @@ class Session(object):
                 self.home, self.sessid, self.runtype, check=True)
         except Exception as err:
             if "not exist" in str(err):
-                raise UserWarning(f"No tracked ROIs file found for {self}.")
+                raise OSError(f"No tracked ROIs file found for {self}.")
             else:
                 raise err
 
-        with open(nway_match_path, 'r') as fp:
-            tracked_rois_df = pd.DataFrame(json.load(fp)['rois'])
+        with open(nway_match_path, "r") as fp:
+            tracked_rois_df = pd.DataFrame(json.load(fp)["rois"])
 
         self._tracked_rois = tracked_rois_df['dff-ordered_roi_index'].values
         self._set_nanrois_tracked()
@@ -1476,7 +1486,7 @@ class Session(object):
 
 
     #############################################
-    def extract_info(self, full_table=True, fluor="dff", dend="extr", roi=True, 
+    def extract_info(self, full_table=False, fluor="dff", dend="extr", roi=True, 
                      run=False, pupil=False):
         """
         self.extract_info()
@@ -1499,7 +1509,7 @@ class Session(object):
                                  loaded. Otherwise, exact Gabor orientations 
                                  and visual flow square positions per frame are 
                                  omitted
-                                 default: True
+                                 default: False
             - fluor (str)      : if "dff", ROI information is loaded from dF/F 
                                  trace file. If "raw", based on the raw processed 
                                  trace file. 
@@ -1838,7 +1848,7 @@ class Session(object):
             gen_util.accepted_values_error("fr_type", fr_type, "stim", "twop")
 
         if (fr >= self.tot_stim_fr).any() or (fr < 0).any():
-            raise UserWarning("Some of the specified frames are out of range")
+            raise RuntimeError("Some of the specified frames are out of range")
         
         run_data = self.get_run_velocity(remnans=remnans, scale=scale)
 
@@ -2052,9 +2062,9 @@ class Session(object):
         else:
             stim = self.get_stim(stimtype)
             twop_fr = []
-            blocks = stim.block_params.index.unique("block_n")
+            blocks = stim.block_params.index
             for b in blocks:
-                row = stim.block_params.loc[pd.IndexSlice[:, b]]
+                row = stim.block_params.loc[b]
                 twop_fr.extend(
                     [row["start_frame_twop"][0], row["stop_frame_twop"][0]
                     ])
@@ -2233,7 +2243,7 @@ class Session(object):
         if frames is None:
             frames = frames
         elif max(frames) >= self.tot_twop_fr or min(frames) < 0:
-            raise UserWarning("Some of the specified frames are out of range")
+            raise ValueError("Some of the specified frames are out of range")
         else:
             frames = np.asarray(frames)
 
@@ -2553,12 +2563,12 @@ class Session(object):
             - all_idx (list): list of original indices retained
         """
 
-        if not hasattr(self, "tot_twop_fr"):
+        if fr_type == "twop" and not hasattr(self, "tot_twop_fr"):
             raise RuntimeError(
                 "Run 'self.load_roi_info()' or 'self.load_pup_data()' to load "
                 "two-photon attributes correctly.")
 
-        if not isinstance(ch_fl, list) or len(ch_fl) != 2:
+        if not isinstance(ch_fl, (list, tuple)) or len(ch_fl) != 2:
             raise ValueError("'ch_fl' must be a list of length 2.")
 
         if fr_type == "twop":
@@ -2646,50 +2656,29 @@ class Stim(object):
         self.stim_fps  = self.sess.stim_fps
 
         if self.sess.nwb:
-            if self.stimtype == "gabors":
-                # segment length (sec) (0.3 sec)
-                self.seg_len_s = 0.3 
-                # num seg per set (4: A, B, C, D/U, G)
-                self.n_segs_per_seq = 5 
-
-                unexp_len = [3, 6]
-                exp_len = [30, 90]
-            
-            elif self.stimtype == "visflow":
-                # segment length (sec) (1 sec)
-                self.seg_len_s = 1
-
-                unexp_len = [2, 4]
-                exp_len = [30, 90]
-
-            else:
-                raise ValueError(f"{self.stimtype} stim type not recognized. "
-                    "Stim object cannot be initialized.")
-        
-            # sequence parameters
-            self.unexp_min_s = unexp_len[0]
-            self.unexp_max_s = unexp_len[1]
-            self.exp_min_s   = exp_len[0]
-            self.exp_max_s   = exp_len[1]
+            gen_stim_props = sess_stim_df_util.load_hard_coded_stim_properties(
+                stimtype=self.stimtype, runtype=self.sess.runtype
+                )
         else:
             if stim_dict is None:
                 stim_dict = self.sess._load_stim_dict(full_table=False)
             
             gen_stim_props = sess_stim_df_util.load_gen_stim_properties(
-                stim_dict, stimtype=stimtype, runtype=self.sess.runtype
+                stim_dict, stimtype=self.stimtype, runtype=self.sess.runtype
                 )
-            self.seg_len_s = gen_stim_props["seg_len_s"]
-            if stimtype == "gabors":            
-                self.n_segs_per_seq = gen_stim_props["n_segs_per_seq"]
-            
-            # sequence parameters
-            self.unexp_min_s = gen_stim_props["unexp_len_s"][0]
-            self.unexp_max_s = gen_stim_props["unexp_len_s"][1]
-            self.exp_min_s   = gen_stim_props["exp_len_s"][0]
-            self.exp_max_s   = gen_stim_props["exp_len_s"][1]
 
-            self.win_size    = gen_stim_props["win_size"]
-            self.deg_per_pix = gen_stim_props["deg_per_pix"]
+        self.seg_len_s = gen_stim_props["seg_len_s"]
+        if stimtype == "gabors":            
+            self.n_segs_per_seq = gen_stim_props["n_segs_per_seq"]
+        
+        # sequence parameters
+        self.unexp_min_s = gen_stim_props["unexp_len_s"][0]
+        self.unexp_max_s = gen_stim_props["unexp_len_s"][1]
+        self.exp_min_s   = gen_stim_props["exp_len_s"][0]
+        self.exp_max_s   = gen_stim_props["exp_len_s"][1]
+
+        self.win_size    = gen_stim_props["win_size"]
+        self.deg_per_pix = gen_stim_props["deg_per_pix"]
 
         self._set_block_params()
 
@@ -2709,10 +2698,10 @@ class Stim(object):
 
         Set attributes related to blocks.
 
-        NOTE: A block, here, is a sequence of stimulus presentations of the 
-        same stimulus type, and there can be multiple blocks in one experiment. 
-
-        They are almost always separated by a grayscreen stimulus.
+        NOTE: A block, here, is the entire duration of a stimulus presentation 
+        where the stimulus features are held constant. There can be multiple 
+        blocks in one experiment, and they are always separated by a grayscreen 
+        period. 
         
         For Gabors, segments refer to the stim_df index, where each gabor frame 
         (lasting 0.3 s) and each visual flow segment (lasting 1s) occupies a 
@@ -2722,14 +2711,16 @@ class Stim(object):
             - block_params (pd DataFrame): dataframe containing stimulus 
                                            parameters and start (incl), 
                                            stop (excl) info for each block
+            - stim_params (list)         : parameters specific to the stimulus 
+                                           in the block_params dataframe.
         """
 
         if self.stimtype == "gabors":
             stimulus_type = "gabors"
-            stim_columns = ["gabor_kappa"]
+            self.stim_params = ["gabor_kappa"]
         elif self.stimtype == "visflow":
             stimulus_type = "visflow"
-            stim_columns = \
+            self.stim_params = \
                 ["main_flow_direction", "square_size", "square_number"]
 
         segments = self.sess.stim_df.loc[
@@ -2769,9 +2760,9 @@ class Stim(object):
                     
                 self.block_params.loc[row_idx, column] = diff_val
             
-            for stim_column in stim_columns:
-                self.block_params.loc[row_idx, stim_column] = \
-                    start_row[stim_column]
+            for stim_param in self.stim_params:
+                self.block_params.loc[row_idx, stim_param] = \
+                    start_row[stim_param]
 
         for col in self.block_params.columns:
             if "_sec" not in col and "direction" not in col: 
@@ -2783,7 +2774,7 @@ class Stim(object):
                             remnans=True, gabfr="any", gabk="any", 
                             gab_ori="any", visflow_size="any", 
                             visflow_dir="any", pupil=False, run=False, 
-                            scale=False):
+                            scale=False, roi_stats=False):
         """
         self.get_stim_beh_sub_df(pre, post)
 
@@ -2809,7 +2800,7 @@ class Stim(object):
                                           for pupil and running data or ROI 
                                           exclusion for ROIdata
                                           default: True
-            - gabfr (int or list)       : 0, 1, 2, 3, "G", "any"
+            - gabfr (int or list)       : 0, 1, 2, 3, 4, "any"
                                           default: "any"
             - gabk (int or list)        : 4, 16, or "any"
                                           default: "any"
@@ -2826,11 +2817,15 @@ class Stim(object):
                                           default: False
             - scale (bool)              : if True, data is scaled
                                           default: False
+            - roi_stats (bool)          : if True, a statistic across ROIs is 
+                                          provided instead of values for each 
+                                          ROI
+                                          default: False
 
         Returns:
             - sub_df (pd DataFrame): extended stimulus dataframe containing
-                                     behaviour, and line/plane/sessid info, if 
-                                     requested
+                                     ROI data, line/plane/session_id info, and 
+                                     behaviour, if requested
         """
 
         drop = ["start_frame_twop", "stop_frame_twop", 
@@ -2843,7 +2838,7 @@ class Stim(object):
         
         sub_df["plane"] = self.sess.plane
         sub_df["line"]  = self.sess.line
-        sub_df["sessid"] = self.sess.sessid
+        sub_df["session_id"] = self.sess.sessid
 
         twop_fr = sub_df["start_frame_twop"].to_numpy()
         if pupil:
@@ -2863,22 +2858,37 @@ class Stim(object):
                 run_data, stats=stats, axis=-1)
         
         # add ROI data
-        logger.info("Adding ROI data to dataframe.")
+        logger.info("Adding ROI data to dataframe...")
         roi_data = self.get_roi_data(
             twop_fr, pre, post, remnans=remnans, fluor=fluor, scale=scale
             )["roi_traces"]
         targ = [len(roi_data.index.unique(dim)) for dim in roi_data.index.names]
-        roi_data = math_util.mean_med(roi_data.to_numpy().reshape(targ), 
-            stats=stats, axis=-1, nanpol="omit")
-        cols = [f"roi_data_{i}" for i in range(len(roi_data))]
-        all_roi = pd.DataFrame(columns=cols, data=roi_data.T)
-        sub_df = sub_df.join(all_roi)
+        roi_data = math_util.mean_med(
+            roi_data.to_numpy().reshape(targ), 
+            stats=stats, axis=-1, nanpol="omit"
+            )
+        if roi_stats:
+            sub_df["roi_data"] = math_util.mean_med(
+                roi_data, stats=stats, axis=0, nanpol="omit"
+                )
+        else:
+            cols = [f"roi_data_{i}" for i in range(len(roi_data))]
+            all_roi = pd.DataFrame(columns=cols, data=roi_data.T)
+            sub_df = sub_df.join(all_roi)
 
         # drop columns
-        drop = []
-        for col in sub_df.columns:
-            if ("frame" in col) or ("time" in col) or (col == "duration"):
-                drop.append(col)
+        drop = [
+            col for col in sub_df.columns 
+            if ("_stim" in col or "_twop" in col or "sec" in col)
+            ]
+
+        if self.stimtype != "visflow":
+            drop.extend(
+                [col for col in sub_df.columns 
+                if ("flow" in col or "square" in col)]
+                )
+        if self.stimtype != "gabors":
+            drop.extend([col for col in sub_df.columns if "gabor" in col])
 
         sub_df = sub_df.drop(columns=drop)
 
@@ -2922,6 +2932,9 @@ class Stim(object):
                                                frame
         """
         
+        if len(seg_list) == 0:
+            raise ValueError("No segments: seg_list is empty.")
+
         seg_list = np.asarray(seg_list)
         if seg_list.min() < 0:
             raise ValueError("Segments cannot be < 0.")
@@ -3129,13 +3142,14 @@ class Stim(object):
                 block_segs = [
                     seg for seg in segs if seg >= min_seg and seg < max_seg
                     ]
-                segs_by_block.append(block_segs)
+                if len(block_segs) != 0: # check for empty
+                    segs_by_block.append(block_segs)
             n_segs = [len(block_segs) for block_segs in segs_by_block]
-            if n_segs > segs:
+            if sum(n_segs) > len(segs):
                 raise RuntimeError(
                     "Should not be more segments after splitting into blocks."
                     )
-            if n_segs < segs:
+            if sum(n_segs) < len(segs):
                 raise RuntimeError(
                     "Segments should not be missing after splitting into blocks."
                     )
@@ -3148,7 +3162,9 @@ class Stim(object):
             
             for block_segs in segs:
                 block_segs = np.asarray(block_segs)
-                keep_idx = np.where(np.diff(np.insert(block_segs, 0, -2)) != 1)[0]
+                keep_idx = np.where(
+                    np.diff(np.insert(block_segs, 0, -2)) != 1
+                    )[0]
                 keep_segs.append(block_segs[keep_idx].tolist())
 
             if by == "seg":
@@ -3196,12 +3212,17 @@ class Stim(object):
                              optionally arranged by block
         """
 
+        use_by = by
+        if by == "frame":
+            use_by = "seg"
+        elif by != "block":
+            gen_util.accepted_values_error("by", by, ["frame", "block"])
 
         segs = self.get_segs_by_criteria(
             unexp, stim_seg=stim_seg, gabfr=gabfr, gabk=gabk, gab_ori=gab_ori, 
             visflow_size=visflow_size, visflow_dir=visflow_dir, 
             start_frame_twop=start_frame_twop, stop_frame_twop=stop_frame_twop, 
-            num_frames_twop=num_frames_twop, remconsec=remconsec, by=by
+            num_frames_twop=num_frames_twop, remconsec=remconsec, by=use_by
             )
 
         if by == "frame":
@@ -3217,11 +3238,15 @@ class Stim(object):
             else:
                 block_frames = [sub.tolist() for sub in block_frames]
             
-            frames.append(block_frames)
+            if len(block_frames) != 0: # check for empty
+                frames.append(block_frames)
         
         if by == "frame":
             frames = frames[0]
         
+        if len(frames) == 0:
+            raise ValueError("No frames fit these criteria.")
+
         return frames
 
 
@@ -4257,16 +4282,16 @@ class Stim(object):
 
         fr = np.asarray(fr)
 
-        min_fr = self.stim_df[f"start_frame_{fr_type}"].min()
-        max_fr = self.stim_df[f"stop_frame_{fr_type}"].max()
+        min_fr = self.sess.stim_df[f"start_frame_{fr_type}"].min()
+        max_fr = self.sess.stim_df[f"stop_frame_{fr_type}"].max()
         if fr_type not in ["twop", "stim"]:
             gen_util.accepted_values_error("fr_type", fr_type, ["twop", "stim"])
 
         # make sure the frames are within the range
         if (fr >= max_fr).any() or (fr < min_fr).any():
-            raise UserWarning("Some of the specified frames are out of range")
+            raise ValueError("Some of the specified frames are out of range.")
 
-        targ_frames = self.stim_df[f"start_frame_{fr_type}"].to_numpy()
+        targ_frames = self.sess.stim_df[f"start_frame_{fr_type}"].to_numpy()
         segs = np.searchsorted(targ_frames, fr).astype(int)
 
         return segs
@@ -4323,20 +4348,20 @@ class Gabors(Stim):
         super().__init__(sess, stimtype="gabors", stim_dict=stim_dict)
         
         if self.sess.nwb:
-            self.sf        = 0.04
-            self.phase     = 0.25
-            self.size_ran  = [10, 20]
+            gen_stim_props = sess_stim_df_util.load_hard_coded_stim_properties(
+                stimtype=self.stimtype, runtype=self.sess.runtype
+                )
         else:
             if stim_dict is None:
                 stim_dict = self.sess._load_stim_dict(full_table=False)
-
+            
             gen_stim_props = sess_stim_df_util.load_gen_stim_properties(
-                stim_dict, stimtype="gabors", runtype=self.sess.runtype
+                stim_dict, stimtype=self.stimtype, runtype=self.sess.runtype
                 )
         
-            self.sf        = gen_stim_props["sf"]
-            self.phase     = gen_stim_props["phase"]
-            self.size_ran  = gen_stim_props["size_ran"]
+        self.sf        = gen_stim_props["sf"]
+        self.phase     = gen_stim_props["phase"]
+        self.size_ran  = gen_stim_props["size_ran"]
         
         # collect information from sess.stim_df
         stimtype_df = self.sess.stim_df.loc[
@@ -4364,6 +4389,7 @@ class Gabors(Stim):
 
         all_mean_oris = []
         for gab_fr in [self.exp_gabfr, self.unexp_gabfr, self.all_gabfr]:
+            gab_fr = gab_fr[:]
             if "G" in gab_fr:
                 gab_fr.remove("G")
 
@@ -4439,6 +4465,10 @@ class Gabors(Stim):
         Returns stimulus parameters for specified segments.
 
         NOTE: An error is raised if segments are out of range.
+        
+        If the same segment occurs consecutively within a sequence, the index 
+        at the segment level will occur once for all rows sharing it. 
+        This can lead to some unexpected behaviours.
 
         Required args:
             - segs (nd array): array of segments for which parameters are
@@ -4472,7 +4502,7 @@ class Gabors(Stim):
                     - "gabor_n"   : gabor number
         """
 
-        segs = np.asarray(segs)
+        segs = np.asarray(segs).astype(int)
 
         # check that at least one parameter type is requested
         if not(pos or ori or size):
@@ -4489,21 +4519,22 @@ class Gabors(Stim):
                 "segs contains values above length of stimulus dataframe."
                 )
 
-        sub_df = self.sess.stim_df.loc[segs]
+        segs_unique = np.sort(np.unique(segs.reshape(-1)))
+        sub_df = self.sess.stim_df.loc[segs_unique].copy()
 
-        main_gab_segs = sub_df.loc[
-            (sub_df["stimulus_type"] == "gabors") & 
-            (sub_df["gabor_frame"] != "G")
-            ].index
+        # allow for repeated segments
+        sub_df = sub_df.rename_axis(index="segments").reset_index()
+        
         gray_gab_segs = sub_df.loc[sub_df["gabor_frame"] == "G"].index
         non_gab_segs = sub_df.loc[sub_df["stimulus_type"] != "gabors"].index
+        non_gray_gab_segs = np.delete(np.arange(len(sub_df)), gray_gab_segs)
 
         if len(non_gab_segs):
             raise ValueError("Some of the segments requested are out of "
                 "range for Gabors stimulus.")
         
         row_index = pd.MultiIndex.from_product(
-            [sub_df.index, range(self.n_patches)], 
+            [sub_df["segments"], range(self.n_patches)], 
             names=["seg_n", "gabor_n"])
 
         param_df = pd.DataFrame(None, index=row_index, columns=[])
@@ -4521,13 +4552,19 @@ class Gabors(Stim):
                 ran = self.size_ran
             elif param_name == "pos_x":
                 column = "gabor_locations_x"
-                ran = self.win_size
+                ran = [-self.win_size[0] / 2, self.win_size[0] / 2]
             elif param_name == "pos_y":
                 column = "gabor_locations_y"
-                ran = self.win_size
+                ran = [-self.win_size[1] / 2, self.win_size[0] / 1]
             
-            vals = np.asarray(sub_df.loc[main_gab_segs, column].to_list())
-            if vals.max() > ran[1] or vals.min < ran[0]:
+            # add 0s for G frames
+            for i in gray_gab_segs:
+                sub_df.at[i, column] = np.full(self.n_patches, 0)
+
+            vals = np.asarray(sub_df[column].to_list())
+            min_non_gray = vals[non_gray_gab_segs].min()
+            max_non_gray = vals[non_gray_gab_segs].max()
+            if max_non_gray > ran[1] or min_non_gray < ran[0]:
                 raise RuntimeError(
                     f"Expected {column} data to be between {ran[0]} and "
                     f"{ran[1]}, but found values outside that range."
@@ -4537,11 +4574,9 @@ class Gabors(Stim):
                 sub = ran[0]
                 div = ran[1] - ran[0]
                 vals = math_util.scale_data(vals, facts=[sub, div, 2, -1])
-            param_df.loc[main_gab_segs, column] = vals.reshape(-1)
             
-            # add 0s for grayscreen
-            param_df.loc[gray_gab_segs, column] = \
-                np.full([len(gray_gab_segs), self.n_patches], 0).reshape(-1)
+            param_df[column] = vals.reshape(-1)
+                
 
         # create a dataframe organized like 'segs' and transfer data
         names = [f"{''.join(['sub_'] * i)}sequence" 
@@ -4561,6 +4596,7 @@ class Gabors(Stim):
             None, index=row_index, columns=col_index)
 
         use_idx = [vals[-2:] for vals in full_param_df.index.values]
+        use_idx = pd.MultiIndex.from_tuples(use_idx) # to ensure order is preserved
         for col in param_df.columns:
             full_param_df[col, ] = param_df.loc[use_idx, col].values
 
@@ -4576,7 +4612,9 @@ class Gabors(Stim):
         Returns stimulus parameters for frame sequences specified by the 
         reference frame numbers and pre and post ranges.
 
-        NOTE: An error is raised if frames are out of range.
+        NOTE: Ranges that extend outside of the session range are removed. 
+        However, an error is raised if frames for remaining sequences are out 
+        of range for the stimulus.
 
         Required args:
             - fr (list) : 1D list of frame numbers 
@@ -4615,7 +4653,11 @@ class Gabors(Stim):
                     - "gabor_n"   : gabor number
         """
 
+        # remove sequences with frames that out of bounds
+        fr = self.sess.check_flanks(fr, ch_fl=[pre, post], fr_type=fr_type)
 
+        if len(fr) == 0:
+            raise RuntimeError("No frames: All frames were removed from list.")
 
         fr_seqs = gen_util.reshape_df_data(
             self.sess.get_fr_ran(
@@ -4623,17 +4665,22 @@ class Gabors(Stim):
                 ).loc[:, (f"{fr_type}_fr_n", )], 
             squeeze_cols=True)
 
-        segs = self.get_segs_by_fr(fr_seqs, fr_type=fr_type)
+        segs = self.get_segs_by_frame(fr_seqs, fr_type=fr_type)
 
+        # repeated segments appear under the same index tuples
         full_param_df = self.get_stim_par_by_seg(
             segs, pos=pos, ori=ori, size=size, scale=scale)
 
-        full_param_df.index.set_levels(
-            fr_seqs.reshape(-1), level="seg_n", inplace=True)
+        # replace segments with frame numbers
+        seg_index = np.asarray(list(full_param_df.index))
+        seg_index[:, -2] = np.repeat(fr_seqs.reshape(-1), self.n_patches)
 
-        full_param_df.index.rename(
-            f"{fr_type}_fr_n", level="seg_n", inplace=True
-            )
+        # update dataframe with the new index
+        names = list(full_param_df.index.names)
+        names[-2] = f"{fr_type}_fr_n"
+        new_index = pd.MultiIndex.from_arrays(list(seg_index.T), names=names)
+
+        full_param_df = full_param_df.set_index(new_index)
 
         return full_param_df
 
@@ -4677,15 +4724,18 @@ class Visflow(Stim):
         super().__init__(sess, stimtype="visflow", stim_dict=stim_dict)
 
         if self.sess.nwb:
-            self.speed = 50 # pix/sec
+            gen_stim_props = sess_stim_df_util.load_hard_coded_stim_properties(
+                stimtype=self.stimtype, runtype=self.sess.runtype
+                )
         else:
             if stim_dict is None:
                 stim_dict = self.sess._load_stim_dict(full_table=False)
+            
             gen_stim_props = sess_stim_df_util.load_gen_stim_properties(
-                stim_dict, stimtype="visflow", runtype=self.sess.runtype
+                stim_dict, stimtype=self.stimtype, runtype=self.sess.runtype
                 )
         
-            self.speed = gen_stim_props["speed"]
+        self.speed = gen_stim_props["speed"]
 
         # collect visual flow information from sess.stim_df
         stimtype_df = self.sess.stim_df.loc[

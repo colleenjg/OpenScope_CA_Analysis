@@ -264,14 +264,17 @@ def plot_idxs(idx_df, sesspar, figpar, plot="items", density=True, n_bins=40,
     figpar = sess_plot_util.fig_init_linpla(figpar, kind="idx", 
         n_sub=len(sess_ns), sharex=(plot == "percs"))
 
+    y = 1
     if size == "reg":
         subplot_hei = 3.2
         subplot_wid = 5.5
     elif size == "small":
+        y = 1.04
         subplot_hei = 2.40
         subplot_wid = 3.75
         figpar["init"]["gs"] = {"hspace": 0.25, "wspace": 0.30}
     elif size == "tall":
+        y = 0.98
         subplot_hei = 5.3
         subplot_wid = 5.55
     else:
@@ -283,7 +286,7 @@ def plot_idxs(idx_df, sesspar, figpar, plot="items", density=True, n_bins=40,
     
     fig, ax = plot_util.init_fig(n_plots, **figpar["init"])
     if title is not None:
-        fig.suptitle(title, y=1.0, weight="bold")
+        fig.suptitle(title, y=y, weight="bold")
 
     for (line, plane), lp_df in idx_df.groupby(["lines", "planes"]):
         li, pl, col, _ = plot_helper_fcts.get_line_plane_idxs(line, plane)
@@ -318,6 +321,13 @@ def plot_idxs(idx_df, sesspar, figpar, plot="items", density=True, n_bins=40,
             if size == "small":
                 sub_ax.legend(fontsize="small")
 
+    # Add plane, line info to plots
+    y_lab = "Density" if density else f"N ROIs" 
+    sess_plot_util.format_linpla_subaxes(ax, datatype="roi", ylab=y_lab, 
+        xticks=None, sess_ns=None, kind="idx", modif_share=False, 
+        xlab="Index", single_lab=True)
+
+    # Add indices after setting formatting
     if plot == "percs":
         nticks = 5
         xticks = [int(np.around(x, 0)) for x in np.linspace(0, 100, nticks)]
@@ -333,12 +343,6 @@ def plot_idxs(idx_df, sesspar, figpar, plot="items", density=True, n_bins=40,
     
     else:
         gen_util.accepted_values_error("plot", plot, ["items", "percs"])
-
-    # Add plane, line info to plots
-    y_lab = "Density" if density else f"N ROIs" 
-    sess_plot_util.format_linpla_subaxes(ax, datatype="roi", ylab=y_lab, 
-        xticks=None, sess_ns=None, kind="idx", modif_share=False, 
-        single_lab=True)
         
     return ax
 
@@ -524,11 +528,16 @@ def plot_perc_sig_usis(perc_sig_df, analyspar, permpar, figpar, by_mouse=False,
             elif len(lp_df) > 1 and not by_mouse:
                 raise RuntimeError("Expected a single row per line/plane.")
 
+            lp_df = lp_df.sort_values("mouse_ns") # sort by mouse
             df_indices = lp_df.index.tolist()
 
             if by_mouse:
                 # plot means or medians per mouse
                 mouse_data = lp_df[data_key].to_numpy()
+                mouse_cols = plot_util.get_hex_color_range(
+                    len(lp_df), col=col, 
+                    interval=plot_helper_fcts.MOUSE_COL_INTERVAL
+                    )
                 mouse_data_mean = math_util.mean_med(
                     mouse_data, stats=analyspar["stats"], nanpol=nanpol
                     )
@@ -538,6 +547,7 @@ def plot_perc_sig_usis(perc_sig_df, analyspar, permpar, figpar, by_mouse=False,
             else:
                 # collect confidence interval data
                 row = lp_df.loc[df_indices[0]]
+                mouse_cols = [col]
                 CIs[x_index] = np.asarray(row[f"{data_key}_null_CIs"])[
                     np.asarray([0, 2])
                     ]
@@ -550,7 +560,7 @@ def plot_perc_sig_usis(perc_sig_df, analyspar, permpar, figpar, by_mouse=False,
                 tail_sig_str = f"{tail_sig_str}{TAB}{linpla_name}: "
                 rel_y = 0.1
 
-            for df_i in df_indices:
+            for df_i, mouse_col in zip(df_indices, mouse_cols):
                 # plot UFOs
                 err = None
                 no_line = True
@@ -560,7 +570,7 @@ def plot_perc_sig_usis(perc_sig_df, analyspar, permpar, figpar, by_mouse=False,
                 # indicate bootstrapped error with wider capsize
                 plot_util.plot_ufo(
                     sub_ax, x_index, perc_sig_df.loc[df_i, data_key], err,
-                    color=col, capsize=8, no_line=no_line
+                    color=mouse_col, capsize=8, no_line=no_line
                     )
 
                 # add significance markers
@@ -579,7 +589,8 @@ def plot_perc_sig_usis(perc_sig_df, analyspar, permpar, figpar, by_mouse=False,
                 if len(sig_str):
                     perc_high = perc + err if err is not None else perc
                     plot_util.add_signif_mark(sub_ax, x_index, perc_high, 
-                        rel_y=rel_y, color=col, fontsize=24, mark=sig_str) 
+                        rel_y=rel_y, color=mouse_col, fontsize=24, 
+                        mark=sig_str) 
 
                 if by_mouse:
                     perc_p_vals.append(
@@ -920,10 +931,15 @@ def plot_tracked_idx_stats(idx_stats_df, sesspar, figpar, permpar=None,
             )
 
         mouse_ns = ["any"]
+        mouse_cols = [col]
         if by_mouse:
             mouse_ns = sorted(lp_df["mouse_ns"].unique())
+            mouse_cols = plot_util.get_hex_color_range(
+                len(mouse_ns), col=col, 
+                interval=plot_helper_fcts.MOUSE_COL_INTERVAL
+                )
 
-        for mouse_n in mouse_ns:
+        for mouse_n, mouse_col in zip(mouse_ns, mouse_cols):
             sub_df = lp_df
             if by_mouse:
                 sub_df = lp_df.loc[lp_df["mouse_ns"] == mouse_n]
@@ -943,7 +959,7 @@ def plot_tracked_idx_stats(idx_stats_df, sesspar, figpar, permpar=None,
             alpha = 0.6 if by_mouse else 0.8
             capsize = 8 if bootstr_err else None
             plot_util.plot_errorbars(
-                sub_ax, data[:, 0], data[:, 1:].T, sub_sess_ns, color=col, 
+                sub_ax, data[:, 0], data[:, 1:].T, sub_sess_ns, color=mouse_col, 
                 alpha=alpha, xticks="auto", line_dash=dash, capsize=capsize,
                 )
 

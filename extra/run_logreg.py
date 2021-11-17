@@ -71,8 +71,8 @@ def check_args(comp="unexp", stimtype="gabors", q1v4=False, exp_v_unexp=False):
     if comp not in poss_comps:
         comps_str = ", ".join(poss_comps)
         raise ValueError(f"With stimtype={stimtype}, q1v4={q1v4}, "
-            f"exp_v_unexp={exp_v_unexp}, can only use the following "
-            f"comps: {comps_str}")
+            f"exp_v_unexp={exp_v_unexp}, cannot use {comp}. Can only use "
+            f"the following comps: {comps_str}")
     return
 
 

@@ -311,9 +311,9 @@ def get_pupil_run_block_stats_df(sessions, analyspar, stimpar, permpar,
             - run_block_diffs (list): 
                 running velocity differences per block
             - run_raw_p_vals (float):
-                uncorrected p-value for differences within sessions
+                uncorrected p-values for differences within sessions
             - run_p_vals (float):
-                p-value for differences within sessions, 
+                p-values for differences within sessions, 
                 corrected for multiple comparisons and tails
             - pupil_block_diffs (list): 
                 for pupil diameter differences per block
