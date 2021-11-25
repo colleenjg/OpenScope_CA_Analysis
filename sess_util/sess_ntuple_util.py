@@ -26,7 +26,7 @@ from util import gen_util, logger_util
 
 
 #############################################
-def init_analyspar(fluor="dff", remnans=True, stats="mean", error="sem", 
+def init_analyspar(fluor="dff", rem_bad=True, stats="mean", error="sem", 
                    scale=False, dend="extr", tracked=False):
     """
     init_analyspar()
@@ -38,7 +38,7 @@ def init_analyspar(fluor="dff", remnans=True, stats="mean", error="sem",
         - fluor (str)   : whether "raw" or processed fluorescence traces 
                           "dff" are used  
                           default: "dff"
-        - remnans (str) : if True, ROIs with NaN/Inf values are removed in
+        - rem_bad (str) : if True, ROIs with NaN/Inf values are removed in
                           the analyses.
                           default: True
         - stats (str)   : statistic parameter ("mean" or "median")
@@ -57,9 +57,9 @@ def init_analyspar(fluor="dff", remnans=True, stats="mean", error="sem",
                                             attributes
     """
 
-    analys_pars = [fluor, remnans, stats, error, scale, dend, tracked]
+    analys_pars = [fluor, rem_bad, stats, error, scale, dend, tracked]
     analys_keys = \
-        ["fluor", "remnans", "stats", "error", "scale", "dend", "tracked"]
+        ["fluor", "rem_bad", "stats", "error", "scale", "dend", "tracked"]
     AnalysPar   = namedtuple("AnalysPar", analys_keys)
     analyspar   = AnalysPar(*analys_pars)
     return analyspar
@@ -221,7 +221,7 @@ def init_permpar(n_perms=10000, p_val=0.05, tails=2, multcomp=False):
 
 
 #############################################
-def init_quantpar(n_quants=4, qu_idx="all", qu_lab=None, qu_lab_pr=None):
+def init_quantpar(n_quants=4, qu_idx="all"):
     """
     init_quantpar()
 
@@ -232,12 +232,6 @@ def init_quantpar(n_quants=4, qu_idx="all", qu_lab=None, qu_lab_pr=None):
                              default: 4
         - qu_idx (list)    : indices of quantiles used in analyses 
                              default: "all"
-        - qu_lab (list)    : labels of quantiles used in analyses
-                             if None, labels are created in format: "q1"
-                             default: None
-        - qu_lab_pr (list) : labels for printing of quantiles used in analyses
-                             if None, labels are created in format: "qu 1/1"
-                             default: None
     
     Returns:
         - quantpar (QuantPar namedtuple): QuantPar with input arguments as 
@@ -249,23 +243,8 @@ def init_quantpar(n_quants=4, qu_idx="all", qu_lab=None, qu_lab_pr=None):
     
     qu_idx = gen_util.list_if_not(qu_idx)
 
-    # Quantile labels
-    if qu_lab is None:
-        qu_lab = [f"q{list(range(n_quants))[q]+1}" for q in qu_idx]
-    else:
-        qu_lab = gen_util.list_if_not(qu_lab)
-
-    if qu_lab_pr is None:
-        qu_lab_pr = [f"qu {list(range(n_quants))[q]+1}/{n_quants}" 
-            for q in qu_idx]
-    else:
-        qu_lab_pr = gen_util.list_if_not(qu_lab_pr)
-
-    if len(qu_idx) != len(qu_lab) or len(qu_idx) != len(qu_lab_pr):
-        raise ValueError("Must pass as many indices as labels.")
-
-    quant_pars = [n_quants, qu_idx, qu_lab, qu_lab_pr]
-    quant_keys = ["n_quants", "qu_idx", "qu_lab", "qu_lab_pr"]
+    quant_pars = [n_quants, qu_idx]
+    quant_keys = ["n_quants", "qu_idx"]
     QuantPar   = namedtuple("QuantPar", quant_keys)
     quantpar   = QuantPar(*quant_pars)
     return quantpar

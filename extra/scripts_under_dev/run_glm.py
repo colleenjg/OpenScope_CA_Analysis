@@ -108,7 +108,7 @@ def init_param_cont(args):
 
     Returns args:
         - in the following nametuples: analyspar, sesspar, stimpar, autocorr, 
-                                       permpar, quantpar
+                                       permpar
         - in the following dictionary: figpar 
 
     Required args:

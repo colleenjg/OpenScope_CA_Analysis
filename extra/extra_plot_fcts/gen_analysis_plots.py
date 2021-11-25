@@ -260,7 +260,7 @@ def plot_full_traces(analyspar, sesspar, extrapar, sess_info, trace_info,
 #############################################
 def plot_traces_by_qu_unexp_sess(analyspar, sesspar, stimpar, extrapar, 
                                 quantpar, sess_info, trace_stats, figpar=None, 
-                                savedir=None):
+                                savedir=None, modif=False):
     """
     plot_traces_by_qu_unexp_sess(analyspar, sesspar, stimpar, extrapar, 
                                 quantpar, sess_info, trace_stats)
@@ -308,6 +308,9 @@ def plot_traces_by_qu_unexp_sess(analyspar, sesspar, stimpar, extrapar,
             ["dirs"] (dict): dictionary with additional figure parameters
         - savedir (str): path of directory in which to save plots.
                          default: None    
+        - modif (bool) : if True, modified (slimmed-down) plots are created
+                         instead
+                         default: False
     
     Returns:
         - fulldir (str) : final path of the directory in which the figure is 
@@ -356,20 +359,34 @@ def plot_traces_by_qu_unexp_sess(analyspar, sesspar, stimpar, extrapar,
     for i in range(n_sess):
         sub_ax = plot_util.get_subax(ax, i)
         for s, [col, leg_ext] in enumerate(zip(cols, unexps)):
-            for q, qu_lab in enumerate(quantpar["qu_lab"]):
-                if qu_lab != "":
-                    qu_lab = f"{qu_lab.capitalize()} "
-                title=(f"Mouse {mouse_ns[i]} - {stimstr_pr} " 
-                    u"{} ".format(statstr_pr) + f"across {dimstr}\n(sess "
-                    f"{sess_ns[i]}, {lines[i]} {planes[i]}{dendstr_pr}"
-                    f"{nroi_strs[i]})")
-                leg = f"{qu_lab}{leg_ext} ({all_counts[i][s][q]})"
+            for q, qu_idx in enumerate(quantpar["qu_idx"]):
+                qu_lab = ""
+                if quantpar["n_quants"] > 1:
+                    qu_lab = "{} ".format(sess_str_util.quantile_str(
+                        qu_idx, quantpar["n_quants"], str_type="print"
+                        ))
+                if modif:
+                    line = "2/3" if "23" in lines[i] else "5"
+                    plane = "somata" if "soma" in planes[i] else "dendrites"
+                    title = f"M{mouse_ns[i]} - layer {line} {plane}{dendstr_pr}"
+                    leg = f"{qu_lab}{leg_ext}" if i == 0 else None
+                    y_ax = None if i == 0 else ""
+
+                else:
+                    title=(f"Mouse {mouse_ns[i]} - {stimstr_pr}, " 
+                        u"{}\n".format(statstr_pr) + f"across {dimstr} (sess "
+                        f"{sess_ns[i]}, {lines[i]} {planes[i]}{dendstr_pr}"
+                        f"{nroi_strs[i]})")
+                    leg = f"{qu_lab}{leg_ext} ({all_counts[i][s][q]})"
+                    y_ax = None
+
                 plot_util.plot_traces(
                     sub_ax, xrans[i], all_stats[i][s, q, 0], 
                     all_stats[i][s, q, 1:], title, color=col[q], alpha=alpha, 
                     label=leg, n_xticks=n, xticks="auto")
                 sess_plot_util.add_axislabels(
-                    sub_ax, fluor=analyspar["fluor"], datatype=datatype)
+                    sub_ax, fluor=analyspar["fluor"], datatype=datatype, 
+                    y_ax=y_ax)
     
     plot_util.turn_off_extra(ax, n_sess)
 
@@ -397,7 +414,7 @@ def plot_traces_by_qu_unexp_sess(analyspar, sesspar, stimpar, extrapar,
 #############################################
 def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar, 
                                 quantpar, sess_info, trace_stats, 
-                                figpar=None, savedir=None):
+                                figpar=None, savedir=None, modif=False):
     """
     plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar, 
                                 quantpar, sess_info, trace_stats)
@@ -460,7 +477,10 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             ["save"] (dict): dictionary with figure saving parameters
             ["dirs"] (dict): dictionary with additional figure parameters
         - savedir (str): path of directory in which to save plots.
-                         default: None    
+                         default: None   
+        - modif (bool) : if True, modified (slimmed-down) plots are created
+                         instead
+                         default: False
     
     Returns:
         - fulldir (str) : final path of the directory in which the figure is 
@@ -508,52 +528,121 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
         lock = "unexp"
         col_idx = 1
     
+    # plot unexp_lens default values
+    if stimpar["stimtype"] == "gabors":
+        DEFAULT_UNEXP_LEN = [3.0, 4.5, 6.0]
+        if stimpar["gabfr"] not in ["any", "all"]:
+            offset = sess_str_util.gabfr_nbrs(stimpar["gabfr"])
+    else:
+        DEFAULT_UNEXP_LEN = [2.0, 3.0, 4.0]
+    
+    offset = 0
     unexp_lab, len_ext = "", ""
     unexp_lens = [[None]] * n_sess
-    offset = 0
-    if (stimpar["stimtype"] == "gabors" and 
-        stimpar["gabfr"] not in ["any", "all"]):
-        offset = sess_str_util.gabfr_nbrs(stimpar["gabfr"])
+    unexp_len_default = True
     if "unexp_lens" in trace_stats.keys():
+        unexp_len_default = False
         unexp_lens = trace_stats["unexp_lens"]
         len_ext = "_bylen"
+        
         if stimpar["stimtype"] == "gabors":
-            unexp_lens = \
-                [[sl * 1.5/5 - 0.3 * offset for sl in sls] for sls in unexp_lens]
-    
+            unexp_lens = [
+                [sl * 1.5/5 - 0.3 * offset for sl in sls] for sls in unexp_lens
+                ]
+
+    inv = 1 if lock == "unexp" else -1
+    # RANGE TO PLOT
+    if modif:
+        st_val = -2.0
+        end_val  = 6.0
+        n_ticks = int((end_val - st_val) // 2 + 1)
+    else:
+        n_ticks = 21
+
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
     figpar = copy.deepcopy(figpar)
-    figpar["init"]["subplot_wid"] *= 2
-    n_ticks = 21
+    if modif:
+        figpar["init"]["subplot_wid"] = 6.5
+    else:
+        figpar["init"]["subplot_wid"] *= 2
 
     fig, ax = plot_util.init_fig(n_sess, **figpar["init"])
     exp_min, exp_max = np.inf, -np.inf
     for i, (stats, counts) in enumerate(zip(all_stats, all_counts)):
         sub_ax = plot_util.get_subax(ax, i)
-        title=(f"Mouse {mouse_ns[i]} - {stimstr_pr} "
-            u"{} ".format(statstr_pr) + f"{lock} locked across {dimstr}"
-            f"{basestr_pr}\n(sess {sess_ns[i]}, {lines[i]} {planes[i]}"
-            f"{dendstr_pr}{nroi_strs[i]})")
-        sess_plot_util.add_axislabels(
-            sub_ax, fluor=analyspar["fluor"], datatype=datatype)
-        plot_util.add_bars(sub_ax, hbars=0)
+
+        # plot expected data
+        if exp_stats[i].shape[0] != 1:
+            raise ValueError("Expected only one quantile for exp_stats.")
+
         n_lines = quantpar["n_quants"] * len(unexp_lens[i])
         cols = sess_plot_util.get_quant_cols(n_lines)[0][col_idx]
         if len(cols) < n_lines:
             cols = [None] * n_lines
+
+        if modif:
+            line = "2/3" if "23" in lines[i] else "5"
+            plane = "somata" if "soma" in planes[i] else "dendrites"
+            title = f"M{mouse_ns[i]} - layer {line} {plane}{dendstr_pr}"
+            lab = "exp" if i == 0 else None
+            y_ax = None if i == 0 else ""
+
+            st, end = 0, len(xrans[i])
+            st_vals = list(filter(
+                lambda j: xrans[i][j] <= st_val, range(len(xrans[i]))
+                ))
+            end_vals = list(filter(
+                lambda j: xrans[i][j] >= end_val, range(len(xrans[i]))
+                ))
+            if len(st_vals) != 0:
+                st = st_vals[-1]
+            if len(end_vals) != 0:
+                end = end_vals[0] + 1
+            time_slice = slice(st, end)
+
+        else:
+            title = (f"Mouse {mouse_ns[i]} - {stimstr_pr}, "
+                u"{} ".format(statstr_pr) + f"{lock} locked across {dimstr}"
+                f"{basestr_pr}\n(sess {sess_ns[i]}, {lines[i]} {planes[i]}"
+                f"{dendstr_pr}{nroi_strs[i]})")
+            lab = f"exp (no lock) ({exp_counts[i][0]})"
+            y_ax = None
+            st = 0
+            end = len(xrans[i])
+            time_slice = slice(None) # use all
+
+        # add length markers
+        use_unexp_lens = unexp_lens[i]
+        if unexp_len_default:
+            use_unexp_lens = DEFAULT_UNEXP_LEN
+        leng_col = sess_plot_util.get_quant_cols(1)[0][col_idx][0]
+        for leng in use_unexp_lens:
+            if leng is None:
+                continue
+            edge = leng * inv
+            if edge < 0:
+                edge = np.max([xrans[i][st], edge])
+            elif edge > 0:
+                edge = np.min([xrans[i][end - 1], edge])
+            plot_util.add_vshade(
+                sub_ax, 0, edge, color=leng_col, alpha=0.1)
+
+        sess_plot_util.add_axislabels(
+            sub_ax, fluor=analyspar["fluor"], datatype=datatype, y_ax=y_ax
+            )
+        plot_util.add_bars(sub_ax, hbars=0)
         alpha = np.min([0.4, 0.8 / n_lines])
+
         if stimpar["stimtype"] == "gabors":
             sess_plot_util.plot_gabfr_pattern(
                 sub_ax, xrans[i], offset=offset, bars_omit=[0] + unexp_lens[i]
                 )
-        # plot expected data
-        if exp_stats[i].shape[0] != 1:
-            raise ValueError("Expected only one quantile for exp_stats.")
-        leg = f"exp (no lock) ({exp_counts[i][0]})"
+
         plot_util.plot_traces(
-            sub_ax, xrans[i], exp_stats[i][0][0], exp_stats[i][0][1:], 
-            alpha=alpha, label=leg, alpha_line=0.8, color="darkgray", 
+            sub_ax, xrans[i][time_slice], exp_stats[i][0][0, time_slice], 
+            exp_stats[i][0][1:, time_slice], n_xticks=n_ticks,
+            alpha=alpha, label=lab, alpha_line=0.8, color="darkgray", 
             xticks="auto")
 
         # get expected data range to adjust y lims
@@ -567,18 +656,24 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
                 # remove offset   
                 unexp_lab = f"unexp len {unexp_len + 0.3 * offset}"
             else:
-                unexp_lab = f"{lock} lock"
-            for q, qu_lab in enumerate(quantpar["qu_lab"]):
-                if qu_lab != "":
-                    qu_lab = f"{qu_lab.capitalize()} "
+                unexp_lab = "unexp" if modif else f"{lock} lock"
+            for q, qu_idx in enumerate(quantpar["qu_idx"]):
+                qu_lab = ""
+                if quantpar["n_quants"] > 1:
+                    qu_lab = "{} ".format(sess_str_util.quantile_str(
+                        qu_idx, quantpar["n_quants"], str_type="print"
+                        ))
                 lab = f"{qu_lab}{unexp_lab}"
+                if modif:
+                    lab = lab if i == 0 else None
+                else:
+                    lab = f"{lab} ({counts[q]})"
                 if n == 2 and cols[n] is None:
                     sub_ax.plot([], []) # to advance the color cycle (past gray)
-                leg = f"{lab} ({counts[q]})"
-                plot_util.plot_traces(sub_ax, xrans[i], stats[q][0], 
-                    stats[q][1:], title, alpha=alpha, label=leg, 
-                    n_xticks=n_ticks, alpha_line=0.8, color=cols[n], 
-                    xticks="auto")
+                plot_util.plot_traces(sub_ax, xrans[i][time_slice], 
+                    stats[q][0, time_slice], stats[q][1:, time_slice], title, 
+                    alpha=alpha, label=lab, n_xticks=n_ticks, alpha_line=0.8, 
+                    color=cols[n], xticks="auto")
                 n += 1
             if unexp_len is not None:
                 plot_util.add_bars(
@@ -593,14 +688,15 @@ def plot_traces_by_qu_lock_sess(analyspar, sesspar, stimpar, extrapar,
             figpar["dirs"]["unexp_qu"], 
             f"{lock}_lock", basestr.replace("_", ""))
 
-    if stimpar["stimtype"] == "visflow":
-        plot_util.rel_confine_ylims(sub_ax, [exp_min, exp_max], 5)
+    if not modif:
+        if stimpar["stimtype"] == "visflow":
+            plot_util.rel_confine_ylims(sub_ax, [exp_min, exp_max], 5)
 
     qu_str = f"_{quantpar['n_quants']}q"
     if quantpar["n_quants"] == 1:
         qu_str = ""
  
-    savename = (f"{datatype}_av_{lock}lock{len_ext}{basestr}_{sessstr}"
+    savename = (f"{datatype}_av_{lock}_lock{len_ext}{basestr}_{sessstr}"
         f"{dendstr}{qu_str}")
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar["save"])
 
@@ -671,7 +767,8 @@ def plot_mag_change(analyspar, sesspar, stimpar, extrapar, permpar, quantpar,
     
     sessstr_pr = sess_str_util.sess_par_str(
         sesspar["sess_n"], stimpar["stimtype"], sesspar["plane"], 
-        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"], "print")
+        stimpar["visflow_dir"], stimpar["visflow_size"], stimpar["gabk"], 
+        "print")
     statstr_pr = sess_str_util.stat_par_str(
         analyspar["stats"], analyspar["error"], "print")
     dendstr_pr = sess_str_util.dend_par_str(
@@ -847,9 +944,11 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
     if datatype == "roi":
         fluorstr_pr = sess_str_util.fluor_par_str(
             analyspar["fluor"], str_type="print")
-        title_str = u"{}\nautocorrelation".format(fluorstr_pr)
-        if not autocorrpar["byitem"]:
-            title_str = f"{title_str} across ROIs" 
+        if autocorrpar["byitem"]:
+            title_str = u"{}\nautocorrelation".format(fluorstr_pr)
+        else:
+            title_str = "\nautocorr. acr. ROIs" .format(fluorstr_pr)
+
     elif datatype == "run":
         datastr = sess_str_util.datatype_par_str(datatype)
         title_str = u"\n{} autocorrelation".format(datastr)
@@ -883,7 +982,7 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
     fig, ax = plot_util.init_fig(n_sess, **figpar["init"])
     for i in range(n_sess):
         sub_ax = plot_util.get_subax(ax, i)
-        title = (f"Mouse {mouse_ns[i]} - {stimstr_pr} "
+        title = (f"Mouse {mouse_ns[i]} - {stimstr_pr}, "
             u"{} ".format(statstr_pr) + f"{title_str} (sess "
             f"{sess_ns[i]}, {lines[i]} {planes[i]}{dendstr_pr}{nroi_strs[i]})")
         # transpose to ROI/lag x stats x series

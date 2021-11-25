@@ -146,26 +146,29 @@ def load_roi_traces_nwb(sess_files, roi_ns=None, frame_ns=None):
             )
     
     ophys_file = ophys_files[0]
-    if len(ophys_files) == 1:
+    if len(ophys_files) > 1:
         warnings.warn(
             "Several session files with optical physiology data found. "
             f"Using the first listed: {ophys_file}."
             )
 
     # get data
-    with pynwb.NWBHDF5IO(ophys_file, "r") as f:
+    with pynwb.NWBHDF5IO(str(ophys_file), "r") as f:
         nwbfile_in = f.read()
         ophys_module = nwbfile_in.get_processing_module("ophys")
         main_field = "DfOverF"
         data_field = "RoiResponseSeries"
-        if (main_field not in ophys_module.fields() or 
-            data_field not in ophys_module[main_field].fields):
-                raise OSError(
-                    "No ROI response series data found for dF/F "
-                    f"in {ophys_file}"
-                    )
-        roi_data_handle = nwbfile_in.get_processing_module("ophys")[
-            main_field][data_field].data
+        try:
+            roi_resp_series = ophys_module.get_data_interface(
+                main_field).get_roi_response_series(data_field
+                )
+        except KeyError as err:
+            raise KeyError(
+                "Could not find ROI response series data in image segmentation "
+                f"for {ophys_file} due to: {err}"
+                )
+
+        roi_data_handle = roi_resp_series.data
         
         roi_traces = load_traces_optionally(
             roi_data_handle, roi_ns=roi_ns, frame_ns=frame_ns
@@ -235,41 +238,44 @@ def load_roi_data_nwb(sess_files):
             )
     
     ophys_file = ophys_files[0]
-    if len(ophys_files) == 1:
+    if len(ophys_files) > 1:
         warnings.warn(
             "Several session files with optical physiology data found. "
             f"Using the first listed: {ophys_file}."
             )
 
-    with pynwb.NWBHDF5IO(ophys_file, "r") as f:
+    with pynwb.NWBHDF5IO(str(ophys_file), "r") as f:
         nwbfile_in = f.read()
         ophys_module = nwbfile_in.get_processing_module("ophys")
         main_field = "ImageSegmentation"
         data_field = "PlaneSegmentation"
-        if (main_field not in ophys_module.fields() or 
-            data_field not in ophys_module[main_field].fields):
-                raise OSError(
-                    "No plane segmentation data found in image segmentation "
-                    f"in {ophys_file}"
-                    )
+        try:
+            plane_seg = ophys_module.get_data_interface(
+                main_field).get_plane_segmentation(data_field
+                )
+        except KeyError as err:
+            raise KeyError(
+                "Could not find plane segmentation data in image segmentation "
+                f"for {ophys_file} due to: {err}"
+                )
 
         # ROI IDs
-        roi_ids = list(
-            nwbfile_in.get_processing_module("ophys")[main_field][
-                data_field]["id"].data
-        )
+        roi_ids = list(plane_seg["id"].data)
 
         # Number of ROIs and frames
         main_field = "DfOverF"
         data_field = "RoiResponseSeries"
-        if (main_field not in ophys_module.fields() or 
-            data_field not in ophys_module[main_field].fields):
-                raise OSError(
-                    "No ROI response series data found for dF/F "
-                    f"in {ophys_file}"
-                    )
-        nrois, tot_twop_fr = nwbfile_in.get_processing_module("ophys")[
-            main_field][data_field].data.shape
+        try:
+            roi_resp_series = ophys_module.get_data_interface(
+                main_field).get_roi_response_series(data_field
+                )
+        except KeyError as err:
+            raise KeyError(
+                "Could not find ROI response series data in image segmentation "
+                f"for {ophys_file} due to: {err}"
+                )
+
+        nrois, tot_twop_fr = roi_resp_series.data.shape
 
 
     return roi_ids, nrois, tot_twop_fr
@@ -481,32 +487,29 @@ def get_roi_masks_nwb(sess_files, make_bool=True):
             )
     
     ophys_file = ophys_files[0]
-    if len(ophys_files) == 1:
+    if len(ophys_files) > 1:
         warnings.warn(
             "Several session files with optical physiology data found. "
             f"Using the first listed: {ophys_file}."
             )
 
-    with pynwb.NWBHDF5IO(ophys_file, "r") as f:
+    with pynwb.NWBHDF5IO(str(ophys_file), "r") as f:
         nwbfile_in = f.read()
         ophys_module = nwbfile_in.get_processing_module("ophys")
         main_field = "ImageSegmentation"
         data_field = "PlaneSegmentation"
-        if (main_field not in ophys_module.fields() or 
-            data_field not in ophys_module[main_field].fields):
-                raise OSError(
-                    "No plane segmentation data found in image segmentation "
-                    f"in {ophys_file}"
-                    )
+        try:
+            plane_seg = ophys_module.get_data_interface(
+                main_field).get_plane_segmentation(data_field
+                )
+        except KeyError as err:
+            raise KeyError(
+                "Could not find plane segmentation data in image segmentation "
+                f"for {ophys_file} due to: {err}"
+                )
 
-        roi_masks = np.asarray(
-            nwbfile_in.get_processing_module("ophys")[main_field][
-                data_field]["image_mask"].data
-        )
-        roi_ids = list(
-            nwbfile_in.get_processing_module("ophys")[main_field][
-                data_field]["id"].data
-        )
+        roi_masks = np.asarray(plane_seg["image_mask"].data)
+        roi_ids = list(plane_seg["id"].data)
 
     roi_masks = np.transpose(roi_masks, (0, 2, 1)) # ROI x w x h -> ROI x h x w
 

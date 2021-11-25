@@ -141,7 +141,7 @@ def format_output(output, runtype="prod", q1v4=False, bal=False,
         subdir = f"{subdir}_bal"
 
     if exp_v_unexp:
-        subdir = f"{subdir}_rvs"
+        subdir = f"{subdir}_evu"
 
     output = Path(output, subdir)
 
@@ -252,7 +252,7 @@ def run_regr(args):
     if args.q1v4:
         quantpar = sess_ntuple_util.init_quantpar(4, [0, -1])
     else:
-        quantpar = sess_ntuple_util.init_quantpar(1)
+        quantpar = sess_ntuple_util.init_quantpar(1, 0)
     
     logregpar = sess_ntuple_util.init_logregpar(args.comp, not(args.not_ctrl), 
         args.q1v4, args.exp_v_unexp, args.n_epochs, args.batchsize, args.lr, 

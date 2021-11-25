@@ -328,8 +328,8 @@ def get_check_sess_df(sessions, sess_df=None, analyspar=None, roi=True):
             "mouse_ns", "mouseids", "sess_ns", "sessids", "lines", "planes"
             if datatype == "roi":
                 "nrois", "twop_fps"
-            if not remnans: 
-                "nanrois_{}" (depending on fluor)
+            if not rem_bad: 
+                "bad_rois_{}" (depending on fluor)
     """
 
     sessions = gen_util.list_if_not(sessions)
@@ -340,7 +340,7 @@ def get_check_sess_df(sessions, sess_df=None, analyspar=None, roi=True):
             raise ValueError("If sess_df is None, must pass analyspar.")
         elif analyspar is not None:
             roi_kwargs["fluor"] = analyspar.fluor
-            roi_kwargs["remnans"] = analyspar.remnans
+            roi_kwargs["rem_bad"] = analyspar.rem_bad
 
         sess_df = sess_gen_util.get_sess_info(
             sessions, incl_roi=roi, return_df=True, **roi_kwargs
@@ -391,7 +391,7 @@ def get_sess_df_columns(session, analyspar, roi=True):
 
     sess_df = sess_gen_util.get_sess_info(
         [session], fluor=analyspar.fluor, incl_roi=roi, return_df=True, 
-        remnans=analyspar.remnans
+        rem_bad=analyspar.rem_bad
         )
 
     sess_df_cols = sess_df.columns.tolist()
@@ -648,15 +648,15 @@ def get_snr(session, analyspar, datatype="snrs"):
 
     if analyspar.tracked:
         keep_rois = session.tracked_rois
-        if analyspar.remnans and len(session.get_nanrois(fluor=analyspar.fluor)):
+        if analyspar.rem_bad and len(session.get_bad_rois(fluor=analyspar.fluor)):
             raise NotImplementedError(
-                "remnans not implemented for tracked ROIs."
+                "rem_bad not implemented for tracked ROIs."
                 )
     else:
-        keep_rois = np.arange(session.get_nrois(remnans=False))
-        if analyspar.remnans:
-            nanrois = session.get_nanrois(analyspar.fluor)
-            keep_rois = np.delete(keep_rois, np.asarray(nanrois)).astype(int)
+        keep_rois = np.arange(session.get_nrois(rem_bad=False))
+        if analyspar.rem_bad:
+            bad_rois = session.get_bad_rois(analyspar.fluor)
+            keep_rois = np.delete(keep_rois, np.asarray(bad_rois)).astype(int)
     
     datatypes = ["snrs", "signal_means"]
     if datatype not in datatypes:
@@ -709,7 +709,7 @@ def get_correlation(session, analyspar, rolling_win=4):
     
     full_traces_df = session.get_roi_traces(
         fluor=analyspar.fluor, 
-        remnans=analyspar.remnans 
+        rem_bad=analyspar.rem_bad 
         )
 
     full_traces = gen_util.reshape_df_data(full_traces_df, squeeze_cols=True)

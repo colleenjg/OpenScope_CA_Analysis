@@ -114,7 +114,7 @@ def get_stim_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
             squeeze_cols=True)
         run_velocity = gen_util.reshape_df_data(
             sess.get_run_velocity_by_fr(
-                twop_fr_seqs, remnans=True, scale=False), squeeze_cols=True)
+                twop_fr_seqs, rem_bad=True, scale=False), squeeze_cols=True)
 
         # scale running array to mean 0 with std 1
         ret_run_stats = False
@@ -213,7 +213,7 @@ def get_roi_data(sess, stimtype, win_leng_s, gabfr=0, pre=0, post=1.5,
         gabfr=gabfr, gabk=gabk, unexp=unexp, by="seg")
     twopfr = stim.get_fr_by_seg(segs, start=True, fr_type="twop")["start_frame_twop"]
     
-    roi_data_df = stim.get_roi_data(twopfr, pre, post, remnans=True, 
+    roi_data_df = stim.get_roi_data(twopfr, pre, post, rem_bad=True, 
         scale=False)
     ret_roi_stats = False
     xran = roi_data_df.index.unique("time_values").to_numpy()

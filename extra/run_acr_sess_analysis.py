@@ -222,7 +222,6 @@ def init_param_cont(args):
             line (str)               : "L23", "L5", "any"
             min_rois (int)           : min number of ROIs
             n_perms (int)            : nbr of permutations to run
-            n_quants (int)           : number of quantiles
             ncols (int)              : number of columns
             no_datetime (bool)       : if True, figures are not saved in a 
                                        subfolder named based on the date and 

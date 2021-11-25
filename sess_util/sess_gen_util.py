@@ -627,7 +627,7 @@ def check_session(session, roi=True, run=False, pupil=False, fluor="dff",
 
             
 #############################################
-def get_nrois(nrois, n_nanrois=0, n_nanrois_dff=0, remnans=True, fluor="dff"):
+def get_nrois(nrois, n_bad_rois=0, n_bad_rois_dff=0, rem_bad=True, fluor="dff"):
     """
     get_nrois(nrois)
 
@@ -638,25 +638,25 @@ def get_nrois(nrois, n_nanrois=0, n_nanrois_dff=0, remnans=True, fluor="dff"):
         - nrois (int)        : number of ROIs in the session
     
     Optional args:
-        - n_nanrois (int)    : number of ROIs with NaN/Infs in the raw data
-        - n_nanrois_dff (int): number of ROIs with NaN/Infs in the dF/F data
-        - remnans (bool)     : if True, the number of ROIs with NaN/Infs is  
+        - n_bad_rois (int)    : number of ROIs with NaN/Infs in the raw data
+        - n_bad_rois_dff (int): number of ROIs with NaN/Infs in the dF/F data
+        - rem_bad (bool)     : if True, the number of ROIs with NaN/Infs is  
                                removed from the total
                                default: True
         - fluor (str)        : if "raw", number of ROIs is calculated with 
-                               n_nanrois. If "dff", it is calculated with 
-                               n_nanrois_dff  
+                               n_bad_rois. If "dff", it is calculated with 
+                               n_bad_rois_dff  
                                default: "dff"
 
     Returns:
         - nrois (int): resulting number of ROIs
     """
 
-    if remnans:
+    if rem_bad:
         if fluor == "dff":
-            n_rem = n_nanrois_dff
+            n_rem = n_bad_rois_dff
         elif fluor == "raw":
-            n_rem = n_nanrois
+            n_rem = n_bad_rois
         else:
             gen_util.accepted_values_error("fluor", fluor, ["raw", "dff"])
 
@@ -667,7 +667,7 @@ def get_nrois(nrois, n_nanrois=0, n_nanrois_dff=0, remnans=True, fluor="dff"):
 
 #############################################
 def get_sess_info(sessions, fluor="dff", add_none=False, incl_roi=True, 
-                  return_df=False, remnans=False):
+                  return_df=False, rem_bad=False):
     """
     get_sess_info(sessions)
 
@@ -678,7 +678,7 @@ def get_sess_info(sessions, fluor="dff", add_none=False, incl_roi=True,
         - sessions (list): ordered list of Session objects
     
     Optional args:
-        - fluor (str)    : specifies which nanrois to include (for "dff" or 
+        - fluor (str)    : specifies which bad_rois to include (for "dff" or 
                            "raw")
                            default: "dff"
         - add_none (bool): if True, None sessions are allowed and all values 
@@ -686,7 +686,7 @@ def get_sess_info(sessions, fluor="dff", add_none=False, incl_roi=True,
                            default: False
         - incl_roi (bool): if True, ROI information is included
                            default: True
-        - remnans (bool) : if True, NaN/Inf ROI information is removed, and the 
+        - rem_bad (bool) : if True, NaN/Inf ROI information is removed, and the 
                            number of subtracted from nrois
                            default: False
 
@@ -698,8 +698,8 @@ def get_sess_info(sessions, fluor="dff", add_none=False, incl_roi=True,
             "mouse_ns", "mouseids", "sess_ns", "sessids", "lines", "planes"
             if datatype == "roi":
                 "nrois", "twop_fps"
-            if not remnans: 
-                "nanrois_{}" (depending on fluor)
+            if not rem_bad: 
+                "bad_rois_{}" (depending on fluor)
     """
 
     if return_df and add_none:
@@ -712,8 +712,8 @@ def get_sess_info(sessions, fluor="dff", add_none=False, incl_roi=True,
     keys = ["mouse_ns", "mouseids", "sess_ns", "sessids", "lines", "planes"]
     if incl_roi:
         keys.extend(["nrois", "twop_fps"])
-        if not remnans:
-            keys.extend([f"nanrois_{fluor}"])
+        if not rem_bad:
+            keys.extend([f"bad_rois_{fluor}"])
     
     for key in keys:
         sess_info[key] = []
@@ -737,9 +737,9 @@ def get_sess_info(sessions, fluor="dff", add_none=False, incl_roi=True,
             if not incl_roi:
                 continue
             
-            nrois = sess.get_nrois(remnans=remnans, fluor=fluor)
-            if not remnans:
-                sess_info[f"nanrois_{fluor}"].append(sess.get_nanrois(fluor))
+            nrois = sess.get_nrois(rem_bad=rem_bad, fluor=fluor)
+            if not rem_bad:
+                sess_info[f"bad_rois_{fluor}"].append(sess.get_bad_rois(fluor))
 
             sess_info["nrois"].append(nrois)
             sess_info["twop_fps"].append(sess.twop_fps)             

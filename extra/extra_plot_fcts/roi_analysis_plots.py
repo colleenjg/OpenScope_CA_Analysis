@@ -119,9 +119,9 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
             figpar=figpar, savedir=savedir, parallel=parallel, plot_tc=plot_tc, 
             **info)
     
-    # 8. Plots ROI responses for positions and mean gabor orientations
-    elif analysis == "p": # position orientation resp
-        plot_posori_resp(figpar=figpar, savedir=savedir, **info)
+    # 8. Plots ROI responses for location and mean gabor orientations
+    elif analysis == "p": # location orientation resp
+        plot_loc_ori_resp(figpar=figpar, savedir=savedir, **info)
 
     # 9. Plots trial trajectories in 2 principal components
     elif analysis == "v": # PCs
@@ -243,18 +243,21 @@ def plot_roi_areas_by_grp_qu(analyspar, sesspar, stimpar, extrapar, permpar,
     for i, sess_st in enumerate(grp_st):
         sub_ax = plot_util.get_subax(ax, i)
         for g, g_n in enumerate(grp_ns[i]):
-            leg = f"{roi_grps['grp_names'][g]} ({g_n})"
+            grp_name = roi_grps["grp_names"][g].replace("_", " ")
+            if not grp_name.endswith("change"):
+                grp_name = f"{grp_name}." # for abbreviations
+            leg = f"{grp_name} ({g_n})"
             plot_util.plot_errorbars(
                 sub_ax, y=sess_st[:, g, 0], err=sess_st[:, g, 1:], label=leg, 
                 xticks="auto")
 
-        title=(f"Mouse {mouse_ns[i]} - {stimstr_pr} "
-            u"{} ".format(statstr_pr) + f"across {dimstr}\n{opstr_pr} "
-            f"seqs \n(sess {sess_ns[i]}, {lines[i]} {planes[i]} {dendstr_pr}, "
+        title=(f"Mouse {mouse_ns[i]} - {stimstr_pr}, "
+            u"{} ".format(statstr_pr) + f"\nacross {dimstr} {opstr_pr} "
+            f"seqs \n(sess {sess_ns[i]}, {lines[i]} {planes[i]}{dendstr_pr}, "
             f"{permpar['tails']} tail{nroi_strs[i]})")
         
         sess_plot_util.add_axislabels(
-            sub_ax, fluor=analyspar["fluor"], area=True, x_ax="quantiles", 
+            sub_ax, fluor=analyspar["fluor"], area=True, x_ax="Quantiles", 
             datatype=datatype)
         sub_ax.set_title(title)
 
@@ -396,18 +399,24 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
             log_dir = True
         n_grps = len(roi_grps["all_roi_grps"][i])
         fig, ax = plot_util.init_fig(n_grps, **figpar["init"])
-        for g, [grp_nam, grp_rois] in enumerate(
+        for g, [grp_name, grp_rois] in enumerate(
             zip(roi_grps["grp_names"], roi_grps["all_roi_grps"][i])):
-            title = f"{grp_nam} group (n={len(grp_rois)})"
+            grp_name = grp_name.replace("_", " ")
+            if not grp_name.endswith("change"):
+                grp_name = f"{grp_name}." # for abbreviations
+            title = f"{grp_name} group (n={len(grp_rois)})"
             sub_ax = plot_util.get_subax(ax, g)
             sess_plot_util.add_axislabels(
                 sub_ax, fluor=analyspar["fluor"], datatype=datatype)
-            for q, qu_lab in enumerate(quantpar["qu_lab"]):
+            for q, qu_idx in enumerate(quantpar["qu_idx"]):
+                qu_lab = sess_str_util.quantile_str(
+                    qu_idx, quantpar["n_quants"], str_type="print"
+                    )
                 plot_util.plot_traces(
                     sub_ax, xrans[i], sess_traces[q, g, 0], 
                     sess_traces[q, g, 1:], title=title, 
-                    alpha=0.8/len(quantpar["qu_lab"]), 
-                    label=qu_lab.capitalize(), xticks="auto")
+                    alpha=0.8/len(quantpar["qu_idx"]), 
+                    label=qu_lab, xticks="auto")
 
         plot_util.turn_off_extra(ax, n_grps)
 
@@ -417,7 +426,7 @@ def plot_roi_traces_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
                 pre=stimpar["pre"], post=stimpar["post"], 
                 sharey=figpar["init"]["sharey"])
 
-        suptitle = (f"Mouse {mouse_ns[i]} - {stimstr_pr} "
+        suptitle = (f"Mouse {mouse_ns[i]} - {stimstr_pr}, "
             u"{} ".format(statstr_pr) + f"across {dimstr} {opstr_pr} seqs "
             f"\n(sess {sess_ns[i]}, {lines[i]} {planes[i]}{dendstr_pr}, "
             f"{permpar['tails']} tail{nroi_strs[i]})")
@@ -530,7 +539,7 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
     # extract some info from sess_info
     keys = ["mouse_ns", "sess_ns", "lines", "planes"]
     [mouse_ns, sess_ns, lines, planes] = [sess_info[key] for key in keys]
-    nroi_strs = sess_str_util.get_nroi_strs(sess_info, style="par")
+    nroi_strs = sess_str_util.get_nroi_strs(sess_info, style="comma")
 
     n_sess = len(mouse_ns)
 
@@ -561,25 +570,31 @@ def plot_roi_areas_by_grp(analyspar, sesspar, stimpar, extrapar, permpar,
             sc_str    = sess_str_util.scale_par_str(scale)
             fig, ax = plot_util.init_fig(n_grps, **figpar["init"])
             figs.append(fig)
-            for g, [grp_nam, grp_rois] in enumerate(
+            for g, [grp_name, grp_rois] in enumerate(
                 zip(roi_grps["grp_names"], roi_grps["all_roi_grps"][i])):
-                title = f"{grp_nam} group (n={len(grp_rois)})"
+                grp_name = grp_name.replace("_", " ")
+                if not grp_name.endswith("change"):
+                    grp_name = f"{grp_name}." # for abbreviations
+                title = f"{grp_name} group (n={len(grp_rois)})"
                 sub_ax = plot_util.get_subax(ax, g)
                 sub_ax.tick_params(labelbottom=False)
                 sub_ax.spines["bottom"].set_visible(False)
                 sess_plot_util.add_axislabels(
                     sub_ax, area=True, scale=scale, x_ax="", datatype=datatype)
-                for q, qu_lab in enumerate(quantpar["qu_lab"]):
+                for q, qu_idx in enumerate(quantpar["qu_idx"]):
+                    qu_lab = sess_str_util.quantile_str(
+                        qu_idx, quantpar["n_quants"], str_type="print"
+                    )
                     vals = roi_grps[f"area_stats{sc_str}"]
                     vals = np.asarray(vals)[i, q, g]
                     plot_util.plot_bars(
                         sub_ax, bar_pos[q], vals[0], vals[1:], title, 
                         alpha=0.5, xticks="None", xlims=xlims, 
-                        label=qu_lab.capitalize(), hline=0, width=barw)
+                        label=qu_lab, hline=0, width=barw)
 
             plot_util.turn_off_extra(ax, n_grps)
 
-        suptitle = (f"Mouse {mouse_ns[i]} - {stimstr_pr} " + 
+        suptitle = (f"Mouse {mouse_ns[i]} - {stimstr_pr}, " + 
             u"{}".format(statstr_pr) + f" across {dimstr} " +
             f"{opstr_pr} seqs\n(sess {sess_ns[i]}, {lines[i]} " +
             f"{planes[i]}{dendstr_pr}, {permpar['tails']} tail{nroi_strs[i]})")
@@ -806,6 +821,8 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quantpar,
             figpar["dirs"][datatype], 
             figpar["dirs"]["oridir"])
 
+    stimstr_pr = stimstr_pr[:-1] if stimstr_pr[-1] == "s" else stimstr_pr
+
     # extract some info from dictionaries
     keys = ["mouse_ns", "sess_ns", "lines", "planes"]
     [mouse_n, sess_n, line, plane] = [sess_info[key][0] for key in keys]
@@ -820,16 +837,24 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quantpar,
         oridirs = stimpar["gab_ori"]
         n = 6
     elif stimpar["stimtype"] == "visflow":
-        unexp_labs = [f"{unexps[i]} -> {unexps[1-i]}" for i in range(len(unexps))]
+        unexp_labs = \
+            [f"{unexps[i]} -> {unexps[1-i]}" for i in range(len(unexps))]
         deg = ""
         oridirs = stimpar["visflow_dir"]
         n = 7
 
-    qu_str, qu_str_pr = quantpar["qu_lab"][0], quantpar["qu_lab_pr"][0]
-    if qu_str != "":
-        qu_str    = f"_{qu_str}"
-    if qu_str_pr != "":
-        qu_str_pr = f" - {qu_str_pr.capitalize()}"
+    qu_str, qu_str_pr = "", ""
+    if quantpar["n_quants"] > 1:
+        qu_str_pr = sess_str_util.quantile_str(
+            quantpar["qu_idx"], n_quants=quantpar["n_quants"], out_of=True, 
+            str_type="print"
+            )
+        qu_str_pr = f" - {qu_str_pr}"
+
+        qu_str = sess_str_util.quantile_str(
+            quantpar["qu_idx"], n_quants=quantpar["n_quants"], str_type="file"
+            )
+        qu_str = f"_{qu_str}"
 
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
@@ -837,7 +862,7 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quantpar,
     figpar = copy.deepcopy(figpar)
     figpar["init"]["ncols"] = len(oridirs) 
     
-    suptitle = (f"Mouse {mouse_n} - {stimstr_pr} " + 
+    suptitle = (f"Mouse {mouse_n} - {stimstr_pr}, " + 
         u"{} ".format(statstr_pr) + 
         f"across {dimstr}{qu_str_pr}\n(sess {sess_n}, {line} " +
         f"{plane}{dendstr_pr}{nroi_str})")
@@ -849,12 +874,13 @@ def plot_oridir_traces(analyspar, sesspar, stimpar, extrapar, quantpar,
         cols = []
         od_str = od
         if stimpar["stimtype"] == "visflow":
-            od_str = sess_str_util.dir_par_str(od, str_type="print")[8:-1]
+            od_str = sess_str_util.dir_par_str(od, str_type="print")
+            od_str = od_str.replace("vis. flow ", "")[1:-1] # remove parentheses
         for unexp, unexp_lab in zip(unexps, unexp_labs): 
             sub_ax = plot_util.get_subax(ax, o)
             key = f"{unexp}_{od}"
-            stimtype_str_pr = stimpar["stimtype"][:-1].capitalize()
-            title_tr = u"{} traces ({}{})".format(stimtype_str_pr, od_str, deg)
+            stimstr_pr = stimstr_pr.capitalize()
+            title_tr = u"{} traces ({}{})".format(stimstr_pr, od_str, deg)
             lab = f"{unexp_lab} (n={tr_data['n_seqs'][key]})"
             sess_plot_util.add_axislabels(sub_ax, datatype=datatype)
             me  = np.asarray(tr_data["stats"][key][0])
@@ -1093,18 +1119,16 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quantpar,
     dendstr = sess_str_util.dend_par_str(
         analyspar["dend"], sesspar["plane"], "roi")
 
+    stimstr_pr = stimstr_pr[:-1] if stimstr_pr[-1] == "s" else stimstr_pr
+
     if savedir is None:
         savedir = Path(
             figpar["dirs"]["roi"], 
             figpar["dirs"]["oridir"])
 
     # must update matplotlib settings within parallel
-    figpar_mng = {
-        key: val for key, val in figpar["mng"].items() if key != "linclab"
-        }
-    cmap = plot_util.manage_mpl(
-        cmap=True, linclab=False, nbins=100, **figpar_mng
-        )
+    plot_util.manage_mpl(**figpar["mng"])
+    cmap = "viridis"
 
     # extract some info from sess_info (only one session)
     keys = ["mouse_ns", "sess_ns", "lines", "planes"]
@@ -1119,18 +1143,27 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quantpar,
         oridirs = stimpar["gab_ori"]
         n = 6
     elif stimpar["stimtype"] == "visflow":
-        unexp_labs = [f"{unexps[i]} -> {unexps[1-i]}" for i in range(len(unexps))]
+        unexp_labs = [
+            f"{unexps[i]} -> {unexps[1-i]}" for i in range(len(unexps))
+            ]
         var_name = "direction"
         deg  = ""
         deg_pr = ""
         oridirs = stimpar["visflow_dir"]
         n = 7
     
-    qu_str, qu_str_pr = quantpar["qu_lab"][0], quantpar["qu_lab_pr"][0]
-    if qu_str != "":
-        qu_str    = f"_{qu_str}"      
-    if qu_str_pr != "":
-        qu_str_pr = f" - {qu_str_pr.capitalize()}"
+    qu_str, qu_str_pr = "", ""
+    if quantpar["n_quants"] > 1:
+        qu_str_pr = sess_str_util.quantile_str(
+            quantpar["qu_idx"], n_quants=quantpar["n_quants"], out_of=True, 
+            str_type="print"
+            )
+        qu_str_pr = f" - {qu_str_pr}"
+
+        qu_str = sess_str_util.quantile_str(
+            quantpar["qu_idx"], n_quants=quantpar["n_quants"], str_type="file"
+            )
+        qu_str = f"_{qu_str}"
 
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
@@ -1139,7 +1172,7 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quantpar,
     figpar["init"]["sharex"] = True
     
     # plot colormaps
-    gentitle = (f"Mouse {mouse_n} - {stimstr_pr} " 
+    gentitle = (f"Mouse {mouse_n} - {stimstr_pr}, " 
         u"{} ".format(statstr_pr) + 
         f"across seqs colormaps{qu_str_pr}\n(sess {sess_n}, {line} "
         f"{plane}{dendstr_pr})")
@@ -1152,7 +1185,7 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quantpar,
         figpar["init"]["sharey"] = False
     elif fig_type == "byexp":
         scale_type = f"within {var_name}"
-        peak_sort  = f" of {unexps[0]}"
+        peak_sort  = f" of {unexps[0]}."
         figpar["init"]["sharey"] = False
     elif fig_type == f"by{oridirs[0]}{deg}":
         scale_type = "within unexp/exp"
@@ -1183,7 +1216,8 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quantpar,
     for o, od in enumerate(oridirs):
         od_str = od
         if stimpar["stimtype"] == "visflow":
-            od_str = sess_str_util.dir_par_str(od, str_type="print")[8:-1]
+            od_str = sess_str_util.dir_par_str(od, str_type="print")
+            od_str = od_str.replace("vis. flow ", "")[1:-1] # remove parentheses
         for s, (unexp, unexp_lab) in enumerate(zip(unexps, unexp_labs)):    
             sub_ax = ax[s][o]
             key = f"{unexp}_{od}"
@@ -1482,7 +1516,7 @@ def plot_vm_estim_analysis(subax_col, xran, gab_oris, gab_data, gab_vm_pars,
     # Top: Von Mises fits
     vm_fit = st.vonmises.pdf(np.radians(xran), *gab_vm_pars)
     subax_col[0].plot(xran, vm_fit)
-    subax_col[0].set_title(f"Von Mises fits{title_str}", y=1.02)
+    subax_col[0].set_title(title_str, y=1.02)
     subax_col[0].set_ylabel("Probability density")
     col = subax_col[0].lines[-1].get_color()
     
@@ -1600,13 +1634,16 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
     if n == 0:
         log_dir = True
     if (n + 1) % 15 == 0 or (n + 1) == nrois:
-        logger.info(f"ROI {n+1}/{nrois}")
+        logger.info(f"ROI {n}/{nrois}")
 
     n_subplots = figpar["init"]["ncols"]
+
     if roi_vm_pars is not None:
         n_subplots *= 3
+        gentitle = gentitle.replace("tuning", "tuning (Von Mises fits)")
+
     fig, ax = plot_util.init_fig(n_subplots, **figpar["init"])
-    fig.suptitle(f"{gentitle} - ROI {n+1} ({nrois} total)", y=1)
+    fig.suptitle(f"{gentitle} - ROI {n} ({nrois} total)", y=1)
     
     deg = u"\u00B0"
     for s, unexp_oris in enumerate(tc_oris):
@@ -1616,7 +1653,8 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
                 subax.plot([], [])
         else:
             gab_str = f"({len(unexp_oris)} gabors)"
-        title_str = f" for {seq_info[s]} {gab_str}"
+        seq_str = f"{seq_info[s][0].upper()}{seq_info[s][1:]}"
+        title_str = f"{seq_str} {gab_str}"
         for g, gab_oris in enumerate(unexp_oris):
             if roi_vm_pars is not None:
                 plot_vm_estim_analysis(
@@ -1626,9 +1664,7 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
                 # Just plot activations by orientation
                 ax[0, s].plot(
                     gab_oris, roi_data[s], marker=".", lw=0, alpha=0.3)
-                ax[0, s].set_title(
-                    f"AUC per orientation{title_str}", fontsize="large", y=1.02
-                    )
+                ax[0, s].set_title(title_str, y=1.02)
                 xlab = u"Orientations ({})".format(deg)
                 sess_plot_util.add_axislabels(
                     ax[0, s], fluor=fluor, area=True, x_ax=xlab, datatype="roi")
@@ -1636,7 +1672,7 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
 
     # share y axis ranges within rows
     plot_util.share_lims(ax, "row")
-    savename = f"{gen_savename}_roi{n + 1}"
+    savename = f"{gen_savename}_roi{n}"
     fulldir = plot_util.savefig(
         fig, savename, savedir, log_dir=log_dir, **figpar["save"])
 
@@ -1654,9 +1690,9 @@ def plot_tune_curve_regr(vm_means, vm_regr, seq_info, gentitle="",
     Plots correlation for expected vs unexpected orientation preferences. 
 
     Required args:
-        - vm_mean (3D array): array of mean Von Mises means for each ROI, not 
-                              weighted by kappa value or weighted (in rad): 
-                                ROI x unexp x kappa weighted (False, (True)
+        - vm_means (3D array): array of mean Von Mises means for each ROI, not 
+                               weighted by kappa value or weighted (in rad): 
+                               ROI x unexp x kappa weighted (False, (True)
         - vm_regr (2D array): array of regression results correlating unexpected 
                               and non unexpected means across ROIs, not weighted 
                               by kappa value or weighted (in rad): 
@@ -1690,6 +1726,8 @@ def plot_tune_curve_regr(vm_means, vm_regr, seq_info, gentitle="",
         figpar = sess_plot_util.init_figpar()
     figpar = copy.deepcopy(figpar)
 
+    figpar["init"]["ncols"] = 1
+
     if savedir is None:
         savedir = Path(
             figpar["dirs"]["roi"], 
@@ -1701,13 +1739,14 @@ def plot_tune_curve_regr(vm_means, vm_regr, seq_info, gentitle="",
 
     if np.min(vm_means) < 0:
         raise ValueError("Orientations expected to be positive.")  
-    max_val = np.pi
-    if np.max(vm_means) > max_val:
-        max_val = 2 * np.pi
-        if np.max(vm_means) > max_val:
+    max_val = 180
+    if np.max(vm_means) > np.deg2rad(max_val):
+        max_val = 360
+        if np.max(vm_means) > np.deg2rad(max_val):
             raise ValueError(
                 "Orientations expected to be at most between 0 and 2 * pi."
                 )
+
     xvals = [0, max_val]
     
     deg = u"\u00B0"
@@ -1726,20 +1765,23 @@ def plot_tune_curve_regr(vm_means, vm_regr, seq_info, gentitle="",
         r_sqr, slope, interc = vm_regr[:, i]
         interc = np.rad2deg(interc)
         figpar["init"]["ncols"] = 1
-        fig, ax = plt.subplots(1)
-        ax.plot(data[:, 0], data[:, 1], marker=".", lw=0, alpha=0.8)
+        fig, ax = plot_util.init_fig(1, **figpar["init"])
+        ax = ax[0, 0]
+        ax.plot(data[:, 0], data[:, 1], marker=".", lw=0, alpha=0.4)
+
+        # plot trend line
         col = ax.lines[-1].get_color()
         yvals = [x * slope + interc for x in xvals]
         lab = u"R{} = {:.4f}".format(u"\u00b2", r_sqr) # R2 = ##
-        ax.plot(xvals, yvals, marker="", label=lab, color=col)
+        ax.plot(xvals, yvals, marker="", label=lab, color=col, lw=4)
         for ax_let in ["x", "y"]:
             plot_util.set_ticks(ax, ax_let, xvals[0], xvals[1], 5)
         ax.set_xlabel(u"Mean orientation preference\nfrom {} "
-            u"({})".format(seq_info[0], deg))
+            u"({})".format(seq_info[0], deg), fontsize="x-large")
         ax.set_ylabel(u"Mean orientation preference\nfrom {} "
-            u"({})".format(seq_info[1], deg))
+            u"({})".format(seq_info[1], deg), fontsize="x-large")
         ax.set_title(f"{gentitle}\nCorrelation btw orientation "
-            f"pref{kap_str_pr}", y=1.1)
+            f"prefs{kap_str_pr}", y=1.1)
         ax.legend()
         savename = f"{gen_savename}_regr{kap_str}"
         fulldir = plot_util.savefig(
@@ -1857,16 +1899,19 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
     if len(gabfrs) == 1:
         gabfrs = gabfrs * 2
     
+    stimstr_pr = stimstr_pr[:-1] if stimstr_pr[-1] == "s" else stimstr_pr
+    stimstr_pr = stimstr_pr.capitalize()
+
     rand_str, rand_str_pr = "", ["", ""]
     if tcurvpar["grp2"] == "unexp":
         unexps = [0, 1]
-        seq_types = ["exp", "unexp"]
+        seq_types = ["exp.", "unexp."]
     elif tcurvpar["grp2"] in ["exp", "rand"]:
         unexps = [0, 0]
-        seq_types = ["exp", "exp"]
+        seq_types = ["exp.", "exp."]
         if tcurvpar["grp2"] == "rand":
             rand_str = "_rand"
-            rand_str_pr = ["", " samp"]
+            rand_str_pr = ["", "sampled "]
     gabfr_letts = sess_str_util.gabfr_letters(gabfrs, unexps)
 
     if extrapar["comb_gabs"]:
@@ -1878,8 +1923,8 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
     keys = ["mouse_ns", "sess_ns", "lines", "planes", "nrois"]
     [mouse_n, sess_n, line, plane, nrois] = [sess_info[key][0] for key in keys]
     
-    seq_info = [f"{sqt}{ra} {gf} seqs ({nseqs})" for sqt, ra, gf, nseqs in 
-        zip(seq_types, rand_str_pr, gabfr_letts, tcurv_data["nseqs"])]
+    seq_info = [f"{ra}{sqt} {gf} seqs ({nseqs})" for ra, sqt, gf, nseqs in 
+        zip(rand_str_pr, seq_types, gabfr_letts, tcurv_data["nseqs"])]
     
     gentitle = (f"Mouse {mouse_n} - {stimstr_pr} orientation tuning\n"
         f"(sess {sess_n}, {line} {plane}{dendstr_pr})")
@@ -1941,13 +1986,13 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
 
 
 #############################################
-def plot_posori_resp(analyspar, sesspar, stimpar, extrapar, sess_info, 
-                     posori_data, figpar=None, savedir=None):
+def plot_loc_ori_resp(analyspar, sesspar, stimpar, extrapar, sess_info, 
+                      loc_ori_data, figpar=None, savedir=None):
     """
-    plot_posori_resp(analyspar, sesspar, stimpar, extrapar, sess_info, 
-                     posori_data)
+    plot_loc_ori_resp(analyspar, sesspar, stimpar, extrapar, sess_info, 
+                      loc_ori_data)
 
-    Plots responses according to position and orientation for a specific 
+    Plots responses according to location and orientation for a specific 
     session.
 
     Required args:
@@ -1966,7 +2011,7 @@ def plot_posori_resp(analyspar, sesspar, stimpar, extrapar, sess_info,
             ["planes"] (list)     : imaging planes
             ["nrois"] (list)      : number of ROIs in session
 
-        - posori_data (dict): position and orientation responses
+        - loc_ori_data (dict): location and orientation responses
             ["oris"] (list)     : stimulus mean orientations
             ["roi_stats"] (list): ROI statistics, structured as 
                                     mean orientation x gaborframe x stats x ROI
@@ -2013,15 +2058,15 @@ def plot_posori_resp(analyspar, sesspar, stimpar, extrapar, sess_info,
     keys = ["mouse_ns", "sess_ns", "lines", "planes"]
     [mouse_n, sess_n, line, plane] = [sess_info[key][0] for key in keys]
     
-    title = (f"Mouse {mouse_n} - {stimstr_pr} " + u"{} ".format(statstr_pr) + 
+    title = (f"Mouse {mouse_n} - {stimstr_pr}, " + u"{} ".format(statstr_pr) + 
         "location and orientation responses across seqs\n"
         f"(sess {sess_n}, {line} {plane}{dendstr_pr})")
-    savename = (f"{datatype}_posori_m{mouse_n}_sess{sess_n}_{stimstr}_" 
+    savename = (f"{datatype}_loc_ori_m{mouse_n}_sess{sess_n}_{stimstr}_" 
         f"{plane}{dendstr}")
     if savedir is None:
         savedir = Path(
             figpar["dirs"][datatype], 
-            figpar["dirs"]["posori"])
+            figpar["dirs"]["loc_ori"])
 
     if figpar is None:
         figpar = sess_plot_util.init_figpar()
@@ -2034,9 +2079,9 @@ def plot_posori_resp(analyspar, sesspar, stimpar, extrapar, sess_info,
     fig, ax = plot_util.init_fig(**figpar["init"])
     sub_ax = ax[0, 0]
 
-    n_oris = len(posori_data["roi_stats"])
-    n_gabfr = len(posori_data["roi_stats"][0])
-    n_rois = len(posori_data["roi_stats"][0][0][0])
+    n_oris = len(loc_ori_data["roi_stats"])
+    n_gabfr = len(loc_ori_data["roi_stats"][0])
+    n_rois = len(loc_ori_data["roi_stats"][0][0][0])
 
     if n_gabfr != 5:
         raise ValueError("Expected data for 5 gabor frames.")
@@ -2047,7 +2092,7 @@ def plot_posori_resp(analyspar, sesspar, stimpar, extrapar, sess_info,
     all_labs = []
     tick_pos = []
     roi_cols = [None] * n_rois
-    for o, ori_data in enumerate(posori_data["roi_stats"]):
+    for o, ori_data in enumerate(loc_ori_data["roi_stats"]):
         # ROI x stats x gab
         ori_data = np.transpose(ori_data, (2, 1, 0))
         xpos = dot_pos[o] 
@@ -2058,23 +2103,22 @@ def plot_posori_resp(analyspar, sesspar, stimpar, extrapar, sess_info,
             roi_cols[r] = sub_ax.lines[-1].get_color()
         labels = ["A", "B", "C", "D", "U"]
         labels = [f"{lab}\n({nseqs})" for lab, nseqs 
-            in zip(labels, posori_data["nseqs"][o])]
+            in zip(labels, loc_ori_data["nseqs"][o])]
         all_labs.extend(labels)
         tick_pos.extend(xpos)
 
     deg = u"\u00B0"
-    oris = [u"{} {}".format(ori, deg) for ori in posori_data["oris"]]
+    oris = [u"{}{}".format(ori, deg) for ori in loc_ori_data["oris"]]
     plot_util.add_labels(sub_ax, oris, center_pos, t_hei=-0.18, color="k")
 
     # always set ticks (even again) before setting labels
     sub_ax.set_xticks(tick_pos)
-    sub_ax.set_xticklabels(all_labs)
+    sub_ax.set_xticklabels(all_labs, fontsize=16)
 
     sess_plot_util.add_axislabels(
         sub_ax, fluor=analyspar["fluor"], area=True, x_ax="", datatype=datatype)
 
-    fulldir = plot_util.savefig(
-        fig, savename, savedir, log_dir=False, **figpar["save"])
+    fulldir = plot_util.savefig(fig, savename, savedir, **figpar["save"])
 
     return fulldir, savename
 
@@ -2086,7 +2130,7 @@ def plot_trial_pc_traj(analyspar, sesspar, stimpar, extrapar, sess_info,
     plot_trial_pc_traj(analyspar, sesspar, stimpar, extrapar, sess_info, 
                        pc_traj_data)
 
-    Plots responses according to position and orientation for a specific 
+    Plots responses according to location and orientation for a specific 
     session.
 
     Required args:

@@ -73,7 +73,7 @@ def collect_base_data(sessions, analyspar, stimpar, datatype="rel_unexp_resp",
             - {datatype} (1D array): data per ROI
     """
     
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
 
     initial_columns = misc_analys.get_sess_df_columns(sessions[0], analyspar)
 
@@ -399,7 +399,7 @@ def add_stim_pop_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
                 types, corrected for multiple comparisons and tails
     """
 
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
 
     if analyspar.tracked:
         misc_analys.check_sessions_complete(sessions, raise_err=False)
@@ -569,7 +569,7 @@ def add_stim_roi_stats(stim_stats_df, sessions, analyspar, stimpar, permpar,
                 types, corrected for multiple comparisons and tails
     """
 
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
 
     if analyspar.tracked:
         misc_analys.check_sessions_complete(sessions, raise_err=True)

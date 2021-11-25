@@ -99,7 +99,7 @@ def get_ran_s(ran_s=None, datatype="both"):
 #############################################
 def peristim_data(sess, stimpar, ran_s=None, datatype="both",
                   returns="diff", fluor="dff", stats="mean", 
-                  remnans=True, scale=False, first_unexp=True, trans_all=False):
+                  rem_bad=True, scale=False, first_unexp=True, trans_all=False):
     """
     peristim_data(sess, stimpar)
 
@@ -140,7 +140,7 @@ def peristim_data(sess, stimpar, ran_s=None, datatype="both",
                                      unexpected difference: either mean ("mean") 
                                      or median ("median")
                                      default: "mean"
-        - remnans (bool)           : if True, removes ROIs with NaN/Inf values 
+        - rem_bad (bool)           : if True, removes ROIs with NaN/Inf values 
                                      anywhere in session and running array with
                                      NaNs linearly interpolated is used. If 
                                      False, NaNs are ignored in calculating 
@@ -193,7 +193,7 @@ def peristim_data(sess, stimpar, ran_s=None, datatype="both",
     # get data dataframes
     pup_data = gen_util.reshape_df_data(stim.get_pup_diam_data(
         unexp_twopfr, ran_s["pup_pre"], ran_s["pup_post"], 
-        remnans=remnans, scale=scale)["pup_diam"], squeeze_cols=True)
+        rem_bad=rem_bad, scale=scale)["pup_diam"], squeeze_cols=True)
 
     datasets = [pup_data]
     datanames = ["pup"]
@@ -201,18 +201,18 @@ def peristim_data(sess, stimpar, ran_s=None, datatype="both",
         # ROI x trial x fr
         roi_data = gen_util.reshape_df_data(stim.get_roi_data(
             unexp_twopfr, ran_s["roi_pre"], ran_s["roi_post"], fluor=fluor, 
-            integ=False, remnans=remnans, scale=scale, 
+            integ=False, rem_bad=rem_bad, scale=scale, 
             transients=trans_all)["roi_traces"], squeeze_cols=True) 
         datasets.append(roi_data.transpose([1, 2, 0])) # ROIs last
         datanames.append("roi")
     if datatype in ["run", "both"]:
         run_data = gen_util.reshape_df_data(stim.get_run_data(
-            unexp_stimfr, ran_s["run_pre"], ran_s["run_post"], remnans=remnans, 
+            unexp_stimfr, ran_s["run_pre"], ran_s["run_post"], rem_bad=rem_bad, 
             scale=scale), squeeze_cols=True)
         datasets.append(run_data)
         datanames.append("run")
 
-    if remnans:
+    if rem_bad:
         nanpolgen = None
     else:
         nanpolgen = "omit"
@@ -299,7 +299,7 @@ def run_pupil_diff_corr(sessions, analysis, analyspar, sesspar,
         [pup_diff, data_diff] = diffs 
         # trials (x ROIs)
         if datatype == "roi":
-            if analyspar.remnans:
+            if analyspar.rem_bad:
                 nanpol = None
             else:
                 nanpol = "omit"
@@ -321,7 +321,7 @@ def run_pupil_diff_corr(sessions, analysis, analyspar, sesspar,
 
     sess_info = sess_gen_util.get_sess_info(
         sessions, analyspar.fluor, incl_roi=(datatype=="roi"), 
-        remnans=analyspar.remnans)
+        rem_bad=analyspar.rem_bad)
     
     info = {"analyspar": analyspar._asdict(),
             "sesspar"  : sesspar._asdict(),
@@ -406,7 +406,7 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
         for sub_stimpar in stimpars:
             diffs = peristim_data(
                 sess, sub_stimpar, datatype="roi", returns="diff", 
-                first_unexp=True, remnans=analyspar.remnans, 
+                first_unexp=True, rem_bad=analyspar.rem_bad, 
                 scale=analyspar.scale)
             [pup_diff, roi_diff] = diffs 
             nrois = roi_diff.shape[-1]
@@ -435,7 +435,7 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
 
     sess_info = sess_gen_util.get_sess_info(
         sessions, analyspar.fluor, incl_roi=(datatype=="roi"), 
-        remnans=analyspar.remnans)
+        rem_bad=analyspar.rem_bad)
     
     info = {"analyspar": analyspar._asdict(),
             "sesspar"  : sesspar._asdict(),

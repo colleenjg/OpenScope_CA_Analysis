@@ -120,7 +120,7 @@ def run_roi_areas_by_grp_qu(sessions, analyspar, sesspar, stimpar, extrapar,
     roi_grps["grp_ns"] = grp_ns.tolist()
 
     sess_info = sess_gen_util.get_sess_info(
-        sessions, analyspar.fluor, remnans=analyspar.remnans
+        sessions, analyspar.fluor, rem_bad=analyspar.rem_bad
         )
     
     info = {
@@ -246,7 +246,7 @@ def run_roi_traces_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
     roi_grps["trace_stats"] = grp_stats
 
     sess_info = sess_gen_util.get_sess_info(
-        sessions, analyspar.fluor, remnans=analyspar.remnans
+        sessions, analyspar.fluor, rem_bad=analyspar.rem_bad
         )
 
     info = {"analyspar"  : analyspar._asdict(),
@@ -375,7 +375,7 @@ def run_roi_areas_by_grp(sessions, analyspar, sesspar, stimpar, extrapar,
         roi_grps[f"area_stats{scale_str}"] = grp_st.tolist()
 
     sess_info = sess_gen_util.get_sess_info(
-        sessions, analyspar.fluor, remnans=analyspar.remnans
+        sessions, analyspar.fluor, rem_bad=analyspar.rem_bad
         )
 
     info = {"analyspar": analyspar._asdict(),
@@ -446,17 +446,22 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
     _, _, _, qu_data = integ_info     
 
-    if analyspar.remnans:
+    if analyspar.rem_bad:
         nanpol = None
     else:
         nanpol = "omit"
 
     seed = rand_util.seed_all(seed, "cpu", log_seed=False)
 
+    qu_labs = [
+        sess_str_util.quantile_str(q, quantpar.n_quants, str_type="print")
+        for q in quantpar.qu_idx 
+    ]        
+        
     # identify significant ROIs 
     # (returns all_roi_grps, grp_names)
     all_roi_grps, grp_names = signif_grps.signif_rois_by_grp_sess(
-        sessids, qu_data, permpar, roigrppar, quantpar.qu_lab, 
+        sessids, qu_data, permpar, roigrppar, qu_labs, 
         stats=analyspar.stats, nanpol=nanpol)
 
     roi_grps = {"all_roi_grps": all_roi_grps,
@@ -491,7 +496,7 @@ def run_rois_by_grp(sessions, analysis, seed, analyspar, sesspar, stimpar,
                 roi_grps[key] = roi_grps_dict[key]
 
     sess_info = sess_gen_util.get_sess_info(
-        sessions, analyspar.fluor, remnans=analyspar.remnans
+        sessions, analyspar.fluor, rem_bad=analyspar.rem_bad
         )
 
     info = {"analyspar": analyspar._asdict(),
@@ -560,12 +565,20 @@ def run_oridirs_by_qu_sess(sess, oridirs, unexps, xran, mes, counts,
     if extrapar["datatype"] != "roi":
         raise NotImplementedError("Analysis only implemented for roi datatype.")
 
-    qu_str, qu_str_pr = quantpar.qu_lab[0], quantpar.qu_lab[0]
-    if qu_str != "":
-        qu_str_pr = f", {qu_str_pr.capitalize()}"
-        qu_str    = f"_{qu_str}"
+    qu_str, qu_str_pr = "", ""
+    if quantpar.n_quants > 1:
+        qu_str_pr = sess_str_util.quantile_str(
+            quantpar.qu_idx, n_quants=quantpar.n_quants, out_of=True, 
+            str_type="print"
+            )
+        qu_str_pr = f", {qu_str_pr}"
 
-    if not analyspar.remnans:
+        qu_str = sess_str_util.quantile_str(
+            quantpar.qu_idx, n_quants=quantpar.n_quants, str_type="file"
+            )
+        qu_str = f"_{qu_str}"
+
+    if not analyspar.rem_bad:
         nanpol = "omit"
     else:
         nanpol = None
@@ -597,7 +610,7 @@ def run_oridirs_by_qu_sess(sess, oridirs, unexps, xran, mes, counts,
                }
 
     sess_info = sess_gen_util.get_sess_info(
-        sess, analyspar.fluor, remnans=analyspar.remnans
+        sess, analyspar.fluor, rem_bad=analyspar.rem_bad
         )
 
     info = {"analyspar": analyspar._asdict(),
@@ -742,12 +755,10 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quantpar,
         analyspar.dend, sesspar.plane, datatype, "print")
   
     # split quantiles apart and add a quant=1
-    quantpar_one  = sess_ntuple_util.init_quantpar(1, 0, "", "")
+    quantpar_one  = sess_ntuple_util.init_quantpar(1, 0)
     quantpars = [quantpar_one]
-    for qu_idx, qu_lab, qu_lab_pr in zip(
-        quantpar.qu_idx, quantpar.qu_lab, quantpar.qu_lab_pr):
-        qp = sess_ntuple_util.init_quantpar(
-            quantpar.n_quants, qu_idx, qu_lab, qu_lab_pr)
+    for qu_idx in quantpar.qu_idx:
+        qp = sess_ntuple_util.init_quantpar(quantpar.n_quants, qu_idx)
         quantpars.append(qp)
 
     logger.info("Analysing and plotting colormaps and traces "
@@ -880,7 +891,7 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
                         }
 
             sess_info = sess_gen_util.get_sess_info(
-                sess, analyspar.fluor, remnans=analyspar.remnans
+                sess, analyspar.fluor, rem_bad=analyspar.rem_bad
             )
 
             info = {"analyspar" : analyspar._asdict(),
@@ -899,9 +910,9 @@ def run_tune_curves(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
 
 #############################################
-def posori_resp(sess, analyspar, stimpar, nrois="all"):
+def loc_ori_resp(sess, analyspar, stimpar, nrois="all"):
     """
-    posori_resp(sess, analyspar, stimpar)
+    loc_ori_resp(sess, analyspar, stimpar)
 
     Calculates integrated fluorescence levels for ROI locations and 
     orientations.
@@ -930,7 +941,7 @@ def posori_resp(sess, analyspar, stimpar, nrois="all"):
 
     stim = sess.get_stim(stimpar.stimtype)
     oris = stim.exp_gabfr_mean_oris
-    nrois_tot = sess.get_nrois(analyspar.remnans, analyspar.fluor)
+    nrois_tot = sess.get_nrois(analyspar.rem_bad, analyspar.fluor)
     if nrois == "all":
         sess_nrois = nrois_tot
     else:
@@ -963,7 +974,7 @@ def posori_resp(sess, analyspar, stimpar, nrois="all"):
             # stats x ROI
             gf_stats = gen_util.reshape_df_data(stim.get_roi_stats_df(twopfr, 
                 stimpar.pre, stimpar.post, byroi=True, fluor=analyspar.fluor, 
-                integ=True, remnans=analyspar.remnans, stats=analyspar.stats, 
+                integ=True, rem_bad=analyspar.rem_bad, stats=analyspar.stats, 
                 error=analyspar.error, scale=analyspar.scale).loc["stats"], 
                 squeeze_cols=True).T
             ori_stats.append(gf_stats[:, :sess_nrois].tolist())
@@ -974,12 +985,12 @@ def posori_resp(sess, analyspar, stimpar, nrois="all"):
 
 
 #############################################
-def run_posori_resp(sessions, analysis, analyspar, sesspar, stimpar, figpar, 
-                    parallel=False):
+def run_loc_ori_resp(sessions, analysis, analyspar, sesspar, stimpar, figpar, 
+                     parallel=False):
     """
-    run_posori_resp(sessions, analysis, analyspar, sesspar, stimpar, figpar)
+    run_loc_ori_resp(sessions, analysis, analyspar, sesspar, stimpar, figpar)
 
-    Calculates and plots integrated fluorescence levels for ROI positions and 
+    Calculates and plots integrated fluorescence levels for ROI locations and 
     mean orientations.
 
     Required args:
@@ -1028,11 +1039,11 @@ def run_posori_resp(sessions, analysis, analyspar, sesspar, stimpar, figpar,
         figpar["save"]["use_dt"] = gen_util.create_time_str()
 
     for sess in sessions:
-        oris, roi_stats, nseqs = posori_resp(
+        oris, roi_stats, nseqs = loc_ori_resp(
             sess, analyspar, stimpar_loc, nrois)
-        posori_data = {"oris"     : oris,
-                       "roi_stats": roi_stats,
-                       "nseqs"    : nseqs
+        loc_ori_data = {"oris"     : oris,
+                        "roi_stats": roi_stats,
+                        "nseqs"    : nseqs
                       }
 
         extrapar = {"analysis": analysis,
@@ -1040,18 +1051,18 @@ def run_posori_resp(sessions, analysis, analyspar, sesspar, stimpar, figpar,
                    }
 
         sess_info = sess_gen_util.get_sess_info(
-            sess, analyspar.fluor, remnans=analyspar.remnans
+            sess, analyspar.fluor, rem_bad=analyspar.rem_bad
             )
 
-        info = {"analyspar"  : analyspar._asdict(),
-                "sesspar"    : sesspar._asdict(),
-                "stimpar"    : stimpar_loc._asdict(),
-                "extrapar"   : extrapar,
-                "posori_data": posori_data,
-                "sess_info"  : sess_info
+        info = {"analyspar"   : analyspar._asdict(),
+                "sesspar"     : sesspar._asdict(),
+                "stimpar"     : stimpar_loc._asdict(),
+                "extrapar"    : extrapar,
+                "loc_ori_data": loc_ori_data,
+                "sess_info"   : sess_info
                 }
 
-        fulldir, savename = roi_plots.plot_posori_resp(figpar=figpar, **info)
+        fulldir, savename = roi_plots.plot_loc_ori_resp(figpar=figpar, **info)
 
         file_util.saveinfo(info, savename, fulldir, "json")
 
@@ -1088,7 +1099,8 @@ def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar,
     datastr = sess_str_util.datatype_par_str(datatype)
 
     logger.info(f"Analysing and plotting trial trajectories in 2 principal "
-        f"components \n({sessstr_pr}{dendstr_pr}).", extra={"spacing": "\n"})
+        f"components \n({sessstr_pr}{dendstr_pr}) - INCOMPLETE IMPLEMENTATION.", 
+        extra={"spacing": "\n"})
 
     figpar = copy.deepcopy(figpar)
     if figpar["save"]["use_dt"] is None:
@@ -1127,7 +1139,7 @@ def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar,
             # ROI x sequences (x frames)
             traces_df = stim.get_roi_data(
                 twop_fr, stimpar.pre, stimpar.post, fluor=analyspar.fluor, 
-                remnans=analyspar.remnans, scale=analyspar.scale)
+                rem_bad=analyspar.rem_bad, scale=analyspar.scale)
             all_traces.append(gen_util.reshape_df_data(
                 traces_df, squeeze_cols=True))
         if stimpar.stimtype == "gabors":
@@ -1152,7 +1164,7 @@ def run_trial_pc_traj(sessions, analysis, analyspar, sesspar, stimpar, figpar,
 
         # sess_info = sess_gen_util.get_sess_info(
         #     sessions, analyspar.fluor, incl_roi=(datatype=="roi"), 
-        #     remnans=analyspar.remnans)
+        #     rem_bad=analyspar.rem_bad)
 
         # info = {"analyspar"  : analyspar._asdict(),
         #         "sesspar"    : sesspar._asdict(),

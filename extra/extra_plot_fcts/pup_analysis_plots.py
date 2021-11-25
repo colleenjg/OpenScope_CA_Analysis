@@ -193,7 +193,7 @@ def plot_pup_diff_corr(analyspar, sesspar, stimpar, extrapar,
     
     for i, sess_diffs in enumerate(corr_data["diffs"]):
         sub_axs = ax[:, i]
-        title = (f"Mouse {mouse_ns[i]} - {stimstr_pr} " + 
+        title = (f"Mouse {mouse_ns[i]} - {stimstr_pr}, " + 
             u"{}".format(statstr_pr) + f"\n(sess {sess_ns[i]}, {lines[i]} "
             f"{planes[i]}{dendstr_pr}{nroi_strs[i]})")
         

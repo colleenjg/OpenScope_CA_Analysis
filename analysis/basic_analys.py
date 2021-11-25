@@ -193,19 +193,19 @@ def get_data(stim, refs, analyspar, pre=0, post=1, ch_fl=None, integ=False,
     # obtain data
     if datatype == "roi":
         data_df = stim.get_roi_data(
-            fr_ns, pre, post, remnans=analyspar.remnans, scale=analyspar.scale
+            fr_ns, pre, post, rem_bad=analyspar.rem_bad, scale=analyspar.scale
             )
         col_name = "roi_traces"
         integ_dt = stim.sess.twop_fps
     elif datatype == "run":
         data_df = stim.get_run_data(
-            fr_ns, pre, post, remnans=analyspar.remnans, scale=analyspar.scale
+            fr_ns, pre, post, rem_bad=analyspar.rem_bad, scale=analyspar.scale
         )
         col_name = "run_velocity"
         integ_dt = stim.sess.stim_fps
     elif datatype == "pupil":
         data_df = stim.get_pup_diam_data(
-            fr_ns, pre, post, remnans=analyspar.remnans, scale=analyspar.scale
+            fr_ns, pre, post, rem_bad=analyspar.rem_bad, scale=analyspar.scale
         )
         col_name = "pup_diam"
         integ_dt = stim.sess.twop_fps
@@ -219,7 +219,7 @@ def get_data(stim, refs, analyspar, pre=0, post=1, ch_fl=None, integ=False,
     data_arr = gen_util.reshape_df_data(data_df[col_name], squeeze_cols=True)
 
     if integ:
-        nanpol = None if analyspar.remnans else "omit"
+        nanpol = None if analyspar.rem_bad else "omit"
         data_arr = math_util.integ(
             data_arr, 1. / integ_dt, axis=-1, nanpol=nanpol
             )
@@ -595,7 +595,7 @@ def get_sess_roi_trace_stats(sess, analyspar, stimpar, basepar,
             (only 0 to stimpar.post, unless split is "by_exp")
     """
     
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
 
     split_data, time_values = get_split_data_by_sess(
         sess, analyspar, stimpar, split=split, baseline=basepar.baseline, 
@@ -719,7 +719,7 @@ def get_block_data(sess, analyspar, stimpar, datatype="roi", integ=False):
 
     stim = sess.get_stim(stimpar.stimtype)
 
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
 
     ch_fl = [stimpar.pre, stimpar.post]
 
@@ -761,7 +761,7 @@ def get_block_data(sess, analyspar, stimpar, datatype="roi", integ=False):
     
     targ_shape = (n_splits, n_blocks, n_stats)
     if datatype == "roi":
-        n_rois = sess.get_nrois(analyspar.remnans, analyspar.fluor)
+        n_rois = sess.get_nrois(analyspar.rem_bad, analyspar.fluor)
         targ_shape = (n_splits, n_blocks, n_rois, n_stats)
 
     block_data = np.full(targ_shape, np.nan)

@@ -241,6 +241,54 @@ def stat_par_str(stats="mean", error="sem", str_type="file"):
 
 
 #############################################
+def quantile_str(qu_idx=0, n_quants=4, out_of=False, str_type="file"):
+    """
+    quantile_str()
+
+    Returns a string from quantile values to print or for a filename.
+
+    Optional args:
+        - qu_idx (int)  : quantile index
+                          default: 0
+        - n_quants (int): total number of quantiles
+                          default: 4
+        - out_of (bool) : if True, quantile index is indicated out of the total
+                          (applies to 'print' strings only)
+                          default: False
+        - str_type (str) : use of output str, i.e., for a filename ("file") or
+                           to print the info to console ("print")
+                           default: "file"
+    
+    Returns:
+        - quant_str (str): quantile string
+    """
+
+    if isinstance(qu_idx, list):
+        if len(qu_idx) > 1:
+            raise ValueError("If qu_idx is a list, it must be of length 1.")
+        qu_idx = qu_idx[0]
+
+    if qu_idx > n_quants - 1:
+        raise ValueError("qu_idx must be strictly smaller than n_quants.")
+
+    if qu_idx < 0:
+        qu_idx = qu_idx + n_quants
+
+    if str_type == "file":
+        quant_str = f"q{qu_idx + 1}"
+    
+    elif str_type == "print":
+        quant_str = f"Q{qu_idx + 1}"
+        if out_of:
+            quant_str = f"{quant_str}/{n_quants}"
+    
+    else:
+        gen_util.accepted_values_error("str_type", str_type, ["print", "file"])
+
+    return quant_str
+
+
+#############################################
 def op_par_str(plot_vals="both", op="diff", str_type="file"):
     """
     op_par_str()
@@ -257,7 +305,6 @@ def op_par_str(plot_vals="both", op="diff", str_type="file"):
                            default: "file"
     
     Returns:
-
         - op_str (str): operation type string
     """
     
@@ -1042,6 +1089,7 @@ def get_stimdir(stimtype="gabors", gabfr=0):
         gab_lett = gabfr_letters(gabfr)
         if "/" in gab_lett:
             gab_lett = gab_lett.replace("/", "")
+        stimdir = f"{stimdir}{gab_lett}"
 
     return stimdir
 
