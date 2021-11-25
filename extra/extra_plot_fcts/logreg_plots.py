@@ -534,7 +534,7 @@ def plot_CI(ax, x_label, arr, CI=0.95, ext_data=False, modif=False):
 
 #############################################
 def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane, 
-                 stat="mean", error="sem", CI=0.95, q1v4=False, rvs=False, 
+                 stat="mean", error="sem", CI=0.95, q1v4=False, evu=False, 
                  split_oris=False, modif=False):
     """
     summ_subplot(ax, arr, data_title, mouse_ns, sess_ns, line, plane, title)
@@ -571,7 +571,7 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane,
         - q1v4 (bool)      : if True, analysis is separated across first and 
                              last quartiles
                              default: False
-        - rvs (bool)       : if True, the first dataset will include expected 
+        - evu (bool)       : if True, the first dataset will include expected 
                              sequences and the second will include unexpected 
                              sequences
                              default: False
@@ -598,7 +598,7 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane,
         if (not modif or ax.is_first_row()) and ax.is_first_col():
             if q1v4:
                 ax.set_ylabel("Accuracy in Q4 (%)")
-            elif rvs:
+            elif evu:
                 ax.set_ylabel("Accuracy for unexp (%)")
             else:
                 ax.set_ylabel("Accuracy (%)")
@@ -606,20 +606,20 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane,
 
     elif "epoch" in data_title.lower():
         q1v4 = False # treated as if no Q4
-        rvs = False # treated as if no exp v unexp
+        evu = False # treated as if no exp v unexp
         split_oris = False # treated as if no 2 sets of Gabor frames
         if (not modif or ax.is_first_row()) and ax.is_first_col():
             ax.set_ylabel("Nbr epochs")
         plot_util.set_ticks(ax, "y", 0, 1000, 6, pad_p=0)
 
-    if q1v4 or rvs or split_oris:
+    if q1v4 or evu or split_oris:
         mean_ids = [0, 3]
         alphas = [0.3, 0.8]
         if modif:
             alphas = [0.5, 0.8]
         if q1v4:
             add_leg = [" (Q1)", " (Q4)"]
-        elif rvs:
+        elif evu:
             add_leg = [" (exp)", " (unexp)"]
         else:
             add_leg = [f" ({split_oris[0]})", f" ({split_oris[1]})"]
@@ -630,7 +630,7 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane,
             alphas = [0.8]
         add_leg = [""]
     
-    plot_CI(ax, x_label, sh_arr, CI, q1v4 + rvs, modif)
+    plot_CI(ax, x_label, sh_arr, CI, q1v4 + evu, modif)
     
     # plot non shuffle data
     main_col = "blue"
@@ -683,7 +683,7 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane,
 
 #############################################    
 def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename, 
-                   CI=0.95, q1v4=False, rvs=False, comp="unexp", modif=False, 
+                   CI=0.95, q1v4=False, evu=False, comp="unexp", modif=False, 
                    no_save=False):
     """
     plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename)
@@ -709,7 +709,7 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
         - q1v4 (bool)   : if True, analysis is separated across first and 
                           last quartiles
                           default: False
-        - rvs (bool)    : if True, the first dataset will include expected 
+        - evu (bool)    : if True, the first dataset will include expected 
                           sequences and the second will include unexpected 
                           sequences
                           default: False
@@ -750,8 +750,8 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
 
     data_types = gen_util.list_if_not(data)
 
-    if (q1v4 or rvs or split_oris) and "test_acc" in data:
-        ext_test = sess_str_util.ext_test_str(q1v4, rvs, comp)
+    if (q1v4 or evu or split_oris) and "test_acc" in data:
+        ext_test = sess_str_util.ext_test_str(q1v4, evu, comp)
         n_vals = 8 # (extra mean/med, sem/2.5p, sem/97.5p for Q4) 
         if data == "test_acc": 
             data_types = ["test_acc", f"{ext_test}_acc"]
@@ -826,7 +826,7 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
                     curr_line["runs_nan"]
 
         summ_subplot(sub_ax, data_arr, shuff_arr, title, mouse_ns, sess_ns, 
-            line, plane, stats[0], stats[1], CI, q1v4, rvs, split_oris, modif)
+            line, plane, stats[0], stats[1], CI, q1v4, evu, split_oris, modif)
 
     if modif:
         n_sess_keep = 3
@@ -913,11 +913,11 @@ def plot_summ(output, savename, stimtype="gabors", comp="unexp", ctrl=False,
     stats = ["mean", "sem", "sem"]
     shuff_stats = ["median"] + math_util.get_percentiles(CI)[1]
 
-    q1v4, rvs = False, False
-    if "q1v4" in str(output):
+    q1v4, evu = False, False
+    if "_q1v4" in str(output):
         q1v4 = True
-    elif "rvs" in str(output):
-        rvs = True
+    elif "_evu" in str(output):
+        evu = True
     
     runtype = "prod"
     if "pilot" in str(output):
@@ -979,7 +979,7 @@ def plot_summ(output, savename, stimtype="gabors", comp="unexp", ctrl=False,
             f"{modif_str}.svg")
         full_savename = Path(save_dir, savename)
         plot_data_summ(plot_lines, data, stats, shuff_stats, title, 
-            full_savename, CI, q1v4, rvs, comp, modif)
+            full_savename, CI, q1v4, evu, comp, modif)
 
     plt.close("all")
 

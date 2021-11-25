@@ -63,7 +63,7 @@ def build_stim_beh_df(sessions, analyspar, sesspar, stimpar):
         stim = sess.get_stim(stimpar.stimtype)
         sub_df = stim.get_stim_beh_sub_df(
             stimpar.pre, stimpar.post, analyspar.stats, analyspar.fluor, 
-            analyspar.remnans, gabfr=stimpar.gabfr, gabk=stimpar.gabk, 
+            analyspar.rem_bad, gabfr=stimpar.gabfr, gabk=stimpar.gabk, 
             gab_ori=stimpar.gab_ori, visflow_size=stimpar.visflow_size, 
             visflow_dir=stimpar.visflow_dir, pupil=pupil, run=True, 
             roi_stats=False
@@ -531,7 +531,7 @@ def run_glms(sessions, analysis, seed, analyspar, sesspar, stimpar, glmpar,
         sessions = sess_batches[0]
 
     sess_info = sess_gen_util.get_sess_info(
-        sessions, analyspar.fluor, remnans=analyspar.remnans
+        sessions, analyspar.fluor, rem_bad=analyspar.rem_bad
         )
 
     extrapar = {"analysis": analysis,

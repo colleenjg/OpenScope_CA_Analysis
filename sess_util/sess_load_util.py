@@ -23,7 +23,7 @@ import pandas as pd
 import pynwb
 
 from util import file_util, gen_util, logger_util
-from sess_util import sess_gen_util, sess_load_util, sess_sync_util
+from sess_util import sess_gen_util, sess_sync_util
 
 logger = logging.getLogger(__name__)
 
@@ -481,27 +481,27 @@ def load_run_data_nwb(sess_files, diff_thr=50, drop_tol=0.0003, sessid=None):
             )
     
     behav_file = behav_files[0]
-    if len(behav_files) == 1:
+    if len(behav_files) > 1:
         warnings.warn(
             "Several session files with behavioural data found. "
             f"Using the first listed: {behav_file}."
             )
 
-    with pynwb.NWBHDF5IO(behav_file, "r") as f:
+    with pynwb.NWBHDF5IO(str(behav_file), "r") as f:
         nwbfile_in = f.read()
         behav_module = nwbfile_in.get_processing_module("behavior")
         main_field = "BehavioralTimeSeries"
         data_field = "running_velocity"
-        if (main_field not in behav_module.fields() or 
-            data_field not in behav_module[main_field].fields):
-                raise OSError(
-                    "No running velocity behavioral time series data found "
-                    f"in {behav_file}"
-                    )
+        try:
+            behav_time_series = behav_module.get_data_interface(
+                main_field).get_timeseries(data_field)
+        except KeyError as err:
+            raise KeyError(
+                "Could not find running velocity data in behavioral time "
+                f"series for {behav_module} due to: {err}"
+                )
         
-        run_velocity = np.asarray(
-            behav_module[main_field][data_field].data
-            )
+        run_velocity = np.asarray(behav_time_series.data)
 
     run_velocity = nan_large_run_differences(
         run_velocity, diff_thr, warn_nans=True, drop_tol=drop_tol, 
@@ -580,13 +580,9 @@ def load_pup_data_nwb(sess_files):
         - sess_files (Path): full path names of the session files
 
     Returns:
-        - pup_data (pd DataFrame): pupil data dataframe with columns:
+        - pup_data_df (pd DataFrame): pupil data dataframe with columns:
             - frames (int)        : frame number
             - pup_diam (float)    : median pupil diameter in pixels
-            - pup_center_x (float): pupil center position for x at 
-                                    each pupil frame in pixels
-            - pup_center_y (flat) : pupil center position for y at 
-                                    each pupil frame in pixels
     """
 
     # check whether behavior is included in file
@@ -601,38 +597,35 @@ def load_pup_data_nwb(sess_files):
             )
     
     behav_file = behav_files[0]
-    if len(behav_files) == 1:
+    if len(behav_files) > 1:
         warnings.warn(
             "Several session files with behavioural data found. "
             f"Using the first listed: {behav_file}."
             )
 
-    with pynwb.NWBHDF5IO(behav_file, "r") as f:
+    with pynwb.NWBHDF5IO(str(behav_file), "r") as f:
         nwbfile_in = f.read()
         behav_module = nwbfile_in.get_processing_module("behavior")
         main_field = "PupilTracking"
         data_field = "pupil_diameter"
-        if (main_field not in behav_module.fields() or 
-            data_field not in behav_module[main_field].fields):
-                raise OSError(
-                    "No pupil diameter pupil tracking data found "
-                    f"in {behav_file}"
-                    )
+        try:
+            behav_time_series = behav_module.get_data_interface(
+                main_field).get_timeseries(data_field)
+        except KeyError as err:
+            raise KeyError(
+                "Could not find pupil diameter data in behavioral time "
+                f"series for {behav_module} due to: {err}"
+                )
         
-        pup_data = np.asarray(
-            behav_module[main_field][data_field].data
-            )
+        pup_data = np.asarray(behav_time_series.data)
 
-    column_names = {
-        "pupil_diameter": "pup_diam",
-    }
 
-    pup_data = pup_data.rename(columns=column_names)
-    pup_data["pup_diam"] = pup_data["pup_diam"] / sess_sync_util.MM_PER_PIXEL
+    pup_data_df = pd.DataFrame()
+    pup_data_df["pup_diam"] = pup_data / sess_sync_util.MM_PER_PIXEL
 
-    pup_data.insert(0, "frames", value=range(len(pup_data)))
+    pup_data_df.insert(0, "frames", value=range(len(pup_data_df)))
 
-    return pup_data  
+    return pup_data_df  
 
 
 #############################################
@@ -678,8 +671,11 @@ def load_pup_data(pup_data_h5, time_sync_h5):
         eye_alignment = f["eye_tracking_alignment"][:].astype(int) + delay
 
     pup_data = pd.DataFrame()
+    last_keep = np.where(eye_alignment < len(orig_pup_data))[0][-1]
     for col in orig_pup_data.columns:
-        pup_data[col] = orig_pup_data[col].to_numpy()[eye_alignment]
+        pup_data[col] = orig_pup_data[col].to_numpy()[
+            eye_alignment[: last_keep + 1]
+            ]
 
     pup_data.insert(0, "frames", value=range(len(pup_data)))
 

@@ -468,7 +468,7 @@ def plot_perc_sig_usis(perc_sig_df, analyspar, permpar, figpar, by_mouse=False,
 
     perc_sig_df = perc_sig_df.copy(deep=True)
 
-    nanpol = None if analyspar["remnans"] else "omit"
+    nanpol = None if analyspar["rem_bad"] else "omit"
 
     sess_ns = perc_sig_df["sess_ns"].unique()
     if len(sess_ns) != 1:

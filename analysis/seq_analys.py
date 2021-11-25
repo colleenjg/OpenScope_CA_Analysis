@@ -136,7 +136,7 @@ def get_sess_grped_trace_df(sessions, analyspar, stimpar, basepar,
               (only 0 to stimpar.post, unless split is "by_exp")
     """
 
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
 
     trace_df = get_sess_roi_trace_df(
         sessions, 
@@ -234,7 +234,7 @@ def get_sess_roi_split_stats(sess, analyspar, stimpar, basepar, split="by_exp",
             dims: split x ROIs x seq
     """
     
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
 
     split_data, _ = basic_analys.get_split_data_by_sess(
         sess, analyspar, stimpar, split=split, baseline=basepar.baseline, 
@@ -286,7 +286,7 @@ def get_rand_split_data(split_data, analyspar, permpar, randst=None):
             dims: ROIs x perms
     """
 
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
 
     split_data = [np.asarray(data) for data in split_data]
 
@@ -361,7 +361,7 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
     """
 
 
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
 
     if analyspar.tracked:
         misc_analys.check_sessions_complete(sessions, raise_err=True)
@@ -525,7 +525,7 @@ def get_sess_ex_traces(sess, analyspar, stimpar, basepar, rolling_win=4):
                 dims: ROIs x frames
     """
 
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
 
     if stimpar.stimtype != "gabors":
         raise NotImplementedError(
@@ -737,7 +737,7 @@ def get_sess_integ_resp_dict(sess, analyspar, stimpar):
             if stimpar.stimtype == "gabors".
     """
 
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
 
     # a few checks
     if stimpar.stimtype == "gabors":
@@ -835,7 +835,7 @@ def add_relative_resp_data(resp_data_df, analyspar, rel_sess=1, in_place=False):
     if not in_place:
         resp_data_df = resp_data_df.copy(deep=True)
 
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
 
     source_columns = [col for col in resp_data_df.columns if "exp" in col]
     rel_columns = [f"rel_{col}" for col in source_columns]
@@ -986,7 +986,7 @@ def get_rel_resp_stats_df(sessions, analyspar, stimpar, permpar, rel_sess=1,
                 sessions, corrected for multiple comparisons and tails
     """
 
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
  
     initial_columns = misc_analys.get_sess_df_columns(sessions[0], analyspar)
 

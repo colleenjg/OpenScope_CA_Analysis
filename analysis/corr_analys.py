@@ -377,7 +377,7 @@ def get_corr_data(sess_pair, data_df, analyspar, permpar,
             correlation for example randomized data pairs
     """
 
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
 
     if analyspar.stats != "mean" or analyspar.error != "std":
         raise NotImplementedError(
@@ -731,7 +731,7 @@ def get_ex_idx_corr_norm_df(sessions, analyspar, stimpar, basepar, idxpar,
             - {}v{}_rand_corrs_bin_edges (list): bins edges
     """
 
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
 
     initial_columns = misc_analys.get_sess_df_columns(sessions[0], analyspar)
     

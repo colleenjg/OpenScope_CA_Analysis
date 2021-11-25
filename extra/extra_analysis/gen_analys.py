@@ -98,11 +98,11 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
                     "sess.only_tracked_rois should match analyspar.tracked."
                     )
             nanpol = None
-            if not analyspar.remnans:
+            if not analyspar.rem_bad:
                 nanpol = "omit"
             all_rois = gen_util.reshape_df_data(
                 sess.get_roi_traces(
-                    None, analyspar.fluor, analyspar.remnans, analyspar.scale
+                    None, analyspar.fluor, analyspar.rem_bad, analyspar.scale
                 )["roi_traces"], squeeze_cols=True)
             full_tr = math_util.get_stats(
                 all_rois, analyspar.stats, analyspar.error, axes=0, 
@@ -110,7 +110,7 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
             roi_tr.append(all_rois.tolist())
         elif datatype == "run":
             full_tr = sess.get_run_velocity(
-                remnans=analyspar.remnans, scale=analyspar.scale
+                rem_bad=analyspar.rem_bad, scale=analyspar.scale
                 ).to_numpy().squeeze().tolist()
             roi_tr = None
         all_tr.append(full_tr)
@@ -128,7 +128,7 @@ def run_full_traces(sessions, analysis, analyspar, sesspar, figpar,
 
     sess_info = sess_gen_util.get_sess_info(
         sessions, analyspar.fluor, incl_roi=(datatype=="roi"), 
-        remnans=analyspar.remnans)
+        rem_bad=analyspar.rem_bad)
 
     info = {"analyspar" : analyspar._asdict(),
             "sesspar"   : sesspar._asdict(),
@@ -184,7 +184,7 @@ def run_traces_by_qu_unexp_sess(sessions, analysis, analyspar, sesspar,
         f"{dendstr_pr}).", extra={"spacing": "\n"})
     
     # modify quantpar to retain all quantiles
-    quantpar_one  = sess_ntuple_util.init_quantpar(1, 0, "", "")
+    quantpar_one  = sess_ntuple_util.init_quantpar(1, 0)
     n_quants      = quantpar.n_quants
     quantpar_mult = sess_ntuple_util.init_quantpar(n_quants, "all")
 
@@ -212,7 +212,7 @@ def run_traces_by_qu_unexp_sess(sessions, analysis, analyspar, sesspar,
 
         sess_info = sess_gen_util.get_sess_info(
             sessions, analyspar.fluor, incl_roi=(datatype=="roi"), 
-            remnans=analyspar.remnans)
+            rem_bad=analyspar.rem_bad)
 
         info = {"analyspar"  : analyspar._asdict(),
                 "sesspar"    : sesspar._asdict(),
@@ -275,7 +275,7 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
     seed = rand_util.seed_all(seed, "cpu", log_seed=False)
 
     # modify quantpar to retain all quantiles
-    quantpar_one  = sess_ntuple_util.init_quantpar(1, 0, "", "")
+    quantpar_one  = sess_ntuple_util.init_quantpar(1, 0)
     n_quants      = quantpar.n_quants
     quantpar_mult = sess_ntuple_util.init_quantpar(n_quants, "all")
 
@@ -345,7 +345,7 @@ def run_traces_by_qu_lock_sess(sessions, analysis, seed, analyspar, sesspar,
 
                 sess_info = sess_gen_util.get_sess_info(
                     sessions, analyspar.fluor, incl_roi=(datatype=="roi"), 
-                    remnans=analyspar.remnans)
+                    rem_bad=analyspar.rem_bad)
 
                 info = {"analyspar"  : analyspar._asdict(),
                         "sesspar"    : sesspar._asdict(),
@@ -416,7 +416,7 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
     mouse_ns = [sess.mouse_n for sess in sessions]
     lines    = [sess.line for sess in sessions]
 
-    if analyspar.remnans:
+    if analyspar.rem_bad:
         nanpol = None
     else:
         nanpol = "omit"
@@ -435,7 +435,7 @@ def run_mag_change(sessions, analysis, seed, analyspar, sesspar, stimpar,
 
     sess_info = sess_gen_util.get_sess_info(
         sessions, analyspar.fluor, incl_roi=(datatype=="roi"), 
-        remnans=analyspar.remnans)
+        rem_bad=analyspar.rem_bad)
         
     extrapar  = {"analysis": analysis,
                  "datatype": datatype,
@@ -519,7 +519,7 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
                 fr = list(range(min(frame_edges[0]), max(frame_edges[1])+1))
                 traces = gen_util.reshape_df_data(
                     sess.get_roi_traces(fr, fluor=analyspar.fluor, 
-                        remnans=analyspar.remnans, scale=analyspar.scale), 
+                        rem_bad=analyspar.rem_bad, scale=analyspar.scale), 
                     squeeze_cols=True)
 
             elif datatype == "run":
@@ -532,7 +532,7 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
                 fr = list(range(min(frame_edges[0]), max(frame_edges[1])+1))
                 
                 traces = sess.get_run_velocity_by_fr(fr, fr_type="stim", 
-                    remnans=analyspar.remnans, scale=analyspar.scale
+                    rem_bad=analyspar.rem_bad, scale=analyspar.scale
                     ).to_numpy().reshape(1, -1)
                 
             sess_traces.append(traces)
@@ -566,7 +566,7 @@ def run_autocorr(sessions, analysis, analyspar, sesspar, stimpar, autocorrpar,
 
     sess_info = sess_gen_util.get_sess_info(
         sessions, analyspar.fluor, incl_roi=(datatype=="roi"), 
-        remnans=analyspar.remnans)
+        rem_bad=analyspar.rem_bad)
 
     extrapar  = {"analysis": analysis,
                  "datatype": datatype,

@@ -124,7 +124,7 @@ def init_analysis(args):
     # analysis parameters
     analysis_dict["analyspar"] = sess_ntuple_util.init_analyspar(
         fluor="dff", # type of fluorescence data to use (dF/F)
-        remnans=specific_params["remnans"], # whether to remove invalid ROIs OR interpolate missing run or pupil data
+        rem_bad=specific_params["rem_bad"], # whether to remove bad ROIs OR interpolate bad values in run or pupil data
         stats="mean", # type of statistic to measure (mean/median)
         error=specific_params["error"], # type of error to measure (std/SEM)
         scale=specific_params["scale"], # whether to scale ROIs (robust scaling)

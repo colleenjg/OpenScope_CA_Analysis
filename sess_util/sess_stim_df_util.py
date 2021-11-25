@@ -1233,20 +1233,21 @@ def load_stimulus_table_nwb(sess_files, full_table=True):
     sess_files = gen_util.list_if_not(sess_files)
 
     sess_file = sess_files[0]
-    if len(sess_files) == 1:
+    if len(sess_files) > 1:
         warnings.warn(
             f"Several session files found. Using the first listed: {sess_files}."
             )
 
     exclude = set() if full_table else set(FULL_TABLE_COLUMNS)
-
-    with pynwb.NWBHDF5IO(sess_file, "r") as f:
+ 
+    # a bit long
+    with pynwb.NWBHDF5IO(str(sess_file), "r") as f:
         nwbfile_in = f.read()
         df = nwbfile_in.trials.to_dataframe(exclude=exclude)
-    
+ 
     # rename time columns
     df = df.rename(
-        {"start_time": "start_time_sec", 
+        columns={"start_time": "start_time_sec", 
          "stop_time": "stop_time_sec"}
     )
     df["duration_sec"] = df["stop_time_sec"] - df["start_time_sec"]

@@ -296,12 +296,12 @@ def data_from_refs(sess, refs, analyspar, stimpar, datatype="roi",
                                  [x ROIs] x seq [x frames]
     """
 
-    if analyspar.remnans:
+    if analyspar.rem_bad:
         nanpol = None
     else:
         nanpol = "omit"
 
-    args = {"remnans": analyspar.remnans,
+    args = {"rem_bad": analyspar.rem_bad,
             "scale"  : analyspar.scale}
 
     if ref_type not in ["segs", "twop_frs", "stim_frs"]:
@@ -849,7 +849,7 @@ def split_diff_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype="roi",
     """
 
     nanpol = "omit"
-    if analyspar.remnans:
+    if analyspar.rem_bad:
         nanpol = None
 
     data_arr = split_data_by_sess(sess, analyspar, stimpar, datatype=datatype, 
@@ -998,7 +998,7 @@ def stim_idx_by_sess(sess, analyspar, stimpar, n_perms=1000, datatype="roi",
     seed = rand_util.seed_all(seed, "cpu", log_seed=False)
 
     nanpol = "omit"
-    if analyspar.remnans:
+    if analyspar.rem_bad:
         nanpol = None
 
     if "dir" in feature:
@@ -1249,7 +1249,7 @@ def stim_idx_by_sesses(sessions, analyspar, stimpar, n_perms=1000, p_val=0.05,
             
         sess_info.append(sess_gen_util.get_sess_info(
             sesses, analyspar.fluor, add_none=True, 
-            incl_roi=(datatype=="roi"), remnans=analyspar.remnans))
+            incl_roi=(datatype=="roi"), rem_bad=analyspar.rem_bad))
         
         if len(all_rand) == 0:
             use_bounds = [-0.5, 0.5]
@@ -1352,7 +1352,7 @@ def get_grped_roi_stats(all_roi_vals, analyspar, permpar):
     st_len = 2 + (analyspar.stats == "median" and analyspar.error == "std")
 
     nanpol = "omit"
-    if analyspar.remnans:
+    if analyspar.rem_bad:
         nanpol = None
 
     n_sess = len(all_roi_vals)
@@ -1564,7 +1564,7 @@ def split_diff_by_sesses(sessions, analyspar, stimpar, permpar, datatype="roi",
         # get the segments
         m_sess_info = sess_gen_util.get_sess_info(
             m_sess, analyspar.fluor, add_none=True, incl_roi=(datatype=="roi"), 
-            remnans=analyspar.remnans)
+            rem_bad=analyspar.rem_bad)
         for s, sess in enumerate(m_sess):
             if sess is None:
                 continue
@@ -2035,7 +2035,7 @@ def split_traces_by_sesses(sessions, analyspar, stimpar, datatype="roi",
         # get the segments
         m_sess_info = sess_gen_util.get_sess_info(m_sess, analyspar.fluor, 
             add_none=True, incl_roi=(datatype=="roi"), 
-            remnans=analyspar.remnans)
+            rem_bad=analyspar.rem_bad)
         nan_idx = []
         mouse_traces = []
         for s, sess in enumerate(m_sess):
@@ -2554,7 +2554,7 @@ def prog_by_sesses(sessions, analyspar, stimpar, datatype="roi",
     st_len = 2 + (analyspar.stats == "median" and analyspar.error == "std")
 
     nanpol = "omit"
-    if analyspar.remnans:
+    if analyspar.rem_bad:
         nanpol = None
 
     n_mice = len(sessions)
@@ -2571,7 +2571,7 @@ def prog_by_sesses(sessions, analyspar, stimpar, datatype="roi",
     for m, m_sess in enumerate(sessions):
         m_sess_info = sess_gen_util.get_sess_info(
             m_sess, analyspar.fluor, add_none=True, incl_roi=(datatype=="roi"), 
-            remnans=analyspar.remnans)
+            rem_bad=analyspar.rem_bad)
         for s, sess in enumerate(m_sess):
             if sess is None:
                 continue
@@ -3424,7 +3424,7 @@ def stimpar_split_idx_by_sesses(sessions, analyspar, stimpar, datatype="roi",
             
         sess_info.append(sess_gen_util.get_sess_info(
             sesses, analyspar.fluor, add_none=True, incl_roi=(datatype=="roi"), 
-            remnans=analyspar.remnans))
+            rem_bad=analyspar.rem_bad))
         
     return all_item_idxs, sess_info
 
@@ -3922,7 +3922,7 @@ def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None,
         remconsec=remconsec) 
         for unexp in unexps]
 
-    if analyspar.remnans:
+    if analyspar.rem_bad:
         nanpol = None
     else:
         nanpol = "omit"
@@ -3943,7 +3943,7 @@ def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None,
         # get data for last unexp value,  xran is padded
         roi_data_df = stim.get_roi_data(
             twop_frs[-1], stimpar.pre, stimpar.post, fluor=analyspar.fluor, 
-            remnans=analyspar.remnans, scale=analyspar.scale, pad=pad
+            rem_bad=analyspar.rem_bad, scale=analyspar.scale, pad=pad
             ) #, smooth=win_pad)
         xran = roi_data_df.index.unique("time_values").to_numpy() 
         data_arr = gen_util.reshape_df_data(roi_data_df, squeeze_cols=True)  
@@ -3957,7 +3957,7 @@ def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None,
             # full_arr: unexp x ROI x sequences
             integ_data = [gen_util.reshape_df_data(stim.get_roi_data(
                 twop_fr, pre=pre, post=post, fluor=analyspar.fluor, integ=True,
-                remnans=analyspar.remnans, 
+                rem_bad=analyspar.rem_bad, 
                 scale=analyspar.scale)["roi_traces"], squeeze_cols=True)
                 for twop_fr, [pre, post] in zip(twop_frs, pre_posts)]   
             signif_rois = signif_grps.get_signif_rois(
@@ -3970,7 +3970,7 @@ def get_sess_latencies(sess, analyspar, stimpar, latpar, permpar=None,
         stim_fr = stim.get_fr_by_seg(
             all_segs[-1], start=True, fr_type="stim")["start_frame_stim"]
         run_data_df = stim.get_run_data(
-            stim_fr, stimpar.pre, stimpar.post, remnans=analyspar.remnans, 
+            stim_fr, stimpar.pre, stimpar.post, rem_bad=analyspar.rem_bad, 
             scale=analyspar.scale)["run_velocity"]
         # padding not implemented for running data
         pad_win = 0
@@ -4076,7 +4076,7 @@ def run_unexp_latency(sessions, analysis, seed, analyspar, sesspar, stimpar,
         for s, sesses in enumerate(l_sesses): # across sessions
             l_sess_info.append(sess_gen_util.get_sess_info(
                 sesses, analyspar.fluor, add_none=True, 
-                incl_roi=(datatype=="roi"), remnans=analyspar.remnans))
+                incl_roi=(datatype=="roi"), rem_bad=analyspar.rem_bad))
             # for each mouse, optionally runs in parallel
             args_list = [analyspar, stimpar, latpar, permpar, seed, datatype]
             sess_vals = gen_util.parallel_wrap(
@@ -4219,10 +4219,10 @@ def run_resp_prop(sessions, analysis, seed, analyspar, sesspar, stimpar,
         for s, sesses in enumerate(l_sesses): # across sessions
             l_sess_info.append(sess_gen_util.get_sess_info(sesses, 
                 analyspar.fluor, add_none=True, incl_roi=(datatype=="roi"), 
-                remnans=analyspar.remnans))
+                rem_bad=analyspar.rem_bad))
             # keep only sessions with both stimuli
             sesses = sess_gen_util.check_both_stimuli(sesses)
-            nrois = [sess.get_nrois(analyspar.remnans, analyspar.fluor) 
+            nrois = [sess.get_nrois(analyspar.rem_bad, analyspar.fluor) 
                 for sess in sesses]
             # sesses x [stims x nrois]
             resp_arrs = [np.full([len(stimtypes), nroi], 0) for nroi in nrois]         

@@ -322,7 +322,7 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all",
         gen_util.accepted_values_error("grp2", grp2, ["unexp", "exp", "rand"])
     
     stim = sess.get_stim(stimpar.stimtype)
-    nrois_tot = sess.get_nrois(analyspar.remnans, analyspar.fluor)
+    nrois_tot = sess.get_nrois(analyspar.rem_bad, analyspar.fluor)
     ngabs_tot = stim.n_patches
     if nrois == "all":
         sess_nrois = nrois_tot
@@ -360,7 +360,7 @@ def calc_tune_curvs(sess, analyspar, stimpar, nrois="all", ngabs="all",
         roi_data = gen_util.reshape_df_data(
             stim.get_roi_data(
                 twopfr, stimpar.pre, stimpar.post, analyspar.fluor, integ=True, 
-                remnans=analyspar.remnans, scale=analyspar.scale
+                rem_bad=analyspar.rem_bad, scale=analyspar.scale
             )["roi_traces"], squeeze_cols=True)[:sess_nrois]
 
         # gab x seq 

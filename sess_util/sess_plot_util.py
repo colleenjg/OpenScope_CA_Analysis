@@ -100,7 +100,7 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                 ["locori"] (Path)   : subdirectory name for location and 
                                       orientation responses
                 ["mags"] (Path)     : subdirectory name for magnitude analyses
-                ["posori"] (Path)   : subdirectory name for position and 
+                ["loc_ori"] (Path)  : subdirectory name for location and 
                                       orientation plots
                 ["prog"] (Path)     : subdirectory name for firsts progression 
                                       analysis                
@@ -160,7 +160,7 @@ def init_figpar(ncols=4, sharex=False, sharey=True, subplot_hei=7,
                 "grped"    : "grped",
                 "lat"      : "latencies",
                 "mags"     : "mags",
-                "posori"   : "posori",
+                "loc_ori"  : "loc_ori",
                 "prog"     : "prog",
                 "prop"     : "prop_resp",
                 "pupil"    : "pupil",
@@ -407,7 +407,7 @@ def get_seg_comp(gabfr=0, plot_vals="both", op="diff", pre=0, post=1.5):
     if len(labels) > len(xpos):
         labels = labels[:len(xpos)]
 
-    hbars = [bars[x] for x in range(1, len(bars)) if labels[x-1] == "C"]
+    hbars = [bars[x] for x in range(1, len(bars)) if labels[x-1] in ["C", "G"]]
     bars = gen_util.remove_if(bars, [-pre] + hbars)
     hbars = gen_util.remove_if(hbars, -pre)
 

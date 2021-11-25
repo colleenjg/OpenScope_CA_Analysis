@@ -90,7 +90,7 @@ def sess_stim_idxs(sess, analyspar, stimpar, n_perms=1000, split="by_exp",
             dims: item x n_perms
     """
 
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
 
     data_arr, _ = basic_analys.get_split_data_by_sess(
         sess, analyspar, stimpar, split=split, integ=True, baseline=baseline, 
@@ -1175,7 +1175,7 @@ def get_idx_stats_df(sessions, analyspar, stimpar, basepar, idxpar,
                 corrected for multiple comparisons and tails
     """
 
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
 
     if analyspar.tracked:
         misc_analys.check_sessions_complete(sessions, raise_err=True)

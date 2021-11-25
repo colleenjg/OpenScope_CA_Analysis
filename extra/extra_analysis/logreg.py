@@ -213,7 +213,7 @@ def get_stimpar(comp="unexp", stimtype="gabors", visflow_dir="both",
                 pre, post = 0, 0.45
                 if comp in ["Dori", "Uori"]:
                     pre, post = 0, 0.6
-                act_gabfr = act_gabfr[0]
+                act_gabfr = act_gabfr[0][0] # only one value
                 gab_ori = sess_gen_util.filter_gab_oris(gab_letts[0], gab_ori)
                 if act_gabfr != gabfr:
                     logger.info(
@@ -380,7 +380,8 @@ def get_df_name(task="analyse", stimtype="gabors", comp="unexp", ctrl=False,
 
     ctrl_str = sess_str_util.ctrl_par_str(ctrl)
 
-    sub_str = f"{stimtype[0:3]}_{comp}{ctrl_str}{alg_str}"
+    stim_str = "gab" if stimtype == "gabors" else stimtype
+    sub_str = f"{stim_str}_{comp}{ctrl_str}{alg_str}"
 
     if task == "collate":
         df_name = f"{sub_str}_all_scores_df.csv"
@@ -581,19 +582,30 @@ def get_data(stim, analyspar, stimpar, quantpar, qu_i=0, unexp=[0, 1],
     # data for single quartile
     # first number of unexpecteds, then segs
     for t, unexp_use in enumerate([1, unexp]):
+        # adjust orientation if U frames are used as a control
+        stimpar_use = stimpar
+        if (stimpar.gabfr in [3, 4] and isinstance(stimpar.gab_ori, int) and 
+            unexp_use == 1 and unexp == 0):
+            gab_ori = sess_gen_util.get_unexp_gab_ori(stimpar.gab_ori)
+            stimpar_use = sess_ntuple_util.get_modif_ntuple(
+                stimpar, "gab_ori", gab_ori
+                )
+
         remconsec = (remconsec_unexps and unexp_use == 1)
         segs = quant_analys.quant_segs(
-            stim, stimpar, quantpar.n_quants, qu_i, unexp_use, 
+            stim, stimpar_use, quantpar.n_quants, qu_i, unexp_use, 
             remconsec=remconsec)[0][0]
+
         # get alternating for consecutive segments
         if get_2nd and not remconsec: 
             segs = gen_util.get_alternating_consec(segs, first=False)
         if t == 0:
             unexp_n = len(segs) * n
+    
     twop_fr = stim.get_fr_by_seg(
         segs, start=True, fr_type="twop"
         )["start_frame_twop"]
-    
+
     # do not scale (scaling factors cannot be based on test data)
     if stim.sess.only_tracked_rois != analyspar.tracked:
         raise RuntimeError(
@@ -601,10 +613,10 @@ def get_data(stim, analyspar, stimpar, quantpar, qu_i=0, unexp=[0, 1],
             )
     roi_data = gen_util.reshape_df_data(
         stim.get_roi_data(twop_fr, stimpar.pre, stimpar.post, 
-        analyspar.fluor, remnans=True, scale=False), squeeze_cols=True)
+        analyspar.fluor, rem_bad=True, scale=False), squeeze_cols=True)
     
     # for visual flow logreg test analyses
-    if TEST_VISFLOW_VARIATIONS:
+    if stimpar.stimtype == "visflow" and TEST_VISFLOW_VARIATIONS:
         if remconsec_unexps:
             # Normalize to first half
             mid = roi_data.shape[-1]  // 2
@@ -716,14 +728,12 @@ def get_sess_data(sess, analyspar, stimpar, quantpar, class_var="unexps",
         # DOUBLE unexp ns to compensate for shorter blocks, if using control
         n = 2
         if "diff" in class_var:
-            quantpar = sess_ntuple_util.init_quantpar(
-                4, [[1, 2]], [None], [None])
+            quantpar = sess_ntuple_util.init_quantpar(4, [[1, 2]])
             if len(np.unique(stim.main_flow_direcs)) != 2:
                 raise RuntimeError(
                     "Segments do not fit these criteria (missing directions).")
         else:
-            quantpar = sess_ntuple_util.init_quantpar(
-                2, [[0, 1]], [None], [None])
+            quantpar = sess_ntuple_util.init_quantpar(2, [[0, 1]])
     else:
         n_cl = len(stimpar._asdict()[class_var])
 
@@ -739,13 +749,11 @@ def get_sess_data(sess, analyspar, stimpar, quantpar, class_var="unexps",
     elif exp_v_unexp:
         unexps = [unexps, 1-unexps]
         gabfr_idxs = ["ignore", "ignore"]
-        quantpar = sess_ntuple_util.init_quantpar(
-            1, [0, 0], [None, None], [None, None])
+        quantpar = sess_ntuple_util.init_quantpar(1, [0, 0])
     elif split_oris:
         unexps = unexps
         gabfr_idxs = [0, 1]
-        quantpar = sess_ntuple_util.init_quantpar(
-            1, [0, 0], [None, None], [None, None])
+        quantpar = sess_ntuple_util.init_quantpar(1, [0, 0])
     else:
         unexps = [unexps]
         gabfr_idxs = ["ignore"]
@@ -772,8 +780,9 @@ def get_sess_data(sess, analyspar, stimpar, quantpar, class_var="unexps",
                 vals = stimpar._asdict()[class_var][cl]
                 if split_oris:
                     keys = [keys, "gabfr", "gab_ori"]
-                    vals = [vals, stimpar.gabfr[gabfr_idx], 
-                        stimpar.gab_ori[cl]]
+                    gabfr = stimpar.gabfr[gabfr_idx]
+                    gab_ori = stimpar.gab_ori[cl]
+                    vals = [vals, gabfr, gab_ori]
                 # modify stimpar
                 stimpar_sp = sess_ntuple_util.get_modif_ntuple(
                     stimpar, keys, vals)
@@ -1068,15 +1077,13 @@ def save_scores(info, scores, key_order=None, dirname="."):
 
 
 #############################################
-def setup_run(quantpar, extrapar, techpar, sess_data, comp="unexp", 
-              gab_ori="all"):
+def setup_run(extrapar, techpar, sess_data, comp="unexp", gab_ori="all"):
     """
-    setup_run(quantpar, extrapar, techpar, sess_data)
+    setup_run(extrapar, techpar, sess_data)
     
     Sets up run(s) by setting seed, getting classes and number of ROIs.
 
     Required args:
-        - quantpar (QuantPar)  : named tuple containing quantile parameters
         - extrapar (dict)      : dictionary with extra parameters
             ["seed"] (int)    : seed to use
             ["shuffle"] (bool): if analysis is on shuffled data
@@ -1144,11 +1151,11 @@ def setup_run(quantpar, extrapar, techpar, sess_data, comp="unexp",
 
 
 #############################################
-def all_runs_sk(n_runs, analyspar, logregpar, quantpar, sesspar, stimpar, 
-                 extrapar, techpar, sess_data):
+def all_runs_sk(n_runs, analyspar, logregpar, sesspar, stimpar, extrapar, 
+                techpar, sess_data):
     """
-    all_runs_sk(n_runs, analyspar, logregpar, quantpar, sesspar, stimpar, 
-                 extrapar, techpar, sess_data)
+    all_runs_sk(n_runs, analyspar, logregpar, sesspar, stimpar, extrapar, 
+                techpar, sess_data)
 
     Does all runs of a logistic regression on the specified comparison
     and session data using sklearn. Records hyperparameters, all models,  
@@ -1159,7 +1166,6 @@ def all_runs_sk(n_runs, analyspar, logregpar, quantpar, sesspar, stimpar,
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - logregpar (LogRegPar): named tuple containing logistic regression 
                                  parameters
-        - quantpar (QuantPar)  : named tuple containing quantile parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
         - extrapar (dict)      : dictionary with extra parameters
@@ -1196,8 +1202,8 @@ def all_runs_sk(n_runs, analyspar, logregpar, quantpar, sesspar, stimpar,
             )
 
     [extrapar, roi_seqs, seq_classes, n_unexps] = setup_run(
-         quantpar, extrapar, techpar, sess_data, logregpar.comp, 
-         gab_ori=stimpar.gab_ori)
+         extrapar, techpar, sess_data, logregpar.comp, gab_ori=stimpar.gab_ori
+         )
     main_data = [roi_seqs[0], seq_classes[0]]
 
     samples = [False for _ in n_unexps]
@@ -1298,11 +1304,11 @@ def all_runs_sk(n_runs, analyspar, logregpar, quantpar, sesspar, stimpar,
 
 
 #############################################
-def single_run_pt(run_n, analyspar, logregpar, quantpar, sesspar, stimpar, 
-                  extrapar, techpar, sess_data):
+def single_run_pt(run_n, analyspar, logregpar, sesspar, stimpar, extrapar, 
+                  techpar, sess_data):
     """
-    single_run_pt(run_n, analyspar, logregpar, quantpar, sesspar, stimpar, 
-                  extrapar, techpar, sess_data)
+    single_run_pt(run_n, analyspar, logregpar, sesspar, stimpar, extrapar, 
+                  techpar, sess_data)
 
     Does a single run of a logistic regression using PyTorch on the specified 
     comparison and session data. Records hyperparameters, best model, last 
@@ -1313,7 +1319,6 @@ def single_run_pt(run_n, analyspar, logregpar, quantpar, sesspar, stimpar,
         - analyspar (AnalysPar): named tuple containing analysis parameters
         - logregpar (LogRegPar): named tuple containing logistic regression 
                                  parameters
-        - quantpar (QuantPar)  : named tuple containing quantile parameters
         - sesspar (SessPar)    : named tuple containing session parameters
         - stimpar (StimPar)    : named tuple containing stimulus parameters
         - extrapar (dict)      : dictionary with extra parameters
@@ -1345,8 +1350,8 @@ def single_run_pt(run_n, analyspar, logregpar, quantpar, sesspar, stimpar,
     extrapar["seed"] *= run_n + 1 # ensure different seed for each run
 
     [extrapar, roi_seqs, seq_classes, n_unexps] = setup_run(
-        quantpar, extrapar, techpar, sess_data, logregpar.comp, 
-        gab_ori=stimpar.gab_ori)
+        extrapar, techpar, sess_data, logregpar.comp, gab_ori=stimpar.gab_ori
+        )
 
     extrapar["run_n"] = run_n
     scale_str = sess_str_util.scale_par_str(analyspar.scale, "print")
@@ -1467,7 +1472,8 @@ def run_regr(sess, analyspar, stimpar, logregpar, quantpar, extrapar, techpar):
             sess, analyspar, stimpar, quantpar, class_var, unexps, 
             exp_v_unexp=logregpar.exp_v_unexp, split_oris=split_oris)
     except RuntimeError as err:
-        catch_phr = ["No frames", "No segments", "Some quantiles are empty"]
+        catch_phr = ["No frames", "No segments", "Some quantiles are empty", 
+            "Segments do not"]
         catch = sum(phr in str(err) for phr in catch_phr)
         if catch:            
             warnings.warn(str(err), category=RuntimeWarning, stacklevel=1)
@@ -1492,14 +1498,14 @@ def run_regr(sess, analyspar, stimpar, logregpar, quantpar, extrapar, techpar):
             if n_runs == 0:
                 continue
             # optionally runs in parallel
-            args_list = [analyspar, logregpar, quantpar, sesspar, stimpar, 
-                extrapar, techpar, sess_data]
+            args_list = [analyspar, logregpar, sesspar, stimpar, extrapar, 
+                techpar, sess_data]
             gen_util.parallel_wrap(
                 single_run_pt, range(n_runs), args_list, 
                 parallel=techpar["parallel"])
         elif logregpar.alg == "sklearn":
-            all_runs_sk(n_runs, analyspar, logregpar, quantpar, sesspar, 
-                stimpar, extrapar, techpar, sess_data)
+            all_runs_sk(n_runs, analyspar, logregpar, sesspar, stimpar, 
+                extrapar, techpar, sess_data)
         else:
             gen_util.accepted_values_error("logregpar.alg", logregpar.alg, 
                 ["pytorch", "sklearn"])
@@ -1656,13 +1662,14 @@ def run_collate(output, stimtype="gabors", comp="unexp", ctrl=False,
         return
 
     ext_test = sess_str_util.ext_test_str(
-        ("q1v4" in str(output)), ("rvs" in str(output)), comp)
+        ("_q1v4" in str(output)), ("_evu" in str(output)), comp)
     if ext_test == "":
         ext_test = None
 
     ctrl_str = sess_str_util.ctrl_par_str(ctrl)
+    stim_str = "gab" if stimtype == "gabors" else stimtype
     gen_dirs = file_util.getfiles(
-        output, "subdirs", [stimtype[0:3], comp, ctrl_str])
+        output, "subdirs", [stim_str, comp, ctrl_str])
                          
     if alg == "sklearn":
         gen_dirs = [gen_dir for gen_dir in gen_dirs if "_pt" not in str(gen_dir)]
@@ -1867,7 +1874,7 @@ def run_analysis(output, stimtype="gabors", comp="unexp", ctrl=False,
     scores_summ = pd.DataFrame()
 
     ext_test = sess_str_util.ext_test_str(
-        ("q1v4" in str(output)), ("rvs" in str(output)), comp)
+        ("_q1v4" in str(output)), ("_evu" in str(output)), comp)
     if ext_test == "":
         ext_test = None
 

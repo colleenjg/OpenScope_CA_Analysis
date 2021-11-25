@@ -147,7 +147,7 @@ def decoder_warning():
 def get_specific_params(sess_n="1-3", mouse_n="any", plane="all", line="all", 
                         stimtype="gabors", gabfr=3, gab_ori="any", pre=0, 
                         post=0.6, tails=2, idx_feature="by_exp", comp="Dori", 
-                        error="sem", scale=True, tracked=False, remnans=True,
+                        error="sem", scale=True, tracked=False, rem_bad=True,
                         roi=True, run=False, pupil=False):
     """
     get_specific_params()
@@ -200,7 +200,7 @@ def get_specific_params(sess_n="1-3", mouse_n="any", plane="all", line="all",
         - tracked (bool):
             if True, only tracked ROIs are included
             default: False
-        - remnans (bool):
+        - rem_bad (bool):
             if True, invalid ROIs are removed, or for pupil/running data, 
             missing data is interpolated
             default: True
@@ -241,7 +241,7 @@ def get_specific_params(sess_n="1-3", mouse_n="any", plane="all", line="all",
         "error"       : error,
         "scale"       : scale,
         "tracked"     : tracked,
-        "remnans"     : remnans,
+        "rem_bad"     : rem_bad,
         "roi"         : roi,
         "run"         : run,
         "pupil"       : pupil,
@@ -573,7 +573,7 @@ class FigurePanelAnalysis():
             sess_n=1,
             pre=0.9,
             post=0.6,
-            remnans=False, # do not interpolate missing data
+            rem_bad=False, # do not interpolate missing data
             scale=False,
             roi=False,
             run=True,
@@ -592,7 +592,7 @@ class FigurePanelAnalysis():
             "responses U-G vs D-G Gabor sequences.")
         self.specific_params = get_specific_params(
             sess_n=1,
-            remnans=False, # do not interpolate missing data
+            rem_bad=False, # do not interpolate missing data
             scale=False,
             roi=False,
             run=True,

@@ -147,7 +147,7 @@ def get_pupil_run_trace_stats_df(sessions, analyspar, stimpar, basepar,
                 (only 0 to stimpar.post, unless split is "by_exp")    
     """
 
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
 
     all_trace_df = get_pupil_run_trace_df(
         sessions, 
@@ -324,7 +324,7 @@ def get_pupil_run_block_stats_df(sessions, analyspar, stimpar, permpar,
                 corrected for multiple comparisons and tails
     """
 
-    nanpol = None if analyspar.remnans else "omit"
+    nanpol = None if analyspar.rem_bad else "omit"
     
     all_block_df = get_pupil_run_block_diffs_df(
         sessions, 

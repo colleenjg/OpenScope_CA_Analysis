@@ -267,7 +267,7 @@ def plot_pupil_run_block_diffs(block_df, analyspar, permpar, figpar,
             "'block_df' should only contain one session number."
         )
 
-    nanpol = None if analyspar["remnans"] else "omit"
+    nanpol = None if analyspar["rem_bad"] else "omit"
     
     sensitivity = misc_analys.get_sensitivity(permpar)
     comp_info = misc_analys.get_comp_info(permpar)

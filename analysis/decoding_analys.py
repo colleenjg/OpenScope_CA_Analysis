@@ -101,7 +101,7 @@ def get_decoding_data(sess, analyspar, stimpar, comp="Dori", ctrl=False):
             ctrl_ns.append(len(fr_ns_ctrl))
 
         ori_data_df = stim.get_roi_data(
-            fr_ns, stimpar.pre, stimpar.post, remnans=analyspar.remnans, 
+            fr_ns, stimpar.pre, stimpar.post, rem_bad=analyspar.rem_bad, 
             scale=analyspar.scale
             )
         # seq x frames x ROIs

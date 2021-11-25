@@ -329,7 +329,7 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
                         segs, start=True, fr_type="twop")["start_frame_twop"]
                     trace_df = stim.get_roi_stats_df(twop_fr, pre, post, 
                         byroi=byroi, fluor=analyspar.fluor, 
-                        remnans=analyspar.remnans, 
+                        rem_bad=analyspar.rem_bad, 
                         stats=analyspar.stats, error=analyspar.error,
                         integ=integ, ret_arr=ret_arr, scale=analyspar.scale,
                         baseline=baseline)
@@ -337,7 +337,7 @@ def trace_stats_by_qu(stim, qu_segs, pre, post, analyspar, byroi=True,
                     stim_fr = stim.get_fr_by_seg(
                         segs, start=True, fr_type="stim")["start_frame_stim"]
                     trace_df = stim.get_run_stats_df(stim_fr, pre, post, 
-                        remnans=analyspar.remnans,
+                        rem_bad=analyspar.rem_bad,
                         stats=analyspar.stats, error=analyspar.error,
                         integ=integ, ret_arr=ret_arr, scale=analyspar.scale,
                         baseline=baseline)

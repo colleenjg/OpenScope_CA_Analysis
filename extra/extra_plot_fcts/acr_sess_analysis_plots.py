@@ -2286,10 +2286,10 @@ def plot_perc_sig_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
             raise ValueError("'common_oris' only applies to Gabors data.")
         common_str = " (common oris)"
 
-    subtitle = (f"Percentage of significant {dim_str}\nfor {feature_str}"
-        f"{common_str}")
+    subtitle = (f"Percentage of {dim_str} with significant\n{feature_str}"
+        f"{common_str} indices")
     
-    title = (f"{subtitle} ({prepost_str} seqs)\nfor {stimstr_pr} "
+    title = (f"{subtitle}\n({prepost_str} seqs) for {stimstr_pr} "
         f"(sess {sess_ns_str}{dendstr_pr})")
 
     fig, ax = plot_util.init_fig(n_plots, **figpar["init"])
@@ -3110,7 +3110,7 @@ def plot_prog_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
     else:
         gen_util.accepted_values_error("plot", plot, ["tog", "sep", "grped"])
     
-    title = (f"{subtitle}\n({prepost_str} seqs) for {stimstr_pr} "
+    title = (f"{subtitle}\n({prepost_str} seqs) for {stimstr_pr}, "
         f"{statstr_pr}{dim_str}{grp_str_pr} (sess {sess_ns_str}{dendstr_pr})")
 
     fig, ax = plot_util.init_fig(n_plots, **figpar["init"])
@@ -3426,7 +3426,7 @@ def plot_position_acr_sess(analyspar, sesspar, stimpar, extrapar, sess_info,
     subtitle = "{} {} - preceeding {} sequences".format(
         pos, *substrs).capitalize()
     
-    title = (f"{subtitle}\n({prepost_str} seqs) for {stimstr_pr} "
+    title = (f"{subtitle}\n({prepost_str} seqs) for {stimstr_pr}, "
         f"{statstr_pr}\n{dim_str}{grp_str_pr} (sess {sess_ns_str}{dendstr_pr})")
 
     fig, ax = plot_util.init_fig(n_plots, **figpar["init"])

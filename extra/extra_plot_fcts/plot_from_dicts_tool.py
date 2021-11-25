@@ -42,7 +42,7 @@ DEFAULT_FONTDIR = Path("..", "tools", "fonts")
 #############################################
 def plot_from_dicts(direc, source="roi", plt_bkend=None, fontdir=None, 
                     plot_tc=True, parallel=False, datetime=True, 
-                    overwrite=False, pattern="", depth=10):
+                    overwrite=False, pattern="", depth=0):
     """
     plot_from_dicts(direc)
 

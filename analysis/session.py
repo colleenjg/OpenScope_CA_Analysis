@@ -510,7 +510,7 @@ class Session(object):
         Returns as a numpy array the indices of the stimulus frame numbers 
         for each two-photon frame number.
 
-        Array contains np.nan for frames that are out of range for the stimulus.
+        Array contains NaNs for frames that are out of range for the stimulus.
         """
 
         if not hasattr(self, '_twop2stimfr'):
@@ -624,6 +624,10 @@ class Session(object):
                 square_locations_y       : y locations for each square, 
                                            centered on middle of the screen 
                                            (square x stimulus frame) (pix)
+                if self.nwb:
+                start_frame_stim_template: stimulus template frame number for 
+                                           the first frame of the segment
+
 
         Optional args:
             - full_table (bool): if True, the full stimulus information is 
@@ -687,8 +691,8 @@ class Session(object):
 
             
         if not reloading:
-            start_row = stim_df.loc[0]
-            last_row = stim_df.loc[len(stim_df) - 1]
+            start_row = self.stim_df.loc[0]
+            last_row = self.stim_df.loc[len(self.stim_df) - 1]
             num_sec = start_row["start_time_sec"] - last_row["stop_time_sec"]
             num_stim_fr = (
                 start_row["start_frame_stim"] - last_row["stop_frame_stim"]
@@ -738,8 +742,8 @@ class Session(object):
                                       running velocity
                     - "diff_thr"    : difference threshold used to identify 
                                       outliers
-                    - "interpolated": whether NaNs (outliers) in 
-                                      data are interpolated ("yes", "no")
+                    - "interpolated": whether bad values (outliers set to NaN) 
+                                      in data are interpolated ("yes", "no")
                 hierarchical rows:
                     - "info"        : type of information contained 
                                       ("frames": values for each frame, 
@@ -867,8 +871,9 @@ class Session(object):
                                       if not self.nwb: 
                                           "pup_center_x", "pup_center_y", 
                                           "pup_center_diff"
-                    - "interpolated": whether NaNs (blinks and outliers) in 
-                                      data are interpolated ("yes", "no")
+                    - "interpolated": whether bad values, set to NaN (blinks 
+                                      and outliers) in data are interpolated 
+                                      ("yes", "no")
                 hierarchical rows:
                     - "info"        : type of information contained 
                                       ("frames": values for each frame, 
@@ -925,31 +930,31 @@ class Session(object):
 
         if not hasattr(self, "tot_twop_fr"):
             self.tot_twop_fr = n_frames
-        elif n_frames != self.tot_twop_fr:
+        elif n_frames < self.tot_twop_fr:
+            perc = 100 - n_frames / self.tot_twop_fr * 100
             raise RuntimeError(
                 "Number of pupil frames expected to match number of "
-                "two-photon frames."
+                f"two-photon frames, but {perc:.2f}% are missing."
                 )
 
 
     #############################################
-    def _set_nanrois(self, fluor="dff", roi_traces=None):
+    def _set_bad_rois(self, fluor="dff", roi_traces=None):
         """
-        self._set_nanrois()
+        self._set_bad_rois()
 
-        Sets attributes with the indices of ROIs containing NaNs or Infs in the
-        raw or dff data.
+        Sets attributes with the indices of bad ROIs (too noisy or containing 
+        NaNs, Infs) in the raw or dff data.
 
         Attributes:
             if fluor is "dff":
-                - _nanrois_dff (list): list of ROIs containing NaNs or Infs in
-                                       the ROI dF/F traces
+                - _bad_rois_dff (list): list of bad ROIs in the dF/F traces
             if fluor is "raw":
-                - _nanrois (list)    : list of ROIs containing NaNs or Infs in
-                                       the ROI raw processed traces
+                - _bad_rois (list)    : list of bad ROIs the raw processed 
+                                        traces
 
         Optional args:
-            - fluor (str)         : if "dff", a nanrois attribute is added for 
+            - fluor (str)         : if "dff", a bad_rois attribute is added for 
                                     dF/F traces. If "raw, it is created for raw 
                                     processed traces.
                                     default: "dff"
@@ -968,7 +973,7 @@ class Session(object):
         if self.nwb:
             if fluor != "dff":
                 raise ValueError("NWB session files only include dF/F data.")
-            self._nanrois_dff = []
+            self._bad_rois_dff = []
 
         else:
             rem_noisy = True
@@ -984,7 +989,7 @@ class Session(object):
                         f"but found {roi_traces.shape}."
                         )
 
-            nan_arr = (np.isnan(roi_traces).any(axis=1) + 
+            bad_arr = (np.isnan(roi_traces).any(axis=1) + 
                 np.isinf(roi_traces).any(axis=1))
 
             if rem_noisy:
@@ -1000,61 +1005,48 @@ class Session(object):
                         > 0.5)            
                     sub0_mean = np.nanmean(roi_traces, axis=1) < 0
                 
-                roi_ns = np.where(high_med + sub0_mean)[0]
+                bad_arr += high_med + sub0_mean
 
-                n_noisy_rois = len(roi_ns)
-                if n_noisy_rois != 0 and not self._only_tracked_rois:
-                    warn_str = ", ".join([str(x) for x in roi_ns])
-                    logger.warning(f"Session {self.sessid}: {n_noisy_rois} "
-                        "noisy ROIs (mean below 0 or median above midrange) "
-                        "are also included in the NaN ROI attributes (but not "
-                        f"set to NaN): {warn_str}.", 
-                        extra={"spacing": TAB})
-                
-                nan_arr += high_med + sub0_mean
-
-            nan_rois = np.where(nan_arr)[0].tolist()
+            bad_rois = np.where(bad_arr)[0].tolist()
 
             if fluor == "dff":
-                self._nanrois_dff = nan_rois
+                self._bad_rois_dff = bad_rois
             elif fluor == "raw":
-                self._nanrois = nan_rois
+                self._bad_rois = bad_rois
 
 
     #############################################
-    def _set_nanrois_tracked(self):
+    def _set_bad_rois_tracked(self):
         """
-        self._set_nanrois_tracked()
+        self._set_bad_rois_tracked()
 
-        Sets attributes with the indices of tracked ROIs containing NaNs or 
-        Infs in the raw and/or dff data.
+        Sets attributes with the indices of bad tracked ROIs (too noisy or 
+        containing NaNs, Infs) in the raw and/or dff data.
 
         Attributes:
             if fluor is "dff":
-                - _nanrois_dff_tracked (list): 
-                                      list of ROIs (indexed for the full ROI 
-                                      list) containing NaNs or Infs in the ROI 
-                                      dF/F traces
+                - _bad_rois_dff_tracked (list): 
+                                      list of bad ROIs (indexed for the full 
+                                      ROI list) based on the dF/F traces
             if fluor is "raw":
-                - nanrois_tracked (list): 
-                                      list of ROIs (indexed for the full ROI 
-                                      list) containing NaNs or Infs in the ROI 
-                                      raw processed traces
+                - bad_rois_tracked (list): 
+                                      list of bad ROIs (indexed for the full 
+                                      ROI list) based on the raw traces
         """
 
-        if not hasattr(self, "_nanrois_dff_tracked"):
-            if hasattr(self, "_nanrois_dff"):
-                all_nanrois = self.get_nanrois("dff")
-                self._nanrois_dff_tracked = [
-                    nanroi for nanroi in all_nanrois 
+        if not hasattr(self, "_bad_rois_dff_tracked"):
+            if hasattr(self, "_bad_rois_dff"):
+                all_bad_rois = self.get_bad_rois("dff")
+                self._bad_rois_dff_tracked = [
+                    nanroi for nanroi in all_bad_rois 
                     if nanroi in self.tracked_rois
                     ]
 
-        if not hasattr(self, "_nanrois_tracked"):
-            if hasattr(self, "_nanrois"):
-                all_nanrois = self.get_nanrois("raw")
-                self._nanrois_tracked = [
-                    nanroi for nanroi in all_nanrois 
+        if not hasattr(self, "_bad_rois_tracked"):
+            if hasattr(self, "_bad_rois"):
+                all_bad_rois = self.get_bad_rois("raw")
+                self._bad_rois_tracked = [
+                    nanroi for nanroi in all_bad_rois 
                     if nanroi in self.tracked_rois
                     ]
     
@@ -1102,7 +1094,7 @@ class Session(object):
                 "ROIs.")
 
         if hasattr(self, "_tracked_rois"):
-            self._set_nanrois_tracked()
+            self._set_bad_rois_tracked()
             return
 
         try:
@@ -1118,7 +1110,7 @@ class Session(object):
             tracked_rois_df = pd.DataFrame(json.load(fp)["rois"])
 
         self._tracked_rois = tracked_rois_df['dff-ordered_roi_index'].values
-        self._set_nanrois_tracked()
+        self._set_bad_rois_tracked()
 
 
     #############################################
@@ -1171,7 +1163,7 @@ class Session(object):
 
         Calls:
             - self._init_roi_facts_df()
-            - self._set_nanrois()
+            - self._set_bad_rois()
             if self.only_tracked_rois:
             - self._set_tracked_rois()
         """
@@ -1206,7 +1198,7 @@ class Session(object):
                 allow_0=True
                 )[0:2]).reshape(-1)
 
-        self._set_nanrois(fluor, roi_traces=roi_traces) # avoid re-loading
+        self._set_bad_rois(fluor, roi_traces=roi_traces) # avoid re-loading
         if self.only_tracked_rois:
             self._set_tracked_rois()
 
@@ -1511,8 +1503,8 @@ class Session(object):
                                  omitted
                                  default: False
             - fluor (str)      : if "dff", ROI information is loaded from dF/F 
-                                 trace file. If "raw", based on the raw processed 
-                                 trace file. 
+                                 trace file. If "raw", based on the raw 
+                                 processed trace file. 
                                  default: "dff"
             - dend (str)       : dendritic traces to use ("allen" for the 
                                  original extracted traces and "extr" for the
@@ -1589,19 +1581,19 @@ class Session(object):
 
 
     #############################################
-    def get_pup_data(self, datatype="pup_diam", remnans=True, scale=False):
+    def get_pup_data(self, datatype="pup_diam", rem_bad=True, scale=False):
         """
         self.get_pup_data()
 
-        Returns the correct full pupil data array based on whether NaNs are
-        to be removed or not. 
+        Returns the correct full pupil data array based on whether bad values 
+        areto be removed or not. 
 
         Optional args:
             - datatype (str): type of pupil data to return ("pup_diam", 
                               "pup_center_x", "pup_center_y", "pup_center_diff")
                               default: "pup_diam"
-            - remnans (bool): if True, the full pupil array in which NaN 
-                              values have been removed using linear 
+            - rem_bad (bool): if True, the full pupil array in which bad 
+                              values (NaNs) have been removed using linear 
                               interpolation is returned. If False, the non
                               interpolated pupil array is returned.
                               default: True
@@ -1628,7 +1620,7 @@ class Session(object):
             self.load_pup_data()
 
         interpolated = "no"
-        if remnans:
+        if rem_bad:
             interpolated ="yes"
 
         datatypes = self.pup_data.columns.unique(level="datatype").tolist()
@@ -1657,16 +1649,16 @@ class Session(object):
 
 
     #############################################
-    def get_run_velocity(self, remnans=True, scale=False):
+    def get_run_velocity(self, rem_bad=True, scale=False):
         """
         self.get_run_velocity()
 
-        Returns the correct full running velocity array based on whether NaNs 
-        are to be removed or not. 
+        Returns the correct full running velocity array based on whether bad 
+        values are to be removed or not. 
 
         Optional args:
-            - remnans (bool): if True, the full running array in which NaN 
-                              values have been removed using linear 
+            - rem_bad (bool): if True, the full running array in which bad 
+                              values (NaNs) have been removed using linear 
                               interpolation is returned. If False, the non
                               interpolated running array is returned.
                               default: True
@@ -1698,7 +1690,7 @@ class Session(object):
                 "data correctly.")
 
         interpolated = "no"
-        if remnans:
+        if rem_bad:
             interpolated ="yes"
         
         datatype = "run_velocity"
@@ -1748,7 +1740,8 @@ class Session(object):
             - targ_fr_type (str): target frame type
                                   default: "twop"
             - raise_nans (bool) : if True, NaNs in the converted frames are 
-                                  raised. Otherwise, they are removed.
+                                  raised as errors. Otherwise, they are 
+                                  removed.
                                   default: True
         
         Returns:
@@ -1801,7 +1794,7 @@ class Session(object):
 
 
     #############################################
-    def get_run_velocity_by_fr(self, fr, fr_type="stim", remnans=True, 
+    def get_run_velocity_by_fr(self, fr, fr_type="stim", rem_bad=True, 
                                scale=False):
         """
         self.get_run_velocity_by_fr(fr)
@@ -1815,8 +1808,8 @@ class Session(object):
         Optional args:
             - fr_type (str) : type of frames passed ("stim" or "twop" frames)
                               default: "stim"
-            - remnans (bool): if True, NaN values are removed using linear 
-                              interpolation.
+            - rem_bad (bool): if True, bad values (NaNs) are removed using 
+                              linear interpolation.
                               default: True
             - scale (bool)  : if True, running is scaled based on 
                               full trace array
@@ -1850,7 +1843,7 @@ class Session(object):
         if (fr >= self.tot_stim_fr).any() or (fr < 0).any():
             raise RuntimeError("Some of the specified frames are out of range")
         
-        run_data = self.get_run_velocity(remnans=remnans, scale=scale)
+        run_data = self.get_run_velocity(rem_bad=rem_bad, scale=scale)
 
         velocity = run_data.to_numpy()[fr]
 
@@ -1872,7 +1865,7 @@ class Session(object):
         Returns correct ROI trace path.
 
         Optional args:
-            - fluor (str)        : if "dff", remnans is assessed on ROIs using 
+            - fluor (str)        : if "dff", rem_bad is assessed on ROIs using 
                                    dF/F traces. If "raw", on raw processed 
                                    traces.
                                    default: "dff"
@@ -1881,9 +1874,7 @@ class Session(object):
                                    it doesn't.
                                    default: True
         Returns:
-            - roi_trace_path (Path): indices of ROIs containing NaNs or Infs 
-                       (indexed into full ROI array, even if 
-                       self.only_tracked_rois)
+            - roi_trace_path (Path): path to ROI traces
         """
 
         if self.nwb:
@@ -1905,56 +1896,57 @@ class Session(object):
 
 
     #############################################
-    def get_nanrois(self, fluor="dff"):
+    def get_bad_rois(self, fluor="dff"):
         """
-        self.get_nanrois()
+        self.get_bad_rois()
 
-        Returns as a list the indices of ROIs containing NaNs or Infs.
+        Returns as a list the indices of bad ROIs (too noisy or containing 
+        NaNs, Infs) .
 
         Optional args:
-            - fluor (str): if "dff", remnans is assessed on ROIs using dF/F 
+            - fluor (str): if "dff", rem_bad is assessed on ROIs using dF/F 
                            traces. If "raw", on raw processed traces.
                            default: "dff"
         Returns:
-            - nanrois (1D array): indices of ROIs containing NaNs or Infs 
-                                  (indexed into full ROI array, even if 
-                                  self.only_tracked_rois)
+            - bad_rois (1D array): indices of bad ROIs (indexed into full 
+                                   ROI array, even if self.only_tracked_rois)
         """
 
         if fluor == "dff":
-            if not hasattr(self, "_nanrois_dff"):
-                self._set_nanrois(fluor)
-            if self.only_tracked_rois and hasattr(self, "_nanrois_dff_tracked"):
-                self._set_nanrois_tracked()
-                nanrois = self._nanrois_dff_tracked
+            if not hasattr(self, "_bad_rois_dff"):
+                self._set_bad_rois(fluor)
+            if self.only_tracked_rois and hasattr(self, "_bad_rois_dff_tracked"):
+                self._set_bad_rois_tracked()
+                bad_rois = self._bad_rois_dff_tracked
             else:
-                nanrois = self._nanrois_dff
+                bad_rois = self._bad_rois_dff
         elif fluor == "raw":
-            if not hasattr(self, "_nanrois"):
-                self._set_nanrois(fluor)
-            if self.only_tracked_rois and hasattr(self, "_nanrois_tracked"):
-                self._set_nanrois_tracked()
-                nanrois = self._nanrois_tracked
+            if not hasattr(self, "_bad_rois"):
+                self._set_bad_rois(fluor)
+            if self.only_tracked_rois and hasattr(self, "_bad_rois_tracked"):
+                self._set_bad_rois_tracked()
+                bad_rois = self._bad_rois_tracked
             else:
-                nanrois = self._nanrois
+                bad_rois = self._bad_rois
         else:
             gen_util.accepted_values_error("fluor", fluor, ["raw", "dff"])
 
-        return nanrois
+        return bad_rois
 
 
     #############################################
-    def get_roi_masks(self, fluor="dff", remnans=True):
+    def get_roi_masks(self, fluor="dff", rem_bad=True):
         """
         self.get_roi_masks()
 
-        Returns ROI masks, optionally removing those that contain NaNs or Infs.
+        Returns ROI masks, optionally removing bad ROIs (too noisy or 
+        containing NaNs, Infs).
 
         Optional args:
-            - fluor (str)   : if "dff", remnans is assessed on ROIs using dF/F 
+            - fluor (str)   : if "dff", rem_bad is assessed on ROIs using dF/F 
                               traces. If "raw", on raw processed traces.
                               default: "dff"
-            - remnans (bool): if True, ROIs containing NaNs/Infs are removed.
+            - rem_bad (bool): if True, bad ROIs are removed.
                               default: "dff"
         Returns:
             - roi_masks (3D array): boolean ROI masks, restricted to tracked 
@@ -1967,33 +1959,34 @@ class Session(object):
 
         if self.only_tracked_rois:
             roi_masks = roi_masks[self.tracked_rois]
-            if remnans and len(self.get_nanrois(fluor)):
+            if rem_bad and len(self.get_bad_rois(fluor)):
                 raise NotImplementedError(
-                    "remnans not implemented for tracked ROIs."
+                    "rem_bad not implemented for tracked ROIs."
                     )
 
-        elif remnans:
-            rem_idx = self.get_nanrois(fluor)
+        elif rem_bad:
+            rem_idx = self.get_bad_rois(fluor)
             roi_masks = np.delete(roi_masks, rem_idx, axis=0)
 
         return roi_masks
 
 
     #############################################
-    def get_nrois(self, remnans=True, fluor="dff"):
+    def get_nrois(self, rem_bad=True, fluor="dff"):
         """
         self.get_nrois()
 
         Returns the number of ROIs according to the specified criteria.
 
         Optional args:
-            - remnans (bool): if True, ROIs with NaN/Inf values are excluded
-                              from number.
+            - rem_bad (bool): if True, bad ROIs (too noisy or containing NaNs, 
+                              Infs) are excluded from number.
                               default: True
-            - fluor (str)   : if "dff", the indices of ROIs with NaNs or Infs 
-                              in the dF/F traces are returned. If "raw", for 
-                              raw processed traces.
+            - fluor (str)   : if "dff", the indices of bad ROIs are assessed on 
+                              dF/F data returned. If "raw", they are assessed 
+                              on raw processed traces.
                               default: "dff"
+
         Returns:
             - nrois (int): number of ROIs fitting criteria
         """
@@ -2007,15 +2000,15 @@ class Session(object):
         else:
             nrois = self._nrois
 
-        if remnans:
-            rem_rois = len(self.get_nanrois(fluor))
+        if rem_bad:
+            rem_rois = len(self.get_bad_rois(fluor))
             nrois = nrois - rem_rois
 
         return nrois
         
 
     #############################################
-    def get_active_rois(self, fluor="dff", stimtype=None, remnans=True):
+    def get_active_rois(self, fluor="dff", stimtype=None, rem_bad=True):
         """
         self.active_rois()
 
@@ -2023,17 +2016,18 @@ class Session(object):
         (defined as median + 3 std), optionally during a specific stimulus type.
 
         Optional args:
-            - fluor (str)   : if "dff", the indices of ROIs with NaNs or Infs 
-                              in the dF/F traces are returned. If "raw", for 
-                              raw processed traces.
+            - fluor (str)   : if "dff", the indices of bad ROIs are assessed on 
+                              dF/F data returned. If "raw", they are assessed 
+                              on raw processed traces.
                               default: "dff"
             - stimtype (str): stimulus type during which to check for 
                               transients ("visflow", "gabors" or None). 
                               If None, the entire session is checked.
                               default: None
-            - remnans (bool): if True, the indices ignore ROIs containg NaNs or 
-                              Infs
+            - rem_bad (bool): if True, bad ROIs (too noisy or containing NaNs, 
+                              Infs) are removed.
                               default: True
+
         Returns:
             - active_roi_indices (list): indices of active ROIs 
                                          (indexed into the full ROI array)
@@ -2047,7 +2041,7 @@ class Session(object):
 
         win = [1, 5]
         
-        full_data = self.get_roi_traces(None, fluor, remnans)
+        full_data = self.get_roi_traces(None, fluor, rem_bad)
 
         full_data_sm = scsig.medfilt(
             gen_util.reshape_df_data(
@@ -2068,7 +2062,7 @@ class Session(object):
                 twop_fr.extend(
                     [row["start_frame_twop"][0], row["stop_frame_twop"][0]
                     ])
-            stim_data = self.get_roi_traces(twop_fr, fluor, remnans)
+            stim_data = self.get_roi_traces(twop_fr, fluor, rem_bad)
             stim_data_sm = scsig.medfilt(stim_data, win)
 
         # count how many calcium transients occur in the data of interest for
@@ -2084,7 +2078,7 @@ class Session(object):
 
     #############################################
     def get_plateau_roi_traces(self, n_consec=4, thr_ratio=3, fluor="dff", 
-                               remnans=True, replace=False):
+                               rem_bad=True, replace=False):
         """
         self.get_plateau_roi_traces()
 
@@ -2107,9 +2101,12 @@ class Session(object):
             - fluor (str)      : if "dff", then dF/F traces are returned, if 
                                  "raw", raw processed traces are returned
                                  default: "dff"
-            - remnans (bool)   : if True, the indices ignore ROIs containg NaNs 
-                                 or Infs
+            - rem_bad (bool)   : if True, bad ROIs (too noisy or containing 
+                                 NaNs, Infs) are removed.
                                  default: True
+            - replace (bool)   : if True, replace self.plateau_traces, if they 
+                                 exist
+                                 default: False
 
         Returns:
             - plateau_traces: modified ROI traces where frames below 
@@ -2132,7 +2129,7 @@ class Session(object):
             logger.info(f"{calc_str} plateau traces.", extra={"spacing": "\n"})
 
             plateau_traces = gen_util.reshape_df_data(
-                self.get_roi_traces(None, fluor, remnans), squeeze_cols=True)
+                self.get_roi_traces(None, fluor, rem_bad), squeeze_cols=True)
             med = np.nanmedian(plateau_traces, axis=1)
             std = np.nanstd(plateau_traces, axis=1)
 
@@ -2195,7 +2192,7 @@ class Session(object):
 
 
     #############################################
-    def get_roi_traces(self, frames=None, fluor="dff", remnans=True, 
+    def get_roi_traces(self, frames=None, fluor="dff", rem_bad=True, 
                        scale=False):
         """
         self.get_roi_traces()
@@ -2213,8 +2210,8 @@ class Session(object):
             - fluor (str)       : if "dff", then dF/F traces are returned, if 
                                   "raw", raw processed traces are returned
                                   default: "dff"
-            - remnans (bool)    : if True, ROIs with NaN/Inf values anywhere 
-                                  in session are excluded. 
+            - rem_bad (bool)    : if True, bad ROIs (too noisy or containing 
+                                  NaNs, Infs) are removed.
                                   default: True
             - scale (bool)      : if True, each ROIs is scaled 
                                   based on full data array
@@ -2225,8 +2222,8 @@ class Session(object):
                                           by:
                 hierarchical columns (all dummy):
                     - datatype        : type of data (e.g., "roi_traces")
-                    - nan_rois_removed: whether ROIs with NaNs/Infs were 
-                                        removed ("yes", "no")
+                    - bad_rois_removed: whether bad ROIs were removed 
+                                        ("yes", "no")
                     - scaled          : whether ROI data is scaled 
                                         ("yes", "no")
                     - fluorescence    : type of data ("raw" or "dff")
@@ -2247,19 +2244,19 @@ class Session(object):
         else:
             frames = np.asarray(frames)
 
-        remnans_str = "yes" if remnans else "no"
+        rem_bad_str = "yes" if rem_bad else "no"
         scale_str = "yes" if scale else "no"
 
         roi_ids = None
         if self.only_tracked_rois:
             roi_ids = self.tracked_rois
 
-        if remnans:
-            nanrois = self.get_nanrois(fluor)
-            if len(nanrois):
+        if rem_bad:
+            bad_rois = self.get_bad_rois(fluor)
+            if len(bad_rois):
                 if self.only_tracked_rois:
-                    raise ValueError("remnans not implemented for tracked ROIs.")
-                roi_ids = np.delete(np.arange(self._nrois), nanrois)
+                    raise ValueError("rem_bad not implemented for tracked ROIs.")
+                roi_ids = np.delete(np.arange(self._nrois), bad_rois)
 
         if self.nwb:
             if fluor != "dff":
@@ -2297,8 +2294,8 @@ class Session(object):
 
         # initialize the return dataframe
         index_cols = pd.MultiIndex.from_product(
-            [["roi_traces"], [remnans_str], [scale_str], [fluor]], 
-            names=["datatype", "nan_rois_removed", "scaled", 
+            [["roi_traces"], [rem_bad_str], [scale_str], [fluor]], 
+            names=["datatype", "bad_rois_removed", "scaled", 
             "fluorescence"])
         index_rows = pd.MultiIndex.from_product(
             [roi_ids, *[range(dim) for dim in frames.shape]], 
@@ -2397,7 +2394,7 @@ class Session(object):
 
     #############################################
     def get_roi_seqs(self, twop_fr_seqs, padding=(0,0), fluor="dff", 
-                     remnans=True, scale=False, use_plateau=False):
+                     rem_bad=True, scale=False, use_plateau=False):
         """
         self.get_roi_seqs(twop_fr_seqs)
 
@@ -2423,8 +2420,8 @@ class Session(object):
                                          returned, if "raw", raw processed 
                                          traces are returned
                                          default: "dff"
-            - remnans (bool)           : if True, ROIs with NaN/Inf values 
-                                         anywhere in session are excluded. 
+            - rem_bad (bool)           : if True, bad ROIs (too noisy or 
+                                         containing NaNs, Infs) are removed.
                                          default: True
             - scale (bool)             : if True, each ROIs is scaled 
                                          based on full data array
@@ -2436,8 +2433,8 @@ class Session(object):
                                           by:
                 hierarchical columns (all dummy):
                     - datatype        : type of data (e.g., "roi_traces")
-                    - nan_rois_removed: whether ROIs with NaNs/Infs were 
-                                        removed ("yes", "no")
+                    - bad_rois_removed: whether bad ROIs were removed 
+                                        ("yes", "no")
                     - scaled          : whether ROI data is scaled 
                                         ("yes", "no")
                     - fluorescence    : type of data ("raw" or "dff")
@@ -2508,11 +2505,11 @@ class Session(object):
 
         if use_plateau:
             traces_flat = self.get_plateau_roi_traces(
-                fluor=fluor, remnans=remnans
+                fluor=fluor, rem_bad=rem_bad
                 )[:, frames_flat.astype(int)].reshape(-1, 1)
         else:
             traces_flat = self.get_roi_traces(
-                frames_flat.astype(int), fluor, remnans, scale=scale)
+                frames_flat.astype(int), fluor, rem_bad, scale=scale)
 
         index_rows = pd.MultiIndex.from_product(
             [traces_flat.index.unique("ROIs").tolist(), 
@@ -2771,7 +2768,7 @@ class Stim(object):
 
     #############################################
     def get_stim_beh_sub_df(self, pre, post, stats="mean", fluor="dff", 
-                            remnans=True, gabfr="any", gabk="any", 
+                            rem_bad=True, gabfr="any", gabk="any", 
                             gab_ori="any", visflow_size="any", 
                             visflow_dir="any", pupil=False, run=False, 
                             scale=False, roi_stats=False):
@@ -2792,13 +2789,13 @@ class Stim(object):
                                           traces
                                           default: "dff"
             - stats (str)               : statistic to use for baseline, mean 
-                                          ("mean") or median ("median") (NaN 
-                                          values are omitted)
+                                          ("mean") or median ("median") 
+                                          (NaN values are omitted)
                                           default: "mean"
-            - remnans (bool)            : if True, NaN values are removed from 
+            - rem_bad (bool)            : if True, bad values are removed from 
                                           data, either through interpolation 
-                                          for pupil and running data or ROI 
-                                          exclusion for ROIdata
+                                          for pupil and running data or bu 
+                                          removing bad ROIs 
                                           default: True
             - gabfr (int or list)       : 0, 1, 2, 3, 4, "any"
                                           default: "any"
@@ -2844,7 +2841,7 @@ class Stim(object):
         if pupil:
             pup_data = gen_util.reshape_df_data(
                 self.get_pup_diam_data(
-                    twop_fr, pre, post, remnans=remnans, scale=scale
+                    twop_fr, pre, post, rem_bad=rem_bad, scale=scale
                     )["pup_diam"], squeeze_rows=False, squeeze_cols=True)
             sub_df["pup_diam_data"] = math_util.mean_med(
                 pup_data, stats=stats, axis=-1)
@@ -2852,7 +2849,7 @@ class Stim(object):
             stim_fr = sub_df["start_frame_stim"].to_numpy()
             run_data = gen_util.reshape_df_data(
                 self.get_run_data(
-                    stim_fr, pre, post, remnans=remnans, scale=scale
+                    stim_fr, pre, post, rem_bad=rem_bad, scale=scale
                     )["run_velocity"], squeeze_rows=False, squeeze_cols=True)
             sub_df["run_data"] = math_util.mean_med(
                 run_data, stats=stats, axis=-1)
@@ -2860,7 +2857,7 @@ class Stim(object):
         # add ROI data
         logger.info("Adding ROI data to dataframe...")
         roi_data = self.get_roi_data(
-            twop_fr, pre, post, remnans=remnans, fluor=fluor, scale=scale
+            twop_fr, pre, post, rem_bad=rem_bad, fluor=fluor, scale=scale
             )["roi_traces"]
         targ = [len(roi_data.index.unique(dim)) for dim in roi_data.index.names]
         roi_data = math_util.mean_med(
@@ -3536,7 +3533,7 @@ class Stim(object):
 
     #############################################
     def get_pup_diam_data(self, twop_ref_fr, pre, post, integ=False, 
-                           remnans=False, baseline=None, stats="mean", 
+                           rem_bad=False, baseline=None, stats="mean", 
                            scale=False, metric="mm"):
         """
         self.get_pup_diam_data(pup_ref_fr, pre, post)
@@ -3557,10 +3554,9 @@ class Stim(object):
             - integ (bool)    : if True, pupil diameter is integrated over 
                                 frames
                                 default: False
-            - remnans (bool)  : if True, NaN values are removed using linear 
-                                interpolation. If False, NaN values (but
-                                not Inf values) are omitted in calculating the 
-                                data statistics.
+            - rem_bad (bool)  : if True, bad values (NaNs) are removed using 
+                                linear interpolation. If False, bad values 
+                                are omitted in calculating the data statistics.
                                 default: False
             - baseline (num)  : number of seconds from beginning of 
                                 sequences to use as baseline. If None, data 
@@ -3608,7 +3604,7 @@ class Stim(object):
                 )
 
         pup_data = self.sess.get_pup_data(
-            datatype=datatype, remnans=remnans, scale=scale)
+            datatype=datatype, rem_bad=rem_bad, scale=scale)
 
         data_array = pup_data.to_numpy().squeeze()[frame_ns]
 
@@ -3620,7 +3616,7 @@ class Stim(object):
                     "metric", metric, ["pixel", "mm"]
                     )
 
-        if remnans:
+        if rem_bad:
             nanpol = None 
         else:
             nanpol = "omit"
@@ -3664,7 +3660,7 @@ class Stim(object):
 
     #############################################
     def get_pup_diam_stats_df(self, pup_ref_fr, pre, post, integ=False, 
-                              remnans=False, ret_arr=False, stats="mean", 
+                              rem_bad=False, ret_arr=False, stats="mean", 
                               error="std", baseline=None, scale=False, 
                               metric="mm"):
         """
@@ -3686,10 +3682,9 @@ class Stim(object):
         Optional args:
             - integ (bool)    : if True, dF/F is integrated over sequences
                                 default: False
-            - remnans (bool)  : if True, NaN values are removed using linear 
-                                interpolation. If False, NaN values (but
-                                not Inf values) are omitted in calculating the 
-                                data statistics.
+            - rem_bad (bool)  : if True, bad values are removed using linear 
+                                interpolation. If False, bad values are omitted 
+                                in calculating the data statistics.
                                 default: False
             - ret_arr (bool)  : also return running data array, not just  
                                 statistics
@@ -3728,10 +3723,10 @@ class Stim(object):
         """
 
         pup_data_df = self.get_pup_diam_data(
-            pup_ref_fr, pre, post, integ, remnans=remnans, baseline=baseline, 
+            pup_ref_fr, pre, post, integ, rem_bad=rem_bad, baseline=baseline, 
             stats=stats, scale=scale, metric=metric)
 
-        if remnans:
+        if rem_bad:
             nanpol = None 
         else:
             nanpol = "omit"
@@ -3744,7 +3739,7 @@ class Stim(object):
 
 
     #############################################
-    def get_run_data(self, stim_ref_fr, pre, post, integ=False, remnans=True, 
+    def get_run_data(self, stim_ref_fr, pre, post, integ=False, rem_bad=True, 
                       baseline=None, stats="mean", scale=False):
         """
         self.get_run_data(stim_ref_fr, pre, post)
@@ -3763,10 +3758,9 @@ class Stim(object):
         Optional args:
             - integ (bool)    : if True, running is integrated over frames
                                 default: False
-            - remnans (bool)  : if True, NaN values are removed using linear 
-                                interpolation. If False, NaN values (but
-                                not Inf values) are omitted in calculating the 
-                                data statistics.
+            - rem_bad (bool)  : if True, bad values are removed using linear 
+                                interpolation. If False, bad values are omitted 
+                                in calculating the data statistics.
                                 default: True
             - baseline (num)  : number of seconds from beginning of 
                                 sequences to use as baseline. If None, data 
@@ -3815,13 +3809,13 @@ class Stim(object):
                 )
 
         run_data = self.sess.get_run_velocity_by_fr(
-            frame_ns, fr_type="stim", remnans=remnans, scale=scale)
+            frame_ns, fr_type="stim", rem_bad=rem_bad, scale=scale)
 
         data_array = gen_util.reshape_df_data(
             run_data, squeeze_rows=False, squeeze_cols=True
             )
 
-        if remnans:
+        if rem_bad:
             nanpol = None 
         else:
             nanpol = "omit"
@@ -3870,7 +3864,7 @@ class Stim(object):
 
     #############################################
     def get_run_stats_df(self, stim_ref_fr, pre, post, integ=False,
-                         remnans=True, ret_arr=False, stats="mean", 
+                         rem_bad=True, ret_arr=False, stats="mean", 
                          error="std", baseline=None, scale=False):
         """
         self.get_run_stats_df(stim_ref_fr, pre, post)
@@ -3890,10 +3884,9 @@ class Stim(object):
         Optional args:
             - integ (bool)    : if True, dF/F is integrated over sequences
                                 default: False
-            - remnans (bool)  : if True, NaN values are removed using linear 
-                                interpolation. If False, NaN values (but
-                                not Inf values) are omitted in calculating the 
-                                data statistics.
+            - rem_bad (bool)  : if True, bad values are removed using linear 
+                                interpolation. If False, bad values are omitted 
+                                in calculating the data statistics.
                                 default: True
             - ret_arr (bool)  : also return running data array, not just  
                                 statistics
@@ -3934,9 +3927,9 @@ class Stim(object):
 
         run_data_df = self.get_run_data(
             stim_ref_fr, pre, post, integ, baseline=baseline, stats=stats, 
-            remnans=remnans, scale=scale)
+            rem_bad=rem_bad, scale=scale)
 
-        if remnans:
+        if rem_bad:
             nanpol = None 
         else:
             nanpol = "omit"
@@ -3950,7 +3943,7 @@ class Stim(object):
 
     #############################################
     def get_roi_data(self, twop_ref_fr, pre, post, fluor="dff", integ=False, 
-                     remnans=True, baseline=None, stats="mean", 
+                     rem_bad=True, baseline=None, stats="mean", 
                      transients=False, scale=False, pad=(0, 0), smooth=False):
         """
         self.get_roi_data(twop_ref_fr, pre, post)
@@ -3970,10 +3963,10 @@ class Stim(object):
                                     default: "dff"
             - integ (bool)        : if True, dF/F is integrated over frames
                                     default: False
-            - remnans (bool)      : if True, ROIs with NaN/Inf values anywhere
-                                    in session are excluded. If False, NaN 
-                                    values (but not Inf values) are omitted in 
-                                    calculating the data statistics.
+            - rem_bad (bool)      : if True, bad ROIs (too noisy or containing 
+                                    NaNs, Infs) are removed. If False, bad 
+                                    values are omitted in calculating the data 
+                                    statistics.
                                     default: True
             - baseline (num)      : number of seconds from beginning of 
                                     sequences to use as baseline. If None, data 
@@ -4001,8 +3994,8 @@ class Stim(object):
                                           by:
                 hierarchical columns (all dummy):
                     - datatype        : type of data (e.g., "roi_traces")
-                    - nan_rois_removed: whether ROIs with NaNs/Infs were 
-                                        removed ("yes", "no")
+                    - bad_rois_removed: whether bad ROIs were removed 
+                                        ("yes", "no")
                     - scaled          : whether ROI data is scaled 
                                         ("yes", "no")
                     - baseline        : baseline used ("no", value)
@@ -4038,12 +4031,12 @@ class Stim(object):
 
         # get dF/F: ROI x seq x fr
         roi_data_df = self.sess.get_roi_seqs(
-            frame_ns, fluor=fluor, remnans=remnans, scale=scale
+            frame_ns, fluor=fluor, rem_bad=rem_bad, scale=scale
             )
 
         if transients:
             keep_rois = self.sess.get_active_rois(
-                fluor=fluor, stimtype=None, remnans=remnans)
+                fluor=fluor, stimtype=None, rem_bad=rem_bad)
             drop_rois = set(roi_data_df.index.unique("ROIs")) - set(keep_rois)
             if len(drop_rois) != 0:
                 roi_data_df = roi_data_df.drop(
@@ -4054,7 +4047,7 @@ class Stim(object):
 
         data_array = roi_data_df.to_numpy().reshape(dims)
 
-        if remnans:
+        if rem_bad:
             nanpol = None
         else:
             nanpol = "omit"
@@ -4093,14 +4086,14 @@ class Stim(object):
                 level="time_values").tolist())
             row_names.append("time_values")
 
-        remnans_str = roi_data_df.columns.unique("nan_rois_removed")[0]
+        rem_bad_str = roi_data_df.columns.unique("bad_rois_removed")[0]
         scale_str = roi_data_df.columns.unique("scaled")[0]
         fluor_str = roi_data_df.columns.unique("fluorescence")[0]
 
         col_index = pd.MultiIndex.from_product(
-            [[datatype], [remnans_str], [scale_str], [baseline_str], 
+            [[datatype], [rem_bad_str], [scale_str], [baseline_str], 
             [integ_str], [smooth_str], [fluor_str], ], 
-            names=["datatype", "nan_rois_removed", "scaled", "baseline", 
+            names=["datatype", "bad_rois_removed", "scaled", "baseline", 
             "integrated", "smoothing", "fluorescence"])
         row_index = pd.MultiIndex.from_product(row_indices, names=row_names)
 
@@ -4112,7 +4105,7 @@ class Stim(object):
     
     #############################################
     def get_roi_stats_df(self, twop_ref_fr, pre, post, byroi=True, 
-                         fluor="dff", integ=False, remnans=True, 
+                         fluor="dff", integ=False, rem_bad=True, 
                          ret_arr=False, stats="mean", error="std", 
                          baseline=None, transients=False, scale=False, 
                          smooth=False):
@@ -4138,10 +4131,10 @@ class Stim(object):
                                     default: "dff"
             - integ (bool)        : if True, dF/F is integrated over sequences
                                     default: False
-            - remnans (bool)      : if True, ROIs with NaN/Inf values anywhere
-                                    in session are excluded. If False, NaN 
-                                    values (but not Inf values) are omitted in 
-                                    calculating the data statistics.
+            - rem_bad (bool)      : if True, bad ROIs (too noisy or containing 
+                                    NaNs, Infs) are removed. If False, bad 
+                                    values are omitted in calculating the data 
+                                    statistics.
                                     default: True
             - ret_arr (bool)      : also return ROI trace data array, not just  
                                     statistics.
@@ -4187,7 +4180,7 @@ class Stim(object):
         """
         
         roi_data_df = self.get_roi_data(
-            twop_ref_fr, pre, post, fluor, integ, remnans=remnans, 
+            twop_ref_fr, pre, post, fluor, integ, rem_bad=rem_bad, 
             baseline=baseline, stats=stats, transients=transients, scale=scale, 
             smooth=smooth)
             
@@ -4196,7 +4189,7 @@ class Stim(object):
         if byroi:
             dims = ["sequences"]
 
-        if remnans:
+        if rem_bad:
             nanpol = None
         else:
             nanpol = "omit"
@@ -4209,7 +4202,7 @@ class Stim(object):
 
 
     #############################################
-    def get_run(self, by="frame", remnans=True, scale=False):
+    def get_run(self, by="frame", rem_bad=True, scale=False):
         """
         self.get_run()
 
@@ -4219,8 +4212,8 @@ class Stim(object):
             - by (str)      : determines whether run values are returned in a  
                               flat list ("frame") or grouped by block ("block")
                               default: "frame"
-            - remnans (bool): if True, NaN values are removed using linear 
-                              interpolation.
+            - rem_bad (bool): if True, bad values (NaNs) are removed using 
+                              linear interpolation.
                               default: True
             - scale (bool)  : if True, each ROI is scaled based on 
                               full trace array
@@ -4246,7 +4239,7 @@ class Stim(object):
                                     (frame number)
         """
         
-        run_df = self.sess.get_run_velocity(remnans=remnans, scale=scale)
+        run_df = self.sess.get_run_velocity(rem_bad=rem_bad, scale=scale)
 
         if by not in ["block", "frame"]:
             gen_util.accepted_values_error("by", by, ["block", "frame"])

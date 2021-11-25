@@ -47,7 +47,7 @@ ANALYSIS_DESCR = {
     "g": "ROIs grouped by change in unexpected sensitivity in session",
     "o": "orientation or direction-locked response colormaps",
     "c": "ROI tuning curves for Gabor orientations",
-    "p": "ROI responses by Gabor positions and mean orientation ",
+    "p": "ROI responses by Gabor locations and mean orientation ",
     "v": "Trial PCA trajectories (UNDER DEVELOPMENT)",
     "r": "Correlations between responses in different sessions",
 }
@@ -508,9 +508,9 @@ def get_analysis_fcts():
     # 7. Analyses and plots ROI tuning curves for gabor orientation
     fct_dict["c"] = [roi_analys.run_tune_curves, False]
 
-    # 8. Analyses and plots ROI responses for Gabor positions and mean 
+    # 8. Analyses and plots ROI responses for Gabor locations and mean 
     # orientations
-    fct_dict["p"] = [roi_analys.run_posori_resp, False]
+    fct_dict["p"] = [roi_analys.run_loc_ori_resp, False]
 
     # 9. Plots trials as trajectories in 2 principal components
     #### UNDER DEVELOPMENT ####
