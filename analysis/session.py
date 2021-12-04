@@ -171,9 +171,6 @@ class Session(object):
         session,and sets attributes.
 
         Attributes:
-            if self.nwb:
-            - dandi_id (str)   : Dandi archive session ID
-
             - all_files (bool) : if True, all files have been acquired for
                                  the session
             - any_files (bool) : if True, some files have been acquired for
@@ -190,6 +187,9 @@ class Session(object):
             - runtype (str)    : "prod" (production) or "pilot" data
             - sess_n (int)     : overall session number (e.g., 1)
             - stim_seed (int)  : random seed used to generated stimulus
+
+            if self.nwb:
+            - dandi_id (str)   : Dandi archive session ID
         """
 
         if self.sessid is None:
@@ -355,8 +355,8 @@ class Session(object):
         """
 
         if self.nwb:
-            raise NotImplementedError(
-                "Retrieving max projection not implemented for NWB data."
+            self._max_proj = sess_load_util.load_max_projection_nwb(
+                self.sess_files
                 )
 
         if not hasattr(self, "_max_proj"):
@@ -638,7 +638,8 @@ class Session(object):
         
         Returns:
             - stim_dict (dict): stimulus dictionary 
-                                (None returned if self.nwb if True)
+                                (None returned if self.nwb if True or no 
+                                reloading is done)
         """
 
         reloading = False
@@ -655,7 +656,7 @@ class Session(object):
                     columns=sess_stim_df_util.FULL_TABLE_COLUMNS
                     )
                 self._full_table = full_table
-                return
+                return None
             
             reloading = True
             logger.info("Stimulus dataframe being reloaded with "
@@ -1086,9 +1087,6 @@ class Session(object):
                                        sessions
         """
 
-        if self.nwb:
-            raise NotImplementedError("Not implemented for NWB!")
-
         if self.plane == "dend" and self.dend != "extr":
             raise RuntimeError("ROIs not tracked for Allen extracted dendritic "
                 "ROIs.")
@@ -1098,18 +1096,25 @@ class Session(object):
             return
 
         try:
-            nway_match_path = sess_file_util.get_nway_match_path_from_sessid(
-                self.home, self.sessid, self.runtype, check=True)
+            if self.nwb:
+                self._tracked_rois = sess_trace_util.get_tracked_rois_nwb(
+                    self.sess_files
+                    )
+            else:
+                nway_match_path = sess_file_util.get_nway_match_path_from_sessid(
+                    self.home, self.sessid, self.runtype, check=True)
         except Exception as err:
-            if "not exist" in str(err):
-                raise OSError(f"No tracked ROIs file found for {self}.")
+            if "not exist" in str(err) or "No tracking data" in str(err):
+                raise OSError(f"No tracked ROIs data found for {self}.")
             else:
                 raise err
 
-        with open(nway_match_path, "r") as fp:
-            tracked_rois_df = pd.DataFrame(json.load(fp)["rois"])
+        if not self.nwb:
+            with open(nway_match_path, "r") as fp:
+                tracked_rois_df = pd.DataFrame(json.load(fp)["rois"])
 
-        self._tracked_rois = tracked_rois_df['dff-ordered_roi_index'].values
+            self._tracked_rois = tracked_rois_df['dff-ordered_roi_index'].values
+
         self._set_bad_rois_tracked()
 
 
@@ -1303,7 +1308,7 @@ class Session(object):
             gen_util.accepted_values_error("dend", dend, ["extr", "allen"])
 
         if self.nwb:
-            if dend != "extr":
+            if self.plane == "dend" and dend != "extr":
                 raise ValueError(
                     "NWB session files include only 'extr' dendrites."
                     )
@@ -2109,12 +2114,11 @@ class Session(object):
                                  default: False
 
         Returns:
-            - plateau_traces: modified ROI traces where frames below 
-                              threshold, or where trace does not remain above
-                              threshold for minimum number of frames are set to
-                              the median. Frames reaching criteria are 
-                              converted to number of standard deviations above 
-                              median.
+            - plateau_traces: modified ROI traces where certain frames are set 
+                              to 1.0 if they do not meet the threshold 
+                              for enough frames. Frames reaching criteria are 
+                              converted to the number of standard deviations 
+                              above the median they lie at.
         """
 
         if not hasattr(self, "_nrois"):
@@ -2128,8 +2132,10 @@ class Session(object):
                 calc_str = "Recalculating"
             logger.info(f"{calc_str} plateau traces.", extra={"spacing": "\n"})
 
+            roi_trace_df = self.get_roi_traces(None, fluor, rem_bad)
             plateau_traces = gen_util.reshape_df_data(
-                self.get_roi_traces(None, fluor, rem_bad), squeeze_cols=True)
+                roi_trace_df, squeeze_cols=True
+                )
             med = np.nanmedian(plateau_traces, axis=1)
             std = np.nanstd(plateau_traces, axis=1)
 
@@ -2147,7 +2153,8 @@ class Session(object):
                 plateau_traces[r, roi_bool] = \
                     (plateau_traces[r, roi_bool] - med[r])/std[r]
 
-            self.plateau_traces = plateau_traces
+            roi_trace_df[:] = plateau_traces.reshape(roi_trace_df.shape)
+            self.plateau_traces = roi_trace_df
 
         return self.plateau_traces
 
@@ -2264,7 +2271,6 @@ class Session(object):
             traces = sess_trace_util.load_roi_traces_nwb(
                 self.sess_files, roi_ns=roi_ids, frame_ns=frames
                 )
-
         else:
             roi_trace_path = self.get_roi_trace_path(fluor)
             traces = sess_trace_util.load_roi_traces(
@@ -2506,7 +2512,16 @@ class Session(object):
         if use_plateau:
             traces_flat = self.get_plateau_roi_traces(
                 fluor=fluor, rem_bad=rem_bad
-                )[:, frames_flat.astype(int)].reshape(-1, 1)
+                )            
+            # select frames_flat: seems very roundabout, but temporarily moving 
+            # frames to first index level seems to be the only way to index the 
+            # frames efficiently...
+            all_rois = traces_flat.index.unique("ROIs").tolist()
+            traces_flat = traces_flat.swaplevel(
+                "ROIs", "frames", axis="index"
+                ).loc[frames_flat.astype(int).tolist()].swaplevel(
+                    "frames", "ROIs", axis="index"
+                    ).loc[all_rois]
         else:
             traces_flat = self.get_roi_traces(
                 frames_flat.astype(int), fluor, rem_bad, scale=scale)

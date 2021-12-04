@@ -87,7 +87,8 @@ def roi_tracking(sessions, analyspar, sesspar, figpar, parallel=False):
             default: False
     """
 
-    print("NOT YET IMPLEMENTED")
+    print("\nWARNING: Analysis code for panels showing ROI mask registration "
+        "across sessions is not yet fully implemented.")
     return
 
     logger.info("Compiling ROI tracking examples.", 
@@ -131,8 +132,10 @@ def roi_overlays_sess123(sessions, analyspar, sesspar, figpar, parallel=False):
             default: False
     """
 
-    print("NOT YET IMPLEMENTED")
+    print("\nWARNING: Analysis code for panels showing ROI mask registration "
+        "across sessions is not yet fully implemented.")
     return
+
 
     logger.info("Compiling ROI mask overlay examples.", 
         extra={"spacing": "\n"})
@@ -176,8 +179,10 @@ def roi_overlays_sess123_enlarged(sessions, analyspar, sesspar, figpar,
             default: False
     """
 
-    print("NOT YET IMPLEMENTED")
+    print("\nWARNING: Analysis code for panels showing ROI mask registration "
+        "across sessions is not yet fully implemented.")
     return
+
 
     logger.info("Compiling enlarged ROI mask overlay examples.", 
         extra={"spacing": "\n"})
@@ -221,8 +226,10 @@ def dendritic_roi_tracking_example(sessions, analyspar, sesspar, figpar,
             default: False
     """
 
-    print("NOT YET IMPLEMENTED")
+    print("\nWARNING: Analysis code for panels showing ROI mask registration "
+        "across sessions is not yet fully implemented.")
     return
+
 
     logger.info("Compiling dendritic tracking examples.", 
         extra={"spacing": "\n"})
@@ -266,8 +273,10 @@ def somatic_roi_tracking_example(sessions, analyspar, sesspar, figpar,
             default: False
     """
 
-    print("NOT YET IMPLEMENTED")
+    print("\nWARNING: Analysis code for panels showing ROI mask registration "
+        "across sessions is not yet fully implemented.")
     return
+
 
     logger.info("Compiling dendritic tracking examples.", 
         extra={"spacing": "\n"})

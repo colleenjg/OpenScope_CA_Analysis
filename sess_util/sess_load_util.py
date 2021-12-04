@@ -15,7 +15,6 @@ Note: this code uses python 3.7.
 import copy
 import logging
 from pathlib import Path
-import warnings
 
 import h5py
 import numpy as np
@@ -23,7 +22,7 @@ import pandas as pd
 import pynwb
 
 from util import file_util, gen_util, logger_util
-from sess_util import sess_gen_util, sess_sync_util
+from sess_util import sess_file_util, sess_gen_util, sess_sync_util
 
 logger = logging.getLogger(__name__)
 
@@ -291,6 +290,42 @@ def load_stim_df_info(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid,
 
 
 #############################################
+def load_max_projection_nwb(sess_files):
+    """
+    load_max_projection_nwb(sess_files)
+
+    Returns maximum projection image of downsampled z-stack as an array, from 
+    NWB files. 
+
+    Required args:
+        - sess_files (Path): full path names of the session files
+
+    Returns:
+        - max_proj (2D array): maximum projection image across downsampled 
+                               z-stack (hei x wei), with pixel intensity 
+                               in 0 (incl) to 256 (excl) range.
+    """
+
+    ophys_file = sess_file_util.select_nwb_sess_path(sess_files, ophys=True)
+
+    with pynwb.NWBHDF5IO(str(ophys_file), "r") as f:
+        nwbfile_in = f.read()
+        ophys_module = nwbfile_in.get_processing_module("ophys")
+        main_field = "PlaneImages"
+        data_field = "max_projection"
+        try:
+            max_proj = ophys_module.get_data_interface(
+                main_field).get_image(data_field)
+        except KeyError as err:
+            raise KeyError(
+                "Could not find a maximum projection plane image "
+                f"for {ophys_file} due to: {err}"
+                )
+
+    return max_proj
+
+
+#############################################
 def load_max_projection(max_proj_png):
     """
     load_max_projection(max_proj_png)
@@ -469,23 +504,7 @@ def load_run_data_nwb(sess_files, diff_thr=50, drop_tol=0.0003, sessid=None):
 
     """
 
-    # check whether behavior is included in file
-    sess_files = gen_util.list_if_not(sess_files)
-    behav_files = [
-        sess_file for sess_file in sess_files if "behavior" in str(sess_file)
-        ]
-
-    if len(behav_files) == 0:
-        raise RuntimeError(
-            "Behavioural data not included in session NWB files."
-            )
-    
-    behav_file = behav_files[0]
-    if len(behav_files) > 1:
-        warnings.warn(
-            "Several session files with behavioural data found. "
-            f"Using the first listed: {behav_file}."
-            )
+    behav_file = sess_file_util.select_nwb_sess_path(sess_files, behav=True)
 
     with pynwb.NWBHDF5IO(str(behav_file), "r") as f:
         nwbfile_in = f.read()
@@ -585,23 +604,7 @@ def load_pup_data_nwb(sess_files):
             - pup_diam (float)    : median pupil diameter in pixels
     """
 
-    # check whether behavior is included in file
-    sess_files = gen_util.list_if_not(sess_files)
-    behav_files = [
-        sess_file for sess_file in sess_files if "behavior" in str(sess_file)
-        ]
-
-    if len(behav_files) == 0:
-        raise RuntimeError(
-            "Behavioural data not included in session NWB files."
-            )
-    
-    behav_file = behav_files[0]
-    if len(behav_files) > 1:
-        warnings.warn(
-            "Several session files with behavioural data found. "
-            f"Using the first listed: {behav_file}."
-            )
+    behav_file = sess_file_util.select_nwb_sess_path(sess_files, behav=True)
 
     with pynwb.NWBHDF5IO(str(behav_file), "r") as f:
         nwbfile_in = f.read()

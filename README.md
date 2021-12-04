@@ -26,19 +26,16 @@ All of the appropriate libraries should then be loaded, and the modules can be i
 
 ## 4. Scripts and modules
 * `run_paper_figures.py`: run, analyse and plot paper figures  
-* **`analysis`**: analysis scripts, including Session object
+* **`analysis`**: analysis scripts, including the Session and Stim objects
 * **`sess_util`**: session specific utilities module
 * **`plot_fcts`**: plotting scripts
 * **`paper_fig_util`**: scripts to organize and generate the paper figures
-* **`examples`**: example notebook for using Session/Stim objects 
+* **`examples`**: example notebook for using the Session and Stim objects 
 
 ## 5. Data
-The data for this project is hosted [here](https://gui.dandiarchive.org/#/dandiset/000037) in the DANDI archive in [NWB](https://www.nwb.org/) format. The associated metadata can be found [here](https://github.com/jeromelecoq/allen_openscope_metadata/tree/master/projects/credit_assignement).   
-**PLEASE NOTE:** We are currently working to update the codebase to interface with the NWB format.
-&nbsp;
+The data for this project is hosted [here](https://gui.dandiarchive.org/#/dandiset/000037) in the DANDI archive in [NWB](https://www.nwb.org/) format. The associated metadata can be found [here](https://github.com/jeromelecoq/allen_openscope_metadata/tree/master/projects/credit_assignement).  
 
-Code to generate the stimuli can be found [here](https://github.com/colleenjg/cred_assign_stimuli). 
-
+Code to generate the stimuli can be found [here](https://github.com/colleenjg/cred_assign_stimuli).  
 
 ## 6. Authors
 This code was written by:

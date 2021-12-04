@@ -26,7 +26,7 @@ from allensdk.brain_observatory.extract_running_speed import __main__ as running
 from allensdk.internal.brain_observatory.eye_calibration import CM_PER_PIXEL
 
 from util import file_util, gen_util, logger_util
-from sess_util import Dataset2p
+from sess_util import Dataset2p, sess_file_util
 
 logger = logging.getLogger(__name__)
 
@@ -64,22 +64,7 @@ def get_frame_timestamps_nwb(sess_files):
         - twop_timestamps (1D array): time stamp for each two-photon frame
     """
 
-    # check whether behavior is included in file
-    sess_files = gen_util.list_if_not(sess_files)
-
-    behav_files = [
-        sess_file for sess_file in sess_files if "behavior" in str(sess_file)
-        ]
-
-    if len(behav_files) == 0:
-        raise RuntimeError(f"Behaviour data not included in session NWB files.")
-    
-    behav_file = behav_files[0]
-    if len(behav_files) > 1:
-        warnings.warn(
-            "Several session files with behavior data found. "
-            f"Using the first listed: {behav_file}."
-            )
+    behav_file = sess_file_util.select_nwb_sess_path(sess_files, behav=True)
 
     use_ophys = False
     with pynwb.NWBHDF5IO(str(behav_file), "r") as f:
@@ -88,7 +73,7 @@ def get_frame_timestamps_nwb(sess_files):
         main_field = "BehavioralTimeSeries"
         data_field = "running_velocity"
         try:
-            behav_time_series = behav_module.get_data_interface(
+            run_time_series = behav_module.get_data_interface(
                 main_field).get_timeseries(data_field)
         except KeyError as err:
             raise KeyError(
@@ -96,36 +81,20 @@ def get_frame_timestamps_nwb(sess_files):
                 f"series for {behav_module} due to: {err}"
                 )
 
-        stim_timestamps = np.asarray(behav_time_series.timestamps)
+        stim_timestamps = np.asarray(run_time_series.timestamps)
 
         main_field = "PupilTracking"
         data_field = "pupil_diameter"
-        if (main_field not in behav_module.fields() or 
-            data_field not in behav_module[main_field].fields):
-            use_ophys = True
-        else:
-            twop_timestamps = np.asarray(
-                behav_module[main_field][data_field].timestamps
-                )
+        try:
+            twop_timestamps = np.asarray(behav_module.get_data_interface(
+                main_field).get_timeseries(data_field).timestamps)
+        except KeyError as err:
+            use_ophys = True            
 
     # if timestamps weren't found with pupil data, look for optical physiology 
     # data
     if use_ophys:
-        ophys_files = [
-            sess_file for sess_file in sess_files if "ophys" in str(sess_file)
-            ]
-
-        if len(ophys_files) == 0:
-            raise RuntimeError(
-                f"Optical physiology data not included in session NWB files."
-                )
-        
-        ophys_file = ophys_files[0]
-        if len(ophys_files) > 1:
-            warnings.warn(
-                "Several session files with optical physiology data found. "
-                f"Using the first listed: {ophys_file}."
-                )
+        ophys_file = sess_file_util.select_nwb_sess_path(sess_files, ophys=True)
 
         with pynwb.NWBHDF5IO(str(ophys_file), "r") as f:
             nwbfile_in = f.read()

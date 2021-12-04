@@ -164,7 +164,7 @@ def get_corr_info(permpar, corr_type="corr", permute="sess", norm=True):
     if permute in ["sess", "all"] and "diff_" not in corr_type:
         corr_type = f"diff_{corr_type}"
 
-    if corr_type == "diff_corr":
+    if corr_type != "diff_corr":
         norm = False # does not apply
     if "R_sqr" in corr_type and permpar.tails != "hi":
         raise NotImplementedError(

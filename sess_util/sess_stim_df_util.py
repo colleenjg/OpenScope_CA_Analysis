@@ -22,7 +22,7 @@ import pandas as pd
 import pynwb
 
 from util import file_util, gen_util, logger_util
-from sess_util import sess_gen_util, sess_sync_util
+from sess_util import sess_file_util, sess_sync_util
 
 logger = logging.getLogger(__name__)
 
@@ -1230,13 +1230,7 @@ def load_stimulus_table_nwb(sess_files, full_table=True):
 
     """
 
-    sess_files = gen_util.list_if_not(sess_files)
-
-    sess_file = sess_files[0]
-    if len(sess_files) > 1:
-        warnings.warn(
-            f"Several session files found. Using the first listed: {sess_files}."
-            )
+    sess_file = sess_file_util.select_nwb_sess_path(sess_files)
 
     exclude = set() if full_table else set(FULL_TABLE_COLUMNS)
  
