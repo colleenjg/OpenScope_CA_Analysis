@@ -377,9 +377,6 @@ def get_idx_corr_ylims(idx_corr_df, norm=False):
         low_pt -= pt_range / 10
         high_pt += pt_range / 10
 
-        if low_pt < -1:
-            low_pt = -1
-
         plane_pts.append([low_pt, high_pt])
 
     plane_pts = [plane_pts[i] for i in np.argsort(plane_idxs)]

@@ -15,6 +15,7 @@ Note: this code uses python 3.7.
 
 import glob
 from pathlib import Path
+import warnings
 
 from util import file_util, gen_util, logger_util
 
@@ -40,7 +41,7 @@ def get_nwb_sess_paths(maindir, dandi_id, mouseid=None):
                           e.g. "389778"
 
     Returns:
-        - sess_files (Path): full path names of the session files
+        - sess_files (list): full path names of the session files
     """
 
     if dandi_id is None:
@@ -63,6 +64,67 @@ def get_nwb_sess_paths(maindir, dandi_id, mouseid=None):
     else:
         sess_files = [Path(sess_file) for sess_file in sess_files]
         return sess_files
+
+
+#############################################
+def select_nwb_sess_path(sess_files, ophys=False, behav=False, stim=False):
+    """
+    select_nwb_sess_path(sess_files)
+
+    Returns an NWB session data path name, selected from a list according to 
+    the specified criteria.
+ 
+    Required arguments:
+        - sess_files (list): full path names of the session files
+
+    Optional arguments
+        - ophys (bool): if True, only session files with optical physiology 
+                        data are retained
+                        default: False
+        - behav (bool): if True, only session files with behaviour data are 
+                        retained
+                        default: False
+        - stim (bool) : if True, only session files with stimulus data are 
+                        retained
+                        default: False
+
+    Returns:
+        - sess_file (Path): full path name of the selected session file
+    """
+
+    sess_files = gen_util.list_if_not(sess_files)
+    
+    criterion_dict = {
+        "ophys"   : [ophys, "optical physiology"],
+        "behavior": [behav, "behavioral"],
+        "image"   : [stim, "stimulus"],        
+        }
+
+    data_names = []
+    for data_str, [data_bool, data_name] in criterion_dict.items():
+        if data_bool:
+            sess_files = [
+                sess_file for sess_file in sess_files 
+                if data_str in str(sess_file)
+            ]
+            data_names.append(data_name)
+    
+    tog_str = "" if len(data_names) > 1 else ", together"
+    data_names = ", and ".join(data_names).capitalize()
+
+    if len(sess_files) == 0:
+        raise RuntimeError(
+            f"{data_names} data not included in session NWB files{tog_str}."
+            )
+    
+    sess_file = sess_files[0]
+    if len(sess_files) > 1:
+        warnings.warn(
+            f"Several session files with {data_names} data found{tog_str}. "
+            f"Using the first listed: {sess_file}."
+            )
+
+    return sess_file
 
 
 #############################################

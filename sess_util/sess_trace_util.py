@@ -16,7 +16,6 @@ Note: this code uses python 3.7.
 import copy
 import logging
 from pathlib import Path
-import warnings
 
 import h5py
 import numpy as np
@@ -134,25 +133,8 @@ def load_roi_traces_nwb(sess_files, roi_ns=None, frame_ns=None):
                                       if n is not None: ROI trace (frame) 
     """
 
-    # check whether behavior is included in file
-    sess_files = gen_util.list_if_not(sess_files)
-    ophys_files = [
-        sess_file for sess_file in sess_files if "ophys" in str(sess_file)
-        ]
+    ophys_file = sess_file_util.select_nwb_sess_path(sess_files, ophys=True)
 
-    if len(ophys_files) == 0:
-        raise RuntimeError(
-            "Optical physiology data not included in session NWB files."
-            )
-    
-    ophys_file = ophys_files[0]
-    if len(ophys_files) > 1:
-        warnings.warn(
-            "Several session files with optical physiology data found. "
-            f"Using the first listed: {ophys_file}."
-            )
-
-    # get data
     with pynwb.NWBHDF5IO(str(ophys_file), "r") as f:
         nwbfile_in = f.read()
         ophys_module = nwbfile_in.get_processing_module("ophys")
@@ -226,23 +208,7 @@ def load_roi_data_nwb(sess_files):
         - tot_twop_fr (int): total number of two-photon frames recorded
     """
 
-    # check whether behavior is included in file
-    sess_files = gen_util.list_if_not(sess_files)
-    ophys_files = [
-        sess_file for sess_file in sess_files if "ophys" in str(sess_file)
-        ]
-
-    if len(ophys_files) == 0:
-        raise RuntimeError(
-            "Optical physiology data not included in session NWB files."
-            )
-    
-    ophys_file = ophys_files[0]
-    if len(ophys_files) > 1:
-        warnings.warn(
-            "Several session files with optical physiology data found. "
-            f"Using the first listed: {ophys_file}."
-            )
+    ophys_file = sess_file_util.select_nwb_sess_path(sess_files, ophys=True)
 
     with pynwb.NWBHDF5IO(str(ophys_file), "r") as f:
         nwbfile_in = f.read()
@@ -455,11 +421,58 @@ def get_roi_metrics(roi_extract_dict, objectlist_txt):
 
 
 #############################################
-def get_roi_masks_nwb(sess_files, make_bool=True):
+def get_tracked_rois_nwb(sess_files):
     """
-    get_roi_masks(sess_files)
+    get_tracked_rois_nwb(sess_files)
 
-    Returns ROI masks, optionally converted to boolean.
+    Returns ROI tracking indices.
+
+    Required args:
+        - sess_files (Path): full path names of the session files
+        
+    Returns:
+        - tracked_rois (1D array): ordered indices of tracked ROIs
+    """
+
+    ophys_file = sess_file_util.select_nwb_sess_path(sess_files, ophys=True)
+
+    with pynwb.NWBHDF5IO(str(ophys_file), "r") as f:
+        nwbfile_in = f.read()
+        ophys_module = nwbfile_in.get_processing_module("ophys")
+        main_field = "ImageSegmentation"
+        data_field = "PlaneSegmentation"
+        try:
+            plane_seg = ophys_module.get_data_interface(
+                main_field).get_plane_segmentation(data_field
+                )
+        except KeyError as err:
+            raise KeyError(
+                "Could not find plane segmentation data in image segmentation "
+                f"for {ophys_file} due to: {err}"
+                )
+
+        tracking_key = "tracking_id"
+        if tracking_key not in plane_seg.colnames:
+            raise RuntimeError(f"No tracking data in {ophys_file}.")
+
+        # tracking index for each ROI (np.nan for non tracked ROIs)
+        roi_tracking = np.asarray(plane_seg[tracking_key].data)
+
+    tracked_idxs = np.where(np.isfinite(roi_tracking))[0]
+    tracking_order = np.argsort(roi_tracking[tracked_idxs])
+
+    # ordered indices of tracked ROIs
+    tracked_rois = tracked_idxs[tracking_order]
+
+    return tracked_rois
+
+
+#############################################
+def get_roi_masks_nwb(sess_files):
+    """
+    get_roi_masks_nwb(sess_files)
+
+    Returns tracked ROIs.
 
     Required args:
         - sess_files (Path): full path names of the session files
@@ -475,23 +488,7 @@ def get_roi_masks_nwb(sess_files, make_bool=True):
         - roi_ids (list)      : ID for each ROI
     """
 
-    # check whether behavior is included in file
-    sess_files = gen_util.list_if_not(sess_files)
-    ophys_files = [
-        sess_file for sess_file in sess_files if "ophys" in str(sess_file)
-        ]
-
-    if len(ophys_files) == 0:
-        raise RuntimeError(
-            "Optical physiology data not included in session NWB files."
-            )
-    
-    ophys_file = ophys_files[0]
-    if len(ophys_files) > 1:
-        warnings.warn(
-            "Several session files with optical physiology data found. "
-            f"Using the first listed: {ophys_file}."
-            )
+    ophys_file = sess_file_util.select_nwb_sess_path(sess_files, ophys=True)
 
     with pynwb.NWBHDF5IO(str(ophys_file), "r") as f:
         nwbfile_in = f.read()
@@ -512,9 +509,6 @@ def get_roi_masks_nwb(sess_files, make_bool=True):
         roi_ids = list(plane_seg["id"].data)
 
     roi_masks = np.transpose(roi_masks, (0, 2, 1)) # ROI x w x h -> ROI x h x w
-
-    if make_bool:
-        roi_masks = roi_masks.astype(bool)
 
 
     return roi_masks, roi_ids
