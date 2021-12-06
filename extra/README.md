@@ -1,15 +1,11 @@
 # Extra analyses
 
-This folder contains code for additional analyses that were developed and run 
-on the Credit Assignment project data.  
+This folder contains code for additional analyses that were developed and run on the Credit Assignment project data.  
 
-Some of these are exploratory or preliminary, and the code has not been 
-systematically tidied up for ease of sharing. Also, although we of course strive 
-to keep the code bug-free, this code has not been as systematically debugged as 
-the main paper code.  
+Some of these are exploratory or preliminary, and the code has not been systematically tidied up for ease of sharing. Also, although we of course strive 
+to keep the code bug-free, this code has not been as systematically debugged as the main paper code.  
 
-Don't hesitate to contact me if you have questions or need any help using these 
-scripts.
+Don't hesitate to contact me if you have questions or need any help using these scripts.
 
 ## 2. Scripts and modules
 * **Scripts** to run, analyse and plot figures ...
@@ -19,13 +15,13 @@ scripts.
     * `run_pupil_analysis.py`: ... on pupil data
     * `run_logreg.py`: ... using logistic regressions on the ROI data
 
-* **`analysis`**: Session object as well as session data analysis module
-* **`extra_plot_fcts`**: module with functions to plot analysis results from saved dictionaries
+* **`analysis`**: Session and Stim objects, as well as session data analysis modules
+* **`extra_plot_fcts`**: modules with functions to plot analysis results from saved dictionaries
 * **`scripts_under_dev`**: analysis scripts under development
 
 ## 3. Authors
 This code was written by:
-* Colleen Gillon (colleen.gillon@mail.utoronto.ca)
+* Colleen Gillon (colleen _dot_ gillon _at_ mail _dot_ utoronto _dot_ ca)
 
 
 
