@@ -206,6 +206,11 @@ class Session(object):
         
         if self.nwb:
             self.dandi_id = df_data["dandi_id"]
+            if not isinstance(self.dandi_id, str):
+                warnings.warn(
+                    "Dandi ID not yet available, so using session ID instead."
+                    )
+                self.dandi_id = self.sessid
 
         self.mouse_n      = df_data["mouse_n"]
         self.date         = df_data["date"]
@@ -388,6 +393,33 @@ class Session(object):
             self._pup_data_h5 = sess_file_util.get_pupil_data_h5_path(self.dir)
 
         return self._pup_data_h5
+
+
+    #############################################
+    @property
+    def pup_data_available(self):
+        """
+        self.pup_data_available
+
+        Returns:
+            - _pup_data_available (bool): whether pupil data is available for 
+                                          the session
+        """
+
+        if not hasattr(self, "_pup_data_available"):
+            if self.nwb:
+                try:
+                    self.load_pup_data()
+                    self._pup_data_available = True
+                except KeyError as err:
+                    if str(err).startswith("Could not find pupil"):
+                        self._pup_data_available = False
+                    else:
+                        raise err
+            else:
+                self._pup_data_available = (self.pup_data_h5 != "none")
+
+        return self._pup_data_available
 
 
     ############################################
@@ -2190,7 +2222,9 @@ class Session(object):
 
         # read the data points into the return array
         if self.nwb:
-            trace = sess_trace_util.load_roi_traces_nwb(self.sess_files, n=n)
+            trace = sess_trace_util.load_roi_traces_nwb(
+                self.sess_files, roi_ns=n
+                )
         else:
             roi_trace_path = self.get_roi_trace_path(fluor)
             trace = sess_trace_util.load_roi_traces(roi_trace_path, roi_ns=n)
@@ -2779,6 +2813,94 @@ class Stim(object):
         for col in self.block_params.columns:
             if "_sec" not in col and "direction" not in col: 
                 self.block_params[col] = self.block_params[col].astype(int)
+
+
+
+    #############################################
+    def get_stim_images_by_frame(self, stim_frs):
+        """
+        self.get_stim_images_by_frame(stim_frs)
+
+        Returns stimulus images for requested frames.
+
+        Required args:
+            - stim_frs (list): stimulus frames for which to return frame images
+
+        Returns:
+            - stim_images (list): stimulus images (grayscale) for each stimulus 
+                                  frame requested(height x width x channel (1))
+        """
+
+        if not self.sess.nwb:
+            raise NotImplementedError(
+                "Stimulus images can only be retrieved if data format is NWB."
+                )
+
+        segs = self.get_segs_by_frame(stim_frs, fr_type="stim")
+        sub_stim_df = self.sess.stim_df.loc[segs]
+
+        # check for wrong stimulus type
+        wrong_stimtypes = [
+            stimtype for stimtype in sub_stim_df["stimulus_type"].unique() 
+            if stimtype != self.stimtype
+            ]
+        
+        if len(wrong_stimtypes):
+            raise RuntimeError(
+                "Stimulus frames requested include frames from different "
+                f"stimtypes: {', '.join(wrong_stimtypes)}"
+                )
+
+        # identify frames for which to retrieve stimulus images
+        stim_templ_names = sub_stim_df["stimulus_template_name"]
+        stim_start_templ_frames = sub_stim_df["start_frame_stim_template"]
+        stim_start_frames = sub_stim_df["start_frame_stim"]
+
+        stim_image_dict = dict()
+        stim_templ_frames = []
+        for i, (templ_name, templ_start_fr) in enumerate(
+            zip(stim_templ_names, stim_start_templ_frames)
+            ):
+            if templ_name not in stim_image_dict.keys():
+                stim_image_dict[templ_name] = {
+                    "frame_ns": [],
+                    "frame_images": []
+                    }
+            frame_n = templ_start_fr
+            if "visflow" in templ_name: # get the exact template frame number
+                frame_diff = stim_frs[i] - stim_start_frames.tolist()[i]
+                if frame_diff < 0:
+                    raise NotImplementedError(
+                        "Implementation error: frame difference should always "
+                        "be greater or equal to 0."
+                        )
+                frame_n = templ_start_fr + frame_diff
+
+            stim_templ_frames.append(frame_n) # record exact frame numbers
+            if frame_n not in stim_image_dict[templ_name]["frame_ns"]:
+                stim_image_dict[templ_name]["frame_ns"].append(frame_n)
+
+        # retrieve frame images
+        for templ_name in stim_image_dict.keys():
+            frame_ns = sorted(stim_image_dict[templ_name]["frame_ns"])
+            frame_images = sess_load_util.load_stimulus_images_nwb(
+                self.sess.sess_files, 
+                template_name=templ_name, 
+                frame_ns=frame_ns
+                )
+            
+            stim_image_dict[templ_name]["frame_ns"] = frame_ns
+            stim_image_dict[templ_name]["frame_images"] = frame_images
+
+        # place images into a list ordered like the requested frame numbers
+        stim_images = []
+        for templ_name, templ_fr in zip(stim_templ_names, stim_templ_frames):
+            sub_dict = stim_image_dict[templ_name]
+            image_index = sub_dict["frame_ns"].index(templ_fr)
+            stim_image = sub_dict["frame_images"][image_index]
+            stim_images.append(stim_image)
+
+        return stim_images
 
 
     #############################################
@@ -4300,7 +4422,8 @@ class Stim(object):
             raise ValueError("Some of the specified frames are out of range.")
 
         targ_frames = self.sess.stim_df[f"start_frame_{fr_type}"].to_numpy()
-        segs = np.searchsorted(targ_frames, fr).astype(int)
+
+        segs = np.searchsorted(targ_frames, fr, side="right").astype(int) - 1
 
         return segs
 
@@ -4822,6 +4945,7 @@ class Grayscr():
         """
 
         self.sess = sess
+        self.stimtype = "grayscreen"
         
 
     #############################################
@@ -4949,3 +5073,62 @@ class Grayscr():
 
         return stop_grays_df
 
+
+    #############################################
+    def get_stim_images_by_frame(self, stim_frs):
+        """
+        self.get_stim_images_by_frame(stim_frs)
+
+        Returns stimulus images for requested frames.
+
+        Required args:
+            - stim_frs (list): stimulus frames for which to return frame images
+
+        Returns:
+            - stim_images (list): stimulus images (grayscale) for each stimulus 
+                                  frame requested(height x width x channel (1))
+        """
+
+        if not self.sess.nwb:
+            raise NotImplementedError(
+                "Stimulus images can only be retrieved if data format is NWB."
+                )
+
+        # hacky - use get_segs_by_frame() via another stimulus
+        segs = self.sess.stims[0].get_segs_by_frame(stim_frs, fr_type="stim")
+        sub_stim_df = self.sess.stim_df.loc[segs]
+
+        # check for wrong stimulus type
+        wrong_stimtypes = [
+            stimtype for stimtype in sub_stim_df["stimulus_type"].unique() 
+            if stimtype != self.stimtype
+            ]
+        
+        if len(wrong_stimtypes):
+            raise RuntimeError(
+                "Stimulus frames requested include frames from different "
+                f"stimtypes: {', '.join(wrong_stimtypes)}"
+                )
+
+        stim_templ_names = sub_stim_df["stimulus_template_name"]
+        stim_start_templ_frames = sub_stim_df["start_frame_stim_template"]
+
+        # there should only be one grayscreen image
+        if (len(stim_templ_names.unique()) != 1 or 
+            len(stim_start_templ_frames.unique()) != 1):
+            raise NotImplementedError(
+                "Expected only one unique template name and frame number for "
+                "Grayscr stimulus."
+                )
+        stim_image = sess_load_util.load_stimulus_images_nwb(
+            self.sess.sess_files, 
+            template_name=stim_templ_names.tolist()[0], 
+            frame_ns=stim_start_templ_frames.tolist()[0]
+            )[0]
+            
+        stim_images = [stim_image for _ in stim_frs]
+
+        return stim_images
+
+
+    

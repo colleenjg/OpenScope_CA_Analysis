@@ -315,7 +315,7 @@ def load_max_projection_nwb(sess_files):
         data_field = "max_projection"
         try:
             max_proj = ophys_module.get_data_interface(
-                main_field).get_image(data_field)
+                main_field).get_image(data_field)[()]
         except KeyError as err:
             raise KeyError(
                 "Could not find a maximum projection plane image "
@@ -477,7 +477,6 @@ def nan_large_run_differences(run, diff_thr=50, warn_nans=True,
     return run
 
 
-
 #############################################
 def load_run_data_nwb(sess_files, diff_thr=50, drop_tol=0.0003, sessid=None):
     """
@@ -622,7 +621,6 @@ def load_pup_data_nwb(sess_files):
         
         pup_data = np.asarray(behav_time_series.data)
 
-
     pup_data_df = pd.DataFrame()
     pup_data_df["pup_diam"] = pup_data / sess_sync_util.MM_PER_PIXEL
 
@@ -683,6 +681,66 @@ def load_pup_data(pup_data_h5, time_sync_h5):
     pup_data.insert(0, "frames", value=range(len(pup_data)))
 
     return pup_data  
+
+
+#############################################
+def load_stimulus_images_nwb(sess_files, template_name="gabors", frame_ns=[0]):
+    """
+    load_stimulus_images_nwb(sess_files)
+
+    Returns the stimulus images for the requested template, and frames. 
+
+    Required args:
+        - sess_files (Path): full path names of the session files
+
+    Optional args:
+        - template_name (str): name of the stimulus template
+                               default: "gabors" 
+        - frame_ns (list)    : frame numbers (must be unique and in increasing 
+                               order)
+                               default: frame_ns
+
+    Returns:
+        - stim_images (list): list of stimulus images (grayscale)
+                              (height x width x channel (1))
+    """
+
+    stim_file = sess_file_util.select_nwb_sess_path(sess_files, stim=True)
+
+    frame_ns = gen_util.list_if_not(frame_ns)
+    unique_bool = (len(np.unique(frame_ns)) == len(frame_ns))
+    increasing_bool = (np.sort(frame_ns) == np.asarray(frame_ns)).all()
+
+    if not (unique_bool and increasing_bool):
+        raise ValueError(
+            "frame_ns must be provided in strictly increasing order, and "
+            "comprise only unique values."
+            )
+
+    with pynwb.NWBHDF5IO(str(stim_file), "r") as f:
+        nwbfile_in = f.read()
+        try:
+            stim_template = nwbfile_in.get_stimulus_template(template_name)
+
+            n_frames = stim_template.data.shape[0]
+            if max(frame_ns) > n_frames - 1:
+                raise ValueError(
+                    "Some of the frames requested go beyond the number of "
+                    "frames recorded for this template."
+                    )
+            # loading the images can be slow
+            template_images = stim_template.data[frame_ns]
+
+        except KeyError as err:
+            raise KeyError(
+                f"Could not find frames for '{template_name}' stimulus "
+                f"template in {stim_file} due to: {err}"
+                )
+        
+    # wid x hei -> hei x wid
+    template_images = list(np.transpose(template_images, (0, 2, 1, 3)))
+
+    return template_images
 
 
 #############################################

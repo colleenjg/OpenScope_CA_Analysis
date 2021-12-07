@@ -109,12 +109,12 @@ def select_nwb_sess_path(sess_files, ophys=False, behav=False, stim=False):
             ]
             data_names.append(data_name)
     
-    tog_str = "" if len(data_names) > 1 else ", together"
+    tog_str = "" if len(data_names) == 1 else " together"
     data_names = ", and ".join(data_names).capitalize()
 
     if len(sess_files) == 0:
         raise RuntimeError(
-            f"{data_names} data not included in session NWB files{tog_str}."
+            f"{data_names} data not included{tog_str} in session NWB files."
             )
     
     sess_file = sess_files[0]
