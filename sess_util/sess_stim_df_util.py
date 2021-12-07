@@ -22,12 +22,11 @@ import pandas as pd
 import pynwb
 
 from util import file_util, gen_util, logger_util
-from sess_util import sess_file_util, sess_sync_util
+from sess_util import sess_file_util, sess_load_util, sess_sync_util
 
 logger = logging.getLogger(__name__)
 
 TAB = "    "
-MS_TO_S = 1 / 1_000
 
 
 ##########################################
@@ -334,6 +333,8 @@ def load_basic_stimulus_table(stim_dict, stim_sync_h5, time_sync_h5, align_pkl,
 #############################################
 def update_basic_stimulus_table(df):
     """
+    update_basic_stimulus_table(df)
+    
     Updates columns of basic stimulus table.
 
     Arguments:
@@ -413,6 +414,8 @@ def update_basic_stimulus_table(df):
 #############################################
 def _num_pre_blank_frames(stim_dict):
     """
+    _num_pre_blank_frames(stim_dict)
+
     Retrieves number of blank frames before stimulus starts.
 
     Arguments:
@@ -430,7 +433,10 @@ def _num_pre_blank_frames(stim_dict):
 #############################################
 def add_stimulus_frame_num(df, stim_dict, stim_align, runtype="prod"):
     """
-    Adds stimulus frame numbers to the Gabors and visual flow stimulus rows in the stimulus table.
+    add_stimulus_frame_num(df, stim_dict, stim_align)
+
+    Adds stimulus frame numbers to the Gabors and visual flow stimulus rows in 
+    the stimulus table.
 
     Arguments:
         df (pandas): stimulus table
@@ -525,6 +531,8 @@ def add_stimulus_frame_num(df, stim_dict, stim_align, runtype="prod"):
 #############################################
 def add_stimulus_locations(df, stim_dict, runtype="prod"):
     """
+    add_stimulus_locations(df, stim_dict)
+
     Adds stimulus locations and sizes to the Gabors and visual flow stimulus 
     rows in the stimulus table.
 
@@ -702,7 +710,10 @@ def add_stimulus_locations(df, stim_dict, runtype="prod"):
 #############################################
 def modify_segment_num(df):
     """
-    Modifies stimulus segment numbers for the Gabors and visual flow if they repeat.
+    modify_segment_num(df)
+
+    Modifies stimulus segment numbers for the Gabors and visual flow if they 
+    repeat.
 
     Arguments:
         df (pandas): stimulus table
@@ -744,6 +755,8 @@ def modify_segment_num(df):
 #############################################
 def add_gabor_grayscreen_rows(df, stim_align):
     """
+    add_gabor_grayscreen_rows(df, stim_align)
+
     Updates dataframe with grayscreen rows added after the Gabor D/U segments.
 
     Arguments:
@@ -844,6 +857,8 @@ def add_gabor_grayscreen_rows(df, stim_align):
 #############################################
 def add_grayscreen_stimulus_rows(df, stim_align):
     """
+    add_grayscreen_stimulus_rows(df, stim_align)
+
     Updates dataframe with grayscreen stimulus rows.
 
     Arguments:
@@ -905,39 +920,10 @@ def add_grayscreen_stimulus_rows(df, stim_align):
 
 
 #############################################
-def get_stim_timestamps(stim_dict, stim_align, time_sync_h5):
-    """
-    Return stimulus timestamps.
-
-    Arguments:
-        stim_dict (dict): experiment stim dictionary, loaded from pickle
-        stim_align (1D array): stimulus to 2p alignment array
-        time_sync_h5 (Path): full path name of the experiment sync hdf5 file
-    
-    Returns:
-        stimulus_timestamps (1D array): timem stamps for each stimulus frames.
-    """
-
-    timestamp_intervals = stim_dict["intervalsms"] * MS_TO_S
-
-    # Convert from intervals to timestamps
-    timestamps = np.cumsum(timestamp_intervals)
-    # Ensure start time is 0.0
-    timestamps = np.concatenate([[0.0], timestamps])
-
-    with h5py.File(time_sync_h5, "r") as f:
-        twop_timestamps = f["twop_vsync_fall"][:]
-    
-    # Convert to the two photon reference frame
-    offset = twop_timestamps[stim_align[0]]
-    stimulus_timestamps = offset + timestamps
-
-    return stimulus_timestamps
-
-
-#############################################
 def add_time(df, stim_dict, stimulus_timestamps):
     """
+    add_time(df, stim_dict, stimulus_timestamps)
+
     Updates dataframe with time columns.
 
     Arguments:
@@ -977,30 +963,27 @@ def add_time(df, stim_dict, stimulus_timestamps):
 
 
 #############################################
-def add_stimulus_template_names_and_frames(df, stimulus_timestamps, 
-                                           runtype="prod"):
+def add_stimulus_template_names_and_frames(df, runtype="prod"):
     """
+    add_stimulus_template_names_and_frames(df)
+
     Updates dataframe with stimulus template names and frame numbers.
 
     Arguments:
         df (pandas): stimulus dataframe.
-        stimulus_timestamps (1D array): timem stamps for each stimulus frames.
 
     Optional arguments:
         runtype (str): deployment type (prod or pilot)
         default: "prod"
 
     Returns:
-        df (pandas): updated stimulus table with stimulus template names and frame numbers.
+        df (pandas): updated stimulus table with stimulus template names and 
+                     frame numbers.
     """
 
     df = df.copy()
 
     df = df.sort_values("start_frame_twop").reset_index(drop=True)
-
-    df["stimulus_template_name"] = stimulus_timestamps[
-        df["start_frame_stim"].values.astype(int)
-    ]
 
     df["stimulus_template_name"] = df["stimulus_type"].values
 
@@ -1074,6 +1057,9 @@ def add_stimulus_template_names_and_frames(df, stimulus_timestamps,
 def load_stimulus_table(stim_dict, stim_sync_h5, time_sync_h5, align_pkl, 
                         sessid, runtype="prod"):
     """
+    load_stimulus_table(stim_dict, stim_sync_h5, time_sync_h5, align_pkl, 
+                        sessid)
+
     Retrieves and expands stimulus dataframe.
 
     Arguments:
@@ -1109,10 +1095,10 @@ def load_stimulus_table(stim_dict, stim_sync_h5, time_sync_h5, align_pkl,
     )
 
     # load stimulus timestamps
-    stimulus_timestamps = get_stim_timestamps(
-        stim_dict, stim_align, time_sync_h5
+    stimulus_timestamps = sess_sync_util.get_stim_fr_timestamps(
+        stim_sync_h5, time_sync_h5=time_sync_h5, stim_align=stim_align
         )
-
+    
     # CREATE DATAFRAME
     # load dataframe with updated column names
     df = update_basic_stimulus_table(df)
@@ -1136,7 +1122,7 @@ def load_stimulus_table(stim_dict, stim_sync_h5, time_sync_h5, align_pkl,
     df = add_time(df, stim_dict, stimulus_timestamps)
 
     # add stimulus names
-    df = add_stimulus_template_names_and_frames(df, stimulus_timestamps)
+    df = add_stimulus_template_names_and_frames(df, runtype=runtype)
 
     # reorder rows
     df = df.sort_values("start_frame_twop").reset_index(drop=True)
@@ -1192,6 +1178,8 @@ def load_stimulus_table(stim_dict, stim_sync_h5, time_sync_h5, align_pkl,
 #############################################
 def add_frames_from_timestamps(df, twop_timestamps, stim_timestamps):
     """
+    add_frames_from_timestamps(df, twop_timestamps, stim_timestamps)
+
     Add stimulus and two-photon frame numbers to the dataframe
 
     Arguments:
@@ -1219,7 +1207,8 @@ def add_frames_from_timestamps(df, twop_timestamps, stim_timestamps):
 
 #############################################
 def load_stimulus_table_nwb(sess_files, full_table=True):
-    """
+    """ 
+    load_stimulus_table_nwb(sess_files)
     Retrieves stimulus dataframe.
 
     Arguments:

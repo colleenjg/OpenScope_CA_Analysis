@@ -571,12 +571,15 @@ def init_sessions(sessids, datadir, mouse_df, runtype="prod", full_table=True,
                 logger.info(
                     f"Omitting session {sessid} ({dend} dendrites not found).")
                 continue
-            if pupil and sess.pup_data_h5 == "none":
-                logger.info(
-                    f"Omitting session {sessid} as no pupil data h5 was found.")
-                continue
             if pupil:
-                sess.load_pup_data()
+                if sess.pup_data_available:
+                    sess.load_pup_data()
+                else:
+                    logger.info(
+                        f"Omitting session {sessid} as no pupil data was found."
+                    )
+                    continue
+                    
             logger.info(f"Finished creating session {sessid}.")
             sessions.append(sess)
 

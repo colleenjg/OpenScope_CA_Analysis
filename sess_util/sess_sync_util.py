@@ -16,6 +16,7 @@ Note: this code uses python 3.7.
 import logging
 import warnings
 
+import h5py
 import numpy as np
 import pandas as pd
 import pynwb
@@ -156,36 +157,36 @@ def check_stim_drop_tolerance(n_drop_stim_fr, tot_stim_fr, drop_tol=0.0003,
 
 
 #############################################
-def get_monitor_delay(syn_file_name):
+def get_monitor_delay(stim_sync_h5):
     """
-    get_monitor_delay(syn_file_name)
+    get_monitor_delay(stim_sync_h5)
 
     Returns monitor delay lag.
 
     Required args:
-        - syn_file_name (Path): full path name of the experiment sync hdf5 
-                                file
+        - stim_sync_h5 (Path): full path name of the experiment sync hdf5 
+                               file
     """
 
     # check if exists
-    file_util.checkfile(syn_file_name)
+    file_util.checkfile(stim_sync_h5)
 
     # create Dataset2p object which allows delay to be calculated
-    monitor_display_lag = Dataset2p.Dataset2p(str(syn_file_name)).display_lag
+    monitor_display_lag = Dataset2p.Dataset2p(str(stim_sync_h5)).display_lag
 
     return monitor_display_lag
 
 
 #############################################
-def get_vsync_falls(syn_file_name):
+def get_vsync_falls(stim_sync_h5):
     """
-    get_vsync_falls(syn_file_name)
+    get_vsync_falls(stim_sync_h5)
 
     Calculates vsyncs for 2p and stimulus frames. 
 
     Required args:
-        - syn_file_name (Path): full path name of the experiment sync hdf5 
-                                file
+        - stim_sync_h5 (Path): full path name of the experiment sync hdf5 
+                               file
 
     Returns:
         - stim_vsync_fall_adj (1D array)  : vsyncs for each stimulus frame, 
@@ -194,12 +195,12 @@ def get_vsync_falls(syn_file_name):
     """
 
     # check that the sync file exists
-    file_util.checkfile(syn_file_name)
+    file_util.checkfile(stim_sync_h5)
 
     # create a Dataset object with the sync file 
     # (ignore deprecated keys warning)
     with gen_util.TempWarningFilter("The loaded sync file", UserWarning):
-        sync_data = sync_dataset.Dataset(str(syn_file_name))
+        sync_data = sync_dataset.Dataset(str(stim_sync_h5))
    
     sample_frequency = sync_data.meta_data["ni_daq"]["counter_output_freq"]
     
@@ -213,7 +214,7 @@ def get_vsync_falls(syn_file_name):
 
     # find the delay
     # delay = calculate_delay(sync_data, stim_vsync_fall, sample_frequency)
-    delay = get_monitor_delay(syn_file_name)
+    delay = get_monitor_delay(stim_sync_h5)
 
     # adjust stimulus time with monitor delay
     stim_vsync_fall_adj = stim_vsync_fall + delay
@@ -222,16 +223,16 @@ def get_vsync_falls(syn_file_name):
 
 
 #############################################
-def get_frame_rate(syn_file_name):
+def get_frame_rate(stim_sync_h5):
     """
-    get_frame_rate(syn_file_name)
+    get_frame_rate(stim_sync_h5)
 
     Pulls out the ophys frame times stimulus sync file and returns stats for
     ophys frame rates.
 
     Required args:
-        - syn_file_name (Path): full path name of the experiment sync hdf5 
-                                file
+        - stim_sync_h5 (Path): full path name of the experiment sync hdf5 
+                               file
 
     Returns:
         - twop_rate_mean (num)  : mean ophys frame rate
@@ -239,7 +240,7 @@ def get_frame_rate(syn_file_name):
         - twop_rate_std (num)   : standard deviation of ophys frame rate
     """
 
-    _, valid_twop_vsync_fall = get_vsync_falls(syn_file_name)
+    _, valid_twop_vsync_fall = get_vsync_falls(stim_sync_h5)
 
     twop_diff = np.diff(valid_twop_vsync_fall)
     
@@ -251,10 +252,67 @@ def get_frame_rate(syn_file_name):
 
 
 #############################################
-def get_stim_frames(pkl_file_name, syn_file_name, time_sync_h5, df_pkl_name, 
+def get_stim_fr_timestamps(stim_sync_h5, time_sync_h5=None, stim_align=None):
+    """
+    get_stim_fr_timestamps(stim_sync_h5)
+
+    Returns time stamps for stimulus frames, optionally adjusted to experiment 
+    start, recorded in 2-photon imaging timestamps.
+
+    Adapted from allensdk.brain_observatory.running_processing.__main__.main().
+
+    Required args:
+        - stim_sync_h5 (Path): full path name of the stimulus sync h5 file
+
+    Optional args:
+        - time_sync_h5 (Path)  : full path to the time synchronization hdf5 
+                                 file, used to adjust stimulus frame timestamps 
+                                 to experiment start
+                                 default: None
+        - stim_align (1D array): stimulus to 2p alignment array, used to adjust 
+                                 stimulus frame timestamps to experiment start
+                                 default: None
+
+    Returns:
+        - stim_fr_timestamps (1D array): time stamp for each stimulus frame 
+                                         (seconds)
+    """
+
+    # check that the sync file exists
+    file_util.checkfile(stim_sync_h5)
+
+    dataset = sync_dataset.Dataset(str(stim_sync_h5))
+
+    # Why the rising edge? See Sweepstim.update in camstim. This method does:
+    # 1. updates the stimuli
+    # 2. updates the "items", causing a running speed sample to be acquired
+    # 3. sets the vsync line high
+    # 4. flips the buffer
+    stim_fr_timestamps = dataset.get_edges(
+        "rising", sync_dataset.Dataset.FRAME_KEYS, units="seconds"
+    )
+
+    if time_sync_h5 is not None or stim_align is not None:
+        if time_sync_h5 is None or stim_align is None:
+            raise ValueError(
+                "If providing time_sync_h5 or stim_align, must provide both."
+                )
+        stim_fr_timestamps = stim_fr_timestamps - stim_fr_timestamps[0]
+        with h5py.File(time_sync_h5, "r") as f:
+            twop_timestamps = f["twop_vsync_fall"][:]
+        
+        # Convert to the two photon reference frame
+        offset = twop_timestamps[stim_align[0]]
+        stim_fr_timestamps = offset + stim_fr_timestamps
+
+    return stim_fr_timestamps
+
+
+#############################################
+def get_stim_frames(pkl_file_name, stim_sync_h5, time_sync_h5, df_pkl_name, 
                     sessid, runtype="prod"):
     """
-    get_stim_frames(pkl_file_name, syn_file_name, time_sync_h5, df_pkl_name, 
+    get_stim_frames(pkl_file_name, stim_sync_h5, time_sync_h5, df_pkl_name, 
                     sessid)
 
     Pulls out the stimulus frame information from the stimulus pickle file, as
@@ -265,7 +323,7 @@ def get_stim_frames(pkl_file_name, syn_file_name, time_sync_h5, df_pkl_name,
     Required args:
         - pkl_file_name (Path): full path name of the experiment stim pickle 
                                 file
-        - syn_file_name (Path): full path name of the experiment sync hdf5 file
+        - stim_sync_h5 (Path): full path name of the experiment sync hdf5 file
         - time_sync_h5 (Path) : full path to the time synchronization hdf5 file
         - df_pkl_name (Path)  : full path name of the output pickle file to 
                                 create
@@ -297,7 +355,7 @@ def get_stim_frames(pkl_file_name, syn_file_name, time_sync_h5, df_pkl_name,
             f"{len(pkl['stimuli'])} found.")
         
     # get dataset object, sample frequency and vsyncs
-    stim_vsync_fall_adj, valid_twop_vsync_fall = get_vsync_falls(syn_file_name)
+    stim_vsync_fall_adj, valid_twop_vsync_fall = get_vsync_falls(stim_sync_h5)
 
     # calculate the alignment
     stimulus_alignment = Dataset2p.calculate_stimulus_alignment(
@@ -611,20 +669,7 @@ def get_run_velocity(stim_sync_h5, stim_pkl="", stim_dict=None, filter_ks=5):
         # read the input pickle file and call it "pkl"
         stim_dict = file_util.loadfile(stim_pkl)
 
-
-    # check that the sync file exists
-    file_util.checkfile(stim_sync_h5)
-
-    dataset = sync_dataset.Dataset(str(stim_sync_h5))
-
-    # Why the rising edge? See Sweepstim.update in camstim. This method does:
-    # 1. updates the stimuli
-    # 2. updates the "items", causing a running speed sample to be acquired
-    # 3. sets the vsync line high
-    # 4. flips the buffer
-    stim_fr_timestamps = dataset.get_edges(
-        "rising", sync_dataset.Dataset.FRAME_KEYS, units="seconds"
-    )
+    stim_fr_timestamps = get_stim_fr_timestamps(stim_sync_h5)
 
     # occasionally an extra set of frame times are acquired after the rest of 
     # the signals. We detect and remove these
