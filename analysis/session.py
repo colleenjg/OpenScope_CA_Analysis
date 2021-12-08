@@ -278,7 +278,13 @@ class Session(object):
             self.sess_files = sess_file_util.get_nwb_sess_paths(
                 self.home, self.dandi_id, mouseid=self.mouseid
                 )        
-        
+            if len(self.sess_files) > 1:
+                warnings.warn(
+                    "Several NWB files were found for this session. When "
+                    "loading data, the first file listed that contains the "
+                    "required data will be used."
+                    )
+
         else:
             # check that the high-level home directory exists
             sessdir, mouse_dir = sess_file_util.get_sess_dir_path(

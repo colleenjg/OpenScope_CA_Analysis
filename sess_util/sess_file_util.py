@@ -67,7 +67,8 @@ def get_nwb_sess_paths(maindir, dandi_id, mouseid=None):
 
 
 #############################################
-def select_nwb_sess_path(sess_files, ophys=False, behav=False, stim=False):
+def select_nwb_sess_path(sess_files, ophys=False, behav=False, stim=False, 
+                         warn_multiple=False):
     """
     select_nwb_sess_path(sess_files)
 
@@ -78,15 +79,18 @@ def select_nwb_sess_path(sess_files, ophys=False, behav=False, stim=False):
         - sess_files (list): full path names of the session files
 
     Optional arguments
-        - ophys (bool): if True, only session files with optical physiology 
-                        data are retained
-                        default: False
-        - behav (bool): if True, only session files with behaviour data are 
-                        retained
-                        default: False
-        - stim (bool) : if True, only session files with stimulus data are 
-                        retained
-                        default: False
+        - ophys (bool)        : if True, only session files with optical 
+                                physiology data are retained
+                                default: False
+        - behav (bool)        : if True, only session files with behaviour 
+                                data are retained
+                                default: False
+        - stim (bool)         : if True, only session files with stimulus 
+                                images are retained
+                                default: False
+        - warn_multiple (bool): if True, a warning if thrown if multiple 
+                                matching session files are found
+                                default: False
 
     Returns:
         - sess_file (Path): full path name of the selected session file
@@ -109,8 +113,8 @@ def select_nwb_sess_path(sess_files, ophys=False, behav=False, stim=False):
             ]
             data_names.append(data_name)
     
-    tog_str = "" if len(data_names) == 1 else " together"
-    data_names = ", and ".join(data_names).capitalize()
+    tog_str = "" if len(data_names) < 2 else " together"
+    data_names = ", and ".join(data_names).lower()
 
     if len(sess_files) == 0:
         raise RuntimeError(
@@ -118,9 +122,10 @@ def select_nwb_sess_path(sess_files, ophys=False, behav=False, stim=False):
             )
     
     sess_file = sess_files[0]
-    if len(sess_files) > 1:
+    if len(sess_files) > 1 and warn_multiple:
+        data_names_str = f" with {data_names} data" if len(data_names) else ""
         warnings.warn(
-            f"Several session files with {data_names} data found{tog_str}. "
+            f"Several session files{data_names_str} found{tog_str}. "
             f"Using the first listed: {sess_file}."
             )
 

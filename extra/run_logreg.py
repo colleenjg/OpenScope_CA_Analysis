@@ -18,6 +18,8 @@ import copy
 import logging
 from pathlib import Path
 
+from matplotlib import pyplot as plt
+
 # try to set cache/config as early as possible (for clusters)
 from util import gen_util 
 gen_util.CC_config_cache()
@@ -276,6 +278,8 @@ def run_regr(args):
             dend=analyspar.dend, temp_log="warning")[0]
         logreg.run_regr(sess, analyspar, stimpar, logregpar, quantpar, 
             extrapar, techpar)
+            
+        plt.close("all")
 
 
 #############################################

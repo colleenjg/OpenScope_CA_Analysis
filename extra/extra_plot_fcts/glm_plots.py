@@ -309,48 +309,49 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
 
         i += 1
 
+    if fig is not None:
+        plot_util.add_colorbar(
+            fig, im, n_sess, label=use_xyzc_dims[3],
+            space_fact=np.max([2, n_sess])
+            )
+
+        # plot 0 planes, and lines
+        for sub_ax in ax.reshape(-1):
+            sub_ax.autoscale(False)
+            all_lims = [sub_ax.get_xlim(), sub_ax.get_ylim(), sub_ax.get_zlim()]
+            xs, ys, zs = [
+                [vs[0] - (vs[1] - vs[0]) * 0.02, vs[1] + (vs[1] - vs[0]) * 0.02]
+                for vs in all_lims
+                ]
+            
+            for plane in ["x", "y", "z"]:
+                if plane == "x":
+                    xx, yy = np.meshgrid(xs, ys)
+                    zz = xx * 0
+                    x_flat = xs
+                    y_flat, z_flat = [0, 0], [0, 0]
+                elif plane == "y":
+                    yy, zz = np.meshgrid(ys, zs)
+                    xx = yy * 0
+                    y_flat = ys
+                    z_flat, x_flat = [0, 0], [0, 0]
+                elif plane == "z":
+                    zz, xx = np.meshgrid(zs, xs)
+                    yy = zz * 0
+                    z_flat = zs
+                    x_flat, y_flat = [0, 0], [0, 0]
+                
+                sub_ax.plot_surface(xx, yy, zz, alpha=0.05, color="k")
+                sub_ax.plot(
+                    x_flat, y_flat, z_flat, alpha=0.4, color="k", ls=(0, (2, 2))
+                    )
+
     if savedir is None:
         savedir = Path(
             figpar["dirs"]["roi"],
             figpar["dirs"]["glm"])
 
     savename = (f"roi_glm_ev_{sessstr}{dendstr}")
-
-    if n_sess > 0:
-        plot_util.add_colorbar(
-            fig, im, n_sess, label=use_xyzc_dims[3],
-            space_fact=np.max([2, n_sess])
-            )
-
-    # plot 0 planes, and lines
-    for sub_ax in ax.reshape(-1):
-        sub_ax.autoscale(False)
-        xs, ys, zs = [
-            [vs[0] - (vs[1] - vs[0]) * 0.02, vs[1] + (vs[1] - vs[0]) * 0.02]
-            for vs in [sub_ax.get_xlim(), sub_ax.get_ylim(), sub_ax.get_zlim()]
-            ]
-        
-        for plane in ["x", "y", "z"]:
-            if plane == "x":
-                xx, yy = np.meshgrid(xs, ys)
-                zz = xx * 0
-                x_flat = xs
-                y_flat, z_flat = [0, 0], [0, 0]
-            elif plane == "y":
-                yy, zz = np.meshgrid(ys, zs)
-                xx = yy * 0
-                y_flat = ys
-                z_flat, x_flat = [0, 0], [0, 0]
-            elif plane == "z":
-                zz, xx = np.meshgrid(zs, xs)
-                yy = zz * 0
-                z_flat = zs
-                x_flat, y_flat = [0, 0], [0, 0]
-            
-            sub_ax.plot_surface(xx, yy, zz, alpha=0.05, color="k")
-            sub_ax.plot(
-                x_flat, y_flat, z_flat, alpha=0.4, color="k", ls=(0, (2, 2))
-                )
 
     fulldir = plot_util.savefig(fig, savename, savedir, **figpar["save"])
 

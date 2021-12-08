@@ -19,6 +19,7 @@ import inspect
 import logging
 from pathlib import Path
 
+from matplotlib import pyplot as plt
 import numpy as np
 
 # try to set cache/config as early as possible (for clusters)
@@ -114,9 +115,9 @@ def init_param_cont(args):
     Required args:
         - args (Argument parser): parser with the following attributes:
 
-            visflow_dir (str or list)  : visual flow direction values to include
-                                     ("right", "left", ["right", "left"])
-            visflow_size (int or list) : visual flow square size values to include
+            visflow_dir (str or list): visual flow direction values to include
+                                      ("right", "left", ["right", "left"])
+            visflow_size (int or list): visual flow square size values to include
                                      (128, 256 or [128, 256])
             dend (str)             : type of dendrites to use ("allen" or "dend")
             error (str)            : error statistic parameter ("std" or "sem")
@@ -214,7 +215,7 @@ def init_param_cont(args):
     # session parameters
     analysis_dict["sesspar"] = sess_ntuple_util.init_sesspar(
         args.sess_n, False, args.plane, args.line, args.min_rois, 
-        args.pass_fail, args.incl, args.runtype)
+        args.pass_fail, args.incl, args.runtype, mouse_n=1)
 
     # stimulus parameters
     analysis_dict["stimpar"] = sess_ntuple_util.init_stimpar(
@@ -380,6 +381,7 @@ def run_analyses(sessions, analysis_dict, analyses, seed=None, parallel=False):
         args_dict_use = gen_util.keep_dict_keys(
             args_dict, inspect.getfullargspec(fct).args)
         fct(sessions=sessions, analysis=analysis, **args_dict_use)
+        plt.close("all")
 
     return
 

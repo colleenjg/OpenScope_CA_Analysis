@@ -1953,6 +1953,8 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
             None, None, fulldir=savedir, log_dir=False, **figpar["save"])
 
     if plot_tc:
+        # ROI numbers in plots may not exactly match their indices if bad ROIs 
+        # have been removed
         if not tcurvpar["test"]:
             logger.warning("Plotting tuning curves for each ROI may take a "
                 "while. To skip plotting, set plot_tc to False.", 
