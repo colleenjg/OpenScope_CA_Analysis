@@ -19,6 +19,8 @@ import inspect
 import logging
 from pathlib import Path
 
+from matplotlib import pyplot as plt
+
 # try to set cache/config as early as possible (for clusters)
 from util import gen_util 
 gen_util.CC_config_cache()
@@ -607,6 +609,8 @@ def run_analyses(sessions, analysis_dict, analyses, datatype="roi", seed=None,
         args_dict_use = gen_util.keep_dict_keys(
             args_dict, inspect.getfullargspec(fct).args)
         fct(sessions=sessions, analysis=analysis, **args_dict_use)
+        
+        plt.close("all")
 
 
 #############################################

@@ -19,6 +19,7 @@ import logging
 from pathlib import Path
 
 import numpy as np
+from matplotlib import pyplot as plt
 
 # try to set cache/config as early as possible (for clusters)
 from util import gen_util 
@@ -573,6 +574,8 @@ def run_analyses(sessions, analysis_dict, analyses, seed=None,
             args_dict, inspect.getfullargspec(fct).args)
         fct(sessions=sessions, analysis=analysis, **args_dict_use)
 
+        plt.close("all")
+
 
 #############################################
 def main(args):
@@ -697,7 +700,7 @@ def parse_args():
     parser.add_argument("--min_rois", default=5, type=int, 
         help="min rois criterion")
         # stimulus parameters
-    parser.add_argument("--visflow_dir", default="right", 
+    parser.add_argument("--visflow_dir", default="both", 
         help="visual flow dir (right, left, or both)") 
     parser.add_argument("--gabfr", default=3, type=int, 
         help="gabor frame at which to start sequences")  
