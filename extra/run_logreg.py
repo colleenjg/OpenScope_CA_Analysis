@@ -263,9 +263,11 @@ def run_regr(args):
     omit_sess, omit_mice = sess_gen_util.all_omit(stimpar.stimtype, 
         args.runtype, stimpar.visflow_dir, stimpar.visflow_size, stimpar.gabk)
 
-    sessids = sess_gen_util.get_sess_vals(mouse_df, "sessid", args.mouse_n, 
+    sessids = sorted(
+        sess_gen_util.get_sess_vals(mouse_df, "sessid", args.mouse_n, 
         args.sess_n, args.runtype, incl=args.incl, omit_sess=omit_sess, 
         omit_mice=omit_mice)
+        )
 
     if len(sessids) == 0:
         logger.warning(

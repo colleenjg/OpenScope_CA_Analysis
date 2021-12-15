@@ -18,6 +18,7 @@ import logging
 from pathlib import Path
 
 import h5py
+import json
 import numpy as np
 import pandas as pd
 import pynwb
@@ -34,7 +35,8 @@ logger = logging.getLogger(__name__)
 EXCLUSION_LABELS = ["motion_border", "union", "duplicate", "empty", 
     "empty_neuropil"]
 
-
+MASK_THRESHOLD = 0.1 # value used in ROI extraction
+MIN_N_PIX = 3 # value used in ROI extraction
 
 #############################################
 def load_traces_optionally(roi_data_handle, roi_ns=None, frame_ns=None):
@@ -300,9 +302,6 @@ def get_roi_locations(roi_extract_dict):
     roi_locations_list = []
     for i in range(len(rois)):
         roi = rois[i]
-        #if roi["mask"][0] == "{":
-        #    mask = _parse_mask_string(roi["mask"])
-        #else:
         mask = roi["mask"]
         roi_locations_list.append(
             [roi["id"], roi["x"], roi["y"], roi["width"], roi["height"],
@@ -421,6 +420,45 @@ def get_roi_metrics(roi_extract_dict, objectlist_txt):
 
 
 #############################################
+def get_tracked_rois(nway_match_path, idx_after_rem_bad=False):
+    """
+    get_tracked_rois(nway_match_path)
+
+    Returns ROI tracking indices.
+
+    Required args:
+        - nway_match_path (Path): path to nway matching file
+        
+    Optional args:
+        - idx_after_rem_bad (bool): if True, the ROI indices are shifted to 
+                                    as if bad ROIs did not exist
+                                    (bad ROIs computed for dF/F only)
+                                    default: False
+
+    Returns:
+        - tracked_rois (1D array): ordered indices of tracked ROIs
+    """
+
+    with open(nway_match_path, "r") as f:
+        nway_dict = json.load(f)
+
+    tracked_rois_df = pd.DataFrame().from_dict(nway_dict["rois"])
+    tracked_rois = tracked_rois_df['dff-ordered_roi_index'].values
+    
+    if idx_after_rem_bad:
+        bad_rois_df = pd.DataFrame().from_dict(nway_dict["bad_rois"])
+        bad_rois = bad_rois_df["dff_local_bad_roi_idx"].values
+
+        # shift indices to ignore bad ROIs
+        adj_tracked_rois = []
+        for n in tracked_rois:
+            adj_tracked_rois.append(n - np.sum(bad_rois < n))
+        tracked_rois = np.asarray(adj_tracked_rois)
+
+    return tracked_rois
+
+
+#############################################
 def get_tracked_rois_nwb(sess_files):
     """
     get_tracked_rois_nwb(sess_files)
@@ -428,7 +466,7 @@ def get_tracked_rois_nwb(sess_files):
     Returns ROI tracking indices.
 
     Required args:
-        - sess_files (Path): full path names of the session files
+        - sess_files (list): full path names of the session files
         
     Returns:
         - tracked_rois (1D array): ordered indices of tracked ROIs
@@ -468,19 +506,67 @@ def get_tracked_rois_nwb(sess_files):
 
 
 #############################################
-def get_roi_masks_nwb(sess_files):
+def process_roi_masks(roi_masks, mask_threshold=MASK_THRESHOLD, 
+                      min_n_pix=MIN_N_PIX, make_bool=True):
+    """
+    process_roi_masks(roi_masks)
+
+    Required args:
+        - roi_masks (3D): ROI masks (ROI x hei x wid)
+
+    Optional args:
+        - mask_threshold (float): minimum value in non-boolean mask to
+                                  retain a pixel in an ROI mask
+                                  default: MASK_THRESHOLD
+        - min_n_pix (int)       : minimum number of pixels in an ROI below 
+                                  which, ROI is set to be empty
+                                  default: MIN_N_PIX
+        - make_bool (bool)      : if True, ROIs are converted to boolean 
+                                  before being returned
+                                  default: True 
+
+    Returns:
+        - roi_masks (3D): processed ROI masks (ROI x hei x wid)
+    """
+
+    roi_masks = copy.deepcopy(roi_masks)
+
+    if len(roi_masks.shape) != 3:
+        raise ValueError("roi_masks should have 3 dimensions.")
+
+    roi_masks[roi_masks < mask_threshold] = 0
+
+    if min_n_pix != 0:
+        set_empty = np.sum(roi_masks, axis=(1, 2)) < min_n_pix
+        roi_masks[set_empty] = 0
+
+    if make_bool:
+        roi_masks = roi_masks.astype(bool)
+    
+    return roi_masks
+
+
+#############################################
+def get_roi_masks_nwb(sess_files, mask_threshold=MASK_THRESHOLD, 
+                      min_n_pix=MIN_N_PIX, make_bool=True):
     """
     get_roi_masks_nwb(sess_files)
 
-    Returns tracked ROIs.
+    Returns tracked ROIs, optionally converted to boolean.
 
     Required args:
         - sess_files (Path): full path names of the session files
 
     Optional args:
-        - make_bool (bool)       : if True, ROIs are converted to boolean 
-                                   before being returned
-                                   default: True 
+        - mask_threshold (float): minimum value in non-boolean mask to
+                                  retain a pixel in an ROI mask
+                                  default: MASK_THRESHOLD
+        - min_n_pix (int)       : minimum number of pixels in an ROI below 
+                                  which, ROI is set to be empty
+                                  default: MIN_N_PIX
+        - make_bool (bool)      : if True, ROIs are converted to boolean 
+                                  before being returned
+                                  default: True 
         
     Returns:
         - roi_masks (3D array): ROI masks, structured as 
@@ -508,20 +594,27 @@ def get_roi_masks_nwb(sess_files):
         roi_masks = np.asarray(plane_seg["image_mask"].data)
         roi_ids = list(plane_seg["id"].data)
 
-    roi_masks = np.transpose(roi_masks, (0, 2, 1)) # ROI x w x h -> ROI x h x w
+    roi_masks = np.transpose(roi_masks, (0, 1, 2)) # ROI x h x w -> ROI x h x w
 
+    roi_masks = process_roi_masks(
+        roi_masks, mask_threshold=mask_threshold, min_n_pix=min_n_pix, 
+        make_bool=make_bool
+        )
 
     return roi_masks, roi_ids
 
 
 #############################################
 def get_roi_masks(mask_file=None, roi_extract_json=None, objectlist_txt=None, 
-                  mask_threshold=0.1, min_n_pix=3, make_bool=True):
+                  mask_threshold=MASK_THRESHOLD, min_n_pix=MIN_N_PIX, 
+                  make_bool=True):
     """
     get_roi_masks()
 
-    Returns ROI masks, loaded either from an h5 or json file, and converted
-    to boolean.
+    Returns ROI masks, loaded either from an h5 or json file, and optionally 
+    converted to boolean.
+
+    NOTE: If masks are loaded from roi_extract_json, they are already boolean.
 
     Optional args:
         - mask_file (Path)        : ROI mask h5. If None, roi_extract_json and
@@ -534,10 +627,10 @@ def get_roi_masks(mask_file=None, roi_extract_json=None, objectlist_txt=None,
                                    default: None
         - mask_threshold (float) : minimum value in non-boolean mask to
                                    retain a pixel in an ROI mask
-                                   default: 0.1
+                                   default: MASK_THRESHOLD
         - min_n_pix (int)        : minimum number of pixels in an ROI below 
                                    which, ROI is set to be empty
-                                   default: 3
+                                   default: MIN_N_PIX
         - make_bool (bool)       : if True, ROIs are converted to boolean 
                                    before being returned
                                    default: True 
@@ -562,6 +655,7 @@ def get_roi_masks(mask_file=None, roi_extract_json=None, objectlist_txt=None,
         roi_ids = np.sort(roi_metrics.cell_specimen_id.values)
         nrois = len(roi_ids)
 
+        # source data is boolean
         roi_masks = np.full([nrois, h, w], False).astype(bool)
         for i, roi_id in enumerate(roi_ids):
             m = roi_metrics[roi_metrics.id == roi_id].iloc[0]
@@ -574,18 +668,14 @@ def get_roi_masks(mask_file=None, roi_extract_json=None, objectlist_txt=None,
         
     else:
         with h5py.File(mask_file, "r") as f:
-            roi_masks = f["data"][()]
+            roi_masks = f["data"][()] # not binary
 
         roi_ids = list(range(len(roi_masks)))
 
-    roi_masks[roi_masks < mask_threshold] = 0
-
-    set_empty = np.sum(np.sum(roi_masks, axis=1), axis=1) < min_n_pix
-    roi_masks[set_empty] = 0
-
-    if make_bool:
-        roi_masks = roi_masks.astype(bool)
-
+    roi_masks = process_roi_masks(
+        roi_masks, mask_threshold=mask_threshold, min_n_pix=min_n_pix, 
+        make_bool=make_bool
+        )
 
     return roi_masks, roi_ids
 
@@ -1028,7 +1118,7 @@ def create_traces_from_masks(datadir, sessid, runtype="prod", h5dir=None,
     logger.info("Extracting ROI masks.")
     masks_bool, roi_ids = get_roi_masks(
         mask_path, roi_extract_json, objectlist_path, 
-        mask_threshold=mask_threshold, min_n_pix=min_n_pix, make_bool=True, )
+        mask_threshold=mask_threshold, min_n_pix=min_n_pix, make_bool=True)
     motion_border = get_motion_border(roi_extract_json)
     all_mask_objs = create_mask_objects(masks_bool, motion_border, roi_ids, 
         union_threshold=0.7)

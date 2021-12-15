@@ -16,8 +16,6 @@ import logging
 from pathlib import Path
 import time
 
-import numpy as np
-
 from util import logger_util, rand_util
 from sess_util import sess_gen_util
 from paper_fig_util import behav_figs, corr_figs, decoding_figs, misc_figs, \
@@ -102,8 +100,8 @@ def slow_plot_warning():
 
 def stats_plot_fct_warning():
     message = ("This figure panel includes statistical analyses. "
-        "Analysis may take longer, and statistical markers may not be "
-        "ideally spaced out.")
+        "Statistical markers may not be ideally spaced out, and running full "
+        "analyses may take longer.")
     warning_tuple = WARNING_TUPLE(message, False)
     return warning_tuple
 
@@ -112,6 +110,14 @@ def seed_warning(seed):
         f"the paper: {seed}. Results may differ slightly "
         "from published results. To use paper seed, run script with "
         "default seed argument, i.e., '--seed paper'.")
+    warning_tuple = WARNING_TUPLE(message, False)
+    return warning_tuple
+
+def memory_demand_warning():
+    message = ("Analyses for this figure panel have high memory demands. "
+        "This may be a problem for machines with small amounts of RAM "
+        "(e.g., 16 GB), in which case it is recommended to run the analysis "
+        "without the parallel argument ('--parallel').")
     warning_tuple = WARNING_TUPLE(message, True)
     return warning_tuple
 
@@ -482,10 +488,12 @@ class FigurePanelAnalysis():
     def roi_tracking(self):
         self.description = "Example ROI tracking overlays."
         self.specific_params = get_specific_params(
-            mouse_n=[3, 4, 6, 11]
+            mouse_n=[4, 11],
+            tracked=True,
         )
         self.analysis_fct = roi_figs.roi_tracking
         self.plot_fct = plot_figs.plot_roi_tracking
+        self.warnings.append(memory_demand_warning())
 
 
     ### Figure 2 ###
@@ -730,19 +738,23 @@ class FigurePanelAnalysis():
     def roi_overlays_sess123(self):
         self.description = "Example ROI tracking overlays (large)."
         self.specific_params = get_specific_params(
-            mouse_n=[3, 4, 6, 11]
+            mouse_n=[3, 4, 6, 11],
+            tracked=True,
         )
         self.analysis_fct = roi_figs.roi_overlays_sess123
         self.plot_fct = plot_figs.plot_roi_overlays_sess123
+        self.warnings.append(memory_demand_warning())
 
 
     def roi_overlays_sess123_enlarged(self):
         self.description = "Example ROI tracking overlay close-ups (large)."
         self.specific_params = get_specific_params(
-            mouse_n=[3, 4, 6, 11]
+            mouse_n=[3, 4, 6, 11],
+            tracked=True,
         )
         self.analysis_fct = roi_figs.roi_overlays_sess123_enlarged
         self.plot_fct = plot_figs.plot_roi_overlays_sess123_enlarged
+        self.warnings.append(memory_demand_warning())
 
 
     ### Figure S2 ###
@@ -1040,9 +1052,11 @@ class FigurePanelAnalysis():
         self.specific_params = get_specific_params(
             plane="dend",
             mouse_n=6,
+            tracked=True,
         )
         self.analysis_fct = roi_figs.dendritic_roi_tracking_example
         self.plot_fct = plot_figs.plot_dendritic_roi_tracking_example
+        self.warnings.append(memory_demand_warning())
 
 
     def somatic_roi_tracking_example(self):
@@ -1050,9 +1064,11 @@ class FigurePanelAnalysis():
         self.specific_params = get_specific_params(
             plane="soma",
             mouse_n=4,
+            tracked=True,
         )
         self.analysis_fct = roi_figs.somatic_roi_tracking_example
         self.plot_fct = plot_figs.plot_somatic_roi_tracking_example
+        self.warnings.append(memory_demand_warning())
 
 
     @property

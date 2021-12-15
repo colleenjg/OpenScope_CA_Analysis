@@ -241,7 +241,9 @@ def init_sessions(analyspar, sesspar, mouse_df, datadir, sessions=None,
     sesspar_dict.pop("closest")
 
     # identify sessions needed
-    sessids = sess_gen_util.get_sess_vals(mouse_df, "sessid", **sesspar_dict)
+    sessids = sorted(
+        sess_gen_util.get_sess_vals(mouse_df, "sessid", **sesspar_dict)
+    )
 
     if len(sessids) == 0:
         raise ValueError("No sessions meet the criteria.")
@@ -425,8 +427,9 @@ def main(args):
     if args.overwrite and not(args.plot_only):
         if not args.parallel:
             warnings.warn(
-                "It is strongly recommended that paper analyses be run with "
-                "the '--parallel' argument (enables computations to be "
+                "Unless memory demands are too high for the machine being "
+                "used, it is strongly recommended that paper analyses be run "
+                "with the '--parallel' argument (enables computations to be "
                 "distributed across available CPU cores). Otherwise, analyses "
                 "may be very slow.", category=UserWarning, stacklevel=1
                 )

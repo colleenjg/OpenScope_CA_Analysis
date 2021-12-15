@@ -16,7 +16,9 @@ import copy
 import logging
 from pathlib import Path
 
+import cv2
 import h5py
+import json
 import numpy as np
 import pandas as pd
 import pynwb
@@ -303,7 +305,8 @@ def load_max_projection_nwb(sess_files):
     Returns:
         - max_proj (2D array): maximum projection image across downsampled 
                                z-stack (hei x wei), with pixel intensity 
-                               in 0 (incl) to 256 (excl) range.
+                               in 0 (incl) to 256 (excl) range 
+                               ("uint8" datatype).
     """
 
     ophys_file = sess_file_util.select_nwb_sess_path(sess_files, ophys=True)
@@ -315,7 +318,7 @@ def load_max_projection_nwb(sess_files):
         data_field = "max_projection"
         try:
             max_proj = ophys_module.get_data_interface(
-                main_field).get_image(data_field)[()]
+                main_field).get_image(data_field)[()].astype("uint8")
         except KeyError as err:
             raise KeyError(
                 "Could not find a maximum projection plane image "
@@ -338,16 +341,298 @@ def load_max_projection(max_proj_png):
     Returns:
         - max_proj (2D array): maximum projection image across downsampled 
                                z-stack (hei x wei), with pixel intensity 
-                               in 0 (incl) to 256 (excl) range.
+                               in 0 (incl) to 256 (excl) range 
+                               ("uint8" datatype).
     """
 
     if not Path(max_proj_png).is_file():
         raise OSError(f"{max_proj_png} does not exist.")
 
     import imageio
-    max_proj = imageio.imread(max_proj_png)
+    max_proj = imageio.imread(max_proj_png).astype("uint8")
 
     return max_proj
+
+
+#############################################
+def get_registration_transform_params(nway_match_path, sessid, targ_sess_idx=0):
+    """
+    get_registration_transform_params(nway_match_path, sessid)
+
+    Returns cv2.warpPerspective registration transform parameters used to 
+    register session planes to one another, saved in the n-way match files. 
+
+    (cv2.warpPerspective should be used with flags cv2.INTER_LINEAR and 
+    cv2.WARP_INVERSE_MAP)
+
+    Required args:
+        - nway_match_path (Path): full path name of the n-way registration path 
+                                  (should be a local path in a directory that 
+                                  other session registrations are also stored)
+        - sessid (int)          : session ID
+
+    Optional args:
+        - targ_sess_idx (int): session that the registration transform should 
+                               be targetted to
+                               default: 0  
+
+    Returns:
+        - transform_params (3D array): registration transformation parameters 
+                                       for the session (None if the session was 
+                                       the registration target)
+    """
+
+    if not Path(nway_match_path).is_file():
+        raise OSError(f"{nway_match_path} does not exist.")
+
+    with open(nway_match_path, "r") as f:
+        nway_metadata = pd.DataFrame().from_dict(json.load(f)["metadata"])
+
+    if len(nway_metadata) != 1:
+        raise NotImplementedError(
+            "Metadata dataframe expected to only have one line."
+            )
+    nway_row = nway_metadata.loc[nway_metadata.index[0]]
+    if sessid not in nway_row["sess_ids"]:
+        raise RuntimeError(
+            "sessid not found in the n-way match metadata dataframe."
+            )
+    sess_idx = nway_row["sess_ids"].index(sessid)
+    sess_n = nway_row["sess_ns"][sess_idx]
+    n_reg_sess = len(nway_row["sess_ids"])
+    if targ_sess_idx >= n_reg_sess:
+        raise ValueError(
+            f"targ_sess_idx is {targ_sess_idx}, but only {n_reg_sess} "
+            "sessions were registered to one another.")
+
+    targ_sess_id = nway_row["sess_ids"][targ_sess_idx]
+    targ_sess_n = nway_row["sess_ns"][targ_sess_idx]
+    if targ_sess_id == sessid:
+        return None # no transform needed
+
+    # get transform from the target session's nway file
+    if str(sessid) not in str(nway_match_path):
+        raise ValueError(
+            "Expected the n-way_match_path to contain the session ID."
+            )
+    targ_nway_match_path = Path(
+        str(nway_match_path).replace(str(sessid), str(targ_sess_id))
+        )
+
+    if not Path(targ_nway_match_path).is_file():
+        raise RuntimeError(f"Expected to find {targ_nway_match_path} to "
+        "retrieve registration transform, but file does not exist.")
+
+    with open(targ_nway_match_path, "r") as f:
+        target_nway_metadata = pd.DataFrame().from_dict(json.load(f)["metadata"])
+
+    column_name = f"sess_{sess_n}_to_sess_{targ_sess_n}_transformation_matrix"
+
+    if column_name not in target_nway_metadata.columns:
+        raise RuntimeError(
+            f"Expected to find {column_name} column in the metadata "
+            "dataframe for the target session."
+            )
+
+    if len(nway_metadata) != 1:
+        raise NotImplementedError(
+            "Target session metadata dataframe expected to only have one line."
+            )
+
+    target_nway_row = target_nway_metadata.loc[target_nway_metadata.index[0]]
+    
+    transform_params = np.asarray(target_nway_row[column_name])
+        
+    return transform_params
+
+
+#############################################
+def apply_registration_transform(nway_match_path, sessid, image, 
+                                 targ_sess_idx=0):
+    """
+    apply_registration_transform(nway_match_path, sessid, image)
+
+    Returns an image transformed using registration transform parameters, saved 
+    in the n-way match files. 
+
+    Required args:
+        - nway_match_path (Path): full path name of the n-way registration path 
+                                  (should be a local path in a directory that 
+                                  other session registrations are also stored)
+        - sessid (int)          : session ID
+        - image (2 or 3D array) : image to transform, with dimensions 
+                                  (item x) hei x wid. Only certain datatypes 
+                                  are supported by the OpenCV function used, 
+                                  e.g. float or uint8.
+         
+    Optional args:
+        - targ_sess_idx (int)   : session that the registration transform 
+                                  should be targetted to
+                                  default: 0
+    
+    Returns:
+        - registered_image (2 or 3D array) : transformed image, with dimensions 
+                                             (item x) hei x wid.
+    """
+    
+    registration_transform_params = get_registration_transform_params(
+        nway_match_path, sessid, targ_sess_idx=targ_sess_idx
+        )
+
+    if registration_transform_params is None:
+        registered_image = image
+    else:
+        len_image_shape = len(image.shape)
+        if len_image_shape == 2:
+            image = np.asarray([image])
+        elif len_image_shape != 3:
+            raise ValueError("image must be a 2D or 3D array.")
+
+        image = np.asarray(image)
+
+        if registration_transform_params.shape != (3, 3):
+            raise RuntimeError(
+                "registration_transform_params retrieved is expected to have "
+                "shape (3, 3), but found shape "
+                f"{registration_transform_params.shape}."
+                )
+
+        try:
+            registered_image = np.asarray(
+                [cv2.warpPerspective(
+                    sub, 
+                    registration_transform_params, 
+                    dsize=sub.shape, 
+                    flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP
+                    )
+                    for sub in image]
+                )
+        except cv2.error as err:
+            # try to capture and clarify obscure datatype errors raised by 
+            # OpenCV
+            if "ifunc" in str(err) or "argument 'src'" in str(err):
+                raise RuntimeError(
+                    "The following error was raised by OpenCV during image "
+                    f"warping: {err}May be due to the use of an unsupported "
+                    "datatype. Supported datatypes include uint8, int16, "
+                    "uint16, float32, and float64."
+                    )
+            else:
+                raise err
+
+        if len_image_shape == 2:
+            registered_image = registered_image[0]
+
+    return registered_image
+
+
+#############################################
+def get_tracking_perm_example_df(nway_match_path, sessid=None, 
+                                 idx_after_rem_bad=False):
+    """
+    get_tracking_perm_example_df(nway_match_path)
+
+    Returns dataframe with tracking permutation example data. (Only a few mice 
+    have this data included in their nway-match files.)
+
+    Required args:
+        - nway_match_path (Path): full path name of the n-way registration path 
+                                  (should be a local path in a directory that 
+                                  other session registrations are also stored)         
+    Optional args:
+        - sessid (int)            : session ID, for error message if file does 
+                                    not contain the tracking permutation 
+                                    example key
+                                    default: None
+        - idx_after_rem_bad (bool): if True, the ROI indices (not IDs, however) 
+                                    are shifted to as if bad ROIs did not exist
+                                    (bad ROIs computed for dF/F only)
+                                    default: False
+
+    Returns:
+        - nway_tracking_ex_df (pd.DataFrame): dataframe listing ROI tracking 
+            matches that were yielded using different session permutations, 
+            with columns:
+            ['match_level'] (str): 
+                whether this permutation produces the 'most' or 'fewest' 
+                matches, or whether the row reflects the 'union'
+            ['n_total'] (int):
+                total number of ROIs for the match level
+
+            if 'match_level' is 'most' or 'fewest' (NaN if 'union')
+            ['sess_order'] (list):
+                session number order for this permutation
+            ['dff_local_missing_roi_idx'] (list):
+                indices of ROIs that are included in the final tracked ROIs for 
+                the session, but were not identified with this permutation
+            ['dff_local_extra_roi_idx'] (list):
+                indices of ROIs that are not included in the final tracked ROIs 
+                for the session, but were identified with this permutation
+            ['sess{}_missing_roi_id'] (list):
+                ROI IDs/names corresponding to 'dff_local_missing_roi_idx'
+            ['sess{}_extra_roi_id'] (list):
+                ROI IDs/names corresponding to 'dff_local_extra_roi_idx'
+    """
+
+    if not Path(nway_match_path).is_file():
+        raise OSError(f"{nway_match_path} does not exist.")
+
+    with open(nway_match_path, "r") as f:
+        nway_dict = json.load(f)
+    
+    match_key = "match_perm_examples"
+    if match_key not in nway_dict.keys():
+        sess_str = "" if sessid is None else f" for session {sessid}"
+        raise RuntimeError(f"nway-match file{sess_str} does not contain "
+            f"example tracking permutation data under {match_key}."
+            )
+    
+    nway_tracking_ex_df = pd.DataFrame().from_dict(nway_dict[match_key])
+
+    # check that missing ROI indices are all tracked, and extra ROI indices are 
+    # all untracked for the session
+    rois_df = pd.DataFrame().from_dict(nway_dict["rois"])
+    for col in nway_tracking_ex_df.columns:
+        if "roi_idx" not in col:
+            continue
+        targ_vals = rois_df["dff-ordered_roi_index"].tolist()
+        for row_idx in nway_tracking_ex_df.index:
+            if nway_tracking_ex_df.loc[row_idx, "match_level"] == "union":
+                continue
+
+            roi_idxs = nway_tracking_ex_df.loc[row_idx, col]
+            for n in roi_idxs:
+                if n in targ_vals and "extra" in col:
+                    raise RuntimeError(
+                        "Some ROIs identified as 'extra' are in fact tracked."
+                        )
+                elif n not in targ_vals and "missing" in col:
+                    raise RuntimeError(
+                        "Some ROIs identified as 'missing' are not in fact "
+                        "tracked."
+                        )
+
+    # shift ROI indices to as if bad ROIs did not exist
+    if idx_after_rem_bad:
+        bad_rois_df = pd.DataFrame().from_dict(nway_dict["bad_rois"])
+        bad_rois = bad_rois_df["dff_local_bad_roi_idx"].values
+
+        idx_cols = ["dff_local_missing_roi_idx", "dff_local_extra_roi_idx"]
+        for row_idx in nway_tracking_ex_df.index:
+            if nway_tracking_ex_df.loc[row_idx, "match_level"] == "union":
+                continue
+            for col in idx_cols:
+                roi_idxs = nway_tracking_ex_df.loc[row_idx, col]
+                if len(roi_idxs) == 0:
+                    continue
+                
+                # shift indices to ignore bad ROIs
+                adj_roi_idxs = []
+                for n in roi_idxs:
+                    adj_roi_idxs.append(n - np.sum(bad_rois < n))
+                nway_tracking_ex_df.at[row_idx, col] = adj_roi_idxs
+
+    return nway_tracking_ex_df
 
 
 #############################################

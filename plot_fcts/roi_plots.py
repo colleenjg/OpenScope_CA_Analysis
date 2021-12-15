@@ -262,7 +262,8 @@ def create_sess_roi_masks(df_row, mask_key=None, crop=False):
         - df_row (pd Series):
             pandas series with the following keys:
             - {mask_key} (list): list of mask indices, registered across 
-                sessions, for each session ((sess, hei, wid) x val)
+                sessions, for each session 
+                (flattened across ROIs) ((sess, hei, wid) x val)
             - "roi_mask_shapes" (list): shape into which ROI mask indices index 
                 (sess x hei x wid)
             if crop:
@@ -628,7 +629,7 @@ def add_proj_and_roi_masks(ax_grp, df_row, sess_cols, crop=False, alpha=0.6,
                 for the plane (hei x wid)
             - "registered_roi_mask_idxs" (list): list of mask indices, 
                 registered across sessions, for each session 
-                ((sess, hei, wid) x val)
+                (flattened across ROIs) ((sess, hei, wid) x val)
             - "roi_mask_idxs" (list): list of mask indices for each session, 
                 and each ROI (sess x (ROI, hei, wid) x val) (not registered)
             - "roi_mask_shapes" (list): shape into which ROI mask indices index 
@@ -717,7 +718,7 @@ def plot_roi_masks_overlayed_with_proj(roi_mask_df, figpar, title=None):
                 for the plane (hei x wid)
             - "registered_roi_mask_idxs" (list): list of mask indices, 
                 registered across sessions, for each session 
-                ((sess, hei, wid) x val)
+                (flattened across ROIs) ((sess, hei, wid) x val)
             - "roi_mask_idxs" (list): list of mask indices for each session, 
                 and each ROI (sess x (ROI, hei, wid) x val) (not registered)
             - "roi_mask_shapes" (list): shape into which ROI mask indices index 
@@ -805,7 +806,7 @@ def plot_roi_masks_overlayed_with_proj(roi_mask_df, figpar, title=None):
             lp_sub_ax.set_ylim([0, 1])
             lp_sub_ax.text(
                 0.5, 0.5, lp_name, fontweight="bold", color=lp_col, 
-                ha="center", va="center"
+                ha="center", va="center", fontsize="x-large"
                 )
 
         # add scale bar
@@ -855,7 +856,7 @@ def plot_roi_masks_overlayed(roi_mask_df, figpar, title=None):
             columns, in addition to the basic sess_df columns: 
             - "registered_roi_mask_idxs" (list): list of mask indices, 
                 registered across sessions, for each session 
-                ((sess, hei, wid) x val)
+                (flattened across ROIs) ((sess, hei, wid) x val)
             - "roi_mask_shapes" (list): shape into which ROI mask indices index 
                 (sess x hei x wid)
             
@@ -966,9 +967,9 @@ def plot_roi_tracking(roi_mask_df, figpar, title=None):
             for "union", "fewest" and "most" tracked ROIs:
             - "{}_registered_roi_mask_idxs" (list): list of mask indices, 
                 registered across sessions, for each session 
-                ((sess, hei, wid) x val)
-            - "{}_n_tracked" (int): number of tracked ROIs 
-                (for union: after conflicts are removed)
+                (flattened across ROIs) ((sess, hei, wid) x val),
+                ordered by {}_sess_ns if "fewest" or "most"
+            - "{}_n_tracked" (int): number of tracked ROIs
             for "fewest", "most" tracked ROIs:
             - "{}_sess_ns" (list): ordered session number 
         - figpar (dict): 
@@ -1030,7 +1031,8 @@ def plot_roi_tracking(roi_mask_df, figpar, title=None):
 
         if column == "":
             sub_ax.set_axis_off()
-            subplot_title = "Union - conflicts\n==================>"
+            subplot_title = \
+                "     Union - conflicts\n...   ====================>"
             sub_ax.set_title(subplot_title, fontweight="bold", y=0.5)
             continue
         else:
@@ -1038,25 +1040,29 @@ def plot_roi_tracking(roi_mask_df, figpar, title=None):
             for spine in ["right", "left", "top", "bottom"]:
                 sub_ax.spines[spine].set_visible(True)
 
-        n_matches = int(roi_mask_row[f"{column}_n_tracked"])
-        subplot_title = f"{n_matches} matches"
-
         if column in ["fewest", "most"]:
             y = 1.01
             ord_sess_ns = roi_mask_row[f"{column}_sess_ns"]
             ord_sess_ns_str = ", ".join([str(n) for n in ord_sess_ns])
-            subplot_title = f"{subplot_title}\n(sess {ord_sess_ns_str})"
+
+            n_matches = int(roi_mask_row[f"{column}_n_tracked"])
+            subplot_title = f"{n_matches} matches\n(sess {ord_sess_ns_str})"
             log_info = (f"{log_info}\n{TAB}"
                 f"{column.capitalize()} matches (sess {ord_sess_ns_str}): "
                 f"{n_matches}")
         
         elif column == "union":
             y = 1.04
+            ord_sess_ns = roi_mask_row["sess_ns"]
+            n_union = int(roi_mask_row[f"{column}_n_tracked"])
             n_conflicts = int(roi_mask_row[f"{column}_n_conflicts"])
+            n_matches = n_union - n_conflicts
+
+            subplot_title = f"{n_matches} matches"
             log_info = (f"{log_info}\n{TAB}"
                 "Union - conflicts: "
-                f"{n_matches + n_conflicts} - {n_conflicts} = "
-                f"{n_matches} matches")
+                f"{n_union} - {n_conflicts} = {n_matches} matches"
+                )
 
         sub_ax.set_title(subplot_title, fontweight="bold", y=y)
 
@@ -1065,8 +1071,9 @@ def plot_roi_tracking(roi_mask_df, figpar, title=None):
             mask_key=f"{column}_registered_roi_mask_idxs"
             )
         
-        for s, sess_n in enumerate(roi_mask_row["sess_ns"]):
+        for sess_n in roi_mask_row["sess_ns"]:
             col = sess_cols[int(sess_n)]
+            s = ord_sess_ns.index(sess_n)
             add_roi_mask(sub_ax, roi_masks[s], col=col, alpha=alpha)
 
     # add scale marker
