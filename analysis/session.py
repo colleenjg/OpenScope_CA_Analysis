@@ -13,7 +13,6 @@ Note: this code uses python 3.7.
 """
 
 import glob
-import json
 import logging
 import warnings
 from pathlib import Path
@@ -362,7 +361,8 @@ class Session(object):
         Returns:
             - _max_proj (2D array): maximum projection image across downsampled 
                                     z-stack (hei x wei), with pixel intensity 
-                                    in 0 (incl) to 256 (excl) range.
+                                    in 0 (incl) to 256 (excl) range
+                                    ("uint8" datatype).
         """
 
         if self.nwb:
@@ -434,7 +434,7 @@ class Session(object):
         """
         self.roi_masks()
 
-        Loads boolean ROI masks
+        Loads processed, boolean ROI masks.
 
         Returns:
             - _roi_masks (3D array): boolean ROI masks, structured as 
@@ -446,18 +446,7 @@ class Session(object):
                 "attributes correctly.")
 
         if not hasattr(self, "_roi_masks"):
-            if self.nwb:
-                self._roi_masks, _ = sess_trace_util.get_roi_masks_nwb(
-                    self.sess_files, make_bool=True
-                    )
-            else:
-                mask_threshold = 0.1 # value used in ROI extraction
-                min_n_pix = 3 # value used in ROI extraction
-
-                self._roi_masks, _ = sess_trace_util.get_roi_masks(
-                    self.roi_mask_file, self.roi_extract_json, 
-                    self.roi_objectlist, mask_threshold=mask_threshold, 
-                    min_n_pix=min_n_pix, make_bool=True)
+            self._roi_masks = self._load_roi_masks(raw=False)
 
         return self._roi_masks
 
@@ -1113,6 +1102,51 @@ class Session(object):
 
 
     #############################################
+    def get_local_nway_match_path(self):
+        """
+        self.get_local_nway_match_path()
+
+        Returns the path to the n-way match file in the repository that 
+        contains ROI tracking information, including the parameters needed 
+        in order to register images to one another between sessions. 
+        
+        Checks that the information contained in this local file matches the 
+        tracking information in the NWB file (if self.nwb) or the sessions 
+        files.
+
+        Sets attributes:
+            - _local_nway_match_path (Path): path to the local n-way match file 
+                                             (in the repository)
+        """
+
+        # ensure that tracked ROIs do exist for the session
+        self._set_tracked_rois()
+            
+        if not hasattr(self, "_local_nway_match_path"):
+            self._local_nway_match_path = \
+                sess_file_util.get_local_nway_match_path_from_sessid(
+                    self.sessid
+                )
+            
+            # check that the tracked ROI indices in the NWB file match 
+            # those in the repository's n-way file
+            local_tracked_rois = sess_trace_util.get_tracked_rois(
+                self._local_nway_match_path, idx_after_rem_bad=self.nwb
+            )
+
+            if (len(self._tracked_rois) != len(local_tracked_rois) or
+                (self._tracked_rois != local_tracked_rois).any()):
+                src_str = "NWB file" if self.nwb else "session directory"
+                raise RuntimeError(
+                    "ROI tracking information in the local n-way matching "
+                    "file does not match the ROI tracking recorded in the "
+                    f"{src_str}."
+                    )
+    
+        return self._local_nway_match_path
+
+    
+    #############################################
     def _set_tracked_rois(self):
         """
         self._set_tracked_rois()
@@ -1135,12 +1169,17 @@ class Session(object):
 
         try:
             if self.nwb:
+                # use the information directly from the NWB file
                 self._tracked_rois = sess_trace_util.get_tracked_rois_nwb(
                     self.sess_files
                     )
             else:
-                nway_match_path = sess_file_util.get_nway_match_path_from_sessid(
-                    self.home, self.sessid, self.runtype, check=True)
+                # use the n-way match file
+                nway_match_path = \
+                    sess_file_util.get_nway_match_path_from_sessid(
+                        self.home, self.sessid, self.runtype, check=True
+                        )
+
         except Exception as err:
             if "not exist" in str(err) or "No tracking data" in str(err):
                 raise OSError(f"No tracked ROIs data found for {self}.")
@@ -1148,10 +1187,9 @@ class Session(object):
                 raise err
 
         if not self.nwb:
-            with open(nway_match_path, "r") as fp:
-                tracked_rois_df = pd.DataFrame(json.load(fp)["rois"])
-
-            self._tracked_rois = tracked_rois_df['dff-ordered_roi_index'].values
+            self._tracked_rois = sess_trace_util.get_tracked_rois(
+                nway_match_path
+                )
 
         self._set_bad_rois_tracked()
 
@@ -1293,6 +1331,44 @@ class Session(object):
                 drop_fluors, axis="columns", level="fluorescence")
         
         return specific_roi_facts
+
+
+    #############################################
+    def _load_roi_masks(self, raw=False):
+        """
+        _load_roi_masks()
+
+        Returns ROI masks, either processed and converted to boolean, or 'raw'. 
+        Note that the raw masks can be memory-intensive.
+
+        Returns:
+            - roi_masks (3D array): ROI masks, structured as 
+                                    ROI x height x width
+        """
+
+        proc_args = dict()
+        if raw:
+            proc_args["mask_threshold"] = 0
+            proc_args["min_n_pix"] = 0
+            proc_args["mask_bool"] = False
+        else:
+            proc_args["mask_threshold"] = sess_trace_util.MASK_THRESHOLD
+            proc_args["min_n_pix"] = sess_trace_util.MIN_N_PIX
+            proc_args["make_bool"] = True
+
+        if self.nwb:
+            roi_masks, _ = sess_trace_util.get_roi_masks_nwb(
+                self.sess_files, **proc_args
+                )
+        else:
+            roi_masks, _ = sess_trace_util.get_roi_masks(
+                self.roi_mask_file, 
+                self.roi_extract_json, 
+                self.roi_objectlist,
+                **proc_args
+                )
+            
+        return roi_masks
 
 
     #############################################
@@ -1978,7 +2054,7 @@ class Session(object):
 
 
     #############################################
-    def get_roi_masks(self, fluor="dff", rem_bad=True):
+    def get_roi_masks(self, fluor="dff", rem_bad=True, raw_masks=False):
         """
         self.get_roi_masks()
 
@@ -1986,11 +2062,16 @@ class Session(object):
         containing NaNs, Infs).
 
         Optional args:
-            - fluor (str)   : if "dff", rem_bad is assessed on ROIs using dF/F 
-                              traces. If "raw", on raw processed traces.
-                              default: "dff"
-            - rem_bad (bool): if True, bad ROIs are removed.
-                              default: "dff"
+            - fluor (str)     : if "dff", rem_bad is assessed on ROIs using 
+                                dF/F traces. If "raw", on raw processed traces.
+                                default: "dff"
+            - rem_bad (bool)  : if True, bad ROIs are removed.
+                                default: "dff"
+            - raw_masks (bool): if True, raw masks (unporcessed and not 
+                                converted to boolean) are returned. May be 
+                                boolean if they are stored in that format
+                                default: False
+
         Returns:
             - roi_masks (3D array): boolean ROI masks, restricted to tracked 
                                     ROIs if self.only_tracked_rois, and 
@@ -1998,7 +2079,10 @@ class Session(object):
                                     ROI x height x width
         """
 
-        roi_masks = self.roi_masks
+        if raw_masks:
+            roi_masks = self._load_roi_masks(raw=True)
+        else:
+            roi_masks = self.roi_masks
 
         if self.only_tracked_rois:
             roi_masks = roi_masks[self.tracked_rois]
@@ -2012,6 +2096,79 @@ class Session(object):
             roi_masks = np.delete(roi_masks, rem_idx, axis=0)
 
         return roi_masks
+
+
+    #############################################
+    def get_registered_roi_masks(self, fluor="dff", rem_bad=True, 
+                                 targ_sess_idx=0):
+        """
+        self.get_registered_roi_masks()
+
+        Returns ROI masks, optionally removing bad ROIs (too noisy or 
+        containing NaNs, Infs), registered across tracked sessions.
+
+        Registration is done on the processed masks, and some processing steps, 
+        but the thresholding step is repeated after processing.
+
+        Optional args:
+            - fluor (str)        : if "dff", rem_bad is assessed on ROIs using 
+                                   dF/F traces. If "raw", on raw processed 
+                                   traces.
+                                   default: "dff"
+            - rem_bad (bool)     : if True, bad ROIs are removed.
+                                   default: "dff"
+            - targ_sess_idx (int): session that the registration transform 
+                                   should be targetted to
+                                   default: 0
+
+        Returns:
+            - registered_roi_masks (3D array): 
+                boolean ROI masks, transformed with the ROI tracking 
+                registration transform, restricted to tracked ROIs if 
+                self.only_tracked_rois, and structured as ROI x height x width
+        """
+
+        # get boolean/processed masks
+        roi_masks = self.get_roi_masks(fluor, rem_bad=rem_bad)
+
+        # register masks
+        registered_roi_masks = sess_load_util.apply_registration_transform(
+            self.get_local_nway_match_path(), 
+            self.sessid, 
+            roi_masks.astype("uint8"), # to work with OpenCV  
+            targ_sess_idx=targ_sess_idx
+            ).astype(bool)
+            
+        return registered_roi_masks
+
+
+    #############################################
+    def get_registered_max_proj(self, targ_sess_idx=0):
+        """
+        self.get_registered_max_proj()
+
+        Returns maximum projection image maximum projection image across 
+        downsampled z-stack (hei x wei), registered across tracked sessions, 
+        with pixel intensity in 0 (incl) to 256 (excl) range.
+
+        Optional args:
+            - targ_sess_idx (int): session that the registration transform 
+                                   should be targetted to
+                                   default: 0
+
+        Returns:
+            - registered_max_proj (2D array): 
+                maximum projection image across downsampled z-stack 
+                (hei x wei), registered across tracked sessions, with pixel 
+                intensity in 0 (incl) to 256 (excl) range ("uint8" datatype).
+        """
+
+        registered_max_proj = sess_load_util.apply_registration_transform(
+            self.get_local_nway_match_path(), self.sessid, self.max_proj, 
+            targ_sess_idx=targ_sess_idx
+            )
+
+        return registered_max_proj
 
 
     #############################################

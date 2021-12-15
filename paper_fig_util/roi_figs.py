@@ -87,14 +87,24 @@ def roi_tracking(sessions, analyspar, sesspar, figpar, parallel=False):
             default: False
     """
 
-    print("\nWARNING: Analysis code for panels showing ROI mask registration "
-        "across sessions is not yet fully implemented.")
-    return
-
     logger.info("Compiling ROI tracking examples.", 
         extra={"spacing": "\n"})
 
-    # roi_mask_df = misc_analys.get_check_sess_df(sessions, analyspar=analyspar)
+    if not analyspar.tracked:
+        raise ValueError("analyspar.tracked should be set to True.")
+
+    # remove incomplete session series and warn
+    sessions = misc_analys.check_sessions_complete(sessions)
+
+    roi_mask_df = roi_analys.get_roi_tracking_df(
+        sessions, 
+        analyspar=analyspar, 
+        reg_only=False,
+        proj=True,
+        crop_info="small",
+        parallel=parallel,
+        )
+    roi_mask_df = roi_mask_df.drop(columns="registered_max_projections")
 
     extrapar = dict()
 
@@ -132,15 +142,23 @@ def roi_overlays_sess123(sessions, analyspar, sesspar, figpar, parallel=False):
             default: False
     """
 
-    print("\nWARNING: Analysis code for panels showing ROI mask registration "
-        "across sessions is not yet fully implemented.")
-    return
-
-
     logger.info("Compiling ROI mask overlay examples.", 
         extra={"spacing": "\n"})
 
-    # roi_mask_df = misc_analys.get_check_sess_df(sessions, analyspar=analyspar)
+    if not analyspar.tracked:
+        raise ValueError("analyspar.tracked should be set to True.")
+
+    # remove incomplete session series and warn
+    sessions = misc_analys.check_sessions_complete(sessions)
+
+    roi_mask_df = roi_analys.get_roi_tracking_df(
+        sessions, 
+        analyspar=analyspar, 
+        reg_only=True,
+        proj=False,
+        crop_info=False,
+        parallel=parallel,
+        )
 
     extrapar = dict()
 
@@ -179,17 +197,26 @@ def roi_overlays_sess123_enlarged(sessions, analyspar, sesspar, figpar,
             default: False
     """
 
-    print("\nWARNING: Analysis code for panels showing ROI mask registration "
-        "across sessions is not yet fully implemented.")
-    return
-
-
     logger.info("Compiling enlarged ROI mask overlay examples.", 
         extra={"spacing": "\n"})
 
-    # roi_mask_df = misc_analys.get_check_sess_df(sessions, analyspar=analyspar)
+    if not analyspar.tracked:
+        raise ValueError("analyspar.tracked should be set to True.")
+
+    # remove incomplete session series and warn
+    sessions = misc_analys.check_sessions_complete(sessions)
+
+    roi_mask_df = roi_analys.get_roi_tracking_df(
+        sessions, 
+        analyspar=analyspar, 
+        reg_only=True,
+        proj=False,
+        crop_info="large",
+        parallel=parallel,
+        )
 
     extrapar = dict()
+
 
     info = {"analyspar"  : analyspar._asdict(),
             "sesspar"    : sesspar._asdict(),
@@ -226,15 +253,20 @@ def dendritic_roi_tracking_example(sessions, analyspar, sesspar, figpar,
             default: False
     """
 
-    print("\nWARNING: Analysis code for panels showing ROI mask registration "
-        "across sessions is not yet fully implemented.")
-    return
-
-
     logger.info("Compiling dendritic tracking examples.", 
         extra={"spacing": "\n"})
 
-    # roi_mask_df = misc_analys.get_check_sess_df(sessions, analyspar=analyspar)
+    if not analyspar.tracked:
+        raise ValueError("analyspar.tracked should be set to True.")
+
+    # remove incomplete session series and warn
+    sessions = misc_analys.check_sessions_complete(sessions)
+
+    roi_mask_df = roi_analys.get_roi_tracking_ex_df(
+        sessions, 
+        analyspar=analyspar, 
+        parallel=parallel,
+        )
 
     extrapar = dict()
 
@@ -273,15 +305,20 @@ def somatic_roi_tracking_example(sessions, analyspar, sesspar, figpar,
             default: False
     """
 
-    print("\nWARNING: Analysis code for panels showing ROI mask registration "
-        "across sessions is not yet fully implemented.")
-    return
-
-
     logger.info("Compiling dendritic tracking examples.", 
         extra={"spacing": "\n"})
 
-    # roi_mask_df = misc_analys.get_check_sess_df(sessions, analyspar=analyspar)
+    if not analyspar.tracked:
+        raise ValueError("analyspar.tracked should be set to True.")
+
+    # remove incomplete session series and warn
+    sessions = misc_analys.check_sessions_complete(sessions)
+
+    roi_mask_df = roi_analys.get_roi_tracking_ex_df(
+        sessions, 
+        analyspar=analyspar, 
+        parallel=parallel,
+        )
 
     extrapar = dict()
 

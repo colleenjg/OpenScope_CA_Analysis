@@ -76,9 +76,9 @@ def disperse_jsons(datadir, verbose=False):
     if not tracking_files_direc.exists():
         raise OSError(f"{tracking_files_direc} directory is missing.")
 
-    tracking_file_sources = [Path(file_direc) 
+    tracking_file_sources = sorted([Path(file_direc) 
         for file_direc in glob.glob(str(Path(tracking_files_direc, "*.json")))
-    ]
+    ])
     tracking_file_targets = get_target_direcs(tracking_file_sources, datadir)
 
     # copy files over

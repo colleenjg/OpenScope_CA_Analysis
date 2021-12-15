@@ -102,9 +102,9 @@ def plot_roi_tracking(analyspar, sesspar, extrapar, roi_mask_df, figpar):
                 for the plane (hei x wid)
             - "registered_roi_mask_idxs" (list): list of mask indices, 
                 registered across sessions, for each session 
-                ((sess, hei, wid) x val)
+                (flattened across ROIs) ((sess, hei, wid) x val)
             - "roi_mask_idxs" (list): list of mask indices for each session, 
-                and each ROI (sess x (ROI, hei, wid) x val) (not registered)
+                and each ROI (sess x ((ROI, hei, wid) x val)) (not registered)
             - "roi_mask_shapes" (list): shape into which ROI mask indices index 
                 (sess x hei x wid)
 
@@ -1358,7 +1358,7 @@ def plot_roi_overlays_sess123(analyspar, sesspar, extrapar, roi_mask_df, figpar)
             columns, in addition to the basic sess_df columns: 
             - "registered_roi_mask_idxs" (list): list of mask indices, 
                 registered across sessions, for each session 
-                ((sess, hei, wid) x val)
+                (flattened across ROIs) ((sess, hei, wid) x val)
             - "roi_mask_shapes" (list): shape into which ROI mask indices index 
                 (sess x hei x wid)
         - figpar (dict): 
@@ -1419,7 +1419,7 @@ def plot_roi_overlays_sess123_enlarged(analyspar, sesspar, extrapar,
             columns, in addition to the basic sess_df columns: 
             - "registered_roi_mask_idxs" (list): list of mask indices, 
                 registered across sessions, for each session 
-                ((sess, hei, wid) x val)
+                (flattened across ROIs) ((sess, hei, wid) x val)
             - "roi_mask_shapes" (list): shape into which ROI mask indices index 
                 (sess x hei x wid)
             - "crop_fact" (num): factor by which to crop masks (> 1) 
@@ -2956,9 +2956,9 @@ def plot_dendritic_roi_tracking_example(analyspar, sesspar, extrapar,
             for "union", "fewest" and "most" tracked ROIs:
             - "{}_registered_roi_mask_idxs" (list): list of mask indices, 
                 registered across sessions, for each session 
-                ((sess, hei, wid) x val)
-            - "{}_n_tracked" (int): number of tracked ROIs 
-                (for union: after conflicts are removed)
+                (flattened across ROIs) ((sess, hei, wid) x val),
+                ordered by {}_sess_ns if "fewest" or "most"
+            - "{}_n_tracked" (int): number of tracked ROIs
             for "fewest", "most" tracked ROIs:
             - "{}_sess_ns" (list): ordered session number 
 
@@ -3025,9 +3025,9 @@ def plot_somatic_roi_tracking_example(analyspar, sesspar, extrapar, roi_mask_df,
             for "union", "fewest" and "most" tracked ROIs:
             - "{}_registered_roi_mask_idxs" (list): list of mask indices, 
                 registered across sessions, for each session 
-                ((sess, hei, wid) x val)
-            - "{}_n_tracked" (int): number of tracked ROIs 
-                (for union: after conflicts are removed)
+                (flattened across ROIs) ((sess, hei, wid) x val), 
+                ordered by {}_sess_ns if "fewest" or "most"
+            - "{}_n_tracked" (int): number of tracked ROIs
             for "fewest", "most" tracked ROIs:
             - "{}_sess_ns" (list): ordered session number 
 
