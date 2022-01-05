@@ -135,6 +135,50 @@ def load_info_from_mouse_df(sessid, mouse_df="mouse_df.csv"):
 
 
 #############################################
+def get_mouseid_sessid_nwb(nwb_files):
+    """
+    get_mouseid_sessid_nwb(nwb_files)
+
+    Returns the mouse ID and session ID retrieve from NWB files. If several 
+    files are passed, they are expected to be for the same session 
+    (with identical mouse ID and session IDs).
+
+    Required args:
+        - nwb_files (Path or list): path(s) to the NWB file(s) for a single 
+                                    session
+    
+    Returns:
+        - mouseid (str): mouse ID (Allen)
+        - sessid (str) : session ID (Allen)
+    """
+
+    nwb_files = gen_util.list_if_not(nwb_files)
+
+    mouseid, sessid = None, None
+    for nwb_file in nwb_files:
+        with pynwb.NWBHDF5IO(str(nwb_file), "r") as f:
+            nwbfile_in = f.read()  
+            new_mouseid = nwbfile_in.subject.subject_id
+            if mouseid is None:
+                mouseid = new_mouseid
+            elif mouseid != new_mouseid:
+                raise RuntimeError(
+                    "Mouse IDs for different NWB files for the same session "
+                    f"do not match: {', '.join(nwb_files)}."
+                    )
+            
+            new_sessid = nwbfile_in.identifier
+            if sessid is None:
+                sessid = new_sessid
+            elif sessid != new_sessid:
+                raise RuntimeError(
+                    "Session IDs for different NWB files for the same session "
+                    f"do not match: {', '.join(nwb_files)}."
+                    )            
+    return mouseid, sessid
+
+
+#############################################
 def load_small_stim_pkl(stim_pkl, runtype="prod"):
     """
     load_small_stim_pkl(stim_pkl)
