@@ -207,7 +207,7 @@ class Session(object):
             self.dandi_id = df_data["dandi_id"]
             if not isinstance(self.dandi_id, str):
                 warnings.warn(
-                    "Dandi ID not yet available, so using session ID instead."
+                    "Dandi ID not list in mouse_df. Using session ID instead."
                     )
                 self.dandi_id = self.sessid
 
@@ -283,6 +283,12 @@ class Session(object):
                     "loading data, the first file listed that contains the "
                     "required data will be used."
                     )
+            
+            mouseid, sessid = sess_load_util.get_mouseid_sessid_nwb(
+                self.sess_files
+                )
+            date = self.date
+            src_name = "NWB file(s)"
 
         else:
             # check that the high-level home directory exists
@@ -294,17 +300,23 @@ class Session(object):
             mouseid, date = sess_file_util.get_mouseid_date(
                 self.dir, self.sessid
                 )
-            if self.mouseid != int(mouseid):
+            sessid = self.sessid
+
+            src_name = "session directory"
+            
+        check_targs = [self.mouseid, self.date, self.sessid]
+        check_srcs = [int(mouseid), int(date), int(sessid)]
+        check_names = ["Mouse ID", "Date", "Session ID"]
+
+        for targ, src, name in zip(check_targs, check_srcs, check_names):
+            if targ != src:
                 raise RuntimeError(
-                    f"Mouse ID from session directory ({mouseid}) does not "
-                    f"match attribute ({self.mouseid})."
-                    )
-            if self.date != int(date):
-                raise RuntimeError(
-                    f"Date from session directory ({date}) does not "
-                    f"match attribute ({self.date})."
+                    f"{name} from {src_name} ({src}) does not match attribute "
+                    f"({targ}) retrieved from mouse dataframe."
                     )
 
+        # retrieve additional attributes
+        if not self.nwb:
             self.expid = sess_file_util.get_expid(self.dir)
             self.segid = sess_file_util.get_segid(self.dir)
             dirpaths, filepaths = sess_file_util.get_file_names(
