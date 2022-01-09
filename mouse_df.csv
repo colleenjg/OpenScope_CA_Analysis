@@ -74,11 +74,11 @@ sessid,dandi_session_id,mouse_n,mouseid,date,depth,plane,line,runtype,sess_n,nro
 825180479,20190219T162113,11,433451,20190219,20,dend,L5-Rbp4,prod,3,986,353,1022,39,47,P,1,1,yes,7754,
 826659257,20190221T162838,12,433458,20190221,375,soma,L5-Rbp4,prod,1,99,70,126,99,126,P,1,1,yes,35969,
 827300090,20190222T161948,12,433458,20190222,375,soma,L5-Rbp4,prod,2,87,70,107,87,107,P,1,1,yes,10378,
-828475005,,12,433458,20190225,375,soma,L5-Rbp4,prod,3,97,70,118,97,118,P,1,1,yes,10576,"z-drift (10 um), passed QC after revision"
+828475005,20190225T162214,12,433458,20190225,375,soma,L5-Rbp4,prod,3,97,70,118,97,118,P,1,1,yes,10576,"z-drift (10 um), passed QC after revision"
 829520904,20190227T162140,12,433458,20190227,375,soma,L5-Rbp4,prod,4,88,-1,109,88,109,P,1,1,yes,42270,
 832883243,20190306T163903,13,440889,20190306,175,soma,L23-Cux2,prod,1,224,147,251,224,251,P,1,1,yes,27797,dropped stim frames (257)
-833704570,,13,440889,20190307,175,soma,L23-Cux2,prod,2,224,147,251,224,251,P,1,1,yes,16745,"stim2twop alignment shifted corrected with 2nd alignment method, dropped 2P frames (1), beh and eye tracking frames (5), stim frames (363), passed QC after revision"
-834403597,,13,440889,20190308,175,soma,L23-Cux2,prod,3,210,147,228,210,228,P,1,1,yes,10210,"dropped beh and eye tracking frames (6), stim frames (166), passed QC after revision"
+833704570,20190307T163524,13,440889,20190307,175,soma,L23-Cux2,prod,2,224,147,251,224,251,P,1,1,yes,16745,"stim2twop alignment shifted corrected with 2nd alignment method, dropped 2P frames (1), beh and eye tracking frames (5), stim frames (363), passed QC after revision"
+834403597,20190308T164555,13,440889,20190308,175,soma,L23-Cux2,prod,3,210,147,228,210,228,P,1,1,yes,10210,"dropped beh and eye tracking frames (6), stim frames (166), passed QC after revision"
 836968429,20190314T152429,13,440889,20190314,175,soma,L23-Cux2,prod,4,205,-1,217,205,217,P,1,1,yes,24253,"FOV shifted (poor alignment with previous sessions, so excluded from ROI tracking)"
 837360280,20190315T152224,13,440889,20190315,175,soma,L23-Cux2,prod,5,217,-1,244,217,244,F,1,1,yes,19576,z-drift (14 um)
 838633305,,13,440889,20190318,175,soma,L23-Cux2,prod,6,227,-1,256,227,256,F,1,1,no,30582,laser wavelength set to 800 um
