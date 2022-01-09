@@ -27,7 +27,7 @@ import scipy.linalg as linalg
 from allensdk.brain_observatory import dff, r_neuropil, roi_masks
 from allensdk.internal.brain_observatory import mask_set
 
-from util import file_util, logger_util, gen_util
+from util import file_util, logger_util
 from sess_util import sess_file_util
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,8 @@ MASK_THRESHOLD = 0.1 # value used in ROI extraction
 MIN_N_PIX = 3 # value used in ROI extraction
 
 #############################################
-def load_traces_optionally(roi_data_handle, roi_ns=None, frame_ns=None):
+def load_traces_optionally(roi_data_handle, roi_ns=None, frame_ns=None, 
+                           rois_first=True):
     """
     load_traces_optionally(roi_data_handle)
 
@@ -50,16 +51,12 @@ def load_traces_optionally(roi_data_handle, roi_ns=None, frame_ns=None):
                                         default: None
         - frame_ns (int or array-like): frames to load (None for all) 
                                         default: None
+        - rois_first (bool)           : if True, ROIs are stored as 
+                                        ROIs x frames, else frames x ROIs
+                                        default: True
 
     Returns:
-        - load_full (bool)                 : if True, full data must be loaded 
-                                             (optimal loading is not possible)
-        - roi_ns (int, slice or 1D array)  : ROI index to use
-        - frame_ns (int, slice or 1D array): frame index to use
-        - resort_rois (1D array)           : if not None, array for re-sorting 
-                                             ROIs after loading
-        - resort_frames (1D array)         : if not None, array for re-sorting 
-                                             frames after loading
+        - roi_traces (1 or 2D array): ROI traces (ROI x frame)
     """
 
     # if no ROIs are specified
@@ -67,17 +64,26 @@ def load_traces_optionally(roi_data_handle, roi_ns=None, frame_ns=None):
         roi_traces = roi_data_handle[()]
         return roi_traces
 
+
     # if ROI_ns is an int
     elif isinstance(roi_ns, int):
-        roi_traces = roi_data_handle[roi_ns]
+        if rois_first:
+            roi_traces = roi_data_handle[roi_ns]
+        else:
+            roi_traces = roi_data_handle[:, roi_ns]
         if frame_ns is not None:
             roi_traces = roi_traces[frame_ns]
         
+
     # if frame_ns is an int
     elif isinstance(frame_ns, int):
-        roi_traces = roi_data_handle[:, frame_ns]
+        if rois_first:
+            roi_traces = roi_data_handle[:, frame_ns]
+        else:
+            roi_traces = roi_data_handle[frame_ns]
         if roi_ns is not None:
             roi_traces = roi_traces[roi_ns]
+
 
     # if both are vectors, if possible, load frames, then select ROIs
     elif frame_ns is not None and (len(np.unique(frame_ns)) == len(frame_ns)):
@@ -88,9 +94,15 @@ def load_traces_optionally(roi_data_handle, roi_ns=None, frame_ns=None):
         if (np.sort(frame_ns) != frame_ns).any(): # sort if not sorted
             resort = np.argsort(np.argsort(frame_ns))
             frame_ns = np.sort(frame_ns)
-        roi_traces = roi_data_handle[:, frame_ns][roi_ns]
-        if resort is not None:
-            roi_traces = roi_traces[:, resort]
+        if rois_first:
+            roi_traces = roi_data_handle[:, frame_ns][roi_ns]
+            if resort is not None:
+                roi_traces = roi_traces[:, resort]
+        else:
+            roi_traces = roi_data_handle[frame_ns][..., roi_ns]
+            if resort is not None:
+                roi_traces = roi_traces[resort]
+
 
     # alternatively, if possible, load ROIs, then select frames    
     elif roi_ns is not None and len(np.unique(roi_ns)) == len(roi_ns):
@@ -101,15 +113,26 @@ def load_traces_optionally(roi_data_handle, roi_ns=None, frame_ns=None):
         if (np.sort(roi_ns) != roi_ns).any(): # sort if not sorted
             resort = np.argsort(np.argsort(roi_ns))
             roi_ns = np.sort(roi_ns)
-        roi_traces = roi_data_handle[np.sort(roi_ns)][:, frame_ns]
-        if resort is not None:
-            roi_traces = roi_traces[resort]
+        if rois_first:
+            roi_traces = roi_data_handle[roi_ns][:, frame_ns]
+            if resort is not None:
+                roi_traces = roi_traces[resort]
+        else:
+            roi_traces = roi_data_handle[:, roi_ns][frame_ns]
+            if resort is not None:
+                roi_traces = roi_traces[:, resort]
+
 
     # load fully and select
     else:
-        roi_traces = roi_data_handle[()][roi_ns][:, frame_ns]
+        if rois_first:
+            roi_traces = roi_data_handle[()][roi_ns][:, frame_ns]
+        else:
+            roi_traces = roi_data_handle[()][:, roi_ns][frame_ns]
 
 
+    if not rois_first:
+        roi_traces = roi_traces.T
 
     return roi_traces
 
@@ -131,8 +154,7 @@ def load_roi_traces_nwb(sess_files, roi_ns=None, frame_ns=None):
                                         default: None
 
     Returns:
-        - roi_traces (1 or 2D array): ROI traces (ROI x frame) or 
-                                      if n is not None: ROI trace (frame) 
+        - roi_traces (1 or 2D array): ROI traces (ROI x frame)
     """
 
     ophys_file = sess_file_util.select_nwb_sess_path(sess_files, ophys=True)
@@ -155,7 +177,8 @@ def load_roi_traces_nwb(sess_files, roi_ns=None, frame_ns=None):
         roi_data_handle = roi_resp_series.data
         
         roi_traces = load_traces_optionally(
-            roi_data_handle, roi_ns=roi_ns, frame_ns=frame_ns
+            roi_data_handle, roi_ns=roi_ns, frame_ns=frame_ns, 
+            rois_first=False,
             )
 
 
@@ -179,8 +202,7 @@ def load_roi_traces(roi_trace_path, roi_ns=None, frame_ns=None):
                                         default: None
 
     Returns:
-        - roi_traces (1 or 2D array): ROI traces (ROI x frame) or 
-                                      if n is not None: ROI trace (frame) 
+        - roi_traces (1 or 2D array): ROI traces (ROI x frame) 
     """
 
     with h5py.File(roi_trace_path, "r") as f:
@@ -188,7 +210,7 @@ def load_roi_traces(roi_trace_path, roi_ns=None, frame_ns=None):
         roi_data_handle = f[dataset_name]
 
         roi_traces = load_traces_optionally(
-            roi_data_handle, roi_ns=roi_ns, frame_ns=frame_ns
+            roi_data_handle, roi_ns=roi_ns, frame_ns=frame_ns, rois_first=True
             )
 
     return roi_traces
@@ -243,7 +265,7 @@ def load_roi_data_nwb(sess_files):
                 f"for {ophys_file} due to: {err}"
                 )
 
-        nrois, tot_twop_fr = roi_resp_series.data.shape
+        tot_twop_fr, nrois = roi_resp_series.data.shape
 
 
     return roi_ids, nrois, tot_twop_fr
