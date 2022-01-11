@@ -101,7 +101,7 @@ def select_nwb_sess_path(sess_files, ophys=False, behav=False, stim=False,
     criterion_dict = {
         "ophys"   : [ophys, "optical physiology"],
         "behavior": [behav, "behavioral"],
-        "image"   : [stim, "stimulus"],        
+        "image"   : [stim, "stimulus template"],        
         }
 
     data_names = []
@@ -118,7 +118,8 @@ def select_nwb_sess_path(sess_files, ophys=False, behav=False, stim=False,
 
     if len(sess_files) == 0:
         raise RuntimeError(
-            f"{data_names} data not included{tog_str} in session NWB files."
+            f"{data_names.capitalize()} data not included{tog_str} in this "
+            "session's NWB files."
             )
     
     sess_file = sess_files[0]

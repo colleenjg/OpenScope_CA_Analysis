@@ -39,10 +39,10 @@ MASK_THRESHOLD = 0.1 # value used in ROI extraction
 MIN_N_PIX = 3 # value used in ROI extraction
 
 #############################################
-def load_traces_optionally(roi_data_handle, roi_ns=None, frame_ns=None, 
-                           rois_first=True):
+def load_traces_optimally(roi_data_handle, roi_ns=None, frame_ns=None, 
+                          rois_first=True):
     """
-    load_traces_optionally(roi_data_handle)
+    load_traces_optimally(roi_data_handle)
 
     Updates indices, possibly reordered, for optimal loading of ROI traces.
 
@@ -62,7 +62,6 @@ def load_traces_optionally(roi_data_handle, roi_ns=None, frame_ns=None,
     # if no ROIs are specified
     if roi_ns is None and frame_ns is None:
         roi_traces = roi_data_handle[()]
-        return roi_traces
 
 
     # if ROI_ns is an int
@@ -142,7 +141,7 @@ def load_roi_traces_nwb(sess_files, roi_ns=None, frame_ns=None):
     """
     load_roi_traces_nwb(sess_files)
 
-    Returns ROI traces from NWB files. 
+    Returns ROI traces from NWB files (stored as frames x ROIs). 
 
     Required args:
         - sess_files (list): full path names of the session files
@@ -175,8 +174,8 @@ def load_roi_traces_nwb(sess_files, roi_ns=None, frame_ns=None):
                 )
 
         roi_data_handle = roi_resp_series.data
-        
-        roi_traces = load_traces_optionally(
+
+        roi_traces = load_traces_optimally(
             roi_data_handle, roi_ns=roi_ns, frame_ns=frame_ns, 
             rois_first=False,
             )
@@ -190,7 +189,7 @@ def load_roi_traces(roi_trace_path, roi_ns=None, frame_ns=None):
     """
     load_roi_traces(roi_trace_path)
 
-    Returns ROI traces from ROI data file. 
+    Returns ROI traces from ROI data file (stored as ROI x frames). 
 
     Required args:
         - roi_trace_path (Path): full path name of the ROI data file
@@ -209,7 +208,7 @@ def load_roi_traces(roi_trace_path, roi_ns=None, frame_ns=None):
         dataset_name = "data" if "data" in f.keys() else "FC"
         roi_data_handle = f[dataset_name]
 
-        roi_traces = load_traces_optionally(
+        roi_traces = load_traces_optimally(
             roi_data_handle, roi_ns=roi_ns, frame_ns=frame_ns, rois_first=True
             )
 
@@ -615,8 +614,6 @@ def get_roi_masks_nwb(sess_files, mask_threshold=MASK_THRESHOLD,
 
         roi_masks = np.asarray(plane_seg["image_mask"].data)
         roi_ids = list(plane_seg["id"].data)
-
-    roi_masks = np.transpose(roi_masks, (0, 1, 2)) # ROI x h x w -> ROI x h x w
 
     roi_masks = process_roi_masks(
         roi_masks, mask_threshold=mask_threshold, min_n_pix=min_n_pix, 

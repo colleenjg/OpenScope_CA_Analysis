@@ -1066,8 +1066,7 @@ def load_stimulus_images_nwb(sess_files, template_name="gabors", frame_ns=[0]):
                 f"template in {stim_file} due to: {err}"
                 )
         
-    # wid x hei -> hei x wid
-    template_images = list(np.transpose(template_images, (0, 2, 1, 3)))
+    template_images = list(template_images)
 
     return template_images
 

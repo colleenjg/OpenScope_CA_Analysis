@@ -479,7 +479,7 @@ def main(args):
                 mouse_df, "sess_n", runtype=args.runtype, plane=args.plane, 
                 line=args.line, min_rois=args.min_rois, 
                 pass_fail=args.pass_fail, incl=args.incl, 
-                omit_sess=args.omit_sess, omit_mice=args.omit_mice)
+                omit_sess=args.omit_sess, omit_mice=args.omit_mice, sort=True)
         else:
             all_sess_ns = gen_util.list_if_not(args.sess_n)
 
@@ -488,7 +488,7 @@ def main(args):
             prep_analyses, all_sess_ns, args_list=[args, mouse_df], 
             parallel=args.parallel)
 
-        # split analyses between parallel and sequential
+        # split parallel from sequential analyses
         args.parallel = bool(args.parallel  * (not args.debug))
         if args.parallel:
             run_seq = "r" # should be run parallel within analysis

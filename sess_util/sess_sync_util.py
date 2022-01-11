@@ -563,17 +563,10 @@ def calculate_running_velocity(stim_fr_timestamps, raw_running_deg,
     calculate_running_velocity(stim_fr_timestamps, raw_running_deg)
 
     Adapted from allensdk.brain_observatory.running_processing.__main__.extract_running_speeds().
-    (Filtering of the linear velocity is added)
+    (Filtering of the linear velocity is added based on v1.8.0
+    allensdk.brain_observatory.behavior.running_processing.get_running_df())
     Returns the linear running velocity at each frame, calculated from the raw 
     running distance at each frame.
-
-    NOTE: This function is nearly equivalent to the one used in 
-    allensdk.brain_observatory.behavior.running_processing.get_running_df(), 
-    however there, the filtering is done earlier, on the raw running, instead 
-    of the linear velocity. Also, the running velocity obtained there is one 
-    frame longer, as it corresponds to the midframe running velocity (padded 
-    with the first and last frame onset velocities). This version produces the 
-    velocity at each frame onset.
 
     Required args:
         - stim_fr_timestamps (list): stimulus frame start timestamps
@@ -615,14 +608,18 @@ def calculate_running_velocity(stim_fr_timestamps, raw_running_deg,
     linear_velocity = running_main.angular_to_linear_velocity(
         angular_velocity, radius)
 
-    # due to an acquisition bug (the buffer of raw orientations may be updated 
-    # more slowly than it is read, leading to a 0 value for the change in 
-    # orientation (raw_running/raw_running_rad) over an interval) 
-    # there may be exact zeros in the velocity.
+    # due to an acquisition bug, the raw orientations buffer may be read before 
+    # it is updated, leading to values of 0 for the change in 
+    # orientation (raw_running or raw_running_rad) over an interval. 
     linear_velocity[np.isclose(raw_running_rad, 0.0)] = np.nan
 
     if filter_ks != 0:
-        linear_velocity = scisig.medfilt(linear_velocity, kernel_size=filter_ks)
+        # get rolling median, but for kernel windows where half or more values 
+        # are NaNs, return NaNs
+        min_vals_in_win = int(np.ceil((filter_ks + 1) / 2))
+        linear_velocity = pd.Series(linear_velocity).rolling(
+            window=filter_ks, min_periods=min_vals_in_win, center=True
+            ).median().to_numpy()
 
     return linear_velocity
 
