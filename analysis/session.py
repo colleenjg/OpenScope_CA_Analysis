@@ -144,7 +144,9 @@ class Session(object):
                 err = str(err).replace(
                     "find the directory", "find the directory or NWB file"
                     )
-            raise OSError(err)
+                raise OSError(err)
+            else:
+                raise err
 
         self.set_only_tracked_rois(only_tracked_rois)
 

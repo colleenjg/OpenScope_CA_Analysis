@@ -127,7 +127,7 @@ def plot_pupil_run_trace_stats(trace_df, analyspar, figpar, split="by_exp",
 
     # expand y lims a bit and fix y ticks
     for sub_ax in ax.reshape(-1):
-        plot_util.expand_lims(sub_ax, axis="y", prop=0.2)
+        plot_util.expand_lims(sub_ax, axis="y", prop=0.21)
 
     plot_util.set_interm_ticks(
         ax, 2, axis="y", share=False, weight="bold", update_ticks=True
