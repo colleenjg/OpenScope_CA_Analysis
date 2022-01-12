@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 run_paper_figures.py
 

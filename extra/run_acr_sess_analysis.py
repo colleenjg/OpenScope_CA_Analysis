@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 run_acr_sess_analysis.py
 
