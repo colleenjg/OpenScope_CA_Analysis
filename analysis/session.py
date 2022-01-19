@@ -283,7 +283,8 @@ class Session(object):
                 warnings.warn(
                     "Several NWB files were found for this session. When "
                     "loading data, the first file listed that contains the "
-                    "required data will be used."
+                    "required data will be used.", 
+                    category=UserWarning, stacklevel=1
                     )
             
             mouseid, sessid = sess_load_util.get_mouseid_sessid_nwb(
@@ -2560,6 +2561,9 @@ class Session(object):
 
         ran_fr, xran = self.get_frames_timestamps(pre, post, fr_type=fr_type)
 
+        if -pre >= post:
+            raise ValueError("'pre' must be before 'post'.")
+
         # adjust for padding
         if len(pad) != 2:
             raise ValueError("Padding must have length 2.")
@@ -3258,6 +3262,16 @@ class Stim(object):
         if fr_type not in fr_types:
             gen_util.accepted_values_error("fr_type", fr_type, fr_types)
 
+        # check for segments from a different stimulus
+        diff_stim = (
+            self.sess.stim_df.loc[seg_list, "stimulus_type"] != self.stimtype
+            ).sum()
+        if diff_stim:
+            warnings.warn(
+                f"Some of the segments ({diff_stim}/{len(seg_list)}) are not "
+                f"{self.stimtype} stimulus segments.", 
+                category=UserWarning, stacklevel=1
+                )
         starts = self.sess.stim_df.loc[seg_list, f"start_frame_{fr_type}"]
 
         ret_idx = None
