@@ -486,7 +486,7 @@ def parse_args():
 
         # data parameters
     parser.add_argument("--datadir", default=None, 
-        help=("data directory (if None, uses a directory defined below)"))
+        help="data directory (if None, uses a directory defined below)")
     parser.add_argument("--output", default=".", type=Path,
         help="where to store output")
     parser.add_argument("--overwrite", action="store_true", 

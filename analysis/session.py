@@ -2370,6 +2370,43 @@ class Session(object):
 
 
     #############################################
+    def get_roi_traces_by_ns(self, ns, fluor="dff"):
+        """
+        self.get_roi_traces_by_ns(ns)
+
+        Returns ROI traces, indexed by ns (must index the original array). 
+        self.only_tracked_rois is ignored here.
+
+        Required args:
+            - ns (array-like): ROI indices
+
+        Optional args:
+            - fluor (str): if "dff", then dF/F traces are returned, if 
+                           "raw", raw processed traces are returned
+                           default: "dff"
+
+        Returns:
+            - traces (1 or 2D array): full traces for all ROIs or a single ROI, 
+                                      structured as (ROI x) traces
+        """
+
+        if not hasattr(self, "_nrois"):
+            raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
+                "attributes correctly.")
+
+        # read the data points into the return array
+        if self.nwb:
+            traces = sess_trace_util.load_roi_traces_nwb(
+                self.sess_files, roi_ns=ns
+                )
+        else:
+            roi_trace_path = self.get_roi_trace_path(fluor)
+            traces = sess_trace_util.load_roi_traces(roi_trace_path, roi_ns=ns)
+
+        return traces
+
+
+    #############################################
     def get_single_roi_trace(self, n, fluor="dff"):
         """
         self.get_single_roi_trace(n)
@@ -2398,14 +2435,7 @@ class Session(object):
 
         n = int(n)
 
-        # read the data points into the return array
-        if self.nwb:
-            trace = sess_trace_util.load_roi_traces_nwb(
-                self.sess_files, roi_ns=n
-                )
-        else:
-            roi_trace_path = self.get_roi_trace_path(fluor)
-            trace = sess_trace_util.load_roi_traces(roi_trace_path, roi_ns=n)
+        trace = self.get_roi_traces_by_ns(n, fluor=fluor)
 
         return trace
 
