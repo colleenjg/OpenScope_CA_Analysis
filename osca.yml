@@ -29,7 +29,7 @@ dependencies:
       - simpleitk
       - allensdk==2.13.*
       - pynwb==1.4.* 
-      - dandi==0.32.* 
+      - dandi==0.34.* 
       - astropy==4.1
       - torch==1.8.*
       - torchaudio
