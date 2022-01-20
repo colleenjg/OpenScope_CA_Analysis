@@ -617,7 +617,7 @@ def set_multcomp(permpar, sess_df, CIs=True, pairs=True, factor=1):
 
 
 #############################################
-def get_snr(session, analyspar, datatype="snrs"):
+def get_snr(session, analyspar, datatype="snrs", block_size=100):
     """
     get_snr(session, analyspar)
 
@@ -632,6 +632,10 @@ def get_snr(session, analyspar, datatype="snrs"):
     Optional args:
         - datatype (str):
             type of data to retrieve ("snrs" or "signal_means")
+            default: "snrs"
+        - block_size (int):
+            number of ROIs for which to load data at a time
+            default: 100
 
     Returns:
         - data (1D array):
@@ -664,9 +668,12 @@ def get_snr(session, analyspar, datatype="snrs"):
     index = 0 if datatype == "snrs" else -1
 
     data = np.empty(len(keep_rois)) * np.nan
-    for i, r in enumerate(keep_rois):
+    for i in range(len(keep_rois)):
+        if not i % block_size: # load by block
+            block_ns = keep_rois[i : i + block_size]
+            roi_traces = session.get_roi_traces_by_ns(block_ns, analyspar.fluor)
         data[i] = math_util.calculate_snr(
-            session.get_single_roi_trace(r, fluor=analyspar.fluor), 
+            roi_traces[i % block_size],
             return_stats=True
             )[index]
 

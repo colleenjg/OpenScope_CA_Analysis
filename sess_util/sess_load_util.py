@@ -162,18 +162,20 @@ def get_mouseid_sessid_nwb(nwb_files):
             if mouseid is None:
                 mouseid = new_mouseid
             elif mouseid != new_mouseid:
+                nwb_filenames = [str(filename) for filename in nwb_files]
                 raise RuntimeError(
                     "Mouse IDs for different NWB files for the same session "
-                    f"do not match: {', '.join(nwb_files)}."
+                    f"do not match: {', '.join(nwb_filenames)}."
                     )
             
             new_sessid = nwbfile_in.identifier
             if sessid is None:
                 sessid = new_sessid
             elif sessid != new_sessid:
+                nwb_filenames = [str(filename) for filename in nwb_files]
                 raise RuntimeError(
                     "Session IDs for different NWB files for the same session "
-                    f"do not match: {', '.join(nwb_files)}."
+                    f"do not match: {', '.join(nwb_filenames)}."
                     )            
     return mouseid, sessid
 
