@@ -300,8 +300,8 @@ def main(args):
     logger_util.set_level(level=args.log_level)
 
     args.device = gen_util.get_device(args.cuda)
-    args.fontdir = DEFAULT_FONTDIR
 
+    args.fontdir = DEFAULT_FONTDIR if DEFAULT_FONTDIR.is_dir() else None
 
     if args.comp == "all":
         comps = logreg.get_comps(args.stimtype, args.q1v4, args.exp_v_unexp)
