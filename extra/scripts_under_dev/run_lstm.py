@@ -367,7 +367,7 @@ def parse_args():
                         help=("data directory (if None, uses a directory "
                               "defined below"))
     parser.add_argument("--output", default="lstm_models", type=Path, 
-        help="where to store output")
+        help="main directory in which to store output")
     parser.add_argument("--plt_bkend", default=None, 
                         help="switch mpl backend when running on server")
     parser.add_argument("--parallel", action="store_true", 

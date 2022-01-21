@@ -93,8 +93,8 @@ def get_pupil_run_trace_df(sessions, analyspar, stimpar, basepar,
             )
         
         # add columns to dataframe
-        trace_df[f"{datatype}_traces"] = split_traces
-        trace_df[f"{datatype}_time_values"] = all_time_values
+        trace_df[f"{datatype}_traces"] = list(split_traces)
+        trace_df[f"{datatype}_time_values"] = list(all_time_values)
 
     return trace_df
 

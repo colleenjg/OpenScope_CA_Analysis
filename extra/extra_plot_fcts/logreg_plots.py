@@ -56,7 +56,8 @@ def plot_from_dict(direc, plt_bkend=None, fontdir=None):
     if "logregpar" in hyperpars.keys():
         plot_traces_scores(hyperpars, savedir=direc)
 
-    plt.close("all")
+    plot_util.cond_close_figs()
+    
 
 #############################################
 def plot_title(mouse_n, sess_n, line, plane, comp, stimtype, 
@@ -981,5 +982,5 @@ def plot_summ(output, savename, stimtype="gabors", comp="unexp", ctrl=False,
         plot_data_summ(plot_lines, data, stats, shuff_stats, title, 
             full_savename, CI, q1v4, evu, comp, modif)
 
-    plt.close("all")
+    plot_util.cond_close_figs()
 

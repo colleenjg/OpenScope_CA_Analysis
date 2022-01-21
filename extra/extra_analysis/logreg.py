@@ -1299,7 +1299,7 @@ def all_runs_sk(n_runs, analyspar, logregpar, sesspar, stimpar, extrapar,
     logreg_plots.plot_traces_scores(
         hyperpars, tr_stats, full_scores, plot_wei=best_mod_idx)
 
-    plt.close("all")
+    plot_util.cond_close_figs()
 
 
 
@@ -1424,7 +1424,7 @@ def single_run_pt(run_n, analyspar, logregpar, sesspar, stimpar, extrapar,
         logreg_plots.plot_traces_scores(
             hyperpars, tr_stats, full_scores, plot_wei=True)
 
-    plt.close("all")
+    plot_util.cond_close_figs()
 
 
 #############################################

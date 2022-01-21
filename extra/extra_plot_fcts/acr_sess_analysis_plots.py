@@ -144,7 +144,7 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, parallel=False,
         warnings.warn(f"No plotting function for analysis {analysis}", 
             category=UserWarning, stacklevel=1)
 
-    plt.close("all")
+    plot_util.cond_close_figs()
 
 
 #############################################

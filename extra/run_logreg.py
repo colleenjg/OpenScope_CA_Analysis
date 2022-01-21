@@ -27,7 +27,7 @@ from util import gen_util
 gen_util.CC_config_cache()
 
 gen_util.extend_sys_path(__file__, parents=2)
-from util import gen_util, logger_util
+from util import gen_util, logger_util, plot_util
 from sess_util import sess_gen_util, sess_ntuple_util
 from extra_analysis import logreg
 from extra_plot_fcts import plot_from_dicts_tool as plot_dicts
@@ -283,7 +283,7 @@ def run_regr(args):
         logreg.run_regr(sess, analyspar, stimpar, logregpar, quantpar, 
             extrapar, techpar)
             
-        plt.close("all")
+        plot_util.cond_close_figs()
 
 
 #############################################
@@ -366,9 +366,9 @@ def parse_args():
         [f"{key}: {item}" for key, item in TASK_DESCR.items()])
 
     parser.add_argument("--output", default=Path("results"), 
-        type=Path, help="where to store output")
+        type=Path, help="main directory in which to store output")
     parser.add_argument("--datadir", default=None, 
-        help="data directory (if None, uses a directory defined below)")
+        help="data directory (if not provided, uses a default directory)")
     parser.add_argument("--task", default="run_regr", 
         help=(f"TASKS: {TASK_STR}"))
         

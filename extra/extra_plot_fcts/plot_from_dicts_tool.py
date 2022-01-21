@@ -22,10 +22,8 @@ from pathlib import Path
 from util import gen_util 
 gen_util.CC_config_cache()
 
-from matplotlib import pyplot as plt
-
 sys.path.extend([".", ".."])
-from util import file_util, gen_util, logger_util
+from util import file_util, gen_util, logger_util, plot_util
 from extra_plot_fcts import roi_analysis_plots as roi_plots
 from extra_plot_fcts import gen_analysis_plots as gen_plots
 from extra_plot_fcts import pup_analysis_plots as pup_plots
@@ -153,7 +151,7 @@ def plot_from_dicts(direc, source="roi", plt_bkend=None, fontdir=None,
         fct, dict_paths, args_dict=args_dict, parallel=parallel, 
         pass_parallel=pass_parallel)
 
-    plt.close("all")
+    plot_util.cond_close_figs()
 
 
 #############################################
