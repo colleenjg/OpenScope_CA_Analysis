@@ -592,7 +592,7 @@ def main(args):
 
     logger_util.set_level(level=args.log_level)
     
-    args.fontdir = DEFAULT_FONTDIR
+    args.fontdir = DEFAULT_FONTDIR if DEFAULT_FONTDIR.is_dir() else None
 
     if args.dict_path is not None:
         source = "modif" if args.modif else "roi"

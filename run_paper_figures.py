@@ -102,9 +102,6 @@ def init_analysis(args):
     
     args = copy.deepcopy(args)
 
-    # Directory with additional fonts
-    fontdir = DEFAULT_FONTDIR if DEFAULT_FONTDIR.exists() else None
-
     fig_panel_analysis = paper_organization.FigurePanelAnalysis(
         figure=args.figure, 
         panel=args.panel, 
@@ -115,7 +112,7 @@ def init_analysis(args):
         seed=args.seed, 
         parallel=args.parallel,
         plt_bkend=args.plt_bkend,
-        fontdir=fontdir,
+        fontdir=args.fontdir,
         )
 
     specific_params = fig_panel_analysis.specific_params
@@ -349,7 +346,6 @@ def run_single_panel(args, sessions=None, new_fig=False):
     plot_util.manage_mpl(cmap=False, **analysis_dict["figpar"]["mng"])
     sess_plot_util.update_plt_linpla()
 
-
     action = "Running analysis and producing plot"
     if args.plot_only:
         action = "Producing plot"
@@ -422,8 +418,10 @@ def main(args):
         args.datadir = DEFAULT_DATADIR
     else:
         args.datadir = Path(args.datadir)
-    args.fontdir = DEFAULT_FONTDIR
     args.mouse_df_path = DEFAULT_MOUSE_DF_PATH
+
+    # Directory with additional fonts
+    args.fontdir = DEFAULT_FONTDIR if DEFAULT_FONTDIR.exists() else None
 
     # warn if parallel is not used
     if args.overwrite and not(args.plot_only):
