@@ -428,7 +428,7 @@ def run_analyses(sessions, analysis_dict, analyses, seed=None, parallel=False):
             args_dict, inspect.getfullargspec(fct).args)
         fct(sessions=sessions, analysis=analysis, **args_dict_use)
 
-        plt.close("all")
+        plot_util.cond_close_figs()
 
 
 #############################################
@@ -519,9 +519,9 @@ def parse_args():
 
         # general parameters
     parser.add_argument("--datadir", default=None, 
-        help="data directory (if None, uses a directory defined below)")
+        help="data directory (if not provided, uses a default directory)")
     parser.add_argument("--output", default=".", type=Path, 
-        help="where to store output")
+        help="main directory in which to store output")
     parser.add_argument("--analyses", default="all", 
         help=("analyses to run, e.g. 'ftl', 'all' or 'all_f' (all, save 'f'). "
             f"ANALYSES: {ANALYSIS_STR}"))

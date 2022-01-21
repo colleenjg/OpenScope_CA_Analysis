@@ -131,7 +131,7 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
         warnings.warn(f"No plotting function for analysis {analysis}", 
             category=UserWarning, stacklevel=1)
 
-    plt.close("all")
+    plot_util.cond_close_figs()
 
 
 #############################################
@@ -1247,7 +1247,7 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quantpar,
     fulldir = plot_util.savefig(
         fig, savename, savedir, log_dir=log_dir, **figpar["save"])
     
-    plt.close(fig)
+    plot_util.cond_close_figs()
     
     return fulldir
 
@@ -1676,7 +1676,7 @@ def plot_roi_tune_curves(tc_oris, roi_data, n, nrois, seq_info,
     fulldir = plot_util.savefig(
         fig, savename, savedir, log_dir=log_dir, **figpar["save"])
 
-    plt.close(fig)
+    plot_util.cond_close_figs(fig)
 
     return fulldir
 
@@ -1786,7 +1786,8 @@ def plot_tune_curve_regr(vm_means, vm_regr, seq_info, gentitle="",
         savename = f"{gen_savename}_regr{kap_str}"
         fulldir = plot_util.savefig(
             fig, savename, savedir, log_dir=False, **figpar["save"])
-        plt.close(fig)
+            
+        plot_util.cond_close_figs(fig)
 
     return fulldir
 

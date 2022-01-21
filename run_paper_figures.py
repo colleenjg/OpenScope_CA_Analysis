@@ -441,7 +441,7 @@ def main(args):
         figures = paper_organization.get_all_figures()
     else:
         figures = [args.figure]
-    
+
     sessions = None
     panel = args.panel
     for args.figure in figures:
@@ -464,8 +464,8 @@ def main(args):
                     logger.info(f"{lead}. {err}")
                 else:
                     raise err
-                    
-            plt.close("all")
+
+            plot_util.cond_close_figs()
 
 
 #############################################
@@ -484,9 +484,9 @@ def parse_args():
 
         # data parameters
     parser.add_argument("--datadir", default=None, 
-        help="data directory (if None, uses a directory defined below)")
+        help="data directory (if not provided, uses a default directory)")
     parser.add_argument("--output", default=".", type=Path,
-        help="where to store output")
+        help="main directory in which to store output")
     parser.add_argument("--overwrite", action="store_true", 
         help=("overwrite figure, and analysis files if args.plot_only is False"
         "(figures are always overwritten)"))

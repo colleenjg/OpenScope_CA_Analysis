@@ -95,7 +95,7 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
         warnings.warn(f"No modified plotting option for analysis {analysis}", 
             category=UserWarning, stacklevel=1)
 
-    plt.close("all")
+    plot_util.cond_close_figs()
 
 
 

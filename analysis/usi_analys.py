@@ -319,7 +319,7 @@ def get_chosen_roi_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
             - roi_idx_percs (float): ROI index percentile
             - roi_ns (int): ROI number with in its session
     """
-    
+
     if target_idx_vals is None and target_idx_sigs is None:
         target_idx_vals = [0.5, 0, -0.5]
         target_idx_sigs = ["sig", "not_sig", "sig"]
@@ -352,6 +352,7 @@ def get_chosen_roi_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
     logger.info(
         f"Calculating ROI USIs for each session...", extra={"spacing": TAB}
         )
+    
     returns = gen_util.parallel_wrap(
         get_idx_info, sessions, args_dict=args_dict, 
         parallel=parallel, zip_output=True
@@ -360,7 +361,7 @@ def get_chosen_roi_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
     misc_analys.get_check_sess_df(sessions, idx_df)
     idx_columns = ["all_roi_idxs", "all_roi_percs", "all_roi_mses"]
     for c, column in enumerate(idx_columns):
-        idx_df[column] = returns[c]
+        idx_df[column] = list(returns[c])
 
     # for each group, select an ROI for each target
     loop_args = list(zip(target_idx_vals, target_idx_sigs))
@@ -385,7 +386,6 @@ def get_chosen_roi_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
             choose_roi, loop_args, args_list=args_list, 
             parallel=parallel, zip_output=True, mult_loop=True,
             )
-
         # Add selected ROIs to dataframe
         for (roi_n, sess_n, targ_idx_val, targ_idx_sig) in zip(
             roi_ns, sess_ns, target_idx_vals, target_idx_sigs

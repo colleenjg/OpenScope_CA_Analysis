@@ -76,7 +76,8 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, datetime=True,
         warnings.warn(f"No plotting function for analysis {analysis}", 
             category=UserWarning, stacklevel=1)
 
-    plt.close("all")
+    plot_util.cond_close_figs()
+    
 
 #############################################
 def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,

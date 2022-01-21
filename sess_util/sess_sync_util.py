@@ -20,7 +20,6 @@ import h5py
 import numpy as np
 import pandas as pd
 import pynwb
-from scipy import signal as scisig
 from scipy import stats as scist
 from allensdk.brain_observatory import sync_dataset, sync_utilities
 from allensdk.brain_observatory.extract_running_speed import __main__ as running_main

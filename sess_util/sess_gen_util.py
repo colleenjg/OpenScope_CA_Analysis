@@ -19,8 +19,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from analysis import session
-from sess_util import sess_str_util
 from util import file_util, gen_util, logger_util
 
 logger = logging.getLogger(__name__)
@@ -552,6 +550,8 @@ def init_sessions(sessids, datadir, mouse_df, runtype="prod", full_table=True,
     Returns:
         - sessions (list): list of Session objects
     """
+
+    from analysis import session
     
     with logger_util.TempChangeLogLevel(level=temp_log):
         sessions = []
@@ -587,7 +587,7 @@ def init_sessions(sessids, datadir, mouse_df, runtype="prod", full_table=True,
 
 
 #############################################
-def check_session(session, roi=True, run=False, pupil=False, fluor="dff", 
+def check_session(sess, roi=True, run=False, pupil=False, fluor="dff", 
                   dend="extr"):
     """
     check_session(session, analyspar)
@@ -595,7 +595,7 @@ def check_session(session, roi=True, run=False, pupil=False, fluor="dff",
     Checks whether required data is loaded, and returns session with required data loaded.
 
     Required args:
-        - session (Session): session object
+        - sess (Session): session object
 
     Optional args:
         - roi (bool)  : whether ROI information should be loaded
@@ -613,20 +613,20 @@ def check_session(session, roi=True, run=False, pupil=False, fluor="dff",
         - session (Session): session object, with required data loaded
     """
 
-    session = copy.deepcopy(session)
+    sess = copy.deepcopy(sess)
 
-    roi_loaded, run_loaded, pupil_loaded = session.data_loaded()
+    roi_loaded, run_loaded, pupil_loaded = sess.data_loaded()
     
     if roi and not(roi_loaded):
-        session.load_roi_info(fluor=fluor, dend=dend)
+        sess.load_roi_info(fluor=fluor, dend=dend)
     
     if run and not(run_loaded):
-        session.load_run_data()
+        sess.load_run_data()
     
     if pupil and not(pupil_loaded):
-        session.load_pup_data()    
+        sess.load_pup_data()    
             
-    return session
+    return sess
 
             
 #############################################
@@ -1126,6 +1126,8 @@ def get_analysdir(mouse_n, sess_n, plane, fluor="dff", scale=True,
         - analysdir (str): name of directory to save analysis in, of the form:
                            "m{}_s{}_plane_stimtype_fluor_scaled_comp_shuffled"
     """
+
+    from sess_util import sess_str_util
 
     stim_str = sess_str_util.stim_par_str(
         stimtype, visflow_dir, visflow_size, gabk, "file")
