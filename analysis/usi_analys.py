@@ -942,9 +942,9 @@ def get_idx_df(sessions, analyspar, stimpar, basepar, idxpar, permpar,
         )
     
     misc_analys.get_check_sess_df(sessions, full_idx_df)
-    full_idx_df["roi_idxs"] = roi_idxs
-    full_idx_df["roi_percs"] = roi_percs
-    full_idx_df["rand_idxs"] = rand_idxs
+    full_idx_df["roi_idxs"] = list(roi_idxs)
+    full_idx_df["roi_percs"] = list(roi_percs)
+    full_idx_df["rand_idxs"] = list(rand_idxs)
 
     idx_df = pd.DataFrame(columns=initial_columns)
     # join within line/plane
