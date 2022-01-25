@@ -451,7 +451,7 @@ def main(args):
             panels = [panel]
 
         for p, args.panel in enumerate(panels):
-            new_fig = (p==0)
+            new_fig = (p == 0)
             try: 
                 with gen_util.TimeIt():
                     sessions = run_single_panel(
