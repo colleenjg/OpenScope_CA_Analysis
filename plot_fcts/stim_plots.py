@@ -52,7 +52,7 @@ def add_between_stim_sig(ax, sub_ax_all, data_df, permpar):
     sensitivity = misc_analys.get_sensitivity(permpar)
     comp_info = misc_analys.get_comp_info(permpar)
 
-    logger.info(f"Corrected p-values ({comp_info}):", extra={"spacing": "\n"})
+    logger.info(f"{comp_info}:", extra={"spacing": "\n"})
 
     stimtypes = ["gabors", "visflow"]
     stim_sig_str = f"Gabors vs visual flow: "

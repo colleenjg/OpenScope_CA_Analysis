@@ -284,8 +284,9 @@ def plot_pupil_run_block_diffs(block_df, analyspar, permpar, figpar,
     if title is not None:
         fig.suptitle(title, y=1.2, weight="bold")
 
-    logger.info(f"Corrected p-values ({comp_info}):", extra={"spacing": "\n"})
-    
+    logger.info(f"{comp_info}:", extra={"spacing": "\n"})
+    corr_str = "corr." if permpar["multcomp"] else "raw"
+
     for d, datatype in enumerate(datatypes):
         datatype_sig_str = f"{datatype_strs[d]:16}:"
         sub_ax = ax[0, d]
@@ -357,7 +358,7 @@ def plot_pupil_run_block_diffs(block_df, analyspar, permpar, figpar,
             ha = "center"
             if d == 0 and i == 0:
                 x += 0.2
-                p_val_text = f"raw p-val. {p_val_text}"
+                p_val_text = f"{corr_str} p-val. {p_val_text}"
                 ha = "right"
             sub_ax.text(
                 x, y, p_val_text, fontsize=20, weight="bold", ha=ha

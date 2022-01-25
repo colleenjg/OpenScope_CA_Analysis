@@ -471,7 +471,7 @@ def plot_idx_correlations(idx_corr_df, permpar, figpar, permute="sess",
     lines = [None, None]
 
     comp_info = misc_analys.get_comp_info(permpar)
-    logger.info(f"Corrected p-values ({comp_info}):", extra={"spacing": "\n"})
+    logger.info(f"{comp_info}:", extra={"spacing": "\n"})
     for (line, plane), lp_df in idx_corr_df.groupby(["lines", "planes"]):
         li, pl, col, _ = plot_helper_fcts.get_line_plane_idxs(line, plane)
         linpla_name = plot_helper_fcts.get_line_plane_name(line, plane)
@@ -773,7 +773,7 @@ def plot_idx_corr_scatterplots(idx_corr_df, permpar, figpar, permute="sess",
 
     # second pass to add plot markings
     comp_info = misc_analys.get_comp_info(permpar)
-    logger.info(f"Corrected p-values ({comp_info}):", extra={"spacing": "\n"})
+    logger.info(f"{comp_info}:", extra={"spacing": "\n"})
     sig_str = ""
     for (line, plane), lp_df in idx_corr_df.groupby(["lines", "planes"]):
         li, pl, col, _ = plot_helper_fcts.get_line_plane_idxs(line, plane)
