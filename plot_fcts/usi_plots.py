@@ -500,7 +500,7 @@ def plot_perc_sig_usis(perc_sig_df, analyspar, permpar, figpar, by_mouse=False,
     n_linpla = plot_helper_fcts.N_LINPLA
 
     comp_info = misc_analys.get_comp_info(permpar)
-    logger.info(f"Corrected p-values ({comp_info}):", extra={"spacing": "\n"})
+    logger.info(f"{comp_info}:", extra={"spacing": "\n"})
     for t, (tail, key) in enumerate(zip(tail_order, tail_keys)):
         sub_ax = ax[0, t]
         sub_ax.set_title(tail, fontweight="bold")

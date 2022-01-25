@@ -309,9 +309,7 @@ def add_between_sess_sig(ax, data_df, permpar, data_col="diff_stats",
     prefix = f"{data_col}_" if p_val_prefix else ""
 
     if not dry_run:
-        logger.info(
-            f"Corrected p-values ({comp_info}):", extra={"spacing": "\n"}
-            )
+        logger.info(f"{comp_info}:", extra={"spacing": "\n"})
 
     for pass_n in [0, 1]: # add significance markers on the second pass
         linpla_grps = list(data_df.groupby(["lines", "planes"]))
@@ -509,10 +507,8 @@ def plot_sess_data(data_df, analyspar, sesspar, permpar, figpar,
 
     for pass_n in [0, 1]: # add significance markers on the second pass
         if pass_n == 1:
-            logger.info(
-                f"Corrected p-values ({comp_info}):", 
-                extra={"spacing": "\n"}
-                )
+            logger.info(f"{comp_info}:", extra={"spacing": "\n"})
+            
         for (line, plane), lp_df in data_df.groupby(["lines", "planes"]):
             li, pl, col, dash = plot_helper_fcts.get_line_plane_idxs(
                 line, plane

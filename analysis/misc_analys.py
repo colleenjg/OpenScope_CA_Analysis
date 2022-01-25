@@ -275,7 +275,7 @@ def get_comp_info(permpar):
             named tuple containing permutation parameters
 
     Returns:
-        - comp_info (str): 
+        - full_comp_info (str): 
             string containing tails and multiple comparisons information
     """
 
@@ -294,9 +294,14 @@ def get_comp_info(permpar):
             )
 
     if permpar.multcomp:
-        comp_info = f"{int(permpar.multcomp)} comparisons, {comp_info}"        
+        comp_info = f"{int(permpar.multcomp)} comparisons, {comp_info}"
+        corr_str = "Corrected"
+    else:
+        corr_str = "Raw"
+    
+    full_comp_info = f"{corr_str} p-values ({comp_info})"
 
-    return comp_info
+    return full_comp_info
 
 
 #############################################
