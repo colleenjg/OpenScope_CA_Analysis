@@ -21,8 +21,6 @@ from pathlib import Path
 import time
 import warnings
 
-from matplotlib import pyplot as plt
-
 # try to set cache/config as early as possible (for clusters)
 from util import gen_util 
 gen_util.CC_config_cache()

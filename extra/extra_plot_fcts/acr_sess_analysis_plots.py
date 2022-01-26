@@ -17,7 +17,6 @@ import logging
 import warnings
 from pathlib import Path
 
-from matplotlib import pyplot as plt
 from matplotlib import cm
 import numpy as np
 

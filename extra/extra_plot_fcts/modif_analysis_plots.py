@@ -12,7 +12,6 @@ Note: this code uses python 3.7.
 
 """
 
-import copy
 import logging
 import warnings
 from pathlib import Path
