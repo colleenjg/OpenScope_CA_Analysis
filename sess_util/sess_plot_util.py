@@ -603,11 +603,15 @@ def get_gab_time_xticks(xran, lock=False, step=0.15):
 
 
 #############################################
-def update_plt_linpla():
+def update_plt_linpla(transparent=True):
     """
     update_plt_linpla()
 
     Updates rcParams for plane x line plots.
+
+    Optional args:
+        - transparent (bool): figure save parameter
+                              default: True
     """
 
     plt.rcParams.update({
@@ -620,7 +624,7 @@ def update_plt_linpla():
         "xtick.major.width"    : 4.0, 
         "ytick.major.width"    : 4.0, 
         "lines.markeredgewidth": 4.0, 
-        "legend.fontsize"      : "large"
+        "legend.fontsize"      : "large",
         })
         
     return

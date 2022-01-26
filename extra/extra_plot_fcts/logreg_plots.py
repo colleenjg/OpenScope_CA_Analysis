@@ -16,7 +16,6 @@ import logging
 import warnings
 from pathlib import Path
 
-from matplotlib import pyplot as plt
 import numpy as np
 
 from util import file_util, gen_util, logger_util, logreg_util, math_util, \

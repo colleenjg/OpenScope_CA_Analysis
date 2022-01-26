@@ -21,7 +21,6 @@ import logging
 from pathlib import Path
 
 import numpy as np
-from matplotlib import pyplot as plt
 
 # try to set cache/config as early as possible (for clusters)
 from util import gen_util 
