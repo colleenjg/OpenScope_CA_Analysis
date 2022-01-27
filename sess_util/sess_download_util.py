@@ -80,11 +80,8 @@ def get_dandiset_asset_urls(dandiset_id="000037", version="draft",
                 "Identifying assets with full imaging stacks is not "
                 "implemented yet."
                 )
-            
-        url = (f"https://api.dandiarchive.org/api/dandisets/{dandiset_id}/"
-            f"versions/{version}/assets/{asset.identifier}/download/")
-        
-        asset_urls.append(url)
+                    
+        asset_urls.append(asset.download_url)
         selected_asset_sessids.append(asset_sessid)
     
     asset_urls = [asset_urls[i] for i in np.argsort(selected_asset_sessids)]
