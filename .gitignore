@@ -9,6 +9,7 @@
 !/examples/
 !/roi_tracking/
 !/paper_figures/
+!/.binder/
 
 /paper_fig_util/intermediate_results
 .ipynb_checkpoints
