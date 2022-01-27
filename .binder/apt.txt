@@ -1,0 +1,4 @@
+# install libraries needed for opencv-python to work
+ffmpeg
+libsm6
+libxext6

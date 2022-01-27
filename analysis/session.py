@@ -1535,6 +1535,7 @@ class Session(object):
         """
 
         self._set_dend_type(dend=dend, fluor=fluor)
+        print("here")
 
         if not hasattr(self, "roi_names"): # do this only first time
             if self.nwb:

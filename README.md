@@ -8,8 +8,7 @@ The experiment details, analyses and results are published in [Gillon _et al._, 
 ## 2. Installation
 To run the code, you should install [Anaconda](https://www.anaconda.com/) or [Miniconda](https://conda.io/miniconda.html).
 
-Once these are installed, you can simply use the appropriate `.yml` 
-file to create a conda environment. For example, if using Ubuntu or Mac OS, open a terminal, go to the repository directory, and enter:
+Once these are installed, you can simply use the appropriate `.yml` file to create a conda environment. For example, if using Ubuntu or Mac OS, open a terminal, go to the repository directory, and enter:
 
 1. `conda env create -f osca.yml`  
 2. `source activate osca`  
@@ -32,14 +31,30 @@ All of the appropriate libraries should then be loaded, and the modules can be i
 * **`examples`**: example notebook for using the Session and Stim objects 
 
 ## 5. Data
-The data for this project is hosted [here](https://gui.dandiarchive.org/#/dandiset/000037) in the DANDI archive in [NWB](https://www.nwb.org/) format. The associated metadata can be found [here](https://github.com/jeromelecoq/allen_openscope_metadata/tree/master/projects/credit_assignement).  
+The full dataset for this project is hosted [here](https://gui.dandiarchive.org/#/dandiset/000037) in the DANDI archive in [NWB](https://www.nwb.org/) format. The associated metadata can be found [here](https://github.com/jeromelecoq/allen_openscope_metadata/tree/master/projects/credit_assignement). The subset of data used in the paper (33 sessions, ~26 GB total) can be downloaded by running, from the main directory of the repository:  
+`python sess_util/sess_download_util.py --output path/to/save/`
 
-Code to generate the stimuli can be found [here](https://github.com/colleenjg/cred_assign_stimuli).  
+Code to generate the stimuli used in these experiments can be found [here](https://github.com/colleenjg/cred_assign_stimuli).  
 
-## 6. Authors
+## 6. Example notebooks
+
+The following notebooks give examples of how to download the data, and run the paper analyses.
+
+| Run in Binder | View Binder notebook | Run in Google Colab |
+| ------------- | -------------------- | ------------------- |
+| [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/colleenjg/OpenScope_CA_Analysis/main?labpath=run_paper_figures.ipynb) | [![View the notebook](https://img.shields.io/badge/render-nbviewer-orange.svg)](https://nbviewer.jupyter.org/github/colleenjg/OpenScope_CA_Analysis/blob/main/run_paper_figures.ipynb?flush_cache=true) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/colleenjg/OpenScope_CA_Analysis/blob/main/run_paper_figures_colab.ipynb) |
+
+**Binder:** conda env. is already installed (+), but only limited compute resources are available (-).  
+**Google Colab:** conda env. must first be installed (-), but nire substantial compute resources are available (+).  
+
+
+## 7. Authors
 This code was written by:
 
 * Colleen Gillon (colleen _dot_ gillon _at_ mail _dot_ utoronto _dot_ ca)
 * Jay Pina, Joel Zylberberg, and Blake Richards
 
-The module `Dataset2p.py` under `sess_util` contains code shared by authors at the Allen Institute for Brain Science. The authors of the code cannot guarantee support for its usage.
+Please do not hesitate to contact the authors if you have trouble using the data or the codebase.  
+
+**Note:** The module `Dataset2p.py` under `sess_util` contains code shared by authors at the Allen Institute for Brain Science, The authors of the code cannot guarantee support for its usage.
+
