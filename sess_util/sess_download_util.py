@@ -10,7 +10,7 @@ Dandiset 000037 is the Credit Assignment Project dandiset. It comprises data
 for 49 sessions. The asset (session file) sizes are in the following ranges:
 - Basic data (with everything required for most analyses): 
     130 MB to 1.7 GB per asset
-    ~26 GB total
+    ~25 GB total
 - Basic data + stimulus template images: 
     1.5 to 3.1 GB per asset
 - Basic data + stimulus template images + full imaging stack: 

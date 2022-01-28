@@ -31,7 +31,7 @@ All of the appropriate libraries should then be loaded, and the modules can be i
 * **`examples`**: example notebook for using the Session and Stim objects 
 
 ## 5. Data
-The full dataset for this project is hosted [here](https://gui.dandiarchive.org/#/dandiset/000037) in the DANDI archive in [NWB](https://www.nwb.org/) format. The associated metadata can be found [here](https://github.com/jeromelecoq/allen_openscope_metadata/tree/master/projects/credit_assignement). The subset of data used in the paper (33 sessions, ~26 GB total) can be downloaded by running, from the main directory of the repository:  
+The full dataset for this project is hosted [here](https://gui.dandiarchive.org/#/dandiset/000037) in the DANDI archive in [NWB](https://www.nwb.org/) format. The associated metadata can be found [here](https://github.com/jeromelecoq/allen_openscope_metadata/tree/master/projects/credit_assignement). The subset of data used in the paper (33 sessions, ~15 GB total) can be downloaded by running, from the main directory of the repository:  
 `python sess_util/sess_download_util.py --output path/to/save/`
 
 Code to generate the stimuli used in these experiments can be found [here](https://github.com/colleenjg/cred_assign_stimuli).  
@@ -40,12 +40,12 @@ Code to generate the stimuli used in these experiments can be found [here](https
 
 The following notebooks give examples of how to download the data, and run the paper analyses.
 
-| Run in Binder | View Binder notebook | Run in Google Colab |
+| Run in Binder | View the notebook | Run the Google Colab notebook |
 | ------------- | -------------------- | ------------------- |
-| [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/colleenjg/OpenScope_CA_Analysis/main?labpath=run_paper_figures.ipynb) | [![View the notebook](https://img.shields.io/badge/render-nbviewer-orange.svg)](https://nbviewer.jupyter.org/github/colleenjg/OpenScope_CA_Analysis/blob/main/run_paper_figures.ipynb?flush_cache=true) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/colleenjg/OpenScope_CA_Analysis/blob/main/run_paper_figures_colab.ipynb) |
+| [![Run in Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/colleenjg/OpenScope_CA_Analysis/main?labpath=run_paper_figures.ipynb) | [![View the notebook](https://img.shields.io/badge/render-nbviewer-orange.svg)](https://nbviewer.jupyter.org/github/colleenjg/OpenScope_CA_Analysis/blob/main/run_paper_figures.ipynb?flush_cache=true) | [![Run the Google Colab notebook](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/colleenjg/OpenScope_CA_Analysis/blob/main/run_paper_figures_colab.ipynb) |
 
 **Binder:** conda env. is already installed (+), but only limited compute resources are available (-).  
-**Google Colab:** conda env. must first be installed (-), but nire substantial compute resources are available (+).  
+**Google Colab:** conda env. must first be installed (-), but more substantial compute resources are available (+).  
 
 
 ## 7. Authors

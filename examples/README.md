@@ -8,10 +8,9 @@
 - Lists the properties of the Session and Stim objects.
 
 
-## Tutorial notebook
+## Example notebook
 
-|   | Run | View |
-| - | --- | ---- |
-| Tutorial | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/colleenjg/OpenScope_CA_Analysis/blob/main/examples/session_demonstration_script.ipynb) | [![View the notebook](https://img.shields.io/badge/render-nbviewer-orange.svg)](https://nbviewer.jupyter.org/github/colleenjg/OpenScope_CA_Analysis/blob/main/examples/session_demonstration_script.ipynb?flush_cache=true) | 
-
+| Run in Binder | View the notebook |
+| ------------- | -------------------- |
+| [![Run in Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/colleenjg/OpenScope_CA_Analysis/main?labpath=examples/session_demonstration_script.ipynb) | [![View the notebook](https://img.shields.io/badge/render-nbviewer-orange.svg)](https://nbviewer.jupyter.org/github/colleenjg/OpenScope_CA_Analysis/blob/main/examples/session_demonstration_script.ipynb?flush_cache=true) | 
 
