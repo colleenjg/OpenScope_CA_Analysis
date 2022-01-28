@@ -1535,7 +1535,6 @@ class Session(object):
         """
 
         self._set_dend_type(dend=dend, fluor=fluor)
-        print("here")
 
         if not hasattr(self, "roi_names"): # do this only first time
             if self.nwb:
@@ -2505,7 +2504,9 @@ class Session(object):
             bad_rois = self.get_bad_rois(fluor)
             if len(bad_rois):
                 if self.only_tracked_rois:
-                    raise ValueError("rem_bad not implemented for tracked ROIs.")
+                    raise ValueError(
+                        "rem_bad not implemented for tracked ROIs."
+                        )
                 roi_ids = np.delete(np.arange(self._nrois), bad_rois)
 
         if self.nwb:

@@ -38,6 +38,7 @@ EXCLUSION_LABELS = ["motion_border", "union", "duplicate", "empty",
 MASK_THRESHOLD = 0.1 # value used in ROI extraction
 MIN_N_PIX = 3 # value used in ROI extraction
 
+
 #############################################
 def load_traces_optimally(roi_data_handle, roi_ns=None, frame_ns=None, 
                           rois_first=True):
@@ -124,6 +125,10 @@ def load_traces_optimally(roi_data_handle, roi_ns=None, frame_ns=None,
 
     # load fully and select
     else:
+        if roi_ns is None:
+            roi_ns = slice(None, None, None)
+        if frame_ns is None:
+            frame_ns = slice(None, None, None)
         if rois_first:
             roi_traces = roi_data_handle[()][roi_ns][:, frame_ns]
         else:

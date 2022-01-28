@@ -176,7 +176,8 @@ def get_mouseid_sessid_nwb(nwb_files):
                 raise RuntimeError(
                     "Session IDs for different NWB files for the same session "
                     f"do not match: {', '.join(nwb_filenames)}."
-                    )            
+                    )
+
     return mouseid, sessid
 
 

@@ -53,7 +53,7 @@ def get_nwb_sess_paths(maindir, dandi_id, mouseid=None):
     if mouseid is not None:
         dandi_form = f"sub-{mouseid}_{dandi_form}"
     dandi_glob_path = Path(maindir, "**", dandi_form)
-    sess_files = glob.glob(str(dandi_glob_path), recursive=True)
+    sess_files = sorted(glob.glob(str(dandi_glob_path), recursive=True))
 
     if len(sess_files) == 0:
         raise RuntimeError(
