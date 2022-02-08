@@ -1,7 +1,7 @@
 # Credit Assignment Project Code
 
 ## 1. Description
-This repository contains the code for analyzing the Credit Assignment project, an [**Allen Institute for Brain Science**](https://alleninstitute.org/what-we-do/brain-science/) [**OpenScope**](https://alleninstitute.org/what-we-do/brain-science/news-press/press-releases/openscope-first-shared-observatory-neuroscience) project. 
+This repository contains the code for analyzing the data from the Credit Assignment project, an [**Allen Institute for Brain Science**](https://alleninstitute.org/what-we-do/brain-science/) [**OpenScope**](https://alleninstitute.org/what-we-do/brain-science/news-press/press-releases/openscope-first-shared-observatory-neuroscience) project. 
 
 The experiment details, analyses and results are published in [Gillon _et al._, 2021, _bioRxiv_](https://www.biorxiv.org/content/10.1101/2021.01.15.426915v2).
 
@@ -44,8 +44,9 @@ The following notebooks give examples of how to download the data, and run the p
 | ------------- | -------------------- | ------------------- |
 | [![Run in Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/colleenjg/OpenScope_CA_Analysis/main?labpath=run_paper_figures.ipynb) | [![View the notebook](https://img.shields.io/badge/render-nbviewer-orange.svg)](https://nbviewer.jupyter.org/github/colleenjg/OpenScope_CA_Analysis/blob/main/run_paper_figures.ipynb?flush_cache=true) | [![Run the Google Colab notebook](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/colleenjg/OpenScope_CA_Analysis/blob/main/run_paper_figures_colab.ipynb) |
 
-**Binder:** conda env. is already installed (+), but only limited compute resources are available (-).  
-**Google Colab:** conda env. must first be installed (-), but more substantial compute resources are available (+).  
+The contents of the **Binder** and **Google Colab** notebooks differ somewhat, due to the resources available: 
+* **Binder:** conda env. is already installed (+), but only limited compute resources are available (-).  
+* **Google Colab:** conda env. must first be installed (-), but more substantial compute resources are available (+).  
 
 
 ## 7. Authors
@@ -54,7 +55,7 @@ This code was written by:
 * Colleen Gillon (colleen _dot_ gillon _at_ mail _dot_ utoronto _dot_ ca)
 * Jay Pina, Joel Zylberberg, and Blake Richards
 
-Please do not hesitate to contact the authors if you have trouble using the data or the codebase.  
+Please do not hesitate to contact the authors or open an issue/pull request, if you have trouble using the data or the codebase or improvements to propose.  
 
-**Note:** The module `Dataset2p.py` under `sess_util` contains code shared by authors at the Allen Institute for Brain Science, The authors of the code cannot guarantee support for its usage.
+**Note:** The module `Dataset2p.py` under `sess_util` contains code shared by authors at the Allen Institute for Brain Science. The authors of the code cannot guarantee support for its usage.
 
