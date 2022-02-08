@@ -108,19 +108,17 @@ def reformat_n(n):
             number or range (e.g., [1, 2, 3], "all")
     """
 
-    if isinstance(n, (list, int)):
-        return n
-
-    if "-" in str(n):
+    if isinstance(n, list):
+        n = [int(i) for i in n]
+    elif "-" in str(n):
         vals = str(n).split("-")
         if len(vals) != 2:
             raise ValueError("If n is a range, must have format 1-3.")
         st = int(vals[0])
         end = int(vals[1]) + 1
         n = list(range(st, end))
-    
-    elif n not in ["any", "all"]:
-        n = gen_util.list_if_not(n)
+    # elif n not in ["all", "any"]:
+    #     n = int(n)
 
     return n
 

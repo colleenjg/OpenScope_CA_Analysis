@@ -121,11 +121,12 @@ def depth_vals(plane, line):
 
 
 #############################################
-def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth, 
-                pass_fail="P", incl="yes", all_files=1, any_files=1, 
-                min_rois=1, unique=False, sort=False):
+def get_mouse_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, 
+                      depth, pass_fail="P", incl="yes", all_files=1, 
+                      any_files=1, min_rois=1, unique=False, sort=False):
     """
-    get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth)
+    get_mouse_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, 
+                      depth)
 
     Returns values from mouse dataframe under a specified label or labels that 
     fit the criteria.
@@ -167,8 +168,14 @@ def get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, runtype, depth,
     # make sure all of these labels are lists
     all_labs = [mouse_n, sessid, sess_n, runtype, depth, pass_fail, 
                 incl, all_files, any_files]
+    all_cols = ["mouse_n", "sessid", "sess_n", "runtype", "depth", "pass_fail", 
+                "incl", "all_files", "any_files"]
     for i in range(len(all_labs)):
         all_labs[i] = gen_util.list_if_not(all_labs[i])
+        col_dtype = mouse_df[all_cols[i]].dtype
+        if col_dtype in [bool, int, float]:
+            all_labs[i] = gen_util.conv_types(all_labs[i])
+
 
     [mouse_n, sessid, sess_n, runtype, depth, 
         pass_fail, incl, all_files, any_files] = all_labs
@@ -289,7 +296,7 @@ def get_sess_vals(mouse_df, returnlab, mouse_n="any", sess_n="any",
     # collect all mouse IDs and remove omitted mice
     mouse_n = gen_util.remove_if(mouse_n, omit_mice)
 
-    sess_vals = get_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, 
+    sess_vals = get_mouse_df_vals(mouse_df, returnlab, mouse_n, sessid, sess_n, 
         runtype, depth, pass_fail, incl, all_files, 
         any_files, min_rois, unique, sort)
 
