@@ -13,7 +13,6 @@ Note: this code uses python 3.7.
 
 """
 
-import logging
 import warnings
 
 import h5py
@@ -28,7 +27,6 @@ from allensdk.internal.brain_observatory.eye_calibration import CM_PER_PIXEL
 from util import file_util, gen_util, logger_util
 from sess_util import Dataset2p, sess_file_util
 
-logger = logging.getLogger(__name__)
 
 SKIP_LAST_ELEMENT = -1
 TAB = "    "
@@ -47,6 +45,9 @@ ADJUST_SECOND_ALIGNMENT = [833704570]
 
 #### ALWAYS SET TO FALSE - CHANGE ONLY FOR TESTING PURPOSES
 TEST_RUNNING_BLIPS = False
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -151,7 +152,7 @@ def check_stim_drop_tolerance(n_drop_stim_fr, tot_stim_fr, drop_tol=0.0003,
             f"(~{prop * 100:.1f}%).")
         if raise_exc:
             raise OSError(warn_str)
-        else:    
+        else:
             logger.warning(f"{warn_str}", extra={"spacing": TAB})
 
 
@@ -357,12 +358,13 @@ def get_stim_frames(pkl_file_name, stim_sync_h5, time_sync_h5, df_pkl_name,
     stim_vsync_fall_adj, valid_twop_vsync_fall = get_vsync_falls(stim_sync_h5)
 
     # calculate the alignment
+    logger.info("Calculating stimulus alignment.")
     stimulus_alignment = Dataset2p.calculate_stimulus_alignment(
         stim_vsync_fall_adj, valid_twop_vsync_fall)
 
     # get the second stimulus alignment
-    from sess_util import sess_load_util
-    second_stimulus_alignment = sess_load_util.load_beh_sync_h5_data(
+    from sess_util.sess_load_util import load_beh_sync_h5_data
+    second_stimulus_alignment = load_beh_sync_h5_data(
         time_sync_h5)[2]
     
     if len(second_stimulus_alignment) == len(stimulus_alignment) + 1:

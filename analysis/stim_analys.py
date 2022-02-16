@@ -10,16 +10,14 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
-import logging
 from sess_util import sess_ntuple_util
 
 import numpy as np
 import pandas as pd
 
-from util import logger_util, gen_util, math_util, rand_util
+from util import gen_util, math_util, rand_util
 from analysis import misc_analys, seq_analys, usi_analys
 
-logger = logging.getLogger(__name__)
 
 TAB = "    "
 

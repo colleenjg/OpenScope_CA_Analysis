@@ -17,7 +17,6 @@ Note: this code uses python 3.7.
 import argparse
 import copy
 import inspect
-import logging
 from pathlib import Path
 
 # try to set cache/config as early as possible (for clusters)
@@ -35,13 +34,14 @@ DEFAULT_DATADIR = Path("..", "data", "OSCA")
 DEFAULT_MOUSE_DF_PATH = Path("mouse_df.csv")
 DEFAULT_FONTDIR = Path("..", "tools", "fonts")
 
-logger = logging.getLogger(__name__)
-
 
 ANALYSIS_DESCR = {
     "c": "correlation between pupil and roi or run unexpected-locked changes",
     "r": "unexpected-locked change correlation per ROI between stimuli",
 }
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -299,7 +299,7 @@ def prep_analyses(sess_n, args, mouse_df):
     """
 
     args = copy.deepcopy(args)
-
+    
     args.sess_n = sess_n
 
     analysis_dict = init_param_cont(args)
@@ -454,6 +454,7 @@ def main(args):
         - args (dict): parser argument dictionary
     """
 
+    # set logger to the specified level
     logger_util.set_level(level=args.log_level)
 
     args.fontdir = DEFAULT_FONTDIR if DEFAULT_FONTDIR.is_dir() else None
@@ -555,8 +556,7 @@ def parse_args():
         help="only enable session loading in parallel")
     parser.add_argument("--seed", default=-1, type=int, 
         help="random seed (-1 for None)")
-    parser.add_argument("--log_level", default="info", 
-        help="logging level (does not work with --parallel)")
+    parser.add_argument("--log_level", default="info", help="logging level")
 
         # session parameters
     parser.add_argument("--runtype", default="prod", help="prod or pilot")
@@ -635,5 +635,8 @@ def parse_args():
 if __name__ == "__main__":
 
     args = parse_args()
+
+    logger_util.format_all(level=args.log_level)
+
     main(args)
 

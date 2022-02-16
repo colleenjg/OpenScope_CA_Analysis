@@ -2,8 +2,8 @@
 
 import argparse
 import glob
-import shutil
 from pathlib import Path
+import shutil
 
 
 #############################################

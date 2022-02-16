@@ -2,8 +2,6 @@
 
 import argparse
 import glob
-import logging
-import sys
 from pathlib import Path
 
 # try to set cache/config as early as possible (for clusters)
@@ -21,11 +19,12 @@ from util import data_util, file_util, gen_util, logger_util, plot_util, \
 from sess_util import sess_data_util, sess_plot_util, sess_gen_util
 
 
-logger = logging.getLogger(__name__)
-
 DEFAULT_DATADIR = Path("..", "data", "OSCA")
 DEFAULT_MOUSE_DF_PATH = Path("mouse_df.csv")
 DEFAULT_FONTDIR = Path("..", "tools", "fonts")
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 class PredLSTM(torch.nn.Module):
@@ -312,6 +311,7 @@ def main(args):
         - args (dict): parser argument dictionary
     """
 
+    # set logger to the specified level
     logger_util.set_level(level=args.log_level)
 
     args.device = "cpu"
@@ -374,8 +374,7 @@ def parse_args():
                         help="do sess_n's in parallel.")
     parser.add_argument("--seed", default=-1, type=int, 
                         help="random seed (-1 for None)")
-    parser.add_argument("--log_level", default="info", 
-        help="logging level (does not work with --parallel)")
+    parser.add_argument("--log_level", default="info", help="logging level")
 
     parser.add_argument("--n_epochs", default=100, type=int)
 
@@ -396,5 +395,8 @@ def parse_args():
 if __name__ == "__main__":
 
     args = parse_args()
+
+    logger_util.format_all(level=args.log_level)
+
     main(args)
 

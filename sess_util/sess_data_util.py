@@ -13,14 +13,14 @@ Note: this code uses python 3.7.
 """
 
 import copy
-import logging
 
 import numpy as np
 
 from util import data_util, gen_util, logger_util
 from sess_util import sess_gen_util
 
-logger = logging.getLogger(__name__)
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################

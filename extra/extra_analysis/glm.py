@@ -14,7 +14,6 @@ Note: this code uses python 3.7.
 """
 
 import copy
-import logging
 import random
 
 from joblib import Parallel, delayed
@@ -27,7 +26,8 @@ from util import file_util, gen_util, logger_util, math_util, rand_util
 from sess_util import sess_data_util, sess_gen_util, sess_str_util
 from extra_plot_fcts import glm_plots
 
-logger = logging.getLogger(__name__)
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -425,7 +425,8 @@ def run_explained_variance(x_df, y_df, analyspar, k=10, log_roi_n=True):
 
 
 #############################################
-def run_glm(sessions, analyspar, sesspar, stimpar, glmpar, parallel=False):
+def run_glm(sessions, analyspar, sesspar, stimpar, glmpar, parallel=False, 
+            seed=None):
     """
     run_glm(sessions, analyspar, stimpar, glmpar)
     """
@@ -459,9 +460,11 @@ def run_glm(sessions, analyspar, sesspar, stimpar, glmpar, parallel=False):
     if parallel and glmpar.each_roi and len(roi_cols) > 1:
         logger.info("Calculating explained variance per ROI in parallel...")
         n_jobs = gen_util.get_n_jobs(len(roi_cols))
-        outs = Parallel(n_jobs=n_jobs)(delayed(run_explained_variance)
-            (x_df, full_df[cols], analyspar, glmpar.k, log_roi_n=False) 
-            for cols in roi_cols)
+        with gen_util.ParallelLogging():
+            outs = Parallel(n_jobs=n_jobs)(
+                delayed(run_explained_variance)
+                (x_df, full_df[cols], analyspar, glmpar.k, log_roi_n=False) 
+                for cols in roi_cols)
         fulls, coef_alls, coef_unis = zip(*outs)
     else:
         fulls, coef_alls, coef_unis = [], [], []
@@ -520,7 +523,10 @@ def run_glms(sessions, analysis, seed, analyspar, sesspar, stimpar, glmpar,
     parallel_after = True if (parallel and not(parallel_here)) else False
 
     args_list = [analyspar, sesspar, stimpar, glmpar]
-    args_dict = {"parallel": parallel_after} # proactively set next parallel
+    args_dict = {
+        "parallel": parallel_after, # proactively set next parallel 
+        "seed"    : seed,
+        }
     all_expl_var = gen_util.parallel_wrap(
         run_glm, sess_batches, args_list, args_dict, parallel=parallel_here
         )

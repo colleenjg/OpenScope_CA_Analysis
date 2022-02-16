@@ -14,15 +14,13 @@ Note: this code uses python 3.7.
 import argparse
 import glob
 import inspect
-import logging
-import sys
 from pathlib import Path
 
 # try to set cache/config as early as possible (for clusters)
-from util import gen_util 
+from util import gen_util
 gen_util.CC_config_cache()
 
-sys.path.extend([".", ".."])
+gen_util.extend_sys_path(__file__, parents=2)
 from util import file_util, gen_util, logger_util, plot_util
 from extra_plot_fcts import roi_analysis_plots as roi_plots
 from extra_plot_fcts import gen_analysis_plots as gen_plots
@@ -31,10 +29,11 @@ from extra_plot_fcts import modif_analysis_plots as mod_plots
 from extra_plot_fcts import acr_sess_analysis_plots as acr_sess_plots
 from extra_plot_fcts import logreg_plots, glm_plots
 
-logger = logging.getLogger(__name__)
-
 
 DEFAULT_FONTDIR = Path("..", "tools", "fonts")
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -112,6 +111,7 @@ def plot_from_dicts(direc, source="roi", plt_bkend=None, fontdir=None,
 
         dict_paths = [direc]
 
+    dict_paths = sorted(dict_paths)
     if len(dict_paths) > 1:
         logger.info(f"Plotting from {len(dict_paths)} dictionaries.")
 
@@ -165,6 +165,9 @@ def main(args):
         - args (dict): parser argument dictionary
     """
 
+    # set logger to the specified level
+    logger_util.set_level(level=args.log_level)
+
     plot_from_dicts(
         args.direc, 
         source=args.source, 
@@ -209,6 +212,7 @@ def parse_args():
         help="pattern based on which to include json files in directory")
     parser.add_argument("--depth", default=0, type=int,
         help="maximum depth at which to check for json files in directory")
+    parser.add_argument("--log_level", default="info", help="logging level")
 
     args = parser.parse_args()
 
@@ -219,5 +223,8 @@ def parse_args():
 if __name__ == "__main__":
 
     args = parse_args()
+
+    logger_util.format_all(level=args.log_level)
+
     main(args)
 

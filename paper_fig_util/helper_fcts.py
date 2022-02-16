@@ -10,15 +10,14 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
-import inspect
-import logging
 from pathlib import Path
 
 from util import file_util, logger_util
 
-logger = logging.getLogger(__name__)
 
 TAB = "    "
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################

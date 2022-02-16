@@ -13,7 +13,6 @@ Note: this code uses python 3.7.
 """
 
 import copy
-import logging
 import warnings
 
 from joblib import Parallel, delayed
@@ -24,9 +23,10 @@ from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
 from extra_analysis import ori_analys, quant_analys, signif_grps
 from extra_plot_fcts import roi_analysis_plots as roi_plots
 
-logger = logging.getLogger(__name__)
-
 TAB = "    "
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -695,16 +695,21 @@ def run_oridirs_by_qu(sessions, oridirs, unexps, analyspar, sesspar, stimpar,
     # optionally runs in parallel
     if parallel and len(sessions) > 1:
         n_jobs = gen_util.get_n_jobs(len(sessions))
-        Parallel(n_jobs=n_jobs)(delayed(run_oridirs_by_qu_sess)
-            (sess, oridirs, unexps, xrans[se], mes[se], counts[se], analyspar, 
-            sesspar, stimpar, extrapar, quantpar, figpar, False) 
-            for se, sess in enumerate(sessions))
+        with gen_util.ParallelLogging():
+            Parallel(n_jobs=n_jobs)(
+                delayed(run_oridirs_by_qu_sess)
+                (sess, oridirs, unexps, xrans[se], mes[se], counts[se], 
+                analyspar=analyspar, sesspar=sesspar, stimpar=stimpar, 
+                extrapar=extrapar, quantpar=quantpar, figpar=figpar, 
+                parallel=False) 
+                for se, sess in enumerate(sessions))
     else:
         for se, sess in enumerate(sessions):
             run_oridirs_by_qu_sess(
                 sess, oridirs, unexps, xrans[se], mes[se], counts[se], 
-                analyspar, sesspar, stimpar, extrapar, quantpar, figpar, 
-                parallel)
+                analyspar=analyspar, sesspar=sesspar, stimpar=stimpar, 
+                extrapar=extrapar, quantpar=quantpar, figpar=figpar, 
+                parallel=parallel)
 
 
 #############################################
@@ -776,15 +781,19 @@ def run_oridirs(sessions, analysis, analyspar, sesspar, stimpar, quantpar,
     # optionally runs in parallel
     if parallel and (len(quantpars) > np.max([1, len(sessions)])):
         n_jobs = gen_util.get_n_jobs(len(quantpars))
-        Parallel(n_jobs=n_jobs)(delayed(run_oridirs_by_qu)
-            (sessions, oridirs, unexps, analyspar, sesspar, stimpar, 
-            extrapar, quantpar, figpar, False) 
-            for quantpar in quantpars)
+        with gen_util.ParallelLogging():
+            Parallel(n_jobs=n_jobs)(
+                delayed(run_oridirs_by_qu)
+                (sessions, oridirs, unexps, analyspar, sesspar, stimpar, 
+                extrapar=extrapar, quantpar=quantpar, figpar=figpar, 
+                parallel=False) 
+                for quantpar in quantpars)
     else:
         for quantpar in quantpars:
             run_oridirs_by_qu(
                 sessions, oridirs, unexps, analyspar, sesspar, stimpar, 
-                extrapar, quantpar, figpar, parallel)
+                extrapar=extrapar, quantpar=quantpar, figpar=figpar, 
+                parallel=parallel)
 
 
 #############################################

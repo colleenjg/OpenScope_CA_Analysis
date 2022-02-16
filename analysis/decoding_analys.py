@@ -11,20 +11,21 @@ Note: this code uses python 3.7.
 """
 
 import itertools
-import logging
 
 import numpy as np
 import pandas as pd
 import scipy.stats as scist
 
-from util import logger_util, gen_util, logreg_util, math_util, rand_util
+from util import gen_util, logger_util, logreg_util, math_util, rand_util
 from sess_util import sess_gen_util
 from analysis import misc_analys
 
-logger = logging.getLogger(__name__)
 
 MAX_SIMULT_RUNS = 25000
 TAB = "    "
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################

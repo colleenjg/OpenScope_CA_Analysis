@@ -13,7 +13,6 @@ Note: this code uses python 3.7.
 """
 
 import copy
-import logging
 import warnings
 
 from joblib import Parallel, delayed
@@ -23,7 +22,8 @@ from util import file_util, gen_util, logger_util, math_util
 from sess_util import sess_gen_util, sess_str_util, sess_ntuple_util
 from extra_plot_fcts import pup_analysis_plots as pup_plots
 
-logger = logging.getLogger(__name__)
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -391,7 +391,7 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
             stimpars[-1].gabk, "print"))
     stimpar_dict = stimpars[0]._asdict()
     stimpar_dict["stimtype"] = "both"
-    
+
     logger.info("Analysing and plotting correlations between unexpected vs "
           f"expected ROI traces between sessions ({sessstr_pr}{dendstr_pr}).", 
           extra={"spacing": "\n"})
@@ -413,8 +413,10 @@ def run_pup_roi_stim_corr(sessions, analysis, analyspar, sesspar, stimpar,
             # optionally runs in parallel
             if parallel and nrois > 1:
                 n_jobs = gen_util.get_n_jobs(nrois)
-                corrs = Parallel(n_jobs=n_jobs)(delayed(np.corrcoef)
-                    (roi_diff[:, r], pup_diff) for r in range(nrois))
+                with gen_util.ParallelLogging():
+                    corrs = Parallel(n_jobs=n_jobs)(
+                        delayed(np.corrcoef)
+                        (roi_diff[:, r], pup_diff) for r in range(nrois))
                 corrs = np.asarray([corr[0, 1] for corr in corrs])
             else:
                 corrs = np.empty(nrois)

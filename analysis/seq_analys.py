@@ -10,20 +10,20 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
-import logging
-from sess_util import sess_ntuple_util
-
 import numpy as np
 import pandas as pd
 import scipy.stats as scist
 
-from util import logger_util, gen_util, math_util, rand_util
+from util import gen_util, logger_util, math_util, rand_util
+from sess_util import sess_ntuple_util
 from analysis import basic_analys, misc_analys
 from plot_fcts import plot_helper_fcts
 
-logger = logging.getLogger(__name__)
 
 TAB = "    "
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################

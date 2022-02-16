@@ -10,17 +10,13 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
-import logging
-
 import numpy as np
 import pandas as pd
 
-from util import logger_util, plot_util
+from util import plot_util
 from paper_fig_util import helper_fcts
 from plot_fcts import behav_plots, corr_plots, misc_plots, seq_plots, \
     stim_plots, roi_plots, usi_plots
-
-logger = logging.getLogger(__name__)
 
 
 #############################################

@@ -12,21 +12,20 @@ Note: this code uses python 3.7.
 
 """
 
-import logging
 from pathlib import Path
-import warnings
 
-import h5py
 import numpy as np
 import pandas as pd
 import pynwb
 
 from util import file_util, gen_util, logger_util
-from sess_util import sess_file_util, sess_load_util, sess_sync_util
+from sess_util import sess_file_util, sess_sync_util
 
-logger = logging.getLogger(__name__)
 
 TAB = "    "
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 ##########################################

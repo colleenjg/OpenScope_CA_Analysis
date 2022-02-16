@@ -10,8 +10,6 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
-import logging
-
 import numpy as np
 from matplotlib import pyplot as plt
 import seaborn
@@ -20,9 +18,11 @@ from util import logger_util, plot_util, math_util, rand_util
 from analysis import misc_analys
 from plot_fcts import plot_helper_fcts, seq_plots
 
-logger = logging.getLogger(__name__)
 
 TAB = "    "
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################

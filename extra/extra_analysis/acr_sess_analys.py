@@ -13,7 +13,6 @@ Note: this code uses python 3.7.
 
 """
 
-import logging
 import warnings
 
 import numpy as np
@@ -24,9 +23,12 @@ from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
 from extra_analysis import quant_analys, signif_grps
 from extra_plot_fcts import acr_sess_analysis_plots as acr_sess_plots
 
-logger = logging.getLogger(__name__)
 
 MIN_N = 2 # minimum number of values outside CIs
+
+
+logger = logger_util.get_module_logger(name=__name__)
+
 
 #############################################
 def set_multcomp(permpar, sessions=None, n_linpla=4, n_sess=1, factor=1, 

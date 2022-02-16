@@ -14,7 +14,7 @@ Note: this code uses python 3.7.
 """
 
 from sess_util import sess_gen_util
-from util import gen_util, logger_util
+from util import gen_util
 
 
 #############################################

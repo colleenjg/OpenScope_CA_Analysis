@@ -10,18 +10,18 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
-import logging
-
 import numpy as np
 
-from util import logger_util, gen_util, plot_util, math_util
+from util import gen_util, logger_util, plot_util, math_util
 from sess_util import sess_plot_util
 from analysis import misc_analys
 from plot_fcts import plot_helper_fcts
 
-logger = logging.getLogger(__name__)
 
 TAB = "    "
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -709,6 +709,7 @@ def plot_ex_gabor_traces(ex_traces_df, stimpar, figpar, title=None):
         fig.suptitle(title, y=1.03, weight="bold")
 
     ylims = np.full(ax.shape + (2, ), np.nan)
+    
     logger.info("Plotting individual traces...", extra={"spacing": TAB})
     raster_zorder = -12
     for (line, plane), lp_df in ex_traces_df.groupby(["lines", "planes"]):

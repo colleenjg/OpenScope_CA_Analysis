@@ -14,7 +14,6 @@ Note: this code uses python 3.7.
 """
 
 import copy
-import logging
 import warnings
 from pathlib import Path
 
@@ -30,13 +29,15 @@ from extra_plot_fcts import logreg_plots
 
 from util import gen_util
 
-logger = logging.getLogger(__name__)
 
 TAB = "    "
 
 
 #### ALWAYS SET TO FALSE - CHANGE ONLY FOR TESTING PURPOSES
 TEST_VISFLOW_VARIATIONS = False
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -1223,6 +1224,7 @@ def all_runs_sk(n_runs, analyspar, logregpar, sesspar, stimpar, extrapar,
     
     scale_str = sess_str_util.scale_par_str(analyspar.scale, "print")
     shuff_str = sess_str_util.shuff_par_str(extrapar["shuffle"], "labels")
+
     logger.info(f"Runs ({n_runs}): {scale_str}{shuff_str}", 
         extra={"spacing": "\n"})
 
@@ -1356,6 +1358,7 @@ def single_run_pt(run_n, analyspar, logregpar, sesspar, stimpar, extrapar,
     scale_str = sess_str_util.scale_par_str(analyspar.scale, "print")
     shuff_str = sess_str_util.shuff_par_str(extrapar["shuffle"], "labels")
     run_n = extrapar["run_n"]
+
     logger.info(f"Run: {run_n}{scale_str}{shuff_str}", 
         extra={"spacing": "\n"})
 
@@ -1656,6 +1659,7 @@ def run_collate(output, stimtype="gabors", comp="unexp", ctrl=False,
     """
 
     output = Path(output)
+    
     if not output.is_dir():
         logger.info(f"{output} does not exist.")
         return

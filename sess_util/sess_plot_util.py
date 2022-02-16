@@ -21,7 +21,7 @@ from matplotlib import colors as mplcol
 from matplotlib import pyplot as plt
 import numpy as np
 
-from util import gen_util, logger_util, math_util, plot_util
+from util import gen_util, math_util, plot_util
 from sess_util import sess_str_util
 
 

@@ -14,7 +14,6 @@ Note: this code uses python 3.7.
 """
 
 import copy
-import logging
 from pathlib import Path
 
 import numpy as np
@@ -23,7 +22,8 @@ import pandas as pd
 from util import logger_util
 from sess_util import sess_file_util
 
-logger = logging.getLogger(__name__)
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################

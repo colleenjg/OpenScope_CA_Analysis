@@ -26,23 +26,23 @@ Note: this code uses python 3.7.
 
 """
 import argparse
-import logging
 from pathlib import Path
 
 import numpy as np
 from dandi import dandiapi
 from dandi import download as dandi_download
 
-from util import gen_util 
+from util import gen_util
 
 gen_util.extend_sys_path(__file__, parents=2)
 from util import gen_util, logger_util
 from sess_util import sess_gen_util
 
+# if running from the main directory
+DEFAULT_MOUSE_DF_PATH = Path("mouse_df.csv")
 
-logger = logging.getLogger(__name__)
 
-DEFAULT_MOUSE_DF_PATH = Path("mouse_df.csv") # if running from the main directory
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -117,8 +117,6 @@ def reformat_n(n):
         st = int(vals[0])
         end = int(vals[1]) + 1
         n = list(range(st, end))
-    # elif n not in ["all", "any"]:
-    #     n = int(n)
 
     return n
 
@@ -201,7 +199,13 @@ if __name__ == "__main__":
     parser.add_argument("--incl_full_stacks", action="store_true", 
         help="if True, assets containing the full imaging stack are downloaded")
 
+
+    # additional parameters
+    parser.add_argument("--log_level", default="info", help="logging level")
+
     args = parser.parse_args()
+
+    logger_util.format_all(level=args.log_level)
 
     download_dandiset_assets(**args.__dict__)
 

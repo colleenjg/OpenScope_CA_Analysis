@@ -12,7 +12,6 @@ Note: this code uses python 3.7.
 """
 
 from collections import namedtuple
-import logging
 from pathlib import Path
 import time
 
@@ -21,14 +20,15 @@ from sess_util import sess_gen_util
 from paper_fig_util import behav_figs, corr_figs, decoding_figs, misc_figs, \
     seq_figs, stim_figs, roi_figs, usi_figs, plot_figs
 
-logger = logging.getLogger(__name__)
-
 
 PAPER_SEED = 905
 DEFAULT_LOW_POWER = 1e3
 WARNING_SLEEP = 3
 
 WARNING_TUPLE = namedtuple("WarningsTuple", ["message", "analysis_only"])
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -438,6 +438,7 @@ class FigurePanelAnalysis():
                 ]
 
             warn_str = "\n- " + "\n- ".join(messages)
+            
             logger.warning(warn_str, extra={"spacing": "\n"})
             time.sleep(WARNING_SLEEP)
 

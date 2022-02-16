@@ -17,7 +17,6 @@ Note: this code uses python 3.7.
 import argparse
 import copy
 import inspect
-import logging
 from pathlib import Path
 
 import numpy as np
@@ -37,8 +36,6 @@ DEFAULT_DATADIR = Path("..", "data", "OSCA")
 DEFAULT_MOUSE_DF_PATH = Path("mouse_df.csv")
 DEFAULT_FONTDIR = Path("..", "tools", "fonts")
 
-logger = logging.getLogger(__name__)
-
 
 ANALYSIS_DESCR = {
     "f": "full ROI traces",
@@ -53,6 +50,9 @@ ANALYSIS_DESCR = {
     "v": "Trial PCA trajectories (UNDER DEVELOPMENT)",
     "r": "Correlations between responses in different sessions",
 }
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -589,6 +589,7 @@ def main(args):
         - args (dict): parser argument dictionary
     """
 
+    # set logger to the specified level
     logger_util.set_level(level=args.log_level)
     
     args.fontdir = DEFAULT_FONTDIR if DEFAULT_FONTDIR.is_dir() else None
@@ -692,8 +693,7 @@ def parse_args():
         help="only enable session loading in parallel")
     parser.add_argument("--seed", default=-1, type=int, 
         help="random seed (-1 for None)")
-    parser.add_argument("--log_level", default="info", 
-        help="logging level (does not work with --parallel)")
+    parser.add_argument("--log_level", default="info", help="logging level")
 
         # session parameters
     parser.add_argument("--runtype", default="prod", help="prod or pilot")
@@ -795,5 +795,8 @@ def parse_args():
 if __name__ == "__main__":
 
     args = parse_args()
+
+    logger_util.format_all(level=args.log_level)
+
     main(args)
 

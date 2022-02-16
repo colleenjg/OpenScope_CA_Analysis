@@ -14,15 +14,15 @@ Note: this code uses python 3.7.
 
 """
 
-import logging
-
 import numpy as np
 
 from util import gen_util, logger_util, math_util, rand_util
 
-logger = logging.getLogger(__name__)
 
 TAB = "    "
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################

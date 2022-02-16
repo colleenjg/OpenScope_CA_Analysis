@@ -16,7 +16,6 @@ Note: this code uses python 3.7.
 import argparse
 import copy
 import inspect
-import logging
 from pathlib import Path
 import time
 import warnings
@@ -34,10 +33,11 @@ DEFAULT_DATADIR = Path("..", "data", "OSCA")
 DEFAULT_MOUSE_DF_PATH = Path("mouse_df.csv")
 DEFAULT_FONTDIR = Path("..", "tools", "fonts")
 
-logger = logging.getLogger(__name__)
-
 SEP = f"\n{'=' * 80}\n"
 DOUBLE_SEP = f"\n{'_' * 80}\n{'=' * 80}\n"
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -233,6 +233,7 @@ def init_sessions(analyspar, sesspar, mouse_df, datadir, sessions=None,
         - sessions (list): 
             Session objects 
     """
+    
 
     sesspar_dict = sesspar._asdict()
     sesspar_dict.pop("closest")
@@ -337,6 +338,7 @@ def run_single_panel(args, sessions=None, new_fig=False):
             loaded Session objects
     """
 
+
     analysis_dict = init_analysis(args)
     fig_panel_analysis = analysis_dict["figpar"]["fig_panel_analysis"]
 
@@ -410,6 +412,7 @@ def main(args):
             parser argument dictionary
     """
 
+    # set logger to the specified level
     logger_util.set_level(level=args.log_level)
 
     if args.datadir is None: 
@@ -510,8 +513,7 @@ def parse_args():
         help="only enable session loading in parallel")
     parser.add_argument("--seed", default="paper", 
         help="paper random seed, a different value or -1 for a random seed")
-    parser.add_argument("--log_level", default="info", 
-        help="logging level (does not work with --parallel)")
+    parser.add_argument("--log_level", default="info", help="logging level")
 
     args = parser.parse_args()
 
@@ -522,6 +524,8 @@ def parse_args():
 if __name__ == "__main__":
 
     args = parse_args()
+
+    logger_util.format_all(level=args.log_level)
 
     main(args)
 

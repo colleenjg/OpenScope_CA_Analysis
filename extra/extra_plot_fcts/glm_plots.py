@@ -13,7 +13,6 @@ Note: this code uses python 3.7.
 """
 
 import copy
-import logging
 import warnings
 from pathlib import Path
 
@@ -22,9 +21,11 @@ import numpy as np
 from util import file_util, gen_util, logger_util, math_util, plot_util
 from sess_util import sess_plot_util, sess_str_util
 
-logger = logging.getLogger(__name__)
 
 TAB = "    "
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -133,7 +134,7 @@ def plot_glm_expl_var(analyspar, sesspar, stimpar, extrapar, glmpar,
                           subfolder is added.)
         - savename (str): name under which the figure is saved
     """
-    
+
     stimstr_pr = sess_str_util.stim_par_str(
         stimpar["stimtype"], stimpar["visflow_dir"], stimpar["visflow_size"], 
         stimpar["gabk"], "print")

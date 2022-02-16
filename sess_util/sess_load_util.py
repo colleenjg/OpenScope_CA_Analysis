@@ -13,7 +13,6 @@ Note: this code uses python 3.7.
 """
 
 import copy
-import logging
 from pathlib import Path
 
 import cv2
@@ -26,11 +25,13 @@ import pynwb
 from util import file_util, gen_util, logger_util
 from sess_util import sess_file_util, sess_gen_util, sess_sync_util
 
-logger = logging.getLogger(__name__)
-
 TAB = "    "
 
 NWB_FILTER_KS = 5
+
+
+logger = logger_util.get_module_logger(name=__name__)
+
 
 ######################################
 def get_sessid_from_mouse_df(mouse_n=1, sess_n=1, runtype="prod", 
@@ -736,6 +737,7 @@ def _warn_nans_diff_thr(run, min_consec=5, n_pre_existing=None, sessid=None):
 
     prop = n_nans / len(run)
     sessstr = "" if sessid is None else f"Session {sessid}: "
+    
     logger.warning(f"{sessstr}{n_nans} dropped running frames "
         f"(~{prop * 100:.1f}%){split_str}.{n_consec_str}", 
         extra={"spacing": TAB})
