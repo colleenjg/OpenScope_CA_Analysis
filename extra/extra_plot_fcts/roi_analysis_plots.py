@@ -13,7 +13,6 @@ Note: this code uses python 3.7.
 """
 
 import copy
-import logging
 import warnings
 from pathlib import Path
 
@@ -25,12 +24,14 @@ from util import file_util, gen_util, logger_util, plot_util
 from sess_util import sess_plot_util, sess_str_util
 from extra_plot_fcts import gen_analysis_plots as gen_plots
 
-logger = logging.getLogger(__name__)
 
 TAB = "    "
 
 # skip tight layout warning
 warnings.filterwarnings("ignore", message="This figure includes*")
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -1200,6 +1201,7 @@ def plot_oridir_colormap(fig_type, analyspar, sesspar, stimpar, quantpar,
 
     subtitle = (f"ROIs sorted by peak activity{peak_sort} and scaled "
         f"{scale_type}")
+
     logger.info(f"- {subtitle}", extra={"spacing": TAB})
     suptitle = f"{gentitle}\n({subtitle})"
     
@@ -1355,17 +1357,21 @@ def plot_oridir_colormaps(analyspar, sesspar, stimpar, extrapar, quantpar,
     # optionally runs in parallel
     if parallel:
         n_jobs = gen_util.get_n_jobs(len(fig_types))
-        fulldirs = Parallel(n_jobs=n_jobs)(delayed(plot_oridir_colormap)
-            (fig_type, analyspar, sesspar, stimpar, quantpar, tr_data, 
-            sess_info, figpar, savedir, (f == fig_last)) 
-            for f, fig_type in enumerate(fig_types)) 
+        with gen_util.ParallelLogging():
+            fulldirs = Parallel(n_jobs=n_jobs)(
+                delayed(plot_oridir_colormap)
+                (fig_type, analyspar, sesspar, stimpar, quantpar, 
+                tr_data=tr_data, sess_info=sess_info, figpar=figpar, 
+                savedir=savedir, log_dir=(f == fig_last)) 
+                for f, fig_type in enumerate(fig_types)) 
         fulldir = fulldirs[-1]
     else:
         for f, fig_type in enumerate(fig_types):
             log_dir = (f == fig_last)
             fulldir = plot_oridir_colormap(
-                fig_type, analyspar, sesspar, stimpar, quantpar, tr_data, 
-                sess_info, figpar, savedir, log_dir)
+                fig_type, analyspar, sesspar, stimpar, quantpar, 
+                tr_data=tr_data, sess_info=sess_info, figpar=figpar, 
+                savedir=savedir, log_dir=log_dir)
 
     return fulldir
 
@@ -1967,20 +1973,23 @@ def plot_tune_curves(analyspar, sesspar, stimpar, extrapar, tcurvpar,
         # optionally runs in parallel
         if parallel:
             n_jobs = gen_util.get_n_jobs(len(tcurv_data["data"]))
-            fulldirs = Parallel(n_jobs=n_jobs)(delayed(plot_roi_tune_curves)
-                (tcurv_data["oris"], roi_data, n, nrois, seq_info, 
-                tcurv_data["vm_pars"][n], tcurv_data["hist_pars"][n], 
-                analyspar["fluor"], extrapar["comb_gabs"], gentitle, 
-                gen_savename, figpar, savedir)
-                for n, roi_data in enumerate(tcurv_data["data"]))
+            with gen_util.ParallelLogging():
+                fulldirs = Parallel(n_jobs=n_jobs)(
+                    delayed(plot_roi_tune_curves)
+                    (tcurv_data["oris"], roi_data, n, nrois, seq_info, 
+                    tcurv_data["vm_pars"][n], tcurv_data["hist_pars"][n], 
+                    analyspar["fluor"], comb_gabs=extrapar["comb_gabs"], 
+                    gentitle=gentitle, gen_savename=gen_savename, 
+                    figpar=figpar, savedir=savedir)
+                    for n, roi_data in enumerate(tcurv_data["data"]))
             fulldir = fulldirs[-1]
         else:
             for n, roi_data in enumerate(tcurv_data["data"]):
                 fulldir = plot_roi_tune_curves(tcurv_data["oris"], roi_data, 
                     n, nrois, seq_info, tcurv_data["vm_pars"][n], 
                     tcurv_data["hist_pars"][n], analyspar["fluor"], 
-                    extrapar["comb_gabs"], gentitle, gen_savename, figpar, 
-                    savedir)
+                    comb_gabs=extrapar["comb_gabs"], gentitle=gentitle, 
+                    gen_savename=gen_savename, figpar=figpar, savedir=savedir)
     else:
         logger.info("Not plotting tuning curves.")
 

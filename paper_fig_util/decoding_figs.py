@@ -10,16 +10,14 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
-import logging
-from sess_util import sess_ntuple_util, sess_gen_util
 
 from util import logger_util
-from analysis import misc_analys
-from analysis import decoding_analys
+from sess_util import sess_ntuple_util, sess_gen_util
+from analysis import misc_analys, decoding_analys
 from paper_fig_util import helper_fcts
 
-logger = logging.getLogger(__name__)
 
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -59,6 +57,7 @@ def gabor_decoding_sess123(sessions, analyspar, sesspar, stimpar, logregpar,
     """
 
     comp_str = logregpar.comp.replace("ori", " orientation")
+    
     logger.info(
         f"Compiling Gabor {comp_str} decoder performances for sessions 1 to 3.", 
         extra={"spacing": "\n"})

@@ -13,7 +13,6 @@ Note: this code uses python 3.7.
 """
 
 import glob
-import logging
 import warnings
 from pathlib import Path
 
@@ -26,8 +25,6 @@ from util import file_util, gen_util, logger_util, math_util
 from sess_util import sess_data_util, sess_stim_df_util, sess_file_util, \
     sess_load_util, sess_pupil_util, sess_sync_util, sess_trace_util
 
-logger = logging.getLogger(__name__)
-
 # check pandas version
 from packaging import version
 PD_MIN_VERSION = "1.1.1"
@@ -39,6 +36,9 @@ TAB = "    "
 
 #### ALWAYS SET TO FALSE - CHANGE ONLY FOR TESTING PURPOSES
 TEST_USE_PLATEAU = False
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -1654,7 +1654,8 @@ class Session(object):
                                  default: False
         """
 
-        # load the stimulus dataframe         
+
+        # load the stimulus dataframe
         logger.info("Loading stimulus and alignment info...")
         self._load_stims(full_table=full_table)
    
@@ -2340,6 +2341,7 @@ class Session(object):
             calc_str = "Calculating"
             if hasattr(self, "plateau_traces"):
                 calc_str = "Recalculating"
+
             logger.info(f"{calc_str} plateau traces.", extra={"spacing": "\n"})
 
             roi_trace_df = self.get_roi_traces(None, fluor, rem_bad)
@@ -2696,6 +2698,7 @@ class Session(object):
                     - sequences     : sequence numbers
                     - frames        : frame numbers
         """
+
 
         # for plateau test analyses
         if TEST_USE_PLATEAU:

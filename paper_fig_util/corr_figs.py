@@ -10,19 +10,19 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
-import logging
-
 from util import logger_util
+from sess_util import sess_ntuple_util
 from analysis import misc_analys, corr_analys
 from paper_fig_util import helper_fcts
-from sess_util import sess_ntuple_util
-
-logger = logging.getLogger(__name__)
 
 
 PERMUTE = "tracking" # sess, tracking or all
 CORR_TYPE = "corr" # corr or R_sqr
 SIG_ONLY = False # whether to include only ROIs with significant USIs 
+
+
+logger = logger_util.get_module_logger(name=__name__)
+
 
 ############################################
 def gabor_corrs_sess123_comps(sessions, analyspar, sesspar, stimpar, basepar, 
@@ -62,7 +62,6 @@ def gabor_corrs_sess123_comps(sessions, analyspar, sesspar, stimpar, basepar,
             if True, some of the analysis is run in parallel across CPU cores 
             default: False
     """
-
 
     logger.info(
         "Compiling tracked ROI Gabor USI correlations for sessions 1 to 3.", 
@@ -160,7 +159,6 @@ def visual_flow_corrs_sess123_comps(sessions, analyspar, sesspar, stimpar,
             if True, some of the analysis is run in parallel across CPU cores 
             default: False
     """
-
 
     logger.info(
         ("Compiling tracked ROI visual flow USI correlations for "

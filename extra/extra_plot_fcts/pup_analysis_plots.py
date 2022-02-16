@@ -13,7 +13,6 @@ Note: this code uses python 3.7.
 """
 
 import copy
-import logging
 import warnings
 from pathlib import Path
 
@@ -22,10 +21,12 @@ import numpy as np
 from util import file_util, gen_util, logger_util, math_util, plot_util
 from sess_util import sess_plot_util, sess_str_util
 
-logger = logging.getLogger(__name__)
 
 # skip tight layout warning
 warnings.filterwarnings("ignore", message="This figure includes*")
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -163,7 +164,7 @@ def plot_pup_diff_corr(analyspar, sesspar, stimpar, extrapar,
     lab_app = (f" ({analyspar['stats']} over "
         f"{stimpar['pre']}/{stimpar['post']} sec)")
 
-    print(f"Plotting pupil vs {datastr} changes.")
+    logger.info(f"Plotting pupil vs {datastr} changes.")
     
     delta = "\u0394"
 

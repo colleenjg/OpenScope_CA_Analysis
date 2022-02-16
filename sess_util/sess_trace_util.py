@@ -13,8 +13,21 @@ Note: this code uses python 3.7.
 
 """
 
+"""
+sess_trace_util.py
+
+This module contains functions for handling ROI traces of the Allen Institute 
+OpenScope experiments for the Credit Assignment Project.
+
+Authors: Allen Brain Institute, Joel Zylberberg, Blake Richards, Colleen Gillon
+
+Date: August, 2018
+
+Note: this code uses python 3.7.
+
+"""
+
 import copy
-import logging
 from pathlib import Path
 
 import h5py
@@ -30,13 +43,15 @@ from allensdk.internal.brain_observatory import mask_set
 from util import file_util, logger_util
 from sess_util import sess_file_util
 
-logger = logging.getLogger(__name__)
 
 EXCLUSION_LABELS = ["motion_border", "union", "duplicate", "empty", 
     "empty_neuropil"]
 
 MASK_THRESHOLD = 0.1 # value used in ROI extraction
 MIN_N_PIX = 3 # value used in ROI extraction
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -975,6 +990,7 @@ def demix_rois(raw_traces, h5path, masks, excl_dict, verbose=False):
 
     exclusion_labels = EXCLUSION_LABELS
     valid_mask = np.ones(len(masks)).astype(bool)
+    
     for lab in exclusion_labels:
         if lab not in excl_dict.keys():
             if lab == "empty_neuropil":
@@ -1146,7 +1162,6 @@ def create_traces_from_masks(datadir, sessid, runtype="prod", h5dir=None,
     motion_border = get_motion_border(roi_extract_json)
     all_mask_objs = create_mask_objects(masks_bool, motion_border, roi_ids, 
         union_threshold=0.7)
-
 
     logger.info("Creating ROI and neuropil traces.")
     [roi_traces, 

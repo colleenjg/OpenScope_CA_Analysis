@@ -15,7 +15,6 @@ import pickle
 import json
 import collections
 import traceback
-import logging
 
 import h5py
 import numpy as np
@@ -23,9 +22,6 @@ import matplotlib.pyplot as plt
 from allensdk.brain_observatory import sync_dataset
 from allensdk.brain_observatory.behavior.sync.process_sync import filter_digital
 
-from util import gen_util, logger_util
-
-logger = logging.getLogger(__name__)
 
 # set a few basic parameters
 ASSUMED_DELAY = 0.0351
@@ -47,8 +43,6 @@ def calculate_stimulus_alignment(stim_time, valid_twop_vsync_fall):
     calculate_stimulus_alignment(stim_time, valid_twop_vsync_fall)
 
     """
-
-    logger.info("Calculating stimulus alignment.")
 
     # convert stimulus frames into twop frames
     stimulus_alignment = np.empty(len(stim_time))

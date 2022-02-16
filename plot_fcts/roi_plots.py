@@ -10,18 +10,14 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
-import logging
-
 import itertools
 import numpy as np
 import matplotlib as mpl
 
-from util import logger_util, gen_util, plot_util
+from util import gen_util, logger_util, plot_util
 from sess_util import sess_plot_util
-from analysis import misc_analys
 from plot_fcts import plot_helper_fcts
 
-logger = logging.getLogger(__name__)
 
 TAB = "    "
 ORDERED_COLORS = ["orange", "crimson", "mediumblue"]
@@ -30,6 +26,9 @@ N_LEVELS_PROJS = 256
 
 PIX_PER_SIDE = 512
 UM_PER_PIX = 400 / PIX_PER_SIDE
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -772,6 +771,7 @@ def plot_roi_masks_overlayed_with_proj(roi_mask_df, figpar, title=None):
     sess_cols = get_sess_cols(roi_mask_df)
     alpha = 0.6
     raster_zorder = -12
+
     for (line, plane), lp_mask_df in roi_mask_df.groupby(["lines", "planes"]):
         li, pl, _, _ = plot_helper_fcts.get_line_plane_idxs(line, plane)
         lp_col = plot_helper_fcts.get_line_plane_idxs(line, plane)[2]

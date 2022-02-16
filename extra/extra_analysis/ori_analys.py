@@ -20,7 +20,7 @@ import numpy as np
 import scipy.stats as st
 from sklearn import linear_model
 
-from util import gen_util, logger_util
+from util import gen_util
 
 
 #############################################
@@ -218,13 +218,16 @@ def tune_curv_estims(gab_oris, roi_data, ngabs_tot, nrois="all", ngabs="all",
     # optionally runs in parallel
     if parallel and ngabs > np.max([1, nrois]):
         n_jobs = gen_util.get_n_jobs(ngabs)
-        returns = Parallel(n_jobs=n_jobs)(delayed(estim_vm_by_roi)
-            (gab_oris[g], roi_data, hist_n, False) for g in range(ngabs))       
+        with gen_util.ParallelLogging():
+            returns = Parallel(n_jobs=n_jobs)(
+                delayed(estim_vm_by_roi)
+                (gab_oris[g], roi_data, hist_n, parallel=False) 
+                for g in range(ngabs))       
     else:
         returns = []
         for g in range(ngabs):
             returns.append(estim_vm_by_roi(
-                gab_oris[g], roi_data, hist_n, parallel))
+                gab_oris[g], roi_data, hist_n, parallel=parallel))
     returns = list(zip(*returns))
 
     gab_tc_oris = [list(ret) for ret in returns[0]]

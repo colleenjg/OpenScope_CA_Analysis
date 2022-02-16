@@ -12,21 +12,20 @@ Note: this code uses python 3.7.
 
 """
 
-import logging
-import warnings
 from pathlib import Path
+import warnings
 
 from matplotlib import pyplot as plt
-import numpy as np
 
 from util import file_util, logger_util, plot_util
-from sess_util import sess_plot_util, sess_str_util
+from sess_util import sess_plot_util
 from extra_plot_fcts import gen_analysis_plots as gen_plots
-
-logger = logging.getLogger(__name__)
 
 
 TAB = "    "
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -58,7 +57,7 @@ def plot_from_dict(dict_path, plt_bkend=None, fontdir=None, plot_tc=True,
                             overwrite figures)
                             default: False
     """
-
+    
     logger.info(f"Plotting from dictionary: {dict_path}", 
         extra={"spacing": "\n"})
     

@@ -10,19 +10,19 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
-import logging
-
 from matplotlib import pyplot as plt
 import numpy as np
 
-from util import plot_util, logger_util, math_util
+from util import logger_util, math_util, plot_util
 from sess_util import sess_plot_util
 from analysis import misc_analys
 from plot_fcts import plot_helper_fcts
 
-logger = logging.getLogger(__name__)
 
 TAB = "    "
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -471,6 +471,7 @@ def plot_idx_correlations(idx_corr_df, permpar, figpar, permute="sess",
     lines = [None, None]
 
     comp_info = misc_analys.get_comp_info(permpar)
+    
     logger.info(f"{comp_info}:", extra={"spacing": "\n"})
     for (line, plane), lp_df in idx_corr_df.groupby(["lines", "planes"]):
         li, pl, col, _ = plot_helper_fcts.get_line_plane_idxs(line, plane)
@@ -773,6 +774,7 @@ def plot_idx_corr_scatterplots(idx_corr_df, permpar, figpar, permute="sess",
 
     # second pass to add plot markings
     comp_info = misc_analys.get_comp_info(permpar)
+    
     logger.info(f"{comp_info}:", extra={"spacing": "\n"})
     sig_str = ""
     for (line, plane), lp_df in idx_corr_df.groupby(["lines", "planes"]):

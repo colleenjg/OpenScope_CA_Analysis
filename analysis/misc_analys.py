@@ -10,17 +10,15 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
-import logging
 import warnings
 
 import numpy as np
 import pandas as pd
 import scipy.stats as scist
 
-from util import gen_util, logger_util, math_util
+from util import gen_util, math_util
 from sess_util import sess_ntuple_util, sess_gen_util
 
-logger = logging.getLogger(__name__)
 
 N_BOOTSTRP = int(1e4)
 

@@ -10,17 +10,11 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
-import logging
-
 import numpy as np
 import pandas as pd
 
-from util import logger_util, gen_util, math_util, rand_util
+from util import gen_util, math_util, rand_util
 from analysis import basic_analys, misc_analys
-
-logger = logging.getLogger(__name__)
-
-
 
 
 #############################################

@@ -11,18 +11,19 @@ Note: this code uses python 3.7.
 """
 
 import copy
-import logging
 
 import numpy as np
 
-from util import logger_util, gen_util, plot_util, math_util
+from util import gen_util, logger_util, plot_util, math_util
 from sess_util import sess_plot_util
 from analysis import misc_analys
 from plot_fcts import plot_helper_fcts, seq_plots
 
-logger = logging.getLogger(__name__)
 
 TAB = "    "
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -500,6 +501,7 @@ def plot_perc_sig_usis(perc_sig_df, analyspar, permpar, figpar, by_mouse=False,
     n_linpla = plot_helper_fcts.N_LINPLA
 
     comp_info = misc_analys.get_comp_info(permpar)
+    
     logger.info(f"{comp_info}:", extra={"spacing": "\n"})
     for t, (tail, key) in enumerate(zip(tail_order, tail_keys)):
         sub_ax = ax[0, t]

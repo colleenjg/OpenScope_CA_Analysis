@@ -11,14 +11,13 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
-import logging
-from sess_util import sess_ntuple_util
-
 from util import logger_util
+from sess_util import sess_ntuple_util
 from analysis import stim_analys, misc_analys
 from paper_fig_util import helper_fcts
 
-logger = logging.getLogger(__name__)
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 ############################################

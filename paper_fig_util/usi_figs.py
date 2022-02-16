@@ -10,16 +10,17 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
-import logging
-
 from util import gen_util, logger_util
 from sess_util import sess_gen_util, sess_ntuple_util
 from analysis import usi_analys, misc_analys
 from paper_fig_util import helper_fcts
 
-logger = logging.getLogger(__name__)
 
 TAB = "    "
+TARGET_ROI_PERC = 99.8
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 ############################################
@@ -158,7 +159,8 @@ def gabor_example_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar,
             default: None
     """
 
-    target_roi_perc = 99.8
+    target_roi_perc = TARGET_ROI_PERC
+
     logger.info(
         ("Compiling Gabor ROI USIs, and identifying an example at or near "
         f"the {target_roi_perc} percentile."), 
@@ -311,6 +313,7 @@ def gabor_roi_usi_sig(sessions, analyspar, sesspar, stimpar, basepar,
     """
 
     common_str = ", with common orientations" if common_oris else ""
+
     logger.info(
         f"Compiling percentages of significant Gabor USIs{common_str}.", 
         extra={"spacing": "\n"}
@@ -446,7 +449,6 @@ def gabor_tracked_roi_usis_sess123(sessions, analyspar, sesspar, stimpar,
             if True, some of the analysis is run in parallel across CPU cores 
             default: False
     """
-
 
     logger.info("Compiling tracked ROI Gabor USIs for sessions 1 to 3.", 
         extra={"spacing": "\n"})

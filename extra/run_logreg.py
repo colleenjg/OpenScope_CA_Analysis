@@ -17,7 +17,6 @@ Note: this code uses python 3.7.
 
 import argparse
 import copy
-import logging
 from pathlib import Path
 
 # try to set cache/config as early as possible (for clusters)
@@ -35,14 +34,16 @@ DEFAULT_DATADIR = Path("..", "data", "OSCA")
 DEFAULT_MOUSE_DF_PATH = Path("mouse_df.csv")
 DEFAULT_FONTDIR = Path("..", "tools", "fonts")
 
-logger = logging.getLogger(__name__)
-
 
 TASK_DESCR = {
     "run_regr": "runs regressions, saving results into individual folders",
     "analyse" : "compiles regression results produced by run_regr, and runs statistics",
     "plot"    : "plots statistics produced by analyse",
 }
+
+
+logger = logger_util.get_module_logger(name=__name__)
+
 
 #############################################
 def check_args(comp="unexp", stimtype="gabors", q1v4=False, exp_v_unexp=False):
@@ -295,6 +296,7 @@ def main(args):
         - args (dict): parser argument dictionary
     """
 
+    # set logger to the specified level
     logger_util.set_level(level=args.log_level)
 
     args.device = gen_util.get_device(args.cuda)
@@ -382,8 +384,7 @@ def parse_args():
     parser.add_argument("--n_reg", default=50, type=int, help="n regular runs")
     parser.add_argument("--n_shuff", default=50, type=int, 
         help="n shuffled runs")
-    parser.add_argument("--log_level", default="info", 
-        help="logging level (does not work with --parallel)")
+    parser.add_argument("--log_level", default="info", help="logging level")
 
         # logregpar
     parser.add_argument("--comp", default="unexp", 
@@ -465,5 +466,8 @@ def parse_args():
 if __name__ == "__main__":
 
     args = parse_args()
+
+    logger_util.format_all(level=args.log_level)
+
     main(args)
 

@@ -22,7 +22,7 @@ from collections import namedtuple
 import inspect
 import sys
 
-from util import gen_util, logger_util
+from util import gen_util
 
 
 #############################################

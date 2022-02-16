@@ -17,7 +17,6 @@ import copy
 import logging
 
 import numpy as np
-import pandas as pd
 import scipy.stats as st
 
 from util import file_util, gen_util, logger_util, math_util, rand_util
@@ -25,9 +24,11 @@ from sess_util import sess_gen_util, sess_ntuple_util, sess_str_util
 from extra_analysis import quant_analys
 from extra_plot_fcts import gen_analysis_plots as gen_plots
 
-logger = logging.getLogger(__name__)
 
 TAB = "    "
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################

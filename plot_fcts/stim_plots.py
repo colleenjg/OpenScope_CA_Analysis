@@ -10,8 +10,6 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
-import logging
-
 import numpy as np
 
 from util import logger_util, plot_util
@@ -19,9 +17,11 @@ from sess_util import sess_plot_util
 from analysis import misc_analys
 from plot_fcts import plot_helper_fcts
 
-logger = logging.getLogger(__name__)
 
 TAB = "    "
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################

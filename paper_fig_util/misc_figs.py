@@ -10,15 +10,15 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
-import logging
-
 from util import gen_util, logger_util
 from analysis import misc_analys
 from paper_fig_util import helper_fcts
 
-logger = logging.getLogger(__name__)
 
 TAB = "    "
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -97,7 +97,6 @@ def mean_signal_sess123(sessions, analyspar, sesspar, figpar, parallel=False):
 
     logger.info("Compiling ROI signal means from session 1 to 3.", 
         extra={"spacing": "\n"})
-
 
     logger.info("Calculating ROI signal means for each session...", 
         extra={"spacing": TAB})
