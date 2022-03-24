@@ -125,7 +125,9 @@ def reformat_n(n):
 def download_dandiset_assets(dandiset_id="000037", version="draft", output=".", 
                              incl_stim_templates=False, incl_full_stacks=False,
                              sess_ns="all", mouse_ns="all", excluded_sess=True,
-                             mouse_df=DEFAULT_MOUSE_DF_PATH):
+                             mouse_df=DEFAULT_MOUSE_DF_PATH, log_level="info"):
+
+    logger_util.format_all(level=log_level)
 
     dandiset_id = f"{int(dandiset_id):06}" # ensure correct ID formatting
 
@@ -204,8 +206,6 @@ if __name__ == "__main__":
     parser.add_argument("--log_level", default="info", help="logging level")
 
     args = parser.parse_args()
-
-    logger_util.format_all(level=args.log_level)
 
     download_dandiset_assets(**args.__dict__)
 
