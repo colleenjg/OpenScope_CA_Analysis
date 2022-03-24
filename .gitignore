@@ -1,4 +1,4 @@
-# ignore all subdirectories, except analysis, plot_fcts, util and sess_util
+# ignore all subdirectories, except specified ones
 /*/ 
 
 !/sess_util/
@@ -11,7 +11,6 @@
 !/paper_figures/
 !/.binder/
 
-/paper_fig_util/intermediate_results
 .ipynb_checkpoints
 
 *.pyc

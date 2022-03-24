@@ -36,7 +36,7 @@ The full dataset for this project is hosted [here](https://gui.dandiarchive.org/
 
 Code to generate the stimuli used in these experiments can be found [here](https://github.com/colleenjg/cred_assign_stimuli).  
 
-## 6. Example notebooks
+## 6. Figure example notebooks
 
 The following notebooks give examples of how to download the data, and run the paper analyses.
 
