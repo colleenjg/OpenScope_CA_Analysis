@@ -155,11 +155,13 @@ def roi_overlays_sess123(sessions, analyspar, sesspar, figpar, parallel=False):
         analyspar=analyspar, 
         reg_only=True,
         proj=False,
-        crop_info=False,
+        crop_info="large",
         parallel=parallel,
         )
 
-    extrapar = dict()
+    extrapar = {
+        "mark_crop_only": False
+    }
 
     info = {"analyspar"  : analyspar._asdict(),
             "sesspar"    : sesspar._asdict(),
