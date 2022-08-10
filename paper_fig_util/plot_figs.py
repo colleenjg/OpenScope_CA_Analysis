@@ -1349,6 +1349,8 @@ def plot_roi_overlays_sess123(analyspar, sesspar, extrapar, roi_mask_df, figpar)
             dictionary with keys of SessPar namedtuple
         - extrapar (dict): 
             dictionary containing additional analysis parameters
+            - "mark_crop_only" (bool): if True, crop information is used to 
+                mark images, but not to crop
         - roi_mask_df (pd.DataFrame in dict format):
             dataframe with a row for each mouse, and the following 
             columns, in addition to the basic sess_df columns: 
@@ -1378,6 +1380,7 @@ def plot_roi_overlays_sess123(analyspar, sesspar, extrapar, roi_mask_df, figpar)
         roi_mask_df, 
         figpar=figpar, 
         title=title,
+        mark_crop_only=extrapar["mark_crop_only"],
         )
     fig = ax.reshape(-1)[0].figure
     

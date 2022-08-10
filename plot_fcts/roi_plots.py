@@ -13,6 +13,7 @@ Note: this code uses python 3.7.
 import itertools
 import numpy as np
 import matplotlib as mpl
+import matplotlib.patches as mpatches
 
 from util import gen_util, logger_util, plot_util
 from sess_util import sess_plot_util
@@ -113,7 +114,7 @@ def add_sess_col_leg(sub_ax, sess_cols, alpha=0.6, bbox_to_anchor=(0.5, 0.5),
 
 
 #############################################
-def crop_roi_image(df_row, roi_image):
+def crop_roi_image(df_row, roi_image, get_crop_area_only=False):
     """
     crop_roi_image(df_row, roi_image)
 
@@ -130,10 +131,20 @@ def crop_roi_image(df_row, roi_image):
 
         - roi_image (2 or 3D array):
             ROI image
-    
+
+    Optional args:
+        - get_crop_area_only (bool):
+            if True, cropping information is retrieved for ROI masks, but no 
+            cropping is done
+            default: False
+
     Returns:
         - roi_image (2 or 3D array):
-            cropped ROI image
+            cropped ROI 
+        - crop_area (2D array):
+            values indicating location of crop rectangle, 
+            [[start_x, len_y], [start_y, len_y]]
+            default = None
     """
 
     add_dim = (len(roi_image.shape) == 2)
@@ -152,6 +163,7 @@ def crop_roi_image(df_row, roi_image):
     if crop_fact < 1:
         raise ValueError("crop_fact must be at least 1")
 
+    crop_area = []
     for d, dim in enumerate(dims):
         shift_prop = df_row[f"shift_prop_{dim}"]
         if shift_prop < 0 or shift_prop > 1:
@@ -159,15 +171,19 @@ def crop_roi_image(df_row, roi_image):
         orig_size = roi_image.shape[d + 1]
         new_size = int(np.around(orig_size / crop_fact))
         shift = int(shift_prop * (orig_size - new_size))
-        if d == 0:
-            roi_image = roi_image[:, shift : shift + new_size]
-        else:
-            roi_image = roi_image[:, :, shift : shift + new_size]
+        crop_area.append([shift, new_size])
+        if not get_crop_area_only:
+            if d == 0:
+                roi_image = roi_image[:, shift : shift + new_size]
+            else:
+                roi_image = roi_image[:, :, shift : shift + new_size]
 
     if add_dim:
         roi_image = roi_image[0]
+    
+    crop_area = np.asarray(crop_area)
 
-    return roi_image
+    return roi_image, crop_area
 
 
 #############################################
@@ -251,7 +267,8 @@ def create_roi_mask_contours(df_row, mask_key=None, sess_idx=0, cw=1,
 
 
 #############################################
-def create_sess_roi_masks(df_row, mask_key=None, crop=False):
+def create_sess_roi_masks(df_row, mask_key=None, crop=False, 
+                          get_crop_area_only=False):
     """
     create_sess_roi_masks(df_row)
 
@@ -280,11 +297,21 @@ def create_sess_roi_masks(df_row, mask_key=None, crop=False):
         - crop (bool):
             if True, ROI mask image is cropped, per specifications in df_row.
             default: False
+        - get_crop_area_only (bool):
+            if True, cropping information is retrieved for ROI masks, but no 
+            cropping is done
+            default: False
 
     Returns:
         - roi_masks (2D array):
             ROI masks image (hei x wid), overlayed for all sessions, with 1s 
             where masks are present, and 0s elsewhere.
+        if get_crop_area_only:
+        - crop_area (2D array):
+            values indicating where to crop roi masks, 
+            [[start_x, len_y], [start_y, len_y]]
+            default = None
+
     """
 
     mask_key = "registered_roi_mask_idxs" if mask_key is None else mask_key
@@ -293,8 +320,14 @@ def create_sess_roi_masks(df_row, mask_key=None, crop=False):
     roi_masks = np.zeros(df_row["roi_mask_shapes"]).astype(int)
     roi_masks[tuple(idxs)] = 1 # sess x hei x wid
         
-    if crop:
-        roi_masks = crop_roi_image(df_row, roi_masks)
+    if crop or get_crop_area_only:
+        roi_masks, crop_area = crop_roi_image(
+            df_row, roi_masks, get_crop_area_only=get_crop_area_only
+            )
+    
+        if get_crop_area_only:
+            return roi_masks, crop_area
+
 
     return roi_masks
 
@@ -338,7 +371,8 @@ def add_imaging_plane(sub_ax, imaging_plane, alpha=1.0, zorder=-13):
 
 #############################################
 def add_roi_mask(sub_ax, roi_masks, col="orange", alpha=0.6, 
-                 background="white", transparent=True, lighten=0):
+                 background="white", transparent=True, lighten=0, 
+                 mark_crop_area=None):
     """
     add_roi_mask(sub_ax, roi_masks)
 
@@ -371,6 +405,10 @@ def add_roi_mask(sub_ax, roi_masks, col="orange", alpha=0.6,
             masks (allows ROI masks to be lightened if they appear on a black 
             background)
             default: 0
+        - mark_crop_area (2D array):
+            if provided, values to use in marking crop area rectangle, 
+            [[start_x, len_y], [start_y, len_y]]
+            default = None
     """
 
     colors = [col]
@@ -398,6 +436,19 @@ def add_roi_mask(sub_ax, roi_masks, col="orange", alpha=0.6,
         cmap._lut[:, -1] = alphas
 
         sub_ax.imshow(roi_masks, cmap=cmap)
+    
+    if mark_crop_area is not None:
+        mark_crop_area = np.asarray(mark_crop_area)
+        if mark_crop_area.shape != (2, 2):
+            raise ValueError("'mark_crop_area' must have shape (2, 2).")
+        
+        len_x, len_y = mark_crop_area[:, 1][::-1]
+        start_y, start_x = mark_crop_area[:, 0]
+        rect = mpatches.Rectangle(
+            (start_x, start_y), len_x, len_y, lw=2, ls=(3, (3, 3)), 
+            edgecolor="k", facecolor="none"
+            )
+        sub_ax.add_patch(rect)
 
 
 #############################################
@@ -844,7 +895,8 @@ def plot_roi_masks_overlayed_with_proj(roi_mask_df, figpar, title=None):
 
 
 #############################################
-def plot_roi_masks_overlayed(roi_mask_df, figpar, title=None):
+def plot_roi_masks_overlayed(roi_mask_df, figpar, title=None, 
+                             mark_crop_only=False):
     """
     plot_roi_masks_overlayed(roi_mask_df, figpar)
 
@@ -860,7 +912,7 @@ def plot_roi_masks_overlayed(roi_mask_df, figpar, title=None):
             - "roi_mask_shapes" (list): shape into which ROI mask indices index 
                 (sess x hei x wid)
             
-            and optionally, if cropping:
+            and optionally, if cropping or marking cropping:
             - "crop_fact" (num): factor by which to crop masks (> 1) 
             - "shift_prop_hei" (float): proportion by which to shift cropped 
                 mask center vertically from left edge [0, 1]
@@ -877,13 +929,19 @@ def plot_roi_masks_overlayed(roi_mask_df, figpar, title=None):
         - title (str):
             plot title
             default: None
+        - mark_crop_only (bool):
+            if True, cropping information is used to mark area, not to crop
+            default: False
 
     Returns:
         - ax (2D array): 
             array of subplots
     """
 
-    crop = "crop_fact" in roi_mask_df.columns
+    if "crop_fact" in roi_mask_df.columns:
+        crop = not mark_crop_only
+    else:
+        crop, mark_crop_only = False, False
 
     figpar = sess_plot_util.fig_init_linpla(figpar)
 
@@ -918,12 +976,24 @@ def plot_roi_masks_overlayed(roi_mask_df, figpar, title=None):
             raise RuntimeError("Expected only one row per line/plane.")
         lp_row = lp_mask_df.loc[lp_mask_df.index[0]]
         
-        roi_masks = create_sess_roi_masks(lp_row, crop=crop)
+        outputs = create_sess_roi_masks(
+            lp_row, crop=crop, get_crop_area_only=mark_crop_only
+            )
+        
+        if mark_crop_only:
+            roi_masks, crop_area = outputs
+        else:
+            roi_masks = outputs
+
         hei_lens.append(roi_masks.shape[1])
 
         for s, sess_n in enumerate(lp_row["sess_ns"]):
             col = sess_cols[int(sess_n)]
-            add_roi_mask(sub_ax, roi_masks[s], col=col, alpha=alpha)
+            add_roi_mask(
+                sub_ax, roi_masks[s], col=col, alpha=alpha, 
+                mark_crop_area=crop_area
+                )
+            
 
     # add legend
     add_sess_col_leg(

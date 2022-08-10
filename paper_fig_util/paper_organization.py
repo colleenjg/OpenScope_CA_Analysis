@@ -68,7 +68,7 @@ def get_all_panels(figure=2):
     # create a dummy object with figure/panel combination that exists.
     dummy_fig_panel = FigurePanelAnalysis(figure=2, panel="G", datadir="")
 
-    figure = str(figure)
+    figure = str(figure).upper()
     if figure not in dummy_fig_panel.figure_panel_dict.keys():
         raise ValueError("Only the following figure values are "
             f"accepted: {dummy_fig_panel.figure_panel_dict.keys()}.")
@@ -297,7 +297,7 @@ class FigurePanelAnalysis():
                 default: None
         """
         
-        self.figure = str(figure)
+        self.figure = str(figure).upper()
         self.panel  = str(panel).capitalize()
 
         self.datadir       = Path(datadir)
