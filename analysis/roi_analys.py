@@ -21,15 +21,15 @@ from analysis import misc_analys
 # PRESET CROPPING PARAMETERS FOR SPECIFIC MICE
 # (crop factor, shift prop hei, shift prop wid)
 SMALL_CROP_DICT = {
-    4: (2.5, 0, 1),
-    11: (4.0, 0, 1),
+    4: (2.5, 0, 1), # L5-S
+    11: (4.0, 0, 1), # L5-D
 }
 
 LARGE_CROP_DICT = {
-    3: (3.0, 0.30, 0.85),
-    4: (3.0, 0.08, 0.95),
-    6: (3.0, 0.50, 0.50),
-    11: (3.0, 0.90, 0.90),
+    3: (3.0, 0.30, 0.85), # L23-S
+    4: (3.0, 0.08, 0.95), # L5-S
+    6: (3.0, 0.50, 0.50), # L23-D
+    11: (3.0, 0.90, 0.90), # L5-D
 }
 
 
