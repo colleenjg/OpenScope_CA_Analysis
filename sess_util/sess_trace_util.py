@@ -552,6 +552,9 @@ def process_roi_masks(roi_masks, mask_threshold=MASK_THRESHOLD,
     """
     process_roi_masks(roi_masks)
 
+    Processes ROI masks, setting to 0 those that do not meet the input 
+    criteria.
+
     Required args:
         - roi_masks (3D): ROI masks (ROI x hei x wid)
 
@@ -560,7 +563,9 @@ def process_roi_masks(roi_masks, mask_threshold=MASK_THRESHOLD,
                                   retain a pixel in an ROI mask
                                   default: MASK_THRESHOLD
         - min_n_pix (int)       : minimum number of pixels in an ROI below 
-                                  which, ROI is set to be empty
+                                  which, ROI is set to be empty (calculated 
+                                  before conversion to boolean, using weighted 
+                                  pixels)
                                   default: MIN_N_PIX
         - make_bool (bool)      : if True, ROIs are converted to boolean 
                                   before being returned
@@ -603,7 +608,9 @@ def get_roi_masks_nwb(sess_files, mask_threshold=MASK_THRESHOLD,
                                   retain a pixel in an ROI mask
                                   default: MASK_THRESHOLD
         - min_n_pix (int)       : minimum number of pixels in an ROI below 
-                                  which, ROI is set to be empty
+                                  which, ROI is set to be empty (calculated 
+                                  before conversion to boolean, using weighted 
+                                  pixels)
                                   default: MIN_N_PIX
         - make_bool (bool)      : if True, ROIs are converted to boolean 
                                   before being returned
@@ -668,7 +675,9 @@ def get_roi_masks(mask_file=None, roi_extract_json=None, objectlist_txt=None,
                                    retain a pixel in an ROI mask
                                    default: MASK_THRESHOLD
         - min_n_pix (int)        : minimum number of pixels in an ROI below 
-                                   which, ROI is set to be empty
+                                   which, ROI is set to be empty (calculated 
+                                   before conversion to boolean, using weighted 
+                                   pixels)
                                    default: MIN_N_PIX
         - make_bool (bool)       : if True, ROIs are converted to boolean 
                                    before being returned
@@ -1121,7 +1130,9 @@ def create_traces_from_masks(datadir, sessid, runtype="prod", h5dir=None,
         - mask_threshold (float): minimum value in non-boolean mask to
                                   retain a pixel in an ROI mask
                                   default: 0.1 
-        - min_n_pix (int)       : minimum number of pixels in an ROI
+        - min_n_pix (int)       : minimum number of pixels in an ROI (calculated 
+                                  before conversion to boolean, using weighted 
+                                  pixels)
                                   default: 3
         - compression (str)     : type of compression to use when saving data 
                                   to h5 files (e.g., "gzip")
