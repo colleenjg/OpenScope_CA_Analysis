@@ -261,7 +261,7 @@ def create_roi_mask_contours(df_row, mask_key=None, sess_idx=0, cw=1,
     roi_masks = np.max(contour_mask * restrict_masks, axis=0).astype(int)
 
     if crop:
-        roi_masks = crop_roi_image(df_row, roi_masks)
+        roi_masks, _ = crop_roi_image(df_row, roi_masks)
 
     return roi_masks
 
@@ -722,7 +722,7 @@ def add_proj_and_roi_masks(ax_grp, df_row, sess_cols, crop=False, alpha=0.6,
         # add projection
         imaging_plane = np.asarray(df_row["max_projections"][s])
         if crop:
-            imaging_plane = crop_roi_image(df_row, imaging_plane)
+            imaging_plane, _ = crop_roi_image(df_row, imaging_plane)
         add_imaging_plane(
             indiv_sub_ax, imaging_plane, alpha=0.98, 
             zorder=proj_zorder
