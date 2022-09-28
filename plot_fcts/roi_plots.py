@@ -984,6 +984,7 @@ def plot_roi_masks_overlayed(roi_mask_df, figpar, title=None,
             roi_masks, crop_area = outputs
         else:
             roi_masks = outputs
+            crop_area = None
 
         hei_lens.append(roi_masks.shape[1])
 
