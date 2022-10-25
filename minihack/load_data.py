@@ -1,181 +1,205 @@
-
-import numpy as np
+#!/usr/bin/env python
 
 from pathlib import Path
+
+import numpy as np
 import pandas as pd
-from util import gen_util
-from analysis import session
+
+from util import gen_util, logger_util, plot_util
 
 gen_util.extend_sys_path(Path("").resolve(), parents=1)
+from analysis import session
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
+DFT_DATASET_PATH = Path("..", "..", "datasets", "osca")
+TAB = "    "
 
+CONDITIONS = ["A", "B", "C", "D/U", "G"]
+CONDITION_MAPPING = {
+    "A": 0,
+    "B": 1,
+    "C": 2,
+    "D": 3,
+    "U": 4,
+    "G": 5
+}
+
+
+#############################################
 def get_mouse_df():
+    """
+    get_mouse_df()
+
+    Returns:
+        mouse_df: dataframe specifying session information
+    """
+
     mouse_df_path = Path("..", "mouse_df.csv")
     mouse_df = pd.read_csv(mouse_df_path)
     return mouse_df
 
 
-def sess_to_arrays(sess):
-    a_indices = sess.stim_df['gabor_frame'] == 'A'
-    all_indices = sess.stim_df['stimulus_type'] == "gabors"
-    a_sess = sess.stim_df[a_indices]
-
-    is_unexpected_list = []
-    mean_orientations_list = []
-    twop_frame_starts = []
-    condition_id_list = []
-    stim_frame_starts = []
-
-    num_frames_twop = sess.stim_df[all_indices]['num_frames_twop'].min()
-    num_frames_stim = sess.stim_df[all_indices]['num_frames_stim'].min()
-    condition_letter_to_id = ['A', 'B', 'C', 'D', 'U', 'G']
-
-    for index in a_sess.index:
-        seg_indices = np.arange(5) + index
-        condition_ids = []
-        for i in range(5):
-            seg = sess.stim_df.iloc[int(index+i)]
-            condition_letter = seg['gabor_frame']
-            condition_ids += [int(condition_letter_to_id.index(condition_letter))]
-
-        assert len(condition_ids) == 5
-        condition_id_list += [np.array(condition_ids, dtype=int)]
-        mean_orientations_list += [sess.stim_df['gabor_mean_orientation'][seg_indices]]
-        is_unexpected_list += [sess.stim_df["unexpected"][index]]
-        twop_frame_starts += [sess.stim_df["start_frame_twop"][seg_indices]]
-        stim_frame_starts += [sess.stim_df["start_frame_stim"][seg_indices]]
-
-    stim_frame_starts = np.array(stim_frame_starts, dtype=int)
-    twop_frame_starts = np.array(twop_frame_starts, dtype=int)
-    condition_ids = np.stack(condition_id_list, 0)
-    mean_orientations = np.array(mean_orientations_list, dtype=float)
-    unexpected = np.array(is_unexpected_list, dtype=bool)
-
-    return (stim_frame_starts, num_frames_stim), (twop_frame_starts, num_frames_twop), condition_ids, mean_orientations, unexpected
-
-
-def get_calcium_traces(mouse_n=None, sess_n=None, sessid=None, scale=False, dataset_path ="../../datasets/osca/"):
+#############################################
+def sess_gabor_seg_info(sess):
     """
+    sess_gabor_seg_info(sess)
 
     Args:
-        mouse_n: int containing the mouse number (typically 1 to 12)
-        sess_n: int containing the session number (typically 1 to 3)
-        sessid: direct access of a specific session if is it not None
-        scale: Should the calcium traces by normalized?
+        sess: the session object
+
+    Returns:
+        seg_dict: dictionary with segment information for each trial
+            'gabor_frame': an array specifying Gabor frames (n_trial x n_segs)
+            'gabor_mean_orientation': an array specifying Gabor orientations    
+                                      (n_trial x n_segs)
+            'unexpected': an array specifying whether a segment is part of an 
+                          expected or unexpected sequence (n_trial x n_segs)
+    """
+
+    logger.info(f"Loading data for Gabor stimulus...")
+
+    sub_df = sess.stim_df.loc[sess.stim_df["stimulus_type"] == "gabors"]
+
+    if len(sub_df) / 5 != len(sub_df) // 5:
+        raise NotImplementedError(
+            "Expected the Gabor sequence segments to be exactly divisible by 5."
+            )
+    num_segs = len(sub_df) // 5 * 5
+    sub_df = sub_df[:int(num_segs)]
+
+
+    seg_dict = {
+        "segments": sub_df.index.to_numpy().reshape(-1, 5).astype(int)
+    }
+
+    keys = ["gabor_frame", "gabor_mean_orientation", "unexpected"]
+
+    for key in keys:
+        data = sub_df[key]
+        if key == "gabor_frame":
+            dtype = int
+            data = data.map(CONDITION_MAPPING)
+        elif key == "unexpected":
+            dtype = bool
+        else:
+            dtype = float
+
+        seg_dict[key] = data.to_numpy().reshape(-1, 5).astype(dtype)
+
+    return seg_dict
+
+
+#############################################
+def get_calcium_traces(mouse_n=None, sess_n=None, sessid=None, scale=False, 
+                       tracked=True, dataset_path=DFT_DATASET_PATH):
+    """
+    get_calcium_traces()
+
+    Args:
+        mouse_n: int specifying the mouse number (typically 1 to 13)
+        sess_n: int specifying the session number (typically 1 to 3)
+        sessid: ID of a specific session if not None
+        scale: whether the calcium traces by normalized
+        tracked: whether to include only tracked ROIs, in tracking order
+        dataset_path: path to the dataset
 
     Returns:
         sess: the session object
         roi_indices: an array containing the indices of the different ROIs
-        roi_time_line: an array containing the absolute times in the time series
-        roi_data: the calcium traces as a tensor of dim (n_tridl x n_segments x n_time x n_rois)
-        condition_ids:
+        roi_timestamps: an array containing the relative times for each segment
+        roi_data: the calcium traces as a tensor of dim 
+                  (# trials x # segs x # frames x # ROIs)
+        gabor_seg_dict: dictionary with segment information for each trial
+            'gabor_frame': an array specifying Gabor frames (n_trial x n_segs)
+            'gabor_mean_orientation': an array specifying Gabor orientations    
+                                      (n_trial x n_segs)
+            'unexpected': an array specifying whether a segment is part of an 
+                          expected or unexpected sequence (n_trial x n_segs)
 
     """
-    print("Extracting calcium data...")
+
     mouse_df = get_mouse_df()
     if sessid is not None:
         assert mouse_n is None and sess_n is None
-        sess = session.Session(sessid=sessid, runtype="prod", datadir=dataset_path, mouse_df=mouse_df)
+        sess_kwargs = {"sessid": sessid}
     else:
         assert mouse_n is not None and sess_n is not None
-        sess = session.Session(mouse_n=mouse_n, sess_n=sess_n, runtype="prod", datadir=dataset_path, mouse_df=mouse_df)
-    sess.set_only_tracked_rois(True)
-    sess.extract_info(full_table=False, roi=True, run=True, pupil=True)
+        sess_kwargs = {
+            "mouse_n": mouse_n,
+            "sess_n" : sess_n
+            }
+    sess = session.Session(
+        runtype="prod", datadir=dataset_path, mouse_df=mouse_df, 
+        only_tracked_rois=tracked, **sess_kwargs)
+    
+    logger.info(
+        f"Session: M{sess.mouse_n} S{sess.sess_n} ({sess.line} {sess.plane})", 
+        extra={"spacing": f"\n{TAB}"}
+        )
 
-    print(sess.gabors)
+    sess.extract_info(full_table=False, roi=True, run=False, pupil=False)
 
-    _, (twop_frame_starts, num_frames_twop), condition_ids, mean_orientations, unexpected = sess_to_arrays(sess)
+    gabor_seg_dict = sess_gabor_seg_info(sess)
 
-    pre = 0.
-    post = num_frames_twop * 1/30.
-    twop_fr_ns = twop_frame_starts.flatten()
-    #twop_fr_ns = sess.gabors.get_fr_by_seg(gab_seg_ns, start=True, ch_fl=[pre, post], fr_type="twop")["start_frame_twop"]
+    pre, post = 0, 0.3
+    twop_fr_ns = sess.gabors.get_fr_by_seg(
+        gabor_seg_dict["segments"].reshape(-1), start=True, fr_type="twop"
+        )["start_frame_twop"]
     roi_data_df = sess.gabors.get_roi_data(twop_fr_ns, pre, post, scale=scale)
 
     roi_indices = roi_data_df.index.unique("ROIs")
-    roi_time_line = roi_data_df.index.unique("time_values")
+    roi_timestamps = roi_data_df.index.unique("time_values")
     roi_data = gen_util.reshape_df_data(roi_data_df, squeeze_cols=True)
     roi_data = np.transpose(roi_data,[1, 2, 0])
 
-    n_segs, n_time, n_rois = roi_data.shape
-    assert len(roi_indices) == n_rois
-    assert len(roi_time_line) == n_time
-    n_trials, n_seg_per_trial = twop_frame_starts.shape
-    roi_data = roi_data.reshape([n_trials, n_seg_per_trial, n_time, n_rois])
+    _, n_per = gabor_seg_dict.pop("segments").shape
+    n_segs, n_frames, n_rois = roi_data.shape
 
-    return sess, roi_indices, roi_time_line, roi_data, condition_ids, mean_orientations, unexpected
+    n_segs_keep = int(n_segs // n_per * n_per)
+    n_seqs_keep = int(n_segs_keep // n_per)
+
+    roi_data = roi_data[:n_segs_keep].reshape(
+        [n_seqs_keep, n_per, n_frames, n_rois]
+        )
+    for key in list(gabor_seg_dict.keys()):
+        gabor_seg_dict[key] = gabor_seg_dict[key][:n_seqs_keep]
+
+    return sess, roi_indices, roi_timestamps, roi_data, gabor_seg_dict
 
 
+#############################################
 if __name__ == "__main__":
+    
+    logger_util.format_all(level='info')
+    plot_util.linclab_plt_defaults()
     import matplotlib.pyplot as plt
 
-    sess_ns = [1, 2, 3]
-    datadir = DATAPATH
-
-    mouse_df_path = Path("..", "mouse_df.csv")
-    mouse_df = pd.read_csv(mouse_df_path)
-
-    PLANES = "all"
-
-    # sess = session.Session(760260459, datadir=datadir, mouse_df=mouse_df)
-
-    sess = session.Session(mouse_n=4, sess_n=1, runtype="prod", datadir=datadir, mouse_df=mouse_df)
-    sess.set_only_tracked_rois(True)
-    sess.extract_info(full_table=False, roi=True, run=True, pupil=True)
-
-    print(sess.gabors)
-
-    #gab_seg_ns = sess.gabors.get_segs_by_criteria(gabk=16, gabfr=3, unexp=1, by="seg")
-    gab_seg_ns = sess.gabors.get_segs_by_criteria(gabk="any", gabfr="any", unexp="any", by="seg")
-    print(gab_seg_ns)
-
-    stim_params = sess.gabors.get_stim_par_by_seg(gab_seg_ns)
-    print(stim_params.keys())
-
-    pre = 1.0
-    post = 1.0
-    twop_fr_ns = sess.gabors.get_fr_by_seg(gab_seg_ns, start=True, ch_fl=[pre, post], fr_type="twop")[
-        "start_frame_twop"]
-    stim_fr_ns = sess.gabors.get_fr_by_seg(gab_seg_ns, start=True, ch_fl=[pre, post], fr_type="stim")[
-        "start_frame_stim"]
-
-    roi_data_df = sess.gabors.get_roi_data(twop_fr_ns, pre, post, scale=True)
-
-    roi_indices = roi_data_df.index.unique("ROIs")
-    print("ROI indices ", roi_indices)
-
-    roi_time_line = roi_data_df.index.unique("time_values")
-    roi_data = gen_util.reshape_df_data(roi_data_df, squeeze_cols=True)
-    print("ROI data shape: {} ROIs x {} sequences x {} time values".format(*roi_data.shape))
+    sess, roi_indices, roi_time_values, roi_data, gabor_seg_dict = \
+        get_calcium_traces(mouse_n=1, sess_n=1)
 
     I = 4
-    J = 4
     i0 = 30
-    j0 = 30
-    fig, ax_list = plt.subplots(I, J, sharey=True, sharex=True)
+    J = roi_data.shape[1]
+    K = 5
+    k0 = 30
+    incr = 0.6
+    fig, ax = plt.subplots(I, J, sharey=True, sharex=True, figsize=[7.5, 7.5])
     for i in range(I):
         for j in range(J):
-            ax_list[i, j].plot(roi_time_line, roi_data[i + i0, j + j0, :])
-            ax_list[i, j].plot(roi_time_line, roi_data[i + i0, j + j0, :])
-            if j ==0: ax_list[i, j].set_ylabel(f"ROI {i + i0}")
-            if i==I-1: ax_list[i, j].set_xlabel(f"sequence {j + j0}")
+            for k in range(K):
+                ax[i, j].plot(
+                    roi_time_values, roi_data[i + i0, j, :, k + k0] + k * incr, 
+                    alpha=0.5, 
+                    )
+            ax[i, j].set_xticks([])
+            if j == 0: 
+                ax[i, j].set_ylabel(f"ROI {i + i0}")
+            if i == I - 1: 
+                ax[i, j].set_xlabel(CONDITIONS[j])
+
+    fig.suptitle(f"Sequences {k0} to {k0 + K}")
 
     plt.show()
-
-    # run_data_df = sess.gabors.get_run_data(stim_fr_ns, pre, post, scale=True)
-    # pup_data_df = sess.gabors.get_pup_diam_data(twop_fr_ns, pre, post, scale=True)
-
-    # run_time_line = run_data_df.index.unique("time_values")
-    # pup_time_line = pup_data_df.index.unique("time_values")
-    # run_data = gen_util.reshape_df_data(run_data_df, squeeze_cols=True)
-    # pup_data = gen_util.reshape_df_data(pup_data_df, squeeze_cols=True)
-
-    # print("Run data shape: {} sequences x {} time values".format(*run_data.shape))
-    # print("Pup data shape: {} sequences x {} time values".format(*pup_data.shape))
-    # fig, ax_list = plt.subplots(3, sharex=True)
-    # ax_list[0].plot(roi_time_line, roi_data[1,0,:])
-    # ax_list[1].plot(run_time_line, run_data[0,:])
-    # ax_list[2].plot(pup_time_line, pup_data[0,:])
-    # plt.show()
 
