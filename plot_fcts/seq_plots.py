@@ -175,7 +175,7 @@ def plot_sess_traces(data_df, analyspar, sesspar, figpar,
             plot title
             default: None
         - size (str):
-            subplot sizes
+            subplot sizes ("reg", "wide", "small")
             default: "reg"
 
     Returns:
@@ -591,11 +591,11 @@ def plot_sess_data(data_df, analyspar, sesspar, permpar, figpar,
 
 
 #############################################
-def plot_ex_gabor_roi_traces(sub_ax, df_row, col="k", dash=None, zorder=-13):
+def plot_ex_roi_traces(sub_ax, df_row, col="k", dash=None, zorder=-13):
     """
-    plot_ex_gabor_roi_traces(sub_ax, df_row)
+    plot_ex_roi_traces(sub_ax, df_row)
 
-    Plots example Gabor traces in a subplot.
+    Plots example traces in a subplot.
 
     Required args:
         - sub_ax (plt subplot):
@@ -652,11 +652,11 @@ def plot_ex_gabor_roi_traces(sub_ax, df_row, col="k", dash=None, zorder=-13):
 
 
 #############################################
-def plot_ex_gabor_traces(ex_traces_df, stimpar, figpar, title=None):
+def plot_ex_traces(ex_traces_df, stimpar, figpar, title=None):
     """
-    plot_ex_gabor_traces(ex_traces_df, stimpar, figpar)
+    plot_ex_traces(ex_traces_df, stimpar, figpar)
 
-    Plots example Gabor traces.
+    Plots example traces.
 
     Required args:
         - ex_traces_df (pd.DataFrame):
@@ -685,9 +685,6 @@ def plot_ex_gabor_traces(ex_traces_df, stimpar, figpar, title=None):
             array of subplots
     """
 
-    if stimpar["stimtype"] != "gabors":
-        raise ValueError("Expected stimpar['stimtype'] to be 'gabors'.")
-
     group_columns = ["lines", "planes"]
     n_per = np.max(
         [len(lp_df) for _, lp_df in ex_traces_df.groupby(group_columns)]
@@ -698,8 +695,8 @@ def plot_ex_gabor_traces(ex_traces_df, stimpar, figpar, title=None):
     figpar = sess_plot_util.fig_init_linpla(
         figpar, kind="traces", n_sub=per_rows
         )
-    figpar["init"]["subplot_hei"] = 1.36
-    figpar["init"]["subplot_wid"] = 2.47
+    figpar["init"]["subplot_hei"] = 1.25
+    figpar["init"]["subplot_wid"] = 2.2
     figpar["init"]["ncols"] = per_cols * 2
 
     fig, ax = plot_util.init_fig(
@@ -719,7 +716,7 @@ def plot_ex_gabor_traces(ex_traces_df, stimpar, figpar, title=None):
             col_idx = int(li * per_cols + i // per_rows)
             sub_ax = ax[row_idx, col_idx]
 
-            ylims[row_idx, col_idx] = plot_ex_gabor_roi_traces(
+            ylims[row_idx, col_idx] = plot_ex_roi_traces(
                 sub_ax, 
                 lp_df.loc[idx],
                 col=col,
