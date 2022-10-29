@@ -10,7 +10,7 @@ Date: January, 2021
 Note: this code uses python 3.7.
 """
 
-from util import logger_util
+from util import gen_util, logger_util
 from sess_util import sess_ntuple_util
 
 from analysis import behav_analys
@@ -140,4 +140,38 @@ def pupil_run_block_diffs(sessions, analyspar, sesspar, stimpar, permpar,
             }
 
     helper_fcts.plot_save_all(info, figpar)
+
+
+############################################
+def pupil_run_full(sessions, analyspar, sesspar, figpar):
+    """
+    pupil_run_full(sessions, analyspar, sesspar, figpar)
+
+    """
+
+    logger.info("Compiling pupil and running block differences for session 1.", 
+        extra={"spacing": "\n"})
+
+    sess_df = behav_analys.get_pupil_run_full_df(
+        sessions, 
+        analyspar=analyspar, 
+        )
+
+    extrapar = dict()
+
+    info = {"analyspar": analyspar._asdict(),
+            "sesspar"  : sesspar._asdict(),
+            "extrapar" : extrapar,
+            "sess_df"  : sess_df.to_dict()
+    }
+
+    helper_fcts.plot_save_all(info, figpar)
+
+
+############################################
+def pupil_run_histograms(sessions, analyspar, figpar):
+    """
+    pupil_run_histograms(sessions, analyspar, figpar)
+    """
+
 

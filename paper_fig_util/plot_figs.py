@@ -650,6 +650,74 @@ def plot_pupil_run_block_diffs(analyspar, sesspar, stimpar, permpar, extrapar,
 
 
 #############################################
+def plot_pupil_run_full(analyspar, sesspar, extrapar, sess_df, figpar):
+    """
+    plot_pupil_run_full(analyspar, sesspar, extrapar, sess_df, figpar)
+
+    From dictionaries, plots running and pupil responses for a full session.
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+        - sess_df (pd.DataFrame):
+            dataframe with one row per session, and the following columns, in 
+            addition to the basic sess_df columns:
+            - duration_sec (float):
+                duration of the session in seconds
+            - pup_data (list):
+                pupil data
+            - pup_frames (list):
+                start and stop pupil frame numbers for each stimulus type
+            - run_data (list):
+                running velocity data
+            - run_frames (list):
+                start and stop running frame numbers for each stimulus type
+            - stims (list):
+                stimulus types
+
+        - figpar (dict): 
+            dictionary containing figure parameters
+    """
+
+    title = "Full session running and pupil responses"
+    
+    sess_df = pd.DataFrame.from_dict(sess_df)
+
+    ax = behav_plots.plot_pupil_run_full(
+        sess_df, 
+        analyspar=analyspar,
+        figpar=figpar, 
+        title=title,
+        )
+    fig = ax.reshape(-1)[0].figure
+    
+    savedir, savename = helper_fcts.get_save_path(
+        figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
+    )
+
+    fulldir = plot_util.savefig(
+        fig, savename, savedir, log_dir=True, **figpar["save"]
+    )
+
+    return fulldir, savename
+
+
+#############################################
+def plot_pupil_run_histograms():
+    """
+    plot_pupil_run_histograms()
+    """
+
+    return
+
+
+#############################################
 def plot_gabor_sequences_sess123(analyspar, sesspar, stimpar, basepar, 
                                  extrapar, trace_df, figpar):
     """

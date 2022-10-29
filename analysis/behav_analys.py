@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from util import gen_util, math_util, rand_util
+from sess_util import sess_sync_util
 from analysis import basic_analys, misc_analys
 
 
@@ -378,4 +379,90 @@ def get_pupil_run_block_stats_df(sessions, analyspar, stimpar, permpar,
     block_df["sess_ns"] = block_df["sess_ns"].astype(int)
 
     return block_df
+
+
+#############################################
+def get_pupil_run_full_df(sessions, analyspar):
+    """
+    get_pupil_run_full_df(sessions, analyspar)
+
+    Returns pupil and running data for full sessions.
+
+    Required args:
+        - sessions (list): 
+            session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+
+    Returns:
+        - sess_df (pd.DataFrame):
+            dataframe with one row per session, and the following columns, in 
+            addition to the basic sess_df columns:
+            - duration_sec (float):
+                duration of the session in seconds
+            - pup_data (list):
+                pupil data
+            - pup_frames (list):
+                start and stop pupil frame numbers for each stimulus type
+            - run_data (list):
+                running velocity data
+            - run_frames (list):
+                start and stop running frame numbers for each stimulus type
+            - stims (list):
+                stimulus types
+    """
+
+    sess_df = misc_analys.get_check_sess_df(
+        sessions, None, analyspar, roi=False
+        )
+    
+    columns = ["run_data", "pupil_data", "stims", "run_frames", "pupil_frames"]
+    sess_df = gen_util.set_object_columns(sess_df, columns, in_place=True)
+
+    for sess in sessions:
+        idxs = sess_df.loc[sess_df["sessids"] == sess.sessid].index
+        if len(idxs) != 1:
+            raise NotImplementedError("Expected exactly one row to match.")
+        idx = idxs[0]
+
+        sess_df.loc[idx, "duration_sec"] = sess.tot_twop_fr / sess.twop_fps
+        sess_df.at[idx, "run_data"] = gen_util.reshape_df_data(
+            sess.get_run_velocity(
+                rem_bad=analyspar.rem_bad, scale=analyspar.scale
+            ), squeeze_rows=True, squeeze_cols=True
+        ).tolist()
+
+        sess_df.at[idx, "pupil_data"] = (gen_util.reshape_df_data(
+            sess.get_pup_data(
+                rem_bad=analyspar.rem_bad, scale=analyspar.scale
+            ), squeeze_rows=True, squeeze_cols=True
+        ) * sess_sync_util.MM_PER_PIXEL).tolist()
+        
+        stims, pup_frs, run_frs = [], [], []
+        for stim in sess.stims:
+            if stim.stimtype == "gabors":
+                if len(stim.block_params) != 1:
+                    raise NotImplementedError("Expected 1 Gabor block..")
+                stims.append("Gabor sequences")
+            else:
+                if len(stim.block_params) != 2:
+                    raise NotImplementedError("Expected 2 visual flow blocks..")
+                directions = stim.block_params["main_flow_direction"].tolist()
+                stims.extend(
+                    [f"Visual flow ({direction})" for direction in directions]
+                )
+            for bl_idx in stim.block_params.index:
+                stim_frames, twop_frames = [[
+                    int(stim.block_params.loc[bl_idx, key]) 
+                    for key in [f"start_frame_{ftype}", f"stop_frame_{ftype}"]
+                    ] for ftype in ["stim", "twop"]
+                ]
+                pup_frs.append(twop_frames)
+                run_frs.append(stim_frames)
+
+        sess_df.at[idx, "stims"] = stims
+        sess_df.at[idx, "run_frames"] = run_frs
+        sess_df.at[idx, "pupil_frames"] = pup_frs
+
+    return sess_df
 

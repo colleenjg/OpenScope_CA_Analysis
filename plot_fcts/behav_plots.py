@@ -12,6 +12,7 @@ Note: this code uses python 3.7.
 
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib import ticker
 import seaborn
 
 from util import logger_util, plot_util, math_util, rand_util
@@ -386,3 +387,113 @@ def plot_pupil_run_block_diffs(block_df, analyspar, permpar, figpar,
         
     return ax
 
+
+#############################################
+def plot_pupil_run_full(sess_df, analyspar, figpar, title=None):
+    """
+    plot_pupil_run_full(sess_df, analyspar, figpar)
+
+    Plots pupil and running data for a full session.
+
+    Required args:
+        - sess_df (pd.DataFrame):
+            dataframe with one row per session, and the following columns, in 
+            addition to the basic sess_df columns:
+            - duration_sec (float):
+                duration of the session in seconds
+            - pup_data (list):
+                pupil data
+            - pup_frames (list):
+                start and stop pupil frame numbers for each stimulus type
+            - run_data (list):
+                running velocity data
+            - run_frames (list):
+                start and stop running frame numbers for each stimulus type
+            - stims (list):
+                stimulus types
+
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters
+
+    Optional args:
+        - title (str):
+            plot title
+            default: None
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
+
+    Returns:
+        - ax (2D array): 
+            array of subplots
+    """
+
+    datatypes = ["run", "pupil"]
+    datatype_strs = ["Running velocity (cm/s)", "Pupil diameter (mm)"]
+    n_datatypes = len(datatypes)
+    
+    height_ratios = [0.12] + [0.83 / len(datatypes) for _ in datatypes] + [0.05]
+
+    fig, ax = plt.subplots(
+        n_datatypes + 2, 1, figsize=(14, 6), squeeze=False, 
+        gridspec_kw={"height_ratios": height_ratios}, sharex=True
+        )
+    if title is not None:
+        fig.suptitle(title, y=0.98, weight="bold")
+
+    if len(sess_df) != 1:
+        raise ValueError("Expected sess_df to have one row.")
+    sess_row = sess_df.loc[sess_df.index[0]]
+    duration_sec = sess_row["duration_sec"]
+
+    for d, datatype in enumerate(datatypes):
+        subax = ax[d + 1, 0]
+        data = sess_row[f"{datatype}_data"]
+        x = np.linspace(0, duration_sec, len(data))
+        subax.plot(x, data, color="k", alpha=0.8, lw=1.5)
+        subax.set_ylabel(
+            datatype_strs[d].replace(" ", "\n"), labelpad=12, weight="bold"
+            )
+        subax.yaxis.set_major_locator(ticker.MaxNLocator(3))
+        for label in subax.get_yticklabels():
+            label.set_fontweight("bold")
+
+    for subax in ax.ravel():
+        subax.xaxis.set_visible(False)
+        subax.spines["bottom"].set_visible(False)
+
+    for row in [0, -1]:
+        ax[row, 0].yaxis.set_visible(False)
+        ax[row, 0].spines["left"].set_visible(False)
+        pad = duration_sec / 50
+        ax[row, 0].set_xlim(-pad, duration_sec + pad)
+
+    # add frames ranges
+    data = sess_row[f"{datatype}_data"]
+    fr_ranges = sess_row[f"{datatype}_frames"]
+    x = np.linspace(0, duration_sec, len(data))
+    ax[0, 0].set_ylim([-0.1, 0.5])
+    for s, stim in enumerate(sess_row["stims"]):
+        sec_ranges = [x[fr] for fr in fr_ranges[s]]
+        ax[0, 0].plot(sec_ranges, [0, 0], lw=2.5, color="k")
+        stim_str = stim.replace("right ", "").replace("left ", "")
+        stim_str = stim_str.replace(" (", "\n").replace("))", ")")
+        ax[0, 0].text(
+            np.mean(sec_ranges), 0.45, stim_str, color="k", fontweight="bold", 
+            fontsize="x-large", ha="center", va="center"
+            )
+
+    # add scale bar
+    ax[-1, 0].plot([0, 60 * 5], [0, 0], lw=2.5, color="k")
+    ax[-1, 0].set_ylim([-0.8, 0.1])
+    ax[-1, 0].text(
+        0, -1, "5 min", color="k", fontweight="bold", fontsize="x-large", 
+        ha="left", va="center"
+        )
+    
+    return ax
