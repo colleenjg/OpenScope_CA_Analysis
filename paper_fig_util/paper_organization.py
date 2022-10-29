@@ -617,6 +617,38 @@ class FigurePanelAnalysis():
         self.plot_fct = plot_figs.plot_pupil_run_block_diffs
 
 
+    def pupil_run_full(self):
+        self.description = "Full session running and pupil responses."
+        self.specific_params = get_specific_params(
+            sess_n=1,
+            mouse_n=1,
+            rem_bad=False, # do not interpolate missing data
+            scale=False,
+            roi=False,
+            run=True,
+            pupil=True,
+        )
+        self.analysis_fct = behav_figs.pupil_run_full
+        self.plot_fct = plot_figs.plot_pupil_run_full
+        self.warnings.append(
+            partial_plot_fct_warning(
+                message="Running and pupil images will be missing."
+            )
+        )
+
+    def pupil_run_histograms(self):
+        self.description = "Histograms of running and pupil values."
+        self.specific_params = get_specific_params(
+            rem_bad=False, # do not interpolate missing data
+            scale=False,
+            roi=False,
+            run=True,
+            pupil=True,
+        )
+        self.analysis_fct = behav_figs.pupil_run_histograms
+        self.plot_fct = plot_figs.plot_pupil_run_histograms
+
+
     ### Figure 4 ###
     def gabor_sequences_sess123(self):
         self.description = "ROI responses to Gabor sequences."
@@ -1168,6 +1200,8 @@ class FigurePanelAnalysis():
                 "3": {
                     "A": self.pupil_run_responses,
                     "B": self.pupil_run_block_diffs,
+                    "C": self.pupil_run_full,
+                    "D": self.pupil_run_histograms,
                     },
                 "4": {
                     "A": self.gabor_sequences_sess123,
