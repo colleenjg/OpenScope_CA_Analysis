@@ -143,18 +143,37 @@ def pupil_run_block_diffs(sessions, analyspar, sesspar, stimpar, permpar,
 
 
 ############################################
-def pupil_run_full(sessions, analyspar, sesspar, figpar):
+def pupil_run_full(sessions, analyspar, sesspar, figpar, parallel=False):
     """
     pupil_run_full(sessions, analyspar, sesspar, figpar)
 
+    Retrieves pupil and running traces for an entire session.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - figpar (dict): 
+            dictionary containing figure parameters
+
+    Optional args:
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
     """
 
-    logger.info("Compiling pupil and running block differences for session 1.", 
+    logger.info("Compiling pupil and running traces for a full session.", 
         extra={"spacing": "\n"})
 
     sess_df = behav_analys.get_pupil_run_full_df(
         sessions, 
         analyspar=analyspar, 
+        parallel=parallel,
         )
 
     extrapar = dict()
@@ -169,9 +188,47 @@ def pupil_run_full(sessions, analyspar, sesspar, figpar):
 
 
 ############################################
-def pupil_run_histograms(sessions, analyspar, figpar):
+def pupil_run_histograms(sessions, analyspar, sesspar, figpar, parallel=False):
     """
-    pupil_run_histograms(sessions, analyspar, figpar)
+    pupil_run_histograms(sessions, analyspar, sesspar, figpar)
+
+    Retrieves pupil and running traces histograms across sessions.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - figpar (dict): 
+            dictionary containing figure parameters
+
+    Optional args:
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
     """
 
+
+    logger.info("Compiling pupil and running histograms across sessions.", 
+        extra={"spacing": "\n"})
+
+    hist_df = behav_analys.get_pupil_run_histograms(
+        sessions, 
+        analyspar=analyspar, 
+        parallel=parallel,
+        )
+
+    extrapar = dict()
+
+    info = {"analyspar": analyspar._asdict(),
+            "sesspar"  : sesspar._asdict(),
+            "extrapar" : extrapar,
+            "hist_df"  : hist_df.to_dict()
+    }
+
+    helper_fcts.plot_save_all(info, figpar)
 

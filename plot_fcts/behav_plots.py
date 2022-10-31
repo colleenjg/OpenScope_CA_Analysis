@@ -17,7 +17,7 @@ import seaborn
 
 from util import logger_util, plot_util, math_util, rand_util
 from analysis import misc_analys
-from plot_fcts import plot_helper_fcts, seq_plots
+from plot_fcts import misc_plots, plot_helper_fcts, seq_plots
 
 
 TAB = "    "
@@ -424,9 +424,6 @@ def plot_pupil_run_full(sess_df, analyspar, figpar, title=None):
         - title (str):
             plot title
             default: None
-        - seed (int): 
-            seed value to use. (-1 treated as None)
-            default: None
 
     Returns:
         - ax (2D array): 
@@ -452,20 +449,20 @@ def plot_pupil_run_full(sess_df, analyspar, figpar, title=None):
     duration_sec = sess_row["duration_sec"]
 
     for d, datatype in enumerate(datatypes):
-        subax = ax[d + 1, 0]
+        sub_ax = ax[d + 1, 0]
         data = sess_row[f"{datatype}_data"]
         x = np.linspace(0, duration_sec, len(data))
-        subax.plot(x, data, color="k", alpha=0.8, lw=1.5)
-        subax.set_ylabel(
+        sub_ax.plot(x, data, color="k", alpha=0.8, lw=1.5)
+        sub_ax.set_ylabel(
             datatype_strs[d].replace(" ", "\n"), labelpad=12, weight="bold"
             )
-        subax.yaxis.set_major_locator(ticker.MaxNLocator(3))
-        for label in subax.get_yticklabels():
+        sub_ax.yaxis.set_major_locator(ticker.MaxNLocator(3))
+        for label in sub_ax.get_yticklabels():
             label.set_fontweight("bold")
 
-    for subax in ax.ravel():
-        subax.xaxis.set_visible(False)
-        subax.spines["bottom"].set_visible(False)
+    for sub_ax in ax.ravel():
+        sub_ax.xaxis.set_visible(False)
+        sub_ax.spines["bottom"].set_visible(False)
 
     for row in [0, -1]:
         ax[row, 0].yaxis.set_visible(False)
@@ -497,3 +494,110 @@ def plot_pupil_run_full(sess_df, analyspar, figpar, title=None):
         )
     
     return ax
+
+
+#############################################
+def plot_pupil_run_histograms(hist_df, analyspar, figpar, log_scale=True, 
+                              title=None):
+    """
+    plot_pupil_run_histograms(hist_df, analyspar, figpar)
+
+    Plots pupil and running data histograms across sessions.
+
+    Required args:
+        - hist_df (pd.DataFrame):
+            dataframe with one row per session, and the following columns, in 
+            addition to the basic sess_df columns:
+            - pupil_bin_edges (float):
+                bin edges for the pupil diameter data
+            - pupil_vals_binned (list):
+                pupil diameter values by bin, for each mouse
+            - run_bin_edges (float):
+                bin edges for the running data
+            - run_vals_binned (list):
+                run values by bin, for each mouse
+
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters
+
+    Optional args:
+        - title (str):
+            plot title
+            default: None
+
+    Returns:
+        - ax (2D array): 
+            array of subplots
+    """
+
+    datatypes = ["run", "pupil"]
+    datatype_strs = ["Running velocity (cm/s)", "Pupil diameter (mm)"]
+    n_datatypes = len(datatypes)
+    
+    sess_ns = sorted(hist_df["sess_ns"].unique())
+    mouse_ns = sorted(np.unique(np.concatenate(hist_df["mouse_ns"].tolist())))
+    colors = plot_util.get_cmap_colors("Greys", len(mouse_ns) + 1)[1:]
+    
+    n_sess = len(sess_ns)
+    fig, ax = plt.subplots(
+        n_datatypes, n_sess, figsize=(4 * n_sess, 4 * n_datatypes), 
+        squeeze=False, sharex="row", sharey="row"
+        )
+
+    if title is not None:
+        fig.suptitle(title, y=1, weight="bold")
+
+    log_base = 2
+    for s, sess_n in enumerate(sess_ns):
+        sess_lines = hist_df.loc[hist_df["sess_ns"] == sess_n]
+        if len(sess_lines) != 1:
+            raise RuntimeError(
+                "Expected exactly one line per session number."
+                )
+        sess_line = sess_lines.loc[sess_lines.index[0]]
+        mouse_colors = [
+            colors[mouse_ns.index(mouse_n)] for mouse_n in sess_line["mouse_ns"]
+            ]
+
+        for d, datatype in enumerate(datatypes):
+            sub_ax = ax[d, s]
+            if s == 0:
+                sub_ax.set_ylabel("Density", fontweight="bold")
+            if s == n_sess // 2:
+                sub_ax.set_xlabel(datatype_strs[d], fontweight="bold")
+
+            binned_data = sess_line[f"{datatype}_vals_binned"]
+            bin_edges = sess_line[f"{datatype}_bin_edges"]
+            bins = np.linspace(*bin_edges, len(binned_data[0]) + 1)
+            sub_ax.hist(
+                binned_data, bins, density=True, histtype="bar", stacked=True, 
+                color=mouse_colors
+                )
+
+            if s == 0 and log_scale:
+                sub_ax.set_yscale("log", base=log_base)
+
+    if log_scale: # update y ticks
+        for d in range(len(datatypes)):
+            plot_util.set_interm_ticks(
+                ax[d : d + 1, :], 3, axis="x", share=True, update_ticks=True, 
+                fontweight="bold"
+            )
+
+            misc_plots.set_symlog_scale(
+                ax[d : d + 1], log_base=log_base, col_per_grp=n_sess, n_ticks=4
+                )
+
+    for d in range(len(datatypes)):
+        sub_ax = ax[d, 0]
+        for label in sub_ax.get_yticklabels():
+            label.set_fontweight("bold")
+
+    return ax
+
+
