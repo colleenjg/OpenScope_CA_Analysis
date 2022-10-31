@@ -709,12 +709,58 @@ def plot_pupil_run_full(analyspar, sesspar, extrapar, sess_df, figpar):
 
 
 #############################################
-def plot_pupil_run_histograms():
+def plot_pupil_run_histograms(analyspar, sesspar, extrapar, hist_df, figpar):
     """
-    plot_pupil_run_histograms()
+    plot_pupil_run_histograms(analyspar, sesspar, extrapar, hist_df, figpar)
+
+    From dictionaries, plots running and pupil histograms across sessions.
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+        - hist_df (pd.DataFrame):
+            dataframe with one row per session, and the following columns, in 
+            addition to the basic sess_df columns:
+            - pupil_bin_edges (float):
+                bin edges for the pupil diameter data
+            - pupil_vals_binned (list):
+                pupil diameter values by bin, for each mouse
+            - run_bin_edges (float):
+                bin edges for the running data
+            - run_vals_binned (list):
+                run values by bin, for each mouse
+
+        - figpar (dict): 
+            dictionary containing figure parameters
     """
 
-    return
+    title = "Running and pupil histograms"
+    
+    hist_df = pd.DataFrame.from_dict(hist_df)
+
+    ax = behav_plots.plot_pupil_run_histograms(
+        hist_df, 
+        analyspar=analyspar,
+        figpar=figpar, 
+        title=title,
+        )
+    fig = ax.reshape(-1)[0].figure
+    
+    savedir, savename = helper_fcts.get_save_path(
+        figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
+    )
+
+    fulldir = plot_util.savefig(
+        fig, savename, savedir, log_dir=True, **figpar["save"]
+    )
+
+    return fulldir, savename
 
 
 #############################################

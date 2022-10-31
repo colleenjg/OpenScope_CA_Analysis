@@ -12,7 +12,7 @@ Note: this code uses python 3.7.
 
 import numpy as np
 
-from util import gen_util, plot_util
+from util import gen_util, math_util, plot_util
 from sess_util import sess_plot_util
 from plot_fcts import plot_helper_fcts, seq_plots
 
@@ -256,6 +256,17 @@ def set_symlog_scale(ax, log_base=2, col_per_grp=3, n_ticks=4):
                     )
                 yticks = sub_ax.get_yticks()
                 n_ticks = 4
+                if len(yticks) < n_ticks: # very approx
+                    top_exp = np.log(yticks[-1]) / np.log(log_base) + 0.5
+
+                    low_exp = np.log(base_lin) / np.log(log_base)
+                    low_exp = np.ceil(low_exp * 2) / 2
+
+                    n_ticks = int((top_exp - low_exp) * 2 + 1)
+                    yticks = [0] + [
+                        log_base ** yexp 
+                        for yexp in np.linspace(low_exp, top_exp, n_ticks)
+                    ]
                 n = len(yticks) // n_ticks
                 yticks = [
                     ytick for y, ytick in enumerate(yticks) if not(y % n)
@@ -373,7 +384,7 @@ def plot_roi_correlations(corr_df, figpar, title=None, log_scale=True):
 
             sub_ax.autoscale(axis="y", tight=True)
 
-    if log_scale: # update x ticks
+    if log_scale: # update y ticks
         set_symlog_scale(ax, log_base=log_base, col_per_grp=n_sess, n_ticks=4)
                     
     else: # update x and y ticks
