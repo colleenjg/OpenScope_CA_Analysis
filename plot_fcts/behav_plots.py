@@ -12,7 +12,7 @@ Note: this code uses python 3.7.
 
 import numpy as np
 from matplotlib import pyplot as plt
-from matplotlib import ticker
+from matplotlib import ticker, patches
 import seaborn
 
 from util import logger_util, plot_util, math_util, rand_util
@@ -497,8 +497,8 @@ def plot_pupil_run_full(sess_df, analyspar, figpar, title=None):
 
 
 #############################################
-def plot_pupil_run_histograms(hist_df, analyspar, figpar, log_scale=True, 
-                              title=None):
+def plot_pupil_run_histograms(hist_df, analyspar, figpar, title=None, 
+                              log_scale=False):
     """
     plot_pupil_run_histograms(hist_df, analyspar, figpar)
 
@@ -529,6 +529,11 @@ def plot_pupil_run_histograms(hist_df, analyspar, figpar, log_scale=True,
         - title (str):
             plot title
             default: None
+        - log_scale (bool):
+            if True, a near logarithmic scale is used for the y axis, but for 
+            the running data only (with a linear range to reach 0, and break 
+            marks to mark the transition from linear to log range)
+            default: False
 
     Returns:
         - ax (2D array): 
@@ -545,7 +550,7 @@ def plot_pupil_run_histograms(hist_df, analyspar, figpar, log_scale=True,
     
     n_sess = len(sess_ns)
     fig, ax = plt.subplots(
-        n_datatypes, n_sess, figsize=(4 * n_sess, 4 * n_datatypes), 
+        n_datatypes, n_sess, figsize=(5.5 * n_sess, 3.8 * n_datatypes), 
         squeeze=False, sharex="row", sharey="row"
         )
 
@@ -553,6 +558,7 @@ def plot_pupil_run_histograms(hist_df, analyspar, figpar, log_scale=True,
         fig.suptitle(title, y=1, weight="bold")
 
     log_base = 2
+    inset_data = []
     for s, sess_n in enumerate(sess_ns):
         sess_lines = hist_df.loc[hist_df["sess_ns"] == sess_n]
         if len(sess_lines) != 1:
@@ -563,6 +569,7 @@ def plot_pupil_run_histograms(hist_df, analyspar, figpar, log_scale=True,
         mouse_colors = [
             colors[mouse_ns.index(mouse_n)] for mouse_n in sess_line["mouse_ns"]
             ]
+        n_mice = len(mouse_colors)
 
         for d, datatype in enumerate(datatypes):
             sub_ax = ax[d, s]
@@ -571,32 +578,89 @@ def plot_pupil_run_histograms(hist_df, analyspar, figpar, log_scale=True,
             if s == n_sess // 2:
                 sub_ax.set_xlabel(datatype_strs[d], fontweight="bold")
 
-            binned_data = sess_line[f"{datatype}_vals_binned"]
+            binned_data = np.asarray(sess_line[f"{datatype}_vals_binned"])
             bin_edges = sess_line[f"{datatype}_bin_edges"]
             bins = np.linspace(*bin_edges, len(binned_data[0]) + 1)
-            sub_ax.hist(
-                binned_data, bins, density=True, histtype="bar", stacked=True, 
-                color=mouse_colors
-                )
+            x = np.repeat(bins[:-1], n_mice).reshape(-1, n_mice)
+            density_vals = sub_ax.hist(
+                x, bins, density=True, histtype="bar", stacked=True, 
+                color=mouse_colors, weights=binned_data.T,
+                )[0]
+                     
+            if not log_scale and d == 0: # make inset
+                threshold = density_vals[-1].max() / 4
+                first = np.where(density_vals[-1] > threshold)[0][-1] + 1
+                last_vals = np.where(
+                    np.cumsum(density_vals[-1] == 0) == 0
+                    )[0]
+                last = density_vals.shape[1]
+                if len(last_vals):
+                    last = last_vals[-1] + 1
+                
+                if first < density_vals.shape[1]:
+                    sub_ax_in = sub_ax.inset_axes([0.5, 0.5, 0.45, 0.45])
+                    half_bin = np.diff(bins)[-1] / 3
+                    inset_bin_edges = bins[first] - half_bin, bins[last]
+                    density_vals = np.diff(
+                        np.insert(density_vals, 0, 0, axis=0), axis=0
+                        )
+                    sub_ax_in.hist(
+                        x[first : last], bins[first : last + 1], 
+                        density=False, histtype="bar", stacked=True, 
+                        color=mouse_colors, 
+                        weights=density_vals.T[first : last],
+                        )
+                    inset_data.append((sub_ax_in, inset_bin_edges))
 
-            if s == 0 and log_scale:
+            if s == 0 and d == 0 and log_scale:
+                sub_ax.set_ylabel("Density (log. scale)", fontweight="bold")
                 sub_ax.set_yscale("log", base=log_base)
+        
+        ax[0, s].set_title(f"Session {sess_n}", fontweight="bold", y=1.1)
 
-    if log_scale: # update y ticks
-        for d in range(len(datatypes)):
-            plot_util.set_interm_ticks(
-                ax[d : d + 1, :], 3, axis="x", share=True, update_ticks=True, 
-                fontweight="bold"
+    if log_scale: # update y ticks, if applicable
+        misc_plots.set_symlog_scale(
+            ax[0:1], log_base=log_base, col_per_grp=n_sess, n_ticks=4
             )
-
-            misc_plots.set_symlog_scale(
-                ax[d : d + 1], log_base=log_base, col_per_grp=n_sess, n_ticks=4
-                )
 
     for d in range(len(datatypes)):
         sub_ax = ax[d, 0]
         for label in sub_ax.get_yticklabels():
             label.set_fontweight("bold")
+        plot_util.set_interm_ticks(
+            ax[d : d + 1, :], 3, axis="x", share=True, update_ticks=True, 
+            fontweight="bold"
+        )
+    
+    if len(inset_data): # format inset plots
+        y_lim_bot = np.inf
+        x_lim_top, y_lim_top = -np.inf, -np.inf
+        for sub_ax_in, bin_edges in inset_data:
+            x_lim_top = np.max([x_lim_top, bin_edges[-1]])
+            y_lim_bot = np.min([y_lim_bot, sub_ax_in.get_ylim()[0]])
+            y_lim_top = np.max([y_lim_top, sub_ax_in.get_ylim()[1] * 1.1])
+
+        for s, (sub_ax_in, bin_edges) in enumerate(inset_data):
+            sub_ax_in.set_xlim(bin_edges[0], x_lim_top)
+            sub_ax_in.set_ylim(y_lim_bot, y_lim_top)
+            if s != 0:
+                sub_ax_in.set_yticklabels("")
+            for spine in ["top", "right"]:
+                sub_ax_in.spines[spine].set_visible(True)
+            labels = sub_ax_in.get_xticklabels() + sub_ax_in.get_yticklabels()
+            for label in labels:
+                label.set_fontweight("bold")
+
+            # add dashed rectangle
+            x, y = bin_edges[0], y_lim_bot
+            x_wid = x_lim_top - x
+            y_wid = y_lim_top - y_lim_bot
+            rect = patches.Rectangle(
+                (x, y), x_wid, y_wid, lw=3, edgecolor="k", facecolor="none", 
+                ls=(3, (3, 3))
+                )
+            ax[0, s].add_patch(rect)
+
 
     return ax
 

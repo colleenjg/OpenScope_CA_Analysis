@@ -548,6 +548,8 @@ def get_pupil_run_histograms(sessions, analyspar, n_bins=40, parallel=False):
         )
     initial_columns = basic_df.columns.tolist()
 
+    n_sig = 1 # number of significant digits to round bin edges to
+
     # determine bin edges
     bin_fcts = [np.min, np.max] if analyspar.rem_bad else [np.nanmin, np.nanmax]
     all_bin_edges, new_columns = [], []
@@ -559,11 +561,11 @@ def get_pupil_run_histograms(sessions, analyspar, n_bins=40, parallel=False):
         concat_data = np.concatenate(data.tolist())
         edges = [fct(concat_data) for fct in bin_fcts]
 
-        o = np.max([math_util.get_order_of_mag(np.diff(edges)), 1])
         bin_edges = [
-            math_util.round_by_order_of_mag(edge, o, direc=direc)
+            math_util.round_by_order_of_mag(edge, n_sig, direc=direc)
             for edge, direc in zip(edges, ["down", "up"])
         ]
+
         if bin_edges[0] > edges[0] or bin_edges[1] < edges[1]:
             raise NotImplementedError(
                 "Rounded bin edges do not enclose true bin edges."
