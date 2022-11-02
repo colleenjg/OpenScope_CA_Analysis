@@ -255,18 +255,7 @@ def set_symlog_scale(ax, log_base=2, col_per_grp=3, n_ticks=4):
                     "symlog", base=log_base, linthresh=base_lin, linscale=0.5
                     )
                 yticks = sub_ax.get_yticks()
-                n_ticks = 4
-                if len(yticks) < n_ticks: # very approx
-                    top_exp = np.log(yticks[-1]) / np.log(log_base) + 0.5
-
-                    low_exp = np.log(base_lin) / np.log(log_base)
-                    low_exp = np.ceil(low_exp * 2) / 2
-
-                    n_ticks = int((top_exp - low_exp) * 2 + 1)
-                    yticks = [0] + [
-                        log_base ** yexp 
-                        for yexp in np.linspace(low_exp, top_exp, n_ticks)
-                    ]
+                n_ticks = min(4, len(yticks))
                 n = len(yticks) // n_ticks
                 yticks = [
                     ytick for y, ytick in enumerate(yticks) if not(y % n)
@@ -339,12 +328,14 @@ def plot_roi_correlations(corr_df, figpar, title=None, log_scale=True):
     if log_scale:
         figpar["init"]["sharey"] = True
 
+    ylab = "Density (logarithmic scale)" if log_scale else "Density"
+
     fig, ax = plot_util.init_fig(4 * len(sess_ns), **figpar["init"])
     if title is not None:
         fig.suptitle(title, y=1.02, weight="bold")
 
     sess_plot_util.format_linpla_subaxes(ax, datatype="roi", 
-        ylab="Density", xlab="Correlation", sess_ns=sess_ns, kind="prog", 
+        ylab=ylab, xlab="Correlation", sess_ns=sess_ns, kind="prog", 
         single_lab=True)
 
     log_base = 2
