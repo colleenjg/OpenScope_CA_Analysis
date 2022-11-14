@@ -12,7 +12,7 @@ Note: this code uses python 3.7.
 
 import numpy as np
 
-from util import gen_util, plot_util
+from util import gen_util, math_util, plot_util
 from sess_util import sess_plot_util
 from plot_fcts import plot_helper_fcts, seq_plots
 
@@ -80,6 +80,58 @@ def plot_decoder_data(scores_df, analyspar, sesspar, permpar, figpar,
 
 
 #############################################
+def plot_nrois(sub_ax, sess_df, sess_ns=None, col="k", dash=None): 
+    """
+    plot_nrois(sub_ax, sess_df)
+
+    Plots number of ROIs per mice, across sessions.
+
+    Required args:
+        - sub_ax (plt subplot): 
+            subplot
+        - sess_df (pd.DataFrame)
+            dataframe with the basic sess_df columns
+    
+    Optional args:
+        - sess_ns (array-like): 
+            session numbers to use as x values. Inferred if None.
+            default: None
+        - col (str):
+            plotting color
+            default: "k"
+        - dash (str or tuple):
+            dash style
+            default: None
+    """
+    
+    if sess_ns is None:
+        sess_ns = np.arange(sess_df.sess_ns.min(), sess_df.sess_ns.max() + 1)
+    unique_mice = sorted(sess_df["mouse_ns"].unique())
+
+    mouse_cols = plot_util.get_hex_color_range(
+        len(unique_mice), col=col, interval=plot_helper_fcts.MOUSE_COL_INTERVAL
+        )
+    for mouse, mouse_col in zip(unique_mice, mouse_cols):
+        nrois = []
+        for sess_n in sess_ns:
+            row = sess_df.loc[
+                (sess_df["mouse_ns"] == mouse) & 
+                (sess_df["sess_ns"] == sess_n)]
+            if len(row):
+                if len(row) > 1:
+                    raise RuntimeError("No more than one match expected.")
+                else:
+                    nrois.append(row["nrois"].values[0])
+            else:
+                nrois.append(np.nan)
+
+        plot_util.plot_errorbars(
+            sub_ax, nrois, x=sess_ns, color=mouse_col, alpha=0.6, 
+            line_dash=dash, lw=5, mew=5, markersize=8, xticks="auto"
+            ) 
+
+
+#############################################
 def plot_snr_sigmeans_nrois(data_df, figpar, datatype="snrs", title="ROI SNRs"):
     """
     plot_snr_sigmeans_nrois(data_df, figpar)
@@ -114,7 +166,7 @@ def plot_snr_sigmeans_nrois(data_df, figpar, datatype="snrs", title="ROI SNRs"):
     figpar = sess_plot_util.fig_init_linpla(figpar, kind="reg")
     figpar["init"]["sharey"] = "row"
     
-    figpar["init"]["subplot_hei"] = 4.4
+    figpar["init"]["subplot_hei"] = 3.8 # 4.4
     figpar["init"]["gs"] = {"wspace": 0.2, "hspace": 0.2}
     if datatype != "nrois":
         figpar["init"]["subplot_wid"] = 3.2        
@@ -170,58 +222,6 @@ def plot_snr_sigmeans_nrois(data_df, figpar, datatype="snrs", title="ROI SNRs"):
 
 
 #############################################
-def plot_nrois(sub_ax, sess_df, sess_ns=None, col="k", dash=None): 
-    """
-    plot_nrois(sub_ax, sess_df)
-
-    Plots number of ROIs per mice, across sessions.
-
-    Required args:
-        - sub_ax (plt subplot): 
-            subplot
-        - sess_df (pd.DataFrame)
-            dataframe with the basic sess_df columns
-    
-    Optional args:
-        - sess_ns (array-like): 
-            session numbers to use as x values. Inferred if None.
-            default: None
-        - col (str):
-            plotting color
-            default: "k"
-        - dash (str or tuple):
-            dash style
-            default: None
-    """
-    
-    if sess_ns is None:
-        sess_ns = np.arange(sess_df.sess_ns.min(), sess_df.sess_ns.max() + 1)
-    unique_mice = sorted(sess_df["mouse_ns"].unique())
-
-    mouse_cols = plot_util.get_hex_color_range(
-        len(unique_mice), col=col, interval=plot_helper_fcts.MOUSE_COL_INTERVAL
-        )
-    for mouse, mouse_col in zip(unique_mice, mouse_cols):
-        nrois = []
-        for sess_n in sess_ns:
-            row = sess_df.loc[
-                (sess_df["mouse_ns"] == mouse) & 
-                (sess_df["sess_ns"] == sess_n)]
-            if len(row):
-                if len(row) > 1:
-                    raise RuntimeError("No more than one match expected.")
-                else:
-                    nrois.append(row["nrois"].values[0])
-            else:
-                nrois.append(np.nan)
-
-        plot_util.plot_errorbars(
-            sub_ax, nrois, x=sess_ns, color=mouse_col, alpha=0.6, ls=dash, lw=5, 
-            mew=5, markersize=8, xticks="auto"
-            ) 
-
-
-#############################################
 def set_symlog_scale(ax, log_base=2, col_per_grp=3, n_ticks=4):
     """
     set_symlog_scale(ax)
@@ -255,7 +255,7 @@ def set_symlog_scale(ax, log_base=2, col_per_grp=3, n_ticks=4):
                     "symlog", base=log_base, linthresh=base_lin, linscale=0.5
                     )
                 yticks = sub_ax.get_yticks()
-                n_ticks = 4
+                n_ticks = min(4, len(yticks))
                 n = len(yticks) // n_ticks
                 yticks = [
                     ytick for y, ytick in enumerate(yticks) if not(y % n)
@@ -322,18 +322,20 @@ def plot_roi_correlations(corr_df, figpar, title=None, log_scale=True):
     figpar = sess_plot_util.fig_init_linpla(
         figpar, kind="prog", n_sub=len(sess_ns)
         )
-    figpar["init"]["subplot_hei"] = 3.0
-    figpar["init"]["subplot_wid"] = 2.8
+    figpar["init"]["subplot_hei"] = 6.5 # 3.0
+    figpar["init"]["subplot_wid"] = 1.85 # 2.8
     figpar["init"]["sharex"] = log_scale
     if log_scale:
         figpar["init"]["sharey"] = True
+
+    ylab = "Density (logarithmic scale)" if log_scale else "Density"
 
     fig, ax = plot_util.init_fig(4 * len(sess_ns), **figpar["init"])
     if title is not None:
         fig.suptitle(title, y=1.02, weight="bold")
 
     sess_plot_util.format_linpla_subaxes(ax, datatype="roi", 
-        ylab="Density", xlab="Correlation", sess_ns=sess_ns, kind="prog", 
+        ylab=ylab, xlab="Correlation", sess_ns=sess_ns, kind="prog", 
         single_lab=True)
 
     log_base = 2
@@ -350,6 +352,7 @@ def plot_roi_correlations(corr_df, figpar, title=None, log_scale=True):
             sub_ax = ax[pl, s + li * n_sess]
  
             weights = np.asarray(sess_row["corrs_binned"])
+            weights = weights.reshape(-1, 2).sum(axis=1)
 
             bin_edges = np.linspace(*sess_row["bin_edges"], len(weights) + 1)
 
@@ -372,7 +375,7 @@ def plot_roi_correlations(corr_df, figpar, title=None, log_scale=True):
 
             sub_ax.autoscale(axis="y", tight=True)
 
-    if log_scale: # update x ticks
+    if log_scale: # update y ticks
         set_symlog_scale(ax, log_base=log_base, col_per_grp=n_sess, n_ticks=4)
                     
     else: # update x and y ticks

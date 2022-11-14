@@ -132,7 +132,8 @@ def download_dandiset_assets(dandiset_id="000037", version="draft", output=".",
     dandiset_id = f"{int(dandiset_id):06}" # ensure correct ID formatting
 
     asset_sessids = "all"
-    if sess_ns not in ["all", "any"] or mouse_ns not in ["all", "any"]:
+    if not (excluded_sess and sess_ns not in ["all", "any"] and 
+        mouse_ns not in ["all", "any"]):
         if dandiset_id != "000037":
             raise NotImplementedError(
                 "Selecting assets based on session and mouse numbers is only "

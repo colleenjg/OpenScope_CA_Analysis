@@ -151,9 +151,10 @@ def decoder_warning():
 ### DEFINE FUNCTION COLLECTING FIGURE/PANEL SPECIFIC PARAMETERS
 #############################################
 def get_specific_params(sess_n="1-3", mouse_n="any", plane="all", line="all", 
-                        stimtype="gabors", gabfr=3, gab_ori="any", pre=0, 
-                        post=0.6, tails=2, idx_feature="by_exp", comp="Dori", 
-                        error="sem", scale=True, tracked=False, rem_bad=True,
+                        stimtype="gabors", gabfr=3, gab_ori="any", 
+                        visflow_dir="both", pre=0, post=0.6, tails=2, 
+                        idx_feature="by_exp", comp="Dori", error="sem", 
+                        scale=True, tracked=False, rem_bad=True,
                         roi=True, run=False, pupil=False):
     """
     get_specific_params()
@@ -182,6 +183,9 @@ def get_specific_params(sess_n="1-3", mouse_n="any", plane="all", line="all",
         - gab_ori (str): 
             Gabor mean orientations to include
             default: "any"
+        - visflow_dir (str or list): 
+            visual flow direction values ("right", "left", "both")
+            default: "both"
         - pre (num): 
             number of seconds before reference to include
             default: 0
@@ -225,7 +229,7 @@ def get_specific_params(sess_n="1-3", mouse_n="any", plane="all", line="all",
     """
 
     visflow_dir, visflow_size, gabfr, gabk, gab_ori = sess_gen_util.get_params(
-        stimtype, gabfr=gabfr, gab_ori=gab_ori
+        stimtype, gabfr=gabfr, gab_ori=gab_ori, visflow_dir=visflow_dir
         )
 
     specific_params = {
@@ -613,6 +617,38 @@ class FigurePanelAnalysis():
         self.plot_fct = plot_figs.plot_pupil_run_block_diffs
 
 
+    def pupil_run_full(self):
+        self.description = "Full session running and pupil responses."
+        self.specific_params = get_specific_params(
+            sess_n=1,
+            mouse_n=1,
+            rem_bad=False, # do not interpolate missing data
+            scale=False,
+            roi=False,
+            run=True,
+            pupil=True,
+        )
+        self.analysis_fct = behav_figs.pupil_run_full
+        self.plot_fct = plot_figs.plot_pupil_run_full
+        self.warnings.append(
+            partial_plot_fct_warning(
+                message="Running and pupil images will be missing."
+            )
+        )
+
+    def pupil_run_histograms(self):
+        self.description = "Histograms of running and pupil values."
+        self.specific_params = get_specific_params(
+            rem_bad=False, # do not interpolate missing data
+            scale=False,
+            roi=False,
+            run=True,
+            pupil=True,
+        )
+        self.analysis_fct = behav_figs.pupil_run_histograms
+        self.plot_fct = plot_figs.plot_pupil_run_histograms
+
+
     ### Figure 4 ###
     def gabor_sequences_sess123(self):
         self.description = "ROI responses to Gabor sequences."
@@ -803,19 +839,84 @@ class FigurePanelAnalysis():
         )
         self.analysis_fct = seq_figs.stimulus_onset_sess123
         self.plot_fct = plot_figs.plot_stimulus_onset_sess123
-        
 
-    def gabor_ex_roi_responses_sess1(self):
-        self.description = "Example ROI responses to each Gabor sequence."
+
+    def stimulus_offset_sess123(self):
+        self.description = "ROI response to stimulus offset."
+        self.specific_params = get_specific_params(
+            stimtype="both",
+            pre=2,
+            post=2,
+        )
+        self.analysis_fct = seq_figs.stimulus_offset_sess123
+        self.plot_fct = plot_figs.plot_stimulus_offset_sess123
+
+
+    def gabor_ex_roi_exp_responses_sess1(self):
+        self.description = (
+            "Example ROI responses to each expected Gabor sequence."
+            )
         self.specific_params = get_specific_params(
             sess_n=1,
             pre=0.9,
             post=0.6,
             )
         self.randomness = True # for example selection
-        self.analysis_fct = seq_figs.gabor_ex_roi_responses_sess1
-        self.plot_fct = plot_figs.plot_gabor_ex_roi_responses_sess1
+        self.analysis_fct = seq_figs.gabor_ex_roi_exp_responses_sess1
+        self.plot_fct = plot_figs.plot_gabor_ex_roi_exp_responses_sess1
         self.warnings.append(slow_plot_warning())
+
+
+    def gabor_ex_roi_unexp_responses_sess1(self):
+        self.description = (
+            "Example ROI responses to each unexpected Gabor sequence."
+            )
+        self.specific_params = get_specific_params(
+            sess_n=1,
+            pre=0.9,
+            post=0.6,
+            )
+        self.randomness = True # for example selection
+        self.analysis_fct = seq_figs.gabor_ex_roi_unexp_responses_sess1
+        self.plot_fct = plot_figs.plot_gabor_ex_roi_unexp_responses_sess1
+        self.warnings.append(slow_plot_warning())
+
+
+    def visflow_ex_roi_nasal_responses_sess1(self):
+        self.description = (
+            "Example ROI responses to each onset of unexpected flow during "
+            "nasal (leftward) visual flow."
+            )
+        self.specific_params = get_specific_params(
+            sess_n=1,
+            stimtype="visflow",
+            pre=2,
+            post=2,
+            visflow_dir="nasal",
+            )
+        self.randomness = True # for example selection
+        self.analysis_fct = seq_figs.visflow_ex_roi_nasal_responses_sess1
+        self.plot_fct = plot_figs.plot_visflow_ex_roi_nasal_responses_sess1
+        self.warnings.append(slow_plot_warning())
+
+
+    def visflow_ex_roi_temp_responses_sess1(self):
+        self.description = (
+            "Example ROI responses to each onset of unexpected flow during "
+            "temporal (rightward) visual flow."
+            )
+        self.specific_params = get_specific_params(
+            sess_n=1,
+            stimtype="visflow",
+            pre=2,
+            post=2,
+            visflow_dir="temp",
+            )
+        self.randomness = True # for example selection
+        self.analysis_fct = seq_figs.visflow_ex_roi_temp_responses_sess1
+        self.plot_fct = plot_figs.plot_visflow_ex_roi_temp_responses_sess1
+        self.warnings.append(slow_plot_warning())
+
 
     ### Figure S4 ###
     def gabor_roi_usi_sig_by_mouse(self):
@@ -1099,6 +1200,8 @@ class FigurePanelAnalysis():
                 "3": {
                     "A": self.pupil_run_responses,
                     "B": self.pupil_run_block_diffs,
+                    "C": self.pupil_run_full,
+                    "D": self.pupil_run_histograms,
                     },
                 "4": {
                     "A": self.gabor_sequences_sess123,
@@ -1128,7 +1231,11 @@ class FigurePanelAnalysis():
                     },
                 "S3": {
                     "A": self.stimulus_onset_sess123,
-                    "B": self.gabor_ex_roi_responses_sess1,
+                    "B": self.stimulus_offset_sess123,
+                    "C": self.gabor_ex_roi_exp_responses_sess1,
+                    "D": self.gabor_ex_roi_unexp_responses_sess1,
+                    "E": self.visflow_ex_roi_nasal_responses_sess1,
+                    "F": self.visflow_ex_roi_temp_responses_sess1,
                     },
                 "S4": {
                     "A": self.gabor_roi_usi_sig_by_mouse,

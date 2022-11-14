@@ -483,20 +483,154 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
 
     return diffs_df
 
+#############################################
+def identify_gabor_roi_ns(traces, analyspar, rolling_win=4):
+    """
+    identify_gabor_roi_ns(traces, analyspar)
+
+    Identifies ROIs that meet Gabor sequence response pattern criteria.
+
+    Criteria:
+    - Sequence response correlation above 75th percentile.
+    - Mean sequence standard deviation above 75th percentile.
+    - Mean sequence skew above 75th percentile.
+
+    Required args:
+        - traces (3D array):
+            ROI traces, with dims: ROIs x seq x frames 
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+
+    Optional args:
+        - rolling_win (int):
+            window to use in rolling mean over individual trial traces before 
+            computing correlation between trials (None for no smoothing).
+            default: 4 
+
+    Returns:
+        - selected_idx (1D array):
+            indices of ROIs that meet the criteria
+    """
+
+    nanpol = None if analyspar.rem_bad else "omit"
+
+    # calculate std and skew over trace statistics
+    traces_stat = math_util.mean_med(
+        traces, stats=analyspar.stats, axis=1, nanpol=nanpol
+        )
+    trace_stat_stds = np.std(traces_stat, axis=1)
+    trace_stat_skews = scist.skew(traces_stat, axis=1)
+
+    # smooth, if applicable, to compute correlations
+    if rolling_win is not None:
+        traces = math_util.rolling_mean(traces, win=rolling_win)
+
+    triu_idx = np.triu_indices(traces.shape[1], k=1)
+    corr_medians = [
+        np.median(np.corrcoef(roi_trace)[triu_idx]) for roi_trace in traces
+        ]
+
+    # identify indices that meet threshold
+    std_thr = np.percentile(trace_stat_stds, 75)
+    skew_thr = np.percentile(trace_stat_skews, 75)
+    corr_thr = np.percentile(corr_medians, 75)
+    
+    selected_idx = np.where(
+        ((trace_stat_stds > std_thr) * 
+         (trace_stat_skews > skew_thr) * 
+         (corr_medians > corr_thr))
+         )[0]
+        
+    return selected_idx
+
 
 #############################################
-def get_sess_ex_traces(sess, analyspar, stimpar, basepar, rolling_win=4):
+def identify_visflow_roi_ns(traces, analyspar, stimpar, rolling_win=4):
+    """
+    identify_visflow_roi_ns(traces, analyspar, stimpar)
+
+    Identifies ROIs that meet visual flow response pattern criteria.
+
+    Criteria:
+    - Unexpected sequence response correlation above 75th percentile.
+    - Mean difference in expected versus unexpected responses above 75th 
+    percentile.
+
+    Required args:
+        - traces (3D array):
+            ROI traces, with dims: ROIs x seq x frames 
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+
+    Optional args:
+        - rolling_win (int):
+            window to use in rolling mean over individual trial traces before 
+            computing correlation between trials (None for no smoothing).
+            default: 4 
+
+    Returns:
+        - selected_idx (1D array):
+            indices of ROIs that meet the criteria
+    """
+
+    nanpol = None if analyspar.rem_bad else "omit"
+
+    # identify pre/post    
+    num_frames_pre = int(
+        np.ceil(traces.shape[2] * stimpar.pre / (stimpar.pre + stimpar.post))
+        )
+
+    # calculate statistics for pre/post
+    traces_stat_exp = math_util.mean_med(
+        traces[..., : num_frames_pre], 
+        stats=analyspar.stats, axis=2, nanpol=nanpol
+        )
+    traces_stat_unexp = math_util.mean_med(
+        traces[..., num_frames_pre :], 
+        stats=analyspar.stats, axis=2, nanpol=nanpol
+        )
+    trace_stat_diffs = math_util.mean_med(
+        traces_stat_unexp - traces_stat_exp, 
+        stats=analyspar.stats, axis=1, nanpol=nanpol
+        )
+
+    # smooth, if applicable, to compute correlations
+    if rolling_win is not None:
+        traces = math_util.rolling_mean(traces, win=rolling_win)
+
+    triu_idx = np.triu_indices(traces.shape[1], k=1)
+    corr_medians = [
+        np.median(np.corrcoef(roi_trace[:, num_frames_pre :])[triu_idx]) 
+        for roi_trace in traces
+        ]
+    
+    # identify indices that meet threshold
+    diffs_thr = np.percentile(trace_stat_diffs, 75)
+    corr_thr = np.percentile(corr_medians, 75)
+    
+    selected_idx = np.where(
+        ((trace_stat_diffs > diffs_thr) * 
+         (corr_medians > corr_thr))
+         )[0]
+        
+    return selected_idx
+
+
+#############################################
+def get_sess_ex_traces(sess, analyspar, stimpar, basepar, rolling_win=4, 
+                       unexp=0):
     """
     get_sess_ex_traces(sess, analyspar, stimpar, basepar)
 
-    Returns example traces selected for the session, based on SNR and Gabor 
+    Returns example traces selected for the session, based on SNR and stimulus 
     response pattern criteria. 
 
     Criteria:
     - Above median SNR
-    - Sequence response correlation above 75th percentile.
-    - Mean sequence standard deviation above 75th percentile.
-    - Mean sequence skew above 75th percentile.
+    - see identify_gabor_roi_ns() or identify_visflow_roi_ns() for stimulus 
+    specific criteria
 
     Required args:
         - sess (Session):
@@ -511,8 +645,12 @@ def get_sess_ex_traces(sess, analyspar, stimpar, basepar, rolling_win=4):
     Optional args:
         - rolling_win (int):
             window to use in rolling mean over individual trial traces before 
-            computing correlation between trials (None for no smoothing)
+            computing correlation between trials (None for no smoothing).
             default: 4 
+        - unexp (int):
+            expectedness value for which to return traces (0 or 1), if 
+            stimpar.stimtype is gabors.
+            default: 0
 
     Returns:
         - selected_roi_data (dict):
@@ -527,12 +665,6 @@ def get_sess_ex_traces(sess, analyspar, stimpar, basepar, rolling_win=4):
 
     nanpol = None if analyspar.rem_bad else "omit"
 
-    if stimpar.stimtype != "gabors":
-        raise NotImplementedError(
-            "ROI selection criteria designed for Gabors, and based on their "
-            "cyclical responses."
-            )
-
     snr_analyspar = sess_ntuple_util.get_modif_ntuple(analyspar, "scale", False)
 
     snrs = misc_analys.get_snr(sess, snr_analyspar, "snrs")
@@ -541,53 +673,54 @@ def get_sess_ex_traces(sess, analyspar, stimpar, basepar, rolling_win=4):
     # identify ROIs that meet the SNR threshold
     snr_thr_rois = np.where(snrs > snr_median)[0]
 
+    if stimpar.stimtype == "gabors":
+        split = "by_exp"
+    else:
+        split = "unexp_lock"
+
     # collect all data, and compute statistics
     traces, time_values = basic_analys.get_split_data_by_sess(
         sess,
         analyspar=analyspar,
         stimpar=stimpar,
-        split="by_exp",
+        split=split,
         baseline=basepar.baseline,
         )
 
-    traces_exp = np.asarray(traces[0]) # get expected split
-    traces_exp_stat = math_util.mean_med(
-        traces_exp, stats=analyspar.stats, axis=1, nanpol=nanpol
-        )
+    if stimpar.stimtype == "gabors":
+        traces = np.asarray(traces[unexp])
+    else:
+        traces = np.concatenate(traces, axis=2)[..., 1:] # concat along time dim
+        time_values = np.concatenate([-time_values[::-1][:-1], time_values])
 
-    # smooth individual traces, then compute correlations
-    if rolling_win is not None:
-        traces_exp = math_util.rolling_mean(traces_exp, win=rolling_win)
-    
-    triu_idx = np.triu_indices(traces_exp[snr_thr_rois].shape[1], k=1)
-    corr_medians = [
-        np.median(np.corrcoef(roi_trace)[triu_idx]) 
-        for roi_trace in traces_exp[snr_thr_rois]
-        ]
 
-    # calculate std and skew over trace statistics
-    trace_stat_stds = np.std(traces_exp_stat[snr_thr_rois], axis=1)
-    trace_stat_skews = scist.skew(traces_exp_stat[snr_thr_rois], axis=1)
-    
-    # identify ROIs that meet thresholds (from those with high enough SNR)
-    std_thr = np.percentile(trace_stat_stds, 75)
-    skew_thr = np.percentile(trace_stat_skews, 75)
-    corr_thr = np.percentile(corr_medians, 75)
-    
-    selected_idx = np.where(
-        ((trace_stat_stds > std_thr) * 
-         (corr_medians > corr_thr) * 
-         (trace_stat_skews > skew_thr))
-         )[0]
-    
-    # re-index into all ROIs
+    # select indices and re-index into all ROIs
+    if stimpar.stimtype == "gabors":
+        selected_idx = identify_gabor_roi_ns(
+            traces[snr_thr_rois], analyspar, rolling_win=rolling_win
+            )
+    else:
+        selected_idx = identify_visflow_roi_ns(
+            traces[snr_thr_rois], analyspar, stimpar, rolling_win=rolling_win
+            )
     roi_ns = snr_thr_rois[selected_idx]
 
+    # collect data to return
+    traces_stat = math_util.mean_med(
+       traces, stats=analyspar.stats, axis=1, nanpol=nanpol
+    )
+
+    # smooth individual traces, if applicable
+    if rolling_win is not None:
+        traces = math_util.rolling_mean(traces, win=rolling_win)
+
+
+    # aggregate data to return
     selected_roi_data = {
         "time_values"    : time_values,
         "roi_ns"         : roi_ns,
-        "roi_traces_sm"  : traces_exp[roi_ns], 
-        "roi_trace_stats": traces_exp_stat[roi_ns]
+        "roi_traces_sm"  : traces[roi_ns], 
+        "roi_trace_stats": traces_stat[roi_ns]
     }
 
     return selected_roi_data
@@ -595,7 +728,7 @@ def get_sess_ex_traces(sess, analyspar, stimpar, basepar, rolling_win=4):
 
 #############################################
 def get_ex_traces_df(sessions, analyspar, stimpar, basepar, n_ex=6, 
-                     rolling_win=4, randst=None, parallel=False):
+                     rolling_win=4, unexp=0, randst=None, parallel=False):
     """
     get_ex_traces_df(sessions, analyspar, stimpar, basepar)
 
@@ -618,6 +751,9 @@ def get_ex_traces_df(sessions, analyspar, stimpar, basepar, n_ex=6,
         - rolling_win (int):
             window to use in rolling mean over individual trial traces
             default: 4 
+        - unexp (int):
+            expectedness value for which to return traces (0 or 1).
+            default: 0
         - randst (int or np.random.RandomState): 
             random state or seed value to use. (-1 treated as None)
             default: None
@@ -649,7 +785,7 @@ def get_ex_traces_df(sessions, analyspar, stimpar, basepar, n_ex=6,
 
     retained_roi_data = gen_util.parallel_wrap(
         get_sess_ex_traces, sessions, 
-        [analyspar, stimpar, basepar, rolling_win], 
+        [analyspar, stimpar, basepar, rolling_win, unexp], 
         parallel=parallel
         )
     

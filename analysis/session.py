@@ -169,15 +169,17 @@ class Session(object):
         self._extract_sess_attribs()
 
         This function loads the dataframe containing information on each 
-        session,and sets attributes.
+        session, and sets attributes.
 
         Attributes:
+            - age_weeks (float): age (in weeks)
             - all_files (bool) : if True, all files have been acquired for
                                  the session
             - any_files (bool) : if True, some files have been acquired for
                                  the session
             - date (int)       : session date (i.e., yyyymmdd)
             - depth (int)      : recording depth 
+            - DOB (int)        : date of birth (i.e., yyyymmdd)
             - plane (str)      : recording plane ("soma" or "dend")
             - line (str)       : mouse line (e.g., "L5-Rbp4")
             - mouse_n (int)    : mouse number (e.g., 1)
@@ -187,6 +189,7 @@ class Session(object):
                                  quality control
             - runtype (str)    : "prod" (production) or "pilot" data
             - sess_n (int)     : overall session number (e.g., 1)
+            - sex (str)        : sex (e.g., "F" or "M")
             - stim_seed (int)  : random seed used to generated stimulus
 
             if self.nwb:
@@ -214,7 +217,10 @@ class Session(object):
                 self.dandi_id = self.sessid
 
         self.mouse_n      = df_data["mouse_n"]
+        self.sex          = df_data["sex"]
+        self.DOB          = df_data["DOB"]
         self.date         = df_data["date"]
+        self.age_weeks    = df_data["age_weeks"]
         self.depth        = df_data["depth"]
         self.plane        = df_data["plane"]
         self.line         = df_data["line"]

@@ -650,6 +650,120 @@ def plot_pupil_run_block_diffs(analyspar, sesspar, stimpar, permpar, extrapar,
 
 
 #############################################
+def plot_pupil_run_full(analyspar, sesspar, extrapar, sess_df, figpar):
+    """
+    plot_pupil_run_full(analyspar, sesspar, extrapar, sess_df, figpar)
+
+    From dictionaries, plots running and pupil responses for a full session.
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+        - sess_df (pd.DataFrame):
+            dataframe with one row per session, and the following columns, in 
+            addition to the basic sess_df columns:
+            - duration_sec (float):
+                duration of the session in seconds
+            - pup_data (list):
+                pupil data
+            - pup_frames (list):
+                start and stop pupil frame numbers for each stimulus type
+            - run_data (list):
+                running velocity data
+            - run_frames (list):
+                start and stop running frame numbers for each stimulus type
+            - stims (list):
+                stimulus types
+
+        - figpar (dict): 
+            dictionary containing figure parameters
+    """
+
+    title = "Full session running and pupil responses"
+    
+    sess_df = pd.DataFrame.from_dict(sess_df)
+
+    ax = behav_plots.plot_pupil_run_full(
+        sess_df, 
+        analyspar=analyspar,
+        figpar=figpar, 
+        title=title,
+        )
+    fig = ax.reshape(-1)[0].figure
+    
+    savedir, savename = helper_fcts.get_save_path(
+        figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
+    )
+
+    fulldir = plot_util.savefig(
+        fig, savename, savedir, log_dir=True, **figpar["save"]
+    )
+
+    return fulldir, savename
+
+
+#############################################
+def plot_pupil_run_histograms(analyspar, sesspar, extrapar, hist_df, figpar):
+    """
+    plot_pupil_run_histograms(analyspar, sesspar, extrapar, hist_df, figpar)
+
+    From dictionaries, plots running and pupil histograms across sessions.
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+        - hist_df (pd.DataFrame):
+            dataframe with one row per session, and the following columns, in 
+            addition to the basic sess_df columns:
+            - pupil_bin_edges (float):
+                bin edges for the pupil diameter data
+            - pupil_vals_binned (list):
+                pupil diameter values by bin, for each mouse
+            - run_bin_edges (float):
+                bin edges for the running data
+            - run_vals_binned (list):
+                run values by bin, for each mouse
+
+        - figpar (dict): 
+            dictionary containing figure parameters
+    """
+
+    title = "Running and pupil histograms"
+    
+    hist_df = pd.DataFrame.from_dict(hist_df)
+
+    ax = behav_plots.plot_pupil_run_histograms(
+        hist_df, 
+        analyspar=analyspar,
+        figpar=figpar, 
+        title=title,
+        )
+    fig = ax.reshape(-1)[0].figure
+    
+    savedir, savename = helper_fcts.get_save_path(
+        figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
+    )
+
+    fulldir = plot_util.savefig(
+        fig, savename, savedir, log_dir=True, **figpar["save"]
+    )
+
+    return fulldir, savename
+
+
+#############################################
 def plot_gabor_sequences_sess123(analyspar, sesspar, stimpar, basepar, 
                                  extrapar, trace_df, figpar):
     """
@@ -1752,14 +1866,233 @@ def plot_stimulus_onset_sess123(analyspar, sesspar, stimpar, basepar, extrapar,
 
 
 #############################################
-def plot_gabor_ex_roi_responses_sess1(analyspar, sesspar, stimpar, basepar, 
-                                      extrapar, ex_traces_df, figpar):
+def plot_stimulus_offset_sess123(analyspar, sesspar, stimpar, basepar, extrapar, 
+                                 trace_df, figpar):
+    """
+    plot_stimulus_offset_sess123(analyspar, sesspar, stimpar, basepar, extrapar, 
+                                 trace_df, figpar)
+
+    From dictionaries, plots stimulus offset sequences across sessions. 
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - basepar (dict): 
+            dictionary with keys of BasePar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+            ["split"] (str): data split
+        - trace_df (pd.DataFrame):
+            dataframe with one row per session/line/plane, and the following 
+            columns, in addition to the basic sess_df columns: 
+            - trace_stats (list): 
+                trace stats (split x frames x stat (me, err))
+            - time_values (list):
+                values for each frame, in seconds (only 0 to stimpar.post)
+
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+
+    Returns:
+        - fulldir (Path): final path of the directory in which the figure 
+                          is saved
+        - savename (str): name under which the figure is saved
+    """
+
+    title = "Stimulus offset sequences"
+    
+    trace_df = pd.DataFrame.from_dict(trace_df)
+
+    ax = seq_plots.plot_sess_traces(
+        trace_df, 
+        analyspar=analyspar, 
+        sesspar=sesspar,
+        figpar=figpar, 
+        trace_col="trace_stats",
+        row_col="sess_ns",
+        split=extrapar["split"],
+        title=title, 
+        size="reg"
+        )
+    fig = ax.reshape(-1)[0].figure
+    
+    savedir, savename = helper_fcts.get_save_path(
+        figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
+    )
+
+    fulldir = plot_util.savefig(
+        fig, savename, savedir, log_dir=True, **figpar["save"]
+    )
+
+    return fulldir, savename
+
+
+#############################################
+def plot_gabor_ex_roi_exp_responses_sess1(analyspar, sesspar, stimpar, basepar, 
+                                          extrapar, ex_traces_df, figpar):
 
     """
-    plot_gabor_ex_roi_responses_sess1(sessions, analyspar, sesspar, stimpar, 
-                                      basepar, extrapar, ex_traces_df, figpar)
+    plot_gabor_ex_roi_exp_responses_sess1(analyspar, sesspar, stimpar, basepar, 
+                                          extrapar, ex_traces_df, figpar)
 
-    From dictionaries, plots example ROI responses to Gabor sequences. 
+    From dictionaries, plots example ROI responses to expected Gabor sequences. 
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - basepar (dict): 
+            dictionary with keys of BasePar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+            ["n_ex"] (int): number of example ROIs retained per line/plane
+            ["rolling_win"] (int): window used in rolling mean over individual 
+                trial traces 
+            ["seed"] (int): seed
+            ["unexp"] (int): whether sequences are expected or unexpected
+        - ex_traces_df (pd.DataFrame):
+            dataframe with a row for each ROI, and the following columns, 
+            in addition to the basic sess_df columns: 
+            - time_values (list): values for each frame, in seconds
+            - roi_ns (list): selected ROI number
+            - traces_sm (list): selected ROI sequence traces, smoothed, with 
+                dims: seq x frames
+            - trace_stat (list): selected ROI trace mean or median
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+
+    Returns:
+        - fulldir (Path): final path of the directory in which the figure 
+                          is saved
+        - savename (str): name under which the figure is saved
+    """
+
+    title = "Example ROI responses to expected Gabor sequences"
+    
+    ex_traces_df = pd.DataFrame.from_dict(ex_traces_df)
+
+    ax = seq_plots.plot_ex_traces(
+        ex_traces_df, 
+        stimpar=stimpar, 
+        figpar=figpar, 
+        title=title,
+        )
+    fig = ax.reshape(-1)[0].figure
+    
+    savedir, savename = helper_fcts.get_save_path(
+        figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
+    )
+
+    fulldir = plot_util.savefig(
+        fig, savename, savedir, log_dir=True, **figpar["save"]
+    )
+
+    return fulldir, savename                             
+
+
+#############################################
+def plot_gabor_ex_roi_unexp_responses_sess1(analyspar, sesspar, stimpar, 
+                                            basepar, extrapar, ex_traces_df, 
+                                            figpar):
+
+    """
+    plot_gabor_ex_roi_unexp_responses_sess1(analyspar, sesspar, stimpar, 
+                                            basepar, extrapar, ex_traces_df, 
+                                            figpar)
+
+    From dictionaries, plots example ROI responses to unexpected Gabor 
+    sequences. 
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - basepar (dict): 
+            dictionary with keys of BasePar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+            ["n_ex"] (int): number of example ROIs retained per line/plane
+            ["rolling_win"] (int): window used in rolling mean over individual 
+                trial traces 
+            ["seed"] (int): seed
+            ["unexp"] (int): whether sequences are expected or unexpected
+        - ex_traces_df (pd.DataFrame):
+            dataframe with a row for each ROI, and the following columns, 
+            in addition to the basic sess_df columns: 
+            - time_values (list): values for each frame, in seconds
+            - roi_ns (list): selected ROI number
+            - traces_sm (list): selected ROI sequence traces, smoothed, with 
+                dims: seq x frames
+            - trace_stat (list): selected ROI trace mean or median
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+
+    Returns:
+        - fulldir (Path): final path of the directory in which the figure 
+                          is saved
+        - savename (str): name under which the figure is saved
+    """
+
+    title = "Example ROI responses to unexpected Gabor sequences"
+    
+    ex_traces_df = pd.DataFrame.from_dict(ex_traces_df)
+
+    ax = seq_plots.plot_ex_traces(
+        ex_traces_df, 
+        stimpar=stimpar, 
+        figpar=figpar, 
+        title=title,
+        )
+    fig = ax.reshape(-1)[0].figure
+    
+    savedir, savename = helper_fcts.get_save_path(
+        figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
+    )
+
+    fulldir = plot_util.savefig(
+        fig, savename, savedir, log_dir=True, **figpar["save"]
+    )
+
+    return fulldir, savename                                  
+
+
+#############################################
+def plot_visflow_ex_roi_nasal_responses_sess1(analyspar, sesspar, stimpar, 
+                                              basepar, extrapar, ex_traces_df, 
+                                              figpar):
+
+    """
+    plot_visflow_ex_roi_nasal_responses_sess1(analyspar, sesspar, stimpar, 
+                                              basepar, extrapar, ex_traces_df, 
+                                              figpar)
+
+    From dictionaries, plots example ROI responses to onset of unexpected flow 
+    during nasal (leftward) visual flow. 
     
     Returns figure name and save directory path.
     
@@ -1798,11 +2131,88 @@ def plot_gabor_ex_roi_responses_sess1(analyspar, sesspar, stimpar, basepar,
         - savename (str): name under which the figure is saved
     """
 
-    title = "Example ROI responses to Gabor sequences"
+    title = (
+        "Example ROI responses to unexpected flow during nasal visual flow"
+    )
     
     ex_traces_df = pd.DataFrame.from_dict(ex_traces_df)
 
-    ax = seq_plots.plot_ex_gabor_traces(
+    ax = seq_plots.plot_ex_traces(
+        ex_traces_df, 
+        stimpar=stimpar, 
+        figpar=figpar, 
+        title=title,
+        )
+    fig = ax.reshape(-1)[0].figure
+    
+    savedir, savename = helper_fcts.get_save_path(
+        figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
+    )
+
+    fulldir = plot_util.savefig(
+        fig, savename, savedir, log_dir=True, **figpar["save"]
+    )
+
+    return fulldir, savename                             
+
+
+#############################################
+def plot_visflow_ex_roi_temp_responses_sess1(analyspar, sesspar, stimpar, 
+                                             basepar, extrapar, ex_traces_df, 
+                                             figpar):
+
+    """
+    plot_visflow_ex_roi_temp_responses_sess1(analyspar, sesspar, stimpar, 
+                                             basepar, extrapar, ex_traces_df, 
+                                             figpar)
+
+    From dictionaries, plots example ROI responses to onset of unexpected flow 
+    during temporal (rightward) visual flow. 
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - basepar (dict): 
+            dictionary with keys of BasePar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+            ["n_ex"] (int): number of example ROIs retained per line/plane
+            ["rolling_win"] (int): window used in rolling mean over individual 
+                trial traces 
+            ["seed"] (int): seed
+        - ex_traces_df (pd.DataFrame):
+            dataframe with a row for each ROI, and the following columns, 
+            in addition to the basic sess_df columns: 
+            - time_values (list): values for each frame, in seconds
+            - roi_ns (list): selected ROI number
+            - traces_sm (list): selected ROI sequence traces, smoothed, with 
+                dims: seq x frames
+            - trace_stat (list): selected ROI trace mean or median
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+
+    Returns:
+        - fulldir (Path): final path of the directory in which the figure 
+                          is saved
+        - savename (str): name under which the figure is saved
+    """
+
+    title = (
+        "Example ROI responses to unexpected flow during temporal visual flow"
+    )
+    
+    ex_traces_df = pd.DataFrame.from_dict(ex_traces_df)
+
+    ax = seq_plots.plot_ex_traces(
         ex_traces_df, 
         stimpar=stimpar, 
         figpar=figpar, 

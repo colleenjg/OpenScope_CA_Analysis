@@ -449,7 +449,7 @@ def main(args):
         if panel == "all":
             panels = paper_organization.get_all_panels(args.figure)
         else:
-            panels = [panel]
+            panels = [p for p in panel]
 
         for p, args.panel in enumerate(panels):
             new_fig = (p == 0)
@@ -502,7 +502,7 @@ def parse_args():
     parser.add_argument("--figure", default="1", 
         help="figure for which to plot results")
     parser.add_argument("--panel", default="all", 
-        help="specific panel for which to plot results or 'all'")
+        help="specific panel or panels for which to plot results or 'all'")
 
         # technical parameters
     parser.add_argument("--plt_bkend", default=None, 
