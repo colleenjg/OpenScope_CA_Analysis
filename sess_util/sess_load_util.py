@@ -91,6 +91,7 @@ def load_info_from_mouse_df(sessid, mouse_df="mouse_df.csv"):
 
     Returns:
         - df_dict (dict): dictionary with following keys:
+            - age_weeks (float): age (in weeks)
             - all_files (bool) : if True, all files have been acquired for
                                  the session
             - any_files (bool) : if True, some files have been acquired for
@@ -98,6 +99,7 @@ def load_info_from_mouse_df(sessid, mouse_df="mouse_df.csv"):
             - dandi_id (str)   : Dandi session ID
             - date (str)       : session date (i.e., yyyymmdd)
             - depth (int)      : recording depth 
+            - DOB (int)        : date of birth (i.e., yyyymmdd)
             - plane (str)      : recording plane ("soma" or "dend")
             - line (str)       : mouse line (e.g., "L5-Rbp4")
             - mouse_n (int)    : mouse number (e.g., 1)
@@ -107,6 +109,7 @@ def load_info_from_mouse_df(sessid, mouse_df="mouse_df.csv"):
                                  quality control
             - runtype (str)    : "prod" (production) or "pilot" data
             - sess_n (int)     : overall session number (e.g., 1)
+            - sex (str)        : sex (e.g., "F" or "M")
             - stim_seed (int)  : random seed used to generated stimulus 
     """
 
@@ -118,7 +121,10 @@ def load_info_from_mouse_df(sessid, mouse_df="mouse_df.csv"):
     df_dict = {
         "mouse_n"      : int(df_line["mouse_n"].tolist()[0]),
         "dandi_id"     : df_line["dandi_session_id"].tolist()[0],
+        "sex"          : str(df_line["sex"].tolist()[0]),
+        "DOB"          : int(df_line["DOB"].tolist()[0]),
         "date"         : int(df_line["date"].tolist()[0]),
+        "age_weeks"    : float(df_line["age_weeks"].tolist()[0]),
         "depth"        : df_line["depth"].tolist()[0],
         "plane"        : df_line["plane"].tolist()[0],
         "line"         : df_line["line"].tolist()[0],
