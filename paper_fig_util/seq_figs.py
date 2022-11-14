@@ -289,13 +289,73 @@ def stimulus_onset_sess123(sessions, analyspar, sesspar, stimpar, basepar,
 
 
 #############################################
-def gabor_ex_roi_responses_sess1(sessions, analyspar, sesspar, stimpar, 
-                                 basepar, figpar, seed=None, parallel=False):
+def stimulus_offset_sess123(sessions, analyspar, sesspar, stimpar, basepar, 
+                            figpar, parallel=False):
     """
-    gabor_ex_roi_responses_sess1(sessions, analyspar, sesspar, stimpar, 
-                                 basepar, figpar)
+    stimulus_offset_sess123(sessions, analyspar, sesspar, stimpar, basepar, 
+                            figpar)
 
-    Retrieves example ROI Gabor sequence responses from session 1.
+    Retrieves ROI responses to stimulus offset from sessions 1 to 3.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - basepar (BasePar): 
+            named tuple containing baseline parameters
+        - figpar (dict): 
+            dictionary containing figure parameters
+    
+    Optional args:
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+    """
+
+    logger.info("Compiling stimulus offset sequences from session 1 to 3.", 
+        extra={"spacing": "\n"})
+
+    split = "stim_offset"
+    trace_df = seq_analys.get_sess_grped_trace_df(
+        sessions, 
+        analyspar=analyspar, 
+        stimpar=stimpar, 
+        basepar=basepar, 
+        split=split, 
+        parallel=parallel
+        )
+
+    extrapar = {
+        "split": split,
+    }
+
+    info = {"analyspar": analyspar._asdict(),
+            "sesspar"  : sesspar._asdict(),
+            "stimpar"  : stimpar._asdict(),
+            "basepar"  : basepar._asdict(),
+            "extrapar" : extrapar,
+            "trace_df" : trace_df.to_dict()
+            }
+
+    helper_fcts.plot_save_all(info, figpar)
+
+
+#############################################
+def gabor_ex_roi_exp_responses_sess1(sessions, analyspar, sesspar, stimpar, 
+                                     basepar, figpar, seed=None, 
+                                     parallel=False):
+    """
+    gabor_ex_roi_exp_responses_sess1(sessions, analyspar, sesspar, stimpar, 
+                                     basepar, figpar)
+
+    Retrieves example ROI responses to expected Gabor sequence from session 1.
         
     Saves results and parameters relevant to analysis in a dictionary.
 
@@ -323,11 +383,13 @@ def gabor_ex_roi_responses_sess1(sessions, analyspar, sesspar, stimpar,
     """
 
     logger.info(
-        "Compiling example ROI Gabor sequence responses from session 1.", 
+        "Compiling example ROI responses to expected Gabor sequence from "
+        "session 1.", 
         extra={"spacing": "\n"})
 
     n_ex = 6
     rolling_win = 4
+    unexp = 0
     ex_traces_df = seq_analys.get_ex_traces_df(
         sessions, 
         analyspar, 
@@ -335,6 +397,154 @@ def gabor_ex_roi_responses_sess1(sessions, analyspar, sesspar, stimpar,
         basepar, 
         n_ex=n_ex,
         rolling_win=rolling_win,
+        unexp=unexp,
+        randst=seed,
+        parallel=parallel,
+        )
+
+    extrapar = {
+        "n_ex"       : n_ex,
+        "rolling_win": rolling_win,
+        "unexp"      : unexp,
+        "seed"       : seed,
+    }
+
+    info = {"analyspar"   : analyspar._asdict(),
+            "sesspar"     : sesspar._asdict(),
+            "stimpar"     : stimpar._asdict(),
+            "basepar"     : basepar._asdict(),
+            "extrapar"    : extrapar,
+            "ex_traces_df": ex_traces_df.to_dict()
+            }
+
+    helper_fcts.plot_save_all(info, figpar)
+    
+
+#############################################
+def gabor_ex_roi_unexp_responses_sess1(sessions, analyspar, sesspar, stimpar, 
+                                       basepar, figpar, seed=None, 
+                                       parallel=False):
+    """
+    gabor_ex_roi_unexp_responses_sess1(sessions, analyspar, sesspar, stimpar, 
+                                       basepar, figpar)
+
+    Retrieves example ROI responses to unexpected Gabor sequence from session 1.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - basepar (BasePar): 
+            named tuple containing baseline parameters
+        - figpar (dict): 
+            dictionary containing figure parameters
+    
+    Optional args:
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+    """
+
+    logger.info(
+        "Compiling example ROI responses to unexpected Gabor sequence from "
+        "session 1.", 
+        extra={"spacing": "\n"})
+
+    n_ex = 6
+    rolling_win = 4
+    unexp = 1
+    ex_traces_df = seq_analys.get_ex_traces_df(
+        sessions, 
+        analyspar, 
+        stimpar, 
+        basepar, 
+        n_ex=n_ex,
+        rolling_win=rolling_win,
+        unexp=unexp,
+        randst=seed,
+        parallel=parallel,
+        )
+
+    extrapar = {
+        "n_ex"       : n_ex,
+        "rolling_win": rolling_win,
+        "unexp"      : unexp,
+        "seed"       : seed,
+    }
+
+    info = {"analyspar"   : analyspar._asdict(),
+            "sesspar"     : sesspar._asdict(),
+            "stimpar"     : stimpar._asdict(),
+            "basepar"     : basepar._asdict(),
+            "extrapar"    : extrapar,
+            "ex_traces_df": ex_traces_df.to_dict()
+            }
+
+    helper_fcts.plot_save_all(info, figpar)
+    
+
+#############################################
+def visflow_ex_roi_nasal_responses_sess1(sessions, analyspar, sesspar, stimpar, 
+                                         basepar, figpar, seed=None, 
+                                         parallel=False):
+    """
+    visflow_ex_roi_nasal_responses_sess1(sessions, analyspar, sesspar, stimpar, 
+                                         basepar, figpar)
+
+    Retrieves example ROI responses to unexpected flow during nasal (leftward) 
+    visual flow, from session 1.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - basepar (BasePar): 
+            named tuple containing baseline parameters
+        - figpar (dict): 
+            dictionary containing figure parameters
+    
+    Optional args:
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+    """
+
+    logger.info(
+        "Compiling example ROI responses to onset of unexpected flow during "
+        "nasal (leftward) visual flow from session 1.", 
+        extra={"spacing": "\n"})
+
+    n_ex = 6
+    rolling_win = 4
+    unexp = 0
+    ex_traces_df = seq_analys.get_ex_traces_df(
+        sessions, 
+        analyspar, 
+        stimpar, 
+        basepar, 
+        n_ex=n_ex,
+        rolling_win=rolling_win,
+        unexp=unexp,
         randst=seed,
         parallel=parallel,
         )
@@ -356,6 +566,79 @@ def gabor_ex_roi_responses_sess1(sessions, analyspar, sesspar, stimpar,
     helper_fcts.plot_save_all(info, figpar)
     
 
+#############################################
+def visflow_ex_roi_temp_responses_sess1(sessions, analyspar, sesspar, stimpar, 
+                                        basepar, figpar, seed=None, 
+                                        parallel=False):
+    """
+    visflow_ex_roi_temp_responses_sess1(sessions, analyspar, sesspar, stimpar, 
+                                        basepar, figpar)
+
+    Retrieves example ROI responses to unexpected flow during temporal 
+    (rightward) visual flow, from session 1.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - basepar (BasePar): 
+            named tuple containing baseline parameters
+        - figpar (dict): 
+            dictionary containing figure parameters
+    
+    Optional args:
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+    """
+
+    logger.info(
+        "Compiling example ROI responses to onset of unexpected flow during "
+        "temporal (rightward) visual flow from session 1.", 
+        extra={"spacing": "\n"})
+
+    n_ex = 6
+    rolling_win = 4
+    unexp = 1
+    ex_traces_df = seq_analys.get_ex_traces_df(
+        sessions, 
+        analyspar, 
+        stimpar, 
+        basepar, 
+        n_ex=n_ex,
+        rolling_win=rolling_win,
+        unexp=unexp,
+        randst=seed,
+        parallel=parallel,
+        )
+
+    extrapar = {
+        "n_ex"       : n_ex,
+        "rolling_win": rolling_win,
+        "seed"       : seed,
+    }
+
+    info = {"analyspar"   : analyspar._asdict(),
+            "sesspar"     : sesspar._asdict(),
+            "stimpar"     : stimpar._asdict(),
+            "basepar"     : basepar._asdict(),
+            "extrapar"    : extrapar,
+            "ex_traces_df": ex_traces_df.to_dict()
+            }
+
+    helper_fcts.plot_save_all(info, figpar)
+    
+    
 #############################################
 def gabor_rel_resp_tracked_rois_sess123(sessions, analyspar, sesspar, stimpar, 
                                         permpar, figpar, seed=None, 
