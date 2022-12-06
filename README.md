@@ -23,7 +23,7 @@ Once installed, when using the codebase, simply activate the environment:
 All of the appropriate libraries should then be loaded, and the modules can be imported for use in ipython, python scripts, or jupyter notebooks, for example.
 
 ## 4. Scripts and modules
-* `run_paper_figures.py`: run, analyse and plot paper figures (for example usage, see the `paper_figures` folder)   
+* `run_paper_figures.py`: run, analyse and plot paper figures (for example usage, see the **`paper_figures`** folder)
 * **`analysis`**: analysis scripts, including the Session and Stim objects
 * **`sess_util`**: session specific utilities module
 * **`plot_fcts`**: plotting scripts
