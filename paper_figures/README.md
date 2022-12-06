@@ -1,6 +1,6 @@
 # Paper figures
 
-This folder contains all of the data panels in the paper, organized by figure. Each panel is accompanied by a `json` file that contains its source data, and from which the panel can be directly replotted.
+This folder contains all of the data panels in the paper, organized by figure. Each panel is accompanied by a `json` file that contains its source data, and from which the panel can be directly replotted. It has been extended to also allow plotting of figures from our **dataset paper** (under development).
 
 **Example usage:**  
 - To generate Fig. 2C **from start to finish** (analysis + plotting), 
@@ -8,9 +8,12 @@ run, from the main directory:
 `python run_paper_figures.py --figure 2 --panel C --full_power --overwrite --parallel --datadir path/to/data`  
 - To instead **only replot** Fig. 2C from its source data, run from the main directory:  
 `python run_paper_figures.py --figure 2 --panel C --full_power --plot_only`  
+- To create figures, e.g., Fig. 6, from the **dataset paper** (under development), run from the main directory:  
+`python run_paper_figures.py --paper dataset --figure 6`  
+
 
 **Notes:** 
-- `--full_power`: analysis is run with **full statistical power**, as was done for the paper (e.g., using 1e4 permutations, for permutation tests). If running the full analysis, this means that more time and resources will be needed to run the code.<sup>[1](#1)</sup> If omitted, a lower power version of the panel will be generated instead, if applicable, and saved under a modified name, e.g. `Fig2/panels_with_diff_params/panel_C_lower_power.svg`.
+- `--full_power`: analysis is run with **full statistical power**, as was done for the paper (e.g., using 1e4 permutations, for permutation tests). If running the full analysis, this means that more time and resources will be needed to run the code.<sup>[1](#1)</sup> If omitted, a lower power version of the panel will be generated instead, if applicable, and saved under a modified name, e.g. `analysis_paper/Fig2/panels_with_diff_params/panel_C_lower_power.svg`.
 - `--plot_only`: panel is replotted from the source data, if it exists. The full analysis is not run.
 - `--overwrite`: analysis overwrites panel source data and plot, if they exist. If used with `--plot_only`, however, only the panel plot is overwritten, if it exists.
 - `--parallel`: analysis is run using all available CPU cores, to increase code efficiency, and reduce execution time.

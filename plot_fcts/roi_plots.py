@@ -979,7 +979,7 @@ def plot_roi_masks_overlayed(roi_mask_df, figpar, title=None,
         outputs = create_sess_roi_masks(
             lp_row, crop=crop, get_crop_area_only=mark_crop_only
             )
-        
+ 
         if mark_crop_only:
             roi_masks, crop_area = outputs
         else:

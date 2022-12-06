@@ -15,7 +15,7 @@ from collections import namedtuple
 from pathlib import Path
 import time
 
-from util import logger_util, rand_util
+from util import gen_util, logger_util, rand_util
 from sess_util import sess_gen_util
 from paper_fig_util import behav_figs, corr_figs, decoding_figs, misc_figs, \
     seq_figs, stim_figs, roi_figs, usi_figs, plot_figs
@@ -32,26 +32,63 @@ logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
-def get_all_figures():
+def check_paper(paper="dataset"):
+    """
+    check_paper()
+
+    Checks and returns the paper type.
+
+    Optional args:
+        - paper (str): paper type ('dataset' or 'analysis')
+                       default: "dataset"
+
+    Returns:
+        - paper (str): paper type
+    """
+
+    # create a dummy object with figure/panel combination that is plottable.
+    dummy_fig_panel = FigurePanelAnalysis(
+        figure=2, panel="C", paper=paper, datadir=""
+        )
+
+    paper = str(paper).lower()
+    if paper not in dummy_fig_panel.figure_panel_dict.keys():
+        raise ValueError("Only the following paper values are "
+            f"accepted: {dummy_fig_panel.figure_panel_dict.keys()}.")
+
+    return paper
+
+
+#############################################
+def get_all_figures(paper="dataset"):
     """
     get_all_figures()
 
-    Returns all figures.
-    
+    Returns all figures for the specified paper.
+
+    Optional args:
+        - paper (str): paper for which to get all figures 
+                       ('dataset' or 'analysis')
+                       default: "dataset"
+
     Returns:
         - all_figures (list): list of figures
     """
 
-    # create a dummy object with figure/panel combination that exists.
-    dummy_fig_panel = FigurePanelAnalysis(figure=2, panel="G", datadir="")
+    # create a dummy object with figure/panel combination that is plottable.
+    dummy_fig_panel = FigurePanelAnalysis(
+        figure=2, panel="C", paper=paper, datadir=""
+        )
 
-    all_figures = dummy_fig_panel.figure_panel_dict.keys()
+    paper = check_paper(paper)
+
+    all_figures = dummy_fig_panel.figure_panel_dict[paper].keys()
     
     return all_figures
 
 
 #############################################
-def get_all_panels(figure=2):
+def get_all_panels(paper="dataset", figure=2):
     """
     get_all_panels()
 
@@ -65,15 +102,19 @@ def get_all_panels(figure=2):
         - all_panels (list): list of panels for the figure
     """
 
-    # create a dummy object with figure/panel combination that exists.
-    dummy_fig_panel = FigurePanelAnalysis(figure=2, panel="G", datadir="")
+    # create a dummy object with figure/panel combination that is plottable.
+    dummy_fig_panel = FigurePanelAnalysis(
+        figure=2, panel="C", datadir="", paper=paper
+        )
+    
+    paper = check_paper(paper)
 
     figure = str(figure).upper()
-    if figure not in dummy_fig_panel.figure_panel_dict.keys():
+    if figure not in dummy_fig_panel.figure_panel_dict[paper].keys():
         raise ValueError("Only the following figure values are "
-            f"accepted: {dummy_fig_panel.figure_panel_dict.keys()}.")
+            f"accepted: {dummy_fig_panel.figure_panel_dict[paper].keys()}.")
     
-    all_panels = dummy_fig_panel.figure_panel_dict[figure].keys()
+    all_panels = dummy_fig_panel.figure_panel_dict[paper][figure].keys()
     
     return all_panels
 
@@ -262,9 +303,10 @@ def get_specific_params(sess_n="1-3", mouse_n="any", plane="all", line="all",
 
 #############################################
 class FigurePanelAnalysis():
-    def __init__(self, figure, panel, datadir, mouse_df_path="mouse_df.csv", 
-                 output="paper_figures", full_power=False, parallel=False, 
-                 seed="paper", plt_bkend=None, fontdir=None):
+    def __init__(self, figure, panel, datadir, paper="dataset", 
+                 mouse_df_path="mouse_df.csv", output="paper_figures", 
+                 full_power=False, parallel=False, seed="paper", plt_bkend=None, 
+                 fontdir=None):
         """
         Initializes a FigurePanelAnalysis object.
 
@@ -276,6 +318,9 @@ class FigurePanelAnalysis():
             - datadir (Path): data directory
         
         Optional args:
+            - paper (str): 
+                paper for which to get all figures ('dataset' or 'analysis')
+                default: "dataset"
             - mouse_df_path (Path): 
                 mouse dataframe path
                 default: "mouse_df.csv"
@@ -301,6 +346,7 @@ class FigurePanelAnalysis():
                 default: None
         """
         
+        self.paper  = str(paper).lower()
         self.figure = str(figure).upper()
         self.panel  = str(panel).capitalize()
 
@@ -412,18 +458,22 @@ class FigurePanelAnalysis():
         well as self._set_power() and self._set_seed().
         """
 
-        if self.figure not in self.figure_panel_dict.keys():
+        if self.paper not in self.figure_panel_dict.keys():
+            raise ValueError("Only the following paper values are accepted: "
+            f"{self.figure_panel_dict.keys()}.")
+
+        if self.figure not in self.figure_panel_dict[self.paper].keys():
             raise ValueError("Only the following figure values are "
-                f"accepted: {self.figure_panel_dict.keys()}.")
+                f"accepted: {self.figure_panel_dict[self.paper].keys()}.")
         else:
-            existing_panels = self.figure_panel_dict[self.figure].keys()
+            existing_panels = self.figure_panel_dict[self.paper][self.figure].keys()
             if self.panel not in existing_panels:
                 existing_panel_strs = ", ".join(existing_panels)
                 raise ValueError(f"Panel {self.panel} is not recognized for "
                     f"figure {self.figure}. Existing panels are "
                     f"{existing_panel_strs}.")
 
-        self.figure_panel_dict[self.figure][self.panel]()
+        self.figure_panel_dict[self.paper][self.figure][self.panel]()
 
         self._set_power()
         self._set_seed()
@@ -580,6 +630,21 @@ class FigurePanelAnalysis():
 
 
     ### Figure 3 ###
+    def run_example(self):
+        self.description = "Example running frame."
+        self.specific_params = None
+        self.analysis_fct = None
+        self.plot_fct = None
+        no_plot_fct(reason="is made up of sample images")
+
+    def pupil_example(self):
+        self.description = "Example pupil frames, with markings."
+        self.specific_params = None
+        self.analysis_fct = None
+        self.plot_fct = None
+        no_plot_fct(reason="is made up of sample images")
+
+
     def pupil_run_responses(self):
         self.description = "Running and pupil responses to Gabor sequences."
         self.specific_params = get_specific_params(
@@ -1181,89 +1246,130 @@ class FigurePanelAnalysis():
         """
         if not hasattr(self, "_figure_panel_dict"):
             self._figure_panel_dict = {
-                "1": {
-                    "A": self.structure_schematic,
-                    "B": self.imaging_schematic,
-                    "C": self.imaging_planes,
-                    "D": self.imaging_plane_schematic,
-                    "E": self.roi_tracking,
-                    },
-                "2": {
-                    "A": self.gabor_sequences,
-                    "B": self.experimental_timeline,
-                    "C": self.gabor_example_roi_usis,
-                    "D": self.gabor_example_roi_usi_sig,
-                    "E": self.gabor_roi_usi_distr,
-                    "F": self.gabor_roi_usi_sig,
-                    "G": self.gabor_roi_usi_sig_common_oris,
-                    },
-                "3": {
-                    "A": self.pupil_run_responses,
-                    "B": self.pupil_run_block_diffs,
-                    "C": self.pupil_run_full,
-                    "D": self.pupil_run_histograms,
-                    },
-                "4": {
-                    "A": self.gabor_sequences_sess123,
-                    "B": self.gabor_sequence_diffs_sess123,
-                    "C": self.gabor_rel_resp_sess123,
-                    "D": self.gabor_tracked_roi_usis_sess123,
-                    "E": self.gabor_tracked_roi_abs_usi_means_sess123,
-                    "F": self.gabor_tracked_roi_usi_variances_sess123,
-                    },
-                "5": {
-                    "A": self.gabor_Dori_decoding_sess123,
-                    "B": self.gabor_Uori_decoding_sess123,
-                    "C": self.gabor_corrs_sess123_comps,
-                    },
-                "6": {
-                    "A": self.model_illustration,
-                    },
-                "S1": {
-                    "A": self.roi_overlays_sess123,
-                    "B": self.roi_overlays_sess123_enlarged
-                    },
-                "S2": {
-                    "A": self.snrs_sess123,
-                    "B": self.mean_signal_sess123,
-                    "C": self.nrois_sess123,
-                    "D": self.roi_corr_sess123,
-                    },
-                "S3": {
-                    "A": self.stimulus_onset_sess123,
-                    "B": self.stimulus_offset_sess123,
-                    "C": self.gabor_ex_roi_exp_responses_sess1,
-                    "D": self.gabor_ex_roi_unexp_responses_sess1,
-                    "E": self.visflow_ex_roi_nasal_responses_sess1,
-                    "F": self.visflow_ex_roi_temp_responses_sess1,
-                    },
-                "S4": {
-                    "A": self.gabor_roi_usi_sig_by_mouse,
-                    "B": self.gabor_rel_resp_tracked_rois_sess123,
-                    "C": self.gabor_tracked_roi_abs_usi_means_sess123_by_mouse,
-                    },
-                "S5": {
-                    "A": self.visual_flow_stimulus,
-                    "B": self.visual_flow_sequences_sess123,
-                    "C": self.visual_flow_diffs_sess123,
-                    },
-                "S6":  {
-                    "A": self.visual_flow_rel_resp_sess123,
-                    "B": self.unexp_resp_stimulus_comp_sess1v3,
-                    "C": self.visual_flow_tracked_roi_usis_sess123,
-                    "D": self.visual_flow_tracked_roi_abs_usi_means_sess123,
-                    "E": self.tracked_roi_usis_stimulus_comp_sess1v3,
-                    "F": self.visual_flow_corrs_sess123_comps,
-                    },
-                "S7":  {
-                    "A": self.gabor_corr_scatterplots_sess12,
-                    "B": self.gabor_corr_scatterplots_sess23,
-                    "C": self.visual_flow_corr_scatterplots_sess12,
-                    "D": self.visual_flow_corr_scatterplots_sess23,
-                    },
-                "S8":  {
-                    "A": self.dendritic_roi_tracking_example,
-                    "B": self.somatic_roi_tracking_example,
+                "dataset": {
+                    "1": {
+                        "A": self.imaging_schematic,
+                        "B": self.imaging_planes,
+                        "C": self.imaging_plane_schematic,
+                        },
+                    "2": {
+                        "A": self.experimental_timeline,
+                        "B": self.roi_tracking,
+                        "C": self.roi_overlays_sess123,
+                        "D": self.roi_overlays_sess123_enlarged
+                        },
+                    "3": {
+                        "A": self.gabor_sequences,
+                        "B": self.visual_flow_stimulus,
+                        },
+                    "4": {
+                        "A": self.run_example,
+                        "B": self.pupil_example,
+                        },
+                    "5": {
+                        "A": self.gabor_ex_roi_exp_responses_sess1,
+                        "B": self.gabor_ex_roi_unexp_responses_sess1,
+                        "C": self.visflow_ex_roi_nasal_responses_sess1,
+                        "D": self.visflow_ex_roi_temp_responses_sess1,
+                        },
+                    "6": {
+                        "A": self.pupil_run_full,
+                        "B": self.pupil_run_histograms,
+                        },
+                    "7": {
+                        "A": self.snrs_sess123,
+                        "B": self.mean_signal_sess123,
+                        "C": self.roi_corr_sess123,
+                        },
+                    "8":  {
+                        "A": self.dendritic_roi_tracking_example,
+                        "B": self.somatic_roi_tracking_example,
+                        },
+                    "9": {
+                        "A": self.stimulus_onset_sess123,
+                        "B": self.stimulus_offset_sess123,
+                    }
+                },
+
+                "analysis": {
+                    "1": {
+                        "A": self.structure_schematic,
+                        "B": self.imaging_schematic,
+                        "C": self.imaging_planes,
+                        "D": self.imaging_plane_schematic,
+                        "E": self.roi_tracking,
+                        },
+                    "2": {
+                        "A": self.gabor_sequences,
+                        "B": self.experimental_timeline,
+                        "C": self.gabor_example_roi_usis,
+                        "D": self.gabor_example_roi_usi_sig,
+                        "E": self.gabor_roi_usi_distr,
+                        "F": self.gabor_roi_usi_sig,
+                        "G": self.gabor_roi_usi_sig_common_oris,
+                        },
+                    "3": {
+                        "A": self.pupil_run_responses,
+                        "B": self.pupil_run_block_diffs,
+                        },
+                    "4": {
+                        "A": self.gabor_sequences_sess123,
+                        "B": self.gabor_sequence_diffs_sess123,
+                        "C": self.gabor_rel_resp_sess123,
+                        "D": self.gabor_tracked_roi_usis_sess123,
+                        "E": self.gabor_tracked_roi_abs_usi_means_sess123,
+                        "F": self.gabor_tracked_roi_usi_variances_sess123,
+                        },
+                    "5": {
+                        "A": self.gabor_Dori_decoding_sess123,
+                        "B": self.gabor_Uori_decoding_sess123,
+                        "C": self.gabor_corrs_sess123_comps,
+                        },
+                    "6": {
+                        "A": self.model_illustration,
+                        },
+                    "S1": {
+                        "A": self.roi_overlays_sess123,
+                        "B": self.roi_overlays_sess123_enlarged
+                        },
+                    "S2": {
+                        "A": self.snrs_sess123,
+                        "B": self.mean_signal_sess123,
+                        "C": self.nrois_sess123,
+                        "D": self.roi_corr_sess123,
+                        },
+                    "S3": {
+                        "A": self.stimulus_onset_sess123,
+                        "B": self.gabor_ex_roi_exp_responses_sess1,
+                        },
+                    "S4": {
+                        "A": self.gabor_roi_usi_sig_by_mouse,
+                        "B": self.gabor_rel_resp_tracked_rois_sess123,
+                        "C": self.gabor_tracked_roi_abs_usi_means_sess123_by_mouse,
+                        },
+                    "S5": {
+                        "A": self.visual_flow_stimulus,
+                        "B": self.visual_flow_sequences_sess123,
+                        "C": self.visual_flow_diffs_sess123,
+                        },
+                    "S6":  {
+                        "A": self.visual_flow_rel_resp_sess123,
+                        "B": self.unexp_resp_stimulus_comp_sess1v3,
+                        "C": self.visual_flow_tracked_roi_usis_sess123,
+                        "D": self.visual_flow_tracked_roi_abs_usi_means_sess123,
+                        "E": self.tracked_roi_usis_stimulus_comp_sess1v3,
+                        "F": self.visual_flow_corrs_sess123_comps,
+                        },
+                    "S7":  {
+                        "A": self.gabor_corr_scatterplots_sess12,
+                        "B": self.gabor_corr_scatterplots_sess23,
+                        "C": self.visual_flow_corr_scatterplots_sess12,
+                        "D": self.visual_flow_corr_scatterplots_sess23,
+                        },
+                    "S8":  {
+                        "A": self.dendritic_roi_tracking_example,
+                        "B": self.somatic_roi_tracking_example,
+                        },
                     }
                 }
         return self._figure_panel_dict
