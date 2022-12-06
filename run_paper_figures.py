@@ -104,6 +104,7 @@ def init_analysis(args):
         figure=args.figure, 
         panel=args.panel, 
         datadir=args.datadir,
+        paper=args.paper,
         mouse_df_path=args.mouse_df_path,
         output=args.output,
         full_power=args.full_power, 
@@ -352,7 +353,8 @@ def run_single_panel(args, sessions=None, new_fig=False):
 
     sep = DOUBLE_SEP if new_fig else SEP
     logger.info(
-        f"{sep}Fig. {fig_panel_analysis.figure}{fig_panel_analysis.panel}. "
+        f"{sep}Fig. {fig_panel_analysis.figure}{fig_panel_analysis.panel} "
+        f"({fig_panel_analysis.paper} paper). "
         f"{action}: {fig_panel_analysis.description}", 
         extra={"spacing": "\n"}
         )
@@ -439,7 +441,7 @@ def main(args):
 
     # run through figure(s) and panel(s)
     if args.figure == "all":
-        figures = paper_organization.get_all_figures()
+        figures = paper_organization.get_all_figures(paper=args.paper)
     else:
         figures = [args.figure]
 
@@ -447,7 +449,9 @@ def main(args):
     panel = args.panel
     for args.figure in figures:
         if panel == "all":
-            panels = paper_organization.get_all_panels(args.figure)
+            panels = paper_organization.get_all_panels(
+                paper=args.paper, figure=args.figure
+                )
         else:
             panels = [p for p in panel]
 
@@ -499,6 +503,8 @@ def parse_args():
     parser.add_argument("--full_power", action="store_true", 
         help=("run analyses with all permutations (much slower for local "
         "computing)"))
+    parser.add_argument("--paper", default="analysis", 
+        help="paper ('dataset' or 'analysis') for which to plot results")
     parser.add_argument("--figure", default="1", 
         help="figure for which to plot results")
     parser.add_argument("--panel", default="all", 

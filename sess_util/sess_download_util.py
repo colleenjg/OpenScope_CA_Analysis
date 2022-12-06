@@ -10,9 +10,12 @@ Dandiset 000037 is the Credit Assignment Project dandiset. It comprises data
 for 49 sessions. The asset (session file) sizes are in the following ranges:
 - Basic data (with everything required for most analyses): 
     130 MB to 1.7 GB per asset
-    ~25 GB total
+    ~25 GB total 
+    ~15 GB total (only sess 1-3 that passed QC, i.e., 33 total)
 - Basic data + stimulus template images: 
     1.5 to 3.1 GB per asset
+    ~95 GB total
+    ~60 GB total (only sess 1-3 that passed QC, i.e., 33 total)
 - Basic data + stimulus template images + full imaging stack: 
     ~65 GB per asset? (to be confirmed)
 
@@ -150,9 +153,10 @@ def download_dandiset_assets(dandiset_id="000037", version="draft", output=".",
             runtype="prod", 
             pass_fail=pass_fail, 
             incl="all", 
+            omit_sess=[838633305], # not on Dandi (no asset ID)
             sort=True
             )
-
+        
     logger.info("Identifying the URLs of dandi assets to download...")
     dandiset_urls = get_dandiset_asset_urls(
         dandiset_id, 

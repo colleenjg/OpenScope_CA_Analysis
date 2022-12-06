@@ -62,7 +62,9 @@ def get_save_path(fig_panel_analysis, main_direc=None):
             name under with to save file
     """
 
-    savedir = Path(f"Fig{fig_panel_analysis.figure}")
+    savedir = Path(
+        f"{fig_panel_analysis.paper}_paper", f"Fig{fig_panel_analysis.figure}"
+        )
     savename = f"panel_{fig_panel_analysis.panel}"
 
     if main_direc is not None:
