@@ -2,7 +2,7 @@ name: osca
 channels:
   - defaults
 dependencies:
-  - python==3.7.11
+  - python==3.8.16
   - pip==20.3
   - pip:
       - future
@@ -39,3 +39,4 @@ dependencies:
       - tqdm
       - pyglm==1.99.*
       - git+https://github.com/colleenjg/util.git@osca_mult
+
