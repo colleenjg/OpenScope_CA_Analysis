@@ -147,13 +147,13 @@ def download_dandiset_assets(dandiset_id="000037", version="draft", output=".",
         pass_fail = "all" if excluded_sess else "P"
         asset_sessids = sess_gen_util.get_sess_vals(
             mouse_df, 
-            "dandi_session_id", 
+            "sessid", 
             mouse_n=mouse_ns, 
             sess_n=sess_ns, 
             runtype="prod", 
             pass_fail=pass_fail, 
             incl="all", 
-            omit_sess=[838633305], # not on Dandi (no asset ID)
+            omit_sess=[838633305], # not on Dandi
             sort=True
             )
         

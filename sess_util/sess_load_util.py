@@ -96,7 +96,7 @@ def load_info_from_mouse_df(sessid, mouse_df="mouse_df.csv"):
                                  the session
             - any_files (bool) : if True, some files have been acquired for
                                  the session
-            - dandi_id (str)   : Dandi session ID
+            - timestamp (str)  : session timestamp (in UTC)
             - date (str)       : session date (i.e., yyyymmdd)
             - depth (int)      : recording depth 
             - DOB (int)        : date of birth (i.e., yyyymmdd)
@@ -120,7 +120,7 @@ def load_info_from_mouse_df(sessid, mouse_df="mouse_df.csv"):
 
     df_dict = {
         "mouse_n"      : int(df_line["mouse_n"].tolist()[0]),
-        "dandi_id"     : df_line["dandi_session_id"].tolist()[0],
+        "timestamp"    : df_line["full_timestamp"].tolist()[0],
         "sex"          : str(df_line["sex"].tolist()[0]),
         "DOB"          : int(df_line["DOB"].tolist()[0]),
         "date"         : int(df_line["date"].tolist()[0]),
@@ -175,7 +175,7 @@ def get_mouseid_sessid_nwb(nwb_files):
                     f"do not match: {', '.join(nwb_filenames)}."
                     )
             
-            new_sessid = nwbfile_in.identifier
+            new_sessid = nwbfile_in.session_id
             if sessid is None:
                 sessid = new_sessid
             elif sessid != new_sessid:

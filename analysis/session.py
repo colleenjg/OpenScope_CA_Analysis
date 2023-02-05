@@ -191,9 +191,6 @@ class Session(object):
             - sess_n (int)     : overall session number (e.g., 1)
             - sex (str)        : sex (e.g., "F" or "M")
             - stim_seed (int)  : random seed used to generated stimulus
-
-            if self.nwb:
-            - dandi_id (str)   : Dandi archive session ID
         """
 
         if self.sessid is None:
@@ -207,14 +204,6 @@ class Session(object):
         df_data = sess_load_util.load_info_from_mouse_df(
             self.sessid, self.mouse_df
             )
-        
-        if self.nwb:
-            self.dandi_id = df_data["dandi_id"]
-            if not isinstance(self.dandi_id, str):
-                warnings.warn(
-                    "Dandi ID not list in mouse_df. Using session ID instead."
-                    )
-                self.dandi_id = self.sessid
 
         self.mouse_n      = df_data["mouse_n"]
         self.sex          = df_data["sex"]
@@ -283,7 +272,7 @@ class Session(object):
         if self.nwb:
             # find a directory and potential file names
             self.sess_files = sess_file_util.get_nwb_sess_paths(
-                self.home, self.dandi_id, mouseid=self.mouseid
+                self.home, self.sessid, mouseid=self.mouseid
                 )        
             if len(self.sess_files) > 1:
                 warnings.warn(
