@@ -1,4 +1,4 @@
-sessid,dandi_session_id,mouse_n,mouseid,sex,DOB,date,age_weeks,depth,plane,line,runtype,sess_n,nrois,nrois_tracked,nrois_all,nrois_allen,nrois_allen_all,pass_fail,all_files,any_files,incl,stim_seed,notes
+sessid,full_timestamp,mouse_n,mouseid,sex,DOB,date,age_weeks,depth,plane,line,runtype,sess_n,nrois,nrois_tracked,nrois_all,nrois_allen,nrois_allen_all,pass_fail,all_files,any_files,incl,stim_seed,notes
 712483302,,1,389778,F,20180323,20180621,12.8571428571429,20,dend,L5-Rbp4,pilot,1,1392,-1,1468,232,259,F,1,1,yes,103,"dropped beh and eye tracking frames (7), stim frames (534)"
 712942208,,1,389778,F,20180323,20180622,13,375,soma,L5-Rbp4,pilot,2,62,-1,78,62,78,F,1,1,yes,103,"dropped beh and eye tracking frames (6), stim frames (254)"
 714893802,,1,389778,F,20180323,20180627,13.7142857142857,20,dend,L5-Rbp4,pilot,3,-1,-1,-1,-1,-1,F,0,1,no,103,missing 2P recordings and ROI traces

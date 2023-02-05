@@ -21,9 +21,9 @@ from util import file_util, gen_util
 
 
 #############################################
-def get_nwb_sess_paths(maindir, dandi_id, mouseid=None):
+def get_nwb_sess_paths(maindir, sess_id, mouseid=None):
     """
-    get_nwb_sess_paths(maindir, dandi_id)
+    get_nwb_sess_paths(maindir, sess_id)
 
     Returns a list of NWB session data path names for the DANDI Credit 
     Assignment session requested.
@@ -32,8 +32,8 @@ def get_nwb_sess_paths(maindir, dandi_id, mouseid=None):
     (e.g., behavior, image, ophys).
  
     Required arguments:
-        - maindir (str) : path of the main data directory
-        - dandi_id (str): DANDI ID (yyyymmddThhmmss digits)
+        - maindir (str): path of the main data directory
+        - sess_id (str): session ID on Dandi
 
     Optional arguments
         - mouseid (str) : mouse 6-digit ID string optionally used to check 
@@ -44,12 +44,8 @@ def get_nwb_sess_paths(maindir, dandi_id, mouseid=None):
         - sess_files (list): full path names of the session files
     """
 
-    if dandi_id is None:
-        raise ValueError(
-            "Dandi ID is None. Session may not exist in NWB version."
-            )
     
-    dandi_form = f"*ses-{dandi_id}*.nwb"
+    dandi_form = f"*ses-{sess_id}*.nwb"
     if mouseid is not None:
         dandi_form = f"sub-{mouseid}_{dandi_form}"
     dandi_glob_path = Path(maindir, "**", dandi_form)
