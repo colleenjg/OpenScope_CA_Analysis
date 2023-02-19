@@ -5,9 +5,9 @@ This script contains functions for plotting ROI masks and projections.
 
 Authors: Colleen Gillon
 
-Date: January, 2021
+Date: February 2023
 
-Note: this code uses python 3.7.
+Note: this code was aggregated from https://github.com/colleenjg/OpenScope_CA_Analysis.
 """
 
 import itertools
@@ -16,7 +16,6 @@ import matplotlib as mpl
 import matplotlib.patches as mpatches
 
 from util import gen_util, logger_util, plot_util
-from sess_util import sess_plot_util
 from plot_fcts import plot_helper_fcts
 
 
@@ -453,7 +452,7 @@ def add_roi_mask(sub_ax, roi_masks, col="orange", alpha=0.6,
 
 #############################################
 def add_scale_marker(sub_ax, side_len=512, ori="horizontal", quadrant=1, 
-                     fontsize=20):
+                     fontsize=16):
     """
     add_scale_marker(sub_ax)
 
@@ -476,7 +475,7 @@ def add_scale_marker(sub_ax, side_len=512, ori="horizontal", quadrant=1,
             default: 1
         - fontsize (int):
             font size for scale length text
-            default: 20
+            default: 16
     """
 
     side_len_um = side_len * UM_PER_PIX
@@ -602,13 +601,13 @@ def plot_imaging_planes(imaging_plane_df, figpar, title=None):
             array of subplots
     """
 
-    figpar = sess_plot_util.fig_init_linpla(figpar)
+    figpar = plot_util.fig_init_linpla(figpar)
 
     figpar["init"]["sharex"] = False
     figpar["init"]["sharey"] = False
-    figpar["init"]["subplot_hei"] = 2.4
-    figpar["init"]["subplot_wid"] = 2.4
-    figpar["init"]["gs"] = {"wspace": 0.25, "hspace": 0.2}
+    figpar["init"]["subplot_hei"] = 3.4
+    figpar["init"]["subplot_wid"] = 3.4
+    figpar["init"]["gs"] = {"wspace": 0.2, "hspace": 0.15}
 
     # MUST ADJUST if anything above changes [right, bottom, width, height]
     new_axis_coords = [0.91, 0.115, 0.15, 0.34]
@@ -656,7 +655,7 @@ def plot_imaging_planes(imaging_plane_df, figpar, title=None):
         sub_ax.set_rasterization_zorder(raster_zorder)
 
     # Add plane, line info to plots
-    sess_plot_util.format_linpla_subaxes(ax, ylab="", kind="map")
+    plot_util.format_linpla_subaxes(ax, ylab="", kind="map")
     for sub_ax in ax.reshape(-1):
         plot_util.remove_axis_marks(sub_ax)
 
@@ -803,7 +802,7 @@ def plot_roi_masks_overlayed_with_proj(roi_mask_df, figpar, title=None):
     n_sess = len(sess_cols)
     n_cols = n_sess * n_lines
 
-    figpar = sess_plot_util.fig_init_linpla(figpar)
+    figpar = plot_util.fig_init_linpla(figpar)
 
     figpar["init"]["sharex"] = False
     figpar["init"]["sharey"] = False
@@ -870,7 +869,7 @@ def plot_roi_masks_overlayed_with_proj(roi_mask_df, figpar, title=None):
         wid_len = imaging_planes[0].shape[-1]
         add_scale_marker(
             scale_ax, side_len=wid_len, ori="horizontal", quadrant=1, 
-            fontsize=20
+            fontsize=16
             )
 
     logger.info("Rasterizing imaging plane images...", extra={"spacing": TAB})
@@ -943,7 +942,7 @@ def plot_roi_masks_overlayed(roi_mask_df, figpar, title=None,
     else:
         crop, mark_crop_only = False, False
 
-    figpar = sess_plot_util.fig_init_linpla(figpar)
+    figpar = plot_util.fig_init_linpla(figpar)
 
     figpar["init"]["sharex"] = False
     figpar["init"]["sharey"] = False
@@ -1011,11 +1010,11 @@ def plot_roi_masks_overlayed(roi_mask_df, figpar, title=None,
     quadrant = 1 if crop else 3
     add_scale_marker(
         sub_ax_scale, side_len=hei_lens[0], ori="vertical", quadrant=quadrant, 
-        fontsize=22
+        fontsize=18
         )
  
     # Add plane, line info to plots
-    sess_plot_util.format_linpla_subaxes(ax, ylab="", kind="map")
+    plot_util.format_linpla_subaxes(ax, ylab="", kind="map")
 
     return ax
 
@@ -1103,7 +1102,7 @@ def plot_roi_tracking(roi_mask_df, figpar, title=None):
         if column == "":
             sub_ax.set_axis_off()
             subplot_title = \
-                "     Union - conflicts\n...   ====================>"
+                "     Union - conflicts\n...   =============>"
             sub_ax.set_title(subplot_title, fontweight="bold", y=0.5)
             continue
         else:
@@ -1150,7 +1149,7 @@ def plot_roi_tracking(roi_mask_df, figpar, title=None):
     # add scale marker
     hei_len = roi_mask_row["roi_mask_shapes"][1]
     add_scale_marker(
-        sub_ax_scale, side_len=hei_len, ori="vertical", quadrant=3, fontsize=20
+        sub_ax_scale, side_len=hei_len, ori="vertical", quadrant=3, fontsize=12
         )
 
     logger.info(log_info, extra={"spacing": "\n"})

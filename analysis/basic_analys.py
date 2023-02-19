@@ -5,16 +5,14 @@ This script contains basic functions for data analysis.
 
 Authors: Colleen Gillon
 
-Date: January, 2021
+Date: February 2023
 
-Note: this code uses python 3.7.
+Note: this code was aggregated from https://github.com/colleenjg/OpenScope_CA_Analysis.
 """
-
-from sess_util import sess_gen_util
 
 import numpy as np
 
-from util import gen_util, math_util
+from util import gen_util, logger_util, math_util, sess_util
 
 TAB = "    "
 
@@ -190,7 +188,7 @@ def get_data(stim, refs, analyspar, pre=0, post=1, ch_fl=None, integ=False,
     # obtain data
     if datatype == "roi":
         data_df = stim.get_roi_data(
-            fr_ns, pre, post, rem_bad=analyspar.rem_bad, scale=analyspar.scale
+            fr_ns, pre, post, scale=analyspar.scale
             )
         col_name = "roi_traces"
         integ_dt = stim.sess.twop_fps
@@ -217,9 +215,11 @@ def get_data(stim, refs, analyspar, pre=0, post=1, ch_fl=None, integ=False,
 
     if integ:
         nanpol = None if analyspar.rem_bad else "omit"
-        data_arr = math_util.integ(
-            data_arr, 1. / integ_dt, axis=-1, nanpol=nanpol
-            )
+        dx = 1. / integ_dt
+        if nanpol == "omit":
+            data_arr = np.nansum(data_arr, -1) * dx
+        else:
+            data_arr = np.sum(data_arr, -1) * dx
     
     return data_arr, time_values
     
@@ -252,7 +252,7 @@ def get_common_oris(stimpar, split="by_exp"):
         raise ValueError("Exp/unexp index analysis with common "
             "orientations can only be run on Gabors.")
 
-    gab_oris = sess_gen_util.gab_oris_common_U(stimpar.gab_ori)
+    gab_oris = sess_util.gab_oris_common_U(stimpar.gab_ori)
 
     return gab_oris
 
@@ -606,7 +606,7 @@ def get_sess_roi_trace_stats(sess, analyspar, stimpar, basepar,
             np.transpose(
                 math_util.get_stats(
                     data, stats=analyspar.stats, error=analyspar.error, 
-                    axes=1, nanpol=nanpol
+                    axis=1, nanpol=nanpol
                     ), 
                 [1, 2, 0])
             )
@@ -740,7 +740,7 @@ def get_block_data(sess, analyspar, stimpar, datatype="roi", integ=False):
             )
         
         if not integ: # take statistic across frames
-            with gen_util.TempWarningFilter("Mean of empty", RuntimeWarning):
+            with logger_util.TempWarningFilter("Mean of empty", RuntimeWarning):
                 data = math_util.mean_med(
                     data, stats=analyspar.stats, axis=-1, nanpol=nanpol
                 )
@@ -758,7 +758,7 @@ def get_block_data(sess, analyspar, stimpar, datatype="roi", integ=False):
     
     targ_shape = (n_splits, n_blocks, n_stats)
     if datatype == "roi":
-        n_rois = sess.get_nrois(analyspar.rem_bad, analyspar.fluor)
+        n_rois = sess.get_nrois()
         targ_shape = (n_splits, n_blocks, n_rois, n_stats)
 
     block_data = np.full(targ_shape, np.nan)
@@ -770,7 +770,7 @@ def get_block_data(sess, analyspar, stimpar, datatype="roi", integ=False):
                 stats=analyspar.stats,
                 error=analyspar.error,
                 nanpol=nanpol, 
-                axes=-1 # sequences within 
+                axis=-1 # sequences within 
             ).T
 
 

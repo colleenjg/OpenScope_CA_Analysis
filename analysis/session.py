@@ -6,13 +6,12 @@ the Credit Assignment Project.
 
 Authors: Colleen Gillon, Blake Richards
 
-Date: August, 2018
+Date: February 2023
 
-Note: this code uses python 3.7.
+Note: this code was aggregated from https://github.com/colleenjg/OpenScope_CA_Analysis.
 
 """
 
-import glob
 import warnings
 from pathlib import Path
 
@@ -21,21 +20,11 @@ import numpy as np
 import pandas as pd
 import scipy.signal as scsig
 
-from util import file_util, gen_util, logger_util, math_util
-from sess_util import sess_data_util, sess_stim_df_util, sess_file_util, \
-    sess_load_util, sess_pupil_util, sess_sync_util, sess_trace_util
+from util import gen_util, load_util, logger_util, math_util, sess_util
 
-# check pandas version
-from packaging import version
-PD_MIN_VERSION = "1.1.1"
-if not version.parse(pd.__version__) >= version.parse(PD_MIN_VERSION):
-    raise OSError(f"Please update pandas package >= {PD_MIN_VERSION}.")
 
 DEFAULT_DATADIR = Path("..", "data", "OSCA")
 TAB = "    "
-
-#### ALWAYS SET TO FALSE - CHANGE ONLY FOR TESTING PURPOSES
-TEST_USE_PLATEAU = False
 
 
 logger = logger_util.get_module_logger(name=__name__)
@@ -55,8 +44,8 @@ class Session(object):
     """
     
     def __init__(self, sessid=None, datadir=None, mouse_df="mouse_df.csv", 
-                 runtype="prod", drop_tol=0.0003, verbose=False, 
-                 only_tracked_rois=False, mouse_n=1, sess_n=1):
+                 runtype="prod", verbose=False, only_tracked_rois=False, 
+                 mouse_n=1, sess_n=1):
         """
         self.__init__(datadir, sessid)
 
@@ -65,15 +54,12 @@ class Session(object):
 
         Calls:
             - self._extract_sess_attribs()
-            - self._init_directory()
+            - self._find_files()
 
         Attributes:
-            - drop_tol (num)          : dropped frame tolerance 
-                                        (proportion of total)
             - home (Path)             : path of the main data directory
             - mouse_df (Path)         : path to dataframe containing 
                                         information on each session.
-            - nwb (bool)              : if True, data is in NWB format.
             - only_tracked_rois (bool): if True, only tracked ROIs will be 
                                         loaded
             - runtype (str)           : "prod" (production) or "pilot" data
@@ -94,11 +80,6 @@ class Session(object):
             - runtype (str)           : the type of run, either "pilot" or 
                                         "prod" (ignored if sessid is provided)
                                         default: "prod"
-            - drop_tol (num)          : the tolerance for proportion frames 
-                                        dropped (stimulus or running). Warnings 
-                                        are produced when this condition 
-                                        isn't met.
-                                        default: 0.0003 
             - verbose (bool)          : if True, will log instructions on next 
                                         steps to load all necessary data.
                                         default: True
@@ -126,28 +107,13 @@ class Session(object):
         if self.sessid is None:
             self.mouse_n = mouse_n
             self.sess_n = sess_n
-            if runtype not in ["pilot", "prod"]:
-                gen_util.accepted_values_error(
-                    "runtype", runtype, ["pilot", "prod"])
+            if runtype != "prod":
+                raise ValueError("runtype must be set to 'prod'.")
             self.runtype = runtype
-
-        self.drop_tol = drop_tol
-
-        self.nwb # set _nwb attribute
 
         self._extract_sess_attribs()
 
-        try:
-            self._init_directory()
-        except Exception as err:
-            if str(err).startswith("Could not find the directory"):
-                err = str(err).replace(
-                    "find the directory", "find the directory or NWB file"
-                    )
-                raise OSError(err)
-            else:
-                raise err
-
+        self._find_files()
         self.set_only_tracked_rois(only_tracked_rois)
 
         if verbose:
@@ -194,16 +160,14 @@ class Session(object):
         """
 
         if self.sessid is None:
-            self.sessid = sess_load_util.get_sessid_from_mouse_df(
+            self.sessid = sess_util.get_sessid_from_mouse_df(
                 mouse_n=self.mouse_n, sess_n=self.sess_n, runtype=self.runtype, 
                 mouse_df=self.mouse_df
                 )
 
         self.sessid = int(self.sessid)
 
-        df_data = sess_load_util.load_info_from_mouse_df(
-            self.sessid, self.mouse_df
-            )
+        df_data = sess_util.load_info_from_mouse_df(self.sessid, self.mouse_df)
 
         self.mouse_n      = df_data["mouse_n"]
         self.sex          = df_data["sex"]
@@ -224,143 +188,31 @@ class Session(object):
 
 
     #############################################
-    def _init_directory(self):
+    def _find_files(self):
         """
-        self._init_directory()
+        self._find_files()
 
-        Checks that the session data directory obeys the expected organization
-        scheme and sets attributes.
+        Checks for NWB files.
 
         Attributes:
-            if self.nwb:
             - sess_files (list): paths names to session files
-
-            else:
-            - align_pkl (Path)         : path name of the stimulus alignment 
-                                         pickle file
-            - behav_video_h5 (Path)    : path name of the behavior hdf5 file
-            - correct_data_h5 (Path)   : path name of the motion corrected 2p 
-                                         data hdf5 file
-            - dir (Path)               : path of session directory
-            - expdir (Path)            : path name of experiment directory
-            - expid (int)              : experiment ID (8 digits)
-            - max_proj_png (Path)      : full path to max projection of stack
-                                          in png format
-            - mouse_dir (bool)         : whether path includes a mouse directory
-            - procdir (Path)           : path name of the processed data 
-                                         directory
-            - pup_video_h5 (Path)      : path name of the pupil hdf5 file
-            - roi_extract_json (Path)  : path name of the ROI extraction json
-            - roi_mask_file (Path)     : path name of the ROI mask file (None, 
-                                         as allen masks must be created during 
-                                         loading)
-            - roi_objectlist_txt (Path): path name of the ROI object list file
-            - roi_trace_h5 (Path)      : path name of the ROI raw processed 
-                                         fluorescence trace hdf5 file
-            - roi_trace_dff_h5 (Path)  : path name of the ROI dF/F trace 
-                                         hdf5 file
-            - stim_pkl (Path)          : path name of the stimulus pickle file
-            - stim_sync_h5 (Path)      : path name of the stimulus 
-                                         synchronisation hdf5 file
-            - time_sync_h5 (Path)      : path name of the time synchronization 
-                                         hdf5 file
-            - zstack_h5 (Path)         : path name of the z-stack 2p hdf5 file
         """
 
-        file_util.checkdir(self.home)
+        if not Path(self.home).is_dir():
+            raise OSError(f"{self.home} does not exist.")
         
-        if self.nwb:
-            # find a directory and potential file names
-            self.sess_files = sess_file_util.get_nwb_sess_paths(
-                self.home, self.sessid, mouseid=self.mouseid
-                )        
-            if len(self.sess_files) > 1:
-                warnings.warn(
-                    "Several NWB files were found for this session. When "
-                    "loading data, the first file listed that contains the "
-                    "required data will be used.", 
-                    category=UserWarning, stacklevel=1
-                    )
-            
-            mouseid, sessid = sess_load_util.get_mouseid_sessid_nwb(
-                self.sess_files
+        # find a directory and potential file names
+        self.sess_files = load_util.get_nwb_sess_paths(
+            self.home, self.sessid, mouseid=self.mouseid
+            )        
+        if len(self.sess_files) > 1:
+            warnings.warn(
+                "Several NWB files were found for this session. When "
+                "loading data, the first file listed that contains the "
+                "required data will be used.", 
+                category=UserWarning, stacklevel=1
                 )
-            date = self.date
-            src_name = "NWB file(s)"
-
-        else:
-            # check that the high-level home directory exists
-            sessdir, mouse_dir = sess_file_util.get_sess_dir_path(
-                self.home, self.sessid, self.runtype)
-            self.dir       = sessdir
-            self.mouse_dir = mouse_dir
-
-            mouseid, date = sess_file_util.get_mouseid_date(
-                self.dir, self.sessid
-                )
-            sessid = self.sessid
-
-            src_name = "session directory"
-            
-        check_targs = [self.mouseid, self.date, self.sessid]
-        check_srcs = [int(mouseid), int(date), int(sessid)]
-        check_names = ["Mouse ID", "Date", "Session ID"]
-
-        for targ, src, name in zip(check_targs, check_srcs, check_names):
-            if targ != src:
-                raise RuntimeError(
-                    f"{name} from {src_name} ({src}) does not match attribute "
-                    f"({targ}) retrieved from mouse dataframe."
-                    )
-
-        # retrieve additional attributes
-        if not self.nwb:
-            self.expid = sess_file_util.get_expid(self.dir)
-            self.segid = sess_file_util.get_segid(self.dir)
-            dirpaths, filepaths = sess_file_util.get_file_names(
-                self.home, self.sessid, self.expid, self.segid, self.date, 
-                self.mouseid, self.runtype, self.mouse_dir, check=True)  
-        
-            self.expdir           = dirpaths["expdir"]
-            self.procdir          = dirpaths["procdir"]
-            self.max_proj_png     = filepaths["max_proj_png"]
-            self.stim_pkl         = filepaths["stim_pkl"]
-            self.stim_sync_h5     = filepaths["stim_sync_h5"]
-            self.behav_video_h5   = filepaths["behav_video_h5"]
-            self.pup_video_h5     = filepaths["pupil_video_h5"]
-            self.time_sync_h5     = filepaths["time_sync_h5"]
-            self.roi_extract_json = filepaths["roi_extract_json"]
-            self.roi_objectlist   = filepaths["roi_objectlist_txt"]
-            self.roi_mask_file    = None
-
-            # existence not checked
-            self.align_pkl        = filepaths["align_pkl"]
-            self.roi_trace_h5     = filepaths["roi_trace_h5"]
-            self.roi_trace_dff_h5 = filepaths["roi_trace_dff_h5"]
-            self.zstack_h5        = filepaths["zstack_h5"]
-            self.correct_data_h5  = filepaths["correct_data_h5"]
     
-
-    #############################################
-    @property
-    def nwb(self):
-        """
-        self.nwb()
-
-        Returns:
-            - _nwb (bool): whether data is provided in NWB format or in the 
-                           internal Allen Institute data structure. 
-                           This attribute should NOT be updated after 
-                           initialization.
-        """
-
-        if not hasattr(self, "_nwb"):
-            # check for any nwb files
-            path_style = str(Path(self.home, "**" "*.nwb"))
-            self._nwb = bool(len(glob.glob(path_style, recursive=True)))
-
-        return self._nwb
-
 
     #############################################
     @property
@@ -375,40 +227,9 @@ class Session(object):
                                     ("uint8" datatype).
         """
 
-        if self.nwb:
-            self._max_proj = sess_load_util.load_max_projection_nwb(
-                self.sess_files
-                )
-
-        if not hasattr(self, "_max_proj"):
-            self._max_proj = sess_load_util.load_max_projection(
-                self.max_proj_png
-                )
+        self._max_proj = load_util.load_max_projection_nwb(self.sess_files)
 
         return self._max_proj
-
-
-    #############################################
-    @property
-    def pup_data_h5(self):
-        """
-        self.pup_data_h5
-
-        Returns:
-            - _pup_data_h5 (list or Path): single pupil data file path if one is 
-                                           found, a list if several are found 
-                                           and "none" if none is found.
-        """
-        
-        if self.nwb:
-            raise ValueError(
-                "self.pup_data_h5 does not exist if self.nwb is True."
-                )
-
-        if not hasattr(self, "_pup_data_h5"):
-            self._pup_data_h5 = sess_file_util.get_pupil_data_h5_path(self.dir)
-
-        return self._pup_data_h5
 
 
     #############################################
@@ -423,17 +244,14 @@ class Session(object):
         """
 
         if not hasattr(self, "_pup_data_available"):
-            if self.nwb:
-                try:
-                    self.load_pup_data()
-                    self._pup_data_available = True
-                except KeyError as err:
-                    if str(err).startswith("Could not find pupil"):
-                        self._pup_data_available = False
-                    else:
-                        raise err
-            else:
-                self._pup_data_available = (self.pup_data_h5 != "none")
+            try:
+                self.load_pup_data()
+                self._pup_data_available = True
+            except KeyError as err:
+                if str(err).startswith("Could not find pupil"):
+                    self._pup_data_available = False
+                else:
+                    raise err
 
         return self._pup_data_available
 
@@ -459,23 +277,6 @@ class Session(object):
             self._roi_masks = self._load_roi_masks(raw=False)
 
         return self._roi_masks
-
-
-    ############################################
-    @property
-    def dend(self):
-        """
-        self.dend()
-
-        Returns:
-            - _dend (str): type of dendrites loaded ("allen" or "extr")
-        """
-
-        if not hasattr(self, "_nrois"):
-            raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
-                "attributes correctly.")
-
-        return self._dend
 
 
     #############################################
@@ -509,101 +310,6 @@ class Session(object):
             self._set_tracked_rois()
         
         return self._tracked_rois
-
-
-    #############################################
-    @property
-    def stim2twopfr(self):
-        """
-        self.stim2twopfr()
-
-        Returns as a numpy array the indices of the two-photon frame numbers 
-        for each stimulus number.
-        """
-
-        if not hasattr(self, '_stim2twopfr'):
-            if self.nwb:
-                stim_timestamps, twop_timestamps = \
-                    sess_sync_util.get_frame_timestamps_nwb(self.sess_files)
-                self._stim2twopfr = gen_util.get_closest_idx(
-                    twop_timestamps, stim_timestamps
-                    )
-            else:
-                raise RuntimeError(
-                    "self._stim2twopfr should be initialized when stimulus "
-                    "dataframe is created."
-                    )
-
-        
-        return self._stim2twopfr
-
-
-    #############################################
-    @property
-    def twop2stimfr(self):
-        """
-        self.twop2stimfr()
-
-        Returns as a numpy array the indices of the stimulus frame numbers 
-        for each two-photon frame number.
-
-        Array contains NaNs for frames that are out of range for the stimulus.
-        """
-
-        if not hasattr(self, '_twop2stimfr'):
-            if self.nwb:
-                stim_timestamps, twop_timestamps = \
-                    sess_sync_util.get_frame_timestamps_nwb(self.sess_files)
-
-                self._twop2stimfr = gen_util.get_closest_idx(
-                    stim_timestamps, twop_timestamps
-                    ).astype(float)
-                
-                start = int(self.stim2twopfr[0])
-                end = int(self.stim2twopfr[-1]) + 1
-                self._twop2stimfr[ : start] = np.nan
-                self._twop2stimfr[end :] = np.nan
-
-            else:
-                if not hasattr(self, "tot_twop_fr"):
-                    raise RuntimeError("Run 'self.load_roi_info()' or "
-                        "self.load_pup_data() to set two-photon "
-                        "attributes correctly.")                    
-                self._twop2stimfr = sess_sync_util.get_twop2stimfr(
-                    self.stim2twopfr, self.tot_twop_fr, sessid=self.sessid
-                    )
-
-        return self._twop2stimfr
-
-
-    #############################################
-    def _load_stim_dict(self, full_table=True):
-        """
-        self._load_stim_dict()
-
-        Returns stimulus dictionary, if applicable.
-
-        Optional args:
-            - full_table (bool): if True, the full stimulus information is 
-                                 loaded. Otherwise, exact Gabor orientations 
-                                 and visual flow square positions per frame are 
-                                 omitted
-                                 default: True
-        """
-
-        if self.nwb:
-            raise RuntimeError(
-                "Cannot load stimulus dictionary if data is in NWB format."
-                )
-
-        if full_table:
-            stim_dict = file_util.loadfile(self.stim_pkl)
-        else:
-            stim_dict = sess_load_util.load_small_stim_pkl(
-                self.stim_pkl, self.runtype
-            )
-
-        return stim_dict
 
 
     #############################################
@@ -661,7 +367,6 @@ class Session(object):
                 square_locations_y       : y locations for each square, 
                                            centered on middle of the screen 
                                            (square x stimulus frame) (pix)
-                if self.nwb:
                 start_frame_stim_template: stimulus template frame number for 
                                            the first frame of the segment
 
@@ -672,11 +377,6 @@ class Session(object):
                                  and visual flow square positions per frame are 
                                  omitted
                                  default: True
-        
-        Returns:
-            - stim_dict (dict): stimulus dictionary 
-                                (None returned if self.nwb if True or no 
-                                reloading is done)
         """
 
         reloading = False
@@ -690,7 +390,7 @@ class Session(object):
                     extra={"spacing": TAB})
                 
                 self.stim_df = self.stim_df.drop(
-                    columns=sess_stim_df_util.FULL_TABLE_COLUMNS
+                    columns=load_util.FULL_TABLE_COLUMNS
                     )
                 self._full_table = full_table
                 return None
@@ -701,32 +401,9 @@ class Session(object):
 
 
         self._full_table = full_table
-        if self.nwb:
-            self.stim_df = sess_stim_df_util.load_stimulus_table_nwb(
-                self.sess_files, full_table=full_table
-                )
-            stim_dict = None
-        
-        else:
-            stim_dict = self._load_stim_dict(full_table=full_table)
-
-            stim_df, stim2twopfr = sess_stim_df_util.load_stimulus_table(
-                stim_dict, self.stim_sync_h5, self.time_sync_h5, 
-                self.align_pkl, self.sessid, self.runtype
-                )
-            
-            self.stim_df = stim_df.drop(
-                columns=sess_stim_df_util.NWB_ONLY_COLUMNS
-                )
-            self._stim2twopfr = stim2twopfr
-
-            if not reloading:
-                drop_stim_fr = stim_dict["droppedframes"]
-                n_drop_stim_fr = len(drop_stim_fr[0])
-                sess_sync_util.check_stim_drop_tolerance(
-                    n_drop_stim_fr, stim_df["stop_frame_stim"].max(), 
-                    self.drop_tol, self.sessid, raise_exc=False)
-
+        self.stim_df = load_util.load_stimulus_table_nwb(
+            self.sess_files, full_table=full_table
+            )
             
         if not reloading:
             start_row = self.stim_df.loc[0]
@@ -743,7 +420,7 @@ class Session(object):
             self.twop_fps = num_twop_fr / num_sec
             self.tot_stim_fr = last_row["stop_frame_stim"]
 
-        return stim_dict
+        return
 
 
     #############################################
@@ -757,7 +434,7 @@ class Session(object):
             - pupil_loaded (bool): whether pupil data is loaded
         """
         
-        roi_loaded = hasattr(self, "_dend")
+        roi_loaded = hasattr(self, "_nrois")
         run_loaded = hasattr(self, "run_data")
         pupil_loaded = hasattr(self, "pup_data")
 
@@ -765,7 +442,7 @@ class Session(object):
 
 
     #############################################
-    def load_run_data(self, filter_ks=5, diff_thr=50, replace=False):
+    def load_run_data(self, diff_thr=50, replace=False):
         """
         self.load_run_data()
 
@@ -776,8 +453,6 @@ class Session(object):
                                        data in cm/s, organized by: 
                 hierarchical columns:
                     - "datatype"    : type of running data ("velocity")
-                    - "filter_ks"   : kernel size used in median filtering the 
-                                      running velocity
                     - "diff_thr"    : difference threshold used to identify 
                                       outliers
                     - "interpolated": whether bad values (outliers set to NaN) 
@@ -793,11 +468,6 @@ class Session(object):
             - tot_stim_fr (num): number of stimulus velocity frames
 
         Optional args:
-            - filter_ks (int): kernel size to use in median filtering the 
-                               running velocity (0 to skip filtering). 
-                               Does not apply to NWB data which is 
-                               pre-processed.
-                               default: 5
             - diff_thr (int) : threshold of difference in running  
                                velocity to identify outliers.
                                default: 50
@@ -805,32 +475,15 @@ class Session(object):
                                default: False
         """
 
-        if self.nwb:
-            if filter_ks != sess_load_util.NWB_FILTER_KS:
-                raise ValueError(
-                    f"Cannot use filter_ks={filter_ks}, as running data from "
-                    "NWB files is pre-processed with "
-                    f"{sess_load_util.NWB_FILTER_KS} filter kernel size."
-                    )
 
         if hasattr(self, "run_data"):
-            prev_filter_ks = self.run_data.columns.get_level_values(
-                level="filter_ks").values[0]
             prev_diff_thr = self.run_data.columns.get_level_values(
                 level="diff_thr").values[0]
 
-            modifications = []
-            if filter_ks != prev_filter_ks:
-                modifications.append(f"filter kernelsize {filter_ks}")
-
             if diff_thr != prev_diff_thr:
-                modifications.append(f"difference threshold {diff_thr}")
-
-            # check if any modifications need to be made, and if they are 
-            # allowed
-            if len(modifications) > 0:
-                modif_str = ("running dataframe using "
-                    f"{' and '.join(modifications)}")
+                modif_str = (
+                    f"running dataframe using difference threshold {diff_thr}"
+                )
                 if not replace:
                     warnings.warn("Running dataframe not updated. Must set "
                         f"'replace' to True to update {modif_str}.", 
@@ -843,44 +496,42 @@ class Session(object):
             else:
                 return
             
-        if self.nwb:
-            velocity = sess_load_util.load_run_data_nwb(
-                self.sess_files, diff_thr, self.drop_tol, self.sessid
-                )
-        else:
-            velocity = sess_load_util.load_run_data(
-                self.stim_pkl, self.stim_sync_h5, filter_ks, diff_thr, 
-                self.drop_tol, self.sessid)
+        velocity = load_util.load_run_data_nwb(
+            self.sess_files, diff_thr, sessid=self.sessid
+            )
         
         row_index = pd.MultiIndex.from_product(
             [["frames"], range(len(velocity))], names=["info", "specific"])
 
         col_index = pd.MultiIndex.from_product(
-            [["run_velocity"], ["no"], [filter_ks], [diff_thr]], 
-            names=["datatype", "interpolated", "filter_ks", "diff_thr"]) 
+            [["run_velocity"], ["no"], [diff_thr]], 
+            names=["datatype", "interpolated", "diff_thr"]) 
 
         self.run_data = pd.DataFrame(velocity, index=row_index, 
             columns=col_index)
 
-        sc_type = "stand_rob"
-        extrem = "reg"
-        sub, div = math_util.scale_fact_names(sc_type, extrem)
-
         self.run_data.loc[("frames", ), 
-            ("run_velocity", "yes", filter_ks, diff_thr)] = \
+            ("run_velocity", "yes", diff_thr)] = \
             math_util.lin_interp_nan(self.run_data.loc[("frames", ), 
-            ("run_velocity", "no", filter_ks, diff_thr)])
+            ("run_velocity", "no", diff_thr)])
+        
         for interp in ["yes", "no"]:
             run_data_array = gen_util.reshape_df_data(
                 self.run_data.loc[("frames", ), ("run_velocity", interp)], 
                 squeeze_rows=False, squeeze_cols=True)
-            subval, divval = math_util.scale_facts(
-                run_data_array, sc_type=sc_type, extrem=extrem, nanpol="omit"
-                )[0:2]
+            subval = math_util.mean_med(
+                run_data_array, stats="median", axis=None, nanpol="omit"
+                )
+            qs = math_util.error_stat(
+                run_data_array, stats="median", error="std", qu=[25, 75], 
+                nanpol="omit"
+                )
+            divval = qs[1] - qs[0]
+
             self.run_data.loc[
-                ("factors", f"sub_{sub}"), ("run_velocity", interp)] = subval
+                ("factors", "sub_median"), ("run_velocity", interp)] = subval
             self.run_data.loc[
-                ("factors", f"div_{div}"), ("run_velocity", interp)] = divval
+                ("factors", "div_IQR"), ("run_velocity", interp)] = divval
 
         self.run_data = self.run_data.sort_index(axis="columns")
     
@@ -906,9 +557,6 @@ class Session(object):
                                        data in pixels, organized by: 
                 hierarchical columns:
                     - "datatype"    : type of pupil data: "pup_diam"
-                                      if not self.nwb: 
-                                          "pup_center_x", "pup_center_y", 
-                                          "pup_center_diff"
                     - "interpolated": whether bad values, set to NaN (blinks 
                                       and outliers) in data are interpolated 
                                       ("yes", "no")
@@ -925,16 +573,7 @@ class Session(object):
         if hasattr(self, "pup_data"):
             return
         
-        if self.nwb:
-            pup_data = sess_load_util.load_pup_data_nwb(self.sess_files)
-        else:
-            pup_data = sess_load_util.load_pup_data(
-                self.pup_data_h5, self.time_sync_h5
-                )
-
-            pup_center_diff = sess_pupil_util.get_center_dist_diff(
-                pup_data["pup_center_x"], pup_data["pup_center_y"])
-            pup_data["pup_center_diff"] = np.insert(pup_center_diff, 0, np.nan)
+        pup_data = load_util.load_pup_data_nwb(self.sess_files)
 
         row_index = pd.MultiIndex.from_product(
             [["frames"], pup_data["frames"]], names=["info", "specific"])
@@ -949,25 +588,28 @@ class Session(object):
             pup_data.values, index=row_index, columns=col_index)
         n_frames = len(pup_data)
 
-        sc_type = "stand_rob"
-        extrem = "reg"
-        sub, div = math_util.scale_fact_names(sc_type, extrem)
-
         datatypes = pup_data.columns.unique(level="datatype").tolist()
         for col in datatypes:
             pup_data.loc[("frames", ), (col, "yes")] = math_util.lin_interp_nan(
                 pup_data.loc[("frames", ), (col, "no")])
             for interp in ["yes", "no"]:
-                subval, divval = math_util.scale_facts(
-                    pup_data.loc[("frames", ), (col, interp)], 
-                    sc_type=sc_type, extrem=extrem, nanpol="omit")[0:2]
-                pup_data.loc[("factors", f"sub_{sub}"), (col, interp)] = subval
-                pup_data.loc[("factors", f"div_{div}"), (col, interp)] = divval
+                pup_data_arr = pup_data.loc[("frames", ), (col, interp)]
+                subval = math_util.mean_med(
+                    pup_data_arr, stats="median", axis=None, nanpol="omit"
+                    )
+                qs = math_util.error_stat(
+                    pup_data_arr, stats="median", error="std", qu=[25, 75], 
+                    nanpol="omit"
+                    )
+                divval = qs[1] - qs[0]
+                pup_data.loc[("factors", f"sub_median"), (col, interp)] = subval
+                pup_data.loc[("factors", f"div_IQR"), (col, interp)] = divval
 
         self.pup_data = pup_data.sort_index(axis="columns")
 
         if not hasattr(self, "tot_twop_fr"):
             self.tot_twop_fr = n_frames
+
         elif n_frames < self.tot_twop_fr:
             perc = 100 - n_frames / self.tot_twop_fr * 100
             raise RuntimeError(
@@ -975,119 +617,6 @@ class Session(object):
                 f"two-photon frames, but {perc:.2f}% are missing."
                 )
 
-
-    #############################################
-    def _set_bad_rois(self, fluor="dff", roi_traces=None):
-        """
-        self._set_bad_rois()
-
-        Sets attributes with the indices of bad ROIs (too noisy or containing 
-        NaNs, Infs) in the raw or dff data.
-
-        Attributes:
-            if fluor is "dff":
-                - _bad_rois_dff (list): list of bad ROIs in the dF/F traces
-            if fluor is "raw":
-                - _bad_rois (list)    : list of bad ROIs the raw processed 
-                                        traces
-
-        Optional args:
-            - fluor (str)         : if "dff", a bad_rois attribute is added for 
-                                    dF/F traces. If "raw, it is created for raw 
-                                    processed traces.
-                                    default: "dff"
-            - roi_trace (2D array): ROI traces (can be passed to avoid 
-                                    re-loading them into memory, for example).
-                                    Assumes that fluorescence type matches 
-                                    'fluor'.
-                                    default: None
-        """
-        
-        
-        if not hasattr(self, "_nrois"):
-            raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
-                "attributes correctly.")
-
-        if self.nwb:
-            if fluor != "dff":
-                raise ValueError("NWB session files only include dF/F data.")
-            self._bad_rois_dff = []
-
-        else:
-            rem_noisy = True
-            if roi_traces is None:
-                roi_trace_path = self.get_roi_trace_path(fluor)
-                roi_traces = sess_trace_util.load_roi_traces(roi_trace_path)
-
-            else:
-                expected_shape = (self._nrois, self.tot_twop_fr)
-                if roi_traces.shape != (self._nrois, self.tot_twop_fr):
-                    raise RuntimeError(
-                        f"Expected roi_traces to have shape {expected_shape}, "
-                        f"but found {roi_traces.shape}."
-                        )
-
-            bad_arr = (np.isnan(roi_traces).any(axis=1) + 
-                np.isinf(roi_traces).any(axis=1))
-
-            if rem_noisy:
-                min_roi = np.min(roi_traces, axis=1)
-
-                # suppress a few NaN-related warnings
-                msgs = ["Mean of empty slice", "invalid value"]
-                categs = [RuntimeWarning, RuntimeWarning]
-                with gen_util.TempWarningFilter(msgs, categs):
-                    high_med = (
-                        ((np.median(roi_traces, axis=1) - min_roi)/
-                        (np.max(roi_traces, axis=1) - min_roi)) 
-                        > 0.5)            
-                    sub0_mean = np.nanmean(roi_traces, axis=1) < 0
-                
-                bad_arr += high_med + sub0_mean
-
-            bad_rois = np.where(bad_arr)[0].tolist()
-
-            if fluor == "dff":
-                self._bad_rois_dff = bad_rois
-            elif fluor == "raw":
-                self._bad_rois = bad_rois
-
-
-    #############################################
-    def _set_bad_rois_tracked(self):
-        """
-        self._set_bad_rois_tracked()
-
-        Sets attributes with the indices of bad tracked ROIs (too noisy or 
-        containing NaNs, Infs) in the raw and/or dff data.
-
-        Attributes:
-            if fluor is "dff":
-                - _bad_rois_dff_tracked (list): 
-                                      list of bad ROIs (indexed for the full 
-                                      ROI list) based on the dF/F traces
-            if fluor is "raw":
-                - bad_rois_tracked (list): 
-                                      list of bad ROIs (indexed for the full 
-                                      ROI list) based on the raw traces
-        """
-
-        if not hasattr(self, "_bad_rois_dff_tracked"):
-            if hasattr(self, "_bad_rois_dff"):
-                all_bad_rois = self.get_bad_rois("dff")
-                self._bad_rois_dff_tracked = [
-                    nanroi for nanroi in all_bad_rois 
-                    if nanroi in self.tracked_rois
-                    ]
-
-        if not hasattr(self, "_bad_rois_tracked"):
-            if hasattr(self, "_bad_rois"):
-                all_bad_rois = self.get_bad_rois("raw")
-                self._bad_rois_tracked = [
-                    nanroi for nanroi in all_bad_rois 
-                    if nanroi in self.tracked_rois
-                    ]
-    
 
     #############################################
     def set_only_tracked_rois(self, only_tracked_rois=True):
@@ -1121,8 +650,7 @@ class Session(object):
         in order to register images to one another between sessions. 
         
         Checks that the information contained in this local file matches the 
-        tracking information in the NWB file (if self.nwb) or the sessions 
-        files.
+        tracking information in the NWB file.
 
         Sets attributes:
             - _local_nway_match_path (Path): path to the local n-way match file 
@@ -1134,23 +662,22 @@ class Session(object):
             
         if not hasattr(self, "_local_nway_match_path"):
             self._local_nway_match_path = \
-                sess_file_util.get_local_nway_match_path_from_sessid(
+                load_util.get_local_nway_match_path_from_sessid(
                     self.sessid
                 )
             
             # check that the tracked ROI indices in the NWB file match 
             # those in the repository's n-way file
-            local_tracked_rois = sess_trace_util.get_tracked_rois(
-                self._local_nway_match_path, idx_after_rem_bad=self.nwb
+            local_tracked_rois = load_util.get_tracked_rois(
+                self._local_nway_match_path, idx_after_rem_bad=True
             )
 
             if (len(self._tracked_rois) != len(local_tracked_rois) or
                 (self._tracked_rois != local_tracked_rois).any()):
-                src_str = "NWB file" if self.nwb else "session directory"
                 raise RuntimeError(
                     "ROI tracking information in the local n-way matching "
                     "file does not match the ROI tracking recorded in the "
-                    f"{src_str}."
+                    "NWB file."
                     )
     
         return self._local_nway_match_path
@@ -1169,43 +696,23 @@ class Session(object):
                                        sessions
         """
 
-        if self.plane == "dend" and self.dend != "extr":
-            raise RuntimeError("ROIs not tracked for Allen extracted dendritic "
-                "ROIs.")
-
         if hasattr(self, "_tracked_rois"):
-            self._set_bad_rois_tracked()
             return
 
         try:
-            if self.nwb:
-                # use the information directly from the NWB file
-                self._tracked_rois = sess_trace_util.get_tracked_rois_nwb(
-                    self.sess_files
-                    )
-            else:
-                # use the n-way match file
-                nway_match_path = \
-                    sess_file_util.get_nway_match_path_from_sessid(
-                        self.home, self.sessid, self.runtype, check=True
-                        )
-
+            # use the information directly from the NWB file
+            self._tracked_rois = load_util.get_tracked_rois_nwb(
+                self.sess_files
+                )
         except Exception as err:
             if "not exist" in str(err) or "No tracking data" in str(err):
                 raise OSError(f"No tracked ROIs data found for {self}.")
             else:
                 raise err
 
-        if not self.nwb:
-            self._tracked_rois = sess_trace_util.get_tracked_rois(
-                nway_match_path
-                )
-
-        self._set_bad_rois_tracked()
-
 
     #############################################
-    def _init_roi_facts_df(self, fluor="dff"):
+    def _init_roi_facts_df(self):
         """
         self._init_roi_facts_df()
 
@@ -1217,27 +724,18 @@ class Session(object):
                                            by: 
                 hierarchical columns:
                     - "datatype"    : type of ROI data ("roi_traces")
-                    - "fluorescence": type of ROI trace ("dff", "raw")
+                    - "fluorescence": type of ROI trace ("dff")
                 hierarchical rows:
                     - "factors"     : scaling factor name
                     - "ROIs"        : ROI index
-
-        Optional args:
-            - fluor (str or list): the fluorescence column(s) to initialize.
-                                   default: "dff"
         """
 
         if not hasattr(self, "roi_facts_df"):
-            fluor = gen_util.list_if_not(fluor)
-            sc_type = "stand_rob"
-            extrem = "perc"
             
-            sub, div = math_util.scale_fact_names(sc_type, extrem)
-
             col_index = pd.MultiIndex.from_product(
-                [["roi_traces"], fluor], names=["datatype", "fluorescence"])
+                [["roi_traces"], ["dff"]], names=["datatype", "fluorescence"])
             row_index = pd.MultiIndex.from_product(
-                [[f"sub_{sub}", f"div_{div}"], range(self._nrois)], 
+                [[f"sub_stand_rob", f"div_IQR_5_95"], range(self._nrois)], 
                 names=["factors", "ROIs"])
     
             self.roi_facts_df = pd.DataFrame(
@@ -1245,7 +743,7 @@ class Session(object):
  
 
     ############################################
-    def _set_roi_attributes(self, fluor="dff"):
+    def _set_roi_attributes(self):
         """
         self._set_roi_attributes()
 
@@ -1254,7 +752,6 @@ class Session(object):
 
         Calls:
             - self._init_roi_facts_df()
-            - self._set_bad_rois()
             if self.only_tracked_rois:
             - self._set_tracked_rois()
         """
@@ -1264,51 +761,42 @@ class Session(object):
                 "attributes correctly.")
 
         if hasattr(self, "roi_facts_df"):
-            if fluor in self.roi_facts_df.columns.get_level_values(
-                level="fluorescence"):
-                return
+            return
         
-        self._init_roi_facts_df(fluor=fluor)
+        self._init_roi_facts_df()
 
-        if self.nwb:
-            if fluor != "dff":
-                raise ValueError("NWB session files only include dF/F data.")
-            roi_traces = sess_trace_util.load_roi_traces_nwb(self.sess_files)
-
-        else:
-            roi_trace_path = self.get_roi_trace_path(fluor)
-            roi_traces = sess_trace_util.load_roi_traces(roi_trace_path)
+        roi_traces = load_util.load_roi_traces_nwb(self.sess_files)
 
         
         # obtain scaling facts while filtering All-NaN warning.
-        with gen_util.TempWarningFilter("All-NaN", RuntimeWarning):
+        with logger_util.TempWarningFilter("All-NaN", RuntimeWarning):
 
-            self.roi_facts_df[("roi_traces", fluor)] = np.asarray(
-                math_util.scale_facts(roi_traces, axis=1, 
-                sc_type="stand_rob", extrem="perc", nanpol="omit",
-                allow_0=True
-                )[0:2]).reshape(-1)
+            subval = math_util.mean_med(
+                roi_traces, stats="median", axis=1, nanpol="omit"
+                )
+            qs = math_util.error_stat(
+                roi_traces, stats="median", axis=1, error="std", qu=[5, 95], 
+                nanpol="omit"
+                )
+            divval = qs[1] - qs[0]
 
-        self._set_bad_rois(fluor, roi_traces=roi_traces) # avoid re-loading
+            self.roi_facts_df[("roi_traces", "dff")] = \
+                np.asarray([subval, divval]).reshape(-1)
+
         if self.only_tracked_rois:
             self._set_tracked_rois()
 
 
     #############################################
-    def _get_roi_facts(self, fluor="dff"):
+    def _get_roi_facts(self):
         """
         self._get_roi_facts()
 
-        Returns scaling factors dataframe for ROIs for specified
-        fluorescence type(s).
+        Returns scaling factors dataframe for ROIs.
 
         Calls:
             - self._set_roi_attributes()
 
-        Optional args:
-            - fluor (str or list): type(s) of fluorescence for which to return 
-                                   scaling values ("dff", "raw")
-                                   default: "dff"
 
         Returns:
             - specific_roi_facts (pd DataFrame): multi-level dataframe 
@@ -1316,30 +804,16 @@ class Session(object):
                                                  factors, organized by: 
                 hierarchical columns (dummy):
                     - "datatype"    : type of ROI data ("roi_traces")
-                    - "fluorescence": type of ROI trace ("dff", "raw")
+                    - "fluorescence": type of ROI trace ("dff")
                 hierarchical rows:
                     - "factors"     : scaling factor name
                     - "ROIs"        : ROI index
         """
 
-        fluors = gen_util.list_if_not(fluor)
-
-        for fluor in fluors:
-            if hasattr(self, "roi_facts_df"):
-                if fluor in self.roi_facts_df.columns.get_level_values(
-                    level="fluorescence"):
-                    continue
-            self._set_roi_attributes(fluor)
+        self._set_roi_attributes()
         
         specific_roi_facts = self.roi_facts_df.copy(deep=True)
-        
-        drop_fluors = list(filter(lambda x: x not in fluors, 
-            self.roi_facts_df.columns.unique("fluorescence")))
-
-        if len(drop_fluors) != 0:
-            specific_roi_facts = self.roi_facts_df.drop(
-                drop_fluors, axis="columns", level="fluorescence")
-        
+                
         return specific_roi_facts
 
 
@@ -1362,105 +836,15 @@ class Session(object):
             proc_args["min_n_pix"] = 0
             proc_args["mask_bool"] = False
         else:
-            proc_args["mask_threshold"] = sess_trace_util.MASK_THRESHOLD
-            proc_args["min_n_pix"] = sess_trace_util.MIN_N_PIX
+            proc_args["mask_threshold"] = load_util.MASK_THRESHOLD
+            proc_args["min_n_pix"] = load_util.MIN_N_PIX
             proc_args["make_bool"] = True
 
-        if self.nwb:
-            roi_masks, _ = sess_trace_util.get_roi_masks_nwb(
-                self.sess_files, **proc_args
-                )
-        else:
-            roi_masks, _ = sess_trace_util.get_roi_masks(
-                self.roi_mask_file, 
-                self.roi_extract_json, 
-                self.roi_objectlist,
-                **proc_args
-                )
+        roi_masks, _ = load_util.get_roi_masks_nwb(
+            self.sess_files, **proc_args
+            )
             
         return roi_masks
-
-
-    #############################################
-    def _set_dend_type(self, dend="extr", fluor="dff"):
-        """
-        self._set_dend_type()
-
-        Sets the dendritic type based on the requested type, plane and 
-        whether the corresponding files are found.
-
-        NOTE: "fluor" parameter should not make a difference to the content of 
-        the attributes set. It just allows for the code to run when only "raw" 
-        or  "dff" traces are present in the data directory.
-
-        Attributes:
-            - _dend (str)            : type of dendrites loaded 
-                                       ("allen" or "extr")
-            if not self.nwb and EXTRACT dendrites are used, updates:
-            - roi_mask_file (Path)   : path to ROI mask h5
-            - roi_trace_h5 (Path)    : full path name of the ROI raw 
-                                       processed fluorescence trace hdf5 file
-            - roi_trace_dff_h5 (Path): full path name of the ROI dF/F
-                                       fluorescence trace hdf5 file
-
-
-        Optional args:
-            - dend (str) : dendritic traces to use ("allen" for the 
-                           original extracted traces and "extr" for the
-                           ones extracted with Hakan's EXTRACT code, if
-                           available)
-                           default: "extr"
-            - fluor (str): if "dff", ROI information is collected from dF/F 
-                           trace file. If "raw", based on the raw processed 
-                           trace file. 
-                           default: "dff"
-        
-        Raises:
-            - ValueError if 'dend' has already been set and is being changed 
-            (only checked for dendritic plane data.)
-        """
-
-        if hasattr(self, "_dend"):
-            if self.plane == "dend" and self.dend != dend:
-                raise NotImplementedError(
-                    "Cannot change dendrite type. "
-                    f"Already set to {self.dend} traces."
-                    )
-            return
-
-        if dend not in ["extr", "allen"]:
-            gen_util.accepted_values_error("dend", dend, ["extr", "allen"])
-
-        if self.nwb:
-            if self.plane == "dend" and dend != "extr":
-                raise ValueError(
-                    "NWB session files include only 'extr' dendrites."
-                    )
-            if fluor != "dff":
-                raise ValueError("NWB session files only include dF/F data.")
-            self._dend = dend
-
-        else:
-            self._dend = "allen"
-            if self.plane == "dend" and dend == "extr":
-                try:
-                    dend_roi_trace_h5 = sess_file_util.get_dendritic_trace_path(
-                        self.roi_trace_h5, check=(fluor=="raw"))
-                    dend_roi_trace_dff_h5 = sess_file_util.get_dendritic_trace_path(
-                        self.roi_trace_dff_h5, check=(fluor=="dff"))
-                    dend_mask_file = sess_file_util.get_dendritic_mask_path(
-                        self.home, self.sessid, self.expid, self.mouseid, 
-                        self.runtype, self.mouse_dir, check=True)
-                    
-                    self._dend = "extr"
-                    self.roi_trace_h5     = dend_roi_trace_h5
-                    self.roi_trace_dff_h5 = dend_roi_trace_dff_h5
-                    self.roi_mask_file    = dend_mask_file
-
-                except Exception as e:
-                    warnings.warn(f"{e}.\Allen extracted dendritic ROIs "
-                        "will be used instead.", category=UserWarning, 
-                        stacklevel=1)
 
 
     #############################################
@@ -1498,52 +882,25 @@ class Session(object):
 
 
     #############################################
-    def load_roi_info(self, fluor="dff", dend="extr"): 
+    def load_roi_info(self): 
         """
         self.load_roi_info()
 
         Sets the attributes below based on the specified processed ROI traces.
         
-        NOTE: "fluor" parameter should not make a difference to the content of 
-        the attributes set. It just allows not both "raw" and "dff" traces to
-        be present in the data directory.
-        
         Calls:
-            - self._set_dend_type()
             - self._set_roi_attributes()
 
         Attributes:
             - nrois (int)      : number of ROIs in traces
             - roi_names (list) : list of ROI names (9 digits)
             - tot_twop_fr (int): total number of two-photon frames
-
-        Optional args:
-            - fluor (str): if "dff", ROI information is collected from dF/F 
-                           trace file. If "raw", based on the raw processed 
-                           trace file. 
-                           default: "dff"
-            - dend (str) : dendritic traces to use ("allen" for the 
-                           original extracted traces and "extr" for the
-                           ones extracted with Hakan's EXTRACT code, if
-                           available)
-                           default: "extr"
         """
 
-        self._set_dend_type(dend=dend, fluor=fluor)
-
         if not hasattr(self, "roi_names"): # do this only first time
-            if self.nwb:
-                roi_ids, nrois, tot_twop_fr = \
-                    sess_trace_util.load_roi_data_nwb(self.sess_files)
+            self.roi_names, self._nrois, self.tot_twop_fr = \
+                load_util.load_roi_data_nwb(self.sess_files)
 
-            else:
-                roi_trace_path = self.get_roi_trace_path(fluor)
-                roi_ids, nrois, tot_twop_fr = \
-                    sess_trace_util.load_roi_data(roi_trace_path)
-
-            self.roi_names = roi_ids
-            self._nrois = nrois
-            self.tot_twop_fr = tot_twop_fr
 
             if self.stim_df["stop_frame_twop"].max() > self.tot_twop_fr:
                 raise RuntimeError(
@@ -1551,7 +908,7 @@ class Session(object):
                     "is higher than number of recorded frames."
                     )
         
-        self._set_roi_attributes(fluor)
+        self._set_roi_attributes()
 
 
     #############################################
@@ -1607,8 +964,7 @@ class Session(object):
 
 
     #############################################
-    def extract_info(self, full_table=False, fluor="dff", dend="extr", roi=True, 
-                     run=False, pupil=False):
+    def extract_info(self, full_table=False, roi=True, run=False, pupil=False):
         """
         self.extract_info()
 
@@ -1631,16 +987,6 @@ class Session(object):
                                  and visual flow square positions per frame are 
                                  omitted
                                  default: False
-            - fluor (str)      : if "dff", ROI information is loaded from dF/F 
-                                 trace file. If "raw", based on the raw 
-                                 processed trace file. 
-                                 default: "dff"
-            - dend (str)       : dendritic traces to use ("allen" for the 
-                                 original extracted traces and "extr" for the
-                                 ones extracted with Hakan's EXTRACT code, if
-                                 available). Can only be set the first time 
-                                 ROIs are loaded to the session. 
-                                 default: "extr"
             - roi (bool)       : if True, ROI data is loaded
                                  default: True
             - run (bool)       : if True, running data is loaded
@@ -1656,7 +1002,7 @@ class Session(object):
    
         if roi:
             logger.info("Loading ROI trace info...")
-            self.load_roi_info(fluor=fluor, dend=dend)
+            self.load_roi_info()
 
         if run:
             logger.info("Loading running info...")
@@ -1768,7 +1114,7 @@ class Session(object):
         pup_data_df = pd.DataFrame(self.pup_data, columns=index)
         
         if scale:
-            pup_data_df = sess_data_util.scale_data_df(
+            pup_data_df = sess_util.scale_data_df(
                 pup_data_df, datatype, interpolated)
             pup_data_df = pup_data_df.drop(
                 labels="no", axis="columns", level="scaled")
@@ -1804,8 +1150,6 @@ class Session(object):
                     - datatype    : type of data (e.g., "run_velocity")
                     - interpolated: whether data is interpolated ("yes", "no")
                     - scaled      : whether data is scaled ("yes", "no")
-                    - filter_ks   : kernel size used to median filter running 
-                                    velocity data
                     - diff_thr    : threshold of difference in running velocity 
                                     used to identify outliers
                 hierarchical rows:
@@ -1824,27 +1168,24 @@ class Session(object):
             interpolated ="yes"
         
         datatype = "run_velocity"
-        filter_ks = self.run_data[
-            (datatype, interpolated)].columns.get_level_values(
-            level="filter_ks")[0]
 
         diff_thr = self.run_data[
             (datatype, interpolated)].columns.get_level_values(
             level="diff_thr")[0]
 
-        names = ["datatype", "interpolated", "filter_ks", "diff_thr", "scaled"]
-        reorder = [names[i] for i in [0, 1, 4, 2, 3]]
+        names = ["datatype", "interpolated", "diff_thr", "scaled"]
+        reorder = [names[i] for i in [0, 1, 2, 3]]
         index = pd.MultiIndex.from_product(
-            [[datatype], [interpolated], [filter_ks], [diff_thr], ["no"]], 
-            names=names)
+            [[datatype], [interpolated], [diff_thr], ["no"]], names=names
+            )
 
         run_data_df = pd.DataFrame(self.run_data, columns=index).reorder_levels(
             reorder, axis="columns")
 
         if scale:
-            run_data_df = sess_data_util.scale_data_df(
+            run_data_df = sess_util.scale_data_df(
                 run_data_df, datatype, interpolated, 
-                other_vals=[filter_ks, diff_thr])
+                other_vals=[diff_thr])
             run_data_df = run_data_df.drop(
                 labels="no", axis="columns", level="scaled")
 
@@ -1988,84 +1329,7 @@ class Session(object):
 
 
     #############################################
-    def get_roi_trace_path(self, fluor="dff", check_exists=True):
-        """
-        self.get_roi_trace_path()
-
-        Returns correct ROI trace path.
-
-        Optional args:
-            - fluor (str)        : if "dff", rem_bad is assessed on ROIs using 
-                                   dF/F traces. If "raw", on raw processed 
-                                   traces.
-                                   default: "dff"
-            - check_exists (bool): if True, checks whether file exists before 
-                                   returning the path, and raises an error if 
-                                   it doesn't.
-                                   default: True
-        Returns:
-            - roi_trace_path (Path): path to ROI traces
-        """
-
-        if self.nwb:
-            raise RuntimeError(
-                "get_roi_trace_path() is not applicable for NWB data."
-                )
-
-        if fluor == "dff":
-            roi_trace_path = self.roi_trace_dff_h5
-        elif fluor == "raw":
-            roi_trace_path = self.roi_trace_h5
-        else:
-            gen_util.accepted_values_error("fluor", fluor, ["raw", "dff"])
-
-        if check_exists and not Path(roi_trace_path).is_file():
-            raise OSError(f"No {fluor} traces found under {roi_trace_path}.")
-
-        return roi_trace_path
-
-
-    #############################################
-    def get_bad_rois(self, fluor="dff"):
-        """
-        self.get_bad_rois()
-
-        Returns as a list the indices of bad ROIs (too noisy or containing 
-        NaNs, Infs) .
-
-        Optional args:
-            - fluor (str): if "dff", rem_bad is assessed on ROIs using dF/F 
-                           traces. If "raw", on raw processed traces.
-                           default: "dff"
-        Returns:
-            - bad_rois (1D array): indices of bad ROIs (indexed into full 
-                                   ROI array, even if self.only_tracked_rois)
-        """
-
-        if fluor == "dff":
-            if not hasattr(self, "_bad_rois_dff"):
-                self._set_bad_rois(fluor)
-            if self.only_tracked_rois and hasattr(self, "_bad_rois_dff_tracked"):
-                self._set_bad_rois_tracked()
-                bad_rois = self._bad_rois_dff_tracked
-            else:
-                bad_rois = self._bad_rois_dff
-        elif fluor == "raw":
-            if not hasattr(self, "_bad_rois"):
-                self._set_bad_rois(fluor)
-            if self.only_tracked_rois and hasattr(self, "_bad_rois_tracked"):
-                self._set_bad_rois_tracked()
-                bad_rois = self._bad_rois_tracked
-            else:
-                bad_rois = self._bad_rois
-        else:
-            gen_util.accepted_values_error("fluor", fluor, ["raw", "dff"])
-
-        return bad_rois
-
-
-    #############################################
-    def get_roi_masks(self, fluor="dff", rem_bad=True, raw_masks=False):
+    def get_roi_masks(self, raw_masks=False):
         """
         self.get_roi_masks()
 
@@ -2073,11 +1337,6 @@ class Session(object):
         containing NaNs, Infs).
 
         Optional args:
-            - fluor (str)     : if "dff", rem_bad is assessed on ROIs using 
-                                dF/F traces. If "raw", on raw processed traces.
-                                default: "dff"
-            - rem_bad (bool)  : if True, bad ROIs are removed.
-                                default: "dff"
             - raw_masks (bool): if True, raw masks (unporcessed and not 
                                 converted to boolean) are returned. May be 
                                 boolean if they are stored in that format
@@ -2097,37 +1356,21 @@ class Session(object):
 
         if self.only_tracked_rois:
             roi_masks = roi_masks[self.tracked_rois]
-            if rem_bad and len(self.get_bad_rois(fluor)):
-                raise NotImplementedError(
-                    "rem_bad not implemented for tracked ROIs."
-                    )
-
-        elif rem_bad:
-            rem_idx = self.get_bad_rois(fluor)
-            roi_masks = np.delete(roi_masks, rem_idx, axis=0)
 
         return roi_masks
 
 
     #############################################
-    def get_registered_roi_masks(self, fluor="dff", rem_bad=True, 
-                                 targ_sess_idx=0):
+    def get_registered_roi_masks(self, targ_sess_idx=0):
         """
         self.get_registered_roi_masks()
 
-        Returns ROI masks, optionally removing bad ROIs (too noisy or 
-        containing NaNs, Infs), registered across tracked sessions.
+        Returns ROI masks, registered across tracked sessions.
 
         Registration is done on the processed masks, and some processing steps, 
         but the thresholding step is repeated after processing.
 
         Optional args:
-            - fluor (str)        : if "dff", rem_bad is assessed on ROIs using 
-                                   dF/F traces. If "raw", on raw processed 
-                                   traces.
-                                   default: "dff"
-            - rem_bad (bool)     : if True, bad ROIs are removed.
-                                   default: "dff"
             - targ_sess_idx (int): session that the registration transform 
                                    should be targetted to
                                    default: 0
@@ -2140,10 +1383,10 @@ class Session(object):
         """
 
         # get boolean/processed masks
-        roi_masks = self.get_roi_masks(fluor, rem_bad=rem_bad)
+        roi_masks = self.get_roi_masks()
 
         # register masks
-        registered_roi_masks = sess_load_util.apply_registration_transform(
+        registered_roi_masks = load_util.apply_registration_transform(
             self.get_local_nway_match_path(), 
             self.sessid, 
             roi_masks.astype("uint8"), # to work with OpenCV  
@@ -2174,7 +1417,7 @@ class Session(object):
                 intensity in 0 (incl) to 256 (excl) range ("uint8" datatype).
         """
 
-        registered_max_proj = sess_load_util.apply_registration_transform(
+        registered_max_proj = load_util.apply_registration_transform(
             self.get_local_nway_match_path(), self.sessid, self.max_proj, 
             targ_sess_idx=targ_sess_idx
             )
@@ -2183,20 +1426,12 @@ class Session(object):
 
 
     #############################################
-    def get_nrois(self, rem_bad=True, fluor="dff"):
+    def get_nrois(self):
         """
         self.get_nrois()
 
-        Returns the number of ROIs according to the specified criteria.
-
-        Optional args:
-            - rem_bad (bool): if True, bad ROIs (too noisy or containing NaNs, 
-                              Infs) are excluded from number.
-                              default: True
-            - fluor (str)   : if "dff", the indices of bad ROIs are assessed on 
-                              dF/F data returned. If "raw", they are assessed 
-                              on raw processed traces.
-                              default: "dff"
+        Returns the number of ROIs, depending on whether ROIs are tracked or 
+        not.
 
         Returns:
             - nrois (int): number of ROIs fitting criteria
@@ -2211,15 +1446,11 @@ class Session(object):
         else:
             nrois = self._nrois
 
-        if rem_bad:
-            rem_rois = len(self.get_bad_rois(fluor))
-            nrois = nrois - rem_rois
-
         return nrois
         
 
     #############################################
-    def get_active_rois(self, fluor="dff", stimtype=None, rem_bad=True):
+    def get_active_rois(self, stimtype=None):
         """
         self.active_rois()
 
@@ -2227,17 +1458,10 @@ class Session(object):
         (defined as median + 3 std), optionally during a specific stimulus type.
 
         Optional args:
-            - fluor (str)   : if "dff", the indices of bad ROIs are assessed on 
-                              dF/F data returned. If "raw", they are assessed 
-                              on raw processed traces.
-                              default: "dff"
             - stimtype (str): stimulus type during which to check for 
                               transients ("visflow", "gabors" or None). 
                               If None, the entire session is checked.
                               default: None
-            - rem_bad (bool): if True, bad ROIs (too noisy or containing NaNs, 
-                              Infs) are removed.
-                              default: True
 
         Returns:
             - active_roi_indices (list): indices of active ROIs 
@@ -2252,7 +1476,7 @@ class Session(object):
 
         win = [1, 5]
         
-        full_data = self.get_roi_traces(None, fluor, rem_bad)
+        full_data = self.get_roi_traces(None)
 
         full_data_sm = scsig.medfilt(
             gen_util.reshape_df_data(
@@ -2273,7 +1497,7 @@ class Session(object):
                 twop_fr.extend(
                     [row["start_frame_twop"][0], row["stop_frame_twop"][0]
                     ])
-            stim_data = self.get_roi_traces(twop_fr, fluor, rem_bad)
+            stim_data = self.get_roi_traces(twop_fr)
             stim_data_sm = scsig.medfilt(stim_data, win)
 
         # count how many calcium transients occur in the data of interest for
@@ -2288,86 +1512,7 @@ class Session(object):
 
 
     #############################################
-    def get_plateau_roi_traces(self, n_consec=4, thr_ratio=3, fluor="dff", 
-                               rem_bad=True, replace=False):
-        """
-        self.get_plateau_roi_traces()
-
-        Returns modified ROI traces thresholded, so that values that do not 
-        reach criteria are set to median.
-
-        Attributes:
-            - plateau_traces (2D array): ROI traces converted to plateau traces, 
-                                         ROI x frames
-
-
-        Optional args:
-            - n_consec (int)   : number of consecutive above threshold (3 std) 
-                                 frames to be considered a plateau potential
-                                 default: 4
-            - thr_ratio (float): number of standard deviations above median 
-                                 at which threshold is set for identifying 
-                                 calcium transients
-                                 default: 3
-            - fluor (str)      : if "dff", then dF/F traces are returned, if 
-                                 "raw", raw processed traces are returned
-                                 default: "dff"
-            - rem_bad (bool)   : if True, bad ROIs (too noisy or containing 
-                                 NaNs, Infs) are removed.
-                                 default: True
-            - replace (bool)   : if True, replace self.plateau_traces, if they 
-                                 exist
-                                 default: False
-
-        Returns:
-            - plateau_traces: modified ROI traces where certain frames are set 
-                              to 1.0 if they do not meet the threshold 
-                              for enough frames. Frames reaching criteria are 
-                              converted to the number of standard deviations 
-                              above the median they lie at.
-        """
-
-        if not hasattr(self, "_nrois"):
-            raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
-                "attributes correctly.")
-
-        if replace or not hasattr(self, "plateau_traces"):
-
-            calc_str = "Calculating"
-            if hasattr(self, "plateau_traces"):
-                calc_str = "Recalculating"
-
-            logger.info(f"{calc_str} plateau traces.", extra={"spacing": "\n"})
-
-            roi_trace_df = self.get_roi_traces(None, fluor, rem_bad)
-            plateau_traces = gen_util.reshape_df_data(
-                roi_trace_df, squeeze_cols=True
-                )
-            med = np.nanmedian(plateau_traces, axis=1)
-            std = np.nanstd(plateau_traces, axis=1)
-
-            for r, roi_data in enumerate(plateau_traces):
-                roi_bool = ((roi_data - med[r])/std[r] >= thr_ratio)
-                idx = np.where(roi_bool)[0]
-                each_start_idx = np.where(np.insert(np.diff(idx), 0, 100) > 1)[0]
-                drop_break_pts = np.where(np.diff(each_start_idx) < n_consec)[0]
-                for d in drop_break_pts: 
-                    set_zero_indices = np.arange(
-                        idx[each_start_idx[d]], 
-                        idx[each_start_idx[d + 1] - 1] + 1)
-                    roi_bool[set_zero_indices] = False
-                plateau_traces[r, ~roi_bool] = 1.0
-                plateau_traces[r, roi_bool] = \
-                    (plateau_traces[r, roi_bool] - med[r])/std[r]
-
-            roi_trace_df[:] = plateau_traces.reshape(roi_trace_df.shape)
-            self.plateau_traces = roi_trace_df
-
-        return self.plateau_traces
-
-
-    #############################################
-    def get_roi_traces_by_ns(self, ns, fluor="dff"):
+    def get_roi_traces_by_ns(self, ns):
         """
         self.get_roi_traces_by_ns(ns)
 
@@ -2376,11 +1521,6 @@ class Session(object):
 
         Required args:
             - ns (array-like): ROI indices
-
-        Optional args:
-            - fluor (str): if "dff", then dF/F traces are returned, if 
-                           "raw", raw processed traces are returned
-                           default: "dff"
 
         Returns:
             - traces (1 or 2D array): full traces for all ROIs or a single ROI, 
@@ -2392,19 +1532,13 @@ class Session(object):
                 "attributes correctly.")
 
         # read the data points into the return array
-        if self.nwb:
-            traces = sess_trace_util.load_roi_traces_nwb(
-                self.sess_files, roi_ns=ns
-                )
-        else:
-            roi_trace_path = self.get_roi_trace_path(fluor)
-            traces = sess_trace_util.load_roi_traces(roi_trace_path, roi_ns=ns)
-
+        traces = load_util.load_roi_traces_nwb(self.sess_files, roi_ns=ns)
+ 
         return traces
 
 
     #############################################
-    def get_single_roi_trace(self, n, fluor="dff"):
+    def get_single_roi_trace(self, n):
         """
         self.get_single_roi_trace(n)
 
@@ -2413,11 +1547,6 @@ class Session(object):
 
         Required args:
             - n (int): ROI index
-
-        Optional args:
-            - fluor (str): if "dff", then dF/F traces are returned, if 
-                           "raw", raw processed traces are returned
-                           default: "dff"
 
         Returns:
             - trace (1D array): full ROI trace
@@ -2430,16 +1559,13 @@ class Session(object):
         if n >= self._nrois:
             raise ValueError(f"ROI {n} does not exist.")
 
-        n = int(n)
-
-        trace = self.get_roi_traces_by_ns(n, fluor=fluor)
+        trace = self.get_roi_traces_by_ns(int(n))
 
         return trace
 
 
     #############################################
-    def get_roi_traces(self, frames=None, fluor="dff", rem_bad=True, 
-                       scale=False):
+    def get_roi_traces(self, frames=None, scale=False):
         """
         self.get_roi_traces()
 
@@ -2453,12 +1579,6 @@ class Session(object):
                                   sorted (likely ascending). If None, then all 
                                   frames are returned. 
                                   default: None
-            - fluor (str)       : if "dff", then dF/F traces are returned, if 
-                                  "raw", raw processed traces are returned
-                                  default: "dff"
-            - rem_bad (bool)    : if True, bad ROIs (too noisy or containing 
-                                  NaNs, Infs) are removed.
-                                  default: True
             - scale (bool)      : if True, each ROIs is scaled 
                                   based on full data array
                                   default: False
@@ -2468,11 +1588,9 @@ class Session(object):
                                           by:
                 hierarchical columns (all dummy):
                     - datatype        : type of data (e.g., "roi_traces")
-                    - bad_rois_removed: whether bad ROIs were removed 
-                                        ("yes", "no")
                     - scaled          : whether ROI data is scaled 
                                         ("yes", "no")
-                    - fluorescence    : type of data ("raw" or "dff")
+                    - fluorescence    : type of data ("dff")
                 hierarchical rows:
                     - ROIs            : ROI indices
                     - frames          : last frames dimensions
@@ -2490,32 +1608,14 @@ class Session(object):
         else:
             frames = np.asarray(frames)
 
-        rem_bad_str = "yes" if rem_bad else "no"
         scale_str = "yes" if scale else "no"
 
         roi_ids = None
         if self.only_tracked_rois:
             roi_ids = self.tracked_rois
 
-        if rem_bad:
-            bad_rois = self.get_bad_rois(fluor)
-            if len(bad_rois):
-                if self.only_tracked_rois:
-                    raise ValueError(
-                        "rem_bad not implemented for tracked ROIs."
-                        )
-                roi_ids = np.delete(np.arange(self._nrois), bad_rois)
-
-        if self.nwb:
-            if fluor != "dff":
-                raise ValueError("NWB session files only include dF/F data.")
-            traces = sess_trace_util.load_roi_traces_nwb(
-                self.sess_files, roi_ns=roi_ids, frame_ns=frames
-                )
-        else:
-            roi_trace_path = self.get_roi_trace_path(fluor)
-            traces = sess_trace_util.load_roi_traces(
-                roi_trace_path, roi_ns=roi_ids, frame_ns=frames
+        traces = load_util.load_roi_traces_nwb(
+            self.sess_files, roi_ns=roi_ids, frame_ns=frames
             )
 
         if roi_ids is None:
@@ -2524,7 +1624,7 @@ class Session(object):
             frames = np.arange(self.tot_twop_fr)
 
         if scale:
-            factors = self._get_roi_facts(fluor)
+            factors = self._get_roi_facts()
 
             factor_names = factors.index.unique(level="factors")
             sub_names =  list(filter(lambda x: "sub" in x, factor_names))
@@ -2541,9 +1641,8 @@ class Session(object):
 
         # initialize the return dataframe
         index_cols = pd.MultiIndex.from_product(
-            [["roi_traces"], [rem_bad_str], [scale_str], [fluor]], 
-            names=["datatype", "bad_rois_removed", "scaled", 
-            "fluorescence"])
+            [["roi_traces"], [scale_str], ["dff"]], 
+            names=["datatype", "scaled", "fluorescence"])
         index_rows = pd.MultiIndex.from_product(
             [roi_ids, *[range(dim) for dim in frames.shape]], 
             names=["ROIs", "frames"])
@@ -2643,8 +1742,7 @@ class Session(object):
 
 
     #############################################
-    def get_roi_seqs(self, twop_fr_seqs, padding=(0,0), fluor="dff", 
-                     rem_bad=True, scale=False, use_plateau=False):
+    def get_roi_seqs(self, twop_fr_seqs, padding=(0,0), scale=False):
         """
         self.get_roi_seqs(twop_fr_seqs)
 
@@ -2666,13 +1764,6 @@ class Session(object):
                                          include from start and end of 
                                          sequences
                                          default: (0, 0)
-            - fluor (str)              : if "dff", then dF/F traces are 
-                                         returned, if "raw", raw processed 
-                                         traces are returned
-                                         default: "dff"
-            - rem_bad (bool)           : if True, bad ROIs (too noisy or 
-                                         containing NaNs, Infs) are removed.
-                                         default: True
             - scale (bool)             : if True, each ROIs is scaled 
                                          based on full data array
                                          default: False
@@ -2683,23 +1774,15 @@ class Session(object):
                                           by:
                 hierarchical columns (all dummy):
                     - datatype        : type of data (e.g., "roi_traces")
-                    - bad_rois_removed: whether bad ROIs were removed 
-                                        ("yes", "no")
                     - scaled          : whether ROI data is scaled 
                                         ("yes", "no")
-                    - fluorescence    : type of data ("raw" or "dff")
+                    - fluorescence    : type of data ("dff")
                 hierarchical rows:
                     - ROIs          : ROI indices
                     - sequences     : sequence numbers
                     - frames        : frame numbers
         """
 
-
-        # for plateau test analyses
-        if TEST_USE_PLATEAU:
-            logger.warning(
-                "Setting `use_plateau` to True for testing purposes.")
-            use_plateau = True
 
         # extend values with padding
         if padding[0] != 0:
@@ -2754,22 +1837,8 @@ class Session(object):
             else:
                 frames_flat = frames_flat[: last_idx]
 
-        if use_plateau:
-            traces_flat = self.get_plateau_roi_traces(
-                fluor=fluor, rem_bad=rem_bad
-                )            
-            # select frames_flat: seems very roundabout, but temporarily moving 
-            # frames to first index level seems to be the only way to index the 
-            # frames efficiently...
-            all_rois = traces_flat.index.unique("ROIs").tolist()
-            traces_flat = traces_flat.swaplevel(
-                "ROIs", "frames", axis="index"
-                ).loc[frames_flat.astype(int).tolist()].swaplevel(
-                    "frames", "ROIs", axis="index"
-                    ).loc[all_rois]
-        else:
-            traces_flat = self.get_roi_traces(
-                frames_flat.astype(int), fluor, rem_bad, scale=scale)
+
+        traces_flat = self.get_roi_traces(frames_flat.astype(int), scale=scale)
 
         index_rows = pd.MultiIndex.from_product(
             [traces_flat.index.unique("ROIs").tolist(), 
@@ -2903,26 +1972,15 @@ class Stim(object):
 
         Optional args:
             - stim_dict (dict): stimulus dictionary 
-                                (only applicable if self.sess.nwb is False, in 
-                                which case it will be loaded if not passed)
-                                default: None
         """
 
         self.sess      = sess
         self.stimtype  = stimtype
         self.stim_fps  = self.sess.stim_fps
 
-        if self.sess.nwb:
-            gen_stim_props = sess_stim_df_util.load_hard_coded_stim_properties(
-                stimtype=self.stimtype, runtype=self.sess.runtype
-                )
-        else:
-            if stim_dict is None:
-                stim_dict = self.sess._load_stim_dict(full_table=False)
-            
-            gen_stim_props = sess_stim_df_util.load_gen_stim_properties(
-                stim_dict, stimtype=self.stimtype, runtype=self.sess.runtype
-                )
+        gen_stim_props = load_util.load_hard_coded_stim_properties(
+            stimtype=self.stimtype, runtype=self.sess.runtype
+            )
 
         self.seg_len_s = gen_stim_props["seg_len_s"]
         if stimtype == "gabors":            
@@ -3042,11 +2100,6 @@ class Stim(object):
                                   frame requested(height x width x channel (1))
         """
 
-        if not self.sess.nwb:
-            raise NotImplementedError(
-                "Stimulus images can only be retrieved if data format is NWB."
-                )
-
         segs = self.get_segs_by_frame(stim_frs, fr_type="stim")
         sub_stim_df = self.sess.stim_df.loc[segs]
 
@@ -3094,7 +2147,7 @@ class Stim(object):
         # retrieve frame images
         for templ_name in stim_image_dict.keys():
             frame_ns = sorted(stim_image_dict[templ_name]["frame_ns"])
-            frame_images = sess_load_util.load_stimulus_images_nwb(
+            frame_images = load_util.load_stimulus_images_nwb(
                 self.sess.sess_files, 
                 template_name=templ_name, 
                 frame_ns=frame_ns
@@ -3115,8 +2168,8 @@ class Stim(object):
 
 
     #############################################
-    def get_stim_beh_sub_df(self, pre, post, stats="mean", fluor="dff", 
-                            rem_bad=True, gabfr="any", gabk="any", 
+    def get_stim_beh_sub_df(self, pre, post, stats="mean", rem_bad=True, 
+                            gabfr="any", gabk="any", 
                             gab_ori="any", visflow_size="any", 
                             visflow_dir="any", pupil=False, run=False, 
                             scale=False, roi_stats=False):
@@ -3133,17 +2186,13 @@ class Stim(object):
                           frame number (in s)
 
         Optional args:
-            - fluor (str)               : if "dff", dF/F is used, if "raw", ROI 
-                                          traces
-                                          default: "dff"
             - stats (str)               : statistic to use for baseline, mean 
                                           ("mean") or median ("median") 
                                           (NaN values are omitted)
                                           default: "mean"
             - rem_bad (bool)            : if True, bad values are removed from 
                                           data, either through interpolation 
-                                          for pupil and running data or bu 
-                                          removing bad ROIs 
+                                          for pupil and running data
                                           default: True
             - gabfr (int or list)       : 0, 1, 2, 3, 4, "any"
                                           default: "any"
@@ -3205,8 +2254,7 @@ class Stim(object):
         # add ROI data
         logger.info("Adding ROI data to dataframe...")
         roi_data = self.get_roi_data(
-            twop_fr, pre, post, rem_bad=rem_bad, fluor=fluor, scale=scale
-            )["roi_traces"]
+            twop_fr, pre, post, scale=scale)["roi_traces"]
         targ = [len(roi_data.index.unique(dim)) for dim in roi_data.index.names]
         roi_data = math_util.mean_med(
             roi_data.to_numpy().reshape(targ), 
@@ -3417,7 +2465,7 @@ class Stim(object):
                 f"{', '.join(stimtypes)}."
                 )
 
-        pars = sess_data_util.format_stim_criteria(
+        pars = sess_util.format_stim_criteria(
             self.sess.stim_df, self.stimtype, unexp, stim_seg=stim_seg, 
             gabfr=gabfr, gabk=gabk, gab_ori=gab_ori, visflow_size=visflow_size, 
             visflow_dir=visflow_dir, start2pfr=start_frame_twop, 
@@ -3835,7 +2883,8 @@ class Stim(object):
         data_array = sub_df.to_numpy().reshape(targ_dims)
 
         # convert dims to axis numbers
-        dims = gen_util.list_if_not(dims)
+        if not isinstance(dims, list):
+            dims = [dims]
         if set(dims) - set(data_df.index.names):
             raise ValueError("'dims' can only include: "
                 f"{', '.join(data_df.index.names)}")
@@ -3845,8 +2894,17 @@ class Stim(object):
                 raise ValueError("Must provide at least one 'dims'.")
 
         # get stats
+        stat_ax = axes[-1]
+        if len(axes) > 1:
+            data_array = math_util.mean_med(
+                data_array.astype(float), stats, axis=axes[:-1], nanpol=nanpol
+                )
+            sub = sum(a < stat_ax for a in axes[:-1])
+            stat_ax -= sub
+            
         data_stats = math_util.get_stats(
-            data_array.astype(float), stats, error, axes=axes, nanpol=nanpol)
+            data_array.astype(float), stats, error, axis=stat_ax, nanpol=nanpol
+            )
 
         if rois and "ROIs" not in dims:
             # place ROI dimension first
@@ -3854,9 +2912,13 @@ class Stim(object):
                 1, 0, *range(len(data_stats.shape))[2:])
 
         # retrieve the level values for the data statistics
-        err_name = [f"error_{name}" for name in gen_util.list_if_not(
-            math_util.error_stat_name(stats=stats, error=error))]
-        stat_names = [f"stat_{stats}", *err_name]
+        stats_name = stats
+        if error.lower() == "std":
+            error_names = ["q25", "q75"]  if stats == "median" else ["std"]
+        elif error.lower() == "sem":
+            error_names = ["MAD"] if stats == "median" else ["SEM"]
+        error_names = [f"error_{name}" for name in error_names]
+        stat_names = [f"stat_{stats}", *error_names]
 
         # prepare dataframe
         level_vals = [["stats"]] + gen_util.get_df_unique_vals(
@@ -3968,7 +3030,7 @@ class Stim(object):
 
         if not scale:
             if metric == "mm":
-                data_array = data_array * sess_sync_util.MM_PER_PIXEL
+                data_array = data_array * load_util.MM_PER_PIXEL
             elif metric != "pixel":
                 gen_util.accepted_values_error(
                     "metric", metric, ["pixel", "mm"]
@@ -4141,8 +3203,6 @@ class Stim(object):
                     - baseline    : baseline used ("no", value)
                     - integrated  : whether data is integrated over sequences 
                                     ("yes", "no")
-                    - filter_ks   : kernel size used to median filter running 
-                                    velocity data
                     - diff_thr    : threshold of difference in running velocity 
                                     used to identify outliers
                 hierarchical rows:
@@ -4204,14 +3264,13 @@ class Stim(object):
 
         interp_str = run_data.columns.unique("interpolated")[0]
         scale_str = run_data.columns.unique("scaled")[0]
-        filter_ks = run_data.columns.unique("filter_ks")[0]
         diff_thr = run_data.columns.unique("diff_thr")[0]
 
         col_index = pd.MultiIndex.from_product(
             [[datatype], [interp_str], [scale_str], [baseline_str], 
-            [integ_str], [filter_ks], [diff_thr]], 
+            [integ_str], [diff_thr]], 
             names=["datatype", "interpolated", "scaled", "baseline", 
-            "integrated", "filter_ks", "diff_thr"])
+            "integrated", "diff_thr"])
         row_index = pd.MultiIndex.from_product(row_indices, names=row_names)
 
         run_data_df = pd.DataFrame(
@@ -4272,8 +3331,6 @@ class Stim(object):
                     - baseline    : baseline used ("no", value)
                     - integrated  : whether data is integrated over sequences 
                                     ("yes", "no")
-                    - filter_ks   : kernel size used to median filter running 
-                                    velocity data
                     - diff_thr    : threshold of difference in running velocity 
                                     used to identify outliers
                 hierarchical rows:
@@ -4300,9 +3357,9 @@ class Stim(object):
 
 
     #############################################
-    def get_roi_data(self, twop_ref_fr, pre, post, fluor="dff", integ=False, 
-                     rem_bad=True, baseline=None, stats="mean", 
-                     transients=False, scale=False, pad=(0, 0), smooth=False):
+    def get_roi_data(self, twop_ref_fr, pre, post, integ=False, baseline=None, 
+                     stats="mean", transients=False, scale=False, pad=(0, 0), 
+                     smooth=False):
         """
         self.get_roi_data(twop_ref_fr, pre, post)
 
@@ -4317,15 +3374,8 @@ class Stim(object):
                                   reference frame number (in s)
 
         Optional args:
-            - fluor (str)         : if "dff", dF/F is used, if "raw", ROI traces
-                                    default: "dff"
             - integ (bool)        : if True, dF/F is integrated over frames
                                     default: False
-            - rem_bad (bool)      : if True, bad ROIs (too noisy or containing 
-                                    NaNs, Infs) are removed. If False, bad 
-                                    values are omitted in calculating the data 
-                                    statistics.
-                                    default: True
             - baseline (num)      : number of seconds from beginning of 
                                     sequences to use as baseline. If None, data 
                                     is not baselined.
@@ -4352,15 +3402,13 @@ class Stim(object):
                                           by:
                 hierarchical columns (all dummy):
                     - datatype        : type of data (e.g., "roi_traces")
-                    - bad_rois_removed: whether bad ROIs were removed 
-                                        ("yes", "no")
                     - scaled          : whether ROI data is scaled 
                                         ("yes", "no")
                     - baseline        : baseline used ("no", value)
                     - integrated      : whether data is integrated over 
                                         sequences ("yes", "no")
                     - smoothing       : smoothing padding ("(x, x)", "no")
-                    - fluorescence    : type of data ("raw" or "dff")
+                    - fluorescence    : type of data ("dff")
                 hierarchical rows:
                     - ROIs          : ROI indices
                     - sequences     : sequences numbers
@@ -4388,13 +3436,10 @@ class Stim(object):
                 )
 
         # get dF/F: ROI x seq x fr
-        roi_data_df = self.sess.get_roi_seqs(
-            frame_ns, fluor=fluor, rem_bad=rem_bad, scale=scale
-            )
+        roi_data_df = self.sess.get_roi_seqs(frame_ns, scale=scale)
 
         if transients:
-            keep_rois = self.sess.get_active_rois(
-                fluor=fluor, stimtype=None, rem_bad=rem_bad)
+            keep_rois = self.sess.get_active_rois(stimtype=None)
             drop_rois = set(roi_data_df.index.unique("ROIs")) - set(keep_rois)
             if len(drop_rois) != 0:
                 roi_data_df = roi_data_df.drop(
@@ -4404,11 +3449,6 @@ class Stim(object):
             for row in roi_data_df.index.names]
 
         data_array = roi_data_df.to_numpy().reshape(dims)
-
-        if rem_bad:
-            nanpol = None
-        else:
-            nanpol = "omit"
 
         row_indices = [roi_data_df.index.unique("ROIs"), 
             range(data_array.shape[1])]
@@ -4422,7 +3462,7 @@ class Stim(object):
             baseline_fr = int(np.around(baseline * self.sess.twop_fps))
             baseline_data = data_array[:, :, : baseline_fr]
             data_array_base = math_util.mean_med(
-                baseline_data, stats=stats, axis=-1, nanpol=nanpol
+                baseline_data, stats=stats, axis=-1, nanpol=None
                 )[:, :, np.newaxis]
             data_array = data_array - data_array_base
 
@@ -4437,21 +3477,20 @@ class Stim(object):
         if integ:
             integ_str = "yes"
             data_array = math_util.integ(
-                data_array, 1./self.sess.twop_fps, axis=-1, nanpol=nanpol)
+                data_array, 1./self.sess.twop_fps, axis=-1, nanpol=None)
         else:
             integ_str = "no"
             row_indices.append(frame_n_df.index.unique(
                 level="time_values").tolist())
             row_names.append("time_values")
 
-        rem_bad_str = roi_data_df.columns.unique("bad_rois_removed")[0]
         scale_str = roi_data_df.columns.unique("scaled")[0]
         fluor_str = roi_data_df.columns.unique("fluorescence")[0]
 
         col_index = pd.MultiIndex.from_product(
-            [[datatype], [rem_bad_str], [scale_str], [baseline_str], 
+            [[datatype], [scale_str], [baseline_str], 
             [integ_str], [smooth_str], [fluor_str], ], 
-            names=["datatype", "bad_rois_removed", "scaled", "baseline", 
+            names=["datatype", "scaled", "baseline", 
             "integrated", "smoothing", "fluorescence"])
         row_index = pd.MultiIndex.from_product(row_indices, names=row_names)
 
@@ -4463,8 +3502,7 @@ class Stim(object):
     
     #############################################
     def get_roi_stats_df(self, twop_ref_fr, pre, post, byroi=True, 
-                         fluor="dff", integ=False, rem_bad=True, 
-                         ret_arr=False, stats="mean", error="std", 
+                         integ=False, ret_arr=False, stats="mean", error="std", 
                          baseline=None, transients=False, scale=False, 
                          smooth=False):
         """
@@ -4485,15 +3523,8 @@ class Stim(object):
             - byroi (bool)        : if True, returns statistics for each ROI. 
                                     If False, returns statistics across ROIs
                                     default: True 
-            - fluor (str)         : if "dff", dF/F is used, if "raw", ROI traces
-                                    default: "dff"
             - integ (bool)        : if True, dF/F is integrated over sequences
                                     default: False
-            - rem_bad (bool)      : if True, bad ROIs (too noisy or containing 
-                                    NaNs, Infs) are removed. If False, bad 
-                                    values are omitted in calculating the data 
-                                    statistics.
-                                    default: True
             - ret_arr (bool)      : also return ROI trace data array, not just  
                                     statistics.
             - stats (str)         : return mean ("mean") or median ("median")
@@ -4525,8 +3556,6 @@ class Stim(object):
                     - baseline    : baseline used ("no", value)
                     - integrated  : whether data is integrated over sequences 
                                     ("yes", "no")
-                    - filter_ks   : kernel size used to median filter running 
-                                    velocity data
                     - diff_thr    : threshold of difference in running velocity 
                                     used to identify outliers
                 hierarchical rows:
@@ -4538,23 +3567,17 @@ class Stim(object):
         """
         
         roi_data_df = self.get_roi_data(
-            twop_ref_fr, pre, post, fluor, integ, rem_bad=rem_bad, 
-            baseline=baseline, stats=stats, transients=transients, scale=scale, 
-            smooth=smooth)
+            twop_ref_fr, pre, post, integ, baseline=baseline, stats=stats, 
+            transients=transients, scale=scale, smooth=smooth)
             
         # order in which to take statistics on data
         dims = ["sequences", "ROIs"]
         if byroi:
             dims = ["sequences"]
 
-        if rem_bad:
-            nanpol = None
-        else:
-            nanpol = "omit"
-
         stats_df = self.get_stats_df(
             roi_data_df, ret_arr, dims=dims, stats=stats, error=error, 
-            nanpol=nanpol)
+            nanpol=None)
 
         return stats_df
 
@@ -4586,8 +3609,6 @@ class Stim(object):
                                     or "block_n")
                     - interpolated: whether data is interpolated ("yes", "no")
                     - scaled      : whether data is scaled ("yes", "no")
-                    - filter_ks   : kernel size used to median filter running 
-                                    velocity data
                     - diff_thr    : threshold of difference in running velocity 
                                     used to identify outliers
                 hierarchical rows:
@@ -4692,24 +3713,14 @@ class Gabors(Stim):
         
         Optional args:
             - stim_dict (dict): stimulus dictionary 
-                                (only applicable if self.sess.nwb is False, in 
-                                which case it will be loaded if not passed)
                                 default: None
         """
 
         super().__init__(sess, stimtype="gabors", stim_dict=stim_dict)
         
-        if self.sess.nwb:
-            gen_stim_props = sess_stim_df_util.load_hard_coded_stim_properties(
-                stimtype=self.stimtype, runtype=self.sess.runtype
-                )
-        else:
-            if stim_dict is None:
-                stim_dict = self.sess._load_stim_dict(full_table=False)
-            
-            gen_stim_props = sess_stim_df_util.load_gen_stim_properties(
-                stim_dict, stimtype=self.stimtype, runtype=self.sess.runtype
-                )
+        gen_stim_props = load_util.load_hard_coded_stim_properties(
+            stimtype=self.stimtype, runtype=self.sess.runtype
+            )
         
         self.sf        = gen_stim_props["sf"]
         self.phase     = gen_stim_props["phase"]
@@ -4734,7 +3745,7 @@ class Gabors(Stim):
         self.n_patches = int(n_patches[0]) 
 
         # Gabor frames and mean orientations
-        self.ori_ran = sess_stim_df_util.GABOR_ORI_RANGE
+        self.ori_ran = load_util.GABOR_ORI_RANGE
         self.exp_gabfr = ["A", "B", "C", "D", "G"]
         self.unexp_gabfr = ["U"]
         self.all_gabfr = self.exp_gabfr + self.unexp_gabfr
@@ -5068,24 +4079,14 @@ class Visflow(Stim):
 
         Optional args:
             - stim_dict (dict): stimulus dictionary 
-                                (only applicable if self.sess.nwb is False, in 
-                                which case it will be loaded if not passed)
                                 default: None
         """
 
         super().__init__(sess, stimtype="visflow", stim_dict=stim_dict)
 
-        if self.sess.nwb:
-            gen_stim_props = sess_stim_df_util.load_hard_coded_stim_properties(
-                stimtype=self.stimtype, runtype=self.sess.runtype
-                )
-        else:
-            if stim_dict is None:
-                stim_dict = self.sess._load_stim_dict(full_table=False)
-            
-            gen_stim_props = sess_stim_df_util.load_gen_stim_properties(
-                stim_dict, stimtype=self.stimtype, runtype=self.sess.runtype
-                )
+        gen_stim_props = load_util.load_hard_coded_stim_properties(
+            stimtype=self.stimtype, runtype=self.sess.runtype
+            )
         
         self.speed = gen_stim_props["speed"]
 
@@ -5310,11 +4311,6 @@ class Grayscr():
                                   frame requested(height x width x channel (1))
         """
 
-        if not self.sess.nwb:
-            raise NotImplementedError(
-                "Stimulus images can only be retrieved if data format is NWB."
-                )
-
         # hacky - use get_segs_by_frame() via another stimulus
         segs = self.sess.stims[0].get_segs_by_frame(stim_frs, fr_type="stim")
         sub_stim_df = self.sess.stim_df.loc[segs]
@@ -5341,7 +4337,7 @@ class Grayscr():
                 "Expected only one unique template name and frame number for "
                 "Grayscr stimulus."
                 )
-        stim_image = sess_load_util.load_stimulus_images_nwb(
+        stim_image = load_util.load_stimulus_images_nwb(
             self.sess.sess_files, 
             template_name=stim_templ_names.tolist()[0], 
             frame_ns=stim_start_templ_frames.tolist()[0]

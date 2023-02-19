@@ -5,16 +5,15 @@ This script contains functions for ROI mask and projection analysis.
 
 Authors: Colleen Gillon
 
-Date: January, 2021
+Date: February 2023
 
-Note: this code uses python 3.7.
+Note: this code was aggregated from https://github.com/colleenjg/OpenScope_CA_Analysis.
 """
 
 import numpy as np
 import pandas as pd
 
-from util import gen_util
-from sess_util import sess_load_util
+from util import gen_util, load_util
 from analysis import misc_analys
 
 
@@ -86,15 +85,11 @@ def get_sess_reg_mask_info(sess, analyspar, reg=True, proj=True):
             )
 
     # get unregistered ROI masks
-    sess_dict["roi_masks"] = sess.get_roi_masks(
-        fluor=analyspar.fluor, rem_bad=analyspar.rem_bad
-        )
+    sess_dict["roi_masks"] = sess.get_roi_masks()
 
     if reg:
         # get registered ROI masks
-        registered_roi_masks = sess.get_registered_roi_masks(
-            fluor=analyspar.fluor, rem_bad=analyspar.rem_bad
-            )
+        registered_roi_masks = sess.get_registered_roi_masks()
         sess_dict["registered_roi_masks"] = registered_roi_masks
 
     if proj:
@@ -174,7 +169,7 @@ def get_roi_tracking_df(sessions, analyspar, reg_only=False, proj=False,
 
     misc_analys.check_sessions_complete(sessions, raise_err=True)
 
-    sess_df = misc_analys.get_check_sess_df(sessions, analyspar=analyspar)
+    sess_df = misc_analys.get_check_sess_df(sessions)
 
     # if cropping, check right away for dictionary with the preset parameters
     if crop_info:
@@ -340,10 +335,9 @@ def collect_roi_tracking_example_data(sessions):
         tracked_roi_masks = sess.get_roi_masks()
         n_tracked_rois = len(tracked_roi_masks)
 
-        rem_bad = sess.nwb # index without bad ROIs, if using NWB
-        ex_df = sess_load_util.get_tracking_perm_example_df(
+        ex_df = load_util.get_tracking_perm_example_df(
             sess.get_local_nway_match_path(), sessid=sess.sessid,
-            idx_after_rem_bad=rem_bad
+            idx_after_rem_bad=True
             )
 
         # check that union information makes sense
@@ -415,16 +409,16 @@ def collect_roi_tracking_example_data(sessions):
             if len(extra_roi_ns):
                 try:
                     sess.set_only_tracked_rois(False)
-                    extra_roi_masks = sess.get_roi_masks(
-                        rem_bad=rem_bad
-                        )[np.asarray(extra_roi_ns)]
+                    extra_roi_masks = sess.get_roi_masks()[
+                        np.asarray(extra_roi_ns)
+                        ]
                     perm_masks.append(extra_roi_masks)
                 finally: 
                     # make sure to reset, even if an error occurs
                     sess.set_only_tracked_rois(True)
 
             # apply registration transform
-            perm_masks = sess_load_util.apply_registration_transform(
+            perm_masks = load_util.apply_registration_transform(
                 sess.get_local_nway_match_path(), 
                 sess.sessid, 
                 image=np.concatenate(perm_masks, axis=0).astype("uint8"), 

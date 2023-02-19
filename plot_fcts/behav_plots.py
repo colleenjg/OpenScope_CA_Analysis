@@ -5,9 +5,9 @@ This script contains functions for plotting pupil and running analyses.
 
 Authors: Colleen Gillon
 
-Date: January, 2021
+Date: February 2023
 
-Note: this code uses python 3.7.
+Note: this code was aggregated from https://github.com/colleenjg/OpenScope_CA_Analysis.
 """
 
 import numpy as np
@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 from matplotlib import ticker, patches
 import seaborn
 
-from util import logger_util, plot_util, math_util, rand_util
+from util import gen_util, logger_util, math_util, plot_util
 from analysis import misc_analys
 from plot_fcts import misc_plots, plot_helper_fcts, seq_plots
 
@@ -99,8 +99,8 @@ def plot_pupil_run_trace_stats(trace_df, analyspar, figpar, split="by_exp",
             )
     row_idx = trace_df.index[0]
 
-    exp_col = plot_util.LINCLAB_COLS["gray"]
-    unexp_col = plot_util.LINCLAB_COLS["red"]
+    exp_col = "#969696"
+    unexp_col = "#eb3920"
     for d, datatype in enumerate(datatypes):
         sub_ax = ax[d, 0]
 
@@ -167,7 +167,7 @@ def plot_violin_data(sub_ax, xs, all_data, palette=None, dashes=None,
     """
 
     # seed for scatterplot
-    rand_util.seed_all(seed, log_seed=False)
+    gen_util.seed_all(seed)
 
     # checks
     if len(xs) != len(all_data):

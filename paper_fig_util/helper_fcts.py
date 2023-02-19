@@ -5,14 +5,15 @@ This script contains helper functions for paper analysis plotting.
 
 Authors: Colleen Gillon
 
-Date: January, 2021
+Date: February 2023
 
-Note: this code uses python 3.7.
+Note: this code was aggregated from https://github.com/colleenjg/OpenScope_CA_Analysis.
 """
 
 from pathlib import Path
+import json
 
-from util import file_util, logger_util
+from util import gen_util, logger_util
 
 
 TAB = "    "
@@ -40,7 +41,7 @@ def get_datafile_save_path(direc):
     
 
 #############################################
-def get_save_path(fig_panel_analysis, main_direc=None):
+def get_save_path(fig_panel_analysis, incl_paper_direc=False, main_direc=None):
     """
     get_save_path(fig_panel_analysis)
 
@@ -51,6 +52,9 @@ def get_save_path(fig_panel_analysis, main_direc=None):
             figure/panel analysis object
     
     Optional args:
+        - incl_paper_direc (bool): 
+            if True, a paper directory is included, e.g. 'dataset_paper'
+            default: None
         - main_direc (Path): 
             main directory to save file in
             default: None
@@ -62,18 +66,17 @@ def get_save_path(fig_panel_analysis, main_direc=None):
             name under with to save file
     """
 
-    savedir = Path(
-        f"{fig_panel_analysis.paper}_paper", f"Fig{fig_panel_analysis.figure}"
-        )
+    savedir = Path(f"Fig{fig_panel_analysis.figure}")
+    if incl_paper_direc:
+        savedir = Path(f"{fig_panel_analysis.paper}_paper", savedir)
+
     savename = f"panel_{fig_panel_analysis.panel}"
 
     if main_direc is not None:
         savedir = main_direc.joinpath(savedir)
 
-    if not (fig_panel_analysis.full_power and fig_panel_analysis.paper_seed):
+    if not fig_panel_analysis.paper_seed:
         savedir = savedir.joinpath("panels_with_diff_params")
-        if not (fig_panel_analysis.full_power):
-            savename = f"{savename}_lower_power"
         if not (fig_panel_analysis.paper_seed):
             savename = f"{savename}_seed{fig_panel_analysis.seed}"
             
@@ -82,7 +85,7 @@ def get_save_path(fig_panel_analysis, main_direc=None):
 
 #############################################
 def check_if_data_exists(figpar, filetype="json", overwrite_plot_only=False, 
-                         raise_no_data=True):
+                         raise_no_data=True, incl_paper_direc=False):
     """
     check_if_data_exists(figpar)
 
@@ -109,6 +112,10 @@ def check_if_data_exists(figpar, filetype="json", overwrite_plot_only=False,
             if True, an error is raised if overwrite_plot_only is True, but no 
             analysis data is found.
             default: True
+        - incl_paper_direc (bool): 
+            if True, a paper directory is included, e.g. 'dataset_paper'
+            default: None
+
 
     Returns:
         - run_analysis (bool): 
@@ -119,12 +126,15 @@ def check_if_data_exists(figpar, filetype="json", overwrite_plot_only=False,
     
     fig_panel_analysis = figpar["fig_panel_analysis"]
     savedir, savename = get_save_path(
-        fig_panel_analysis, main_direc=figpar["dirs"]["figdir"]
+        fig_panel_analysis, main_direc=figpar["dirs"]["figdir"],
+        incl_paper_direc=incl_paper_direc
     )
     
     datadir = get_datafile_save_path(savedir)
 
-    data_path = file_util.add_ext(datadir.joinpath(savename), filetype)[0]
+    if filetype != "json":
+        raise ValueError("filetype must be set to 'json'.")
+    data_path = datadir.joinpath(savename).with_suffix(".json")
 
     run_analysis = True
 
@@ -139,7 +149,8 @@ def check_if_data_exists(figpar, filetype="json", overwrite_plot_only=False,
                 "argument, and without --plot_only.")
             logger.warning(warn_str, extra={"spacing": "\n"})
 
-            info = file_util.loadfile(data_path)
+            with open(data_path, "r") as f:
+                info = json.load(f)
             fig_panel_analysis.plot_fct(figpar=figpar, **info)
             run_analysis = False
 
@@ -178,5 +189,17 @@ def plot_save_all(info, figpar):
     
     overwrite = figpar["save"]["overwrite"]
     fulldir = get_datafile_save_path(fulldir)
-    file_util.saveinfo(info, savename, fulldir, "json", overwrite=overwrite)
 
+    # create directory if it doesn't exist
+    Path(fulldir).mkdir(parents=True, exist_ok=True)
+    
+    # identify the correct file name
+    fullname = Path(fulldir).joinpath(savename).with_suffix(".json")
+    if not overwrite:
+        fullname = gen_util.get_unique_path(fullname)
+
+    # save file
+    with open(fullname, "w") as f:
+        json.dump(info, f, sort_keys=True)
+    
+    return fullname
