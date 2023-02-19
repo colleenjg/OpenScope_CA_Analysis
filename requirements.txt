@@ -1,0 +1,12 @@
+ipython
+dandi
+pynwb
+joblib
+matplotlib
+numpy
+opencv
+pandas
+scipy
+seaborn
+tqdm
+
