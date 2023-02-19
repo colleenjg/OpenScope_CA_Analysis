@@ -127,7 +127,7 @@ def get_dandi_session_ids(mouse_df, mouse_n="all", sess_n="all", pass_fail="P",
             f"No sessions fit the combined criteria: {', '.join(criteria)}"
             )
 
-    dandi_session_ids = lines["session_id"].tolist()
+    dandi_session_ids = lines["sessid"].tolist()
     if sort:
         dandi_session_ids = sorted(dandi_session_ids)
 
