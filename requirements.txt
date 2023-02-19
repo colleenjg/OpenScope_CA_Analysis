@@ -4,7 +4,7 @@ pynwb
 joblib
 matplotlib
 numpy
-opencv
+opencv-python
 pandas
 scipy
 seaborn
