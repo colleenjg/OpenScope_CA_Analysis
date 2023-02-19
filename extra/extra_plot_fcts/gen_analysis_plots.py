@@ -1000,7 +1000,7 @@ def plot_autocorr(analyspar, sesspar, stimpar, extrapar, autocorrpar,
         plot_util.add_bars(sub_ax, hbars=seq_bars)
         sub_ax.set_ylim([0, 1])
         sub_ax.set_title(title, y=1.02)
-        if sub_ax.is_last_row():
+        if plot_util.is_last_row(sub_ax):
             sub_ax.set_xlabel("Lag (s)")
 
     plot_util.turn_off_extra(ax, n_sess)

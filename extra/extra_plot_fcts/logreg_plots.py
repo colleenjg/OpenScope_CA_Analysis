@@ -595,7 +595,7 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane,
         x_label = rois_x_label(sess_ns, arr[:, :, -2])
 
     if "acc" in data_title.lower():
-        if (not modif or ax.is_first_row()) and ax.is_first_col():
+        if (not modif or plot_util.is_first_row(ax)) and plot_util.is_first_col(ax):
             if q1v4:
                 ax.set_ylabel("Accuracy in Q4 (%)")
             elif evu:
@@ -608,7 +608,7 @@ def summ_subplot(ax, arr, sh_arr, data_title, mouse_ns, sess_ns, line, plane,
         q1v4 = False # treated as if no Q4
         evu = False # treated as if no exp v unexp
         split_oris = False # treated as if no 2 sets of Gabor frames
-        if (not modif or ax.is_first_row()) and ax.is_first_col():
+        if (not modif or plot_util.is_first_row(ax)) and plot_util.is_first_col(ax):
             ax.set_ylabel("Nbr epochs")
         plot_util.set_ticks(ax, "y", 0, 1000, 6, pad_p=0)
 

@@ -305,10 +305,10 @@ def add_axislabels(sub_ax, fluor="dff", area=False, scale=False, datatype="roi",
 
     x_str, y_str = get_axislabels(fluor, area, scale, datatype, x_ax, y_ax)
 
-    if not(last_row) or sub_ax.is_last_row():
+    if not(last_row) or plot_util.is_last_row(sub_ax):
         sub_ax.set_xlabel(x_str)
 
-    if not(first_col) or sub_ax.is_first_col():
+    if not(first_col) or plot_util.is_first_col(sub_ax):
         sub_ax.set_ylabel(y_str)
 
 
@@ -455,7 +455,7 @@ def plot_labels(ax, gabfr=0, plot_vals="both", op="none", pre=0, post=1.5,
                              lines plotted
                              default: True 
 
-    Kewyord args:
+    Keyword args:
         - axline_kw (dict): keyword arguments for plot_util.add_bars 
                             (-> plt.axvline() or plt.axhline())
     """
@@ -928,7 +928,7 @@ def add_linpla_axislabels(ax, fluor="dff", area=False, scale=False,
             horizontalalignment="center", weight="bold")
     else:
         for sub_ax in ax.reshape(-1):
-            if sub_ax.is_last_row():
+            if plot_util.is_last_row(sub_ax):
                 if kind == "prog":
                     x_pos = fig.transFigure.inverted().transform(
                         sub_ax.transAxes.transform([0.5, 0]))[0]
@@ -963,7 +963,7 @@ def add_linpla_axislabels(ax, fluor="dff", area=False, scale=False,
     if single_lab:
         for sub_ax in ax.reshape(-1):
             colNum = sub_ax.get_subplotspec().colspan.start
-            if (not (sub_ax.is_last_row() and colNum in label_cols) and 
+            if (not (plot_util.is_last_row(sub_ax) and colNum in label_cols) and 
                 skip_x):
                 sub_ax.tick_params(labelbottom=False)
             if sub_ax not in add_yticks:
@@ -1069,14 +1069,14 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind="reg",
                         sub_ax.text(0.65, 0.75, sess_lab, fontsize="x-large", 
                             transform=sub_ax.transAxes, style="italic")
                 elif kind == "prog": # alternative session labels for "prog"
-                    if (sub_ax.is_last_row() and 
+                    if (plot_util.is_last_row(sub_ax) and 
                         (c < len(sess_ns) or not(single_lab))): # BOTTOM
                         sub_ax.text(0.5, -0.5, sess_ns[c % len(sess_ns)], 
                             fontsize="x-large", transform=sub_ax.transAxes, 
                             weight="bold")
             
             # remove x ticks and spines from graphs
-            if not sub_ax.is_last_row() and kind != "idx": # NOT BOTTOM
+            if not plot_util.is_last_row(sub_ax) and kind != "idx": # NOT BOTTOM
                 sub_ax.tick_params(axis="x", which="both", bottom=False) 
                 sub_ax.spines["bottom"].set_visible(False)
 
