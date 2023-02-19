@@ -36,7 +36,7 @@ sessid,full_timestamp,mouse_n,mouseid,sex,DOB,date,age_weeks,depth,plane,line,ru
 759189643,20180927T182632,1,408021,M,20180623,20180927,13.7142857142857,175,soma,L23-Cux2,prod,2,74,59,86,74,86,P,1,1,yes,5730,
 759660390,20181001T172833,1,408021,M,20180623,20181001,14.2857142857143,175,soma,L23-Cux2,prod,3,107,59,121,107,121,P,1,1,yes,36941,
 759666166,20181001T180256,2,411400,F,20180711,20181001,11.7142857142857,20,dend,L5-Rbp4,prod,1,942,-1,1009,70,79,F,1,1,yes,11883,"dropped beh and eye tracking frames (5), stim frames (953), 2nd stim2twop alignment shows minor differences"
-759872185,20181002T173740,2,411400,F,20180711,20181002,11.8571428571429,20,dend,L5-Rbp4,prod,2,289,-1,309,53,58,F,1,1,yes,8005,"pupil recording truncated, dropped beh and eye tracking frames (4), stim frames (1086), 2nd stim2twop alignment shows minor differences"
+759872185,20181002T173740,2,411400,F,20180711,20181002,11.8571428571429,20,dend,L5-Rbp4,prod,2,289,-1,309,53,58,F,1,1,yes,8005,"pupil recording truncated (half missing), dropped beh and eye tracking frames (4), stim frames (1086), 2nd stim2twop alignment shows minor differences"
 760269100,20181003T180253,2,411400,F,20180711,20181003,12,20,dend,L5-Rbp4,prod,3,524,-1,539,75,86,F,1,1,yes,34380,"dropped beh and eye tracking frames (7), stim frames (696), 2nd stim2twop alignment shows minor differences"
 761730740,20181009T175037,2,411400,F,20180711,20181009,12.8571428571429,20,dend,L5-Rbp4,prod,4,630,162,657,57,65,P,1,1,yes,44023,
 762415169,20181011T174057,2,411400,F,20180711,20181011,13.1428571428571,20,dend,L5-Rbp4,prod,5,637,162,662,25,31,P,1,1,yes,29259,
@@ -81,4 +81,4 @@ sessid,full_timestamp,mouse_n,mouseid,sex,DOB,date,age_weeks,depth,plane,line,ru
 834403597,20190308T164555,13,440889,F,20181212,20190308,12.2857142857143,175,soma,L23-Cux2,prod,3,210,147,228,210,228,P,1,1,yes,10210,"dropped beh and eye tracking frames (6), stim frames (166), passed QC after revision"
 836968429,20190314T152429,13,440889,F,20181212,20190314,13.1428571428571,175,soma,L23-Cux2,prod,4,205,-1,217,205,217,P,1,1,yes,24253,"FOV shifted (poor alignment with previous sessions, so excluded from ROI tracking)"
 837360280,20190315T152224,13,440889,F,20181212,20190315,13.2857142857143,175,soma,L23-Cux2,prod,5,217,-1,244,217,244,F,1,1,yes,19576,z-drift (14 um)
-838633305,,13,440889,F,20181212,20190318,13.7142857142857,175,soma,L23-Cux2,prod,6,227,-1,256,227,256,F,1,1,no,30582,laser wavelength set to 800 um
+838633305,20190318T232807,13,440889,F,20181212,20190318,13.7142857142857,175,soma,L23-Cux2,prod,6,227,-1,256,227,256,F,1,1,no,30582,laser wavelength incorrectly set to 800 nm (instead of 910 nm)

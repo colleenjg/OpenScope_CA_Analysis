@@ -670,7 +670,7 @@ def get_snr(session, analyspar, datatype="snrs", block_size=100):
         gen_util.accepted_values_error("datatype", datatype, datatypes)
     index = 0 if datatype == "snrs" else -1
 
-    data = np.empty(len(keep_rois)) * np.nan
+    data = np.full(len(keep_rois), np.nan)
     for i in range(len(keep_rois)):
         if not i % block_size: # load by block
             block_ns = keep_rois[i : i + block_size]

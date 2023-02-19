@@ -22,7 +22,7 @@ from plot_fcts import behav_plots, corr_plots, misc_plots, seq_plots, \
 #############################################
 def plot_imaging_planes(sesspar, extrapar, imaging_plane_df, figpar):
     """
-    plot_roi_tracking(sesspar, extrapar, imaging_plane_df, figpar)
+    plot_imaging_planes(sesspar, extrapar, imaging_plane_df, figpar)
 
     From dictionaries, plots imaging planes.
     

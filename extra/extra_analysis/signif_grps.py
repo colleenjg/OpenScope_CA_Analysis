@@ -256,7 +256,7 @@ def grp_traces_by_qu_unexp_sess(trace_data, analyspar, roigrppar, all_roi_grps):
     n_frames = [me.shape[2] for me in data_me]
 
     # sess x quantile (first/last) x ROI grp
-    empties = [np.empty([n_stats, n_fr]) * np.nan for n_fr in n_frames]
+    empties = [np.full([n_stats, n_fr], np.nan) for n_fr in n_frames]
     grp_stats = [[[] for _ in range(n_quants)] for _ in range(n_sesses)]
     for i, sess in enumerate(data_me):
         for q, quant in enumerate(sess): 
