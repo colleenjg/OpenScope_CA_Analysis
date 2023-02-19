@@ -7,10 +7,9 @@ This script produces paper figures for this project.
 
 Authors: Colleen Gillon
 
-Date: January, 2021
+Date: February 2023
 
-Note: this code uses python 3.7.
-
+Note: this code was aggregated from https://github.com/colleenjg/OpenScope_CA_Analysis.
 """
 
 import argparse
@@ -20,18 +19,12 @@ from pathlib import Path
 import time
 import warnings
 
-# try to set cache/config as early as possible (for clusters)
-from util import gen_util 
-gen_util.CC_config_cache()
-
-from util import logger_util, plot_util
-from sess_util import sess_gen_util, sess_ntuple_util, sess_plot_util
 from paper_fig_util import paper_organization, helper_fcts
+from util import gen_util, logger_util, plot_util, sess_util
 
 
 DEFAULT_DATADIR = Path("..", "data", "OSCA")
 DEFAULT_MOUSE_DF_PATH = Path("mouse_df.csv")
-DEFAULT_FONTDIR = Path("..", "tools", "fonts")
 
 SEP = f"\n{'=' * 80}\n"
 DOUBLE_SEP = f"\n{'_' * 80}\n{'=' * 80}\n"
@@ -64,8 +57,8 @@ def reformat_sess_n(sess_n):
         end = int(vals[1]) + 1
         sess_n = list(range(st, end))
     
-    elif sess_n not in ["any", "all"]:
-        sess_n = gen_util.list_if_not(sess_n)
+    elif sess_n not in ["any", "all"] and not isinstance(sess_n, list):
+        sess_n = [sess_n]
 
     return sess_n
 
@@ -88,13 +81,8 @@ def init_analysis(args):
             ["sesspar"] (SessPar): named tuple with session parameters
             ["stimpar"] (StimPar): named tuple with stimulus parameters
             ["basepar"] (LatPar): named tuple with latency parameters
-            ["idxpar"] (PermPar): named tuple with unexpected event index 
-                parameters
-            ["logregpar"] (LogRegPar): 
-                named tuple with logistic regression parameters
-            ["permpar"] (PermPar): named tuple with permutation parameters
             ["figpar"] (dict): dictionary containing subdictionaries 
-                (see sess_plot_util.init_figpar), with fig_panel_analysis 
+                (see plot_util.init_figpar), with fig_panel_analysis 
                 added under the "fig_panel_analysis" key.
     """
     
@@ -107,11 +95,9 @@ def init_analysis(args):
         paper=args.paper,
         mouse_df_path=args.mouse_df_path,
         output=args.output,
-        full_power=args.full_power, 
         seed=args.seed, 
         parallel=args.parallel,
         plt_bkend=args.plt_bkend,
-        fontdir=args.fontdir,
         )
 
     specific_params = fig_panel_analysis.specific_params
@@ -120,9 +106,9 @@ def init_analysis(args):
     analysis_dict = dict()
 
     # analysis parameters
-    analysis_dict["analyspar"] = sess_ntuple_util.init_analyspar(
+    analysis_dict["analyspar"] = sess_util.init_analyspar(
         fluor="dff", # type of fluorescence data to use (dF/F)
-        rem_bad=specific_params["rem_bad"], # whether to remove bad ROIs OR interpolate bad values in run or pupil data
+        rem_bad=specific_params["rem_bad"], # whether to interpolate bad values in run or pupil data
         stats="mean", # type of statistic to measure (mean/median)
         error=specific_params["error"], # type of error to measure (std/SEM)
         scale=specific_params["scale"], # whether to scale ROIs (robust scaling)
@@ -130,7 +116,7 @@ def init_analysis(args):
         )
 
     # session inclusion parameters
-    analysis_dict["sesspar"] = sess_ntuple_util.init_sesspar(
+    analysis_dict["sesspar"] = sess_util.init_sesspar(
         sess_n=sess_n, # session number(s)
         plane=specific_params["plane"], # recording plane(s)
         line=specific_params["line"], # mouse line(s)
@@ -141,7 +127,7 @@ def init_analysis(args):
         )
 
     # stimulus analysis parameters
-    analysis_dict["stimpar"] = sess_ntuple_util.init_stimpar(
+    analysis_dict["stimpar"] = sess_util.init_stimpar(
         stimtype=specific_params["stimtype"], # stimulus to analyse
         visflow_dir=specific_params["visflow_dir"], # visual flow directions
         visflow_size=specific_params["visflow_size"], # visual flow square sizes
@@ -153,44 +139,15 @@ def init_analysis(args):
         )
 
     # baseline parameters
-    analysis_dict["basepar"] = sess_ntuple_util.init_basepar(
+    analysis_dict["basepar"] = sess_util.init_basepar(
         baseline=0, # sequence baselining (None)
         )
 
-    # USI analysis parameters
-    analysis_dict["idxpar"] = sess_ntuple_util.init_idxpar(
-        op="d-prime", # USI measure
-        feature=specific_params["idx_feature"], # how to select sequences
-        )
-
-    # logistic regression parameters
-    analysis_dict["logregpar"] = sess_ntuple_util.init_logregpar(
-        comp=specific_params["comp"], # classes
-        ctrl=True, # control for dataset size
-        n_epochs=1000, # number of training epochs
-        batchsize=200, # batch size
-        lr=0.0001, # learning rate
-        train_p=0.75, # train:test split
-        wd=0, # weight decay to use (None)
-        )
-
-    # permutation analysis parameters
-    analysis_dict["permpar"] = sess_ntuple_util.init_permpar(
-        n_perms=fig_panel_analysis.n_perms, # number of permutations to run
-        p_val=0.05, # significance threshold to consider
-        tails=specific_params["tails"], # number of tails
-        multcomp=False # multiple comparisons
-        )
-
     # figure plotting parameters
-    analysis_dict["figpar"] = sess_plot_util.init_figpar(
-        datetime=False, 
+    analysis_dict["figpar"] = plot_util.init_figpar(
         overwrite=args.overwrite, 
-        runtype="prod",
         output=args.output, 
         plt_bkend=args.plt_bkend, 
-        fontdir=args.fontdir,
-        paper=True,
         )
 
     analysis_dict["figpar"]["fig_panel_analysis"] = fig_panel_analysis
@@ -235,14 +192,8 @@ def init_sessions(analyspar, sesspar, mouse_df, datadir, sessions=None,
             Session objects 
     """
     
-
-    sesspar_dict = sesspar._asdict()
-    sesspar_dict.pop("closest")
-
     # identify sessions needed
-    sessids = sorted(
-        sess_gen_util.get_sess_vals(mouse_df, "sessid", **sesspar_dict)
-    )
+    sessids = sorted(sess_util.get_sess_vals(mouse_df, **sesspar._asdict()))
 
     if len(sessids) == 0:
         raise ValueError("No sessions meet the criteria.")
@@ -268,10 +219,10 @@ def init_sessions(analyspar, sesspar, mouse_df, datadir, sessions=None,
             ]
 
         # check that previously loaded sessions have roi/run/pupil data loaded
-        args_list = [roi, run, pupil, analyspar.fluor, analyspar.dend]
+        args_list = [roi, run, pupil]
         with logger_util.TempChangeLogLevel(level="warning"):
             sessions = gen_util.parallel_wrap(
-                sess_gen_util.check_session, sessions, args_list=args_list, 
+                sess_util.check_session, sessions, args_list=args_list, 
                 parallel=parallel)
 
     # load new sessions
@@ -286,8 +237,6 @@ def init_sessions(analyspar, sesspar, mouse_df, datadir, sessions=None,
             "mouse_df"  : mouse_df,
             "runtype"   : sesspar.runtype,
             "full_table": False,
-            "fluor"     : analyspar.fluor,
-            "dend"      : analyspar.dend,
             "roi"       : roi,
             "run"       : run,
             "pupil"     : pupil,
@@ -295,7 +244,7 @@ def init_sessions(analyspar, sesspar, mouse_df, datadir, sessions=None,
         }
 
         new_sessions = gen_util.parallel_wrap(
-            sess_gen_util.init_sessions, load_sessids, args_dict=args_dict, 
+            sess_util.init_sessions, load_sessids, args_dict=args_dict, 
             parallel=parallel, use_tqdm=True
             )
 
@@ -344,8 +293,7 @@ def run_single_panel(args, sessions=None, new_fig=False):
     fig_panel_analysis = analysis_dict["figpar"]["fig_panel_analysis"]
 
     # changes backend and defaults
-    plot_util.manage_mpl(cmap=False, **analysis_dict["figpar"]["mng"])
-    sess_plot_util.update_plt_linpla()
+    plot_util.manage_mpl(**analysis_dict["figpar"]["mng"])
 
     action = "Running analysis and producing plot"
     if args.plot_only:
@@ -366,7 +314,7 @@ def run_single_panel(args, sessions=None, new_fig=False):
     run_analysis, data_path = \
         helper_fcts.check_if_data_exists(
             analysis_dict["figpar"], overwrite_plot_only=args.plot_only, 
-            raise_no_data=False
+            raise_no_data=False, incl_paper_direc=False
             )
     
     if not run_analysis:
@@ -417,14 +365,13 @@ def main(args):
     # set logger to the specified level
     logger_util.set_level(level=args.log_level)
 
+    args.paper = "dataset"
+
     if args.datadir is None: 
         args.datadir = DEFAULT_DATADIR
     else:
         args.datadir = Path(args.datadir)
     args.mouse_df_path = DEFAULT_MOUSE_DF_PATH
-
-    # Directory with additional fonts
-    args.fontdir = DEFAULT_FONTDIR if DEFAULT_FONTDIR.exists() else None
 
     # warn if parallel is not used
     if not (args.plot_only or args.parallel):
@@ -499,11 +446,6 @@ def parse_args():
             "specified directory."))
 
         # analysis parameter
-    parser.add_argument("--full_power", action="store_true", 
-        help=("run analyses with all permutations (much slower for local "
-        "computing)"))
-    parser.add_argument("--paper", default="analysis", 
-        help="paper ('dataset' or 'analysis') for which to plot results")
     parser.add_argument("--figure", default="1", 
         help="figure for which to plot results")
     parser.add_argument("--panel", default="all", 
@@ -531,6 +473,11 @@ if __name__ == "__main__":
     args = parse_args()
 
     logger_util.format_all(level=args.log_level)
+
+    # import warnings
+    # import numpy as np
+    # warnings.filterwarnings(action='error', category=np.VisibleDeprecationWarning)
+
 
     main(args)
 

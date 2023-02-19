@@ -5,130 +5,18 @@ This script contains miscellanous plotting functions.
 
 Authors: Colleen Gillon
 
-Date: January, 2021
+Date: February 2023
 
-Note: this code uses python 3.7.
+Note: this code was aggregated from https://github.com/colleenjg/OpenScope_CA_Analysis.
 """
 
 import numpy as np
 
-from util import gen_util, math_util, plot_util
-from sess_util import sess_plot_util
+from util import gen_util, plot_util
 from plot_fcts import plot_helper_fcts, seq_plots
 
 
 TAB = "    "
-
-
-#############################################
-def plot_decoder_data(scores_df, analyspar, sesspar, permpar, figpar, 
-                      title=None):
-    """
-    plot_decoder_data(scores_df, analyspar, sesspar, permpar, figpar)
-
-    Plots Gabor decoding scores across sessions. 
-    
-    Required args:
-        - scores_dfs (pd.DataFrame):
-            dataframe with logistic regression score statistics, shuffled score 
-            confidence intervals, and test set p-values for each 
-            line/plane/session, in addition to the basic sess_df columns
-        - analyspar (AnalysPar): 
-            named tuple containing analysis parameters
-        - sesspar (SessPar): 
-            named tuple containing session parameters
-        - permpar (PermPar): 
-            named tuple containing permutation parameters
-        - figpar (dict): 
-            dictionary containing the following figure parameter dictionaries
-            ["init"] (dict): dictionary with figure initialization parameters
-            ["save"] (dict): dictionary with figure saving parameters
-            ["dirs"] (dict): dictionary with additional figure parameters  
-
-    Returns:
-        - ax (2D array): 
-            array of subplots
-    """
-
-    score_col = "test_balanced_accuracy"
-
-    # add expected columns, and convert to percentage
-    scores_df = scores_df.copy(deep=True)
-    stat = scores_df[f"{score_col}_stat"].to_numpy().reshape(-1, 1) * 100
-    error =  np.asarray(scores_df[f"{score_col}_err"].tolist()) * 100
-    error = error.reshape(len(error), -1)
-    scores_df[score_col] = np.concatenate([stat, error], axis=1).tolist()
-    
-    null_CI_perc = np.asarray(scores_df[f"{score_col}_null_CIs"].tolist()) * 100
-    scores_df["null_CIs"] = null_CI_perc.tolist()
-    scores_df["p_vals"] = scores_df[f"{score_col}_p_vals"]
-
-    ax = seq_plots.plot_sess_data(
-        scores_df, 
-        analyspar=analyspar, 
-        sesspar=sesspar, 
-        permpar=permpar, 
-        figpar=figpar, 
-        title=title, 
-        wide=True,
-        between_sess_sig=False,
-        data_col=score_col,
-        decoder_data=True,
-        )
-
-    return ax
-
-
-#############################################
-def plot_nrois(sub_ax, sess_df, sess_ns=None, col="k", dash=None): 
-    """
-    plot_nrois(sub_ax, sess_df)
-
-    Plots number of ROIs per mice, across sessions.
-
-    Required args:
-        - sub_ax (plt subplot): 
-            subplot
-        - sess_df (pd.DataFrame)
-            dataframe with the basic sess_df columns
-    
-    Optional args:
-        - sess_ns (array-like): 
-            session numbers to use as x values. Inferred if None.
-            default: None
-        - col (str):
-            plotting color
-            default: "k"
-        - dash (str or tuple):
-            dash style
-            default: None
-    """
-    
-    if sess_ns is None:
-        sess_ns = np.arange(sess_df.sess_ns.min(), sess_df.sess_ns.max() + 1)
-    unique_mice = sorted(sess_df["mouse_ns"].unique())
-
-    mouse_cols = plot_util.get_hex_color_range(
-        len(unique_mice), col=col, interval=plot_helper_fcts.MOUSE_COL_INTERVAL
-        )
-    for mouse, mouse_col in zip(unique_mice, mouse_cols):
-        nrois = []
-        for sess_n in sess_ns:
-            row = sess_df.loc[
-                (sess_df["mouse_ns"] == mouse) & 
-                (sess_df["sess_ns"] == sess_n)]
-            if len(row):
-                if len(row) > 1:
-                    raise RuntimeError("No more than one match expected.")
-                else:
-                    nrois.append(row["nrois"].values[0])
-            else:
-                nrois.append(np.nan)
-
-        plot_util.plot_errorbars(
-            sub_ax, nrois, x=sess_ns, color=mouse_col, alpha=0.6, 
-            line_dash=dash, lw=5, mew=5, markersize=8, xticks="auto"
-            ) 
 
 
 #############################################
@@ -163,7 +51,7 @@ def plot_snr_sigmeans_nrois(data_df, figpar, datatype="snrs", title="ROI SNRs"):
 
     sess_ns = np.arange(data_df.sess_ns.min(), data_df.sess_ns.max() + 1)
 
-    figpar = sess_plot_util.fig_init_linpla(figpar, kind="reg")
+    figpar = plot_util.fig_init_linpla(figpar, kind="reg")
     figpar["init"]["sharey"] = "row"
     
     figpar["init"]["subplot_hei"] = 3.8 # 4.4
@@ -194,8 +82,7 @@ def plot_snr_sigmeans_nrois(data_df, figpar, datatype="snrs", title="ROI SNRs"):
                 )
 
         if datatype == "nrois":
-            plot_nrois(sub_ax, lp_df, sess_ns=sess_ns, col=col, dash=dash)
-            continue
+            raise NotImplementedError("Plots not implemented for 'nrois' data.")
 
         data = []
         use_sess_ns = []
@@ -215,7 +102,7 @@ def plot_snr_sigmeans_nrois(data_df, figpar, datatype="snrs", title="ROI SNRs"):
             medianprops=dict(color=col, linewidth=3.0)
             )
     
-    sess_plot_util.format_linpla_subaxes(ax, datatype="roi", 
+    plot_util.format_linpla_subaxes(ax, datatype="roi", 
         ylab="", xticks=sess_ns, kind="reg", single_lab=True)       
         
     return ax
@@ -319,7 +206,7 @@ def plot_roi_correlations(corr_df, figpar, title=None, log_scale=True):
     sess_ns = np.arange(corr_df.sess_ns.min(), corr_df.sess_ns.max() + 1)
     n_sess = len(sess_ns)
 
-    figpar = sess_plot_util.fig_init_linpla(
+    figpar = plot_util.fig_init_linpla(
         figpar, kind="prog", n_sub=len(sess_ns)
         )
     figpar["init"]["subplot_hei"] = 6.5 # 3.0
@@ -334,7 +221,7 @@ def plot_roi_correlations(corr_df, figpar, title=None, log_scale=True):
     if title is not None:
         fig.suptitle(title, y=1.02, weight="bold")
 
-    sess_plot_util.format_linpla_subaxes(ax, datatype="roi", 
+    plot_util.format_linpla_subaxes(ax, datatype="roi", 
         ylab=ylab, xlab="Correlation", sess_ns=sess_ns, kind="prog", 
         single_lab=True)
 

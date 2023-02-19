@@ -2,41 +2,17 @@ name: osca
 channels:
   - defaults
 dependencies:
-  - python==3.8.16
-  - pip==20.3
-  - pip:
-      - future
-      - h5py
-      - ipython==7.16.* # suggested
-      - intel-openmp==2021.2.* # suggested
-      - jedi==0.17.*
-      - jit
-      - joblib==1.1.0
-      - jupyter
-      - matplotlib==3.3.*
-      - mkl==2021.2.*  # suggested
-      - numba==0.53.*
-      - numpy==1.18.*
-      - opencv-python==4.5.*
-      - pandas==1.1.5
-      - pyglet==1.5 # suggested
-      - pyyaml==5.4.* # suggested
-      - scikit-learn==0.24.*
-      - scipy==1.5.*
-      - seaborn==0.11.* # suggested
-      - tables
-      - pillow==8.2.* # suggested
-      - scikit-build==0.10.*
-      - simpleitk
-      - allensdk==2.13.*
-      - pynwb==1.4.* 
-      - semantic_version!=2.9.0 # avoid bug
-      - dandi==0.35.* 
-      - astropy==4.1
-      - torch==1.8.*
-      - torchaudio
-      - torchvision
-      - tqdm
-      - pyglm==1.99.*
-      - git+https://github.com/colleenjg/util.git@osca_mult
+  - python
+  - pip
+  - ipython
+  - dandi
+  - pynwb
+  - joblib
+  - matplotlib
+  - numpy
+  - opencv
+  - pandas
+  - scipy
+  - seaborn
+  - tqdm
 

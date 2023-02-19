@@ -1,3 +1,16 @@
+"""
+plot_helper_fcts.py
+
+This script contains helper functions for plotting.
+
+Authors: Colleen Gillon
+
+Date: February 2023
+
+Note: this code was aggregated from https://github.com/colleenjg/OpenScope_CA_Analysis.
+"""
+
+
 import warnings
 
 from util import gen_util, plot_util
@@ -17,17 +30,18 @@ N_LINPLA = 4
 
 
 #############################################
-def get_colors(col_name, line="L2/3"):
+def get_colors(col_name="green", line="L2/3"):
     """
     get_colors(col_name)
 
     Returns exact color for a specific line.
 
     Required args:
-        - col_name (str): 
-            color name
 
     Optional args:
+        - col_name (str): 
+            color name ("green" or "blue")
+            default: "green"
         - line (str): 
             line to plot
             default: "L2/3"
@@ -35,11 +49,23 @@ def get_colors(col_name, line="L2/3"):
     Returns:
         - col (str): color
     """
+
+    if col_name not in ["green", "blue"]:
+        gen_util.accepted_values_error("col_name", col_name, ["green", "blue"])
     
+    if col_name == "green":
+        col_ends = ["#B3F38E", "#2D7006"]
+        single = "#76bb4b"
+    elif col_name == "blue":
+        col_ends = ["#8DCCF6", "#07395B"]
+        single = "#50a2d5"
+    else:
+        gen_util.accepted_values_error("col_name", col_name, ["green", "blue"])
+
     if line in ["L23", "L23-Cux2"] :
-        col = plot_util.get_color_range(1, col_name)[0]
+        col = single
     elif line in ["L5", "L5-Rbp4"]:
-        col = plot_util.get_color_range(6, col_name)[4]
+        col = plot_util.get_col_series(col_ends, 6)[4]
     else:
         raise ValueError(f"Line '{line}' not recognized")
 

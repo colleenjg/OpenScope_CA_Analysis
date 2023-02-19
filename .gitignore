@@ -1,15 +1,11 @@
 # ignore all subdirectories, except specified ones
 /*/ 
 
-!/sess_util/
 !/analysis/
-!/extra/
-!/minihack/
 !/paper_fig_util/
 !/plot_fcts/
-!/examples/
 !/roi_tracking/
-!/paper_figures/
+!/util/
 !/.binder/
 
 .ipynb_checkpoints
