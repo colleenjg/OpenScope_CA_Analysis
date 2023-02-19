@@ -2139,7 +2139,7 @@ def plot_stim_idx_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
 
     perc_sig_info = {
         "linpla_ord": idx_info["linpla_ord"],
-        "perc_sig"  : np.empty([len(linpla_iter), n_sess, 3]) * np.nan
+        "perc_sig"  : np.full([len(linpla_iter), n_sess, 3], np.nan)
     }
     for i, (line, pla) in enumerate(linpla_iter):
         li = lines.index(line)
@@ -2294,7 +2294,7 @@ def plot_perc_sig_acr_sess(analyspar, sesspar, stimpar, permpar, extrapar,
     fig, ax = plot_util.init_fig(n_plots, **figpar["init"])
     fig.suptitle(title, y=1.05, weight="bold")
 
-    # perc_sig = np.empty([len(linpla_iter), n_sess, 3]) * np.nan
+    # perc_sig = np.full([len(linpla_iter), n_sess, 3], np.nan)
     for i, (line, pla) in enumerate(linpla_iter):
         li = lines.index(line)
         pl = planes.index(pla)

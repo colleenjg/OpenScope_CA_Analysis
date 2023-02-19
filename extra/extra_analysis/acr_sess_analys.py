@@ -1358,8 +1358,8 @@ def get_grped_roi_stats(all_roi_vals, analyspar, permpar):
         nanpol = None
 
     n_sess = len(all_roi_vals)
-    all_diff_st = np.empty([n_sess, st_len]) * np.nan
-    all_rand = np.empty([n_sess, permpar.n_perms]) * np.nan
+    all_diff_st = np.full([n_sess, st_len], np.nan)
+    all_rand = np.full([n_sess, permpar.n_perms], np.nan)
     all_diffs = []
     for s, sess_roi_vals in enumerate(all_roi_vals):
         # mice x splits x ROIs x seqs
@@ -1558,8 +1558,8 @@ def split_diff_by_sesses(sessions, analyspar, stimpar, permpar, datatype="roi",
     seed = rand_util.seed_all(seed, "cpu", log_seed=False)
 
     n_mice = len(sessions)
-    mouse_diff_st = np.empty([n_mice, n_sess, st_len]) * np.nan
-    all_rand = np.empty([n_mice, n_sess, permpar.n_perms]) * np.nan
+    mouse_diff_st = np.full([n_mice, n_sess, st_len], np.nan)
+    all_rand = np.full([n_mice, n_sess, permpar.n_perms], np.nan)
     all_roi_vals = [[] for _ in range(n_sess)]
     sess_info = []
     for m, m_sess in enumerate(sessions):
@@ -2563,7 +2563,7 @@ def prog_by_sesses(sessions, analyspar, stimpar, datatype="roi",
     upper_bound = 1000
 
     # n_mice x n_sess x unexps x n_seq x stats
-    mouse_seq_st = np.empty([n_mice, n_sess, 2, upper_bound, st_len]) * np.nan
+    mouse_seq_st = np.full([n_mice, n_sess, 2, upper_bound, st_len], np.nan)
     if diff:
         mouse_seq_st = mouse_seq_st[:, :, 0]
 
@@ -2637,7 +2637,7 @@ def prog_by_sesses(sessions, analyspar, stimpar, datatype="roi",
                     targ_shape = [st_len]
                 if not diff:
                     targ_shape = [2] + targ_shape
-                grped_seq_st.append((np.empty(targ_shape) * np.nan).tolist())
+                grped_seq_st.append((np.full(targ_shape, np.nan)).tolist())
             else:
                 sess_vals = np.concatenate(
                     [data[..., :cut_seq] for data in sess_vals], axis=-2) 
@@ -3341,7 +3341,7 @@ def stimpar_split_idx_acr_sesses(sessions, analyspar, stimpar, datatype="roi",
             if n_rois is None:
                 raise NotImplementedError("Did not expect no stimulus values "
                     "to have segments.")
-            empty_nans = (np.empty(n_rois) * np.nan).tolist()
+            empty_nans = (np.full(n_rois, np.nan)).tolist()
             for v in fill_nans:
                 all_item_idxs[v].extend(empty_nans)
 

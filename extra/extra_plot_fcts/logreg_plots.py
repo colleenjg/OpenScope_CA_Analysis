@@ -793,8 +793,8 @@ def plot_data_summ(plot_lines, data, stats, shuff_stats, title, savename,
         if -1 not in mouse_ns:
             raise RuntimeError("Shuffle data across mice is missing.")
         mouse_ns = gen_util.remove_if(mouse_ns, -1)
-        data_arr = np.empty((len(mouse_ns), int(max_sess), n_vals)) * np.nan
-        shuff_arr = np.empty((1, int(max_sess), n_vals - 1)) * np.nan
+        data_arr = np.full((len(mouse_ns), int(max_sess), n_vals), np.nan)
+        shuff_arr = np.full((1, int(max_sess), n_vals - 1), np.nan)
 
         for sess_n in sess_ns:
             sess_mice = gen_util.get_df_vals(

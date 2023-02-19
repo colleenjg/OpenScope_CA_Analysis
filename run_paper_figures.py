@@ -427,16 +427,15 @@ def main(args):
     args.fontdir = DEFAULT_FONTDIR if DEFAULT_FONTDIR.exists() else None
 
     # warn if parallel is not used
-    if args.overwrite and not(args.plot_only):
-        if not args.parallel:
-            warnings.warn(
-                "Unless memory demands are too high for the machine being "
-                "used, it is strongly recommended that paper analyses be run "
-                "with the '--parallel' argument (enables computations to be "
-                "distributed across available CPU cores). Otherwise, analyses "
-                "may be very slow.", category=UserWarning, stacklevel=1
-                )
-            time.sleep(paper_organization.WARNING_SLEEP)
+    if not (args.plot_only or args.parallel):
+        warnings.warn(
+            "Unless memory demands are too high for the machine being "
+            "used, it is strongly recommended that paper analyses be run "
+            "with the '--parallel' argument (enables computations to be "
+            "distributed across available CPU cores). Otherwise, analyses "
+            "may be very slow.", category=UserWarning, stacklevel=1
+            )
+        time.sleep(paper_organization.WARNING_SLEEP)
 
 
     # run through figure(s) and panel(s)

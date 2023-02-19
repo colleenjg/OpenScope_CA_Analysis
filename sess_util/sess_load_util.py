@@ -804,8 +804,7 @@ def nan_large_run_differences(run, diff_thr=50, warn_nans=True,
 
     # reinsert pre-existing NaNs
     prev_run = copy.deepcopy(run)
-    with gen_util.TempWarningFilter("invalid value", RuntimeWarning):
-        run = np.empty(original_length) * np.nan
+    run = np.full(original_length, np.nan)
     run[not_nans_idx] = prev_run
 
     prop_nans = np.sum(np.isnan(run)) / len(run)
