@@ -1197,7 +1197,7 @@ def plot_traces(sub_ax, xran, trace_st, lock=False, col="k", lab=True,
 
     # horizontal 0 line
     all_rows = True
-    if not sub_ax.is_last_row() or all_rows:
+    if not plot_util.is_last_row(sub_ax) or all_rows:
         alpha = 0.5
     else:
         # to prevent infinite expansion bug

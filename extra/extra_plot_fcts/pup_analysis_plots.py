@@ -351,9 +351,9 @@ def plot_pup_roi_stim_corr(analyspar, sesspar, stimpar, extrapar,
             sess_roi_corrs[0], sess_roi_corrs[1], marker=".", linestyle="None", 
             label=corr)
         sub_ax.set_title(title, y=1.01)
-        if sub_ax.is_last_row():
+        if plot_util.is_last_row(sub_ax):
             sub_ax.set_xlabel(f"{stimstr_prs[0].capitalize()} correlations")
-        if sub_ax.is_first_col():
+        if plot_util.is_first_col(sub_ax):
             sub_ax.set_ylabel(f"{stimstr_prs[1].capitalize()} correlations")
         sub_ax.legend()
 
