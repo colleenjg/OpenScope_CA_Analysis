@@ -474,10 +474,5 @@ if __name__ == "__main__":
 
     logger_util.format_all(level=args.log_level)
 
-    # import warnings
-    # import numpy as np
-    # warnings.filterwarnings(action='error', category=np.VisibleDeprecationWarning)
-
-
     main(args)
 
