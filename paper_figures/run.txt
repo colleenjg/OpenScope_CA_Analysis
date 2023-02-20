@@ -1,0 +1,304 @@
+python run_paper_figures.py --datadir ../OSCA_NWB --figure all --parallel --debug
+
+Duration: 0.00s (failed)
+
+________________________________________________________________________________
+================================================================================
+Fig. 1A. Cannot plot figure panel as it is a schematic illustration.
+
+
+================================================================================
+Fig. 1B (dataset paper). Running analysis and producing plot: Example projections of 2p imaging planes.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+Loading 4 session(s)...
+  0%|                                                     | 0/4 [00:00<?, ?it/s]
+100%|█████████████████████████████████████████████| 4/4 [00:12<00:00,  3.03s/it]
+
+Compiling imaging plane projection examples.
+    Rasterizing imaging plane images...
+
+Figures saved under paper_figures/Fig1.
+Duration: 21.22s
+Duration: 0.00s (failed)
+
+================================================================================
+Fig. 1C. Cannot plot figure panel as it is a schematic illustration.
+Duration: 0.00s (failed)
+
+________________________________________________________________________________
+================================================================================
+Fig. 2A. Cannot plot figure panel as it was drawn manually.
+
+
+================================================================================
+Fig. 2B (dataset paper). Running analysis and producing plot: Example ROI tracking overlays.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- Analyses for this figure panel have high memory demands. This may be a problem for machines with small amounts of RAM (e.g., 16 GB), in which case it is recommended to run the analysis without the parallel argument ('--parallel').
+
+Loading 4 additional session(s)...
+100%|█████████████████████████████████████████████| 4/4 [01:35<00:00, 23.98s/it]
+
+Compiling ROI tracking examples.
+    Rasterizing imaging plane images...
+
+Figures saved under paper_figures/Fig2.
+Duration: 5m 2.41s
+
+
+================================================================================
+Fig. 2C (dataset paper). Running analysis and producing plot: Example ROI tracking overlays (large).
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- Analyses for this figure panel have high memory demands. This may be a problem for machines with small amounts of RAM (e.g., 16 GB), in which case it is recommended to run the analysis without the parallel argument ('--parallel').
+
+Loading 6 additional session(s)...
+100%|█████████████████████████████████████████████| 6/6 [01:23<00:00, 14.00s/it]
+
+Compiling ROI mask overlay examples.
+
+Figures saved under paper_figures/Fig2.
+Duration: 2m 56.54s
+
+
+================================================================================
+Fig. 2D (dataset paper). Running analysis and producing plot: Example ROI tracking overlay close-ups (large).
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- Analyses for this figure panel have high memory demands. This may be a problem for machines with small amounts of RAM (e.g., 16 GB), in which case it is recommended to run the analysis without the parallel argument ('--parallel').
+
+Compiling enlarged ROI mask overlay examples.
+
+Figures saved under paper_figures/Fig2.
+Duration: 40.06s
+Duration: 0.00s (failed)
+
+________________________________________________________________________________
+================================================================================
+Fig. 3A. Cannot plot figure panel as it was drawn manually from images.
+Duration: 0.00s (failed)
+
+================================================================================
+Fig. 3B. Cannot plot figure panel as it was drawn manually from images.
+Duration: 0.00s (failed)
+
+________________________________________________________________________________
+================================================================================
+Fig. 4A. Cannot plot figure panel as it is made up of sample images.
+Duration: 0.00s (failed)
+
+================================================================================
+Fig. 4B. Cannot plot figure panel as it is made up of sample images.
+
+
+________________________________________________________________________________
+================================================================================
+Fig. 5A (dataset paper). Running analysis and producing plot: Example ROI responses to each expected Gabor sequence.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- This figure panel takes longer to plot, as it requires plotting and rasterizing a large number of items.
+
+Loading 7 additional session(s)...
+  0%|                                                     | 0/7 [00:00<?, ?it/s]
+100%|█████████████████████████████████████████████| 7/7 [02:50<00:00, 24.35s/it]
+
+Compiling example ROI responses to expected Gabor sequence from session 1.
+    Identifying example ROIs for each session...
+    Plotting individual traces...
+    Rasterizing individual traces...
+
+Figures saved under paper_figures/Fig5.
+Duration: 23m 58.37s
+
+
+================================================================================
+Fig. 5B (dataset paper). Running analysis and producing plot: Example ROI responses to each unexpected Gabor sequence.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- This figure panel takes longer to plot, as it requires plotting and rasterizing a large number of items.
+
+Compiling example ROI responses to unexpected Gabor sequence from session 1.
+    Identifying example ROIs for each session...
+    Plotting individual traces...
+    Rasterizing individual traces...
+
+Figures saved under paper_figures/Fig5.
+Duration: 12m 7.51s
+
+
+================================================================================
+Fig. 5C (dataset paper). Running analysis and producing plot: Example ROI responses to each onset of unexpected flow during nasal (leftward) visual flow.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- This figure panel takes longer to plot, as it requires plotting and rasterizing a large number of items.
+
+Compiling example ROI responses to onset of unexpected flow during nasal (leftward) visual flow from session 1.
+    Identifying example ROIs for each session...
+    Plotting individual traces...
+    Rasterizing individual traces...
+
+Figures saved under paper_figures/Fig5.
+Duration: 5m 20.32s
+
+
+================================================================================
+Fig. 5D (dataset paper). Running analysis and producing plot: Example ROI responses to each onset of unexpected flow during temporal (rightward) visual flow.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- This figure panel takes longer to plot, as it requires plotting and rasterizing a large number of items.
+
+Compiling example ROI responses to onset of unexpected flow during temporal (rightward) visual flow from session 1.
+    Identifying example ROIs for each session...
+    Plotting individual traces...
+    Rasterizing individual traces...
+
+Figures saved under paper_figures/Fig5.
+Duration: 4m 59.05s
+
+
+________________________________________________________________________________
+================================================================================
+Fig. 6A (dataset paper). Running analysis and producing plot: Full session running and pupil responses.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- Running and pupil images will be missing.
+
+Compiling pupil and running traces for a full session.
+
+Figures saved under paper_figures/Fig6.
+Duration: 9.47s
+
+
+================================================================================
+Fig. 6B (dataset paper). Running analysis and producing plot: Histograms of running and pupil values.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+Loading 32 additional session(s)...
+100%|███████████████████████████████████████████| 32/32 [00:44<00:00,  1.38s/it]
+
+Compiling pupil and running histograms across sessions.
+
+Figures saved under paper_figures/Fig6.
+Duration: 1m 29.90s
+
+
+________________________________________________________________________________
+================================================================================
+Fig. 7A (dataset paper). Running analysis and producing plot: Fluorescence SNR for each ROI.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+Compiling ROI SNRs from session 1 to 3.
+    Calculating ROI SNRs for each session...
+
+Figures saved under paper_figures/Fig7.
+Duration: 15m 50.54s
+
+
+================================================================================
+Fig. 7B (dataset paper). Running analysis and producing plot: Fluorescence signal for each ROI.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+Compiling ROI signal means from session 1 to 3.
+    Calculating ROI signal means for each session...
+
+Figures saved under paper_figures/Fig7.
+Duration: 9m 55.02s
+
+
+================================================================================
+Fig. 7C (dataset paper). Running analysis and producing plot: ROI correlations per session.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+Compiling ROI correlations from session 1 to 3.
+    Calculating ROI correlations for each session...
+
+Figures saved under paper_figures/Fig7.
+Duration: 10m 18.74s
+
+
+________________________________________________________________________________
+================================================================================
+Fig. 8A (dataset paper). Running analysis and producing plot: Dendritic ROI matching examples.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- Analyses for this figure panel have high memory demands. This may be a problem for machines with small amounts of RAM (e.g., 16 GB), in which case it is recommended to run the analysis without the parallel argument ('--parallel').
+
+Compiling dendritic tracking examples.
+
+Conflicts and matches for a L2/3-D example:
+    Fewest matches (sess 1, 2, 3): 129
+    Most matches (sess 3, 2, 1): 132
+    Union - conflicts: 140 - 4 = 136 matches
+
+Figures saved under paper_figures/Fig8.
+Duration: 1m 3.17s
+
+
+================================================================================
+Fig. 8B (dataset paper). Running analysis and producing plot: Somatic ROI matching examples.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- Analyses for this figure panel have high memory demands. This may be a problem for machines with small amounts of RAM (e.g., 16 GB), in which case it is recommended to run the analysis without the parallel argument ('--parallel').
+
+Loading 3 additional session(s)...
+100%|█████████████████████████████████████████████| 3/3 [00:09<00:00,  3.31s/it]
+
+Compiling dendritic tracking examples.
+
+Conflicts and matches for a L5-S example:
+    Fewest matches (sess 2, 1, 3): 47
+    Most matches (sess 3, 2, 1): 48
+    Union - conflicts: 49 - 2 = 47 matches
+
+Figures saved under paper_figures/Fig8.
+Duration: 21.46s
+
+
+________________________________________________________________________________
+================================================================================
+Fig. 9A (dataset paper). Running analysis and producing plot: ROI response to stimulus onset.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+Loading 30 additional session(s)...
+  0%|                                                    | 0/30 [00:00<?, ?it/s]
+100%|███████████████████████████████████████████| 30/30 [08:28<00:00, 16.96s/it]
+
+Compiling stimulus onset sequences from session 1 to 3.
+
+Figures saved under paper_figures/Fig9.
+Duration: 9m 44.49s
+
+
+================================================================================
+Fig. 9B (dataset paper). Running analysis and producing plot: ROI response to stimulus offset.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+Compiling stimulus offset sequences from session 1 to 3.
+
+Figures saved under paper_figures/Fig9.
+Duration: 1m 21.23s
