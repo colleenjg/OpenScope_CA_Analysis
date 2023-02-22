@@ -128,7 +128,11 @@ def reformat_n(n):
 def download_dandiset_assets(dandiset_id="000037", version="draft", output=".", 
                              incl_stim_templates=False, incl_full_stacks=False,
                              sess_ns="all", mouse_ns="all", excluded_sess=True,
-                             mouse_df=DEFAULT_MOUSE_DF_PATH, log_level="info"):
+                             mouse_df=DEFAULT_MOUSE_DF_PATH, n_jobs=1, 
+                             log_level="info"):
+    """
+    download_dandiset_assets()
+    """
 
     logger_util.format_all(level=log_level)
 
@@ -171,8 +175,11 @@ def download_dandiset_assets(dandiset_id="000037", version="draft", output=".",
         f"dandiset {dandiset_id}..."
         )
 
+    # NOTE: jobs doesn't work yet in dandi download
     for dandiset_url in dandiset_urls:
-        dandi_download.download(dandiset_url, output, existing="refresh")
+        dandi_download.download(
+            dandiset_url, output, jobs=n_jobs, existing="refresh"
+            )
 
 
 #############################################
@@ -209,6 +216,8 @@ if __name__ == "__main__":
 
     # additional parameters
     parser.add_argument("--log_level", default="info", help="logging level")
+    parser.add_argument("--n_jobs", default=1, type=int, 
+        help="number of downloads to do in parallel (not implemented yet)")
 
     args = parser.parse_args()
 
