@@ -2,7 +2,7 @@
 logreg_plots.py
 
 This script contains functions to create plots for logistic regression analyses
-and results (logreg.py) from dictionaries, dataframes and torch models.
+and results (logreg.py) from dictionaries, dataframes and stored models.
 
 Authors: Colleen Gillon
 
