@@ -15,7 +15,7 @@ import numpy as np
 
 gen_util.extend_sys_path(__file__, parents=3)
 from util import data_util, file_util, gen_util, logger_util, plot_util, \
-    rand_util
+    rand_util, torch_data_util
 from sess_util import sess_data_util, sess_plot_util, sess_gen_util
 
 
@@ -198,7 +198,7 @@ def run_sess_lstm(sessid, args):
     hyperstr = (f"{args.hidden_dim}hd_{args.num_layers}hl_{args.lr_ex}lrex_"
                 f"{args.batchsize}bs{outch_str}{conv_str}")
 
-    dls = data_util.create_dls(train_stim_wins, train_roi_wins, train_p=train_p, 
+    dls = torch_data_util.create_dls(train_stim_wins, train_roi_wins, train_p=train_p, 
                             test_p=0, batchsize=args.batchsize, thresh_cl=0, 
                             train_shuff=True)[0]
     train_dl, val_dl, _ = dls
@@ -206,7 +206,7 @@ def run_sess_lstm(sessid, args):
     test_dls = []
     
     for s in [0, 1]:
-        dl = data_util.init_dl(test_stim_wins[s], test_roi_wins[s], 
+        dl = torch_data_util.init_dl(test_stim_wins[s], test_roi_wins[s], 
                             batchsize=args.batchsize)
         test_dls.append(dl)
 

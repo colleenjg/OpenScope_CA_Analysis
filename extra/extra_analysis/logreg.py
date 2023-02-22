@@ -19,7 +19,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import torch
 
 from extra_analysis import quant_analys
 from util import data_util, file_util, gen_util, logger_util, logreg_util, \
@@ -994,6 +993,10 @@ def init_logreg_model_pt(roi_seqs, seq_classes, logregpar, extrapar,
                                      shuffled 
     """
 
+    # avoid torch dependency for the whole module
+    import torch
+    from util import torch_data_util 
+
     sc_dim = "last" if scale else "none"
 
     if np.unique(seq_classes[0]).tolist() != [0, 1]:
@@ -1004,7 +1007,7 @@ def init_logreg_model_pt(roi_seqs, seq_classes, logregpar, extrapar,
         raise ValueError("Must pass no more than 2 sets of data, but "
             f"found {len(roi_seqs)}.")
 
-    dl_info = data_util.create_dls(
+    dl_info = torch_data_util.create_dls(
         roi_seqs[0], seq_classes[0], train_p=logregpar.train_p, sc_dim=sc_dim, 
         sc_type="stand_rob", extrem="perc", shuffle=extrapar["shuffle"], 
         batchsize=logregpar.batchsize, thresh_cl=thresh_cl)
@@ -1020,9 +1023,9 @@ def init_logreg_model_pt(roi_seqs, seq_classes, logregpar, extrapar,
         if extrapar["shuffle"]:
             np.random.shuffle(class_vals)
         if scale:
-            roi_seqs[1] = data_util.scale_datasets(
+            roi_seqs[1] = torch_data_util.scale_datasets(
                 torch.Tensor(roi_seqs[1]), sc_facts=extrapar["sc_facts"])[0]
-        dls.append(data_util.init_dl(
+        dls.append(torch_data_util.init_dl(
             roi_seqs[1], class_vals, logregpar.batchsize))
 
     if extrapar["shuffle"]:
@@ -1346,6 +1349,8 @@ def single_run_pt(run_n, analyspar, logregpar, sesspar, stimpar, extrapar,
             - n_unexps (list)    : number of unexpected sequences, listed by 
                                   quantile, (doubled if "half" comparison)
     """
+
+    from util import data_util # avoid torch dependency for the whole module
     
     extrapar = copy.deepcopy(extrapar)
     extrapar["seed"] *= run_n + 1 # ensure different seed for each run
