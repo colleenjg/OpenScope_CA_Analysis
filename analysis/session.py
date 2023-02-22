@@ -12,7 +12,6 @@ Note: this code uses python 3.7.
 
 """
 
-import glob
 import warnings
 from pathlib import Path
 
@@ -23,7 +22,7 @@ import scipy.signal as scsig
 
 from util import file_util, gen_util, logger_util, math_util
 from sess_util import sess_data_util, sess_stim_df_util, sess_file_util, \
-    sess_load_util, sess_pupil_util, sess_sync_util, sess_trace_util
+    sess_load_util, sess_trace_util
 
 # check pandas version
 from packaging import version
@@ -47,7 +46,7 @@ class Session(object):
     """
     The Session object is the top-level object for analyzing a session from the 
     OpenScope Credit Assignment Project. All that needs to be provided to 
-    create the object is the directory in which the session data directories 
+    create the object is the directory in which the session NWB files 
     are located and the ID for the session to analyze/work with. The Session 
     object that is created will contain all of the information relevant to a 
     session, including stimulus information, behaviour information and 
@@ -65,7 +64,7 @@ class Session(object):
 
         Calls:
             - self._extract_sess_attribs()
-            - self._init_directory()
+            - self._check_files()
 
         Attributes:
             - drop_tol (num)          : dropped frame tolerance 
@@ -73,7 +72,6 @@ class Session(object):
             - home (Path)             : path of the main data directory
             - mouse_df (Path)         : path to dataframe containing 
                                         information on each session.
-            - nwb (bool)              : if True, data is in NWB format.
             - only_tracked_rois (bool): if True, only tracked ROIs will be 
                                         loaded
             - runtype (str)           : "prod" (production) or "pilot" data
@@ -95,7 +93,7 @@ class Session(object):
                                         "prod" (ignored if sessid is provided)
                                         default: "prod"
             - drop_tol (num)          : the tolerance for proportion frames 
-                                        dropped (stimulus or running). Warnings 
+                                        dropped (running). Warnings 
                                         are produced when this condition 
                                         isn't met.
                                         default: 0.0003 
@@ -129,24 +127,17 @@ class Session(object):
             if runtype not in ["pilot", "prod"]:
                 gen_util.accepted_values_error(
                     "runtype", runtype, ["pilot", "prod"])
+            elif runtype == "pilot":
+                raise ValueError(
+                    "Pilot sessions are not available in NWB format."
+                    )
             self.runtype = runtype
 
         self.drop_tol = drop_tol
 
-        self.nwb # set _nwb attribute
-
         self._extract_sess_attribs()
 
-        try:
-            self._init_directory()
-        except Exception as err:
-            if str(err).startswith("Could not find the directory"):
-                err = str(err).replace(
-                    "find the directory", "find the directory or NWB file"
-                    )
-                raise OSError(err)
-            else:
-                raise err
+        self._check_files()
 
         self.set_only_tracked_rois(only_tracked_rois)
 
@@ -224,83 +215,35 @@ class Session(object):
 
 
     #############################################
-    def _init_directory(self):
+    def _check_files(self):
         """
-        self._init_directory()
+        self._check_files()
 
-        Checks that the session data directory obeys the expected organization
+        Checks that the session data files obeys the expected organization
         scheme and sets attributes.
 
         Attributes:
-            if self.nwb:
             - sess_files (list): paths names to session files
-
-            else:
-            - align_pkl (Path)         : path name of the stimulus alignment 
-                                         pickle file
-            - behav_video_h5 (Path)    : path name of the behavior hdf5 file
-            - correct_data_h5 (Path)   : path name of the motion corrected 2p 
-                                         data hdf5 file
-            - dir (Path)               : path of session directory
-            - expdir (Path)            : path name of experiment directory
-            - expid (int)              : experiment ID (8 digits)
-            - max_proj_png (Path)      : full path to max projection of stack
-                                          in png format
-            - mouse_dir (bool)         : whether path includes a mouse directory
-            - procdir (Path)           : path name of the processed data 
-                                         directory
-            - pup_video_h5 (Path)      : path name of the pupil hdf5 file
-            - roi_extract_json (Path)  : path name of the ROI extraction json
-            - roi_mask_file (Path)     : path name of the ROI mask file (None, 
-                                         as allen masks must be created during 
-                                         loading)
-            - roi_objectlist_txt (Path): path name of the ROI object list file
-            - roi_trace_h5 (Path)      : path name of the ROI raw processed 
-                                         fluorescence trace hdf5 file
-            - roi_trace_dff_h5 (Path)  : path name of the ROI dF/F trace 
-                                         hdf5 file
-            - stim_pkl (Path)          : path name of the stimulus pickle file
-            - stim_sync_h5 (Path)      : path name of the stimulus 
-                                         synchronisation hdf5 file
-            - time_sync_h5 (Path)      : path name of the time synchronization 
-                                         hdf5 file
-            - zstack_h5 (Path)         : path name of the z-stack 2p hdf5 file
         """
 
         file_util.checkdir(self.home)
+
+        # find a directory and potential file names
+        self.sess_files = sess_file_util.get_nwb_sess_paths(
+            self.home, self.sessid, mouseid=self.mouseid
+            )        
+        if len(self.sess_files) > 1:
+            warnings.warn(
+                "Several NWB files were found for this session. When "
+                "loading data, the first file listed that contains the "
+                "required data will be used.", 
+                category=UserWarning, stacklevel=1
+                )
         
-        if self.nwb:
-            # find a directory and potential file names
-            self.sess_files = sess_file_util.get_nwb_sess_paths(
-                self.home, self.sessid, mouseid=self.mouseid
-                )        
-            if len(self.sess_files) > 1:
-                warnings.warn(
-                    "Several NWB files were found for this session. When "
-                    "loading data, the first file listed that contains the "
-                    "required data will be used.", 
-                    category=UserWarning, stacklevel=1
-                    )
-            
-            mouseid, sessid = sess_load_util.get_mouseid_sessid_nwb(
-                self.sess_files
-                )
-            date = self.date
-            src_name = "NWB file(s)"
-
-        else:
-            # check that the high-level home directory exists
-            sessdir, mouse_dir = sess_file_util.get_sess_dir_path(
-                self.home, self.sessid, self.runtype)
-            self.dir       = sessdir
-            self.mouse_dir = mouse_dir
-
-            mouseid, date = sess_file_util.get_mouseid_date(
-                self.dir, self.sessid
-                )
-            sessid = self.sessid
-
-            src_name = "session directory"
+        mouseid, sessid = sess_load_util.get_mouseid_sessid_nwb(
+            self.sess_files
+            )
+        date = self.date
             
         check_targs = [self.mouseid, self.date, self.sessid]
         check_srcs = [int(mouseid), int(date), int(sessid)]
@@ -309,57 +252,9 @@ class Session(object):
         for targ, src, name in zip(check_targs, check_srcs, check_names):
             if targ != src:
                 raise RuntimeError(
-                    f"{name} from {src_name} ({src}) does not match attribute "
-                    f"({targ}) retrieved from mouse dataframe."
+                    f"{name} from NWB file(s) ({src}) does not match "
+                    f"attribute ({targ}) retrieved from mouse dataframe."
                     )
-
-        # retrieve additional attributes
-        if not self.nwb:
-            self.expid = sess_file_util.get_expid(self.dir)
-            self.segid = sess_file_util.get_segid(self.dir)
-            dirpaths, filepaths = sess_file_util.get_file_names(
-                self.home, self.sessid, self.expid, self.segid, self.date, 
-                self.mouseid, self.runtype, self.mouse_dir, check=True)  
-        
-            self.expdir           = dirpaths["expdir"]
-            self.procdir          = dirpaths["procdir"]
-            self.max_proj_png     = filepaths["max_proj_png"]
-            self.stim_pkl         = filepaths["stim_pkl"]
-            self.stim_sync_h5     = filepaths["stim_sync_h5"]
-            self.behav_video_h5   = filepaths["behav_video_h5"]
-            self.pup_video_h5     = filepaths["pupil_video_h5"]
-            self.time_sync_h5     = filepaths["time_sync_h5"]
-            self.roi_extract_json = filepaths["roi_extract_json"]
-            self.roi_objectlist   = filepaths["roi_objectlist_txt"]
-            self.roi_mask_file    = None
-
-            # existence not checked
-            self.align_pkl        = filepaths["align_pkl"]
-            self.roi_trace_h5     = filepaths["roi_trace_h5"]
-            self.roi_trace_dff_h5 = filepaths["roi_trace_dff_h5"]
-            self.zstack_h5        = filepaths["zstack_h5"]
-            self.correct_data_h5  = filepaths["correct_data_h5"]
-    
-
-    #############################################
-    @property
-    def nwb(self):
-        """
-        self.nwb()
-
-        Returns:
-            - _nwb (bool): whether data is provided in NWB format or in the 
-                           internal Allen Institute data structure. 
-                           This attribute should NOT be updated after 
-                           initialization.
-        """
-
-        if not hasattr(self, "_nwb"):
-            # check for any nwb files
-            path_style = str(Path(self.home, "**" "*.nwb"))
-            self._nwb = bool(len(glob.glob(path_style, recursive=True)))
-
-        return self._nwb
 
 
     #############################################
@@ -375,67 +270,11 @@ class Session(object):
                                     ("uint8" datatype).
         """
 
-        if self.nwb:
-            self._max_proj = sess_load_util.load_max_projection_nwb(
-                self.sess_files
-                )
-
-        if not hasattr(self, "_max_proj"):
-            self._max_proj = sess_load_util.load_max_projection(
-                self.max_proj_png
-                )
+        self._max_proj = sess_load_util.load_max_projection_nwb(
+            self.sess_files
+            )
 
         return self._max_proj
-
-
-    #############################################
-    @property
-    def pup_data_h5(self):
-        """
-        self.pup_data_h5
-
-        Returns:
-            - _pup_data_h5 (list or Path): single pupil data file path if one is 
-                                           found, a list if several are found 
-                                           and "none" if none is found.
-        """
-        
-        if self.nwb:
-            raise ValueError(
-                "self.pup_data_h5 does not exist if self.nwb is True."
-                )
-
-        if not hasattr(self, "_pup_data_h5"):
-            self._pup_data_h5 = sess_file_util.get_pupil_data_h5_path(self.dir)
-
-        return self._pup_data_h5
-
-
-    #############################################
-    @property
-    def pup_data_available(self):
-        """
-        self.pup_data_available
-
-        Returns:
-            - _pup_data_available (bool): whether pupil data is available for 
-                                          the session
-        """
-
-        if not hasattr(self, "_pup_data_available"):
-            if self.nwb:
-                try:
-                    self.load_pup_data()
-                    self._pup_data_available = True
-                except KeyError as err:
-                    if str(err).startswith("Could not find pupil"):
-                        self._pup_data_available = False
-                    else:
-                        raise err
-            else:
-                self._pup_data_available = (self.pup_data_h5 != "none")
-
-        return self._pup_data_available
 
 
     ############################################
@@ -522,17 +361,11 @@ class Session(object):
         """
 
         if not hasattr(self, '_stim2twopfr'):
-            if self.nwb:
-                stim_timestamps, twop_timestamps = \
-                    sess_sync_util.get_frame_timestamps_nwb(self.sess_files)
-                self._stim2twopfr = gen_util.get_closest_idx(
-                    twop_timestamps, stim_timestamps
-                    )
-            else:
-                raise RuntimeError(
-                    "self._stim2twopfr should be initialized when stimulus "
-                    "dataframe is created."
-                    )
+            stim_timestamps, twop_timestamps = \
+                sess_load_util.get_frame_timestamps_nwb(self.sess_files)
+            self._stim2twopfr = gen_util.get_closest_idx(
+                twop_timestamps, stim_timestamps
+                )
 
         
         return self._stim2twopfr
@@ -551,59 +384,19 @@ class Session(object):
         """
 
         if not hasattr(self, '_twop2stimfr'):
-            if self.nwb:
-                stim_timestamps, twop_timestamps = \
-                    sess_sync_util.get_frame_timestamps_nwb(self.sess_files)
+            stim_timestamps, twop_timestamps = \
+                sess_load_util.get_frame_timestamps_nwb(self.sess_files)
 
-                self._twop2stimfr = gen_util.get_closest_idx(
-                    stim_timestamps, twop_timestamps
-                    ).astype(float)
-                
-                start = int(self.stim2twopfr[0])
-                end = int(self.stim2twopfr[-1]) + 1
-                self._twop2stimfr[ : start] = np.nan
-                self._twop2stimfr[end :] = np.nan
-
-            else:
-                if not hasattr(self, "tot_twop_fr"):
-                    raise RuntimeError("Run 'self.load_roi_info()' or "
-                        "self.load_pup_data() to set two-photon "
-                        "attributes correctly.")                    
-                self._twop2stimfr = sess_sync_util.get_twop2stimfr(
-                    self.stim2twopfr, self.tot_twop_fr, sessid=self.sessid
-                    )
+            self._twop2stimfr = gen_util.get_closest_idx(
+                stim_timestamps, twop_timestamps
+                ).astype(float)
+            
+            start = int(self.stim2twopfr[0])
+            end = int(self.stim2twopfr[-1]) + 1
+            self._twop2stimfr[ : start] = np.nan
+            self._twop2stimfr[end :] = np.nan
 
         return self._twop2stimfr
-
-
-    #############################################
-    def _load_stim_dict(self, full_table=True):
-        """
-        self._load_stim_dict()
-
-        Returns stimulus dictionary, if applicable.
-
-        Optional args:
-            - full_table (bool): if True, the full stimulus information is 
-                                 loaded. Otherwise, exact Gabor orientations 
-                                 and visual flow square positions per frame are 
-                                 omitted
-                                 default: True
-        """
-
-        if self.nwb:
-            raise RuntimeError(
-                "Cannot load stimulus dictionary if data is in NWB format."
-                )
-
-        if full_table:
-            stim_dict = file_util.loadfile(self.stim_pkl)
-        else:
-            stim_dict = sess_load_util.load_small_stim_pkl(
-                self.stim_pkl, self.runtype
-            )
-
-        return stim_dict
 
 
     #############################################
@@ -661,7 +454,6 @@ class Session(object):
                 square_locations_y       : y locations for each square, 
                                            centered on middle of the screen 
                                            (square x stimulus frame) (pix)
-                if self.nwb:
                 start_frame_stim_template: stimulus template frame number for 
                                            the first frame of the segment
 
@@ -672,11 +464,6 @@ class Session(object):
                                  and visual flow square positions per frame are 
                                  omitted
                                  default: True
-        
-        Returns:
-            - stim_dict (dict): stimulus dictionary 
-                                (None returned if self.nwb if True or no 
-                                reloading is done)
         """
 
         reloading = False
@@ -701,33 +488,10 @@ class Session(object):
 
 
         self._full_table = full_table
-        if self.nwb:
-            self.stim_df = sess_stim_df_util.load_stimulus_table_nwb(
-                self.sess_files, full_table=full_table
-                )
-            stim_dict = None
-        
-        else:
-            stim_dict = self._load_stim_dict(full_table=full_table)
+        self.stim_df = sess_stim_df_util.load_stimulus_table_nwb(
+            self.sess_files, full_table=full_table
+            )
 
-            stim_df, stim2twopfr = sess_stim_df_util.load_stimulus_table(
-                stim_dict, self.stim_sync_h5, self.time_sync_h5, 
-                self.align_pkl, self.sessid, self.runtype
-                )
-            
-            self.stim_df = stim_df.drop(
-                columns=sess_stim_df_util.NWB_ONLY_COLUMNS
-                )
-            self._stim2twopfr = stim2twopfr
-
-            if not reloading:
-                drop_stim_fr = stim_dict["droppedframes"]
-                n_drop_stim_fr = len(drop_stim_fr[0])
-                sess_sync_util.check_stim_drop_tolerance(
-                    n_drop_stim_fr, stim_df["stop_frame_stim"].max(), 
-                    self.drop_tol, self.sessid, raise_exc=False)
-
-            
         if not reloading:
             start_row = self.stim_df.loc[0]
             last_row = self.stim_df.loc[len(self.stim_df) - 1]
@@ -743,7 +507,7 @@ class Session(object):
             self.twop_fps = num_twop_fr / num_sec
             self.tot_stim_fr = last_row["stop_frame_stim"]
 
-        return stim_dict
+        return
 
 
     #############################################
@@ -805,13 +569,12 @@ class Session(object):
                                default: False
         """
 
-        if self.nwb:
-            if filter_ks != sess_load_util.NWB_FILTER_KS:
-                raise ValueError(
-                    f"Cannot use filter_ks={filter_ks}, as running data from "
-                    "NWB files is pre-processed with "
-                    f"{sess_load_util.NWB_FILTER_KS} filter kernel size."
-                    )
+        if filter_ks != sess_load_util.NWB_FILTER_KS:
+            raise ValueError(
+                f"Cannot use filter_ks={filter_ks}, as running data from "
+                "NWB files is pre-processed with "
+                f"{sess_load_util.NWB_FILTER_KS} filter kernel size."
+                )
 
         if hasattr(self, "run_data"):
             prev_filter_ks = self.run_data.columns.get_level_values(
@@ -843,14 +606,9 @@ class Session(object):
             else:
                 return
             
-        if self.nwb:
-            velocity = sess_load_util.load_run_data_nwb(
-                self.sess_files, diff_thr, self.drop_tol, self.sessid
-                )
-        else:
-            velocity = sess_load_util.load_run_data(
-                self.stim_pkl, self.stim_sync_h5, filter_ks, diff_thr, 
-                self.drop_tol, self.sessid)
+        velocity = sess_load_util.load_run_data_nwb(
+            self.sess_files, diff_thr, self.drop_tol, self.sessid
+            )
         
         row_index = pd.MultiIndex.from_product(
             [["frames"], range(len(velocity))], names=["info", "specific"])
@@ -906,9 +664,6 @@ class Session(object):
                                        data in pixels, organized by: 
                 hierarchical columns:
                     - "datatype"    : type of pupil data: "pup_diam"
-                                      if not self.nwb: 
-                                          "pup_center_x", "pup_center_y", 
-                                          "pup_center_diff"
                     - "interpolated": whether bad values, set to NaN (blinks 
                                       and outliers) in data are interpolated 
                                       ("yes", "no")
@@ -925,16 +680,7 @@ class Session(object):
         if hasattr(self, "pup_data"):
             return
         
-        if self.nwb:
-            pup_data = sess_load_util.load_pup_data_nwb(self.sess_files)
-        else:
-            pup_data = sess_load_util.load_pup_data(
-                self.pup_data_h5, self.time_sync_h5
-                )
-
-            pup_center_diff = sess_pupil_util.get_center_dist_diff(
-                pup_data["pup_center_x"], pup_data["pup_center_y"])
-            pup_data["pup_center_diff"] = np.insert(pup_center_diff, 0, np.nan)
+        pup_data = sess_load_util.load_pup_data_nwb(self.sess_files)
 
         row_index = pd.MultiIndex.from_product(
             [["frames"], pup_data["frames"]], names=["info", "specific"])
@@ -1008,49 +754,9 @@ class Session(object):
             raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
                 "attributes correctly.")
 
-        if self.nwb:
-            if fluor != "dff":
-                raise ValueError("NWB session files only include dF/F data.")
-            self._bad_rois_dff = []
-
-        else:
-            rem_noisy = True
-            if roi_traces is None:
-                roi_trace_path = self.get_roi_trace_path(fluor)
-                roi_traces = sess_trace_util.load_roi_traces(roi_trace_path)
-
-            else:
-                expected_shape = (self._nrois, self.tot_twop_fr)
-                if roi_traces.shape != (self._nrois, self.tot_twop_fr):
-                    raise RuntimeError(
-                        f"Expected roi_traces to have shape {expected_shape}, "
-                        f"but found {roi_traces.shape}."
-                        )
-
-            bad_arr = (np.isnan(roi_traces).any(axis=1) + 
-                np.isinf(roi_traces).any(axis=1))
-
-            if rem_noisy:
-                min_roi = np.min(roi_traces, axis=1)
-
-                # suppress a few NaN-related warnings
-                msgs = ["Mean of empty slice", "invalid value"]
-                categs = [RuntimeWarning, RuntimeWarning]
-                with gen_util.TempWarningFilter(msgs, categs):
-                    high_med = (
-                        ((np.median(roi_traces, axis=1) - min_roi)/
-                        (np.max(roi_traces, axis=1) - min_roi)) 
-                        > 0.5)            
-                    sub0_mean = np.nanmean(roi_traces, axis=1) < 0
-                
-                bad_arr += high_med + sub0_mean
-
-            bad_rois = np.where(bad_arr)[0].tolist()
-
-            if fluor == "dff":
-                self._bad_rois_dff = bad_rois
-            elif fluor == "raw":
-                self._bad_rois = bad_rois
+        if fluor != "dff":
+            raise ValueError("NWB session files only include dF/F data.")
+        self._bad_rois_dff = []
 
 
     #############################################
@@ -1121,8 +827,7 @@ class Session(object):
         in order to register images to one another between sessions. 
         
         Checks that the information contained in this local file matches the 
-        tracking information in the NWB file (if self.nwb) or the sessions 
-        files.
+        tracking information in the NWB file.
 
         Sets attributes:
             - _local_nway_match_path (Path): path to the local n-way match file 
@@ -1141,16 +846,15 @@ class Session(object):
             # check that the tracked ROI indices in the NWB file match 
             # those in the repository's n-way file
             local_tracked_rois = sess_trace_util.get_tracked_rois(
-                self._local_nway_match_path, idx_after_rem_bad=self.nwb
+                self._local_nway_match_path, idx_after_rem_bad=True
             )
 
             if (len(self._tracked_rois) != len(local_tracked_rois) or
                 (self._tracked_rois != local_tracked_rois).any()):
-                src_str = "NWB file" if self.nwb else "session directory"
                 raise RuntimeError(
                     "ROI tracking information in the local n-way matching "
                     "file does not match the ROI tracking recorded in the "
-                    f"{src_str}."
+                    "NWB file."
                     )
     
         return self._local_nway_match_path
@@ -1178,28 +882,16 @@ class Session(object):
             return
 
         try:
-            if self.nwb:
-                # use the information directly from the NWB file
-                self._tracked_rois = sess_trace_util.get_tracked_rois_nwb(
-                    self.sess_files
-                    )
-            else:
-                # use the n-way match file
-                nway_match_path = \
-                    sess_file_util.get_nway_match_path_from_sessid(
-                        self.home, self.sessid, self.runtype, check=True
-                        )
+            # use the information directly from the NWB file
+            self._tracked_rois = sess_trace_util.get_tracked_rois_nwb(
+                self.sess_files
+                )
 
         except Exception as err:
             if "not exist" in str(err) or "No tracking data" in str(err):
                 raise OSError(f"No tracked ROIs data found for {self}.")
             else:
                 raise err
-
-        if not self.nwb:
-            self._tracked_rois = sess_trace_util.get_tracked_rois(
-                nway_match_path
-                )
 
         self._set_bad_rois_tracked()
 
@@ -1270,16 +962,10 @@ class Session(object):
         
         self._init_roi_facts_df(fluor=fluor)
 
-        if self.nwb:
-            if fluor != "dff":
-                raise ValueError("NWB session files only include dF/F data.")
-            roi_traces = sess_trace_util.load_roi_traces_nwb(self.sess_files)
-
-        else:
-            roi_trace_path = self.get_roi_trace_path(fluor)
-            roi_traces = sess_trace_util.load_roi_traces(roi_trace_path)
-
-        
+        if fluor != "dff":
+            raise ValueError("NWB session files only include dF/F data.")
+        roi_traces = sess_trace_util.load_roi_traces_nwb(self.sess_files)
+    
         # obtain scaling facts while filtering All-NaN warning.
         with gen_util.TempWarningFilter("All-NaN", RuntimeWarning):
 
@@ -1366,17 +1052,9 @@ class Session(object):
             proc_args["min_n_pix"] = sess_trace_util.MIN_N_PIX
             proc_args["make_bool"] = True
 
-        if self.nwb:
-            roi_masks, _ = sess_trace_util.get_roi_masks_nwb(
-                self.sess_files, **proc_args
-                )
-        else:
-            roi_masks, _ = sess_trace_util.get_roi_masks(
-                self.roi_mask_file, 
-                self.roi_extract_json, 
-                self.roi_objectlist,
-                **proc_args
-                )
+        roi_masks, _ = sess_trace_util.get_roi_masks_nwb(
+            self.sess_files, **proc_args
+            )
             
         return roi_masks
 
@@ -1396,13 +1074,6 @@ class Session(object):
         Attributes:
             - _dend (str)            : type of dendrites loaded 
                                        ("allen" or "extr")
-            if not self.nwb and EXTRACT dendrites are used, updates:
-            - roi_mask_file (Path)   : path to ROI mask h5
-            - roi_trace_h5 (Path)    : full path name of the ROI raw 
-                                       processed fluorescence trace hdf5 file
-            - roi_trace_dff_h5 (Path): full path name of the ROI dF/F
-                                       fluorescence trace hdf5 file
-
 
         Optional args:
             - dend (str) : dendritic traces to use ("allen" for the 
@@ -1431,36 +1102,13 @@ class Session(object):
         if dend not in ["extr", "allen"]:
             gen_util.accepted_values_error("dend", dend, ["extr", "allen"])
 
-        if self.nwb:
-            if self.plane == "dend" and dend != "extr":
-                raise ValueError(
-                    "NWB session files include only 'extr' dendrites."
-                    )
-            if fluor != "dff":
-                raise ValueError("NWB session files only include dF/F data.")
-            self._dend = dend
-
-        else:
-            self._dend = "allen"
-            if self.plane == "dend" and dend == "extr":
-                try:
-                    dend_roi_trace_h5 = sess_file_util.get_dendritic_trace_path(
-                        self.roi_trace_h5, check=(fluor=="raw"))
-                    dend_roi_trace_dff_h5 = sess_file_util.get_dendritic_trace_path(
-                        self.roi_trace_dff_h5, check=(fluor=="dff"))
-                    dend_mask_file = sess_file_util.get_dendritic_mask_path(
-                        self.home, self.sessid, self.expid, self.mouseid, 
-                        self.runtype, self.mouse_dir, check=True)
-                    
-                    self._dend = "extr"
-                    self.roi_trace_h5     = dend_roi_trace_h5
-                    self.roi_trace_dff_h5 = dend_roi_trace_dff_h5
-                    self.roi_mask_file    = dend_mask_file
-
-                except Exception as e:
-                    warnings.warn(f"{e}.\Allen extracted dendritic ROIs "
-                        "will be used instead.", category=UserWarning, 
-                        stacklevel=1)
+        if self.plane == "dend" and dend != "extr":
+            raise ValueError(
+                "NWB session files include only 'extr' dendrites."
+                )
+        if fluor != "dff":
+            raise ValueError("NWB session files only include dF/F data.")
+        self._dend = dend
 
 
     #############################################
@@ -1532,14 +1180,8 @@ class Session(object):
         self._set_dend_type(dend=dend, fluor=fluor)
 
         if not hasattr(self, "roi_names"): # do this only first time
-            if self.nwb:
-                roi_ids, nrois, tot_twop_fr = \
-                    sess_trace_util.load_roi_data_nwb(self.sess_files)
-
-            else:
-                roi_trace_path = self.get_roi_trace_path(fluor)
-                roi_ids, nrois, tot_twop_fr = \
-                    sess_trace_util.load_roi_data(roi_trace_path)
+            roi_ids, nrois, tot_twop_fr = \
+                sess_trace_util.load_roi_data_nwb(self.sess_files)
 
             self.roi_names = roi_ids
             self._nrois = nrois
@@ -1575,7 +1217,7 @@ class Session(object):
                                         session
         """
 
-        stim_dict = self._load_stim_df(full_table=full_table)
+        self._load_stim_df(full_table=full_table)
 
         if hasattr(self, "stimtypes"):
             return
@@ -1589,11 +1231,11 @@ class Session(object):
                 continue
             elif stimtype == "gabors":
                 self.stimtypes.append(stimtype)
-                self.stims.append(Gabors(self, stim_dict))
+                self.stims.append(Gabors(self))
                 self.gabors = self.stims[-1]
             elif stimtype == "visflow":
                 self.stimtypes.append(stimtype)
-                self.stims.append(Visflow(self, stim_dict))
+                self.stims.append(Visflow(self))
                 self.visflow = self.stims[-1]
             else:
                 logger.info(f"{stimtype} stimulus type not recognized. No Stim " 
@@ -1988,44 +1630,6 @@ class Session(object):
 
 
     #############################################
-    def get_roi_trace_path(self, fluor="dff", check_exists=True):
-        """
-        self.get_roi_trace_path()
-
-        Returns correct ROI trace path.
-
-        Optional args:
-            - fluor (str)        : if "dff", rem_bad is assessed on ROIs using 
-                                   dF/F traces. If "raw", on raw processed 
-                                   traces.
-                                   default: "dff"
-            - check_exists (bool): if True, checks whether file exists before 
-                                   returning the path, and raises an error if 
-                                   it doesn't.
-                                   default: True
-        Returns:
-            - roi_trace_path (Path): path to ROI traces
-        """
-
-        if self.nwb:
-            raise RuntimeError(
-                "get_roi_trace_path() is not applicable for NWB data."
-                )
-
-        if fluor == "dff":
-            roi_trace_path = self.roi_trace_dff_h5
-        elif fluor == "raw":
-            roi_trace_path = self.roi_trace_h5
-        else:
-            gen_util.accepted_values_error("fluor", fluor, ["raw", "dff"])
-
-        if check_exists and not Path(roi_trace_path).is_file():
-            raise OSError(f"No {fluor} traces found under {roi_trace_path}.")
-
-        return roi_trace_path
-
-
-    #############################################
     def get_bad_rois(self, fluor="dff"):
         """
         self.get_bad_rois()
@@ -2392,13 +1996,7 @@ class Session(object):
                 "attributes correctly.")
 
         # read the data points into the return array
-        if self.nwb:
-            traces = sess_trace_util.load_roi_traces_nwb(
-                self.sess_files, roi_ns=ns
-                )
-        else:
-            roi_trace_path = self.get_roi_trace_path(fluor)
-            traces = sess_trace_util.load_roi_traces(roi_trace_path, roi_ns=ns)
+        traces = sess_trace_util.load_roi_traces_nwb(self.sess_files, roi_ns=ns)
 
         return traces
 
@@ -2506,16 +2104,10 @@ class Session(object):
                         )
                 roi_ids = np.delete(np.arange(self._nrois), bad_rois)
 
-        if self.nwb:
-            if fluor != "dff":
-                raise ValueError("NWB session files only include dF/F data.")
-            traces = sess_trace_util.load_roi_traces_nwb(
-                self.sess_files, roi_ns=roi_ids, frame_ns=frames
-                )
-        else:
-            roi_trace_path = self.get_roi_trace_path(fluor)
-            traces = sess_trace_util.load_roi_traces(
-                roi_trace_path, roi_ns=roi_ids, frame_ns=frames
+        if fluor != "dff":
+            raise ValueError("NWB session files only include dF/F data.")
+        traces = sess_trace_util.load_roi_traces_nwb(
+            self.sess_files, roi_ns=roi_ids, frame_ns=frames
             )
 
         if roi_ids is None:
@@ -2868,7 +2460,7 @@ class Stim(object):
     stimulus specific information is initialized.
     """
 
-    def __init__(self, sess, stimtype, stim_dict=None):
+    def __init__(self, sess, stimtype):
         """
         self.__init__(sess, stimtype)
 
@@ -2900,29 +2492,15 @@ class Stim(object):
         Required args:
             - sess (Session object): session to which the stimulus belongs
             - stimtype (str)       : type of stimulus ("gabors" or "visflow")  
-
-        Optional args:
-            - stim_dict (dict): stimulus dictionary 
-                                (only applicable if self.sess.nwb is False, in 
-                                which case it will be loaded if not passed)
-                                default: None
         """
 
         self.sess      = sess
         self.stimtype  = stimtype
         self.stim_fps  = self.sess.stim_fps
 
-        if self.sess.nwb:
-            gen_stim_props = sess_stim_df_util.load_hard_coded_stim_properties(
-                stimtype=self.stimtype, runtype=self.sess.runtype
-                )
-        else:
-            if stim_dict is None:
-                stim_dict = self.sess._load_stim_dict(full_table=False)
-            
-            gen_stim_props = sess_stim_df_util.load_gen_stim_properties(
-                stim_dict, stimtype=self.stimtype, runtype=self.sess.runtype
-                )
+        gen_stim_props = sess_stim_df_util.load_hard_coded_stim_properties(
+            stimtype=self.stimtype, runtype=self.sess.runtype
+            )
 
         self.seg_len_s = gen_stim_props["seg_len_s"]
         if stimtype == "gabors":            
@@ -3041,11 +2619,6 @@ class Stim(object):
             - stim_images (list): stimulus images (grayscale) for each stimulus 
                                   frame requested(height x width x channel (1))
         """
-
-        if not self.sess.nwb:
-            raise NotImplementedError(
-                "Stimulus images can only be retrieved if data format is NWB."
-                )
 
         segs = self.get_segs_by_frame(stim_frs, fr_type="stim")
         sub_stim_df = self.sess.stim_df.loc[segs]
@@ -3968,7 +3541,7 @@ class Stim(object):
 
         if not scale:
             if metric == "mm":
-                data_array = data_array * sess_sync_util.MM_PER_PIXEL
+                data_array = data_array * sess_load_util.MM_PER_PIXEL
             elif metric != "pixel":
                 gen_util.accepted_values_error(
                     "metric", metric, ["pixel", "mm"]
@@ -4657,7 +4230,7 @@ class Gabors(Stim):
     specific properties.
     """
 
-    def __init__(self, sess, stim_dict=None):
+    def __init__(self, sess):
         """
         self.__init__(sess)
         
@@ -4689,27 +4262,13 @@ class Gabors(Stim):
 
         Required args:
             - sess (Session)  : session to which the gabors belongs
-        
-        Optional args:
-            - stim_dict (dict): stimulus dictionary 
-                                (only applicable if self.sess.nwb is False, in 
-                                which case it will be loaded if not passed)
-                                default: None
         """
 
-        super().__init__(sess, stimtype="gabors", stim_dict=stim_dict)
+        super().__init__(sess, stimtype="gabors")
         
-        if self.sess.nwb:
-            gen_stim_props = sess_stim_df_util.load_hard_coded_stim_properties(
-                stimtype=self.stimtype, runtype=self.sess.runtype
-                )
-        else:
-            if stim_dict is None:
-                stim_dict = self.sess._load_stim_dict(full_table=False)
-            
-            gen_stim_props = sess_stim_df_util.load_gen_stim_properties(
-                stim_dict, stimtype=self.stimtype, runtype=self.sess.runtype
-                )
+        gen_stim_props = sess_stim_df_util.load_hard_coded_stim_properties(
+            stimtype=self.stimtype, runtype=self.sess.runtype
+            )
         
         self.sf        = gen_stim_props["sf"]
         self.phase     = gen_stim_props["phase"]
@@ -5045,7 +4604,7 @@ class Visflow(Stim):
     specific properties.
     """
 
-    def __init__(self, sess, stim_dict=None):
+    def __init__(self, sess):
         """
         self.__init__(sess)
         
@@ -5065,27 +4624,13 @@ class Visflow(Stim):
         Required args:
             - sess (Session)  : session to which the visual flow stimulus 
                                 belongs
-
-        Optional args:
-            - stim_dict (dict): stimulus dictionary 
-                                (only applicable if self.sess.nwb is False, in 
-                                which case it will be loaded if not passed)
-                                default: None
         """
 
-        super().__init__(sess, stimtype="visflow", stim_dict=stim_dict)
+        super().__init__(sess, stimtype="visflow")
 
-        if self.sess.nwb:
-            gen_stim_props = sess_stim_df_util.load_hard_coded_stim_properties(
-                stimtype=self.stimtype, runtype=self.sess.runtype
-                )
-        else:
-            if stim_dict is None:
-                stim_dict = self.sess._load_stim_dict(full_table=False)
-            
-            gen_stim_props = sess_stim_df_util.load_gen_stim_properties(
-                stim_dict, stimtype=self.stimtype, runtype=self.sess.runtype
-                )
+        gen_stim_props = sess_stim_df_util.load_hard_coded_stim_properties(
+            stimtype=self.stimtype, runtype=self.sess.runtype
+            )
         
         self.speed = gen_stim_props["speed"]
 
@@ -5309,11 +4854,6 @@ class Grayscr():
             - stim_images (list): stimulus images (grayscale) for each stimulus 
                                   frame requested(height x width x channel (1))
         """
-
-        if not self.sess.nwb:
-            raise NotImplementedError(
-                "Stimulus images can only be retrieved if data format is NWB."
-                )
 
         # hacky - use get_segs_by_frame() via another stimulus
         segs = self.sess.stims[0].get_segs_by_frame(stim_frs, fr_type="stim")
