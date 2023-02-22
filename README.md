@@ -42,7 +42,7 @@ The following notebooks give examples of how to download the data, and run the p
 
 | Run in Binder | View the notebook | Run the Google Colab notebook |
 | ------------- | ----------------- | ----------------------------- |
-| [![Run in Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/colleenjg/OpenScope_CA_Analysis/main?labpath=run_paper_figures.ipynb) | [![View the notebook](https://img.shields.io/badge/render-nbviewer-orange.svg)](https://nbviewer.jupyter.org/github/colleenjg/OpenScope_CA_Analysis/blob/main/run_paper_figures.ipynb?flush_cache=true) | [![Run the Google Colab notebook](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/colleenjg/OpenScope_CA_Analysis/blob/main/run_paper_figures_colab.ipynb) |
+| [![Run in Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/colleenjg/OpenScope_CA_Analysis/allen?labpath=run_paper_figures.ipynb) | [![View the notebook](https://img.shields.io/badge/render-nbviewer-orange.svg)](https://nbviewer.jupyter.org/github/colleenjg/OpenScope_CA_Analysis/blob/allen/run_paper_figures.ipynb?flush_cache=true) | [![Run the Google Colab notebook](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/colleenjg/OpenScope_CA_Analysis/blob/allen/run_paper_figures_colab.ipynb) |
 
 The contents of the **Binder** and **Google Colab** notebooks differ somewhat, due to the resources available: 
 * **Binder:** conda env. is already installed (+), but only limited compute resources are available (-).  
