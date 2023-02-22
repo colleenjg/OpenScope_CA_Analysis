@@ -1,0 +1,17 @@
+ipython
+dandi
+pynwb
+joblib
+jupyter
+matplotlib
+numpy
+opencv-python
+pandas
+scikit-learn
+scipy
+seaborn
+tqdm
+astropy
+pyglm
+git+https://github.com/colleenjg/util.git@osca_mult
+

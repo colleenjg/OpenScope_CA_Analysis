@@ -16,19 +16,21 @@ import copy
 from pathlib import Path
 
 import cv2
-import h5py
 import json
 import numpy as np
 import pandas as pd
 import pynwb
 
 from util import file_util, gen_util, logger_util
-from sess_util import sess_file_util, sess_gen_util, sess_sync_util
+from sess_util import sess_file_util
 
 TAB = "    "
 
 NWB_FILTER_KS = 5
 
+# pupil in pixels
+CM_PER_PIXEL = 10.2 / 10000.0 # from allensdk.internal.brain_observatory.eye_calibration
+MM_PER_PIXEL = CM_PER_PIXEL * 10
 
 logger = logger_util.get_module_logger(name=__name__)
 
@@ -189,163 +191,6 @@ def get_mouseid_sessid_nwb(nwb_files):
 
 
 #############################################
-def load_small_stim_pkl(stim_pkl, runtype="prod"):
-    """
-    load_small_stim_pkl(stim_pkl)
-
-    Loads a smaller stimulus dictionary from the stimulus pickle file in which 
-    "posbyframe" for visual flow stimuli is not included. 
-    
-    If it does not exist, small stimulus dictionary is created and saved as a
-    pickle with "_small" appended to name.
-    
-    Reduces the pickle size about 10 fold.
-
-    Required args:
-        - stim_pkl (Path): full path name for the full stimulus pickle file
-    
-    Optional args:
-        - runtype (str): runtype ("prod" or "pilot")
-    """
-
-    stim_pkl = Path(stim_pkl)
-    stim_pkl_no_ext = Path(stim_pkl.parent, stim_pkl.stem)
-    small_stim_pkl_name = Path(f"{stim_pkl_no_ext}_small.pkl")
-    
-    if small_stim_pkl_name.is_file():
-        return file_util.loadfile(small_stim_pkl_name)
-    else:
-        logger.info("Creating smaller stimulus pickle.", extra={"spacing": TAB})
-
-        stim_dict = file_util.loadfile(stim_pkl)
-
-        if runtype == "pilot":
-            stim_par_key = "stimParams"
-        elif runtype == "prod":
-            stim_par_key = "stim_params"
-        else:
-            gen_util.accepted_values_error(
-                "runtype", runtype, ["prod", "pilot"])
-
-        for i in range(len(stim_dict["stimuli"])):
-            stim_keys = stim_dict["stimuli"][i][stim_par_key].keys()
-            stim_par = stim_dict["stimuli"][i][stim_par_key]
-            if runtype == "pilot" and "posByFrame" in stim_keys:
-                _ = stim_par.pop("posByFrame")
-            elif runtype == "prod" and "square_params" in stim_keys:
-                _ = stim_par["session_params"].pop("posbyframe")
-                
-        file_util.saveinfo(stim_dict, small_stim_pkl_name)
-
-        return stim_dict
-
-
-#############################################
-def load_stim_df_info(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid, 
-                      runtype="prod"):
-    """
-    load_stim_df_info(stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid)
-
-    Creates the alignment dataframe (stim_df) and saves it as a pickle
-    in the session directory, if it does not already exist. Returns dataframe, 
-    alignment arrays, and frame rate.
-    
-    Required args:
-        - stim_pkl (Path)    : full path name of the experiment stim pickle 
-                               file
-        - stim_sync_h5 (Path): full path name of the experiment sync hdf5 file
-        - time_sync_h5 (Path): full path name of the time synchronization hdf5 
-                               file
-        - align_pkl (Path)   : full path name of the output pickle file to 
-                               create
-        - sessid (int)       : session ID, needed the check whether this 
-                               session needs to be treated differently 
-                               (e.g., for alignment bugs)
-
-    Optional args:
-        - runtype (str): runtype ("prod" or "pilot")
-                         default: "prod"
-
-    Returns:
-        - stim_df (pd DataFrame): stimlus alignment dataframe with columns:
-                                    "stimtype", "unexp", "stim_seg", "gabfr", 
-                                    "gab_ori", "gabk", "visflow_dir", 
-                                    "visflow_size", "start_twop_fr", 
-                                    "end_twop_fr", "num_twop_fr"
-        - stimtype_order (list) : stimulus type order
-        - stim2twopfr (1D array): 2p frame numbers for each stimulus frame, 
-                                  as well as the flanking
-                                  blank screen frames 
-        - twop_fps (num)        : mean 2p frames per second
-        - twop_fr_stim (int)    : number of 2p frames recorded while stim
-                                  was playing
-    """
-
-    align_pkl = Path(align_pkl)
-    sessdir = align_pkl.parent
-
-    # create stim_df if doesn't exist
-    if not align_pkl.is_file():
-        logger.info(f"Stimulus alignment pickle not found in {sessdir}, and "
-            "will be created.", extra={"spacing": TAB})
-        sess_sync_util.get_stim_frames(
-            stim_pkl, stim_sync_h5, time_sync_h5, align_pkl, sessid, runtype, 
-            )
-        
-    align = file_util.loadfile(align_pkl)
-
-    stim_df = align["stim_df"]
-    stim_df = stim_df.rename(
-        columns={"GABORFRAME": "gabfr", 
-                 "surp": "unexp", # rename surprise to unexpected
-                 "stimType": "stimtype",
-                 "stimSeg": "stim_seg",
-                 "start_frame": "start_twop_fr", 
-                 "end_frame": "end_twop_fr", 
-                 "num_frames": "num_twop_fr"})
-    
-    # rename bricks -> visflow
-    stim_df["stimtype"] = stim_df["stimtype"].replace({"b": "v"})
-
-    stim_df = modify_visflow_segs(stim_df, runtype)
-    stim_df = stim_df.sort_values("start_twop_fr").reset_index(drop=True)
-
-    # note: STIMULI ARE NOT ORDERED IN THE PICKLE
-    stimtype_map = {
-        "g": "gabors", 
-        "v": "visflow"
-        }
-    stimtype_order = stim_df["stimtype"].map(stimtype_map).unique()
-    stimtype_order = list(
-        filter(lambda s: s in stimtype_map.values(), stimtype_order))
-
-    # split stimPar1 and stimPar2 into all stimulus parameters
-    stim_df["gab_ori"] = stim_df["stimPar1"]
-    stim_df["gabk"] = stim_df["stimPar2"]
-    stim_df["visflow_size"] = stim_df["stimPar1"]
-    stim_df["visflow_dir"] = stim_df["stimPar2"]
-
-    stim_df = stim_df.drop(columns=["stimPar1", "stimPar2"])
-
-    for col in stim_df.columns:
-        if "gab" in col:
-            stim_df.loc[stim_df["stimtype"] != "g", col] = -1
-        if "visflow" in col:
-            stim_df.loc[stim_df["stimtype"] != "v", col] = -1
-
-    # expand on direction info
-    for direc in ["right", "left"]:
-        stim_df.loc[(stim_df["visflow_dir"] == direc), "visflow_dir"] = \
-            sess_gen_util.get_visflow_screen_mouse_direc(direc)
-
-    stim2twopfr  = align["stim_align"].astype("int")
-    twop_fps     = sess_sync_util.get_frame_rate(stim_sync_h5)[0] 
-    twop_fr_stim = int(max(align["stim_align"]))
-
-    return stim_df, stimtype_order, stim2twopfr, twop_fps, twop_fr_stim
-
-
-#############################################
 def load_max_projection_nwb(sess_files):
     """
     load_max_projection_nwb(sess_files)
@@ -378,32 +223,6 @@ def load_max_projection_nwb(sess_files):
                 "Could not find a maximum projection plane image "
                 f"for {ophys_file} due to: {err}"
                 )
-
-    return max_proj
-
-
-#############################################
-def load_max_projection(max_proj_png):
-    """
-    load_max_projection(max_proj_png)
-
-    Returns maximum projection image of downsampled z-stack as an array. 
-
-    Required args:
-        - max_proj_png (Path): full path names of the maximum projection png
-
-    Returns:
-        - max_proj (2D array): maximum projection image across downsampled 
-                               z-stack (hei x wei), with pixel intensity 
-                               in 0 (incl) to 256 (excl) range 
-                               ("uint8" datatype).
-    """
-
-    if not Path(max_proj_png).is_file():
-        raise OSError(f"{max_proj_png} does not exist.")
-
-    import imageio
-    max_proj = imageio.imread(max_proj_png).astype("uint8")
 
     return max_proj
 
@@ -869,64 +688,6 @@ def load_run_data_nwb(sess_files, diff_thr=50, drop_tol=0.0003, sessid=None):
 
 
 #############################################
-def load_run_data(stim_dict, stim_sync_h5, filter_ks=5, diff_thr=50, 
-                  drop_tol=0.0003, sessid=None):
-    """
-    load_run_data(stim_dict, stim_sync_h5)
-
-    Returns running velocity with outliers replaced with NaNs, and median 
-    filters the data.
-
-    Required args:
-        - stim_dict (Path or dict): stimulus dictionary or path to dictionary,
-                                   containing stimulus information
-        - stim_sync_h5 (Path)     : stimulus synchronization file. 
-
-    Optional args:
-        - filter_ks (int)   : kernel size to use in median filtering the 
-                              running velocity (0 to skip filtering).
-                              default: 5
-        - diff_thr (int)    : threshold of difference in running velocity to 
-                              identify outliers
-                              default: 50
-        - drop_tol (num)    : the tolerance for proportion running frames 
-                              dropped. A warning is produced only if this 
-                              condition is not met. 
-                              default: 0.0003 
-        - sessid (int)      : session ID to include in the log or error
-                              default: None 
-
-    Returns:
-        - run_velocity (1D array): array of running velocities in cm/s for each 
-                                   recorded stimulus frames
-
-    """
-
-    run_kwargs = {
-        "stim_sync_h5": stim_sync_h5,
-        "filter_ks"   : filter_ks,
-    }
-
-    if isinstance(stim_dict, dict):
-        run_kwargs["stim_dict"] = stim_dict        
-    elif isinstance(stim_dict, (str, Path)):
-        run_kwargs["stim_pkl"] = stim_dict
-    else:
-        raise TypeError(
-            "'stim_dict' must be a dictionary or a path to a pickle."
-            )
-
-    run_velocity = sess_sync_util.get_run_velocity(**run_kwargs)
-
-    run_velocity = nan_large_run_differences(
-        run_velocity, diff_thr, warn_nans=True, drop_tol=drop_tol, 
-        sessid=sessid
-        )
-
-    return run_velocity
-
-
-#############################################
 def load_pup_data_nwb(sess_files):
     """
     load_pup_data_nwb(sess_files)
@@ -961,65 +722,11 @@ def load_pup_data_nwb(sess_files):
         pup_data = np.asarray(behav_time_series.data)
 
     pup_data_df = pd.DataFrame()
-    pup_data_df["pup_diam"] = pup_data / sess_sync_util.MM_PER_PIXEL
+    pup_data_df["pup_diam"] = pup_data / MM_PER_PIXEL
 
     pup_data_df.insert(0, "frames", value=range(len(pup_data_df)))
 
     return pup_data_df  
-
-
-#############################################
-def load_pup_data(pup_data_h5, time_sync_h5):
-    """
-    load_pup_data(pup_data_h5, time_sync_h5)
-
-    If it exists, loads the pupil tracking data. Extracts pupil diameter
-    and position information in pixels, converted to two-photon frames.
-
-    If it doesn't exist or several are found, raises an error.
-
-    Required args:
-        - pup_data_h5 (Path or list): path to the pupil data h5 file
-        - time_sync_h5 (Path): path to the time synchronization hdf5 file
-
-    Returns:
-        - pup_data (pd DataFrame): pupil data dataframe with columns:
-            - frames (int)        : frame number
-            - pup_diam (float)    : median pupil diameter in pixels
-            - pup_center_x (float): pupil center position for x at 
-                                    each pupil frame in pixels
-            - pup_center_y (float): pupil center position for y at 
-                                    each pupil frame in pixels
-    """
-
-    if pup_data_h5 == "none":
-        raise OSError("No pupil data file found.")
-    elif isinstance(pup_data_h5, list):
-        raise OSError("Many pupil data files found.")
-
-    columns = ["nan_diam", "nan_center_x", "nan_center_y"]
-    orig_pup_data = pd.read_hdf(pup_data_h5).filter(items=columns).astype(float)
-    nan_pup = (lambda name : name.replace("nan_", "pup_") 
-        if "nan" in name else name)
-    orig_pup_data = orig_pup_data.rename(columns=nan_pup)
-
-    with h5py.File(time_sync_h5, "r") as f:
-        twop_timestamps = f["twop_vsync_fall"][:]
-
-        mean_twop_fps = 1.0 / np.mean(np.diff(twop_timestamps))
-        delay = int(np.round(mean_twop_fps * 0.1))
-        eye_alignment = f["eye_tracking_alignment"][:].astype(int) + delay
-
-    pup_data = pd.DataFrame()
-    last_keep = np.where(eye_alignment < len(orig_pup_data))[0][-1]
-    for col in orig_pup_data.columns:
-        pup_data[col] = orig_pup_data[col].to_numpy()[
-            eye_alignment[: last_keep + 1]
-            ]
-
-    pup_data.insert(0, "frames", value=range(len(pup_data)))
-
-    return pup_data  
 
 
 #############################################
@@ -1082,89 +789,6 @@ def load_stimulus_images_nwb(sess_files, template_name="gabors", frame_ns=[0]):
 
 
 #############################################
-def load_pup_sync_h5_data(pup_video_h5):
-    """
-    load_pup_sync_h5_data(pup_video_h5)
-
-    Returns pupil synchronization information.
-
-    Required args:
-        - pup_video_h5 (Path): path to the pupil video h5 file
-
-    Returns:
-        - pup_fr_interv (1D array): interval in sec between each pupil 
-                                    frame
-    """
-
-    with h5py.File(pup_video_h5, "r") as f:
-        pup_fr_interv = f["frame_intervals"][()].astype("float64")
-
-    return pup_fr_interv
-
-
-#############################################
-def load_beh_sync_h5_data(time_sync_h5):
-    """
-    load_beh_sync_h5_data(time_sync_h5)
-
-    Returns behaviour synchronization information.
-
-    Required args:
-        - time_sync_h5 (Path): path to the time synchronization hdf5 file
-
-    Returns:
-        - twop2bodyfr (1D array)  : body-tracking video (video-0) frame 
-                                    numbers for each 2p frame
-        - twop2pupfr (1D array)   : eye-tracking video (video-1) frame 
-                                    numbers for each 2p frame
-        - stim2twopfr2 (1D array) : 2p frame numbers for each stimulus 
-                                    frame, as well as the flanking
-                                    blank screen frames (second 
-                                    version, very similar to stim2twopfr 
-                                    with a few differences)
-    """
-
-    with h5py.File(time_sync_h5, "r") as f:
-        twop2bodyfr  = f["body_camera_alignment"][()].astype("int")
-        twop2pupfr   = f["eye_tracking_alignment"][()].astype("int")
-        stim2twopfr2 = f["stimulus_alignment"][()].astype("int")
-
-    return twop2bodyfr, twop2pupfr, stim2twopfr2
-
-
-#############################################
-def load_sync_h5_data(pup_video_h5, time_sync_h5):
-    """
-    load_sync_h5_data(pup_video_h5, time_sync_h5)
-
-    Returns pupil and behaviour synchronization information.
-
-    Required args:
-        - pup_video_h5 (Path): path to the pupil video h5 file
-        - time_sync_h5 (Path): path to the time synchronization hdf5 file
-
-    Returns:
-        - pup_fr_interv (1D array): interval in sec between each pupil 
-                                    frame
-        - twop2bodyfr (1D array)  : body-tracking video (video-0) frame 
-                                    numbers for each 2p frame
-        - twop2pupfr (1D array)   : eye-tracking video (video-1) frame 
-                                    numbers for each 2p frame
-        - stim2twopfr2 (1D array) : 2p frame numbers for each stimulus 
-                                    frame, as well as the flanking
-                                    blank screen frames (second 
-                                    version, very similar to stim2twopfr 
-                                    with a few differences)
-    """
-
-    pup_fr_interv = load_pup_sync_h5_data(pup_video_h5)
-
-    twop2bodyfr, twop2pupfr, stim2twopfr2 = load_beh_sync_h5_data(time_sync_h5)
-
-    return pup_fr_interv, twop2bodyfr, twop2pupfr, stim2twopfr2
-
-
-#############################################
 def modify_visflow_segs(stim_df, runtype="prod"):
     """
     modify_visflow_segs(stim_df)
@@ -1221,44 +845,72 @@ def modify_visflow_segs(stim_df, runtype="prod"):
     return stim_df
 
 
-#############################################
-def load_sess_stim_seed(stim_dict, runtype="prod"):
+############################################
+def get_frame_timestamps_nwb(sess_files):
     """
-    load_sess_stim_seed(stim_dict)
+    get_frame_timestamps_nwb(sess_files)
 
-    Returns session's stimulus seed for this session. Expects all stimuli 
-    stored in the session's stimulus dictionary to share the same seed.
+    Returns time stamps for stimulus and two-photon frames.
 
     Required args:
-        - stim_dict (dict): stimlus dictionary
-
-    Optional args:
-        - runtype (str): runtype
-                         default: "prod"
+        - sess_files (Path): full path names of the session files
 
     Returns:
-        - seed (int): session's stimulus seed
+        - stim_timestamps (1D array): time stamp for each stimulus frame
+        - twop_timestamps (1D array): time stamp for each two-photon frame
     """
 
-    if runtype == "pilot":
-        stim_param_key = "stimParams"
-        sess_param_key = "subj_params"
-    elif runtype == "prod":
-        stim_param_key = "stim_params"
-        sess_param_key = "session_params"
-    else:
-        gen_util.accepted_values_error("runtype", runtype, ["pilot", "prod"])
+    behav_file = sess_file_util.select_nwb_sess_path(sess_files, behav=True)
 
-    seeds = []
-    for stimulus in stim_dict["stimuli"]:
-        seeds.append(stimulus[stim_param_key][sess_param_key]["seed"])
-    
-    if np.max(seeds) != np.min(seeds):
-        raise RuntimeError("Unexpectedly found different seeds for different "
-        "stimuli for this session.")
-    
-    seed = seeds[0]
+    use_ophys = False
+    with pynwb.NWBHDF5IO(str(behav_file), "r") as f:
+        nwbfile_in = f.read()
+        behav_module = nwbfile_in.get_processing_module("behavior")
+        main_field = "BehavioralTimeSeries"
+        data_field = "running_velocity"
+        try:
+            run_time_series = behav_module.get_data_interface(
+                main_field).get_timeseries(data_field)
+        except KeyError as err:
+            raise KeyError(
+                "Could not find running velocity data in behavioral time "
+                f"series for {behav_module} due to: {err}"
+                )
 
-    return seed
+        stim_timestamps = np.asarray(run_time_series.timestamps)
 
+        main_field = "PupilTracking"
+        data_field = "pupil_diameter"
+        try:
+            twop_timestamps = np.asarray(behav_module.get_data_interface(
+                main_field).get_timeseries(data_field).timestamps)
+        except KeyError as err:
+            use_ophys = True            
+
+    # if timestamps weren't found with pupil data, look for optical physiology 
+    # data
+    if use_ophys:
+        ophys_file = sess_file_util.select_nwb_sess_path(sess_files, ophys=True)
+
+        with pynwb.NWBHDF5IO(str(ophys_file), "r") as f:
+            nwbfile_in = f.read()
+            ophys_module = nwbfile_in.get_processing_module("ophys")
+            main_field = "DfOverF"
+            data_field = "RoiResponseSeries"
+            try:
+                roi_resp_series = ophys_module.get_data_interface(
+                    main_field).get_roi_response_series(data_field
+                    )
+            except KeyError:
+                file_str = f"{behav_file} or {ophys_file}"
+                if behav_file == ophys_file:
+                    file_str = behav_file
+                raise OSError(
+                    "Two-photon timestamps cannot be collected, as no "
+                    f"pupil or ROI series data was found in {file_str}."
+                    )
+            twop_timestamps = roi_resp_series.timestamps
     
+
+    return stim_timestamps, twop_timestamps
+

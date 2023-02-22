@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 from util import gen_util, math_util, rand_util
-from sess_util import sess_sync_util
+from sess_util import sess_load_util
 from analysis import basic_analys, misc_analys
 
 
@@ -421,7 +421,7 @@ def get_pupil_run_full(sess, analyspar):
             rem_bad=analyspar.rem_bad, scale=analyspar.scale
         ), squeeze_rows=True, squeeze_cols=True
     )
-    pupil_data = (pupil_data_pix * sess_sync_util.MM_PER_PIXEL)
+    pupil_data = (pupil_data_pix * sess_load_util.MM_PER_PIXEL)
 
     stims, pupil_frs, run_frs = [], [], []
     for stim in sess.stims:

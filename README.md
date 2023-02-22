@@ -57,5 +57,4 @@ This code was written by:
 
 Please do not hesitate to contact the authors or open an issue/pull request, if you have trouble using the data or the codebase or improvements to propose.  
 
-**Note:** The module `Dataset2p.py` under `sess_util` contains code shared by authors at the Allen Institute for Brain Science. The authors of the code cannot guarantee support for its usage.
 
