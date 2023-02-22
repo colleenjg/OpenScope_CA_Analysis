@@ -160,8 +160,9 @@ def get_pupil_run_trace_stats_df(sessions, analyspar, stimpar, basepar,
         columns[columns.index(f"{datatype}_traces")] = f"{datatype}_trace_stats"
     trace_df = pd.DataFrame(columns=columns)
 
-    group_columns = ["sess_ns"]
-    for grp_vals, trace_grp_df in all_trace_df.groupby(group_columns):
+    group_column = "sess_ns" # only one value
+    group_columns = [group_column]
+    for grp_vals, trace_grp_df in all_trace_df.groupby(group_column):
         trace_grp_df = trace_grp_df.sort_values(["lines", "planes", "mouse_ns"])
         row_idx = len(trace_df)
         grp_vals = [grp_vals]
