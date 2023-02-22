@@ -188,6 +188,12 @@ def plot_violin_data(sub_ax, xs, all_data, palette=None, dashes=None,
     ])
     data_arr = np.concatenate(all_data)
 
+    hue_arr = None
+    if palette is not None:
+        hue_arr = np.concatenate([
+        np.full(len(data), i) for i, data in enumerate(all_data)
+    ])
+
     # add violins
     bplot = seaborn.violinplot(
         x=xs_arr, y=data_arr, inner=None, linewidth=3.5, color="white", 
@@ -202,10 +208,11 @@ def plot_violin_data(sub_ax, xs, all_data, palette=None, dashes=None,
             collec.set_linestyle(plot_helper_fcts.VDASH)
 
     # add data dots
-    seaborn.stripplot(
-        x=xs_arr, y=data_arr, size=9, jitter=0.2, alpha=0.3, palette=palette, 
-        ax=sub_ax
-        )
+    with logger_util.TempChangeLogLevel("matplotlib", level="warning"):
+        seaborn.stripplot(
+            x=xs_arr, y=data_arr, size=9, jitter=0.2, alpha=0.3, 
+            palette=palette, hue=hue_arr, ax=sub_ax, legend=False
+            )
     
 
 #############################################

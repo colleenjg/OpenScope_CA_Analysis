@@ -72,6 +72,8 @@ class Session(object):
             - home (Path)             : path of the main data directory
             - mouse_df (Path)         : path to dataframe containing 
                                         information on each session.
+            - nwb (bool)              : whether the session is in NWB format
+                                        (True)
             - only_tracked_rois (bool): if True, only tracked ROIs will be 
                                         loaded
             - runtype (str)           : "prod" (production) or "pilot" data
@@ -111,6 +113,8 @@ class Session(object):
                                         None.
                                         default: 1
         """
+
+        self.nwb = True
 
         if datadir is None:
             datadir = DEFAULT_DATADIR

@@ -3,13 +3,13 @@ dandi
 pynwb
 joblib
 jupyter
-matplotlib
+matplotlib!=3.7.0 # label bug
 numpy
 opencv-python
 pandas
 scikit-learn
 scipy
-seaborn
+seaborn>=0.12.2
 tqdm
 astropy
 pyglm

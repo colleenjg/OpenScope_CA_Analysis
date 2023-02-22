@@ -46,7 +46,7 @@ The following notebooks give examples of how to download the data, and run the p
 
 The contents of the **Binder** and **Google Colab** notebooks differ somewhat, due to the resources available: 
 * **Binder:** conda env. is already installed (+), but only limited compute resources are available (-).  
-* **Google Colab:** conda env. must first be installed (-), but more substantial compute resources are available (+).  
+* **Google Colab:** less environment control (-), but more substantial compute resources are available (+).  
 
 
 ## 7. Authors
