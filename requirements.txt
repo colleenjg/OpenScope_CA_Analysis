@@ -1,4 +1,5 @@
 ipython
+jupyter
 dandi
 pynwb
 joblib

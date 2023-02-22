@@ -5,6 +5,7 @@ dependencies:
   - python
   - pip
   - ipython
+  - jupyter
   - dandi
   - pynwb
   - joblib
