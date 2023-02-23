@@ -9,11 +9,11 @@ dependencies:
   - dandi
   - pynwb
   - joblib
-  - matplotlib
+  - matplotlib!=3.7.0
   - numpy
   - opencv
   - pandas
   - scipy
-  - seaborn
+  - seaborn>=0.12.2
   - tqdm
 
