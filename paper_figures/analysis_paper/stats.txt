@@ -307,7 +307,7 @@ To overwrite file, run script with the '--overwrite' argument, and without --plo
 Corrected p-values (24 comparisons, two-tailed):
     L2/3-D (within session):     S1: 0.00000***     S2: 0.00048***     S3: 0.08640   
     L2/3-S (within session):     S1: 0.00000***     S2: 0.00048***     S3: 0.00000***
-    L5-D   (within session):     S1: 0.00192**      S2: 0.00576**      S3: 0.00816** 
+    L5-D   (within session):     S1: 0.00192**      S2: 0.01200*       S3: 0.00816** 
     L5-S   (within session):     S1: 0.00048***     S2: 1.00000        S3: 0.00000***
 
 Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig5.
