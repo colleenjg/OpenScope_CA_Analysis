@@ -1712,7 +1712,8 @@ class Session(object):
 
         elif rem_bad:
             rem_idx = self.get_bad_rois(fluor)
-            roi_masks = np.delete(roi_masks, rem_idx, axis=0)
+            if len(rem_idx):
+                roi_masks = np.delete(roi_masks, rem_idx, axis=0)
 
         return roi_masks
 

@@ -663,7 +663,10 @@ def get_snr(session, analyspar, datatype="snrs", block_size=100):
         keep_rois = np.arange(session.get_nrois(rem_bad=False))
         if analyspar.rem_bad:
             bad_rois = session.get_bad_rois(analyspar.fluor)
-            keep_rois = np.delete(keep_rois, np.asarray(bad_rois)).astype(int)
+            if len(bad_rois):
+                keep_rois = np.delete(
+                    keep_rois, np.asarray(bad_rois)
+                    ).astype(int)
     
     datatypes = ["snrs", "signal_means"]
     if datatype not in datatypes:
