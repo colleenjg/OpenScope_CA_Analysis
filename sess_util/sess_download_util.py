@@ -7,14 +7,14 @@ This module contains functions for downloading the dataset from the Dandi
 archive.
 
 Dandiset 000037 is the Credit Assignment Project dandiset. It comprises data 
-for 49 sessions. The asset (session file) sizes are in the following ranges:
+for 50 sessions. The asset (session file) sizes are in the following ranges:
 - Basic data (with everything required for most analyses): 
     130 MB to 1.7 GB per asset
     ~25 GB total 
     ~15 GB total (only sess 1-3 that passed QC, i.e., 33 total)
 - Basic data + stimulus template images: 
     1.5 to 3.1 GB per asset
-    ~95 GB total
+    ~100 GB total
     ~60 GB total (only sess 1-3 that passed QC, i.e., 33 total)
 - Basic data + stimulus template images + full imaging stack: 
     ~65 GB per asset? (to be confirmed)
@@ -139,8 +139,8 @@ def download_dandiset_assets(dandiset_id="000037", version="draft", output=".",
     dandiset_id = f"{int(dandiset_id):06}" # ensure correct ID formatting
 
     asset_sessids = "all"
-    if not (excluded_sess and sess_ns not in ["all", "any"] and 
-        mouse_ns not in ["all", "any"]):
+    if not (excluded_sess and sess_ns in ["all", "any"] and 
+        mouse_ns in ["all", "any"]):
         if dandiset_id != "000037":
             raise NotImplementedError(
                 "Selecting assets based on session and mouse numbers is only "
