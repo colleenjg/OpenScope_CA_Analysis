@@ -8,21 +8,23 @@ The experiment details, analyses and results are published in [Gillon _et al._, 
 This branch provides a **minimal** example, with minimal dependencies. It can be used to rerun dataset-focused analysis.
 
 ## 2. Installation
-To run the code, you should install [Anaconda](https://www.anaconda.com/), [Miniconda](https://conda.io/miniconda.html) or [Mamba](https://mamba.readthedocs.io/en/latest/installation.html).
+To run the code, you can install a conda-based environment manager (e.g., [Anaconda](https://www.anaconda.com/), [Miniconda](https://conda.io/miniconda.html) or [Mamba](https://mamba.readthedocs.io/en/latest/installation.html)).
 
-Once these are installed, you can simply use the appropriate `.yml` file to create a conda environment. For example, if using Ubuntu or Mac OS, open a terminal, go to the repository directory, and enter:
+Once the conda-based environment manager is installed, use `osca.yml` to create the `osca` environment with all the packages needed to run this code. For example, if using Ubuntu or Mac OS, open a terminal, go to the repository directory, and run:
 
-1. `conda env create -f osca.yml`  
-2. `source activate osca`  
+`conda env create -f osca.yml`  
 
-The code is written in `Python 3`. 
+Alternatively, if you prefer to use a different environment manager, install required packages specified in `requirements.txt`. 
+
+This code is written in `Python 3`, and has been tested with `Python 3.8`.
 
 ## 3. Use
 Once installed, when using the codebase, simply activate the environment:
 
-`source activate osca`
+`source activate osca`  
 
-All of the appropriate libraries should then be loaded, and the modules can be imported for use in ipython, python scripts, or jupyter notebooks, for example.
+All of the appropriate libraries should then be loaded, allowing the scripts and notebooks provided in the repo to be run.
+
 
 ## 4. Scripts and modules
 * `run_paper_figures.py`: run, analyse and plot paper figures
@@ -46,7 +48,7 @@ The following notebooks give examples of how to download the data, and run datas
 | [![Run in Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/colleenjg/OpenScope_CA_Analysis/minimal?labpath=run_paper_figures.ipynb) | [![View the notebook](https://img.shields.io/badge/render-nbviewer-orange.svg)](https://nbviewer.jupyter.org/github/colleenjg/OpenScope_CA_Analysis/blob/minimal/run_paper_figures.ipynb?flush_cache=true) | [![Run the Google Colab notebook](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/colleenjg/OpenScope_CA_Analysis/blob/minimal/run_paper_figures_colab.ipynb) |
 
 The contents of the **Binder** and **Google Colab** notebooks differ somewhat, due to the resources available: 
-* **Binder:** conda env. is already installed (+), but only limited compute resources are available (-).  
+* **Binder:** conda env. is installed automatically (+), but this can be slow, and only limited compute resources are available (-).  
 * **Google Colab:** less environment control (-), but more substantial compute resources are available (+).  
 
 
