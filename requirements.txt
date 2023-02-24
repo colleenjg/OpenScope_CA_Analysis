@@ -3,7 +3,7 @@ dandi
 pynwb
 joblib
 jupyter
-matplotlib!=3.7.0 # label bug
+matplotlib>3.6.*,!=3.7.0 # label bug
 numpy
 opencv-python
 pandas
