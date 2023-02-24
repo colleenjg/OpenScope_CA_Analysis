@@ -5,20 +5,5 @@ dependencies:
   - python=3.8.* # suggested
   - pip
   - pip:
-    - ipython
-    - dandi
-    - pynwb
-    - joblib
-    - jupyter
-    - matplotlib>3.6.*,!=3.7.0 # label bug
-    - numpy
-    - opencv-python
-    - pandas
-    - scikit-learn
-    - scipy
-    - seaborn>=0.12.2
-    - tqdm
-    - astropy
-    - pyglm
-    - git+https://github.com/colleenjg/util.git@osca_mult
+    - -r requirements.txt
 
