@@ -4,16 +4,6 @@ channels:
 dependencies:
   - python
   - pip
-  - ipython
-  - jupyter
-  - dandi
-  - pynwb
-  - joblib
-  - matplotlib>3.6.*,!=3.7.0 # label bug
-  - numpy
-  - opencv
-  - pandas
-  - scipy
-  - seaborn>=0.12.2
-  - tqdm
+  - pip:
+    - -r requirements.txt
 
