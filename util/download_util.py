@@ -29,6 +29,7 @@ Note: this code was aggregated from https://github.com/colleenjg/util.
 
 import argparse
 from pathlib import Path
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -187,7 +188,8 @@ def get_dandiset_asset_urls(dandiset_id="000037", version="draft",
 def download_dandiset_assets(dandiset_id="000037", version="draft", output=".", 
                              incl_stim_templates=False, incl_full_stacks=False,
                              sess_ns="all", mouse_ns="all", excluded_sess=True,
-                             mouse_df=DEFAULT_MOUSE_DF_PATH, dry_run=False):
+                             mouse_df=DEFAULT_MOUSE_DF_PATH, dry_run=False, 
+                             n_jobs=6):
 
 
     dandiset_id = f"{int(dandiset_id):06}" # ensure correct ID formatting
@@ -227,10 +229,26 @@ def download_dandiset_assets(dandiset_id="000037", version="draft", output=".",
         f"dandiset {dandiset_id}{end_str}"
         )
 
-    if not dry_run:
-        for dandiset_url in dandiset_urls:
-            dandi_download.download(dandiset_url, output, existing="refresh")
+    if dry_run:
+        return
 
+    try:
+        dandi_download.download(
+            dandiset_urls, output, jobs=n_jobs, existing="refresh"
+            )
+    except NotImplementedError as err:
+        if "multiple URLs not supported" not in str(err):
+            raise err
+        if n_jobs != 1:
+            warnings.warn(
+                "Downloading data sequentially. Upgrade Dandi to version "
+                "0.50 or above to download from multiple URLs in parallel."
+                )
+        for dandiset_url in dandiset_urls:
+            dandi_download.download(
+                dandiset_url, output, jobs=n_jobs, existing="refresh"
+                )
+                
 
 #############################################
 if __name__ == "__main__":
@@ -247,6 +265,8 @@ if __name__ == "__main__":
     parser.add_argument("--dry_run", action="store_true",
         help=("does not download assets, just reports how many assets have "
             "been identified for download"))
+    parser.add_argument("--n_jobs", default=6, type=int, 
+        help="number of downloads to do in parallel")
 
     # arguments applying only to dandiset 000037
     parser.add_argument("--sess_ns", default="1-3", 
