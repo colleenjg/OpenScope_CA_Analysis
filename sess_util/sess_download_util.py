@@ -30,6 +30,7 @@ Note: this code uses python 3.7.
 """
 import argparse
 from pathlib import Path
+import warnings
 
 import numpy as np
 from dandi import dandiapi
@@ -128,7 +129,7 @@ def reformat_n(n):
 def download_dandiset_assets(dandiset_id="000037", version="draft", output=".", 
                              incl_stim_templates=False, incl_full_stacks=False,
                              sess_ns="all", mouse_ns="all", excluded_sess=True,
-                             mouse_df=DEFAULT_MOUSE_DF_PATH, n_jobs=1, 
+                             mouse_df=DEFAULT_MOUSE_DF_PATH, n_jobs=6, 
                              log_level="info"):
     """
     download_dandiset_assets()
@@ -175,11 +176,22 @@ def download_dandiset_assets(dandiset_id="000037", version="draft", output=".",
         f"dandiset {dandiset_id}..."
         )
 
-    # NOTE: jobs doesn't work yet in dandi download
-    for dandiset_url in dandiset_urls:
+    try:
         dandi_download.download(
-            dandiset_url, output, jobs=n_jobs, existing="refresh"
+            dandiset_urls, output, jobs=n_jobs, existing="refresh"
             )
+    except NotImplementedError as err:
+        if "multiple URLs not supported" not in str(err):
+            raise err
+        if n_jobs != 1:
+            warnings.warn(
+                "Downloading data sequentially. Upgrade Dandi to version "
+                "0.50 or above to download from multiple URLs in parallel."
+                )
+        for dandiset_url in dandiset_urls:
+            dandi_download.download(
+                dandiset_url, output, jobs=n_jobs, existing="refresh"
+                )
 
 
 #############################################
@@ -216,8 +228,8 @@ if __name__ == "__main__":
 
     # additional parameters
     parser.add_argument("--log_level", default="info", help="logging level")
-    parser.add_argument("--n_jobs", default=1, type=int, 
-        help="number of downloads to do in parallel (not implemented yet)")
+    parser.add_argument("--n_jobs", default=6, type=int, 
+        help="number of downloads to do in parallel")
 
     args = parser.parse_args()
 
