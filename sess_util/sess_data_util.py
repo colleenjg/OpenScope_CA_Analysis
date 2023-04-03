@@ -604,3 +604,26 @@ def format_stim_criteria(stim_df, stimtype="gabors", unexp="any",
         start2pfr_min, start2pfr_max, end2pfr_min, end2pfr_max, num2pfr_min, 
         num2pfr_max] 
 
+
+#############################################
+def get_center_dist_diff(center_x, center_y):
+    """
+    get_center_dist_diff(center_x, center_y)
+
+    Returns the change in pupil center between each pupil frame. All in pixels.
+
+    Required args:
+        - center_x (1D array): pupil center position in x at each pupil frame 
+        - center_y (1D array): pupil center position in y at each pupil frame
+
+    Returns:
+        - center_dist_diff (1D array): change in pupil center between each 
+                                       pupil frame
+    """
+    
+    center = np.stack([center_x, center_y])
+    center_diff = np.diff(center, axis=1)
+    center_dist_diff = np.sqrt(center_diff[0]**2 + center_diff[1]**2)
+
+    return center_dist_diff
+

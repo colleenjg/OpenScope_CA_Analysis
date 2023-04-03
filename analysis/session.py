@@ -667,7 +667,10 @@ class Session(object):
             - pup_data (pd Dataframe): multi-level dataframe containing pupil 
                                        data in pixels, organized by: 
                 hierarchical columns:
-                    - "datatype"    : type of pupil data: "pup_diam"
+                    - "datatype"    : type of pupil data: "pup_diam", and, if 
+                                      found in NWB file, 
+                                          "pup_center_x", "pup_center_y", 
+                                          "pup_center_diff"
                     - "interpolated": whether bad values, set to NaN (blinks 
                                       and outliers) in data are interpolated 
                                       ("yes", "no")
@@ -685,6 +688,11 @@ class Session(object):
             return
         
         pup_data = sess_load_util.load_pup_data_nwb(self.sess_files)
+
+        if "pup_center_x" in pup_data.columns:
+            pup_center_diff = sess_data_util.get_center_dist_diff(
+                pup_data["pup_center_x"], pup_data["pup_center_y"])
+            pup_data["pup_center_diff"] = np.insert(pup_center_diff, 0, np.nan)
 
         row_index = pd.MultiIndex.from_product(
             [["frames"], pup_data["frames"]], names=["info", "specific"])
