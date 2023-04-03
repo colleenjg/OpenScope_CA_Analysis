@@ -14,6 +14,7 @@ Note: this code uses python 3.7.
 
 import copy
 from pathlib import Path
+import warnings
 
 import cv2
 import h5py
@@ -940,28 +941,44 @@ def load_pup_data_nwb(sess_files):
         - pup_data_df (pd DataFrame): pupil data dataframe with columns:
             - frames (int)        : frame number
             - pup_diam (float)    : median pupil diameter in pixels
+            if found in NWB file:
+            - pup_center_x (float): pupil center position for x at 
+                                    each pupil frame in pixels
+            - pup_center_y (float): pupil center position for y at 
+                                    each pupil frame in pixels
     """
 
     behav_file = sess_file_util.select_nwb_sess_path(sess_files, behav=True)
 
+    srcs = ["pupil_diameter", "pupil_position_x", "pupil_position_y"]
+    targs = ["pup_diam", "pup_center_x", "pup_center_y"]
+
+    pup_data_df = pd.DataFrame()
     with pynwb.NWBHDF5IO(str(behav_file), "r") as f:
         nwbfile_in = f.read()
         behav_module = nwbfile_in.get_processing_module("behavior")
         main_field = "PupilTracking"
-        data_field = "pupil_diameter"
-        try:
-            behav_time_series = behav_module.get_data_interface(
-                main_field).get_timeseries(data_field)
-        except KeyError as err:
-            raise KeyError(
-                "Could not find pupil diameter data in behavioral time "
-                f"series for {behav_module} due to: {err}"
+        pupil_series = behav_module.get_data_interface(main_field).fields["time_series"].keys()
+        if not "pupil_position_x" in pupil_series:
+            srcs = ["pupil_diameter"]
+            targs = ["pup_diam"]
+            warnings.warn(
+                "NWB file does not include pupil center position data. "
+                "Likely an older version of the data file."
                 )
-        
-        pup_data = np.asarray(behav_time_series.data)
 
-    pup_data_df = pd.DataFrame()
-    pup_data_df["pup_diam"] = pup_data / sess_sync_util.MM_PER_PIXEL
+        for src, targ in zip(srcs, targs):
+            try:
+                behav_time_series = behav_module.get_data_interface(
+                    main_field).get_timeseries(src)
+            except KeyError as err:
+                raise KeyError(
+                    f"Could not find {src.replace('_', '')} data in behavioral "
+                    f"time series for {behav_module} due to: {err}"
+                    )
+            
+            pup_data = np.asarray(behav_time_series.data)
+            pup_data_df[targ] = pup_data / sess_sync_util.MM_PER_PIXEL
 
     pup_data_df.insert(0, "frames", value=range(len(pup_data_df)))
 
@@ -997,8 +1014,12 @@ def load_pup_data(pup_data_h5, time_sync_h5):
     elif isinstance(pup_data_h5, list):
         raise OSError("Many pupil data files found.")
 
-    columns = ["nan_diam", "nan_center_x", "nan_center_y"]
-    orig_pup_data = pd.read_hdf(pup_data_h5).filter(items=columns).astype(float)
+    with h5py.File(pup_data_h5, "r") as f:
+        orig_pup_data = pd.DataFrame(
+            data=f["pupil_data"]["block0_values"][:],
+            columns=[col.decode("utf-8") for col in f["pupil_data"]["block0_items"][:]],
+        )
+
     nan_pup = (lambda name : name.replace("nan_", "pup_") 
         if "nan" in name else name)
     orig_pup_data = orig_pup_data.rename(columns=nan_pup)
