@@ -22,7 +22,7 @@ from analysis import misc_analys
 # (crop factor, shift prop hei, shift prop wid)
 SMALL_CROP_DICT = {
     4: (2.5, 0, 1), # L5-S
-    11: (4.0, 0, 1), # L5-D
+    11: (5.5, 0.74, 0.84), # L5-D
 }
 
 LARGE_CROP_DICT = {
