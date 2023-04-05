@@ -464,7 +464,10 @@ def main(args):
             except Exception as err:
                 sep = DOUBLE_SEP if new_fig else SEP
                 if "Cannot plot figure panel" in str(err):
-                    lead = f"{sep}Fig. {args.figure}{args.panel.upper()}"
+                    lead = (
+                        f"{sep}Fig. {args.figure}{args.panel.upper()} "
+                        f"({args.paper} paper)."
+                    )
                     logger.info(f"{lead}. {err}")
                 else:
                     raise err
