@@ -203,7 +203,7 @@ def get_idx_info(sess, analyspar, stimpar, basepar, idxpar, permpar,
 
 #############################################
 def choose_roi(target_idx_val, target_idx_sig, roi_idxs, roi_percs,  
-               roi_mses, nrois_per_sess, permpar):
+               roi_mses, nrois_per_sess, permpar, sign_strict=True):
     """
     choose_roi(target_idx_val, target_idx_sig, roi_idxs,  roi_percs,
                roi_mses, nrois_per_sess, permpar)
@@ -228,6 +228,12 @@ def choose_roi(target_idx_val, target_idx_sig, roi_idxs, roi_percs,
         - permpar (PermPar): 
             named tuple containing permutation parameters
 
+    Optional args:
+        - sign_strict (bool):
+            if True, only ROIs with the same sign as the target index value
+            will be considered
+            default: True
+
     Returns:
         - concat_n (int): 
             selected ROI number in roi_idxs array
@@ -245,11 +251,16 @@ def choose_roi(target_idx_val, target_idx_sig, roi_idxs, roi_percs,
         CI=(1 - permpar.p_val), tails=permpar.tails
         )[0]
 
-    sig_bool = (roi_percs < p_low) + (roi_percs > p_high)
-    smooth_thr = np.percentile(roi_mses, q=8) # set MSE threshold
+    sig_lo_bool = roi_percs < p_low
+    sig_hi_bool = roi_percs > p_high
+    sig_bool = sig_lo_bool + sig_hi_bool
+    smooth_thr = np.percentile(roi_mses, q=12) # set MSE threshold
     smooth_bool = roi_mses < smooth_thr
     if target_idx_sig == "sig":
-        keep_roi = np.where(sig_bool * smooth_bool)[0]
+        use_sig_bool = sig_bool
+        if sign_strict:
+            use_sig_bool = sig_lo_bool if target_idx_val < 0 else sig_hi_bool
+        keep_roi = np.where(use_sig_bool * smooth_bool)[0]
     elif target_idx_sig == "not_sig":
         keep_roi = np.where(~sig_bool * smooth_bool)[0]
     else:
