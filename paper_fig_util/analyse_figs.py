@@ -266,8 +266,9 @@ def gabor_ex_roi_exp_responses_sess1(sessions, analyspar, sesspar, stimpar,
             default: False
     """
 
+    # For dataset paper, so using "consistent" instead of "expected"
     logger.info(
-        "Compiling example ROI responses to expected Gabor sequence from "
+        "Compiling example ROI responses to consistent Gabor sequence from "
         "session 1.", 
         extra={"spacing": "\n"})
 
@@ -339,8 +340,9 @@ def gabor_ex_roi_unexp_responses_sess1(sessions, analyspar, sesspar, stimpar,
             default: False
     """
 
+    # For dataset paper, so using "inconsistent" instead of "unexpected"
     logger.info(
-        "Compiling example ROI responses to unexpected Gabor sequence from "
+        "Compiling example ROI responses to inconsistent Gabor sequence from "
         "session 1.", 
         extra={"spacing": "\n"})
 
@@ -413,8 +415,9 @@ def visflow_ex_roi_nasal_responses_sess1(sessions, analyspar, sesspar, stimpar,
             default: False
     """
 
+    # For dataset paper, so using "inconsistent" instead of "unexpected"
     logger.info(
-        "Compiling example ROI responses to onset of unexpected flow during "
+        "Compiling example ROI responses to onset of inconsistent flow during "
         "nasal (leftward) visual flow from session 1.", 
         extra={"spacing": "\n"})
 
@@ -486,8 +489,9 @@ def visflow_ex_roi_temp_responses_sess1(sessions, analyspar, sesspar, stimpar,
             default: False
     """
 
+    # For dataset paper, so using "inconsistent" instead of "unexpected"
     logger.info(
-        "Compiling example ROI responses to onset of unexpected flow during "
+        "Compiling example ROI responses to onset of inconsistent flow during "
         "temporal (rightward) visual flow from session 1.", 
         extra={"spacing": "\n"})
 
