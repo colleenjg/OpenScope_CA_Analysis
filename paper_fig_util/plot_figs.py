@@ -321,7 +321,8 @@ def plot_gabor_ex_roi_exp_responses_sess1(analyspar, sesspar, stimpar, basepar,
         - savename (str): name under which the figure is saved
     """
 
-    title = "Example ROI responses to expected Gabor sequences"
+    # For dataset paper, so using "consistent" instead of "expected"
+    title = "Example ROI responses to consistent Gabor sequences"
     
     ex_traces_df = pd.DataFrame.from_dict(ex_traces_df)
 
@@ -395,7 +396,8 @@ def plot_gabor_ex_roi_unexp_responses_sess1(analyspar, sesspar, stimpar,
         - savename (str): name under which the figure is saved
     """
 
-    title = "Example ROI responses to unexpected Gabor sequences"
+    # For dataset paper, so using "inconsistent" instead of "unexpected"
+    title = "Example ROI responses to inconsistent Gabor sequences"
     
     ex_traces_df = pd.DataFrame.from_dict(ex_traces_df)
 
@@ -468,8 +470,9 @@ def plot_visflow_ex_roi_nasal_responses_sess1(analyspar, sesspar, stimpar,
         - savename (str): name under which the figure is saved
     """
 
+    # For dataset paper, so using "inconsistent" instead of "unexpected"
     title = (
-        "Example ROI responses to unexpected flow during nasal visual flow"
+        "Example ROI responses to inconsistent flow during nasal visual flow"
     )
     
     ex_traces_df = pd.DataFrame.from_dict(ex_traces_df)
@@ -543,8 +546,9 @@ def plot_visflow_ex_roi_temp_responses_sess1(analyspar, sesspar, stimpar,
         - savename (str): name under which the figure is saved
     """
 
+    # For dataset paper, so using "inconsistent" instead of "unexpected"
     title = (
-        "Example ROI responses to unexpected flow during temporal visual flow"
+        "Example ROI responses to inconsistent flow during temporal visual flow"
     )
     
     ex_traces_df = pd.DataFrame.from_dict(ex_traces_df)

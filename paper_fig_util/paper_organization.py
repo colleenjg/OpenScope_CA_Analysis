@@ -504,7 +504,7 @@ class FigurePanelAnalysis():
     ### Figure 5 ###
     def gabor_ex_roi_exp_responses_sess1(self):
         self.description = (
-            "Example ROI responses to each expected Gabor sequence."
+            "Example ROI responses to each consistent Gabor sequence." # dataset paper
             )
         self.specific_params = get_specific_params(
             sess_n=1,
@@ -519,7 +519,7 @@ class FigurePanelAnalysis():
 
     def gabor_ex_roi_unexp_responses_sess1(self):
         self.description = (
-            "Example ROI responses to each unexpected Gabor sequence."
+            "Example ROI responses to each inconsistent Gabor sequence." # dataset paper
             )
         self.specific_params = get_specific_params(
             sess_n=1,
@@ -534,7 +534,7 @@ class FigurePanelAnalysis():
 
     def visflow_ex_roi_nasal_responses_sess1(self):
         self.description = (
-            "Example ROI responses to each onset of unexpected flow during "
+            "Example ROI responses to each onset of inconsistent flow during " # dataset paper
             "nasal (leftward) visual flow."
             )
         self.specific_params = get_specific_params(
@@ -552,7 +552,7 @@ class FigurePanelAnalysis():
 
     def visflow_ex_roi_temp_responses_sess1(self):
         self.description = (
-            "Example ROI responses to each onset of unexpected flow during "
+            "Example ROI responses to each onset of inconsistent flow during " # dataset paper
             "temporal (rightward) visual flow."
             )
         self.specific_params = get_specific_params(
