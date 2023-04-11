@@ -1200,6 +1200,26 @@ def load_run_data_nwb(sess_files, diff_thr=50, drop_tol=0.0003, sessid=None):
 
 
 #############################################
+def get_center_dist_diff(center_x, center_y):
+    """
+    get_center_dist_diff(center_x, center_y)
+    Returns the change in pupil center between each pupil frame. All in pixels.
+    Required args:
+        - center_x (1D array): pupil center position in x at each pupil frame 
+        - center_y (1D array): pupil center position in y at each pupil frame
+    Returns:
+        - center_dist_diff (1D array): change in pupil center between each 
+                                       pupil frame
+    """
+
+    center = np.stack([center_x, center_y])
+    center_diff = np.diff(center, axis=1)
+    center_dist_diff = np.sqrt(center_diff[0]**2 + center_diff[1]**2)
+
+    return center_dist_diff
+
+
+#############################################
 def load_pup_data_nwb(sess_files):
     """
     load_pup_data_nwb(sess_files)
@@ -1213,32 +1233,48 @@ def load_pup_data_nwb(sess_files):
         - pup_data_df (pd DataFrame): pupil data dataframe with columns:
             - frames (int)        : frame number
             - pup_diam (float)    : median pupil diameter in pixels
+            if found in NWB file:
+            - pup_center_x (float): pupil center position for x at 
+                                    each pupil frame in pixels
+            - pup_center_y (float): pupil center position for y at 
+                                    each pupil frame in pixels
     """
 
     behav_file = select_nwb_sess_path(sess_files, behav=True)
 
+    srcs = ["pupil_diameter", "pupil_position_x", "pupil_position_y"]
+    targs = ["pup_diam", "pup_center_x", "pup_center_y"]
+
+    pup_data_df = pd.DataFrame()
     with pynwb.NWBHDF5IO(str(behav_file), "r") as f:
         nwbfile_in = f.read()
         behav_module = nwbfile_in.get_processing_module("behavior")
         main_field = "PupilTracking"
-        data_field = "pupil_diameter"
-        try:
-            behav_time_series = behav_module.get_data_interface(
-                main_field).get_timeseries(data_field)
-        except KeyError as err:
-            raise KeyError(
-                "Could not find pupil diameter data in behavioral time "
-                f"series for {behav_module} due to: {err}"
+        pupil_series = behav_module.get_data_interface(
+            main_field).fields["time_series"].keys()
+        if not "pupil_position_x" in pupil_series:
+            srcs = ["pupil_diameter"]
+            targs = ["pup_diam"]
+            warnings.warn(
+                "NWB file does not include pupil center position data. "
+                "Likely an older version of the data file."
                 )
-        
-        pup_data = np.asarray(behav_time_series.data)
+        for src, targ in zip(srcs, targs):
+            try:
+                behav_time_series = behav_module.get_data_interface(
+                    main_field).get_timeseries(src)
+            except KeyError as err:
+                raise KeyError(
+                    f"Could not find {src.replace('_', '')} data in behavioral "
+                    f"time series for {behav_module} due to: {err}"
+                    )
 
-    pup_data_df = pd.DataFrame()
-    pup_data_df["pup_diam"] = pup_data / MM_PER_PIXEL
+            pup_data = np.asarray(behav_time_series.data)
+            pup_data_df[targ] = pup_data / MM_PER_PIXEL
 
     pup_data_df.insert(0, "frames", value=range(len(pup_data_df)))
 
-    return pup_data_df  
+    return pup_data_df
 
 
 #############################################
