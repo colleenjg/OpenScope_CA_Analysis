@@ -1,195 +1,76 @@
-python run_paper_figures.py --paper analysis --figure all --panel all --full_power --plot_only --overwrite --output /scratch/t/tyrell/gillonco/
+python run_paper_figures.py --plot_only --figure all --panel all --paper analysis --overwrite --full_power
 Duration: 0.00s (failed)
 
 ________________________________________________________________________________
 ================================================================================
-Fig. 1A. Cannot plot figure panel as it is a schematic illustration.
-Duration: 0.00s (failed)
-
-================================================================================
-Fig. 1B. Cannot plot figure panel as it is a schematic illustration.
+Fig. 1A (analysis paper). Cannot plot figure panel as it is a schematic illustration.
 
 
 ================================================================================
-Fig. 1C (analysis paper). Producing plot: Example projections of 2p imaging planes.
+Fig. 1B (analysis paper). Producing plot: Example projections of 2p imaging planes.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig1/data_files/panel_C.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig1/data_files/panel_B.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
     Rasterizing imaging plane images...
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig1.
-Duration: 4.11s
+Figures saved under paper_figures/analysis_paper/Fig1.
+Duration: 5.65s
 Duration: 0.00s (failed)
 
 ================================================================================
-Fig. 1D. Cannot plot figure panel as it is a schematic illustration.
+Fig. 1C (analysis paper). Cannot plot figure panel as it is a schematic illustration.
 
 
 ================================================================================
-Fig. 1E (analysis paper). Producing plot: Example ROI tracking overlays.
+Fig. 1D (analysis paper). Producing plot: Example ROI tracking overlays.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig1/data_files/panel_E.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig1/data_files/panel_D.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
     Rasterizing imaging plane images...
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig1.
-Duration: 6.96s
-Duration: 0.00s (failed)
-
-________________________________________________________________________________
-================================================================================
-Fig. 2A. Cannot plot figure panel as it was drawn manually from images.
+Figures saved under paper_figures/analysis_paper/Fig1.
+Duration: 17.41s
 Duration: 0.00s (failed)
 
 ================================================================================
-Fig. 2B. Cannot plot figure panel as it was drawn manually.
-
-
-================================================================================
-Fig. 2C (analysis paper). Producing plot: Example ROI responses to Gabor sequences.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2/data_files/panel_C.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2.
-Duration: 4.30s
-
+Fig. 1E (analysis paper). Cannot plot figure panel as it was drawn manually from images.
+Duration: 0.00s (failed)
 
 ================================================================================
-Fig. 2D (analysis paper). Producing plot: Example Gabor USI null distribution for a single ROI.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2/data_files/panel_D.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2.
-Duration: 3.58s
-
-
-================================================================================
-Fig. 2E (analysis paper). Producing plot: Distributions of Gabor USI percentiles.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2/data_files/panel_E.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2.
-Duration: 3.64s
-
-
-================================================================================
-Fig. 2F (analysis paper). Producing plot: Percentages of significant Gabor USIs.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2/data_files/panel_F.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (8 comparisons, two-tailed):
-    Low tail :    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00352** 
-    High tail:    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00000***
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2.
-Duration: 3.32s
-
-
-================================================================================
-Fig. 2G (analysis paper). Producing plot: Percentages of significant Gabor USIs for sequences with orientations common to D/U.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2/data_files/panel_G.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (8 comparisons, two-tailed):
-    Low tail :    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00002***
-    High tail:    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00000***
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2.
-Duration: 3.44s
+Fig. 1F (analysis paper). Cannot plot figure panel as it was drawn manually.
 
 
 ________________________________________________________________________________
 ================================================================================
-Fig. 3A (analysis paper). Producing plot: Running and pupil responses to Gabor sequences.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- Running and pupil images will be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig3/data_files/panel_A.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig3.
-Duration: 3.17s
-
-
-================================================================================
-Fig. 3B (analysis paper). Producing plot: Trial differences in running and pupil responses U-G vs D-G Gabor sequences.
+Fig. 2A (analysis paper). Producing plot: ROI responses to Gabor sequences.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig3/data_files/panel_B.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig2/data_files/panel_A.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
-Raw p-values (two-tailed):
-    Running velocity:    L2/3-D: 0.96460       L2/3-S: 0.27680       L5-D: 0.80780       L5-S: 0.44040   
-    Pupil diameter  :    L2/3-D: 0.89240       L2/3-S: 0.19560       L5-D: 0.96880       L5-S: 0.26840   
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig3.
-Duration: 3.77s
-
-
-________________________________________________________________________________
-================================================================================
-Fig. 4A (analysis paper). Producing plot: ROI responses to Gabor sequences.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4/data_files/panel_A.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4.
-Duration: 4.25s
+Figures saved under paper_figures/analysis_paper/Fig2.
+Duration: 8.19s
 
 
 ================================================================================
-Fig. 4B (analysis paper). Producing plot: Differences in ROI responses to unexpected and expected Gabor sequences.
+Fig. 2B (analysis paper). Producing plot: Differences in ROI responses to unexpected and expected Gabor sequences.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4/data_files/panel_B.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig2/data_files/panel_B.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -205,18 +86,18 @@ Corrected p-values (24 comparisons, two-tailed):
     L5-D   (between sessions):     S1v2: 0.00000***     S1v3: 0.00000***     S2v3: 0.01968*  
     L5-S   (between sessions):     S1v2: 0.75456        S1v3: 0.01056*       S2v3: 1.00000   
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4.
-Duration: 3.36s
+Figures saved under paper_figures/analysis_paper/Fig2.
+Duration: 4.80s
 
 
 ================================================================================
-Fig. 4C (analysis paper). Producing plot: ROI responses to regular and unexpected Gabor sequences, relative to session 1.
+Fig. 2C (analysis paper). Producing plot: ROI responses to regular and unexpected Gabor sequences, relative to session 1.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4/data_files/panel_C.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig2/data_files/panel_C.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -232,252 +113,8 @@ Corrected p-values (24 comparisons, two-tailed):
     L5-D   (between sessions):     S1v2: 0.00000***     S1v3: 0.00000***     S2v3: 1.00000   
     L5-S   (between sessions):     S1v2: 0.81408        S1v3: 1.00000        S2v3: 1.00000   
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4.
-Duration: 3.60s
-
-
-================================================================================
-Fig. 4D (analysis paper). Producing plot: Tracked ROI Gabor USIs across sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4/data_files/panel_D.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4.
-Duration: 4.09s
-
-
-================================================================================
-Fig. 4E (analysis paper). Producing plot: Absolute means of tracked ROI Gabor USIs across sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4/data_files/panel_E.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (12 comparisons, two-tailed):
-    L2/3-D (between sessions):     S1v2: 1.00000        S1v3: 0.00000***     S2v3: 0.00000***
-    L2/3-S (between sessions):     S1v2: 0.37440        S1v3: 0.00000***     S2v3: 0.00000***
-    L5-D   (between sessions):     S1v2: 0.00000***     S1v3: 0.00000***     S2v3: 1.00000   
-    L5-S   (between sessions):     S1v2: 0.00024***     S1v3: 0.00408**      S2v3: 0.68280   
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4.
-Duration: 3.33s
-
-
-================================================================================
-Fig. 4F (analysis paper). Producing plot: Variances of tracked ROI Gabor USIs across sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4/data_files/panel_F.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (12 comparisons, two-tailed):
-    L2/3-D (between sessions):     S1v2: 1.00000        S1v3: 1.00000        S2v3: 0.64680   
-    L2/3-S (between sessions):     S1v2: 1.00000        S1v3: 0.00000***     S2v3: 0.00000***
-    L5-D   (between sessions):     S1v2: 0.07704        S1v3: 0.00792**      S2v3: 1.00000   
-    L5-S   (between sessions):     S1v2: 0.00000***     S1v3: 0.00192**      S2v3: 0.94368   
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4.
-Duration: 3.33s
-
-
-________________________________________________________________________________
-================================================================================
-Fig. 5A (analysis paper). Producing plot: Mean Gabor D orientation decoder performances across sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig5/data_files/panel_A.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (24 comparisons, two-tailed):
-    L2/3-D (within session):     S1: 0.00000***     S2: 0.00048***     S3: 0.08640   
-    L2/3-S (within session):     S1: 0.00000***     S2: 0.00048***     S3: 0.00000***
-    L5-D   (within session):     S1: 0.00192**      S2: 0.00576**      S3: 0.00816** 
-    L5-S   (within session):     S1: 0.00048***     S2: 1.00000        S3: 0.00000***
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig5.
-Duration: 3.38s
-
-
-================================================================================
-Fig. 5B (analysis paper). Producing plot: Mean Gabor U orientation decoder performances across sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig5/data_files/panel_B.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (24 comparisons, two-tailed):
-    L2/3-D (within session):     S1: 0.52464        S2: 0.00000***     S3: 0.00096***
-    L2/3-S (within session):     S1: 0.00000***     S2: 0.00048***     S3: 0.00096***
-    L5-D   (within session):     S1: 0.00288**      S2: 0.00000***     S3: 0.00000***
-    L5-S   (within session):     S1: 0.00000***     S2: 0.09744        S3: 0.07968   
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig5.
-Duration: 3.51s
-
-
-================================================================================
-Fig. 5C (analysis paper). Producing plot: Gabor USI correlations between sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig5/data_files/panel_C.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-Duration: 3.01s (failed)
-Duration: 0.00s (failed)
-
-________________________________________________________________________________
-================================================================================
-Fig. 1A. Cannot plot figure panel as it is a schematic illustration.
-Duration: 0.00s (failed)
-
-================================================================================
-Fig. 1B. Cannot plot figure panel as it is a schematic illustration.
-
-
-================================================================================
-Fig. 1C (analysis paper). Producing plot: Example projections of 2p imaging planes.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig1/data_files/panel_C.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-    Rasterizing imaging plane images...
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig1.
-Duration: 3.64s
-Duration: 0.00s (failed)
-
-================================================================================
-Fig. 1D. Cannot plot figure panel as it is a schematic illustration.
-
-
-================================================================================
-Fig. 1E (analysis paper). Producing plot: Example ROI tracking overlays.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig1/data_files/panel_E.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-    Rasterizing imaging plane images...
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig1.
-Duration: 6.89s
-Duration: 0.00s (failed)
-
-________________________________________________________________________________
-================================================================================
-Fig. 2A. Cannot plot figure panel as it was drawn manually from images.
-Duration: 0.00s (failed)
-
-================================================================================
-Fig. 2B. Cannot plot figure panel as it was drawn manually.
-
-
-================================================================================
-Fig. 2C (analysis paper). Producing plot: Example ROI responses to Gabor sequences.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2/data_files/panel_C.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2.
-Duration: 4.28s
-
-
-================================================================================
-Fig. 2D (analysis paper). Producing plot: Example Gabor USI null distribution for a single ROI.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2/data_files/panel_D.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2.
-Duration: 3.57s
-
-
-================================================================================
-Fig. 2E (analysis paper). Producing plot: Distributions of Gabor USI percentiles.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2/data_files/panel_E.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2.
-Duration: 3.64s
-
-
-================================================================================
-Fig. 2F (analysis paper). Producing plot: Percentages of significant Gabor USIs.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2/data_files/panel_F.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (8 comparisons, two-tailed):
-    Low tail :    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00352** 
-    High tail:    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00000***
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2.
-Duration: 3.29s
-
-
-================================================================================
-Fig. 2G (analysis paper). Producing plot: Percentages of significant Gabor USIs for sequences with orientations common to D/U.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2/data_files/panel_G.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (8 comparisons, two-tailed):
-    Low tail :    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00002***
-    High tail:    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00000***
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2.
-Duration: 3.45s
+Figures saved under paper_figures/analysis_paper/Fig2.
+Duration: 5.53s
 
 
 ________________________________________________________________________________
@@ -488,12 +125,12 @@ WARNING:
 - Minor manual formatting adjustments may be missing.
 - Running and pupil images will be missing.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig3/data_files/panel_A.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig3/data_files/panel_A.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig3.
-Duration: 3.18s
+Figures saved under paper_figures/analysis_paper/Fig3.
+Duration: 3.84s
 
 
 ================================================================================
@@ -502,7 +139,7 @@ Fig. 3B (analysis paper). Producing plot: Trial differences in running and pupil
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig3/data_files/panel_B.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig3/data_files/panel_B.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -510,101 +147,113 @@ Raw p-values (two-tailed):
     Running velocity:    L2/3-D: 0.96460       L2/3-S: 0.27680       L5-D: 0.80780       L5-S: 0.44040   
     Pupil diameter  :    L2/3-D: 0.89240       L2/3-S: 0.19560       L5-D: 0.96880       L5-S: 0.26840   
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig3.
-Duration: 3.47s
+Figures saved under paper_figures/analysis_paper/Fig3.
+Duration: 4.58s
 
 
 ________________________________________________________________________________
 ================================================================================
-Fig. 4A (analysis paper). Producing plot: ROI responses to Gabor sequences.
+Fig. 4A (analysis paper). Producing plot: Example ROI responses to Gabor sequences.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4/data_files/panel_A.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4/data_files/panel_A.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4.
-Duration: 4.15s
+Figures saved under paper_figures/analysis_paper/Fig4.
+Duration: 8.34s
 
 
 ================================================================================
-Fig. 4B (analysis paper). Producing plot: Differences in ROI responses to unexpected and expected Gabor sequences.
+Fig. 4B (analysis paper). Producing plot: Example Gabor USI null distribution for a single ROI.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4/data_files/panel_B.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Figures saved under paper_figures/analysis_paper/Fig4.
+Duration: 6.16s
+
+
+================================================================================
+Fig. 4C (analysis paper). Producing plot: Distributions of Gabor USI percentiles.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4/data_files/panel_C.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Figures saved under paper_figures/analysis_paper/Fig4.
+Duration: 6.12s
+
+
+================================================================================
+Fig. 4D (analysis paper). Producing plot: Percentages of significant Gabor USIs.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4/data_files/panel_B.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4/data_files/panel_D.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
-Corrected p-values (24 comparisons, two-tailed):
-    L2/3-D (within session):     S1: 1.00000        S2: 1.00000        S3: 0.00000***
-    L2/3-S (within session):     S1: 1.00000        S2: 0.25776        S3: 1.00000   
-    L5-D   (within session):     S1: 1.00000        S2: 0.00000***     S3: 0.00000***
-    L5-S   (within session):     S1: 0.00000***     S2: 1.00000        S3: 1.00000   
+Corrected p-values (8 comparisons, two-tailed):
+    Low tail :    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00352** 
+    High tail:    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00000***
 
-Corrected p-values (24 comparisons, two-tailed):
-    L2/3-D (between sessions):     S1v2: 0.00000***     S1v3: 0.00000***     S2v3: 0.00000***
-    L2/3-S (between sessions):     S1v2: 1.00000        S1v3: 1.00000        S2v3: 0.18240   
-    L5-D   (between sessions):     S1v2: 0.00000***     S1v3: 0.00000***     S2v3: 0.01968*  
-    L5-S   (between sessions):     S1v2: 0.75456        S1v3: 0.01056*       S2v3: 1.00000   
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4.
-Duration: 3.37s
+Figures saved under paper_figures/analysis_paper/Fig4.
+Duration: 5.46s
 
 
 ================================================================================
-Fig. 4C (analysis paper). Producing plot: ROI responses to regular and unexpected Gabor sequences, relative to session 1.
+Fig. 4E (analysis paper). Producing plot: Percentages of significant Gabor USIs for sequences with orientations common to D/U.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4/data_files/panel_C.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4/data_files/panel_E.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
-Corrected p-values (24 comparisons, two-tailed):
-    L2/3-D (between sessions):     S1v2: 1.00000        S1v3: 1.00000        S2v3: 1.00000   
-    L2/3-S (between sessions):     S1v2: 1.00000        S1v3: 1.00000        S2v3: 0.01776+  
-    L5-D   (between sessions):     S1v2: 1.00000        S1v3: 0.00000+++     S2v3: 0.00048+++
-    L5-S   (between sessions):     S1v2: 1.00000        S1v3: 0.11760        S2v3: 1.00000   
+Corrected p-values (8 comparisons, two-tailed):
+    Low tail :    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00002***
+    High tail:    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00000***
 
-Corrected p-values (24 comparisons, two-tailed):
-    L2/3-D (between sessions):     S1v2: 0.00000***     S1v3: 0.00000***     S2v3: 1.00000   
-    L2/3-S (between sessions):     S1v2: 1.00000        S1v3: 0.00000***     S2v3: 0.00000***
-    L5-D   (between sessions):     S1v2: 0.00000***     S1v3: 0.00000***     S2v3: 1.00000   
-    L5-S   (between sessions):     S1v2: 0.81408        S1v3: 1.00000        S2v3: 1.00000   
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4.
-Duration: 3.66s
+Figures saved under paper_figures/analysis_paper/Fig4.
+Duration: 4.64s
 
 
 ================================================================================
-Fig. 4D (analysis paper). Producing plot: Tracked ROI Gabor USIs across sessions.
+Fig. 4F (analysis paper). Producing plot: Tracked ROI Gabor USIs across sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4/data_files/panel_D.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4/data_files/panel_F.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4.
-Duration: 4.23s
+Figures saved under paper_figures/analysis_paper/Fig4.
+Duration: 7.68s
 
 
 ================================================================================
-Fig. 4E (analysis paper). Producing plot: Absolute means of tracked ROI Gabor USIs across sessions.
+Fig. 4G (analysis paper). Producing plot: Absolute means of tracked ROI Gabor USIs across sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4/data_files/panel_E.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4/data_files/panel_G.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -614,18 +263,18 @@ Corrected p-values (12 comparisons, two-tailed):
     L5-D   (between sessions):     S1v2: 0.00000***     S1v3: 0.00000***     S2v3: 1.00000   
     L5-S   (between sessions):     S1v2: 0.00024***     S1v3: 0.00408**      S2v3: 0.68280   
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4.
-Duration: 3.37s
+Figures saved under paper_figures/analysis_paper/Fig4.
+Duration: 4.95s
 
 
 ================================================================================
-Fig. 4F (analysis paper). Producing plot: Variances of tracked ROI Gabor USIs across sessions.
+Fig. 4H (analysis paper). Producing plot: Variances of tracked ROI Gabor USIs across sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4/data_files/panel_F.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4/data_files/panel_H.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -635,61 +284,19 @@ Corrected p-values (12 comparisons, two-tailed):
     L5-D   (between sessions):     S1v2: 0.07704        S1v3: 0.00792**      S2v3: 1.00000   
     L5-S   (between sessions):     S1v2: 0.00000***     S1v3: 0.00192**      S2v3: 0.94368   
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4.
-Duration: 3.37s
+Figures saved under paper_figures/analysis_paper/Fig4.
+Duration: 5.03s
 
 
 ________________________________________________________________________________
 ================================================================================
-Fig. 5A (analysis paper). Producing plot: Mean Gabor D orientation decoder performances across sessions.
+Fig. 5A (analysis paper). Producing plot: Gabor USI correlations between sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig5/data_files/panel_A.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (24 comparisons, two-tailed):
-    L2/3-D (within session):     S1: 0.00000***     S2: 0.00048***     S3: 0.08640   
-    L2/3-S (within session):     S1: 0.00000***     S2: 0.00048***     S3: 0.00000***
-    L5-D   (within session):     S1: 0.00192**      S2: 0.00576**      S3: 0.00816** 
-    L5-S   (within session):     S1: 0.00048***     S2: 1.00000        S3: 0.00000***
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig5.
-Duration: 3.35s
-
-
-================================================================================
-Fig. 5B (analysis paper). Producing plot: Mean Gabor U orientation decoder performances across sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig5/data_files/panel_B.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (24 comparisons, two-tailed):
-    L2/3-D (within session):     S1: 0.52464        S2: 0.00000***     S3: 0.00096***
-    L2/3-S (within session):     S1: 0.00000***     S2: 0.00048***     S3: 0.00096***
-    L5-D   (within session):     S1: 0.00288**      S2: 0.00000***     S3: 0.00000***
-    L5-S   (within session):     S1: 0.00000***     S2: 0.09744        S3: 0.07968   
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig5.
-Duration: 3.50s
-
-
-================================================================================
-Fig. 5C (analysis paper). Producing plot: Gabor USI correlations between sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig5/data_files/panel_C.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig5/data_files/panel_A.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -699,328 +306,18 @@ Corrected p-values (8 comparisons, one-tailed):
     L5-D  :    S1v2: 0.00000***    S2v3: 1.00000   
     L5-S  :    S1v2: 1.00000       S2v3: 1.00000   
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig5.
-Duration: 3.39s
-Duration: 0.00s (failed)
-
-________________________________________________________________________________
-================================================================================
-Fig. 6A. Cannot plot figure panel as it is a schematic illustration.
-
-
-________________________________________________________________________________
-================================================================================
-Fig. S1A (analysis paper). Producing plot: Example ROI tracking overlays (large).
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS1/data_files/panel_A.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-Duration: 3.05s (failed)
-Duration: 0.00s (failed)
-
-________________________________________________________________________________
-================================================================================
-Fig. 1A. Cannot plot figure panel as it is a schematic illustration.
-Duration: 0.00s (failed)
-
-================================================================================
-Fig. 1B. Cannot plot figure panel as it is a schematic illustration.
+Figures saved under paper_figures/analysis_paper/Fig5.
+Duration: 5.42s
 
 
 ================================================================================
-Fig. 1C (analysis paper). Producing plot: Example projections of 2p imaging planes.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig1/data_files/panel_C.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-    Rasterizing imaging plane images...
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig1.
-Duration: 3.41s
-Duration: 0.00s (failed)
-
-================================================================================
-Fig. 1D. Cannot plot figure panel as it is a schematic illustration.
-
-
-================================================================================
-Fig. 1E (analysis paper). Producing plot: Example ROI tracking overlays.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig1/data_files/panel_E.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-    Rasterizing imaging plane images...
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig1.
-Duration: 6.86s
-Duration: 0.00s (failed)
-
-________________________________________________________________________________
-================================================================================
-Fig. 2A. Cannot plot figure panel as it was drawn manually from images.
-Duration: 0.00s (failed)
-
-================================================================================
-Fig. 2B. Cannot plot figure panel as it was drawn manually.
-
-
-================================================================================
-Fig. 2C (analysis paper). Producing plot: Example ROI responses to Gabor sequences.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2/data_files/panel_C.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2.
-Duration: 4.30s
-
-
-================================================================================
-Fig. 2D (analysis paper). Producing plot: Example Gabor USI null distribution for a single ROI.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2/data_files/panel_D.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2.
-Duration: 3.60s
-
-
-================================================================================
-Fig. 2E (analysis paper). Producing plot: Distributions of Gabor USI percentiles.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2/data_files/panel_E.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2.
-Duration: 3.67s
-
-
-================================================================================
-Fig. 2F (analysis paper). Producing plot: Percentages of significant Gabor USIs.
+Fig. 5B (analysis paper). Producing plot: Mean Gabor D orientation decoder performances across sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2/data_files/panel_F.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (8 comparisons, two-tailed):
-    Low tail :    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00352** 
-    High tail:    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00000***
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2.
-Duration: 3.30s
-
-
-================================================================================
-Fig. 2G (analysis paper). Producing plot: Percentages of significant Gabor USIs for sequences with orientations common to D/U.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2/data_files/panel_G.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (8 comparisons, two-tailed):
-    Low tail :    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00002***
-    High tail:    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00000***
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig2.
-Duration: 3.43s
-
-
-________________________________________________________________________________
-================================================================================
-Fig. 3A (analysis paper). Producing plot: Running and pupil responses to Gabor sequences.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- Running and pupil images will be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig3/data_files/panel_A.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig3.
-Duration: 3.14s
-
-
-================================================================================
-Fig. 3B (analysis paper). Producing plot: Trial differences in running and pupil responses U-G vs D-G Gabor sequences.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig3/data_files/panel_B.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Raw p-values (two-tailed):
-    Running velocity:    L2/3-D: 0.96460       L2/3-S: 0.27680       L5-D: 0.80780       L5-S: 0.44040   
-    Pupil diameter  :    L2/3-D: 0.89240       L2/3-S: 0.19560       L5-D: 0.96880       L5-S: 0.26840   
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig3.
-Duration: 3.51s
-
-
-________________________________________________________________________________
-================================================================================
-Fig. 4A (analysis paper). Producing plot: ROI responses to Gabor sequences.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4/data_files/panel_A.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4.
-Duration: 4.19s
-
-
-================================================================================
-Fig. 4B (analysis paper). Producing plot: Differences in ROI responses to unexpected and expected Gabor sequences.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4/data_files/panel_B.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (24 comparisons, two-tailed):
-    L2/3-D (within session):     S1: 1.00000        S2: 1.00000        S3: 0.00000***
-    L2/3-S (within session):     S1: 1.00000        S2: 0.25776        S3: 1.00000   
-    L5-D   (within session):     S1: 1.00000        S2: 0.00000***     S3: 0.00000***
-    L5-S   (within session):     S1: 0.00000***     S2: 1.00000        S3: 1.00000   
-
-Corrected p-values (24 comparisons, two-tailed):
-    L2/3-D (between sessions):     S1v2: 0.00000***     S1v3: 0.00000***     S2v3: 0.00000***
-    L2/3-S (between sessions):     S1v2: 1.00000        S1v3: 1.00000        S2v3: 0.18240   
-    L5-D   (between sessions):     S1v2: 0.00000***     S1v3: 0.00000***     S2v3: 0.01968*  
-    L5-S   (between sessions):     S1v2: 0.75456        S1v3: 0.01056*       S2v3: 1.00000   
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4.
-Duration: 3.43s
-
-
-================================================================================
-Fig. 4C (analysis paper). Producing plot: ROI responses to regular and unexpected Gabor sequences, relative to session 1.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4/data_files/panel_C.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (24 comparisons, two-tailed):
-    L2/3-D (between sessions):     S1v2: 1.00000        S1v3: 1.00000        S2v3: 1.00000   
-    L2/3-S (between sessions):     S1v2: 1.00000        S1v3: 1.00000        S2v3: 0.01776+  
-    L5-D   (between sessions):     S1v2: 1.00000        S1v3: 0.00000+++     S2v3: 0.00048+++
-    L5-S   (between sessions):     S1v2: 1.00000        S1v3: 0.11760        S2v3: 1.00000   
-
-Corrected p-values (24 comparisons, two-tailed):
-    L2/3-D (between sessions):     S1v2: 0.00000***     S1v3: 0.00000***     S2v3: 1.00000   
-    L2/3-S (between sessions):     S1v2: 1.00000        S1v3: 0.00000***     S2v3: 0.00000***
-    L5-D   (between sessions):     S1v2: 0.00000***     S1v3: 0.00000***     S2v3: 1.00000   
-    L5-S   (between sessions):     S1v2: 0.81408        S1v3: 1.00000        S2v3: 1.00000   
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4.
-Duration: 3.58s
-
-
-================================================================================
-Fig. 4D (analysis paper). Producing plot: Tracked ROI Gabor USIs across sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4/data_files/panel_D.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4.
-Duration: 4.12s
-
-
-================================================================================
-Fig. 4E (analysis paper). Producing plot: Absolute means of tracked ROI Gabor USIs across sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4/data_files/panel_E.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (12 comparisons, two-tailed):
-    L2/3-D (between sessions):     S1v2: 1.00000        S1v3: 0.00000***     S2v3: 0.00000***
-    L2/3-S (between sessions):     S1v2: 0.37440        S1v3: 0.00000***     S2v3: 0.00000***
-    L5-D   (between sessions):     S1v2: 0.00000***     S1v3: 0.00000***     S2v3: 1.00000   
-    L5-S   (between sessions):     S1v2: 0.00024***     S1v3: 0.00408**      S2v3: 0.68280   
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4.
-Duration: 3.34s
-
-
-================================================================================
-Fig. 4F (analysis paper). Producing plot: Variances of tracked ROI Gabor USIs across sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4/data_files/panel_F.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (12 comparisons, two-tailed):
-    L2/3-D (between sessions):     S1v2: 1.00000        S1v3: 1.00000        S2v3: 0.64680   
-    L2/3-S (between sessions):     S1v2: 1.00000        S1v3: 0.00000***     S2v3: 0.00000***
-    L5-D   (between sessions):     S1v2: 0.07704        S1v3: 0.00792**      S2v3: 1.00000   
-    L5-S   (between sessions):     S1v2: 0.00000***     S1v3: 0.00192**      S2v3: 0.94368   
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig4.
-Duration: 3.34s
-
-
-________________________________________________________________________________
-================================================================================
-Fig. 5A (analysis paper). Producing plot: Mean Gabor D orientation decoder performances across sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig5/data_files/panel_A.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig5/data_files/panel_B.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -1030,18 +327,18 @@ Corrected p-values (24 comparisons, two-tailed):
     L5-D   (within session):     S1: 0.00192**      S2: 0.00576**      S3: 0.00816** 
     L5-S   (within session):     S1: 0.00048***     S2: 1.00000        S3: 0.00000***
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig5.
-Duration: 3.32s
+Figures saved under paper_figures/analysis_paper/Fig5.
+Duration: 4.69s
 
 
 ================================================================================
-Fig. 5B (analysis paper). Producing plot: Mean Gabor U orientation decoder performances across sessions.
+Fig. 5C (analysis paper). Producing plot: Mean Gabor U orientation decoder performances across sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig5/data_files/panel_B.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig5/data_files/panel_C.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -1051,163 +348,19 @@ Corrected p-values (24 comparisons, two-tailed):
     L5-D   (within session):     S1: 0.00288**      S2: 0.00000***     S3: 0.00000***
     L5-S   (within session):     S1: 0.00000***     S2: 0.09744        S3: 0.07968   
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig5.
-Duration: 3.46s
-
-
-================================================================================
-Fig. 5C (analysis paper). Producing plot: Gabor USI correlations between sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig5/data_files/panel_C.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (8 comparisons, one-tailed):
-    L2/3-D:    S1v2: 0.00008***    S2v3: 1.00000   
-    L2/3-S:    S1v2: 0.84296       S2v3: 1.00000   
-    L5-D  :    S1v2: 0.00000***    S2v3: 1.00000   
-    L5-S  :    S1v2: 1.00000       S2v3: 1.00000   
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/Fig5.
-Duration: 3.33s
+Figures saved under paper_figures/analysis_paper/Fig5.
+Duration: 4.65s
 Duration: 0.00s (failed)
 
 ________________________________________________________________________________
 ================================================================================
-Fig. 6A. Cannot plot figure panel as it is a schematic illustration.
-
-
-________________________________________________________________________________
-================================================================================
-Fig. S1A (analysis paper). Producing plot: Example ROI tracking overlays (large).
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS1/data_files/panel_A.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS1.
-Duration: 4.54s
-
-
-================================================================================
-Fig. S1B (analysis paper). Producing plot: Example ROI tracking overlay close-ups (large).
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS1/data_files/panel_B.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS1.
-Duration: 4.45s
-
-
-________________________________________________________________________________
-================================================================================
-Fig. S2A (analysis paper). Producing plot: Fluorescence SNR for each ROI.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS2/data_files/panel_A.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS2.
-Duration: 3.42s
-
-
-================================================================================
-Fig. S2B (analysis paper). Producing plot: Fluorescence signal for each ROI.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS2/data_files/panel_B.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS2.
-Duration: 3.35s
-
-
-================================================================================
-Fig. S2C (analysis paper). Producing plot: Number of ROIs per session, per mouse.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS2/data_files/panel_C.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS2.
-Duration: 3.45s
-
-
-================================================================================
-Fig. S2D (analysis paper). Producing plot: ROI correlations per session.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS2/data_files/panel_D.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS2.
-Duration: 5.05s
-
-
-________________________________________________________________________________
-================================================================================
-Fig. S3A (analysis paper). Producing plot: ROI response to stimulus onset.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS3/data_files/panel_A.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS3.
-Duration: 4.30s
-
-
-================================================================================
-Fig. S3B (analysis paper). Producing plot: Example ROI responses to each expected Gabor sequence.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel takes longer to plot, as it requires plotting and rasterizing a large number of items.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS3/data_files/panel_B.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-    Plotting individual traces...
-    Rasterizing individual traces...
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS3.
-Duration: 36.21s
-
-
-________________________________________________________________________________
-================================================================================
-Fig. S4A (analysis paper). Producing plot: Percentages of significant Gabor USIs for each mouse.
+Fig. S1A (analysis paper). Producing plot: Percentages of significant Gabor USIs for each mouse.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS4/data_files/panel_A.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/FigS2/data_files/panel_A.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -1223,18 +376,18 @@ Corrected p-values (22 comparisons, two-tailed):
 	L5-D  :     (~1%)  0.20194       (~6%)  0.03215*      (~10%) 0.00000***
 	L5-S  :     (~7%)  1.00000       (~32%) 0.00000***    (~34%) 0.00000***
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS4.
-Duration: 3.32s
+Figures saved under paper_figures/analysis_paper/FigS2.
+Duration: 4.47s
 
 
 ================================================================================
-Fig. S4B (analysis paper). Producing plot: Tracked ROI responses to regular and unexpected Gabor sequences, relative to session 1.
+Fig. S1B (analysis paper). Producing plot: Tracked ROI responses to regular and unexpected Gabor sequences, relative to session 1.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS4/data_files/panel_B.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/FigS2/data_files/panel_B.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -1250,52 +403,51 @@ Corrected p-values (24 comparisons, two-tailed):
     L5-D   (between sessions):     S1v2: 0.00000***     S1v3: 0.00000***     S2v3: 1.00000   
     L5-S   (between sessions):     S1v2: 0.13632        S1v3: 0.00000***     S2v3: 1.00000   
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS4.
-Duration: 3.49s
+Figures saved under paper_figures/analysis_paper/FigS2.
+Duration: 5.25s
 
 
 ================================================================================
-Fig. S4C (analysis paper). Producing plot: Absolute means of tracked ROI Gabor USIs across sessions for each mouse.
+Fig. S1C (analysis paper). Producing plot: Absolute means of tracked ROI Gabor USIs across sessions for each mouse.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS4/data_files/panel_C.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/FigS2/data_files/panel_C.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS4.
-Duration: 3.34s
-Duration: 0.00s (failed)
+Figures saved under paper_figures/analysis_paper/FigS2.
+Duration: 4.64s
 
 ________________________________________________________________________________
 ================================================================================
-Fig. S5A. Cannot plot figure panel as it was drawn manually from images.
+Fig. S2A (analysis paper). Cannot plot figure panel as it was drawn manually from images.
 
 
 ================================================================================
-Fig. S5B (analysis paper). Producing plot: ROI responses to visual flow sequences.
+Fig. S2B (analysis paper). Producing plot: ROI responses to visual flow sequences.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS5/data_files/panel_B.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/FigS1/data_files/panel_B.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS5.
-Duration: 4.14s
+Figures saved under paper_figures/analysis_paper/FigS1.
+Duration: 8.29s
 
 
 ================================================================================
-Fig. S5C (analysis paper). Producing plot: Differences in ROI responses to unexpected and expected visual flow sequences.
+Fig. S2C (analysis paper). Producing plot: Differences in ROI responses to unexpected and expected visual flow sequences.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS5/data_files/panel_C.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/FigS1/data_files/panel_C.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -1311,19 +463,19 @@ Corrected p-values (24 comparisons, two-tailed):
     L5-D   (between sessions):     S1v2: 0.00000***     S1v3: 0.00000***     S2v3: 0.00000***
     L5-S   (between sessions):     S1v2: 1.00000        S1v3: 1.00000        S2v3: 1.00000   
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS5.
-Duration: 3.40s
+Figures saved under paper_figures/analysis_paper/FigS1.
+Duration: 5.34s
 
 
 ________________________________________________________________________________
 ================================================================================
-Fig. S6A (analysis paper). Producing plot: ROI responses to expected and unexpected visual flow sequences, relative to session 1.
+Fig. S3A (analysis paper). Producing plot: ROI responses to expected and unexpected visual flow sequences, relative to session 1.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS6/data_files/panel_A.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/FigS3/data_files/panel_A.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -1339,50 +491,50 @@ Corrected p-values (24 comparisons, two-tailed):
     L5-D   (between sessions):     S1v2: 0.00000***     S1v3: 0.05712        S2v3: 0.34368   
     L5-S   (between sessions):     S1v2: 0.06720        S1v3: 1.00000        S2v3: 0.62112   
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS6.
-Duration: 3.47s
+Figures saved under paper_figures/analysis_paper/FigS3.
+Duration: 5.16s
 
 
 ================================================================================
-Fig. S6B (analysis paper). Producing plot: Change in ROI responses to unexpected sequences for the Gabor vs visual flow stimulus.
+Fig. S3B (analysis paper). Producing plot: Change in ROI responses to unexpected sequences for the Gabor vs visual flow stimulus.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS6/data_files/panel_B.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/FigS3/data_files/panel_B.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
 Corrected p-values (5 comparisons, two-tailed):
     Gabors vs visual flow:     L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 1.00000       All: 0.00000***
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS6.
-Duration: 3.59s
+Figures saved under paper_figures/analysis_paper/FigS3.
+Duration: 5.88s
 
 
 ================================================================================
-Fig. S6C (analysis paper). Producing plot: Tracked ROI visual flow USIs across sessions.
+Fig. S3C (analysis paper). Producing plot: Tracked ROI visual flow USIs across sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS6/data_files/panel_C.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/FigS3/data_files/panel_C.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS6.
-Duration: 3.98s
+Figures saved under paper_figures/analysis_paper/FigS3.
+Duration: 8.16s
 
 
 ================================================================================
-Fig. S6D (analysis paper). Producing plot: Absolute means of tracked ROI visual flow USIs across sessions.
+Fig. S3D (analysis paper). Producing plot: Absolute means of tracked ROI visual flow USIs across sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS6/data_files/panel_D.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/FigS3/data_files/panel_D.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -1392,34 +544,34 @@ Corrected p-values (12 comparisons, two-tailed):
     L5-D   (between sessions):     S1v2: 1.00000        S1v3: 1.00000        S2v3: 0.58776   
     L5-S   (between sessions):     S1v2: 1.00000        S1v3: 1.00000        S2v3: 1.00000   
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS6.
-Duration: 3.32s
+Figures saved under paper_figures/analysis_paper/FigS3.
+Duration: 4.55s
 
 
 ================================================================================
-Fig. S6E (analysis paper). Producing plot: Change in tracked ROI USIs for the Gabor vs visual flow stimulus.
+Fig. S3E (analysis paper). Producing plot: Change in tracked ROI USIs for the Gabor vs visual flow stimulus.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS6/data_files/panel_E.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/FigS3/data_files/panel_E.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
 Corrected p-values (5 comparisons, two-tailed):
     Gabors vs visual flow:     L2/3-D: 0.65000       L2/3-S: 1.00000       L5-D: 0.00500**     L5-S: 0.24270       All: 0.00060***
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS6.
-Duration: 3.55s
+Figures saved under paper_figures/analysis_paper/FigS3.
+Duration: 5.59s
 
 
 ================================================================================
-Fig. S6F (analysis paper). Producing plot: Visual flow USI correlations between sessions.
+Fig. S3F (analysis paper). Producing plot: Visual flow USI correlations between sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS6/data_files/panel_F.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/FigS3/data_files/panel_F.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -1429,113 +581,75 @@ Corrected p-values (8 comparisons, one-tailed):
     L5-D  :    S1v2: 1.00000       S2v3: 1.00000   
     L5-S  :    S1v2: 1.00000       S2v3: 1.00000   
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS6.
-Duration: 3.35s
+Figures saved under paper_figures/analysis_paper/FigS3.
+Duration: 4.63s
 
 
 ________________________________________________________________________________
 ================================================================================
-Fig. S7A (analysis paper). Producing plot: Gabor USI session 1 vs 2 correlation scatterplots.
+Fig. S4A (analysis paper). Producing plot: Gabor USI session 1 vs 2 correlation scatterplots.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS7/data_files/panel_A.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/FigS4/data_files/panel_A.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
 Corrected p-values (8 comparisons, one-tailed):
         L2/3-D: 0.00008***    L2/3-S: 0.84296       L5-D: 0.00000***    L5-S: 1.00000   
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS7.
-Duration: 3.69s
+Figures saved under paper_figures/analysis_paper/FigS4.
+Duration: 5.59s
 
 
 ================================================================================
-Fig. S7B (analysis paper). Producing plot: Gabor USI session 2 vs 3 correlation scatterplots.
+Fig. S4B (analysis paper). Producing plot: Gabor USI session 2 vs 3 correlation scatterplots.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS7/data_files/panel_B.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/FigS4/data_files/panel_B.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
 Corrected p-values (8 comparisons, one-tailed):
         L2/3-D: 1.00000       L2/3-S: 1.00000       L5-D: 1.00000       L5-S: 1.00000   
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS7.
-Duration: 3.56s
+Figures saved under paper_figures/analysis_paper/FigS4.
+Duration: 5.81s
 
 
 ================================================================================
-Fig. S7C (analysis paper). Producing plot: Visual flow USI session 1 vs 2 correlation scatterplots.
+Fig. S4C (analysis paper). Producing plot: Visual flow USI session 1 vs 2 correlation scatterplots.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS7/data_files/panel_C.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/FigS4/data_files/panel_C.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
 Corrected p-values (8 comparisons, one-tailed):
         L2/3-D: 1.00000       L2/3-S: 1.00000       L5-D: 1.00000       L5-S: 1.00000   
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS7.
-Duration: 3.55s
+Figures saved under paper_figures/analysis_paper/FigS4.
+Duration: 5.87s
 
 
 ================================================================================
-Fig. S7D (analysis paper). Producing plot: Visual flow USI session 2 vs 3 correlation scatterplots.
+Fig. S4D (analysis paper). Producing plot: Visual flow USI session 2 vs 3 correlation scatterplots.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS7/data_files/panel_D.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/FigS4/data_files/panel_D.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
 Corrected p-values (8 comparisons, one-tailed):
         L2/3-D: 1.00000       L2/3-S: 1.00000       L5-D: 1.00000       L5-S: 1.00000   
 
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS7.
-Duration: 3.61s
+Figures saved under paper_figures/analysis_paper/FigS4.
+Duration: 5.58s
 
-
-________________________________________________________________________________
-================================================================================
-Fig. S8A (analysis paper). Producing plot: Dendritic ROI matching examples.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS8/data_files/panel_A.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Conflicts and matches for a L2/3-D example:
-    Fewest matches (sess 1, 2, 3): 129
-    Most matches (sess 3, 2, 1): 132
-    Union - conflicts: 140 - 4 = 136 matches
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS8.
-Duration: 4.12s
-
-
-================================================================================
-Fig. S8B (analysis paper). Producing plot: Somatic ROI matching examples.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS8/data_files/panel_B.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Conflicts and matches for a L5-S example:
-    Fewest matches (sess 2, 1, 3): 47
-    Most matches (sess 3, 2, 1): 48
-    Union - conflicts: 49 - 2 = 47 matches
-
-Figures saved under /scratch/t/tyrell/gillonco/paper_figures/analysis_paper/FigS8.
-Duration: 5.17s
