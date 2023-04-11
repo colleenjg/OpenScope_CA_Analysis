@@ -39,11 +39,11 @@ Code to generate the stimuli used in these experiments can be found [here](https
 
 ## 6. Figure example notebooks
 
-The following notebooks give examples of how to download the data, and run the paper analyses.
+The following notebooks give examples of how to download the data, and run the paper analyses. Note that the organization of figures and panels has been updated since [Gillon _et al._, 2021, _bioRxiv_](https://www.biorxiv.org/content/10.1101/2021.01.15.426915).
 
-| Run in Binder | View the notebook | Run the Google Colab notebook |
-| ------------- | ----------------- | ----------------------------- |
-| [![Run in Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/colleenjg/OpenScope_CA_Analysis/main?labpath=run_paper_figures.ipynb) | [![View the notebook](https://img.shields.io/badge/render-nbviewer-orange.svg)](https://nbviewer.jupyter.org/github/colleenjg/OpenScope_CA_Analysis/blob/main/run_paper_figures.ipynb?flush_cache=true) | [![Run the Google Colab notebook](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/colleenjg/OpenScope_CA_Analysis/blob/main/run_paper_figures_colab.ipynb) |
+| Run in Binder | Run the Google Colab notebook |
+| ------------- | ----------------------------- |
+| [![Run in Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/colleenjg/OpenScope_CA_Analysis/main?labpath=run_paper_figures.ipynb) | [![Run the Google Colab notebook](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/colleenjg/OpenScope_CA_Analysis/blob/main/run_paper_figures_colab.ipynb) |
 
 The contents of the **Binder** and **Google Colab** notebooks differ somewhat, due to the resources available: 
 * **Binder:** conda env. is installed automatically (+), but this can be slow, and only limited compute resources are available (-).  
