@@ -269,7 +269,6 @@ def choose_roi(target_idx_val, target_idx_sig, roi_idxs, roi_percs,
             )
 
     if len(keep_roi) == 0:
-        breakpoint()
         raise ValueError("No ROIs meet the thresholds.")
 
     # get closest to value (that meets significance criterion)
