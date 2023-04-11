@@ -39,14 +39,6 @@ Code to generate the stimuli used in these experiments can be found [here](https
 
 The following notebooks give examples of how to download the data, and run paper analyses. Note that the organization of figures and panels has been updated since [Gillon _et al._, 2021, _bioRxiv_](https://www.biorxiv.org/content/10.1101/2021.01.15.426915).
 
-| Run in Binder | Run the Google Colab notebook |
-| ------------- | ----------------------------- |
-| [![Run in Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/colleenjg/OpenScope_CA_Analysis/allen?labpath=run_paper_figures.ipynb) | [![Run the Google Colab notebook](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/colleenjg/OpenScope_CA_Analysis/blob/allen/run_paper_figures_colab.ipynb) |
-
-The contents of the **Binder** and **Google Colab** notebooks differ somewhat, due to the resources available: 
-* **Binder:** conda env. is installed automatically (+), but this can be slow, and only limited compute resources are available (-).    
-* **Google Colab:** conda env. must first be installed (-), but more substantial compute resources are available (+).  
-
 
 ## 7. Authors
 This code was written by:
