@@ -1,7 +1,7 @@
-# Credit Assignment Project Code
+# OpenScope Credit Assignment Project Code
 
 ## 1. Description
-This repository contains the code for analyzing the data from the Credit Assignment project, an [**Allen Institute for Brain Science**](https://alleninstitute.org/what-we-do/brain-science/) [**OpenScope**](https://alleninstitute.org/what-we-do/brain-science/news-press/press-releases/openscope-first-shared-observatory-neuroscience) project. 
+This repository contains the code for analyzing the data from the Credit Assignment project, an [**Allen Institute for Brain Science**](https://alleninstitute.org/what-we-do/brain-science/) [**OpenScope**](https://alleninstitute.org/division/mindscope/openscope/) project. 
 
 The experiment details, analyses and results are published in [Gillon _et al._, 2021, _bioRxiv_](https://www.biorxiv.org/content/10.1101/2021.01.15.426915).
 
