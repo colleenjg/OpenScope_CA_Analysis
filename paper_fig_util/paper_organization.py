@@ -1321,14 +1321,14 @@ class FigurePanelAnalysis():
                         "C": self.gabor_Uori_decoding_sess123,
                         },
                     "S1": {
-                        "A": self.visual_flow_stimulus,
-                        "B": self.visual_flow_sequences_sess123,
-                        "C": self.visual_flow_diffs_sess123,
-                        },
-                    "S2": {
                         "A": self.gabor_roi_usi_sig_by_mouse,
                         "B": self.gabor_rel_resp_tracked_rois_sess123,
                         "C": self.gabor_tracked_roi_abs_usi_means_sess123_by_mouse,
+                        },
+                    "S2": {
+                        "A": self.visual_flow_stimulus,
+                        "B": self.visual_flow_sequences_sess123,
+                        "C": self.visual_flow_diffs_sess123,
                         },
                     "S3":  {
                         "A": self.visual_flow_rel_resp_sess123,
