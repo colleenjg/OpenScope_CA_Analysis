@@ -17,7 +17,9 @@ for 50 sessions. The asset (session file) sizes are in the following ranges:
     ~100 GB total
     ~60 GB total (only sess 1-3 that passed QC, i.e., 33 total)
 - Basic data + stimulus template images + full imaging stack: 
-    ~65 GB per asset? (to be confirmed)
+    ~45 GB per asset
+    ~2.3 TB total
+    ~1.5 TB total (only sess 1-3 that passed QC, i.e., 33 total)
 
 URL: https://gui.dandiarchive.org/#/dandiset/000037
 
@@ -30,6 +32,7 @@ Note: this code uses python 3.7.
 """
 import argparse
 from pathlib import Path
+import warnings
 
 import numpy as np
 from dandi import dandiapi
@@ -67,6 +70,13 @@ def get_dandiset_asset_urls(dandiset_id="000037", version="draft",
         else:
             asset_sessids = [str(asset_sessids)]
 
+    if incl_full_stacks and not incl_stim_templates:
+        warnings.warn(
+            "The files that include the full stacks also include the "
+            "stimulus templates."
+            )
+        incl_stim_templates = True
+
     asset_urls = []
     selected_asset_sessids = []
     for asset in dandi.get_assets():
@@ -78,11 +88,10 @@ def get_dandiset_asset_urls(dandiset_id="000037", version="draft",
         stim_templates_included = "+image" in asset_path.parts[1]
         if stim_templates_included != incl_stim_templates:
             continue
-        if incl_full_stacks:
-            raise NotImplementedError(
-                "Identifying assets with full imaging stacks is not "
-                "implemented yet."
-                )
+
+        full_stacks_included = "obj-raw" in asset_path.parts[1]
+        if full_stacks_included != incl_full_stacks:
+            continue
                     
         asset_urls.append(asset.download_url)
         selected_asset_sessids.append(asset_sessid)
@@ -157,7 +166,6 @@ def download_dandiset_assets(dandiset_id="000037", version="draft", output=".",
             runtype="prod", 
             pass_fail=pass_fail, 
             incl="all", 
-            omit_sess=[838633305], # not on Dandi
             sort=True
             )
         
