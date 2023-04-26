@@ -42,6 +42,9 @@ from dandi import download as dandi_download
 # if running from the main directory
 DEFAULT_MOUSE_DF_PATH = Path("mouse_df.csv")
 
+# Published dandiset version
+PUBLISHED_VERSION = "0.230426.0054" # number derived from DOI
+
 
 #############################################
 def reformat_n(n):
@@ -140,7 +143,7 @@ def get_dandi_session_ids(mouse_df, mouse_n="all", sess_n="all", pass_fail="P",
 
 
 #############################################
-def get_dandiset_asset_urls(dandiset_id="000037", version="draft", 
+def get_dandiset_asset_urls(dandiset_id="000037", version=PUBLISHED_VERSION, 
                             asset_sessids="all", incl_stim_templates=False, 
                             incl_full_stacks=False):
     """
@@ -193,9 +196,10 @@ def get_dandiset_asset_urls(dandiset_id="000037", version="draft",
 
 
 #############################################
-def download_dandiset_assets(dandiset_id="000037", version="draft", output=".", 
-                             incl_stim_templates=False, incl_full_stacks=False,
-                             sess_ns="all", mouse_ns="all", excluded_sess=True,
+def download_dandiset_assets(dandiset_id="000037", version=PUBLISHED_VERSION, 
+                             output=".", incl_stim_templates=False, 
+                             incl_full_stacks=False, sess_ns="all", 
+                             mouse_ns="all", excluded_sess=True,
                              mouse_df=DEFAULT_MOUSE_DF_PATH, dry_run=False, 
                              n_jobs=6):
 
@@ -266,7 +270,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--dandiset_id", default="000037", 
         help=("ID of the dandiset from which to download assets"))
-    parser.add_argument("--version", default="draft", 
+    parser.add_argument("--version", default=PUBLISHED_VERSION, 
         help="version of the dandiset from which to download assets")
     parser.add_argument("--output", default=".", type=Path,
         help="where to store the dandiset files")
