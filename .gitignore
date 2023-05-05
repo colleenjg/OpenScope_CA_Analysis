@@ -12,6 +12,6 @@
 .ipynb_checkpoints
 
 *.pyc
-*.ods
+*.ods*
 *.swp
 
