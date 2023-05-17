@@ -3,7 +3,7 @@
 ## 1. Description
 This repository contains the code for analyzing the data from the Credit Assignment project, an [**Allen Institute for Brain Science**](https://alleninstitute.org/what-we-do/brain-science/) [**OpenScope**](https://alleninstitute.org/division/mindscope/openscope/) project. 
 
-The experiment details, analyses and results are published in [Gillon _et al._, 2021, _bioRxiv_](https://www.biorxiv.org/content/10.1101/2021.01.15.426915).
+The dataset is described and characterized in [Gillon _et al._, 2023](https://doi.org/10.1038/s41597-023-02214-y). Analyses and results are published in [Gillon _et al._, 2021, _bioRxiv_](https://www.biorxiv.org/content/10.1101/2021.01.15.426915).
 
 This branch provides a **minimal** example, with minimal dependencies. It can be used to rerun dataset-focused analyses (different from those in [Gillon _et al._, 2021, _bioRxiv_](https://www.biorxiv.org/content/10.1101/2021.01.15.426915)).
 
@@ -41,7 +41,7 @@ Code to generate the stimuli used in these experiments can be found [here](https
 
 ## 6. Figure example notebooks
 
-The following notebooks give examples of how to download the data, and run dataset-focused analyses.
+The following notebooks give examples of how to download the data, and run the analyses and produce the figure panels for [Gillon _et al._, 2023](https://doi.org/10.1038/s41597-023-02214-y).
 
 | Run in Binder | Run the Google Colab notebook |
 | ------------- | ----------------------------- |
