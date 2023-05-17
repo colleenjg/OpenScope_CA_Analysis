@@ -1,6 +1,6 @@
 # Paper figures
 
-This folder contains all of the data panels in the paper, organized by figure. Each panel is accompanied by a `json` file that contains its source data, and from which the panel can be directly replotted. It has been extended to also allow plotting of figures from our **dataset paper** (under development).
+This folder contains all of the data panels in the paper, organized by figure. Each panel is accompanied by a `json` file that contains its source data, and from which the panel can be directly replotted. Figures for the **dataset descriptor paper** [Gillon _et al._, 2023](https://doi.org/10.1038/s41597-023-02214-y) are stored under `dataset_paper`. Other figures are for the **analysis paper** [Gillon _et al._, 2021, _bioRxiv_](https://www.biorxiv.org/content/10.1101/2021.01.15.426915).
 
 **Example usage:**  
 - To generate Fig. 3C **from start to finish** (analysis + plotting), 
