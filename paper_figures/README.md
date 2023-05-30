@@ -22,4 +22,4 @@ run, from the main directory:
 
 
 
-<a name="1"><sup>1</sup></a> On a machine with 16+ CPU cores and 150+ GB of RAM, full power analyses for most panels generally took up to 10 minutes each to run, except for Fig. 2B and 5B-C analyses, which ran in ~1h and ~10h each, respectively.
+<a name="1"><sup>1</sup></a> On a machine with 16+ CPU cores and 150+ GB of RAM, full power analyses for most panels generally took up to 10 minutes each to run, except for Fig. 2B and 7 analyses, which ran in ~1h and ~10h each, respectively.

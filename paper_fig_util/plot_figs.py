@@ -1432,7 +1432,7 @@ def plot_gabor_corrs_sess123_comps(analyspar, sesspar, stimpar, basepar,
         permute=extrapar["permute"],
         corr_type=extrapar["corr_type"], 
         title=title,
-        small=False,
+        small=True,
         )
     fig = ax.reshape(-1)[0].figure
     
@@ -2687,7 +2687,8 @@ def plot_visual_flow_rel_resp_sess123(analyspar, sesspar, stimpar, permpar,
 
     """
  
-    title = "Expected vs unexpected visual flow, relative to session 1"
+    # For analysis paper, so using "uniform" and "counter-flow" instead of "expected" and "unexpected flow"
+    title = "Uniform flow vs counter-flow, relative to session 1"
     
     rel_resp_df = pd.DataFrame.from_dict(rel_resp_df)
 
@@ -2768,7 +2769,8 @@ def plot_unexp_resp_stimulus_comp_sess1v3(analyspar, sesspar, stimpar, permpar,
         - savename (str): name under which the figure is saved
     """
  
-    title = "Unexpected response changes from session 1 to 3"
+    # For analysis paper, so using "pattern-violating" instead of "unexpected"
+    title = "Pattern-viol. resp. changes from session 1 to 3"
     
     unexp_comp_df = pd.DataFrame.from_dict(unexp_comp_df)
 
