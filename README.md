@@ -39,8 +39,12 @@ Code to generate the stimuli used in these experiments can be found [here](https
 
 The following notebooks give examples of how to download the data, and run paper analyses. Note that the organization of figures and panels has been updated since [Gillon _et al._, 2021, _bioRxiv_](https://www.biorxiv.org/content/10.1101/2021.01.15.426915).
 
-
-## 7. Authors
+## 7. Terminological notes
+The following terms used in the codebase are considered equivalent to the corresponding terms used in the papers:
+- "expected": equivalent to "consistent" and "pattern-matching" for both stimuli, and "uniform flow" for the visual flow stimulus specifically. 
+- "unexpected": equivalent to "inconsistent" and "pattern-violating" for both stimuli, and "counter-flow" for the visual flow stimulus specifically.
+ 
+## 8. Authors
 This code was written by:
 
 * Colleen Gillon (colleen _dot_ gillon _at_ mail _dot_ utoronto _dot_ ca)
