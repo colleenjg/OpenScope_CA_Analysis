@@ -56,8 +56,9 @@ def unexp_resp_stimulus_comp_sess1v3(sessions, analyspar, sesspar, stimpar,
             default: False
     """
 
+    # For analysis paper, so using "pattern-violating" instead of "unexpected"
     logger.info(
-        ("Compiling changes in unexpected responses to Gabor vs visual "
+        ("Compiling changes in responses to pattern-violating Gabor vs visual "
         "flow stimuli."), 
         extra={"spacing": "\n"})
 

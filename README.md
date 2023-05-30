@@ -49,8 +49,12 @@ The contents of the **Binder** and **Google Colab** notebooks differ somewhat, d
 * **Binder:** conda env. is installed automatically (+), but this can be slow, and only limited compute resources are available (-).  
 * **Google Colab:** less environment control (-), but more substantial compute resources are available (+).  
 
+## 7. Terminological notes
+The following terms used in the codebase are considered equivalent to the corresponding terms used in the papers:
+- "expected": equivalent to "consistent" and "pattern-matching" for both stimuli, and "uniform flow" for the visual flow stimulus specifically. 
+- "unexpected": equivalent to "inconsistent" and "pattern-violating" for both stimuli, and "counter-flow" for the visual flow stimulus specifically.
 
-## 7. Authors
+## 8. Authors
 This code was written by:
 
 * Colleen Gillon (colleen _dot_ gillon _at_ mail _dot_ utoronto _dot_ ca)
