@@ -45,7 +45,7 @@ def get_decoding_data(sess, analyspar, stimpar, comp="Dori", ctrl=False):
 
     Optional args:
         - comp (str):
-            comparison used to define classes ("Dori" or "Eori")
+            comparison used to define classes ("Dori" or "Uori")
             default: "Dori"
         - ctrl (bool):
             if True, the number of examples per class for the unexpected data 
@@ -65,17 +65,36 @@ def get_decoding_data(sess, analyspar, stimpar, comp="Dori", ctrl=False):
     if stimpar.stimtype != "gabors":
         raise ValueError("Expected stimpar.stimtype to be 'gabors'.")
 
-    if comp == "Dori":
+    exp_comps = ["Aori", "Bori", "Cori", "Dori"]
+    if comp in exp_comps:
         unexp = 0
         ctrl_ns = []
+        expected_gabfr = exp_comps.index(comp)
     elif comp == "Uori":
         unexp = 1
         ctrl = False
         ctrl_ns = False
+        expected_gabfr = 3
     else:
-        gen_util.accepted_values_error("comp", comp, ["Dori", "Uori"])
+        gen_util.accepted_values_error("comp", comp, exp_comps + ["Uori"])
 
     gab_oris = sess_gen_util.filter_gab_oris(comp[0], stimpar.gab_ori)
+
+    # check Gabor frame number
+    actual_gabfr = stimpar.gabfr
+    if isinstance(stimpar.gabfr, list):
+        if len(stimpar.gabfr) > 1:
+            raise ValueError(
+                "Expected stimpar.gabfr to be a single value or list of "
+                "length 1."
+                )
+        actual_gabfr = stimpar.gabfr[0]
+    
+    if str(actual_gabfr) != str(expected_gabfr):
+        raise RuntimeError(
+            f"stimpar.gabfr is {stimpar.gabfr}, but this does not match the "
+            f"comparison type: {comp}."
+            )
   
     stim = sess.get_stim(stimpar.stimtype)
 
@@ -93,7 +112,7 @@ def get_decoding_data(sess, analyspar, stimpar, comp="Dori", ctrl=False):
         if ctrl:
             ctrl_gab_ori = sess_gen_util.get_unexp_gab_ori(gab_ori)
             segs_ctrl = stim.get_segs_by_criteria(
-                gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=ctrl_gab_ori, 
+                gabfr=3, gabk=stimpar.gabk, gab_ori=ctrl_gab_ori, 
                 unexp=1, remconsec=False, by="seg")
             fr_ns_ctrl = stim.get_fr_by_seg(
                 segs_ctrl, start=True, ch_fl=[stimpar.pre, stimpar.post], 
