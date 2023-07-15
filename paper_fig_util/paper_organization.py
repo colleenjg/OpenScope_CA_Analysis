@@ -1203,6 +1203,8 @@ class FigurePanelAnalysis():
             "across sessions.")
         self.specific_params = get_specific_params(
             comp="Dori",
+            gabfr=3,
+            post=0.45, #0.6,
         )
         self.n_perms_full = 1e5
         self.analysis_fct = decoding_figs.gabor_Dori_decoding_sess123
@@ -1216,13 +1218,59 @@ class FigurePanelAnalysis():
             "across sessions.")
         self.specific_params = get_specific_params(
             comp="Uori",
+            gabfr=3,
+            post=0.45, #0.6,
         )
         self.n_perms_full = 1e5
         self.analysis_fct = decoding_figs.gabor_Uori_decoding_sess123
         self.plot_fct = plot_figs.plot_gabor_Uori_decoding_sess123
         self.warnings.append(stats_plot_fct_warning())
         self.warnings.append(decoder_warning())
-        
+    
+
+    def gabor_Aori_decoding_sess123(self):
+        self.description = ("Mean Gabor A orientation decoder performances "
+            "across sessions.")
+        self.specific_params = get_specific_params(
+            comp="Aori",
+            gabfr=0,
+            post=0.45,
+        )
+        self.n_perms_full = 1e5
+        self.analysis_fct = decoding_figs.gabor_Aori_decoding_sess123
+        self.plot_fct = plot_figs.plot_gabor_Aori_decoding_sess123
+        self.warnings.append(stats_plot_fct_warning())
+        self.warnings.append(decoder_warning())
+
+
+    def gabor_Bori_decoding_sess123(self):
+        self.description = ("Mean Gabor B orientation decoder performances "
+            "across sessions.")
+        self.specific_params = get_specific_params(
+            comp="Bori",
+            gabfr=1,
+            post=0.45,
+        )
+        self.n_perms_full = 1e5
+        self.analysis_fct = decoding_figs.gabor_Bori_decoding_sess123
+        self.plot_fct = plot_figs.plot_gabor_Bori_decoding_sess123
+        self.warnings.append(stats_plot_fct_warning())
+        self.warnings.append(decoder_warning())
+
+
+    def gabor_Cori_decoding_sess123(self):
+        self.description = ("Mean Gabor C orientation decoder performances "
+            "across sessions.")
+        self.specific_params = get_specific_params(
+            comp="Cori",
+            gabfr=2,
+            post=0.45,
+        )
+        self.n_perms_full = 1e5
+        self.analysis_fct = decoding_figs.gabor_Cori_decoding_sess123
+        self.plot_fct = plot_figs.plot_gabor_Cori_decoding_sess123
+        self.warnings.append(stats_plot_fct_warning())
+        self.warnings.append(decoder_warning())
 
     ### Model ###
     def model_illustration(self):
@@ -1343,6 +1391,9 @@ class FigurePanelAnalysis():
                     "7": {
                         "A": self.gabor_Dori_decoding_sess123,
                         "B": self.gabor_Uori_decoding_sess123,
+                        "C": self.gabor_Aori_decoding_sess123,
+                        "D": self.gabor_Bori_decoding_sess123,
+                        "E": self.gabor_Cori_decoding_sess123,
                         },
                     }
                 }

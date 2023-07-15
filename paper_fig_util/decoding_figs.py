@@ -216,3 +216,172 @@ def gabor_Uori_decoding_sess123(sessions, analyspar, sesspar, stimpar,
         parallel=parallel
         )
 
+
+#############################################
+def gabor_Aori_decoding_sess123(sessions, analyspar, sesspar, stimpar, 
+                                logregpar, permpar, figpar, seed=None, 
+                                parallel=False):
+    """
+    gabor_Aori_decoding_sess123(sessions, analyspar, sesspar, stimpar, 
+                                logregpar, permpar, figpar)
+
+    Runs decoding analyses (A orientations).
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - logregpar (LogRegPar): 
+            named tuple containing logistic regression parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
+        - figpar (dict): 
+            dictionary containing figure parameters
+    
+    Optional args:
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+    """
+
+    if logregpar.comp != "Aori":
+        raise ValueError("logregpar.comp should be Aori.")
+
+    gab_ori = sess_gen_util.filter_gab_oris("A", stimpar.gab_ori)
+    stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, "gab_ori", gab_ori)
+
+    gabor_decoding_sess123(
+        sessions, 
+        analyspar=analyspar, 
+        sesspar=sesspar, 
+        stimpar=stimpar, 
+        logregpar=logregpar, 
+        permpar=permpar, 
+        figpar=figpar, 
+        seed=seed, 
+        parallel=parallel
+        )
+
+
+#############################################
+def gabor_Bori_decoding_sess123(sessions, analyspar, sesspar, stimpar, 
+                                logregpar, permpar, figpar, seed=None, 
+                                parallel=False):
+    """
+    gabor_Bori_decoding_sess123(sessions, analyspar, sesspar, stimpar, 
+                                logregpar, permpar, figpar)
+
+    Runs decoding analyses (B orientations).
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - logregpar (LogRegPar): 
+            named tuple containing logistic regression parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
+        - figpar (dict): 
+            dictionary containing figure parameters
+    
+    Optional args:
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+    """
+
+    if logregpar.comp != "Bori":
+        raise ValueError("logregpar.comp should be Bori.")
+
+    gab_ori = sess_gen_util.filter_gab_oris("B", stimpar.gab_ori)
+    stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, "gab_ori", gab_ori)
+
+    gabor_decoding_sess123(
+        sessions, 
+        analyspar=analyspar, 
+        sesspar=sesspar, 
+        stimpar=stimpar, 
+        logregpar=logregpar, 
+        permpar=permpar, 
+        figpar=figpar, 
+        seed=seed, 
+        parallel=parallel
+        )
+
+
+#############################################
+def gabor_Cori_decoding_sess123(sessions, analyspar, sesspar, stimpar, 
+                                logregpar, permpar, figpar, seed=None, 
+                                parallel=False):
+    """
+    gabor_Cori_decoding_sess123(sessions, analyspar, sesspar, stimpar, 
+                                logregpar, permpar, figpar)
+
+    Runs decoding analyses (C orientations).
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - logregpar (LogRegPar): 
+            named tuple containing logistic regression parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
+        - figpar (dict): 
+            dictionary containing figure parameters
+    
+    Optional args:
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+    """
+
+    if logregpar.comp != "Cori":
+        raise ValueError("logregpar.comp should be Cori.")
+
+    gab_ori = sess_gen_util.filter_gab_oris("C", stimpar.gab_ori)
+    stimpar = sess_ntuple_util.get_modif_ntuple(stimpar, "gab_ori", gab_ori)
+
+    gabor_decoding_sess123(
+        sessions, 
+        analyspar=analyspar, 
+        sesspar=sesspar, 
+        stimpar=stimpar, 
+        logregpar=logregpar, 
+        permpar=permpar, 
+        figpar=figpar, 
+        seed=seed, 
+        parallel=parallel
+        )
+
+
