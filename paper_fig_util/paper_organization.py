@@ -361,22 +361,19 @@ class FigurePanelAnalysis():
         self.fontdir   = fontdir
 
         self.warnings = [manual_formatting_warning()]
+        self.low_power = DEFAULT_LOW_POWER
         self.full_power = full_power
         self.seed       = seed
 
         self._set_plot_info()
         
 
-    def _set_power(self, n_perms_low=DEFAULT_LOW_POWER):
+    def _set_power(self):
         """
         self._set_power()
 
         Sets and updates attributes related to statistical power for an 
         analysis.
-
-        Optional args:
-            - n_perms_low (bool): 
-                number of permutations to use if power is not full_power
 
         Sets the following attributes:
             - n_perms (int or list): number of permutations that will be used
@@ -401,8 +398,8 @@ class FigurePanelAnalysis():
             if self.full_power:
                 self.n_perms = self.n_perms_full
             else:
-                if self.n_perms_full > n_perms_low:
-                    self.n_perms = n_perms_low
+                if self.n_perms_full > self.n_perms_low:
+                    self.n_perms = self.n_perms_low
                 else:
                     self.n_perms = self.n_perms_full
                     self.full_power = True
@@ -918,7 +915,7 @@ class FigurePanelAnalysis():
             sess_n=1,
             pre=[0, 0.9],
         )
-        self.n_perms_full = 1e4
+        self.n_perms_full = 5e3
         self.analysis_fct = usi_figs.gabor_example_roi_usis
         self.plot_fct = plot_figs.plot_gabor_example_roi_usis
         
@@ -932,7 +929,7 @@ class FigurePanelAnalysis():
             line="L23",
             plane="soma",
         )
-        self.n_perms_full = 1e4
+        self.n_perms_full = 5e3
         self.analysis_fct = usi_figs.gabor_example_roi_usi_sig
         self.plot_fct = plot_figs.plot_gabor_example_roi_usi_sig
 
@@ -942,7 +939,7 @@ class FigurePanelAnalysis():
         self.specific_params = get_specific_params(
             sess_n=1,
         )
-        self.n_perms_full = 1e4
+        self.n_perms_full = 5e3
         self.analysis_fct = usi_figs.gabor_roi_usi_distr
         self.plot_fct = plot_figs.plot_gabor_roi_usi_distr
 
@@ -1205,6 +1202,7 @@ class FigurePanelAnalysis():
             comp="Dori",
             gabfr=3,
             post=0.45, #0.6,
+            tails="high",
         )
         self.n_perms_full = 1e5
         self.analysis_fct = decoding_figs.gabor_Dori_decoding_sess123
@@ -1220,6 +1218,7 @@ class FigurePanelAnalysis():
             comp="Uori",
             gabfr=3,
             post=0.45, #0.6,
+            tails="high",
         )
         self.n_perms_full = 1e5
         self.analysis_fct = decoding_figs.gabor_Uori_decoding_sess123
@@ -1235,6 +1234,7 @@ class FigurePanelAnalysis():
             comp="Aori",
             gabfr=0,
             post=0.45,
+            tails="high",
         )
         self.n_perms_full = 1e5
         self.analysis_fct = decoding_figs.gabor_Aori_decoding_sess123
@@ -1250,6 +1250,7 @@ class FigurePanelAnalysis():
             comp="Bori",
             gabfr=1,
             post=0.45,
+            tails="high",
         )
         self.n_perms_full = 1e5
         self.analysis_fct = decoding_figs.gabor_Bori_decoding_sess123
@@ -1265,10 +1266,68 @@ class FigurePanelAnalysis():
             comp="Cori",
             gabfr=2,
             post=0.45,
+            tails="high",
         )
         self.n_perms_full = 1e5
         self.analysis_fct = decoding_figs.gabor_Cori_decoding_sess123
         self.plot_fct = plot_figs.plot_gabor_Cori_decoding_sess123
+        self.warnings.append(stats_plot_fct_warning())
+        self.warnings.append(decoder_warning())
+
+
+    def gabor_timecourse_decoding_sess1(self):
+        self.description = ("Mean Gabor timecourse orientation decoder "
+            "performances for session 1.")
+        self.specific_params = get_specific_params(
+            comp=["Dori", "Uori"],
+            gabfr=3,
+            pre=0.9,
+            post=0.6,
+            sess_n=1,
+            tails="high",
+        )
+        self.n_perms_full = 1e4
+        self.n_perms_low = 200
+        self.analysis_fct = decoding_figs.gabor_timecourse_decoding_sess1
+        self.plot_fct = plot_figs.plot_gabor_timecourse_decoding_sess1
+        self.warnings.append(stats_plot_fct_warning())
+        self.warnings.append(decoder_warning())
+
+
+    def gabor_timecourse_decoding_sess2(self):
+        self.description = ("Mean Gabor timecourse orientation decoder "
+            "performances for session 2.")
+        self.specific_params = get_specific_params(
+            comp=["Dori", "Uori"],
+            gabfr=3,
+            pre=0.9,
+            post=0.6,
+            sess_n=2,
+            tails="high",
+        )
+        self.n_perms_full = 1e4
+        self.n_perms_low = 200
+        self.analysis_fct = decoding_figs.gabor_timecourse_decoding_sess2
+        self.plot_fct = plot_figs.plot_gabor_timecourse_decoding_sess2
+        self.warnings.append(stats_plot_fct_warning())
+        self.warnings.append(decoder_warning())
+
+
+    def gabor_timecourse_decoding_sess3(self):
+        self.description = ("Mean Gabor timecourse orientation decoder "
+            "performances for session 3.")
+        self.specific_params = get_specific_params(
+            comp=["Dori", "Uori"],
+            gabfr=3,
+            pre=0.9,
+            post=0.6,
+            sess_n=3,
+            tails="high",
+        )
+        self.n_perms_full = 1e4
+        self.n_perms_low = 200
+        self.analysis_fct = decoding_figs.gabor_timecourse_decoding_sess3
+        self.plot_fct = plot_figs.plot_gabor_timecourse_decoding_sess3
         self.warnings.append(stats_plot_fct_warning())
         self.warnings.append(decoder_warning())
 
@@ -1394,6 +1453,9 @@ class FigurePanelAnalysis():
                         "C": self.gabor_Aori_decoding_sess123,
                         "D": self.gabor_Bori_decoding_sess123,
                         "E": self.gabor_Cori_decoding_sess123,
+                        "F": self.gabor_timecourse_decoding_sess1,
+                        "G": self.gabor_timecourse_decoding_sess2,
+                        "H": self.gabor_timecourse_decoding_sess3,
                         },
                     }
                 }

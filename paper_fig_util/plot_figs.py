@@ -1572,6 +1572,225 @@ def plot_gabor_Cori_decoding_sess123(analyspar, sesspar, stimpar, logregpar,
 
 
 #############################################
+def plot_gabor_timecourse_decoding_sess1(analyspar, sesspar, stimpar, logregpar, 
+                                         permpar, extrapar, scores_df, figpar):
+    """
+    plot_gabor_timecourse_decoding_sess1(analyspar, sesspar, stimpar, logregpar, 
+                                         permpar, extrapar, scores_df, figpar)
+
+    From dictionaries, plots timecourse orientation decoding scores for 
+    session 1. 
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - logregpar (dict): 
+            dictionary with keys of LogRegPar namedtuple
+        - permpar (dict): 
+            dictionary with keys of PermPar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+            ["n_splits"] (int): number of data splits
+            ["seed"] (int): seed
+        - scores_df (pd.DataFrame):
+            dataframe with logistic regression score statistics, shuffled score 
+            confidence intervals, and test set p-values for each 
+            line/plane/session, in addition to the basic sess_df columns
+
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+
+    Returns:
+        - fulldir (Path): final path of the directory in which the figure 
+                          is saved
+        - savename (str): name under which the figure is saved
+    """
+
+    print("Plotting not implemented")
+
+    title = "Session 1 orientation decoding (test set)"
+
+    scores_df = pd.DataFrame.from_dict(scores_df)
+
+    # ax = misc_plots.plot_decoder_data(
+    #     scores_df, 
+    #     analyspar=analyspar, 
+    #     sesspar=sesspar, 
+    #     permpar=permpar, 
+    #     figpar=figpar, 
+    #     title=title,
+    # )
+
+    # fig = ax.reshape(-1)[0].figure
+    fig = None
+
+    savedir, savename = helper_fcts.get_save_path(
+        figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
+    )
+
+    fulldir = plot_util.savefig(
+        fig, savename, savedir, log_dir=True, **figpar["save"]
+    )
+
+    return fulldir, savename
+
+
+#############################################
+def plot_gabor_timecourse_decoding_sess2(analyspar, sesspar, stimpar, logregpar, 
+                                         permpar, extrapar, scores_df, figpar):
+    """
+    plot_gabor_timecourse_decoding_sess2(analyspar, sesspar, stimpar, logregpar, 
+                                         permpar, extrapar, scores_df, figpar)
+
+    From dictionaries, plots timecourse orientation decoding scores for 
+    session 2. 
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - logregpar (dict): 
+            dictionary with keys of LogRegPar namedtuple
+        - permpar (dict): 
+            dictionary with keys of PermPar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+            ["n_splits"] (int): number of data splits
+            ["seed"] (int): seed
+        - scores_df (pd.DataFrame):
+            dataframe with logistic regression score statistics, shuffled score 
+            confidence intervals, and test set p-values for each 
+            line/plane/session, in addition to the basic sess_df columns
+
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+
+    Returns:
+        - fulldir (Path): final path of the directory in which the figure 
+                          is saved
+        - savename (str): name under which the figure is saved
+    """
+
+    print("Plotting not implemented")
+
+    title = "Session 2 orientation decoding (test set)"
+
+    scores_df = pd.DataFrame.from_dict(scores_df)
+
+    # ax = misc_plots.plot_decoder_data(
+    #     scores_df, 
+    #     analyspar=analyspar, 
+    #     sesspar=sesspar, 
+    #     permpar=permpar, 
+    #     figpar=figpar, 
+    #     title=title,
+    # )
+
+    # fig = ax.reshape(-1)[0].figure
+    fig = None
+
+    savedir, savename = helper_fcts.get_save_path(
+        figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
+    )
+
+    fulldir = plot_util.savefig(
+        fig, savename, savedir, log_dir=True, **figpar["save"]
+    )
+
+    return fulldir, savename
+
+
+#############################################
+def plot_gabor_timecourse_decoding_sess3(analyspar, sesspar, stimpar, logregpar, 
+                                         permpar, extrapar, scores_df, figpar):
+    """
+    plot_gabor_timecourse_decoding_sess3(analyspar, sesspar, stimpar, logregpar, 
+                                         permpar, extrapar, scores_df, figpar)
+
+    From dictionaries, plots timecourse orientation decoding scores for 
+    session 3. 
+    
+    Returns figure name and save directory path.
+    
+    Required args:
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - stimpar (dict): 
+            dictionary with keys of StimPar namedtuple
+        - logregpar (dict): 
+            dictionary with keys of LogRegPar namedtuple
+        - permpar (dict): 
+            dictionary with keys of PermPar namedtuple
+        - extrapar (dict): 
+            dictionary containing additional analysis parameters
+            ["n_splits"] (int): number of data splits
+            ["seed"] (int): seed
+        - scores_df (pd.DataFrame):
+            dataframe with logistic regression score statistics, shuffled score 
+            confidence intervals, and test set p-values for each 
+            line/plane/session, in addition to the basic sess_df columns
+
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+
+    Returns:
+        - fulldir (Path): final path of the directory in which the figure 
+                          is saved
+        - savename (str): name under which the figure is saved
+    """
+
+    print("Plotting not implemented")
+
+    title = "Session 3 orientation decoding (test set)"
+
+    scores_df = pd.DataFrame.from_dict(scores_df)
+
+    # ax = misc_plots.plot_decoder_data(
+    #     scores_df, 
+    #     analyspar=analyspar, 
+    #     sesspar=sesspar, 
+    #     permpar=permpar, 
+    #     figpar=figpar, 
+    #     title=title,
+    # )
+
+    # fig = ax.reshape(-1)[0].figure
+    fig = None
+
+    savedir, savename = helper_fcts.get_save_path(
+        figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
+    )
+
+    fulldir = plot_util.savefig(
+        fig, savename, savedir, log_dir=True, **figpar["save"]
+    )
+
+    return fulldir, savename
+
+
+#############################################
 def plot_gabor_corrs_sess123_comps(analyspar, sesspar, stimpar, basepar, 
                                    idxpar, permpar, extrapar, idx_corr_df, 
                                    figpar):
