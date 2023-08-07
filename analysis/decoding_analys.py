@@ -17,8 +17,9 @@ import pandas as pd
 import scipy.stats as scist
 
 from util import gen_util, logger_util, logreg_util, math_util, rand_util
-from sess_util import sess_gen_util
+from sess_util import sess_gen_util, sess_ntuple_util
 from analysis import misc_analys
+from plot_fcts import plot_helper_fcts
 
 
 MAX_SIMULT_RUNS = 25000
@@ -140,7 +141,7 @@ def get_decoding_data(sess, analyspar, stimpar, comp="Dori", ctrl=False):
         
 
 #############################################
-def get_df_stats(scores_df, analyspar):
+def get_df_stats(scores_df, analyspar, axis=None):
     """
     get_df_stats(scores_df, analyspar)
 
@@ -152,6 +153,11 @@ def get_df_stats(scores_df, analyspar):
             should be measured
         - analyspar (AnalysPar): 
             named tuple containing analysis parameters
+    
+    Optional args:
+        - axis (int):
+            axis to take statistics across
+            default: Noe
     
     Returns:
         - stats_df (pd.DataFrame):
@@ -165,21 +171,28 @@ def get_df_stats(scores_df, analyspar):
 
         # get stats
         stat =  math_util.mean_med(
-            scores_df[col].to_numpy(), stats=analyspar.stats, 
-            nanpol="omit"
+            np.asarray(scores_df[col].to_list()), stats=analyspar.stats, 
+            nanpol="omit", axis=axis
             )
         err = math_util.error_stat(
-            scores_df[col].to_numpy(), stats=analyspar.stats, 
-            error=analyspar.error, nanpol="omit"
+            np.asarray(scores_df[col].to_list()), stats=analyspar.stats, 
+            error=analyspar.error, nanpol="omit", axis=axis
             )
         
-        if isinstance(err, np.ndarray):
-            err = err.tolist()
-            stats_df = gen_util.set_object_columns(
-                stats_df, [f"{col}_err"], in_place=True
-                )
+        data = [stat, err]
 
-        stats_df.loc[0, f"{col}_stat"] = stat
+        if len(stats_df) == 0:
+            stats_df.loc[0, f"{col}_stat"] = np.nan
+
+        for d, d_name in enumerate(["stat", "err"]):
+            if isinstance(data[d], np.ndarray):
+                data[d] = data[d].tolist()
+                stats_df = gen_util.set_object_columns(
+                    stats_df, [f"{col}_{d_name}"], in_place=True
+                    )
+        stat, err = data
+
+        stats_df.at[0, f"{col}_stat"] = stat
         stats_df.at[0, f"{col}_err"] = err
 
     return stats_df
@@ -234,28 +247,55 @@ def add_CI_p_vals(shuffle_df, stats_data_df, permpar):
         stats_df[err_key] = stats_data_df[err_key]
 
         # get and add null CI data
-        shuffle_data = shuffle_df[col].to_numpy()
-        shuffle_data = shuffle_data[~np.isnan(shuffle_data)] # remove NaN data
+        shuffle_data = np.asarray(shuffle_df[col].to_list())  # shuffles x items
+        single_dim = False
+        if len(shuffle_data.shape) == 1:
+            single_dim = True
+            shuffle_data = shuffle_data.reshape(-1, 1)
+
+        null_CIs = list()
+        for item_shuffle_data in shuffle_data.T:
+            item_shuffle_data = item_shuffle_data[~np.isnan(item_shuffle_data)] # remove NaN data
+            rand_util.check_n_rand(len(item_shuffle_data), p_thresh_corr)
+            null_CI = [np.percentile(item_shuffle_data, p) for p in percs]
+            null_CIs.append(null_CI)
         
-        rand_util.check_n_rand(len(shuffle_data), p_thresh_corr)
-        null_CI = [np.percentile(shuffle_data, p) for p in percs]
+        if single_dim:
+            null_CIs = null_CIs[0]
 
         null_key = f"{col}_null_CIs"
         stats_df = gen_util.set_object_columns(
             stats_df, [null_key], in_place=True
             )
-        stats_df.at[0, null_key] = null_CI
+        stats_df.at[0, null_key] = null_CIs
 
         # get and add p-value
         if "test" in col:
-            perc = scist.percentileofscore(
-                shuffle_data, stats_data_df.loc[0, stat_key], kind='mean'
-                )
-            if perc > 50:
-                perc = 100 - perc
-            
-            p_val = perc / 100
-            stats_df.loc[0, f"{col}_p_vals"] = p_val
+            data = stats_data_df.loc[0, stat_key]
+            p_val_list = True
+            if not isinstance(data, (list, np.ndarray)):
+                data = [data]
+                shuffle_data = shuffle_data.reshape(-1, 1)
+                p_val_list = False
+
+            perc_values = [scist.percentileofscore(
+                shuffle_data[:, s], single_value, kind='mean'
+                ) for s, single_value in enumerate(data)]
+
+            perc_values = [
+                100 - perc if perc > 50 else perc for perc in perc_values
+                ]
+            p_vals = [perc / 100 for perc in perc_values]
+
+            p_val_key = f"{col}_p_vals"
+            if p_val_list:
+                stats_df = gen_util.set_object_columns(
+                    stats_df, [p_val_key], in_place=True
+                    )
+                stats_df.at[0, p_val_key] = p_vals
+            else:
+                p_val = p_vals[0]
+                stats_df.loc[0, p_val_key] = p_val
 
     return stats_df
 
@@ -558,3 +598,340 @@ def run_sess_logregs(sessions, analyspar, stimpar, logregpar, permpar,
     
     return score_stats_df
 
+
+#############################################
+def collate_timecourse_results(sess_data_stats_df, shuffle_dfs, analyspar, 
+                               permpar):
+    """
+    collate_timecourse_results(sess_data_stats_df, shuffle_dfs, analyspar, 
+                               permpar)
+
+    Return results collated from real data and shuffled data dataframes, 
+    with statistics, null distributions and p-values added.
+
+    Required args:
+        - sess_data_stats_df (pd.DataFrame):
+            dataframe where each row contains statistics for a session, 
+            and where columns include data descriptors, and logistic regression 
+            scores for different data subsets 
+            (e.g. "train", "val", "test").
+        - shuffle_dfs (list):
+            dataframes for each session, where each row contains data for 
+            different data shuffles, and each column contains data to use to 
+            construct null distributions.
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
+    
+    Returns:
+        - stats_df (pd.DataFrame):
+            dataframe with real data statistics, shuffled data confidence 
+            intervals and p-values for test set data.
+    """
+
+    # check shuffle_dfs
+    shuffle_df_lengths = [len(shuffle_df) for shuffle_df in shuffle_dfs]
+    if len(np.unique(shuffle_df_lengths)) != 1:
+        raise ValueError("All shuffle_dfs must have the same length.")
+
+    stat_cols = [
+        col for col in shuffle_dfs[0].columns 
+        if col.split("_")[0] in ["train", "val", "test"]
+        ]
+
+    main_cols = [
+        col for col in shuffle_dfs[0].columns 
+        if not (col in stat_cols + ["shuffle"])
+        ]
+
+    # take statistics across session scores
+    data_stats_df = pd.DataFrame()
+    for stat_col in stat_cols:
+        data_stats_df[stat_col] = sess_data_stats_df[f"{stat_col}_stat"]
+
+    data_stats_df = get_df_stats(data_stats_df, analyspar, axis=0)
+
+    # take statistics across session shuffles at the same index
+    shuffle_dfs_concat = pd.concat(shuffle_dfs)
+    stat_shuffle_dfs = shuffle_dfs_concat.loc[:, stat_cols]
+    for col in stat_shuffle_dfs.columns: 
+        stat_shuffle_dfs[col] = [np.asarray(v) for v in stat_shuffle_dfs[col].tolist()]
+
+    by_row_index = stat_shuffle_dfs.groupby(stat_shuffle_dfs.index)
+
+    if analyspar.stats == "mean":
+        shuffle_df = by_row_index.mean()
+    elif analyspar.stats == "median":
+        shuffle_df = by_row_index.median()
+    else:
+        gen_util.accepted_values_error(
+            "analyspar.stats", analyspar.stats, ["mean", "median"]
+            )
+                
+    temp_stats_df = add_CI_p_vals(shuffle_df, data_stats_df, permpar)
+    
+    # add in main data columns
+    stats_df = pd.DataFrame(columns=main_cols + temp_stats_df.columns.tolist())
+    sort_order = np.argsort(sess_data_stats_df["sessids"].tolist())
+    for col in main_cols:
+        data_df_values = sess_data_stats_df[col].unique().tolist()
+        shuffle_df_values = shuffle_dfs_concat[col].unique().tolist()
+
+        if data_df_values != shuffle_df_values:
+            raise ValueError(
+                "Expected data_df and shuffle_df non-statistic columns, "
+                "except shuffle, to contain the same sets of values."
+                )
+        
+        # sort by session ID
+        values = sess_data_stats_df[col].tolist()
+        stats_df.at[0, col] = values = [values[v] for v in sort_order]
+
+    for col in temp_stats_df.columns:
+        stats_df.at[0, col] = temp_stats_df.loc[0, col]
+
+    return stats_df
+
+#############################################
+def run_timecourse_logreg(sess, analyspar, stimpar, logregpar, n_splits=100, 
+                          n_shuff_splits=300, seed=None, parallel=False):
+    """
+    run_sess_logreg(sess, analyspar, stimpar, logregpar)
+
+    Runs logistic regressions on a session (real data and shuffled), and 
+    returns statistics dataframes.
+
+    Required args:
+        - sess (Session): 
+            Session object
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - logregpar (LogRegPar): 
+            named tuple containing logistic regression parameters
+
+    Optional args:
+        - n_splits (int):
+            number of data splits to run logistic regressions on
+            default: 100
+        - n_shuff_splits (int):
+            number of shuffled data splits to run logistic regressions on
+            default: 300
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+
+    Returns:
+        - data_stats_df (pd.DataFrame):
+            dataframe with only one data row containing data stats for each 
+            score and data subset.
+        - shuffle_df (pd.DataFrame):
+            dataframe where each row contains data for different data 
+            shuffles, and each column contains data for each score and data 
+            subset.
+    """
+    
+    seed = rand_util.seed_all(seed, log_seed=False, seed_now=False)
+
+    # retrieve data (seq x frames x ROIs) and target data (seq) and num
+    input_data, target_data, ctrl_ns = get_decoding_data(
+        sess, analyspar, stimpar, comp=logregpar.comp, ctrl=logregpar.ctrl
+        )
+
+    scores_df = misc_analys.get_check_sess_df([sess], None, analyspar)
+    common_columns = scores_df.columns.tolist()
+    logreg_columns = ["comp", "ctrl", "bal", "shuffle"]
+
+    # do checks
+    if logregpar.q1v4 or logregpar.exp_v_unexp:
+        raise NotImplementedError("q1v4 and exp_v_unexp are not implemented.")
+    if n_splits <= 0 or n_shuff_splits <= 0:
+        raise ValueError("n_splits and n_shuff_splits must be greater than 0.")
+
+    set_types = ["train", "test"]
+    score_types = ["neg_log_loss", "accuracy", "balanced_accuracy"]
+    set_score_types = list(itertools.product(set_types, score_types))
+
+    extrapar = dict()
+    for shuffle in [False, True]:
+        n_runs = n_shuff_splits if shuffle else n_splits
+        extrapar["shuffle"] = shuffle
+
+        temp_dfs = []
+        for f in range(input_data.shape[1]):
+            frame_dfs = []
+            for b, n in enumerate(range(0, n_runs, MAX_SIMULT_RUNS)):
+                extrapar["n_runs"] = int(np.min([MAX_SIMULT_RUNS, n_runs - n]))
+
+                with logger_util.TempChangeLogLevel(level="error"):
+                    mod_cvs, _, _ = logreg_util.run_logreg_cv_sk(
+                        input_data[:, f:f+1], target_data, logregpar._asdict(), 
+                        extrapar, analyspar.scale, ctrl_ns, randst=seed + b, 
+                        parallel=parallel, save_models=False, catch_set_prob=False)
+
+                frame_df = pd.DataFrame()
+                for set_type, score_type in set_score_types:
+                    key = f"{set_type}_{score_type}"
+                    frame_df[key] = mod_cvs[key]
+                frame_dfs.append(frame_df)
+        
+            # compile batch scores, and get session stats for non shuffled data
+            frame_df = pd.concat(frame_dfs, ignore_index=True)
+            if not shuffle:
+                frame_df = get_df_stats(frame_df, analyspar)
+            temp_dfs.append(frame_df)
+    
+        
+        temp_df = pd.DataFrame(columns=temp_dfs[0].columns.tolist())
+        if shuffle:
+            for col in temp_dfs[0].columns: 
+                for i in range(n_runs): 
+                    score_vals = [df.loc[i, col] for df in temp_dfs]
+                    temp_df.at[i, col] = score_vals
+        else:
+            temp_dfs = pd.concat(temp_dfs, ignore_index=True)
+            for col in temp_dfs.columns: 
+                temp_df.at[0, col] = temp_dfs[col].to_list()
+
+        # add columns to df
+        score_columns = temp_df.columns.tolist()
+        for col in common_columns:
+            temp_df[col] = scores_df.loc[0, col]
+        for col in logreg_columns:
+            if col != "shuffle":
+                temp_df[col] = logregpar._asdict()[col]
+            else:
+                temp_df[col] = shuffle
+
+        # re-sort columns
+        temp_df = temp_df.reindex(
+            common_columns + logreg_columns + score_columns, axis=1
+            )
+        
+        if shuffle:
+            shuffle_df = temp_df
+        else:
+            data_stats_df = temp_df
+    
+    return data_stats_df, shuffle_df
+
+
+#############################################
+def run_timecourse_logregs(sessions, analyspar, stimpar, logregpar, permpar, 
+                           n_splits=100, seed=None, parallel=False):
+    """
+    run_timecourse_logregs(sessions, analyspar, stimpar, logregpar, permpar)
+
+    Runs logistic regressions on sessions (real data and shuffled), and 
+    returns statistics dataframe.
+
+    Number of shuffles is determined by permpar.n_perms. 
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - logregpar (LogRegPar): 
+            named tuple containing logistic regression parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
+
+    Optional args:
+        - n_splits (int):
+            number of data splits to run logistic regressions on
+            default: 100
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+
+    Returns:
+        - score_stats_df (pd.DataFrame):
+            dataframe with logistic regression score statistics, shuffled score 
+            confidence intervals, and test set p-values for each 
+            line/plane/session.
+    """
+
+    sessids = [sess.sessid for sess in sessions]
+    sess_df = misc_analys.get_check_sess_df(sessions, None, analyspar)
+
+    if not isinstance(logregpar.comp, list) or len(logregpar.comp) != 2:
+        raise ValueError("Expected logregpar.comp to be a list of length 2.")
+
+    score_stats_dfs = []
+    group_columns = ["lines", "planes", "sess_ns"]
+    n = 0
+    num_sess_comps = len(sess_df) * len(logregpar.comp)
+    for (line, plane, sess_n), lp_grp_df in sess_df.groupby(group_columns):
+
+        line_plane_name = plot_helper_fcts.get_line_plane_name(line, plane)
+
+        lp_grp_df = lp_grp_df.sort_values("mouse_ns")
+        lp_sessions = [
+            sessions[sessids.index(sessid)] for sessid in lp_grp_df["sessids"]
+            ]
+
+        for comp in logregpar.comp:
+            ctrl = False if logregpar.comp == "Uori" else ctrl
+            sess_data_stats_dfs, shuffle_dfs = [], []
+            for s, sess in enumerate(lp_sessions):
+                logregpar_sp = sess_ntuple_util.get_modif_ntuple(
+                    logregpar, ["comp", "ctrl"], [comp, ctrl]
+                    )
+
+                logger.info(
+                    (f"[{n + 1}/{num_sess_comps}] "
+                     f"Running {comp} decoders for "
+                     f"{line_plane_name} session {sess_n} "
+                     f"({s + 1}/{len(lp_sessions)})..."),
+                    extra={"spacing": f"\n{TAB}"}
+                    )
+                sess_data_stats_df, shuffle_df = run_timecourse_logreg(
+                    sess, 
+                    analyspar=analyspar, 
+                    stimpar=stimpar, 
+                    logregpar=logregpar_sp, 
+                    n_splits=n_splits, 
+                    n_shuff_splits=permpar.n_perms,
+                    seed=seed, 
+                    parallel=parallel
+                    )
+
+                sess_data_stats_dfs.append(sess_data_stats_df)
+                shuffle_dfs.append(shuffle_df)
+                n += 1
+
+            sess_data_stats_df = pd.concat(sess_data_stats_dfs, ignore_index=True)
+
+            # collect data
+            lp_df = collate_timecourse_results(
+                sess_data_stats_df, shuffle_dfs, analyspar, permpar
+                )
+            score_stats_dfs.append(lp_df)
+        
+    score_stats_df = pd.concat(score_stats_dfs, ignore_index=True)
+    score_stats_df = misc_analys.add_corr_p_vals(score_stats_df, permpar)
+
+    # add splits information
+    score_stats_df["n_splits_per"] = n_splits
+    score_stats_df["n_shuffled_splits_per"] = permpar.n_perms
+
+    # get unique (first) values for group_columns
+    for col in group_columns + list(logregpar._asdict().keys()):
+        if col not in score_stats_df.columns:
+            continue
+        score_stats_df[col] = score_stats_df[col].apply(lambda x: x[0])
+    
+    score_stats_df["sess_ns"] = score_stats_df["sess_ns"].astype(int)
+    
+    return score_stats_df

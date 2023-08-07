@@ -90,16 +90,16 @@ def get_sig_symbol(corr_p_val, ctrl=False, percentile=False, sensitivity=None,
 
 
 #############################################
-def get_corrected_p_val(p_val, permpar, raise_multcomp=True):
+def get_corrected_p_vals(p_vals, permpar, raise_multcomp=True):
     """
-    get_corrected_p_val(p_val, permpar)
+    get_corrected_p_vals(p_vals, permpar)
 
     Returns p-value, Bonferroni corrected for number of tails and multiple 
     comparisons.
     
     Required args:
-        - p_val (float): 
-            raw p-value
+        - p_vals (list or float): 
+            raw p-value(s)
         - permpar (PermPar or dict): 
             named tuple containing permutation parameters
 
@@ -109,24 +109,37 @@ def get_corrected_p_val(p_val, permpar, raise_multcomp=True):
             default: True
 
     Returns:
-        - corr_p_val (float): 
-            corrected p-value
+        - corr_p_vals (list or float): 
+            corrected p-value(s)
     """
 
     if isinstance(permpar, dict):
         permpar = sess_ntuple_util.init_permpar(**permpar)
 
     n_tails = 1 if permpar.tails in ["lo", "hi"] else int(permpar.tails)
-    corr_p_val = p_val * n_tails 
+
+    single_value = False
+    if not isinstance(p_vals, (list, np.ndarray)):
+        p_vals = [p_vals]
+        single_value = True
+
+    corr_p_vals = list()
+    for p_val in p_vals:
+        corr_p_val = p_val * n_tails 
+        
+        if permpar.multcomp:
+            corr_p_val *= permpar.multcomp
+        elif raise_multcomp:
+            raise ValueError("permpar.multcomp is set to False.")
+
+        corr_p_val = np.min([corr_p_val, 1])
+
+        corr_p_vals.append(corr_p_val)
     
-    if permpar.multcomp:
-        corr_p_val *= permpar.multcomp
-    elif raise_multcomp:
-        raise ValueError("permpar.multcomp is set to False.")
+    if single_value:
+        corr_p_vals = corr_p_vals[0]
 
-    corr_p_val = np.min([corr_p_val, 1])
-
-    return corr_p_val
+    return corr_p_vals
 
 
 #############################################
@@ -171,7 +184,7 @@ def add_corr_p_vals(df, permpar, raise_multcomp=True):
         }
     df = df.rename(columns=new_col_names)
     # define function with arguments for use with .map()
-    correct_p_val_fct = lambda x: get_corrected_p_val(
+    correct_p_val_fct = lambda x: get_corrected_p_vals(
         x, permpar, raise_multcomp
         )
 
