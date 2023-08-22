@@ -153,6 +153,147 @@ def gabor_sequence_diffs_sess123(sessions, analyspar, sesspar, stimpar,
     helper_fcts.plot_save_all(info, figpar)
 
 
+############################################
+def gabor_sequence_early_late_sess123(sessions, analyspar, sesspar, stimpar, 
+                                      basepar, figpar, parallel=False):
+    """
+    gabor_sequence_early_late_sess123(sessions, analyspar, sesspar, stimpar, 
+                                      basepar, figpar)
+
+    Retrieves ROI responses to Gabor sequences from sessions 1 to 3, 
+    early and late in each session.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - basepar (BasePar): 
+            named tuple containing baseline parameters
+        - figpar (dict): 
+            dictionary containing figure parameters
+    
+    Optional args:
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+    """
+
+    logger.info("Compiling early and late Gabor sequences from session 1 to 3.", 
+        extra={"spacing": "\n"})
+
+    split = "by_exp"
+    trace_df = seq_analys.get_sess_grped_trace_df(
+        sessions, 
+        analyspar=analyspar, 
+        stimpar=stimpar, 
+        basepar=basepar, 
+        split=split, 
+        thirds=True,
+        parallel=parallel
+        )
+   
+    extrapar = {
+        "split": split,
+        "thirds": True,
+    }
+
+    info = {"analyspar": analyspar._asdict(),
+            "sesspar"  : sesspar._asdict(),
+            "stimpar"  : stimpar._asdict(),
+            "basepar"  : basepar._asdict(),
+            "extrapar" : extrapar,
+            "trace_df" : trace_df.to_dict()
+            }
+
+    helper_fcts.plot_save_all(info, figpar)
+    
+
+#############################################    
+def gabor_sequence_diffs_early_late_sess123(sessions, analyspar, sesspar, 
+                                            stimpar, basepar, permpar, figpar, 
+                                            seed=None, parallel=False):
+    """
+    gabor_sequence_diffs_early_late_sess123(sessions, analyspar, sesspar, 
+                                            stimpar, basepar, permpar, figpar)
+
+    Retrieves differences in ROI responses to Gabor sequences from 
+    sessions 1 to 3, early and late in each session.
+        
+    Saves results and parameters relevant to analysis in a dictionary.
+
+    Required args:
+        - sessions (list): 
+            Session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - basepar (BasePar): 
+            named tuple containing baseline parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
+        - figpar (dict): 
+            dictionary containing figure parameters
+    
+    Optional args:
+        - seed (int): 
+            seed value to use. (-1 treated as None)
+            default: None
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+    """
+
+    logger.info(
+        ("Compiling early and late Gabor sequence differences "
+        "from session 1 to 3."), 
+        extra={"spacing": "\n"})
+
+    # calculate multiple comparisons
+    dummy_df = misc_analys.get_check_sess_df(
+        sessions, None, analyspar).drop_duplicates(
+            subset=["lines", "planes", "sess_ns"])
+    permpar = misc_analys.set_multcomp(permpar, pairs=False, sess_df=dummy_df)
+
+    split = "by_exp"
+    diffs_df = seq_analys.get_sess_grped_diffs_by_thirds_df(
+        sessions, 
+        analyspar=analyspar, 
+        stimpar=stimpar, 
+        basepar=basepar, 
+        permpar=permpar,
+        split=split, 
+        randst=seed,
+        parallel=parallel,
+        )
+    
+    extrapar = {
+        "split": split,
+        "seed" : seed,
+        "thirds": True,
+    }
+
+    info = {"analyspar": analyspar._asdict(),
+            "sesspar"  : sesspar._asdict(),
+            "stimpar"  : stimpar._asdict(),
+            "basepar"  : basepar._asdict(),
+            "permpar"  : permpar._asdict(),
+            "extrapar" : extrapar,
+            "diffs_df" : diffs_df.to_dict()
+            }
+
+    helper_fcts.plot_save_all(info, figpar)
+
+
 #############################################
 def gabor_rel_resp_sess123(sessions, analyspar, sesspar, stimpar, permpar, 
                            figpar, seed=None, parallel=False):

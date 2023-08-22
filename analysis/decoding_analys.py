@@ -656,7 +656,8 @@ def collate_timecourse_results(sess_data_stats_df, shuffle_dfs, analyspar,
     shuffle_dfs_concat = pd.concat(shuffle_dfs)
     stat_shuffle_dfs = shuffle_dfs_concat.loc[:, stat_cols]
     for col in stat_shuffle_dfs.columns: 
-        stat_shuffle_dfs[col] = [np.asarray(v) for v in stat_shuffle_dfs[col].tolist()]
+        stat_shuffle_dfs[col] = [
+            np.asarray(v) for v in stat_shuffle_dfs[col].tolist()]
 
     by_row_index = stat_shuffle_dfs.groupby(stat_shuffle_dfs.index)
 
@@ -686,7 +687,7 @@ def collate_timecourse_results(sess_data_stats_df, shuffle_dfs, analyspar,
         
         # sort by session ID
         values = sess_data_stats_df[col].tolist()
-        stats_df.at[0, col] = values = [values[v] for v in sort_order]
+        stats_df.at[0, col] = [values[v] for v in sort_order]
 
     for col in temp_stats_df.columns:
         stats_df.at[0, col] = temp_stats_df.loc[0, col]
@@ -882,7 +883,7 @@ def run_timecourse_logregs(sessions, analyspar, stimpar, logregpar, permpar,
             ]
 
         for comp in logregpar.comp:
-            ctrl = False if logregpar.comp == "Uori" else ctrl
+            ctrl = False if logregpar.comp == "Uori" else logregpar.ctrl
             sess_data_stats_dfs, shuffle_dfs = [], []
             for s, sess in enumerate(lp_sessions):
                 logregpar_sp = sess_ntuple_util.get_modif_ntuple(
@@ -917,6 +918,7 @@ def run_timecourse_logregs(sessions, analyspar, stimpar, logregpar, permpar,
             lp_df = collate_timecourse_results(
                 sess_data_stats_df, shuffle_dfs, analyspar, permpar
                 )
+            
             score_stats_dfs.append(lp_df)
         
     score_stats_df = pd.concat(score_stats_dfs, ignore_index=True)
@@ -925,6 +927,17 @@ def run_timecourse_logregs(sessions, analyspar, stimpar, logregpar, permpar,
     # add splits information
     score_stats_df["n_splits_per"] = n_splits
     score_stats_df["n_shuffled_splits_per"] = permpar.n_perms
+
+    # add time values
+    score_stats_df = gen_util.set_object_columns(
+        score_stats_df, ["time_values"], in_place=True
+    )
+    for i in score_stats_df.index:
+        num_frames = len(score_stats_df.loc[i, "test_balanced_accuracy_stat"])
+        score_stats_df.at[i, "time_values"] = np.linspace(
+            -stimpar.pre, stimpar.post, num_frames
+            ).tolist()
+
 
     # get unique (first) values for group_columns
     for col in group_columns + list(logregpar._asdict().keys()):
