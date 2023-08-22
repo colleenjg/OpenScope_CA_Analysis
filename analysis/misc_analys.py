@@ -337,7 +337,6 @@ def get_check_sess_df(sessions, sess_df=None, analyspar=None, roi=True):
         - roi (bool):
             if True, ROI data is included in sess_df, used if sess_df is None
 
-
     Returns:
         - sess_df (pd.DataFrame):
             dataframe containing session information under the following keys:

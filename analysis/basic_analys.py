@@ -258,8 +258,41 @@ def get_common_oris(stimpar, split="by_exp"):
 
 
 #############################################
+def get_third_edges(all_segs, third=0):
+    """
+    get_third_edges(all_segs)
+
+    Returns the minimum and maximum segment values for the third split.
+
+    Required args:
+        - all_segs (1D array):
+            all segment values
+
+    Optional args:
+        - third (int):
+            index of the third split to return
+            default: 0
+
+    Returns:
+        - min_seg (num): minimum segment value
+        - max_seg (num): maximum segment value
+    """
+
+    third = int(third)
+    if third < 0 or third > 2:
+        raise ValueError("Third split must be 0, 1 or 2.")
+    
+    min_perc = 100. / 3 * third
+    max_perc = 100. / 3 * (third + 1)
+    min_seg, max_seg = np.percentile(all_segs, [min_perc, max_perc])
+    max_seg += 1
+
+    return min_seg, max_seg
+
+
+#############################################
 def get_by_exp_data(sess, analyspar, stimpar, integ=False, common_oris=False, 
-                    datatype="roi"):
+                    datatype="roi", third=None):
     """
     get_by_exp_data(sess, analyspar, stimpar)
 
@@ -284,6 +317,9 @@ def get_by_exp_data(sess, analyspar, stimpar, integ=False, common_oris=False,
         - datatype (str):
             type of data to return ("roi", "run" or "pupil")
             default: "roi"
+        - third (int):
+            if not None, specifies the index of the third split to return
+            default: None
 
     Returns:
         - data_arr (nested list):
@@ -299,6 +335,13 @@ def get_by_exp_data(sess, analyspar, stimpar, integ=False, common_oris=False,
     if common_oris:
         gab_ori = get_common_oris(stimpar, split="by_exp")
 
+    if third is not None:
+        all_segs = stim.get_segs_by_criteria(
+            gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=gab_ori,
+            visflow_dir=stimpar.visflow_dir, visflow_size=stimpar.visflow_size, 
+            unexp="any", remconsec=False, by="seg")
+        min_seg, max_seg = get_third_edges(all_segs, third=third)
+
     by_exp_data = []
     for unexp in [0, 1]:
         
@@ -306,6 +349,9 @@ def get_by_exp_data(sess, analyspar, stimpar, integ=False, common_oris=False,
             gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=gab_ori,
             visflow_dir=stimpar.visflow_dir, visflow_size=stimpar.visflow_size, 
             unexp=unexp, remconsec=False, by="seg")
+        
+        if third is not None:
+            segs = [seg for seg in segs if (seg >= min_seg) & (seg < max_seg)]
 
         data, time_values = get_data(
             stim, segs, analyspar, pre=stimpar.pre, post=stimpar.post, 
@@ -318,7 +364,7 @@ def get_by_exp_data(sess, analyspar, stimpar, integ=False, common_oris=False,
 
 #############################################
 def get_locked_data(sess, analyspar, stimpar, split="unexp_lock", integ=False, 
-                    datatype="roi"):
+                    datatype="roi", third=None):
     """
     get_locked_data(sess, analyspar, stimpar)
 
@@ -344,6 +390,9 @@ def get_locked_data(sess, analyspar, stimpar, split="unexp_lock", integ=False,
         - datatype (str):
             type of data to return ("roi", "run" or "pupil")
             default: "roi"
+        - third (int):
+            if not None, specifies the index of the third split to return
+            default: None
 
     Returns:
         - data_arr (nested list):
@@ -361,14 +410,18 @@ def get_locked_data(sess, analyspar, stimpar, split="unexp_lock", integ=False,
 
     unexp = 1 if split == "unexp_lock" else 0
 
+
+    segs = stim.get_segs_by_criteria(
+        gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
+        visflow_dir=stimpar.visflow_dir, visflow_size=stimpar.visflow_size, 
+        unexp=unexp, remconsec=True, by="seg")
+
+    if third is not None:
+        min_seg, max_seg = get_third_edges(segs, third=third)
+        segs = [seg for seg in segs if (seg >= min_seg) & (seg < max_seg)]
+
     locked_data = []
     for i in range(2):
-
-        segs = stim.get_segs_by_criteria(
-            gabfr=stimpar.gabfr, gabk=stimpar.gabk, gab_ori=stimpar.gab_ori,
-            visflow_dir=stimpar.visflow_dir, visflow_size=stimpar.visflow_size, 
-            unexp=unexp, remconsec=True, by="seg")
-
         if i == 0:
             pre, post = [stimpar.pre, 0]
         else:
@@ -476,7 +529,7 @@ def get_stim_on_off_data(sess, analyspar, stimpar, split="stim_onset",
 #############################################
 def get_split_data_by_sess(sess, analyspar, stimpar, split="by_exp", 
                            integ=False, baseline=0.0, common_oris=False, 
-                           datatype="roi"):
+                           datatype="roi", third=None):
     """
     get_split_data_by_sess(sess, analyspar, stimpar)
 
@@ -513,6 +566,9 @@ def get_split_data_by_sess(sess, analyspar, stimpar, split="by_exp",
         - datatype (str):
             type of data to return ("roi", "run" or "pupil")
             default: "roi"
+        - third (int):
+            if not None, specifies the index of the third split to return
+            default: None
 
     Returns:
         - data (nested list): 
@@ -542,10 +598,18 @@ def get_split_data_by_sess(sess, analyspar, stimpar, split="by_exp",
     }
 
     if split == "by_exp":
-        data, time_values = get_by_exp_data(common_oris=common_oris, **arg_dict)
+        data, time_values = get_by_exp_data(
+            common_oris=common_oris, third=third, **arg_dict
+            )
     elif split in locks:
-        data, time_values = get_locked_data(split=split, **arg_dict)
+        data, time_values = get_locked_data(
+            split=split, third=third, **arg_dict
+            )
     elif split in stim_on_offs:
+        if third is not None:
+            raise ValueError(
+                "Third split not implemented for stimulus onset or offset."
+                )
         data, time_values = get_stim_on_off_data(split=split, **arg_dict)
     else:
         gen_util.accepted_values_error(
@@ -557,7 +621,7 @@ def get_split_data_by_sess(sess, analyspar, stimpar, split="by_exp",
 
 #############################################
 def get_sess_roi_trace_stats(sess, analyspar, stimpar, basepar, 
-                             split="by_exp"):
+                             split="by_exp", third=None):
     """
     get_sess_roi_trace_stats(sess, analyspar, stimpar, basepar)
 
@@ -582,6 +646,9 @@ def get_sess_roi_trace_stats(sess, analyspar, stimpar, basepar,
             "stim_onset" (grayscr, stim on), 
             "stim_offset" (stim off, grayscr)
             default: "by_exp"
+        - third (int):
+            if not None, specifies the index of the third split to return
+            default: None
 
     Returns:
         - stats (4D array): 
@@ -596,9 +663,9 @@ def get_sess_roi_trace_stats(sess, analyspar, stimpar, basepar,
 
     split_data, time_values = get_split_data_by_sess(
         sess, analyspar, stimpar, split=split, baseline=basepar.baseline, 
-        datatype="roi"
+        datatype="roi", third=third,
         )
-    
+        
     stats = []
     # split x ROIs x frames x stats
     for data in split_data:

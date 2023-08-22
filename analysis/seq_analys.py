@@ -94,13 +94,13 @@ def get_sess_roi_trace_df(sessions, analyspar, stimpar, basepar,
 
 
 #############################################
-def get_sess_grped_trace_df(sessions, analyspar, stimpar, basepar, 
-                            split="by_exp", parallel=False):
+def get_sess_thirds_roi_trace_df(sessions, analyspar, stimpar, basepar, 
+                                 split="by_exp", parallel=False):
     """
-    get_sess_grped_trace_df(sessions, analyspar, stimpar, basepar)
+    get_sess_roi_trace_df(sess, analyspar, stimpar, basepar)
 
-    Returns ROI trace statistics for specific sessions, split as requested, 
-    and grouped across mice.
+    Returns ROI trace statistics for specific sessions, split as requested, for 
+    the first and last third.
 
     Required args:
         - sessions (list): 
@@ -126,11 +126,98 @@ def get_sess_grped_trace_df(sessions, analyspar, stimpar, basepar,
             default: False
 
     Returns:
+        - thirds_trace_df (pd.DataFrame):
+            dataframe with a row for each session, and the following 
+            columns, in addition to the basic sess_df columns: 
+            - roi_trace_third_{third}_stats (list): 
+                ROI trace stats for each third 
+                (split x ROIs x frames x stat (me, err))
+            - time_values (list):
+                values for each frame, in seconds
+                (only 0 to stimpar.post, unless split is "by_exp")
+    """
+
+    thirds_trace_df = misc_analys.get_check_sess_df(sessions, None, analyspar)
+
+    # retrieve ROI index information
+    args_dict = {
+        "analyspar": analyspar, 
+        "stimpar"  : stimpar, 
+        "basepar"  : basepar, 
+        "split"    : split,
+    }
+
+    # sess x split x ROIs x frames
+    for t, third in enumerate([0, 2]):
+        args_dict["third"] = third
+        roi_trace_stats, all_time_values = gen_util.parallel_wrap(
+            basic_analys.get_sess_roi_trace_stats, sessions, 
+            args_dict=args_dict, parallel=parallel, zip_output=True
+            )
+
+        misc_analys.get_check_sess_df(sessions, thirds_trace_df)
+
+        thirds_trace_df[f"third_{third}_roi_trace_stats"] = [
+            stats.tolist() for stats in roi_trace_stats
+            ]
+
+        if t == 0:
+            thirds_trace_df["time_values"] = [
+                time_values.tolist() for time_values in all_time_values
+                ]
+
+    return thirds_trace_df
+
+#############################################
+def get_sess_grped_trace_df(sessions, analyspar, stimpar, basepar, 
+                            split="by_exp", thirds=False, parallel=False):
+    """
+    get_sess_grped_trace_df(sessions, analyspar, stimpar, basepar)
+
+    Returns ROI trace statistics for specific sessions, split as requested, 
+    and grouped across mice.
+
+    Required args:
+        - sessions (list): 
+            session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - basepar (BasePar): 
+            named tuple containing baseline parameters
+
+    Optional args:
+        - split (str): 
+            how to split data:
+            "by_exp" (all exp, all unexp), 
+            "unexp_lock" (unexp, preceeding exp), 
+            "exp_lock" (exp, preceeding unexp),
+            "stim_onset" (grayscr, stim on), 
+            "stim_offset" (stim off, grayscr)
+            default: "by_exp"
+        - thirds (bool):
+            if True, data is collected for the first and last thirds.
+            Not implemented for stim onset or offset.
+            default: False
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+
+    Returns:
         - trace_df (pd.DataFrame):
             dataframe with one row per session/line/plane, and the following 
             columns, in addition to the basic sess_df columns: 
-            - trace_stats (list): 
-                trace stats (split x frames x stat (me, err))
+            if thirds:
+                - trace_third_0_stats (list): 
+                    ROI trace stats for each third 
+                    (split x frames x stat (me, err))
+                - trace_third_2_stats (list): 
+                    ROI trace stats for each third 
+                    (split x frames x stat (me, err))
+            else:
+                - trace_stats (list): 
+                    trace stats (split x frames x stat (me, err))
             - time_values (list):
                 values for each frame, in seconds
               (only 0 to stimpar.post, unless split is "by_exp")
@@ -138,7 +225,12 @@ def get_sess_grped_trace_df(sessions, analyspar, stimpar, basepar,
 
     nanpol = None if analyspar.rem_bad else "omit"
 
-    trace_df = get_sess_roi_trace_df(
+    if thirds:
+        get_sess_roi_trace_fct = get_sess_thirds_roi_trace_df
+    else:
+        get_sess_roi_trace_fct = get_sess_roi_trace_df 
+
+    trace_df = get_sess_roi_trace_fct(
         sessions, 
         analyspar=analyspar, 
         stimpar=stimpar, 
@@ -148,7 +240,10 @@ def get_sess_grped_trace_df(sessions, analyspar, stimpar, basepar,
         )
     
     columns = trace_df.columns.tolist()
-    columns[columns.index("roi_trace_stats")] = "trace_stats"
+    for c, column in enumerate(columns):
+        if "roi_trace" in column:
+            columns[c] = column.replace("roi_trace_stats", "trace_stats")
+    trace_stat_cols = [col for col in columns if "trace_stats" in col]
     grped_trace_df = pd.DataFrame(columns=columns)
 
     group_columns = ["lines", "planes", "sess_ns"]
@@ -159,7 +254,7 @@ def get_sess_grped_trace_df(sessions, analyspar, stimpar, basepar,
             grped_trace_df.loc[row_idx, group_column] = grp_vals[g]
 
         for column in columns:
-            if column not in group_columns + ["trace_stats", "time_values"]:
+            if column not in group_columns + trace_stat_cols + ["time_values"]:
                 values = trace_grp_df[column].tolist()
                 grped_trace_df.at[row_idx, column] = values
 
@@ -173,20 +268,24 @@ def get_sess_grped_trace_df(sessions, analyspar, stimpar, basepar,
         else:
             time_values = np.linspace(0, stimpar.post, n_fr)
 
-        all_roi_stats = np.concatenate(
-            [np.asarray(roi_stats)[..., : n_fr, 0] 
-             for roi_stats in trace_grp_df["roi_trace_stats"]], axis=1
-        )
+        for trace_stat_col in trace_stat_cols:
+            src_stat_col = trace_stat_col.replace(
+                "trace_stats", "roi_trace_stats"
+                )
+            all_roi_stats = np.concatenate(
+                [np.asarray(roi_stats)[..., : n_fr, 0] 
+                for roi_stats in trace_grp_df[src_stat_col]], axis=1
+            )
 
-        # take stats across ROIs
-        trace_stats = np.transpose(
-            math_util.get_stats(
-                all_roi_stats, stats=analyspar.stats, error=analyspar.error, 
-                axes=1, nanpol=nanpol
-            ), [1, 2, 0]
-        )
+            # take stats across ROIs
+            trace_stats = np.transpose(
+                math_util.get_stats(
+                    all_roi_stats, stats=analyspar.stats, error=analyspar.error, 
+                    axes=1, nanpol=nanpol
+                ), [1, 2, 0]
+            )
 
-        grped_trace_df.loc[row_idx, "trace_stats"] = trace_stats.tolist()
+            grped_trace_df.loc[row_idx, trace_stat_col] = trace_stats.tolist()
         grped_trace_df.loc[row_idx, "time_values"] = time_values.tolist()
 
     grped_trace_df["sess_ns"] = grped_trace_df["sess_ns"].astype(int)
@@ -196,7 +295,7 @@ def get_sess_grped_trace_df(sessions, analyspar, stimpar, basepar,
 
 #############################################
 def get_sess_roi_split_stats(sess, analyspar, stimpar, basepar, split="by_exp", 
-                             return_data=False):
+                             third=None, return_data=False):
     """
     get_sess_roi_split_stats(sess, analyspar, stimpar, basepar)
 
@@ -221,6 +320,10 @@ def get_sess_roi_split_stats(sess, analyspar, stimpar, basepar, split="by_exp",
             "stim_onset" (grayscr, stim on), 
             "stim_offset" (stim off, grayscr)
             default: "by_exp"
+        - third (int):
+            if not None, specifies the index of the third split to return.
+            Not implemented for stim onset or offset.
+            default: None
         - return_data (bool):
             if True, split_data is returned in addition to split_stats
 
@@ -238,7 +341,7 @@ def get_sess_roi_split_stats(sess, analyspar, stimpar, basepar, split="by_exp",
 
     split_data, _ = basic_analys.get_split_data_by_sess(
         sess, analyspar, stimpar, split=split, baseline=basepar.baseline, 
-        integ=True
+        integ=True, third=third,
         )
     
     split_stats = []
@@ -377,13 +480,13 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
         "split"      : split,
         "return_data": True,
     }
-
+        
     # sess x split x ROI
     split_stats, split_data = gen_util.parallel_wrap(
         get_sess_roi_split_stats, sessions, 
         args_dict=args_dict, parallel=parallel, zip_output=True
         )
-
+    
     misc_analys.get_check_sess_df(sessions, sess_diffs_df)
     sess_diffs_df["roi_split_stats"] = list(split_stats)
     sess_diffs_df["roi_split_data"] = list(split_data)
@@ -482,6 +585,165 @@ def get_sess_grped_diffs_df(sessions, analyspar, stimpar, basepar, permpar,
     diffs_df["sess_ns"] = diffs_df["sess_ns"].astype(int)
 
     return diffs_df
+
+
+#############################################
+def get_sess_grped_diffs_by_thirds_df(sessions, analyspar, stimpar, basepar, 
+                                      permpar, split="by_exp", randst=None, 
+                                      parallel=False):
+    """
+    get_sess_grped_diffs_by_thirds_df(sessions, analyspar, stimpar, basepar)
+
+    Returns split difference statistics for specific sessions, grouped across 
+    mice, split into first and second halves.
+
+    Required args:
+        - sessions (list): 
+            session objects
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - stimpar (StimPar): 
+            named tuple containing stimulus parameters
+        - basepar (BasePar): 
+            named tuple containing baseline parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
+
+    Optional args:
+        - split (str): 
+            how to split data:
+            "by_exp" (all exp, all unexp), 
+            "unexp_lock" (unexp, preceeding exp), 
+            "exp_lock" (exp, preceeding unexp),
+            default: "by_exp"
+        - randst (int or np.random.RandomState): 
+            random state or seed value to use. (-1 treated as None)
+            default: None
+        - parallel (bool): 
+            if True, some of the analysis is run in parallel across CPU cores 
+            default: False
+
+    Returns:
+        - diffs_df (pd.DataFrame):
+            dataframe with one row per session/line/plane, and the following 
+            columns, in addition to the basic sess_df columns: 
+            - third_{third}_diff_stats (list): split difference stats (me, err)
+            for early vs late comparisons, e.g. 0v1:
+            - raw_p_vals_{}v{} (float): uncorrected p-value for differences
+                between sessions 
+            - p_vals_{}v{} (float): p-value for differences between sessions, 
+                corrected for multiple comparisons and tails
+    """
+
+
+    nanpol = None if analyspar.rem_bad else "omit"
+
+    if analyspar.tracked:
+        misc_analys.check_sessions_complete(sessions, raise_err=True)
+
+    sess_diffs_df = misc_analys.get_check_sess_df(sessions, None, analyspar)
+    initial_columns = sess_diffs_df.columns.tolist()
+
+    # retrieve ROI index information
+    args_dict = {
+        "analyspar"  : analyspar, 
+        "stimpar"    : stimpar, 
+        "basepar"    : basepar, 
+        "split"      : split,
+        "return_data": True,
+    }
+    
+    thirds = [0, 2]
+
+    use_sessions, loop_dicts = list(), list()
+    for third in thirds:
+        for sess in sessions:
+            loop_dicts.append({"third": third})
+            use_sessions.append(sess)
+        
+    # sess x split x ROI
+    split_stats, split_data = gen_util.parallel_wrap(
+        get_sess_roi_split_stats, use_sessions, 
+        args_dict=args_dict, loop_dicts=loop_dicts, parallel=parallel, 
+        zip_output=True, 
+        )
+    
+    misc_analys.get_check_sess_df(sessions, sess_diffs_df)
+
+    diff_stat_cols = list()
+    for t, third in enumerate(thirds):
+        st = t * len(sessions)
+        end = (t + 1) * len(sessions)
+        sess_diffs_df[f"third_{third}_roi_split_stats"] = list(
+            split_stats[st: end]
+            )
+        sess_diffs_df[f"third_{third}_roi_split_data"] = list(
+            split_data[st: end]
+            )
+        diff_stat_cols.append(f"third_{third}_diff_stats")
+
+    columns = initial_columns + diff_stat_cols
+    diffs_by_third_df = pd.DataFrame(columns=columns)
+
+    group_columns = ["lines", "planes", "sess_ns"]
+    aggreg_cols = [col for col in initial_columns if col not in group_columns]
+    for lp_grp_vals, lp_grp_df in sess_diffs_df.groupby(["lines", "planes"]):
+        lp_grp_df = lp_grp_df.sort_values(["sess_ns", "mouse_ns"])
+        sess_ns = sorted(lp_grp_df["sess_ns"].unique())
+        for sess_n in sess_ns:
+            third_diffs = []
+            row_indices = []
+            for third in thirds:
+                row_idx = len(diffs_by_third_df)
+                row_indices.append(row_idx)
+                sess_grp_df = lp_grp_df.loc[lp_grp_df["sess_ns"] == sess_n]
+
+                grp_vals = list(lp_grp_vals) + [sess_n]
+                for g, group_column in enumerate(group_columns):
+                    diffs_by_third_df.loc[row_idx, group_column] = grp_vals[g]
+
+                # add aggregated values for initial columns
+                diffs_by_third_df = misc_analys.aggreg_columns(
+                    sess_grp_df, diffs_by_third_df, aggreg_cols, row_idx=row_idx, 
+                    in_place=True
+                    )
+
+                # group ROI split stats across mice: split x ROIs
+                split_stats = np.concatenate(
+                    sess_grp_df[f"third_{third}_roi_split_stats"].to_numpy(), 
+                    axis=-1
+                    )
+
+                # take diff and stats across ROIs
+                diffs = split_stats[1] - split_stats[0]
+                diff_stats = math_util.get_stats(
+                    diffs, stats=analyspar.stats, error=analyspar.error,
+                    nanpol=nanpol
+                )
+                diffs_by_third_df.at[
+                    row_idx, f"third_{third}_diff_stats"
+                    ] = diff_stats.tolist()
+                third_diffs.append(diffs)
+
+            # calculate p-values between thirds
+            p_vals = rand_util.comp_vals_acr_groups(
+                third_diffs, n_perms=permpar.n_perms, stats=analyspar.stats,
+                paired=True, nanpol=nanpol, randst=randst
+                )
+            p = 0
+            for i, third in enumerate(thirds):
+                for j, third2 in enumerate(thirds[i + 1:]):
+                    key = f"p_vals_{int(third)}v{int(third)}"
+                    diffs_by_third_df.loc[row_indices[i], key] = p_vals[p]
+                    diffs_by_third_df.loc[row_indices[j + 1], key] = p_vals[p]
+                    p += 1
+
+    # add corrected p-values
+    diffs_by_third_df = misc_analys.add_corr_p_vals(diffs_by_third_df, permpar)
+
+    diffs_by_third_df["sess_ns"] = diffs_by_third_df["sess_ns"].astype(int)
+
+    return diffs_by_third_df
 
 #############################################
 def identify_gabor_roi_ns(traces, analyspar, rolling_win=4):

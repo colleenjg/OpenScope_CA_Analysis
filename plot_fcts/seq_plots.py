@@ -26,7 +26,8 @@ logger = logger_util.get_module_logger(name=__name__)
 
 #############################################
 def plot_traces(sub_ax, time_values, trace_st, split="by_exp", col="k", 
-                lab=True, ls=None, exp_col="gray", hline=True):
+                lab=True, ls=None, exp_col="gray", exp_shade_alpha=0.5, 
+                hline=True):
     """
     plot_traces(sub_ax, time_values, trace_st)
 
@@ -37,7 +38,7 @@ def plot_traces(sub_ax, time_values, trace_st, split="by_exp", col="k",
             subplot
         - time_values (array-like): 
             values for each frame, in seconds (only from 0, if lock)
-        - trace_st (3D array): 
+        - trace_st (3D array or nested list): 
             trace statistics
             dims: split x frame x stats
 
@@ -58,6 +59,9 @@ def plot_traces(sub_ax, time_values, trace_st, split="by_exp", col="k",
         - exp_col (str): 
             color for expected data
             default: "gray"
+        - exp_shade_alpha (float):
+            alpha for expected data shading
+            default: 0.5
         - hline (bool):
             if True, horizontal line at y=0 is added
             default: False
@@ -75,7 +79,7 @@ def plot_traces(sub_ax, time_values, trace_st, split="by_exp", col="k",
         cols = [exp_col, col]
 
     alphas_line = [0.8, 0.8]
-    alphas_shade = [0.5, 0.5]
+    alphas_shade = [exp_shade_alpha, 0.5]
     
     # alpha exceptions for red
     if col in ["red", plot_util.LINCLAB_COLS["red"]]: 
@@ -114,7 +118,6 @@ def plot_traces(sub_ax, time_values, trace_st, split="by_exp", col="k",
         xticks = np.linspace(-np.max(time_values), np.max(time_values), 5)
         rev_time_values = time_values[::-1] * -1
 
-    trace_st = np.asarray(trace_st)
     for i, (col, name) in enumerate(zip(cols, names)):
         label = name if lab and not lock else None
 
@@ -126,8 +129,9 @@ def plot_traces(sub_ax, time_values, trace_st, split="by_exp", col="k",
         if split in ["exp_lock", "stim_offset"]:
             i = 1 - i # data ordered as [non-reg, reg] instead of vv
         
-        plot_util.plot_traces(sub_ax, time_values_use, trace_st[i, :, 0], 
-            trace_st[i, :, 1:], label=label, alpha_line=alphas_line[i], 
+        plot_trace_st = np.asarray(trace_st[i])
+        plot_util.plot_traces(sub_ax, time_values_use, plot_trace_st[:, 0], 
+            plot_trace_st[:, 1:].T, label=label, alpha_line=alphas_line[i], 
             alpha=alphas_shade[i], color=col, xticks=xticks, ls=ls)
             
             
