@@ -12,12 +12,16 @@ Note: this code uses python 3.7.
 
 import numpy as np
 
-from util import gen_util, math_util, plot_util
+from util import gen_util, logger_util, plot_util
 from sess_util import sess_plot_util
+from analysis import misc_analys
 from plot_fcts import plot_helper_fcts, seq_plots
 
 
 TAB = "    "
+
+
+logger = logger_util.get_module_logger(name=__name__)
 
 
 #############################################
@@ -69,8 +73,7 @@ def plot_decoder_data(scores_df, analyspar, sesspar, permpar, figpar,
         sesspar=sesspar, 
         permpar=permpar, 
         figpar=figpar, 
-        title=title, 
-        wide=True,
+        title=title,
         between_sess_sig=False,
         data_col=score_col,
         decoder_data=True,
@@ -78,6 +81,141 @@ def plot_decoder_data(scores_df, analyspar, sesspar, permpar, figpar,
 
     return ax
 
+
+#############################################
+def plot_decoder_timecourse_data(scores_df, analyspar, sesspar, permpar, figpar, 
+                                 title=None):
+    """
+    plot_decoder_timecourse_data(scores_df, analyspar, sesspar, permpar, figpar)
+
+    Plots Gabor decoding score traces across sessions. 
+    
+    Required args:
+        - scores_dfs (pd.DataFrame):
+            dataframe with logistic regression score statistics, shuffled score 
+            confidence intervals, and test set p-values for each 
+            line/plane/session, in addition to the basic sess_df columns
+        - analyspar (AnalysPar): 
+            named tuple containing analysis parameters
+        - sesspar (SessPar): 
+            named tuple containing session parameters
+        - permpar (PermPar): 
+            named tuple containing permutation parameters
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters  
+
+    Returns:
+        - ax (2D array): 
+            array of subplots
+    """
+
+    score_col = "test_balanced_accuracy"
+
+    comp_order = ["Dori", "Uori"]
+
+    figpar = sess_plot_util.fig_init_linpla(
+        figpar, kind="traces", n_sub=len(comp_order), sharey=True
+        )
+
+    figpar["init"]["subplot_hei"] = 2.8
+    figpar["init"]["subplot_wid"] = 3.8
+    figpar["init"]["gs"] = {"wspace": 0.3, "hspace": 0.3}
+
+    fig, ax = plot_util.init_fig(len(comp_order) * 4, **figpar["init"])
+    if title is not None:
+        fig.suptitle(title, y=0.95, weight="bold")
+
+    sensitivity = misc_analys.get_sensitivity(permpar)
+    comp_info = misc_analys.get_comp_info(permpar)
+
+    logger.info(f"{comp_info}:", extra={"spacing": "\n"})
+
+    for (line, plane), lp_df in scores_df.groupby(["lines", "planes"]):
+        li, pl, col, dash = plot_helper_fcts.get_line_plane_idxs(line, plane)
+        line_plane_name = plot_helper_fcts.get_line_plane_name(line, plane)
+
+        lp_sig_str = f"{line_plane_name:6} (# signif. time points):"
+        for r, comp in enumerate(comp_order):
+            rows = lp_df.loc[lp_df["comp"] == comp]
+            if len(rows) == 0:
+                continue
+            elif len(rows) > 1:
+                raise RuntimeError(
+                    "Expected comp_order instances to be unique per line/plane."
+                    )
+            row = rows.loc[rows.index[0]]
+
+            sub_ax = ax[r + pl * len(comp_order), li]
+
+            time_values = row["time_values"]
+
+            stat = np.asarray(row[f"{score_col}_stat"]).reshape(-1, 1)
+            error = np.asarray(row[f"{score_col}_err"]).reshape(len(stat), -1)
+
+            trace_stats = 100 * np.concatenate([stat, error], axis=1)
+            trace_CIs = 100 * np.asarray(row[f"{score_col}_null_CIs"])
+            
+            plot_data = [trace_CIs[:, [1, 0, 2]], trace_stats]
+
+            seq_plots.plot_traces(
+                sub_ax, time_values, plot_data, col=col, ls=dash, 
+                exp_col="gray", exp_shade_alpha=0.25, lab=False, hline=False
+                )
+
+            comp_lab = f"{comp.replace('ori', '')} seq."
+            sub_ax.text(0.76, 0.92, comp_lab, fontsize="x-large", 
+                transform=sub_ax.transAxes, style="italic")
+
+            # add significance
+            pvals = np.asarray(row["test_balanced_accuracy_p_vals"])
+            num_sig = 0
+            ymax = max(trace_stats.sum(axis=1).max(), trace_CIs[:, 2].max())
+            for v, p_val in enumerate(pvals):
+                side = np.sign(trace_stats[v, 0] - trace_CIs[v, 1])
+                sig_str = misc_analys.get_sig_symbol(
+                    p_val, sensitivity=sensitivity, side=side, 
+                    tails=permpar["tails"], p_thresh=permpar["p_val"], 
+                    )
+
+                if len(sig_str):
+                    plot_util.add_signif_mark(
+                        sub_ax, time_values[v], ymax, rel_y=0.18, color=col, 
+                        mark="*", fontsize=16
+                        )
+                    
+                    num_sig += 1
+            
+            lp_sig_str = (
+                f"{lp_sig_str}{TAB}{comp.replace('ori', ' seq.')}: "
+                f"{num_sig:2}/{len(stat):2}"
+            )
+
+        logger.info(lp_sig_str, extra={"spacing": TAB * 2})
+
+    if "balanced" in score_col:
+        ylab = "Balanced accuracy (%)" 
+    else:
+        ylab = "Accuracy %"
+
+    sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar["fluor"], 
+        area=False, datatype="roi", sess_ns=None, xticks=None, 
+        kind="traces", ylab=ylab, modif_share=False)
+
+    # fix y ticks
+    if sub_ax.get_ylim()[-1] < 80:
+        sub_ax.set_yticks(np.linspace(0, 80, 5))
+    plot_util.set_interm_ticks(ax, 3, axis="y", weight="bold", share=True)
+
+    # fix x ticks and lims
+    plot_util.set_interm_ticks(ax, 3, axis="x", fontweight="bold")
+    xlims = [np.min(row["time_values"]), np.max(row["time_values"])]
+
+    sub_ax.set_xlim(xlims)
+
+    return ax
 
 #############################################
 def plot_nrois(sub_ax, sess_df, sess_ns=None, col="k", dash=None): 

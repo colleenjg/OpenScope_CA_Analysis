@@ -18,7 +18,7 @@ To overwrite file, run script with the '--overwrite' argument, and without --plo
     Rasterizing imaging plane images...
 
 Figures saved under paper_figures/analysis_paper/Fig1.
-Duration: 5.76s
+Duration: 5.68s
 Duration: 0.00s (failed)
 
 ================================================================================
@@ -37,7 +37,7 @@ To overwrite file, run script with the '--overwrite' argument, and without --plo
     Rasterizing imaging plane images...
 
 Figures saved under paper_figures/analysis_paper/Fig1.
-Duration: 19.29s
+Duration: 16.05s
 Duration: 0.00s (failed)
 
 ================================================================================
@@ -60,7 +60,7 @@ Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
 Figures saved under paper_figures/analysis_paper/Fig2.
-Duration: 8.12s
+Duration: 8.18s
 
 
 ================================================================================
@@ -87,7 +87,7 @@ Corrected p-values (24 comparisons, two-tailed):
     L5-S   (between sessions):     S1v2: 0.75456        S1v3: 0.01056*       S2v3: 1.00000   
 
 Figures saved under paper_figures/analysis_paper/Fig2.
-Duration: 5.01s
+Duration: 5.84s
 
 
 ================================================================================
@@ -114,7 +114,43 @@ Corrected p-values (24 comparisons, two-tailed):
     L5-S   (between sessions):     S1v2: 0.81408        S1v3: 1.00000        S2v3: 1.00000   
 
 Figures saved under paper_figures/analysis_paper/Fig2.
-Duration: 5.30s
+Duration: 6.51s
+
+
+________________________________________________________________________________
+================================================================================
+Fig. 2-1A (analysis paper). Producing plot: ROI responses to Gabor sequences, early and late in sessions.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig2-1/data_files/panel_A.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Figures saved under paper_figures/analysis_paper/Fig2-1.
+Duration: 18.68s
+
+
+================================================================================
+Fig. 2-1B (analysis paper). Producing plot: Differences in ROI responses to unexpected and expected Gabor sequences, early and late in sessions.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig2-1/data_files/panel_B.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (12 comparisons, two-tailed):
+    L2/3-D (early vs late):     S1: 0.00000***     S2: 1.00000        S3: 0.00000***
+    L2/3-S (early vs late):     S1: 1.00000        S2: 1.00000        S3: 0.65976   
+    L5-D   (early vs late):     S1: 0.00000***     S2: 0.00000***     S3: 1.00000   
+    L5-S   (early vs late):     S1: 1.00000        S2: 1.00000        S3: 0.29664   
+
+Figures saved under paper_figures/analysis_paper/Fig2-1.
+Duration: 6.56s
 
 
 ________________________________________________________________________________
@@ -129,7 +165,7 @@ Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
 Figures saved under paper_figures/analysis_paper/Fig3.
-Duration: 8.64s
+Duration: 10.51s
 
 
 ================================================================================
@@ -143,7 +179,7 @@ Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
 Figures saved under paper_figures/analysis_paper/Fig3.
-Duration: 5.98s
+Duration: 6.58s
 
 
 ================================================================================
@@ -157,7 +193,7 @@ Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
 Figures saved under paper_figures/analysis_paper/Fig3.
-Duration: 6.01s
+Duration: 7.51s
 
 
 ================================================================================
@@ -176,7 +212,7 @@ Corrected p-values (8 comparisons, two-tailed):
     High tail:    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00000***
 
 Figures saved under paper_figures/analysis_paper/Fig3.
-Duration: 4.43s
+Duration: 4.81s
 
 
 ================================================================================
@@ -195,7 +231,7 @@ Corrected p-values (8 comparisons, two-tailed):
     High tail:    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00000***
 
 Figures saved under paper_figures/analysis_paper/Fig3.
-Duration: 4.69s
+Duration: 4.98s
 
 
 ================================================================================
@@ -209,7 +245,7 @@ Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
 Figures saved under paper_figures/analysis_paper/Fig3.
-Duration: 7.66s
+Duration: 7.82s
 
 
 ================================================================================
@@ -230,7 +266,7 @@ Corrected p-values (12 comparisons, two-tailed):
     L5-S   (between sessions):     S1v2: 0.00024***     S1v3: 0.00408**      S2v3: 0.68280   
 
 Figures saved under paper_figures/analysis_paper/Fig3.
-Duration: 4.73s
+Duration: 4.94s
 
 
 ================================================================================
@@ -251,7 +287,7 @@ Corrected p-values (12 comparisons, two-tailed):
     L5-S   (between sessions):     S1v2: 0.00000***     S1v3: 0.00192**      S2v3: 0.94368   
 
 Figures saved under paper_figures/analysis_paper/Fig3.
-Duration: 4.57s
+Duration: 4.68s
 
 
 ________________________________________________________________________________
@@ -279,7 +315,7 @@ Corrected p-values (22 comparisons, two-tailed):
 	L5-S  :     (~7%)  1.00000       (~32%) 0.00000***    (~34%) 0.00000***
 
 Figures saved under paper_figures/analysis_paper/Fig3-1.
-Duration: 4.39s
+Duration: 4.54s
 
 
 ================================================================================
@@ -306,7 +342,7 @@ Corrected p-values (24 comparisons, two-tailed):
     L5-S   (between sessions):     S1v2: 0.13632        S1v3: 0.00000***     S2v3: 1.00000   
 
 Figures saved under paper_figures/analysis_paper/Fig3-1.
-Duration: 5.34s
+Duration: 5.29s
 
 
 ================================================================================
@@ -321,7 +357,7 @@ Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
 Figures saved under paper_figures/analysis_paper/Fig3-1.
-Duration: 4.94s
+Duration: 4.88s
 Duration: 0.00s (failed)
 
 ________________________________________________________________________________
@@ -340,7 +376,7 @@ Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
 Figures saved under paper_figures/analysis_paper/Fig4.
-Duration: 7.81s
+Duration: 7.65s
 
 
 ================================================================================
@@ -367,7 +403,7 @@ Corrected p-values (24 comparisons, two-tailed):
     L5-S   (between sessions):     S1v2: 1.00000        S1v3: 1.00000        S2v3: 1.00000   
 
 Figures saved under paper_figures/analysis_paper/Fig4.
-Duration: 5.19s
+Duration: 5.31s
 
 
 ________________________________________________________________________________
@@ -395,7 +431,7 @@ Corrected p-values (24 comparisons, two-tailed):
     L5-S   (between sessions):     S1v2: 0.06720        S1v3: 1.00000        S2v3: 0.62112   
 
 Figures saved under paper_figures/analysis_paper/Fig4-1.
-Duration: 5.53s
+Duration: 5.36s
 
 
 ================================================================================
@@ -413,7 +449,7 @@ Corrected p-values (5 comparisons, two-tailed):
     Gabors vs visual flow:     L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 1.00000       All: 0.00000***
 
 Figures saved under paper_figures/analysis_paper/Fig4-1.
-Duration: 5.82s
+Duration: 6.10s
 
 
 ================================================================================
@@ -427,7 +463,7 @@ Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
 Figures saved under paper_figures/analysis_paper/Fig4-1.
-Duration: 7.45s
+Duration: 8.51s
 
 
 ================================================================================
@@ -448,7 +484,7 @@ Corrected p-values (12 comparisons, two-tailed):
     L5-S   (between sessions):     S1v2: 1.00000        S1v3: 1.00000        S2v3: 1.00000   
 
 Figures saved under paper_figures/analysis_paper/Fig4-1.
-Duration: 4.78s
+Duration: 4.80s
 
 
 ================================================================================
@@ -465,7 +501,7 @@ Corrected p-values (5 comparisons, two-tailed):
     Gabors vs visual flow:     L2/3-D: 0.65000       L2/3-S: 1.00000       L5-D: 0.00500**     L5-S: 0.24270       All: 0.00060***
 
 Figures saved under paper_figures/analysis_paper/Fig4-1.
-Duration: 5.68s
+Duration: 6.42s
 
 
 ________________________________________________________________________________
@@ -481,7 +517,7 @@ Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
 Figures saved under paper_figures/analysis_paper/Fig5.
-Duration: 3.78s
+Duration: 3.89s
 
 
 ================================================================================
@@ -499,7 +535,7 @@ Raw p-values (two-tailed):
     Pupil diameter  :    L2/3-D: 0.89240       L2/3-S: 0.19560       L5-D: 0.96880       L5-S: 0.26840   
 
 Figures saved under paper_figures/analysis_paper/Fig5.
-Duration: 4.52s
+Duration: 4.78s
 
 
 ________________________________________________________________________________
@@ -517,7 +553,7 @@ Corrected p-values (8 comparisons, one-tailed):
         L2/3-D: 0.00008***    L2/3-S: 0.84296       L5-D: 0.00000***    L5-S: 1.00000   
 
 Figures saved under paper_figures/analysis_paper/Fig6.
-Duration: 5.79s
+Duration: 5.91s
 
 
 ================================================================================
@@ -534,7 +570,7 @@ Corrected p-values (8 comparisons, one-tailed):
         L2/3-D: 1.00000       L2/3-S: 1.00000       L5-D: 1.00000       L5-S: 1.00000   
 
 Figures saved under paper_figures/analysis_paper/Fig6.
-Duration: 5.42s
+Duration: 6.46s
 
 
 ================================================================================
@@ -555,7 +591,7 @@ Corrected p-values (8 comparisons, one-tailed):
     L5-S  :    S1v2: 1.00000       S2v3: 1.00000   
 
 Figures saved under paper_figures/analysis_paper/Fig6.
-Duration: 4.78s
+Duration: 5.21s
 
 
 ================================================================================
@@ -572,7 +608,7 @@ Corrected p-values (8 comparisons, one-tailed):
         L2/3-D: 1.00000       L2/3-S: 1.00000       L5-D: 1.00000       L5-S: 1.00000   
 
 Figures saved under paper_figures/analysis_paper/Fig6.
-Duration: 5.46s
+Duration: 5.70s
 
 
 ================================================================================
@@ -589,7 +625,7 @@ Corrected p-values (8 comparisons, one-tailed):
         L2/3-D: 1.00000       L2/3-S: 1.00000       L5-D: 1.00000       L5-S: 1.00000   
 
 Figures saved under paper_figures/analysis_paper/Fig6.
-Duration: 5.84s
+Duration: 5.68s
 
 
 ================================================================================
@@ -609,12 +645,12 @@ Corrected p-values (8 comparisons, one-tailed):
     L5-S  :    S1v2: 1.00000       S2v3: 1.00000   
 
 Figures saved under paper_figures/analysis_paper/Fig6.
-Duration: 4.71s
+Duration: 4.97s
 
 
 ________________________________________________________________________________
 ================================================================================
-Fig. 7A (analysis paper). Producing plot: Mean Gabor D orientation decoder performances across sessions.
+Fig. 7A (analysis paper). Producing plot: Mean Gabor A orientation decoder performances across sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
@@ -624,18 +660,18 @@ WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig7/da
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
-Corrected p-values (24 comparisons, two-tailed):
-    L2/3-D (within session):     S1: 0.00000***     S2: 0.00048***     S3: 0.08640   
-    L2/3-S (within session):     S1: 0.00000***     S2: 0.00048***     S3: 0.00000***
-    L5-D   (within session):     S1: 0.00192**      S2: 0.01200*       S3: 0.00816** 
-    L5-S   (within session):     S1: 0.00048***     S2: 1.00000        S3: 0.00000***
+Corrected p-values (60 comparisons, one-tailed):
+    L2/3-D (within session):     S1: 1.00000        S2: 1.00000        S3: 1.00000   
+    L2/3-S (within session):     S1: 0.00000***     S2: 0.00540**      S3: 0.01740*  
+    L5-D   (within session):     S1: 0.33660        S2: 1.00000        S3: 1.00000   
+    L5-S   (within session):     S1: 0.70560        S2: 1.00000        S3: 1.00000   
 
 Figures saved under paper_figures/analysis_paper/Fig7.
-Duration: 4.60s
+Duration: 4.88s
 
 
 ================================================================================
-Fig. 7B (analysis paper). Producing plot: Mean Gabor U orientation decoder performances across sessions.
+Fig. 7B (analysis paper). Producing plot: Mean Gabor B orientation decoder performances across sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
@@ -645,11 +681,138 @@ WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig7/da
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
-Corrected p-values (24 comparisons, two-tailed):
-    L2/3-D (within session):     S1: 0.52464        S2: 0.00000***     S3: 0.00096***
-    L2/3-S (within session):     S1: 0.00000***     S2: 0.00048***     S3: 0.00096***
-    L5-D   (within session):     S1: 0.00288**      S2: 0.00000***     S3: 0.00000***
-    L5-S   (within session):     S1: 0.00000***     S2: 0.09744        S3: 0.07968   
+Corrected p-values (60 comparisons, one-tailed):
+    L2/3-D (within session):     S1: 1.00000        S2: 0.23220        S3: 0.12660   
+    L2/3-S (within session):     S1: 0.00000***     S2: 0.00000***     S3: 0.00000***
+    L5-D   (within session):     S1: 0.00780**      S2: 0.01980*       S3: 0.06300   
+    L5-S   (within session):     S1: 0.03180*       S2: 0.50880        S3: 0.08520   
 
 Figures saved under paper_figures/analysis_paper/Fig7.
-Duration: 4.62s
+Duration: 4.74s
+
+
+================================================================================
+Fig. 7C (analysis paper). Producing plot: Mean Gabor C orientation decoder performances across sessions.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig7/data_files/panel_C.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (60 comparisons, one-tailed):
+    L2/3-D (within session):     S1: 0.47100        S2: 0.00180**      S3: 0.11640   
+    L2/3-S (within session):     S1: 0.00000***     S2: 0.00000***     S3: 0.00060***
+    L5-D   (within session):     S1: 0.02880*       S2: 0.00060***     S3: 0.00420** 
+    L5-S   (within session):     S1: 0.09180        S2: 0.15900        S3: 0.00060***
+
+Figures saved under paper_figures/analysis_paper/Fig7.
+Duration: 4.88s
+
+
+================================================================================
+Fig. 7D (analysis paper). Producing plot: Mean Gabor D orientation decoder performances across sessions.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig7/data_files/panel_D.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (60 comparisons, one-tailed):
+    L2/3-D (within session):     S1: 0.00060***     S2: 0.00180**      S3: 0.11400   
+    L2/3-S (within session):     S1: 0.00000***     S2: 0.00000***     S3: 0.00000***
+    L5-D   (within session):     S1: 0.00120**      S2: 0.01200*       S3: 0.01140*  
+    L5-S   (within session):     S1: 0.00120**      S2: 1.00000        S3: 0.00060***
+
+Figures saved under paper_figures/analysis_paper/Fig7.
+Duration: 4.80s
+
+
+================================================================================
+Fig. 7E (analysis paper). Producing plot: Mean Gabor U orientation decoder performances across sessions.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig7/data_files/panel_E.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (60 comparisons, one-tailed):
+    L2/3-D (within session):     S1: 0.43920        S2: 0.00000***     S3: 0.00180** 
+    L2/3-S (within session):     S1: 0.00000***     S2: 0.00060***     S3: 0.00420** 
+    L5-D   (within session):     S1: 0.03720*       S2: 0.00000***     S3: 0.00000***
+    L5-S   (within session):     S1: 0.00000***     S2: 0.47340        S3: 0.04680*  
+
+Figures saved under paper_figures/analysis_paper/Fig7.
+Duration: 4.83s
+
+
+________________________________________________________________________________
+================================================================================
+Fig. 7-1A (analysis paper). Producing plot: Mean Gabor timecourse orientation decoder performances for session 1.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig7-1/data_files/panel_A.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (8 comparisons, one-tailed):
+        L2/3-D (# signif. time points):    D seq.:  2/45    U seq.:  0/45
+        L2/3-S (# signif. time points):    D seq.: 40/45    U seq.: 36/45
+        L5-D   (# signif. time points):    D seq.:  0/45    U seq.:  4/45
+        L5-S   (# signif. time points):    D seq.:  5/45    U seq.: 11/45
+
+Figures saved under paper_figures/analysis_paper/Fig7-1.
+Duration: 6.84s
+
+
+================================================================================
+Fig. 7-1B (analysis paper). Producing plot: Mean Gabor timecourse orientation decoder performances for session 2.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig7-1/data_files/panel_B.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (8 comparisons, one-tailed):
+        L2/3-D (# signif. time points):    D seq.:  0/45    U seq.:  2/45
+        L2/3-S (# signif. time points):    D seq.: 20/45    U seq.: 19/45
+        L5-D   (# signif. time points):    D seq.:  3/45    U seq.:  6/45
+        L5-S   (# signif. time points):    D seq.:  0/45    U seq.:  0/45
+
+Figures saved under paper_figures/analysis_paper/Fig7-1.
+Duration: 6.35s
+
+
+================================================================================
+Fig. 7-1C (analysis paper). Producing plot: Mean Gabor timecourse orientation decoder performances for session 3.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig7-1/data_files/panel_C.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (8 comparisons, one-tailed):
+        L2/3-D (# signif. time points):    D seq.:  0/45    U seq.:  2/45
+        L2/3-S (# signif. time points):    D seq.: 20/45    U seq.: 18/45
+        L5-D   (# signif. time points):    D seq.:  0/45    U seq.: 13/45
+        L5-S   (# signif. time points):    D seq.:  6/45    U seq.:  1/45
+
+Figures saved under paper_figures/analysis_paper/Fig7-1.
+Duration: 6.82s
