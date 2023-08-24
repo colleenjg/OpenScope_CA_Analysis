@@ -261,6 +261,75 @@ def plot_sess_traces(data_df, analyspar, sesspar, figpar,
 
 
 #############################################
+def plot_early_late_sess_traces(data_df, analyspar, sesspar, figpar, 
+                                split="by_exp", title=None):
+    """
+    plot_early_late_sess_traces(data_df, analyspar, sesspar, figpar)
+    """
+
+    # retrieve session numbers, and infer row_order, if necessary
+    sess_ns = misc_analys.get_sess_ns(sesspar, data_df)
+
+    row_order = sess_ns
+    row_col = "sess_ns"
+
+    # thirds to plot (early and late)
+    thirds = [0, 2]
+
+    figpar = sess_plot_util.fig_init_linpla(
+        figpar, kind="traces_double", n_sub=len(row_order), sharey=False
+        )
+    figpar["init"]["gs"] = {"wspace": 0.4, "hspace": 0.3}
+
+    num_plots = len(row_order) * 4 * 2
+    fig, ax = plot_util.init_fig(num_plots, **figpar["init"])
+    if title is not None:
+        fig.suptitle(title, y=1.0, weight="bold")
+
+    for (line, plane), lp_df in data_df.groupby(["lines", "planes"]):
+        li, pl, col, dash = plot_helper_fcts.get_line_plane_idxs(line, plane)
+
+        for r, row_val in enumerate(row_order):
+            rows = lp_df.loc[lp_df[row_col] == row_val]
+            if len(rows) == 0:
+                continue
+            elif len(rows) > 1:
+                raise RuntimeError(
+                    "Expected row_order instances to be unique per line/plane."
+                    )
+            row = rows.loc[rows.index[0]]
+
+            for t, third in enumerate(thirds):
+                sub_ax = ax[r + pl * len(row_order), li * 2 + t]
+
+                if line == "L2/3-Cux2":
+                    exp_col = "darkgray" # oddly, lighter than gray
+                else:
+                    exp_col = "gray"
+                
+                trace_col = f"third_{third}_trace_stats"
+                plot_traces(
+                    sub_ax, row["time_values"], row[trace_col], split=split, 
+                    col=col, ls=dash, exp_col=exp_col, lab=False
+                    )
+            
+    for sub_ax in ax.reshape(-1):
+        plot_util.set_minimal_ticks(sub_ax, axis="y")
+
+    sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar["fluor"], 
+        area=False, datatype="roi", sess_ns=sess_ns, xticks=None, 
+        kind="traces_double", modif_share=True)
+
+   # fix x ticks and lims
+    plot_util.set_interm_ticks(ax, 3, axis="x", fontweight="bold")
+    xlims = [np.min(row["time_values"]), np.max(row["time_values"])]
+    if split != "by_exp":
+        xlims = [-xlims[1], xlims[1]]
+    sub_ax.set_xlim(xlims)
+
+    return ax
+
+#############################################
 def add_between_sess_sig(ax, data_df, permpar, data_col="diff_stats", 
                          highest=None, ctrl=False, p_val_prefix=False, 
                          dry_run=False):
@@ -490,8 +559,6 @@ def plot_sess_data(data_df, analyspar, sesspar, permpar, figpar,
 
     figpar = sess_plot_util.fig_init_linpla(figpar)
     
-    sharey = True if decoder_data else "row"
-    figpar["init"]["sharey"] = sharey
     figpar["init"]["subplot_hei"] = 4.4
     figpar["init"]["gs"] = {"hspace": 0.2}
     if wide:
@@ -500,6 +567,12 @@ def plot_sess_data(data_df, analyspar, sesspar, permpar, figpar,
     else:
         figpar["init"]["subplot_wid"] = 2.6
         figpar["init"]["gs"]["wspace"] = 0.3
+
+    if decoder_data:
+        figpar["init"]["subplot_wid"] *= 1.1
+        figpar["init"]["sharey"] = True
+    else:
+        figpar["init"]["sharey"] = "row"
 
     fig, ax = plot_util.init_fig(plot_helper_fcts.N_LINPLA, **figpar["init"])
 
@@ -586,9 +659,158 @@ def plot_sess_data(data_df, analyspar, sesspar, permpar, figpar,
             ylab = "Balanced accuracy (%)" 
         else:
             ylab = "Accuracy %"
+        for sub_ax in ax.ravel():
+            if sub_ax.get_ylim()[-1] < 80:
+                sub_ax.set_yticks(np.linspace(0, 80, 5))
 
     sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar["fluor"], 
         area=area, ylab=ylab, datatype="roi", sess_ns=sess_ns, kind="reg", 
+        xticks=sess_ns, modif_share=False)
+
+    return ax
+
+
+#############################################
+def plot_early_late_sess_data(data_df, analyspar, sesspar, permpar, figpar, 
+                              title=None):
+    """
+    plot_early_late_sess_data(data_df, analyspar, sesspar, permpar, figpar)
+
+    Plots errorbar data from early to late in each session.
+
+    Required args:
+        - data_df (pd.DataFrame):
+            dataframe with one row per session/line/plane, and the following 
+            columns, in addition to the basic sess_df columns: 
+            - third_{third}_diff_stats (list): split difference stats (me, err)
+            for early vs late comparisons, e.g. 0v1:
+            - raw_p_vals_{}v{} (float): uncorrected p-value for differences
+                between sessions 
+            - p_vals_{}v{} (float): p-value for differences between sessions, 
+                corrected for multiple comparisons and tails
+
+        - analyspar (dict): 
+            dictionary with keys of AnalysPar namedtuple
+        - sesspar (dict):
+            dictionary with keys of SessPar namedtuple
+        - permpar (dict): 
+            dictionary with keys of PermPar namedtuple
+        - figpar (dict): 
+            dictionary containing the following figure parameter dictionaries
+            ["init"] (dict): dictionary with figure initialization parameters
+            ["save"] (dict): dictionary with figure saving parameters
+            ["dirs"] (dict): dictionary with additional figure parameters
+
+    Optional args:
+        - title (str):
+            plot title
+            default: None
+        
+    Returns:
+        - ax (2D array): 
+            array of subplots
+    """
+
+    sess_ns = misc_analys.get_sess_ns(sesspar, data_df)
+
+    # thirds to plot (early and late)
+    thirds = [0, 2]
+    sep = 0.4
+
+    # init figures
+    figpar = sess_plot_util.fig_init_linpla(figpar)
+    
+    figpar["init"]["sharey"] = "row"
+    figpar["init"]["subplot_wid"] *= 1.7
+    figpar["init"]["subplot_hei"] = 4
+    figpar["init"]["gs"] = {"hspace": 0.2, "wspace": 0.2}
+
+    fig, ax = plot_util.init_fig(plot_helper_fcts.N_LINPLA, **figpar["init"])
+
+    if title is not None:
+        fig.suptitle(title, y=0.97, weight="bold")
+
+    sensitivity = misc_analys.get_sensitivity(permpar)
+    comp_info = misc_analys.get_comp_info(permpar)
+
+    logger.info(f"{comp_info}:", extra={"spacing": "\n"})
+
+    for pass_n in [0, 1]:
+        for (line, plane), lp_df in data_df.groupby(["lines", "planes"]):
+            li, pl, col, dash = plot_helper_fcts.get_line_plane_idxs(
+                line, plane
+                )
+            line_plane_name = plot_helper_fcts.get_line_plane_name(line, plane)
+            sub_ax = ax[pl, li]
+
+            if pass_n == 0: # plot the 0 line
+                sub_ax.axhline(
+                    y=0, ls=plot_helper_fcts.HDASH, c="k", lw=3.0, 
+                    alpha=0.5, zorder=-13
+                    )
+
+            lp_sig_str = f"{line_plane_name:6} (early vs late):"
+            lp_max_data = -np.inf
+            for sess_n in sess_ns:
+                rows = lp_df.loc[lp_df["sess_ns"] == sess_n]
+                if len(rows) > 1:
+                    raise RuntimeError("Expected 1 row per line/plane/session.")
+                elif len(rows) != 1:
+                    continue
+
+                row = rows.loc[rows.index[0]]
+                
+                early_late = []
+                x_vals = []
+                for t, third in enumerate(thirds):
+                    data_col = f"third_{third}_diff_stats"
+                    early_late.append(np.asarray(row[data_col]))
+                    x_vals.append(sess_n + sep * t - sep / 2)
+
+                # plot errorbars
+                data = np.asarray(early_late)
+
+                if pass_n == 0:
+                    plot_util.plot_errorbars(
+                        sub_ax, data[:, 0], data[:, 1:].T, x_vals, color=col, 
+                        alpha=0.8, xticks="auto", line_dash=dash
+                        )
+                    
+                # check significance
+                p_val = row[f"p_vals_{int(thirds[0])}v{int(thirds[1])}"]
+                side = np.sign(data[1, 0] - data[0, 0])
+
+                sig_str = misc_analys.get_sig_symbol(
+                    p_val, sensitivity=sensitivity, side=side, 
+                    tails=permpar["tails"], p_thresh=permpar["p_val"],
+                    )
+                if len(sig_str):
+                    y_pos = data.sum(axis=1).max()
+                    if pass_n == 0:
+                        lp_max_data = max(lp_max_data, y_pos)
+                
+                # log and add significance markers, if applicable
+                if pass_n == 1:
+                    lp_sig_str = (
+                        f"{lp_sig_str}{TAB} "
+                        f"S{sess_n}: {p_val:.5f}{sig_str:3}"
+                        )
+
+                    if len(sig_str):
+                        plot_util.plot_barplot_signif(
+                            sub_ax, x_vals, y_pos, rel_y=0.11, color=col, lw=3, 
+                            mark_rel_y=0.2, mark=sig_str, fontsize=20
+                            )
+
+            if pass_n == 0 and np.isfinite(lp_max_data):
+                y_max = lp_max_data * 1.05
+                if y_max > sub_ax.get_ylim()[1]:
+                    sub_ax.set_ylim([None, y_max])
+            elif pass_n == 1:
+                logger.info(lp_sig_str, extra={"spacing": TAB})
+
+    sess_plot_util.format_linpla_subaxes(ax, fluor=analyspar["fluor"], 
+        area=True, datatype="roi", sess_ns=sess_ns, kind="reg", 
         xticks=sess_ns, modif_share=False)
 
     return ax

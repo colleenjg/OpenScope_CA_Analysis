@@ -31,7 +31,7 @@ from paper_fig_util import paper_organization, helper_fcts
 
 DEFAULT_DATADIR = Path("..", "data", "OSCA")
 DEFAULT_MOUSE_DF_PATH = Path("mouse_df.csv")
-DEFAULT_FONTDIR = Path("..", "tools", "fonts")
+DEFAULT_FONTDIR = Path("..", "..", "tools", "fonts")
 
 SEP = f"\n{'=' * 80}\n"
 DOUBLE_SEP = f"\n{'_' * 80}\n{'=' * 80}\n"

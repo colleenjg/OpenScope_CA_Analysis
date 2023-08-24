@@ -73,8 +73,7 @@ def plot_decoder_data(scores_df, analyspar, sesspar, permpar, figpar,
         sesspar=sesspar, 
         permpar=permpar, 
         figpar=figpar, 
-        title=title, 
-        wide=True,
+        title=title,
         between_sess_sig=False,
         data_col=score_col,
         decoder_data=True,
@@ -122,7 +121,7 @@ def plot_decoder_timecourse_data(scores_df, analyspar, sesspar, permpar, figpar,
         )
 
     figpar["init"]["subplot_hei"] = 2.8
-    figpar["init"]["subplot_wid"] = 4.0
+    figpar["init"]["subplot_wid"] = 3.8
     figpar["init"]["gs"] = {"wspace": 0.3, "hspace": 0.3}
 
     fig, ax = plot_util.init_fig(len(comp_order) * 4, **figpar["init"])
@@ -138,9 +137,8 @@ def plot_decoder_timecourse_data(scores_df, analyspar, sesspar, permpar, figpar,
         li, pl, col, dash = plot_helper_fcts.get_line_plane_idxs(line, plane)
         line_plane_name = plot_helper_fcts.get_line_plane_name(line, plane)
 
-        logger.info(f"{line_plane_name}:", extra={"spacing": TAB})
+        lp_sig_str = f"{line_plane_name:6} (# signif. time points):"
         for r, comp in enumerate(comp_order):
-            comp_sig_str = f"{comp}:"
             rows = lp_df.loc[lp_df["comp"] == comp]
             if len(rows) == 0:
                 continue
@@ -190,9 +188,12 @@ def plot_decoder_timecourse_data(scores_df, analyspar, sesspar, permpar, figpar,
                     
                     num_sig += 1
             
-            comp_sig_str = f"{comp_sig_str} {num_sig}/{len(stat)} time points"
-            logger.info(comp_sig_str, extra={"spacing": TAB * 2})
+            lp_sig_str = (
+                f"{lp_sig_str}{TAB}{comp.replace('ori', ' seq.')}: "
+                f"{num_sig:2}/{len(stat):2}"
+            )
 
+        logger.info(lp_sig_str, extra={"spacing": TAB * 2})
 
     if "balanced" in score_col:
         ylab = "Balanced accuracy (%)" 
@@ -205,7 +206,7 @@ def plot_decoder_timecourse_data(scores_df, analyspar, sesspar, permpar, figpar,
 
     # fix y ticks
     if sub_ax.get_ylim()[-1] < 80:
-        sub_ax.set_ylim(None, 80) # minimum
+        sub_ax.set_yticks(np.linspace(0, 80, 5))
     plot_util.set_interm_ticks(ax, 3, axis="y", weight="bold", share=True)
 
     # fix x ticks and lims
