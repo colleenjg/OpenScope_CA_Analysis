@@ -1227,6 +1227,7 @@ class FigurePanelAnalysis():
             tails="hi",
         )
         self.n_perms_full = 1e5
+        self.n_perms_low = 2500
         self.analysis_fct = decoding_figs.gabor_Aori_decoding_sess123
         self.plot_fct = plot_figs.plot_gabor_Aori_decoding_sess123
         self.warnings.append(stats_plot_fct_warning())
@@ -1243,6 +1244,7 @@ class FigurePanelAnalysis():
             tails="hi",
         )
         self.n_perms_full = 1e5
+        self.n_perms_low = 2500
         self.analysis_fct = decoding_figs.gabor_Bori_decoding_sess123
         self.plot_fct = plot_figs.plot_gabor_Bori_decoding_sess123
         self.warnings.append(stats_plot_fct_warning())
@@ -1259,6 +1261,7 @@ class FigurePanelAnalysis():
             tails="hi",
         )
         self.n_perms_full = 1e5
+        self.n_perms_low = 2500
         self.analysis_fct = decoding_figs.gabor_Cori_decoding_sess123
         self.plot_fct = plot_figs.plot_gabor_Cori_decoding_sess123
         self.warnings.append(stats_plot_fct_warning())
@@ -1274,6 +1277,7 @@ class FigurePanelAnalysis():
             tails="hi",
         )
         self.n_perms_full = 1e5
+        self.n_perms_low = 2500
         self.analysis_fct = decoding_figs.gabor_Dori_decoding_sess123
         self.plot_fct = plot_figs.plot_gabor_Dori_decoding_sess123
         self.warnings.append(stats_plot_fct_warning()) 
@@ -1290,6 +1294,7 @@ class FigurePanelAnalysis():
             tails="hi",
         )
         self.n_perms_full = 1e5
+        self.n_perms_low = 2500
         self.analysis_fct = decoding_figs.gabor_Uori_decoding_sess123
         self.plot_fct = plot_figs.plot_gabor_Uori_decoding_sess123
         self.warnings.append(stats_plot_fct_warning())
@@ -1306,10 +1311,9 @@ class FigurePanelAnalysis():
             post=0.6,
             sess_n=1,
             tails="hi",
-            mouse_n=1
         )
         self.n_perms_full = 1e4
-        self.n_perms_low = 200
+        self.n_perms_low = 350
         self.analysis_fct = decoding_figs.gabor_timecourse_decoding_sess1
         self.plot_fct = plot_figs.plot_gabor_timecourse_decoding_sess1
         self.warnings.append(stats_plot_fct_warning())
@@ -1328,7 +1332,7 @@ class FigurePanelAnalysis():
             tails="hi",
         )
         self.n_perms_full = 1e4
-        self.n_perms_low = 200
+        self.n_perms_low = 350
         self.analysis_fct = decoding_figs.gabor_timecourse_decoding_sess2
         self.plot_fct = plot_figs.plot_gabor_timecourse_decoding_sess2
         self.warnings.append(stats_plot_fct_warning())
@@ -1347,7 +1351,7 @@ class FigurePanelAnalysis():
             tails="hi",
         )
         self.n_perms_full = 1e4
-        self.n_perms_low = 200
+        self.n_perms_low = 350
         self.analysis_fct = decoding_figs.gabor_timecourse_decoding_sess3
         self.plot_fct = plot_figs.plot_gabor_timecourse_decoding_sess3
         self.warnings.append(stats_plot_fct_warning())

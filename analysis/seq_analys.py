@@ -129,7 +129,7 @@ def get_sess_thirds_roi_trace_df(sessions, analyspar, stimpar, basepar,
         - thirds_trace_df (pd.DataFrame):
             dataframe with a row for each session, and the following 
             columns, in addition to the basic sess_df columns: 
-            - roi_trace_third_{third}_stats (list): 
+            - _third_{third}_roi_trace_stats (list): 
                 ROI trace stats for each third 
                 (split x ROIs x frames x stat (me, err))
             - time_values (list):
@@ -209,10 +209,10 @@ def get_sess_grped_trace_df(sessions, analyspar, stimpar, basepar,
             dataframe with one row per session/line/plane, and the following 
             columns, in addition to the basic sess_df columns: 
             if thirds:
-                - trace_third_0_stats (list): 
+                - third_0_trace_stats (list): 
                     ROI trace stats for each third 
                     (split x frames x stat (me, err))
-                - trace_third_2_stats (list): 
+                - third_2_trace_stats (list): 
                     ROI trace stats for each third 
                     (split x frames x stat (me, err))
             else:
@@ -691,11 +691,9 @@ def get_sess_grped_diffs_by_thirds_df(sessions, analyspar, stimpar, basepar,
         lp_grp_df = lp_grp_df.sort_values(["sess_ns", "mouse_ns"])
         sess_ns = sorted(lp_grp_df["sess_ns"].unique())
         for sess_n in sess_ns:
+            row_idx = len(diffs_by_third_df)
             third_diffs = []
-            row_indices = []
             for third in thirds:
-                row_idx = len(diffs_by_third_df)
-                row_indices.append(row_idx)
                 sess_grp_df = lp_grp_df.loc[lp_grp_df["sess_ns"] == sess_n]
 
                 grp_vals = list(lp_grp_vals) + [sess_n]
@@ -732,10 +730,9 @@ def get_sess_grped_diffs_by_thirds_df(sessions, analyspar, stimpar, basepar,
                 )
             p = 0
             for i, third in enumerate(thirds):
-                for j, third2 in enumerate(thirds[i + 1:]):
-                    key = f"p_vals_{int(third)}v{int(third)}"
-                    diffs_by_third_df.loc[row_indices[i], key] = p_vals[p]
-                    diffs_by_third_df.loc[row_indices[j + 1], key] = p_vals[p]
+                for third2 in thirds[i + 1:]:
+                    key = f"p_vals_{int(third)}v{int(third2)}"
+                    diffs_by_third_df.loc[row_idx, key] = p_vals[p]
                     p += 1
 
     # add corrected p-values

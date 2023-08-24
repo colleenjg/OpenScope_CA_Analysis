@@ -940,10 +940,10 @@ def plot_gabor_sequences_early_late_sess123(analyspar, sesspar, stimpar,
         - trace_df (pd.DataFrame):
             dataframe with one row per session/line/plane, and the following 
             columns, in addition to the basic sess_df columns: 
-            - trace_third_0_stats (list): 
+            - third_0_trace_stats (list): 
                 ROI trace stats for each third 
                 (split x frames x stat (me, err))
-            - trace_third_2_stats (list): 
+            - third_2_trace_stats (list): 
                 ROI trace stats for each third 
                 (split x frames x stat (me, err))
             - time_values (list):
@@ -966,19 +966,15 @@ def plot_gabor_sequences_early_late_sess123(analyspar, sesspar, stimpar,
     
     trace_df = pd.DataFrame.from_dict(trace_df)
 
-    # ax = seq_plots.plot_sess_traces(
-    #     trace_df, 
-    #     analyspar=analyspar, 
-    #     sesspar=sesspar,
-    #     figpar=figpar, 
-    #     trace_col="trace_stats",
-    #     row_col="sess_ns",
-    #     split=extrapar["split"],
-    #     title=title, 
-    #     size="reg"
-    #     )
-    # fig = ax.reshape(-1)[0].figure
-    fig = None
+    ax = seq_plots.plot_early_late_sess_traces(
+        trace_df, 
+        analyspar=analyspar, 
+        sesspar=sesspar,
+        figpar=figpar, 
+        split=extrapar["split"],
+        title=title, 
+        )
+    fig = ax.reshape(-1)[0].figure
 
     savedir, savename = helper_fcts.get_save_path(
         figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
@@ -1045,19 +1041,16 @@ def plot_gabor_sequence_diffs_early_late_sess123(analyspar, sesspar, stimpar,
     
     diffs_df = pd.DataFrame.from_dict(diffs_df)
 
-    # ax = seq_plots.plot_sess_data(
-    #     diffs_df, 
-    #     analyspar=analyspar, 
-    #     sesspar=sesspar, 
-    #     permpar=permpar, 
-    #     figpar=figpar, 
-    #     title=title, 
-    #     wide=True
-    #     )
-    # fig = ax.reshape(-1)[0].figure
+    ax = seq_plots.plot_early_late_sess_data(
+        diffs_df, 
+        analyspar=analyspar, 
+        sesspar=sesspar, 
+        permpar=permpar, 
+        figpar=figpar, 
+        title=title, 
+        )
+    fig = ax.reshape(-1)[0].figure
     
-    fig = None
-
     savedir, savename = helper_fcts.get_save_path(
         figpar['fig_panel_analysis'], main_direc=figpar["dirs"]["figdir"]
     )

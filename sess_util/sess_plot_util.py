@@ -648,7 +648,9 @@ def fig_init_linpla(figpar=None, kind="reg", n_sub=1, sharey=False,
                                 default: None
         - kind (str)          : kind of plot 
                                 "reg" for single plot per layer/line, 
-                                "traces" for traces plot per session (rows), 
+                                "traces" for traces plot per session (rows),
+                                "traces_double" for traces plot with 2 plots 
+                                    per row, 
                                 "prog" for progression plot per session (cols), 
                                 "idx" for unexpected data index plot per 
                                     session (rows)
@@ -681,6 +683,10 @@ def fig_init_linpla(figpar=None, kind="reg", n_sub=1, sharey=False,
 
     ncols = 2
     if kind == "traces":
+        wid = 3.3
+        hei = np.max([wid/n_sub * 1.15, 1.0])
+    if kind == "traces_double":
+        ncols *= 2
         wid = 3.3
         hei = np.max([wid/n_sub * 1.15, 1.0])
     elif kind == "prog":
@@ -750,7 +756,7 @@ def fig_linpla_pars(n_sess=False, n_grps=None):
 
 
 #############################################
-def adjust_linpla_y_axis_sharing(ax, kind="reg"):
+def adjust_linpla_y_axis_sharing(ax, kind="reg", doublets=True):
     """
     adjust_linpla_y_axis_sharing(ax)
 
@@ -761,13 +767,17 @@ def adjust_linpla_y_axis_sharing(ax, kind="reg"):
         - ax (plt Axis): ax
 
     Optional args:
-        - kind (str)       : kind of plot 
-                             "reg" for single plot per layer/line, 
-                             "traces" for traces plot per session (rows), 
-                             "prog" for progression plot per session (cols), 
-                             "idx" for unexpected data index plot per 
-                                session (rows)
-                             default: "reg"
+        - kind (str)     : kind of plot 
+                           "reg" for single plot per layer/line, 
+                           "traces" for traces plot per session (rows), 
+                           "traces_double" for traces plot with 2 plots 
+                              per row, 
+                           "prog" for progression plot per session (cols), 
+                           "idx" for unexpected data index plot per 
+                              session (rows)
+                           default: "reg"
+        - doublets (bool): if kind is 'traces_double', axes are only shared 
+                           within doublets, not quadrants
     """
 
     # check whether any y axes are shared
@@ -779,31 +789,60 @@ def adjust_linpla_y_axis_sharing(ax, kind="reg"):
     n_rows, n_cols = ax.shape
     to_share = []
     if kind in ["traces", "idx"]:
+        n_cols = 2
         if n_rows % 2 != 0:
             raise RuntimeError("Expected even number of rows")
         row_per_grp = int(n_rows/2)
+        num_row_grps = int(n_rows/row_per_grp)
         if row_per_grp > 1:
-            to_share = [[ax[i * row_per_grp + r, c] 
+            to_share = [[ax[row_grp * row_per_grp + r, c] 
                 for r in range(row_per_grp)] 
-                for i in range(2) for c in range(2)]
+                for row_grp in range(num_row_grps) for c in range(n_cols)]
     elif kind == "prog":
+        n_rows = 2
         if n_cols % 2 != 0:
             raise RuntimeError("Expected even number of columns")
         col_per_grp = int(n_cols/2)
+        num_col_grps = int(n_cols/col_per_grp)
         if col_per_grp > 1:
-            to_share = [[ax[r, i * col_per_grp + c] 
+            to_share = [[ax[r, col_grp * col_per_grp + c] 
                 for c in range(col_per_grp)] 
-                for i in range(2) for r in range(2)]
+                for col_grp in range(num_col_grps) for r in range(n_rows)]
+    elif kind == "traces_double":
+        if n_rows % 2 != 0 or n_cols != 4:
+            raise RuntimeError("Expected even number of rows and 4 columns.")
+        if doublets:
+            row_per_grp = 1
+        else:
+            row_per_grp = int(n_rows/2)
+        col_per_grp = int(n_cols/2)
+        num_row_grps = int(n_rows/row_per_grp)
+        num_col_grps = int(n_cols/col_per_grp)
+        if row_per_grp > 1 or col_per_grp > 1:
+            to_share = [
+                [ax[row_grp * row_per_grp + r, col_grp * col_per_grp + c] 
+                for r in range(row_per_grp) for c in range(col_per_grp)] 
+                for row_grp in range(num_row_grps) 
+                for col_grp in range(num_col_grps)
+                ]
+
     else:
         gen_util.accepted_values_error(
-            "kind", kind, ["reg", "traces", "prog", "idx", "map"])
+            "kind", kind, [
+                "reg", "traces", "traces_double", "prog", "idx", "map"]
+                )
 
     for axis_set in to_share:
         plot_util.set_shared_axes(axis_set, "y")
         if kind in ["traces", "idx"]:
             remove_labs = axis_set[:-1]
-        elif kind == "prog":
+        elif kind in "prog":
             remove_labs = axis_set[1:]
+        elif kind == "traces_double":
+            if doublets:
+                remove_labs = axis_set[1:]
+            else:
+                remove_labs = axis_set[:-2] + axis_set[-1:] # all but next to last
         for subax in remove_labs:
             subax.tick_params(axis="y", labelleft=False)
 
@@ -827,6 +866,8 @@ def get_yticklabel_info(ax, kind="reg"):
         - kind (str): kind of plot 
                       "reg" for single plot per layer/line, 
                       "traces" for traces plot per session (rows), 
+                      "traces_double" for traces plot with 2 plots 
+                          per row, 
                       "prog" for progression plot per session (cols), 
                       "idx" for unexpected data index plot per 
                            session (rows)
@@ -853,6 +894,8 @@ def get_yticklabel_info(ax, kind="reg"):
         add_yticks = ax[-1, 0:]
     elif len(axgrps) == ax.shape[0]: # sharing by row
         add_yticks = ax[:, 0].reshape(-1)
+    elif len(axgrps) == ax.shape[0] * ax.shape[1] // 2: # sharing by doublets
+        add_yticks = [axg[0] for axg in axgrps]
     else:
         raise NotImplementedError(f"Condition for {len(axgrps)} subplots in "
             "shared axis groups not implemented.")
@@ -895,6 +938,8 @@ def add_linpla_axislabels(ax, fluor="dff", area=False, scale=False,
         - kind (str)       : kind of plot 
                              "reg" for single plot per layer/line, 
                              "traces" for traces plot per session (rows),  
+                             "traces_double" for traces plot with 2 plots 
+                                 per row, 
                              "prog" for progression plot per session (cols), 
                              "idx" for unexpected data index plot per 
                                 session (rows)
@@ -922,6 +967,8 @@ def add_linpla_axislabels(ax, fluor="dff", area=False, scale=False,
             fig_ypos = 0.03
         elif kind in ["traces", "idx"]:
             fig_ypos = -0.01
+        elif kind == "traces_double":
+            fig_ypos = -0.01
         else:
             fig_ypos = -0.02
         fig.text(0.5, fig_ypos, x_str, fontsize="x-large", 
@@ -929,7 +976,7 @@ def add_linpla_axislabels(ax, fluor="dff", area=False, scale=False,
     else:
         for sub_ax in ax.reshape(-1):
             if plot_util.is_last_row(sub_ax):
-                if kind == "prog":
+                if kind in ["traces_double", "prog"]:
                     x_pos = fig.transFigure.inverted().transform(
                         sub_ax.transAxes.transform([0.5, 0]))[0]
                     fig.text(x_pos, 0, x_str, fontsize="x-large", 
@@ -954,7 +1001,7 @@ def add_linpla_axislabels(ax, fluor="dff", area=False, scale=False,
     # remove tick labels for all but last row and first column
     label_cols = [0]
     skip_x = False
-    if kind == "prog":
+    if kind in ["traces_double", "prog"]:
         label_cols = [0, col_per_grp]
     elif kind == "idx":
         skip_x = True
@@ -994,6 +1041,8 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind="reg",
         - kind (str)       : kind of plot 
                              "reg" for single plot per layer/line, 
                              "traces" for traces plot per session (rows), 
+                             "traces_double" for traces plot with 2 plots 
+                                 per row, 
                              "prog" for progression plot per session (cols), 
                              "idx" for unexpected data index plot per 
                                 session (rows)
@@ -1021,7 +1070,7 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind="reg",
             raise RuntimeError(
                 "Regular plots should have 2 rows and 2 columns."
                 )
-    elif kind == "prog":
+    elif kind in ["traces_double", "prog"]:
         if n_cols % 2 != 0:
             raise RuntimeError("Expected even number of columns")
         col_per_grp = int(n_cols/2)
@@ -1053,7 +1102,7 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind="reg",
                 if len(xticks) == 1:
                     sub_ax.set_xlim(xticks[0] - 1, xticks[0] + 1)
             # add session numbers
-            if kind in ["traces", "idx", "prog"] and sess_ns is not None:
+            if kind in ["traces", "traces_double", "idx", "prog"] and sess_ns is not None:
                 if sess_text:
                     # place session labels in right/top subplots
                     if kind == "prog":
@@ -1062,7 +1111,8 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind="reg",
                             sess_idx = None
                     else:
                         sess_idx = r
-                        if c != 1 or r >= len(sess_ns):
+                        targ_col = 3 if kind == "traces_double" else 1
+                        if c != targ_col or r >= len(sess_ns):
                             sess_idx = None
                     if sess_idx is not None:
                         sess_lab = f"sess {sess_ns[sess_idx]}"
@@ -1082,13 +1132,12 @@ def format_each_linpla_subaxis(ax, xticks=None, sess_ns=None, kind="reg",
 
             # remove y ticks and spines from graphs
             colNum = sub_ax.get_subplotspec().colspan.start
-            if kind == "prog" and not colNum in [0, col_per_grp]:
+            if kind in ["prog", "traces_double"] and not colNum in [0, col_per_grp]:
                 sub_ax.tick_params(axis="y", which="both", left=False) 
                 sub_ax.spines["left"].set_visible(False)
 
             yticks = [np.around(v, 10) for v in sub_ax.get_yticks()]
-            if kind in ["traces", "idx"] and len(yticks) > 3:
-
+            if kind in ["traces", "traces_double", "idx"] and len(yticks) > 3:
                 max_abs = np.max(np.absolute(yticks))
                 new = [-max_abs, 0, max_abs]
                 yticks = list(filter(lambda x: x == 0 or x in yticks, new))
@@ -1144,6 +1193,8 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
                               default: None
         - kind (str)        : kind of plot 
                               "reg" for single plot per layer/line, 
+                              "traces_double" for traces plot with 2 plots 
+                                  per row, 
                               "traces" for traces plot per session (rows), 
                               "prog" for progression plot per session (cols), 
                               "idx" for unexpected data index plot per 
@@ -1192,15 +1243,25 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
         if n_cols % 2 != 0:
             raise RuntimeError("Expected even number of columns")
         col_per_grp = int(n_cols/2)
+    elif kind == "traces_double":
+        n = 3
+        fig_xpos = 1.0 # for plane names (x pos)
+        fig_ypos = 1.04 # for line names (y pos)
+        if n_rows % 2 != 0:
+            raise RuntimeError("Expected an even number of rows")
+        if n_cols != 4:
+            raise RuntimeError("Expected 4 columns")
+        row_per_grp = int(n_rows/2)
+        col_per_grp = int(n_cols/2)
     else:
         gen_util.accepted_values_error(
-            "kind", kind, ["reg", "traces", "prog", "idx"])
+            "kind", kind, ["reg", "traces", "traces_double", "prog", "idx"])
 
     if kind in ["reg", "prog", "idx"]:
         plot_util.set_interm_ticks(ax, n, axis="y", weight="bold", share=False)
 
     # get x axis label and tick information
-    if kind == "traces":
+    if kind in ["traces", "traces_double"]:
         xlab = "Time (s)" if xlab is None else xlab
     elif kind == "idx":
         xlab = "Index" if xlab is None else xlab
@@ -1233,7 +1294,7 @@ def format_linpla_subaxes(ax, fluor="dff", area=False, datatype="roi",
     line_pos = plot_util.get_fig_rel_pos(ax, col_per_grp, axis="x")
     for c, (line, pos) in enumerate(zip(lines, line_pos)):
         line_name = f"{line} Pyr" if len(line) and line[1].isdigit() else line
-        if kind != "prog" and col_per_grp == 1:
+        if kind not in ["prog", "double_traces"] and col_per_grp == 1:
             ax[0, c].set_title(line_name, weight="bold", y=fig_ypos) 
         else:
             # get ypos based on plane positions
