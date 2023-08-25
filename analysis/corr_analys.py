@@ -152,7 +152,7 @@ def get_corr_info(permpar, corr_type="corr", permute="sess", norm=True):
     if permute == "sess":
         paired = True
     elif permute == "tracking":
-        paired = "within"
+        paired = "between"
     elif permute == "all":
         paired = False
     else:
