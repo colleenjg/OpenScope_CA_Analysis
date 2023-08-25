@@ -181,10 +181,11 @@ def plot_stim_idx_hist(sub_ax, data, CI_lims, n_bins=None, rand_data=None,
 
     # add a chance line
     if plot == "percs":
+        bin_width = np.diff(bin_edges).mean()
         if density:
-            n_rand = 1 / n_bins
+            n_rand = 1 / (n_bins * bin_width)
         else:
-            n_rand = np.mean(data) / n_bins
+            n_rand = np.mean(data)
         sub_ax.axhline(
             y=n_rand, ls=plot_helper_fcts.HDASH, c="k", lw=3.0, alpha=0.5
             )
