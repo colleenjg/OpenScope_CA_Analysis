@@ -32,7 +32,10 @@ from extra_plot_fcts import plot_from_dicts_tool as plot_dicts
 
 DEFAULT_DATADIR = Path("..", "data", "OSCA")
 DEFAULT_MOUSE_DF_PATH = Path("mouse_df.csv")
+
 DEFAULT_FONTDIR = Path("..", "tools", "fonts")
+if not DEFAULT_FONTDIR.is_dir():
+    DEFAULT_FONTDIR = Path("..", "..", "tools", "fonts")
 
 
 ANALYSIS_DESCR = {
