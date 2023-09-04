@@ -31,6 +31,8 @@ from extra_plot_fcts import logreg_plots, glm_plots
 
 
 DEFAULT_FONTDIR = Path("..", "tools", "fonts")
+if not DEFAULT_FONTDIR.is_dir():
+    DEFAULT_FONTDIR = Path("..", "..", "tools", "fonts")
 
 
 logger = logger_util.get_module_logger(name=__name__)
