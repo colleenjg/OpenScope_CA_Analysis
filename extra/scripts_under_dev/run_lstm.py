@@ -21,7 +21,10 @@ from sess_util import sess_data_util, sess_plot_util, sess_gen_util
 
 DEFAULT_DATADIR = Path("..", "data", "OSCA")
 DEFAULT_MOUSE_DF_PATH = Path("mouse_df.csv")
+
 DEFAULT_FONTDIR = Path("..", "tools", "fonts")
+if not DEFAULT_FONTDIR.is_dir():
+    DEFAULT_FONTDIR = Path("..", "..", "tools", "fonts")
 
 
 logger = logger_util.get_module_logger(name=__name__)
