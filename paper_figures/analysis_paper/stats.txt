@@ -119,43 +119,7 @@ Duration: 6.51s
 
 ________________________________________________________________________________
 ================================================================================
-Fig. 2-1A (analysis paper). Producing plot: ROI responses to Gabor sequences, early and late in sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig2-1/data_files/panel_A.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under paper_figures/analysis_paper/Fig2-1.
-Duration: 18.68s
-
-
-================================================================================
-Fig. 2-1B (analysis paper). Producing plot: Differences in ROI responses to unexpected and expected Gabor sequences, early and late in sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig2-1/data_files/panel_B.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (12 comparisons, two-tailed):
-    L2/3-D (early vs late):     S1: 0.00000***     S2: 1.00000        S3: 0.00000***
-    L2/3-S (early vs late):     S1: 1.00000        S2: 1.00000        S3: 0.65976   
-    L5-D   (early vs late):     S1: 0.00000***     S2: 0.00000***     S3: 1.00000   
-    L5-S   (early vs late):     S1: 1.00000        S2: 1.00000        S3: 0.29664   
-
-Figures saved under paper_figures/analysis_paper/Fig2-1.
-Duration: 6.56s
-
-
-________________________________________________________________________________
-================================================================================
-Fig. 3A (analysis paper). Producing plot: Example ROI responses to Gabor sequences.
+Fig. 3A (analysis paper). Producing plot: ROI responses to Gabor sequences, early and late in sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
@@ -165,45 +129,81 @@ Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
 Figures saved under paper_figures/analysis_paper/Fig3.
-Duration: 10.51s
+Duration: 18.68s
 
 
 ================================================================================
-Fig. 3B (analysis paper). Producing plot: Example Gabor USI null distribution for a single ROI.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig3/data_files/panel_B.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under paper_figures/analysis_paper/Fig3.
-Duration: 6.58s
-
-
-================================================================================
-Fig. 3C (analysis paper). Producing plot: Distributions of Gabor USI percentiles.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig3/data_files/panel_C.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under paper_figures/analysis_paper/Fig3.
-Duration: 7.51s
-
-
-================================================================================
-Fig. 3D (analysis paper). Producing plot: Percentages of significant Gabor USIs.
+Fig. 3B (analysis paper). Producing plot: Differences in ROI responses to unexpected and expected Gabor sequences, early and late in sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig3/data_files/panel_D.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig3/data_files/panel_B.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (12 comparisons, two-tailed):
+    L2/3-D (early vs late):     S1: 0.00000***     S2: 1.00000        S3: 0.00000***
+    L2/3-S (early vs late):     S1: 1.00000        S2: 1.00000        S3: 0.65976   
+    L5-D   (early vs late):     S1: 0.00000***     S2: 0.00000***     S3: 1.00000   
+    L5-S   (early vs late):     S1: 1.00000        S2: 1.00000        S3: 0.29664   
+
+Figures saved under paper_figures/analysis_paper/Fig3.
+Duration: 6.56s
+
+
+________________________________________________________________________________
+================================================================================
+Fig. 4A (analysis paper). Producing plot: Example ROI responses to Gabor sequences.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4/data_files/panel_A.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Figures saved under paper_figures/analysis_paper/Fig4.
+Duration: 10.51s
+
+
+================================================================================
+Fig. 4B (analysis paper). Producing plot: Example Gabor USI null distribution for a single ROI.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4/data_files/panel_B.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Figures saved under paper_figures/analysis_paper/Fig4.
+Duration: 6.58s
+
+
+================================================================================
+Fig. 4C (analysis paper). Producing plot: Distributions of Gabor USI percentiles.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4/data_files/panel_C.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Figures saved under paper_figures/analysis_paper/Fig4.
+Duration: 7.51s
+
+
+================================================================================
+Fig. 4D (analysis paper). Producing plot: Percentages of significant Gabor USIs.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4/data_files/panel_D.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -211,18 +211,18 @@ Corrected p-values (8 comparisons, two-tailed):
     Low tail :    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00352** 
     High tail:    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00000***
 
-Figures saved under paper_figures/analysis_paper/Fig3.
+Figures saved under paper_figures/analysis_paper/Fig4.
 Duration: 4.81s
 
 
 ================================================================================
-Fig. 3E (analysis paper). Producing plot: Percentages of significant Gabor USIs for sequences with orientations common to D/U.
+Fig. 4E (analysis paper). Producing plot: Percentages of significant Gabor USIs for sequences with orientations common to D/U.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig3/data_files/panel_E.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4/data_files/panel_E.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -230,32 +230,32 @@ Corrected p-values (8 comparisons, two-tailed):
     Low tail :    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00002***
     High tail:    L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 0.00000***
 
-Figures saved under paper_figures/analysis_paper/Fig3.
+Figures saved under paper_figures/analysis_paper/Fig4.
 Duration: 4.98s
 
 
 ================================================================================
-Fig. 3F (analysis paper). Producing plot: Tracked ROI Gabor USIs across sessions.
+Fig. 4F (analysis paper). Producing plot: Tracked ROI Gabor USIs across sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig3/data_files/panel_F.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4/data_files/panel_F.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
-Figures saved under paper_figures/analysis_paper/Fig3.
+Figures saved under paper_figures/analysis_paper/Fig4.
 Duration: 7.82s
 
 
 ================================================================================
-Fig. 3G (analysis paper). Producing plot: Absolute means of tracked ROI Gabor USIs across sessions.
+Fig. 4G (analysis paper). Producing plot: Absolute means of tracked ROI Gabor USIs across sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig3/data_files/panel_G.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4/data_files/panel_G.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -265,18 +265,18 @@ Corrected p-values (12 comparisons, two-tailed):
     L5-D   (between sessions):     S1v2: 0.00000***     S1v3: 0.00000***     S2v3: 1.00000   
     L5-S   (between sessions):     S1v2: 0.00024***     S1v3: 0.00408**      S2v3: 0.68280   
 
-Figures saved under paper_figures/analysis_paper/Fig3.
+Figures saved under paper_figures/analysis_paper/Fig4.
 Duration: 4.94s
 
 
 ================================================================================
-Fig. 3H (analysis paper). Producing plot: Variances of tracked ROI Gabor USIs across sessions.
+Fig. 4H (analysis paper). Producing plot: Variances of tracked ROI Gabor USIs across sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig3/data_files/panel_H.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4/data_files/panel_H.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -286,19 +286,19 @@ Corrected p-values (12 comparisons, two-tailed):
     L5-D   (between sessions):     S1v2: 0.07704        S1v3: 0.00792**      S2v3: 1.00000   
     L5-S   (between sessions):     S1v2: 0.00000***     S1v3: 0.00192**      S2v3: 0.94368   
 
-Figures saved under paper_figures/analysis_paper/Fig3.
+Figures saved under paper_figures/analysis_paper/Fig4.
 Duration: 4.68s
 
 
 ________________________________________________________________________________
 ================================================================================
-Fig. 3-1A (analysis paper). Producing plot: Percentages of significant Gabor USIs for each mouse.
+Fig. 5A (analysis paper). Producing plot: Percentages of significant Gabor USIs for each mouse.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig3-1/data_files/panel_A.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig5/data_files/panel_A.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -314,18 +314,18 @@ Corrected p-values (22 comparisons, two-tailed):
 	L5-D  :     (~1%)  0.20194       (~6%)  0.03215*      (~10%) 0.00000***
 	L5-S  :     (~7%)  1.00000       (~32%) 0.00000***    (~34%) 0.00000***
 
-Figures saved under paper_figures/analysis_paper/Fig3-1.
+Figures saved under paper_figures/analysis_paper/Fig5.
 Duration: 4.54s
 
 
 ================================================================================
-Fig. 3-1B (analysis paper). Producing plot: Tracked ROI responses to regular and unexpected Gabor sequences, relative to session 1.
+Fig. 5B (analysis paper). Producing plot: Tracked ROI responses to regular and unexpected Gabor sequences, relative to session 1.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig3-1/data_files/panel_B.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig5/data_files/panel_B.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -341,52 +341,52 @@ Corrected p-values (24 comparisons, two-tailed):
     L5-D   (between sessions):     S1v2: 0.00000***     S1v3: 0.00000***     S2v3: 1.00000   
     L5-S   (between sessions):     S1v2: 0.13632        S1v3: 0.00000***     S2v3: 1.00000   
 
-Figures saved under paper_figures/analysis_paper/Fig3-1.
+Figures saved under paper_figures/analysis_paper/Fig5.
 Duration: 5.29s
 
 
 ================================================================================
-Fig. 3-1C (analysis paper). Producing plot: Absolute means of tracked ROI Gabor USIs across sessions for each mouse.
+Fig. 5C (analysis paper). Producing plot: Absolute means of tracked ROI Gabor USIs across sessions for each mouse.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig3-1/data_files/panel_C.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig5/data_files/panel_C.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
-Figures saved under paper_figures/analysis_paper/Fig3-1.
+Figures saved under paper_figures/analysis_paper/Fig5.
 Duration: 4.88s
 Duration: 0.00s (failed)
 
 ________________________________________________________________________________
 ================================================================================
-Fig. 4A (analysis paper).. Cannot plot figure panel as it was drawn manually from images.
+Fig. 6A (analysis paper).. Cannot plot figure panel as it was drawn manually from images.
 
 
 ================================================================================
-Fig. 4B (analysis paper). Producing plot: ROI responses to visual flow sequences.
+Fig. 6B (analysis paper). Producing plot: ROI responses to visual flow sequences.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4/data_files/panel_B.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig6/data_files/panel_B.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
-Figures saved under paper_figures/analysis_paper/Fig4.
+Figures saved under paper_figures/analysis_paper/Fig6.
 Duration: 7.65s
 
 
 ================================================================================
-Fig. 4C (analysis paper). Producing plot: Differences in ROI responses to unexpected and expected visual flow sequences.
+Fig. 6C (analysis paper). Producing plot: Differences in ROI responses to unexpected and expected visual flow sequences.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4/data_files/panel_C.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig6/data_files/panel_C.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -402,19 +402,19 @@ Corrected p-values (24 comparisons, two-tailed):
     L5-D   (between sessions):     S1v2: 0.00000***     S1v3: 0.00000***     S2v3: 0.00000***
     L5-S   (between sessions):     S1v2: 1.00000        S1v3: 1.00000        S2v3: 1.00000   
 
-Figures saved under paper_figures/analysis_paper/Fig4.
+Figures saved under paper_figures/analysis_paper/Fig6.
 Duration: 5.31s
 
 
 ________________________________________________________________________________
 ================================================================================
-Fig. 4-1A (analysis paper). Producing plot: ROI responses to expected and unexpected visual flow sequences, relative to session 1.
+Fig. 7A (analysis paper). Producing plot: ROI responses to expected and unexpected visual flow sequences, relative to session 1.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4-1/data_files/panel_A.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig7/data_files/panel_A.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -430,248 +430,12 @@ Corrected p-values (24 comparisons, two-tailed):
     L5-D   (between sessions):     S1v2: 0.00000***     S1v3: 0.05712        S2v3: 0.34368   
     L5-S   (between sessions):     S1v2: 0.06720        S1v3: 1.00000        S2v3: 0.62112   
 
-Figures saved under paper_figures/analysis_paper/Fig4-1.
+Figures saved under paper_figures/analysis_paper/Fig7.
 Duration: 5.36s
 
 
 ================================================================================
-Fig. 4-1B (analysis paper). Producing plot: Change in ROI responses to unexpected sequences for the Gabor vs visual flow stimulus.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4-1/data_files/panel_B.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (5 comparisons, two-tailed):
-    Gabors vs visual flow:     L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 1.00000       All: 0.00000***
-
-Figures saved under paper_figures/analysis_paper/Fig4-1.
-Duration: 6.10s
-
-
-================================================================================
-Fig. 4-1C (analysis paper). Producing plot: Tracked ROI visual flow USIs across sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4-1/data_files/panel_C.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under paper_figures/analysis_paper/Fig4-1.
-Duration: 8.51s
-
-
-================================================================================
-Fig. 4-1D (analysis paper). Producing plot: Absolute means of tracked ROI visual flow USIs across sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4-1/data_files/panel_D.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (12 comparisons, two-tailed):
-    L2/3-D (between sessions):     S1v2: 1.00000        S1v3: 0.03432*       S2v3: 0.14688   
-    L2/3-S (between sessions):     S1v2: 1.00000        S1v3: 0.00000***     S2v3: 0.02592*  
-    L5-D   (between sessions):     S1v2: 1.00000        S1v3: 1.00000        S2v3: 0.58776   
-    L5-S   (between sessions):     S1v2: 1.00000        S1v3: 1.00000        S2v3: 1.00000   
-
-Figures saved under paper_figures/analysis_paper/Fig4-1.
-Duration: 4.80s
-
-
-================================================================================
-Fig. 4-1E (analysis paper). Producing plot: Change in tracked ROI USIs for the Gabor vs visual flow stimulus.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig4-1/data_files/panel_E.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (5 comparisons, two-tailed):
-    Gabors vs visual flow:     L2/3-D: 0.65000       L2/3-S: 1.00000       L5-D: 0.00500**     L5-S: 0.24270       All: 0.00060***
-
-Figures saved under paper_figures/analysis_paper/Fig4-1.
-Duration: 6.42s
-
-
-________________________________________________________________________________
-================================================================================
-Fig. 5A (analysis paper). Producing plot: Running and pupil responses to Gabor sequences.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- Running and pupil images will be missing.
-
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig5/data_files/panel_A.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Figures saved under paper_figures/analysis_paper/Fig5.
-Duration: 3.89s
-
-
-================================================================================
-Fig. 5B (analysis paper). Producing plot: Trial differences in running and pupil responses U-G vs D-G Gabor sequences.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig5/data_files/panel_B.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Raw p-values (two-tailed):
-    Running velocity:    L2/3-D: 0.96460       L2/3-S: 0.27680       L5-D: 0.80780       L5-S: 0.44040   
-    Pupil diameter  :    L2/3-D: 0.89240       L2/3-S: 0.19560       L5-D: 0.96880       L5-S: 0.26840   
-
-Figures saved under paper_figures/analysis_paper/Fig5.
-Duration: 4.78s
-
-
-________________________________________________________________________________
-================================================================================
-Fig. 6A (analysis paper). Producing plot: Gabor USI session 1 vs 2 correlation scatterplots.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig6/data_files/panel_A.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (8 comparisons, one-tailed):
-        L2/3-D: 0.00008***    L2/3-S: 0.84296       L5-D: 0.00000***    L5-S: 1.00000   
-
-Figures saved under paper_figures/analysis_paper/Fig6.
-Duration: 5.91s
-
-
-================================================================================
-Fig. 6B (analysis paper). Producing plot: Gabor USI session 2 vs 3 correlation scatterplots.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig6/data_files/panel_B.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (8 comparisons, one-tailed):
-        L2/3-D: 1.00000       L2/3-S: 1.00000       L5-D: 1.00000       L5-S: 1.00000   
-
-Figures saved under paper_figures/analysis_paper/Fig6.
-Duration: 6.46s
-
-
-================================================================================
-Fig. 6C (analysis paper). Producing plot: Gabor USI correlations between sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig6/data_files/panel_C.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (8 comparisons, one-tailed):
-    L2/3-D:    S1v2: 0.00008***    S2v3: 1.00000   
-    L2/3-S:    S1v2: 0.84296       S2v3: 1.00000   
-    L5-D  :    S1v2: 0.00000***    S2v3: 1.00000   
-    L5-S  :    S1v2: 1.00000       S2v3: 1.00000   
-
-Figures saved under paper_figures/analysis_paper/Fig6.
-Duration: 5.21s
-
-
-================================================================================
-Fig. 6D (analysis paper). Producing plot: Visual flow USI session 1 vs 2 correlation scatterplots.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig6/data_files/panel_D.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (8 comparisons, one-tailed):
-        L2/3-D: 1.00000       L2/3-S: 1.00000       L5-D: 1.00000       L5-S: 1.00000   
-
-Figures saved under paper_figures/analysis_paper/Fig6.
-Duration: 5.70s
-
-
-================================================================================
-Fig. 6E (analysis paper). Producing plot: Visual flow USI session 2 vs 3 correlation scatterplots.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig6/data_files/panel_E.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (8 comparisons, one-tailed):
-        L2/3-D: 1.00000       L2/3-S: 1.00000       L5-D: 1.00000       L5-S: 1.00000   
-
-Figures saved under paper_figures/analysis_paper/Fig6.
-Duration: 5.68s
-
-
-================================================================================
-Fig. 6F (analysis paper). Producing plot: Visual flow USI correlations between sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig6/data_files/panel_F.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (8 comparisons, one-tailed):
-    L2/3-D:    S1v2: 1.00000       S2v3: 1.00000   
-    L2/3-S:    S1v2: 1.00000       S2v3: 1.00000   
-    L5-D  :    S1v2: 1.00000       S2v3: 1.00000   
-    L5-S  :    S1v2: 1.00000       S2v3: 1.00000   
-
-Figures saved under paper_figures/analysis_paper/Fig6.
-Duration: 4.97s
-
-
-________________________________________________________________________________
-================================================================================
-Fig. 7A (analysis paper). Producing plot: Mean Gabor A orientation decoder performances across sessions.
-
-WARNING: 
-- Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
-
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig7/data_files/panel_A.json.
-Replotting from existing file.
-To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
-
-Corrected p-values (60 comparisons, one-tailed):
-    L2/3-D (within session):     S1: 1.00000        S2: 1.00000        S3: 1.00000   
-    L2/3-S (within session):     S1: 0.00000***     S2: 0.00540**      S3: 0.01740*  
-    L5-D   (within session):     S1: 0.33660        S2: 1.00000        S3: 1.00000   
-    L5-S   (within session):     S1: 0.70560        S2: 1.00000        S3: 1.00000   
-
-Figures saved under paper_figures/analysis_paper/Fig7.
-Duration: 4.88s
-
-
-================================================================================
-Fig. 7B (analysis paper). Producing plot: Mean Gabor B orientation decoder performances across sessions.
+Fig. 7B (analysis paper). Producing plot: Change in ROI responses to unexpected sequences for the Gabor vs visual flow stimulus.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
@@ -681,39 +445,29 @@ WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig7/da
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
-Corrected p-values (60 comparisons, one-tailed):
-    L2/3-D (within session):     S1: 1.00000        S2: 0.23220        S3: 0.12660   
-    L2/3-S (within session):     S1: 0.00000***     S2: 0.00000***     S3: 0.00000***
-    L5-D   (within session):     S1: 0.00780**      S2: 0.01980*       S3: 0.06300   
-    L5-S   (within session):     S1: 0.03180*       S2: 0.50880        S3: 0.08520   
+Corrected p-values (5 comparisons, two-tailed):
+    Gabors vs visual flow:     L2/3-D: 0.00000***    L2/3-S: 0.00000***    L5-D: 0.00000***    L5-S: 1.00000       All: 0.00000***
 
 Figures saved under paper_figures/analysis_paper/Fig7.
-Duration: 4.74s
+Duration: 6.10s
 
 
 ================================================================================
-Fig. 7C (analysis paper). Producing plot: Mean Gabor C orientation decoder performances across sessions.
+Fig. 7C (analysis paper). Producing plot: Tracked ROI visual flow USIs across sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
-- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
 WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig7/data_files/panel_C.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
-Corrected p-values (60 comparisons, one-tailed):
-    L2/3-D (within session):     S1: 0.47100        S2: 0.00180**      S3: 0.11640   
-    L2/3-S (within session):     S1: 0.00000***     S2: 0.00000***     S3: 0.00060***
-    L5-D   (within session):     S1: 0.02880*       S2: 0.00060***     S3: 0.00420** 
-    L5-S   (within session):     S1: 0.09180        S2: 0.15900        S3: 0.00060***
-
 Figures saved under paper_figures/analysis_paper/Fig7.
-Duration: 4.88s
+Duration: 8.51s
 
 
 ================================================================================
-Fig. 7D (analysis paper). Producing plot: Mean Gabor D orientation decoder performances across sessions.
+Fig. 7D (analysis paper). Producing plot: Absolute means of tracked ROI visual flow USIs across sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
@@ -723,24 +477,270 @@ WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig7/da
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
-Corrected p-values (60 comparisons, one-tailed):
-    L2/3-D (within session):     S1: 0.00060***     S2: 0.00180**      S3: 0.11400   
-    L2/3-S (within session):     S1: 0.00000***     S2: 0.00000***     S3: 0.00000***
-    L5-D   (within session):     S1: 0.00120**      S2: 0.01200*       S3: 0.01140*  
-    L5-S   (within session):     S1: 0.00120**      S2: 1.00000        S3: 0.00060***
+Corrected p-values (12 comparisons, two-tailed):
+    L2/3-D (between sessions):     S1v2: 1.00000        S1v3: 0.03432*       S2v3: 0.14688   
+    L2/3-S (between sessions):     S1v2: 1.00000        S1v3: 0.00000***     S2v3: 0.02592*  
+    L5-D   (between sessions):     S1v2: 1.00000        S1v3: 1.00000        S2v3: 0.58776   
+    L5-S   (between sessions):     S1v2: 1.00000        S1v3: 1.00000        S2v3: 1.00000   
 
 Figures saved under paper_figures/analysis_paper/Fig7.
 Duration: 4.80s
 
 
 ================================================================================
-Fig. 7E (analysis paper). Producing plot: Mean Gabor U orientation decoder performances across sessions.
+Fig. 7E (analysis paper). Producing plot: Change in tracked ROI USIs for the Gabor vs visual flow stimulus.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig7/data_files/panel_E.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (5 comparisons, two-tailed):
+    Gabors vs visual flow:     L2/3-D: 0.65000       L2/3-S: 1.00000       L5-D: 0.00500**     L5-S: 0.24270       All: 0.00060***
+
+Figures saved under paper_figures/analysis_paper/Fig7.
+Duration: 6.42s
+
+
+________________________________________________________________________________
+================================================================================
+Fig. 8A (analysis paper). Producing plot: Running and pupil responses to Gabor sequences.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- Running and pupil images will be missing.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig8/data_files/panel_A.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Figures saved under paper_figures/analysis_paper/Fig8.
+Duration: 3.89s
+
+
+================================================================================
+Fig. 8B (analysis paper). Producing plot: Trial differences in running and pupil responses U-G vs D-G Gabor sequences.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig8/data_files/panel_B.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Raw p-values (two-tailed):
+    Running velocity:    L2/3-D: 0.96460       L2/3-S: 0.27680       L5-D: 0.80780       L5-S: 0.44040   
+    Pupil diameter  :    L2/3-D: 0.89240       L2/3-S: 0.19560       L5-D: 0.96880       L5-S: 0.26840   
+
+Figures saved under paper_figures/analysis_paper/Fig8.
+Duration: 4.78s
+
+
+________________________________________________________________________________
+================================================================================
+Fig. 9A (analysis paper). Producing plot: Gabor USI session 1 vs 2 correlation scatterplots.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig9/data_files/panel_A.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (8 comparisons, one-tailed):
+        L2/3-D: 0.00008***    L2/3-S: 0.84296       L5-D: 0.00000***    L5-S: 1.00000   
+
+Figures saved under paper_figures/analysis_paper/Fig9.
+Duration: 5.91s
+
+
+================================================================================
+Fig. 9B (analysis paper). Producing plot: Gabor USI session 2 vs 3 correlation scatterplots.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig9/data_files/panel_B.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (8 comparisons, one-tailed):
+        L2/3-D: 1.00000       L2/3-S: 1.00000       L5-D: 1.00000       L5-S: 1.00000   
+
+Figures saved under paper_figures/analysis_paper/Fig9.
+Duration: 6.46s
+
+
+================================================================================
+Fig. 9C (analysis paper). Producing plot: Gabor USI correlations between sessions.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig7/data_files/panel_E.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig9/data_files/panel_C.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (8 comparisons, one-tailed):
+    L2/3-D:    S1v2: 0.00008***    S2v3: 1.00000   
+    L2/3-S:    S1v2: 0.84296       S2v3: 1.00000   
+    L5-D  :    S1v2: 0.00000***    S2v3: 1.00000   
+    L5-S  :    S1v2: 1.00000       S2v3: 1.00000   
+
+Figures saved under paper_figures/analysis_paper/Fig9.
+Duration: 5.21s
+
+
+================================================================================
+Fig. 9D (analysis paper). Producing plot: Visual flow USI session 1 vs 2 correlation scatterplots.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig9/data_files/panel_D.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (8 comparisons, one-tailed):
+        L2/3-D: 1.00000       L2/3-S: 1.00000       L5-D: 1.00000       L5-S: 1.00000   
+
+Figures saved under paper_figures/analysis_paper/Fig9.
+Duration: 5.70s
+
+
+================================================================================
+Fig. 9E (analysis paper). Producing plot: Visual flow USI session 2 vs 3 correlation scatterplots.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig9/data_files/panel_E.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (8 comparisons, one-tailed):
+        L2/3-D: 1.00000       L2/3-S: 1.00000       L5-D: 1.00000       L5-S: 1.00000   
+
+Figures saved under paper_figures/analysis_paper/Fig9.
+Duration: 5.68s
+
+
+================================================================================
+Fig. 9F (analysis paper). Producing plot: Visual flow USI correlations between sessions.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig9/data_files/panel_F.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (8 comparisons, one-tailed):
+    L2/3-D:    S1v2: 1.00000       S2v3: 1.00000   
+    L2/3-S:    S1v2: 1.00000       S2v3: 1.00000   
+    L5-D  :    S1v2: 1.00000       S2v3: 1.00000   
+    L5-S  :    S1v2: 1.00000       S2v3: 1.00000   
+
+Figures saved under paper_figures/analysis_paper/Fig9.
+Duration: 4.97s
+
+
+________________________________________________________________________________
+================================================================================
+Fig. 10A (analysis paper). Producing plot: Mean Gabor A orientation decoder performances across sessions.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig10/data_files/panel_A.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (60 comparisons, one-tailed):
+    L2/3-D (within session):     S1: 1.00000        S2: 1.00000        S3: 1.00000   
+    L2/3-S (within session):     S1: 0.00000***     S2: 0.00540**      S3: 0.01740*  
+    L5-D   (within session):     S1: 0.33660        S2: 1.00000        S3: 1.00000   
+    L5-S   (within session):     S1: 0.70560        S2: 1.00000        S3: 1.00000   
+
+Figures saved under paper_figures/analysis_paper/Fig10.
+Duration: 4.88s
+
+
+================================================================================
+Fig. 10B (analysis paper). Producing plot: Mean Gabor B orientation decoder performances across sessions.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig10/data_files/panel_B.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (60 comparisons, one-tailed):
+    L2/3-D (within session):     S1: 1.00000        S2: 0.23220        S3: 0.12660   
+    L2/3-S (within session):     S1: 0.00000***     S2: 0.00000***     S3: 0.00000***
+    L5-D   (within session):     S1: 0.00780**      S2: 0.01980*       S3: 0.06300   
+    L5-S   (within session):     S1: 0.03180*       S2: 0.50880        S3: 0.08520   
+
+Figures saved under paper_figures/analysis_paper/Fig10.
+Duration: 4.74s
+
+
+================================================================================
+Fig. 10C (analysis paper). Producing plot: Mean Gabor C orientation decoder performances across sessions.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig10/data_files/panel_C.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (60 comparisons, one-tailed):
+    L2/3-D (within session):     S1: 0.47100        S2: 0.00180**      S3: 0.11640   
+    L2/3-S (within session):     S1: 0.00000***     S2: 0.00000***     S3: 0.00060***
+    L5-D   (within session):     S1: 0.02880*       S2: 0.00060***     S3: 0.00420** 
+    L5-S   (within session):     S1: 0.09180        S2: 0.15900        S3: 0.00060***
+
+Figures saved under paper_figures/analysis_paper/Fig10.
+Duration: 4.88s
+
+
+================================================================================
+Fig. 10D (analysis paper). Producing plot: Mean Gabor D orientation decoder performances across sessions.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig10/data_files/panel_D.json.
+Replotting from existing file.
+To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
+
+Corrected p-values (60 comparisons, one-tailed):
+    L2/3-D (within session):     S1: 0.00060***     S2: 0.00180**      S3: 0.11400   
+    L2/3-S (within session):     S1: 0.00000***     S2: 0.00000***     S3: 0.00000***
+    L5-D   (within session):     S1: 0.00120**      S2: 0.01200*       S3: 0.01140*  
+    L5-S   (within session):     S1: 0.00120**      S2: 1.00000        S3: 0.00060***
+
+Figures saved under paper_figures/analysis_paper/Fig10.
+Duration: 4.80s
+
+
+================================================================================
+Fig. 10E (analysis paper). Producing plot: Mean Gabor U orientation decoder performances across sessions.
+
+WARNING: 
+- Minor manual formatting adjustments may be missing.
+- This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
+
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig10/data_files/panel_E.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -750,19 +750,19 @@ Corrected p-values (60 comparisons, one-tailed):
     L5-D   (within session):     S1: 0.03720*       S2: 0.00000***     S3: 0.00000***
     L5-S   (within session):     S1: 0.00000***     S2: 0.47340        S3: 0.04680*  
 
-Figures saved under paper_figures/analysis_paper/Fig7.
+Figures saved under paper_figures/analysis_paper/Fig10.
 Duration: 4.83s
 
 
 ________________________________________________________________________________
 ================================================================================
-Fig. 7-1A (analysis paper). Producing plot: Mean Gabor timecourse orientation decoder performances for session 1.
+Fig. 11A (analysis paper). Producing plot: Mean Gabor timecourse orientation decoder performances for session 1.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig7-1/data_files/panel_A.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig11/data_files/panel_A.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -772,18 +772,18 @@ Corrected p-values (8 comparisons, one-tailed):
         L5-D   (# signif. time points):    D seq.:  0/45    U seq.:  4/45
         L5-S   (# signif. time points):    D seq.:  5/45    U seq.: 11/45
 
-Figures saved under paper_figures/analysis_paper/Fig7-1.
+Figures saved under paper_figures/analysis_paper/Fig11.
 Duration: 6.84s
 
 
 ================================================================================
-Fig. 7-1B (analysis paper). Producing plot: Mean Gabor timecourse orientation decoder performances for session 2.
+Fig. 11B (analysis paper). Producing plot: Mean Gabor timecourse orientation decoder performances for session 2.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig7-1/data_files/panel_B.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig11/data_files/panel_B.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -793,18 +793,18 @@ Corrected p-values (8 comparisons, one-tailed):
         L5-D   (# signif. time points):    D seq.:  3/45    U seq.:  6/45
         L5-S   (# signif. time points):    D seq.:  0/45    U seq.:  0/45
 
-Figures saved under paper_figures/analysis_paper/Fig7-1.
+Figures saved under paper_figures/analysis_paper/Fig11.
 Duration: 6.35s
 
 
 ================================================================================
-Fig. 7-1C (analysis paper). Producing plot: Mean Gabor timecourse orientation decoder performances for session 3.
+Fig. 11C (analysis paper). Producing plot: Mean Gabor timecourse orientation decoder performances for session 3.
 
 WARNING: 
 - Minor manual formatting adjustments may be missing.
 - This figure panel includes statistical analyses. Statistical markers may not be ideally spaced out, and running full analyses may take longer.
 
-WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig7-1/data_files/panel_C.json.
+WARNING: Analysis data already exists under paper_figures/analysis_paper/Fig11/data_files/panel_C.json.
 Replotting from existing file.
 To overwrite file, run script with the '--overwrite' argument, and without --plot_only.
 
@@ -814,5 +814,5 @@ Corrected p-values (8 comparisons, one-tailed):
         L5-D   (# signif. time points):    D seq.:  0/45    U seq.: 13/45
         L5-S   (# signif. time points):    D seq.:  6/45    U seq.:  1/45
 
-Figures saved under paper_figures/analysis_paper/Fig7-1.
+Figures saved under paper_figures/analysis_paper/Fig11.
 Duration: 6.82s
