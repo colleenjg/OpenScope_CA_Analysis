@@ -3,9 +3,9 @@
 ## 1. Description
 This repository contains the code for analyzing the data from the Credit Assignment project, an [**Allen Institute for Brain Science**](https://alleninstitute.org/what-we-do/brain-science/) [**OpenScope**](https://alleninstitute.org/division/mindscope/openscope/) project. 
 
-The dataset is described and characterized in [Gillon _et al._, 2023](https://doi.org/10.1038/s41597-023-02214-y). Analyses and results are published in [Gillon _et al._, 2021, _bioRxiv_](https://www.biorxiv.org/content/10.1101/2021.01.15.426915).
+The dataset is described and characterized in [Gillon _et al._, 2023, _Sci Data_](https://doi.org/10.1038/s41597-023-02214-y). Analyses and results are published in [Gillon _et al._, 2023, _J Neurosci_](https://www.jneurosci.org/content/early/2023/11/13/JNEUROSCI.1009-23.2023).
 
-This branch provides a **minimal** example, with minimal dependencies. It can be used to rerun dataset-focused analyses (different from those in [Gillon _et al._, 2021, _bioRxiv_](https://www.biorxiv.org/content/10.1101/2021.01.15.426915)).
+This branch provides a **minimal** example, with minimal dependencies. It can be used to rerun dataset-focused analyses (different from those in [Gillon _et al._, 2021, _bioRxiv_](https://www.biorxiv.org/content/10.1101/2021.01.15.426915) and [Gillon _et al._, 2023, _J Neurosci_](https://www.jneurosci.org/content/early/2023/11/13/JNEUROSCI.1009-23.2023)).
 
 ## 2. Installation
 To run the code, you can install a conda-based environment manager (e.g., [Anaconda](https://www.anaconda.com/), [Miniconda](https://conda.io/miniconda.html) or [Mamba](https://mamba.readthedocs.io/en/latest/installation.html)).
