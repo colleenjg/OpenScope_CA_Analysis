@@ -1434,11 +1434,11 @@ class FigurePanelAnalysis():
                         "B": self.gabor_sequence_diffs_sess123,
                         "C": self.gabor_rel_resp_sess123,
                         },
-                    "2-1": {
+                    "3": {
                         "A": self.gabor_sequence_early_late_sess123,
                         "B": self.gabor_sequence_diffs_early_late_sess123,
                         },
-                    "3": {
+                    "4": {
                         "A": self.gabor_example_roi_usis,
                         "B": self.gabor_example_roi_usi_sig,
                         "C": self.gabor_roi_usi_distr,
@@ -1448,28 +1448,28 @@ class FigurePanelAnalysis():
                         "G": self.gabor_tracked_roi_abs_usi_means_sess123,
                         "H": self.gabor_tracked_roi_usi_variances_sess123,
                         },
-                    "3-1": {
+                    "5": {
                         "A": self.gabor_roi_usi_sig_by_mouse,
                         "B": self.gabor_rel_resp_tracked_rois_sess123,
                         "C": self.gabor_tracked_roi_abs_usi_means_sess123_by_mouse,
                         },
-                    "4": {
+                    "6": {
                         "A": self.visual_flow_stimulus,
                         "B": self.visual_flow_sequences_sess123,
                         "C": self.visual_flow_diffs_sess123,
                         },
-                    "4-1":  {
+                    "7":  {
                         "A": self.visual_flow_rel_resp_sess123,
                         "B": self.unexp_resp_stimulus_comp_sess1v3,
                         "C": self.visual_flow_tracked_roi_usis_sess123,
                         "D": self.visual_flow_tracked_roi_abs_usi_means_sess123,
                         "E": self.tracked_roi_usis_stimulus_comp_sess1v3,
                         },
-                    "5": {
+                    "8": {
                         "A": self.pupil_run_responses,
                         "B": self.pupil_run_block_diffs,
                         },
-                    "6":  {
+                    "9":  {
                         "A": self.gabor_corr_scatterplots_sess12,
                         "B": self.gabor_corr_scatterplots_sess23,
                         "C": self.gabor_corrs_sess123_comps,
@@ -1477,14 +1477,14 @@ class FigurePanelAnalysis():
                         "E": self.visual_flow_corr_scatterplots_sess23,
                         "F": self.visual_flow_corrs_sess123_comps,
                         },
-                    "7": {
+                    "10": {
                         "A": self.gabor_Aori_decoding_sess123,
                         "B": self.gabor_Bori_decoding_sess123,
                         "C": self.gabor_Cori_decoding_sess123,
                         "D": self.gabor_Dori_decoding_sess123,
                         "E": self.gabor_Uori_decoding_sess123,
                         },
-                    "7-1": {
+                    "11": {
                         "A": self.gabor_timecourse_decoding_sess1,
                         "B": self.gabor_timecourse_decoding_sess2,
                         "C": self.gabor_timecourse_decoding_sess3,
