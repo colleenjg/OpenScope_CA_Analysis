@@ -12,7 +12,7 @@ Note: this code was aggregated from https://github.com/colleenjg/OpenScope_CA_An
 
 import numpy as np
 
-from util import gen_util, logger_util, math_util, sess_util
+from credassign.util import gen_util, logger_util, math_util, sess_util
 
 TAB = "    "
 

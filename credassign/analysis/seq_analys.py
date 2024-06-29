@@ -14,8 +14,8 @@ import numpy as np
 import pandas as pd
 import scipy.stats as scist
 
-from util import gen_util, logger_util, math_util, sess_util
-from analysis import basic_analys, misc_analys
+from credassign.util import gen_util, logger_util, math_util, sess_util
+from credassign.analysis import basic_analys, misc_analys
 
 
 TAB = "    "
@@ -527,6 +527,11 @@ def get_ex_traces_df(sessions, analyspar, stimpar, basepar, n_ex=6,
 
         for column, value in retained_roi_data[i].items():
             retained_traces_df.at[row_idx, column] = value
+
+    # avoid a pandas squeezing bug
+    retained_traces_df["roi_ns"] = [
+        np.asarray(vals).reshape(-1) for vals in retained_traces_df["roi_ns"]
+        ]
 
     # select a few ROIs per line/plane/session
     columns = retained_traces_df.columns.tolist()

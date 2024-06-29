@@ -15,9 +15,9 @@ from matplotlib import pyplot as plt
 from matplotlib import ticker, patches
 import seaborn
 
-from util import gen_util, logger_util, math_util, plot_util
-from analysis import misc_analys
-from plot_fcts import misc_plots, plot_helper_fcts, seq_plots
+from credassign.util import gen_util, logger_util, math_util, plot_util
+from credassign.analysis import misc_analys
+from credassign.plot_fcts import misc_plots, plot_helper_fcts, seq_plots
 
 
 TAB = "    "

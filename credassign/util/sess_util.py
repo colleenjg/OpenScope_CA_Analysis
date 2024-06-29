@@ -18,8 +18,9 @@ from pathlib import Path
 import pandas as pd
 
 
-from util import gen_util, logger_util
+from credassign.util import gen_util, logger_util
 
+DEFAULT_MOUSE_DF_PATH = Path(Path(__file__).parent.parent, "mouse_df.csv")
 
 logger = logger_util.get_module_logger(name=__name__)
 
@@ -413,7 +414,7 @@ def init_basepar(baseline=0):
 
 
 ######################################
-def load_info_from_mouse_df(sessid, mouse_df="mouse_df.csv"):
+def load_info_from_mouse_df(sessid, mouse_df=DEFAULT_MOUSE_DF_PATH):
     """
     load_info_from_mouse_df(sessid)
 
@@ -427,7 +428,7 @@ def load_info_from_mouse_df(sessid, mouse_df="mouse_df.csv"):
                            session. Dataframe should have the following columns:
                                sessid, mouse_n, depth, plane, line, sess_n, 
                                pass_fail, all_files, any_files, notes
-                           default: "mouse_df.csv"
+                           default: DEFAULT_MOUSE_DF_PATH
 
     Returns:
         - df_dict (dict): dictionary with following keys:
@@ -611,7 +612,7 @@ def init_sessions(sessids, datadir, mouse_df, runtype="prod", full_table=True,
         - sessions (list): list of Session objects
     """
 
-    from analysis import session
+    from credassign.analysis import session
     
     with logger_util.TempChangeLogLevel(level=temp_log):
         sessions = []
@@ -753,7 +754,7 @@ def get_sess_info(sessions, add_none=False, incl_roi=True, return_df=False):
 
 ######################################
 def get_sessid_from_mouse_df(mouse_n=1, sess_n=1, runtype="prod", 
-                             mouse_df="mouse_df.csv"):
+                             mouse_df=DEFAULT_MOUSE_DF_PATH):
     """
     get_sessid_from_mouse_df(sessid)
 
@@ -770,7 +771,7 @@ def get_sessid_from_mouse_df(mouse_n=1, sess_n=1, runtype="prod",
         - mouse_df (Path): path name of dataframe containing information on each 
                            session. Dataframe should have the following columns:
                                mouse_n, sess_n, runtype
-                           default: "mouse_df.csv"
+                           default: DEFAULT_MOUSE_DF_PATH
 
     Returns:
         - sessid (int): session ID

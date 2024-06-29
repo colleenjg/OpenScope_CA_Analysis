@@ -39,8 +39,7 @@ from dandi import dandiapi
 from dandi import download as dandi_download
 
 
-# if running from the main directory
-DEFAULT_MOUSE_DF_PATH = Path("mouse_df.csv")
+DEFAULT_MOUSE_DF_PATH = Path(Path(__file__).parent.parent, "mouse_df.csv")
 
 # Published dandiset version
 PUBLISHED_VERSION = "0.230426.0054" # number derived from DOI

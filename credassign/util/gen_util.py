@@ -20,7 +20,7 @@ from joblib import Parallel, delayed
 import numpy as np
 
 
-from util import logger_util
+from credassign.util import logger_util
 
 logger = logger_util.get_module_logger(name=__name__)
 

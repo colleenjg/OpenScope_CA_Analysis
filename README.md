@@ -8,22 +8,15 @@ The dataset is described and characterized in [Gillon, Lecoq _et al._, 2023, _Sc
 This branch provides a **minimal** example, with minimal dependencies. It can be used to rerun dataset-focused analyses (different from those in [Gillon, Pina, Lecoq _et al._, 2021, _bioRxiv_](https://www.biorxiv.org/content/10.1101/2021.01.15.426915) or [Gillon, Pina _et al._, 2024, _J Neurosci_](https://www.jneurosci.org/content/44/5/e1009232023).
 
 ## 2. Installation
-To run the code, you can install a conda-based environment manager (e.g., [Anaconda](https://www.anaconda.com/), [Miniconda](https://conda.io/miniconda.html) or [Mamba](https://mamba.readthedocs.io/en/latest/installation.html)).
+The repo can be installed by running `pip install git+https://github.com/colleenjg/openscope_ca_analysis.git@minimal`.
 
-Once the conda-based environment manager is installed, use `osca.yml` to create the `osca` environment with all the packages needed to run this code. For example, if using Ubuntu or Mac OS, open a terminal, go to the repository directory, and run:
-
-`conda env create -f osca.yml`  
-
-Alternatively, if you prefer to use a different environment manager, install required packages specified in `requirements.txt`. 
+Alternatively, the repo can be cloned and used with an environment that meets the requirements specified in `requirements.txt`.
 
 This code is written in `Python 3`, and has been tested with `Python 3.8`.
 
 ## 3. Use
-Once installed, when using the codebase, simply activate the environment:
-
-`source activate osca`  
-
-All of the appropriate libraries should then be loaded, allowing the scripts and notebooks provided in the repo to be run.
+If installed, the codebase can be imported by running  
+`import credassign`
 
 
 ## 4. Scripts and modules
@@ -45,7 +38,7 @@ The following notebooks give examples of how to download the data, and run the a
 
 | Run in Binder | Run the Google Colab notebook |
 | ------------- | ----------------------------- |
-| [![Run in Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/colleenjg/OpenScope_CA_Analysis/minimal?labpath=run_paper_figures.ipynb) | [![Run the Google Colab notebook](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/colleenjg/OpenScope_CA_Analysis/blob/minimal/run_paper_figures_colab.ipynb) |
+| [![Run in Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/colleenjg/OpenScope_CA_Analysis/minimal?labpath=credassign/run_paper_figures.ipynb) | [![Run the Google Colab notebook](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/colleenjg/OpenScope_CA_Analysis/blob/minimal/credassign/run_paper_figures_colab.ipynb) |
 
 The contents of the **Binder** and **Google Colab** notebooks differ somewhat, due to the resources available: 
 * **Binder:** conda env. is installed automatically (+), but this can be slow, and only limited compute resources are available (-).  

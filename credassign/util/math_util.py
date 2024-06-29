@@ -14,7 +14,7 @@ Note: this code was aggregated from https://github.com/colleenjg/util.
 import numpy as np
 import scipy.stats
 
-from util import gen_util
+from credassign.util import gen_util
 
 
 

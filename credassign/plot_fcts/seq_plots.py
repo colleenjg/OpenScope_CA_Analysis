@@ -12,9 +12,9 @@ Note: this code was aggregated from https://github.com/colleenjg/OpenScope_CA_An
 
 import numpy as np
 
-from util import gen_util, logger_util, plot_util, math_util
-from analysis import misc_analys
-from plot_fcts import plot_helper_fcts
+from credassign.util import gen_util, logger_util, plot_util, math_util
+from credassign.analysis import misc_analys
+from credassign.plot_fcts import plot_helper_fcts
 
 
 TAB = "    "

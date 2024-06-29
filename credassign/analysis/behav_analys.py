@@ -13,8 +13,8 @@ Note: this code was aggregated from https://github.com/colleenjg/OpenScope_CA_An
 import numpy as np
 import pandas as pd
 
-from util import gen_util, load_util, math_util
-from analysis import misc_analys
+from credassign.util import gen_util, load_util, math_util
+from credassign.analysis import misc_analys
 
 
 #############################################

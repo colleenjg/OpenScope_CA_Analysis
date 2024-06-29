@@ -13,7 +13,7 @@ Note: this code was aggregated from https://github.com/colleenjg/OpenScope_CA_An
 from pathlib import Path
 import json
 
-from util import gen_util, logger_util
+from credassign.util import gen_util, logger_util
 
 
 TAB = "    "

@@ -3,11 +3,10 @@ jupyter
 dandi
 pynwb
 joblib
-matplotlib>3.6.*,!=3.7.0 # label bug
+matplotlib>3.7.0
 numpy
 opencv-python
 pandas
 scipy
 seaborn>=0.12.2
 tqdm
-

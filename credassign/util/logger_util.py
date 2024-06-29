@@ -70,7 +70,7 @@ class StoreRootLoggingInfo():
             os.environ["SET_ROOT_LOGGING_CONFIG"] = "basic"
         elif self.warn_config:
             warnings.warn(
-                f"Logging configuration not identified.{self.warn_msg}"
+                f"Logging configuration not identified.{self.extra_warn_msg}"
                 )
 
         # store logging level
@@ -94,7 +94,7 @@ class StoreRootLoggingInfo():
         elif (warnings.formatwarning != ORIGINAL_WARNINGS_FORMAT and 
             self.warn_config):
             warnings.warn(
-                f"Warning formatting not identified.{self.warn_msg}"
+                f"Warning formatting not identified.{self.extra_warn_msg}"
                 )
         
         
