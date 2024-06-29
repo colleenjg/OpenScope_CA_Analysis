@@ -13,7 +13,7 @@ Note: this code was aggregated from https://github.com/colleenjg/OpenScope_CA_An
 
 import warnings
 
-from util import gen_util, plot_util
+from credassign.util import gen_util, plot_util
 
 
 # skip tight layout warning

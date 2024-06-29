@@ -19,12 +19,12 @@ from pathlib import Path
 import time
 import warnings
 
-from paper_fig_util import paper_organization, helper_fcts
-from util import gen_util, logger_util, plot_util, sess_util
+from credassign.paper_fig_util import paper_organization, helper_fcts
+from credassign.util import gen_util, logger_util, plot_util, sess_util
 
 
 DEFAULT_DATADIR = Path("..", "data", "OSCA")
-DEFAULT_MOUSE_DF_PATH = Path("mouse_df.csv")
+DEFAULT_MOUSE_DF_PATH = Path(Path(__file__).parent, "mouse_df.csv")
 
 SEP = f"\n{'=' * 80}\n"
 DOUBLE_SEP = f"\n{'_' * 80}\n{'=' * 80}\n"
@@ -351,16 +351,14 @@ def run_single_panel(args, sessions=None, new_fig=False):
 
 
 #############################################
-def main(args):
+def main():
     """
-    main(args)
+    main()
 
     Runs analyses with parser arguments.
-
-    Required args:
-        - args (dict): 
-            parser argument dictionary
     """
+
+    args = parse_args()
 
     # set logger to the specified level
     logger_util.set_level(level=args.log_level)
@@ -473,9 +471,5 @@ def parse_args():
 #############################################
 if __name__ == "__main__":
 
-    args = parse_args()
-
-    logger_util.format_all(level=args.log_level)
-
-    main(args)
+    main()
 

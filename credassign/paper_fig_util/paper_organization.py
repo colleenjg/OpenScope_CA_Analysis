@@ -15,9 +15,10 @@ from collections import namedtuple
 from pathlib import Path
 import time
 
-from paper_fig_util import analyse_figs, plot_figs
-from util import gen_util, logger_util, sess_util
+from credassign.paper_fig_util import analyse_figs, plot_figs
+from credassign.util import gen_util, logger_util, sess_util
 
+DEFAULT_MOUSE_DF_PATH = Path(Path(__file__).parent.parent, "mouse_df.csv")
 
 PAPER_SEED = 905
 WARNING_SLEEP = 3
@@ -257,7 +258,7 @@ def get_specific_params(sess_n="1-3", mouse_n="any", plane="all", line="all",
 #############################################
 class FigurePanelAnalysis():
     def __init__(self, figure, panel, datadir, paper="dataset", 
-                 mouse_df_path="mouse_df.csv", output="paper_figures", 
+                 mouse_df_path=DEFAULT_MOUSE_DF_PATH, output="paper_figures", 
                  parallel=False, seed="paper", plt_bkend=None):
         """
         Initializes a FigurePanelAnalysis object.
@@ -275,7 +276,7 @@ class FigurePanelAnalysis():
                 default: "dataset"
             - mouse_df_path (Path): 
                 mouse dataframe path
-                default: "mouse_df.csv"
+                default: DEFAULT_MOUSE_DF_PATH
             - output (Path): 
                 output path
                 default: "paper_figures"

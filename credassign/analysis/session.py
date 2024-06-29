@@ -20,10 +20,11 @@ import numpy as np
 import pandas as pd
 import scipy.signal as scsig
 
-from util import gen_util, load_util, logger_util, math_util, sess_util
+from credassign.util import gen_util, load_util, logger_util, math_util, sess_util
 
 
 DEFAULT_DATADIR = Path("..", "data", "OSCA")
+DEFAULT_MOUSE_DF_PATH = Path(Path(__file__).parent.parent, "mouse_df.csv")
 TAB = "    "
 
 
@@ -43,7 +44,7 @@ class Session(object):
     pointers to the 2p data.
     """
     
-    def __init__(self, sessid=None, datadir=None, mouse_df="mouse_df.csv", 
+    def __init__(self, sessid=None, datadir=None, mouse_df=DEFAULT_MOUSE_DF_PATH, 
                  runtype="prod", verbose=False, only_tracked_rois=False, 
                  mouse_n=1, sess_n=1):
         """
@@ -76,7 +77,7 @@ class Session(object):
                                         data directory is used.
                                         default: None
             - mouse_df (Path)         : path to the mouse dataframe
-                                        default: "mouse_df.csv"
+                                        default: DEFAULT_MOUSE_DF_PATH
             - runtype (str)           : the type of run, either "pilot" or 
                                         "prod" (ignored if sessid is provided)
                                         default: "prod"

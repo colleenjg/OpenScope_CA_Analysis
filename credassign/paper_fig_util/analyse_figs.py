@@ -10,10 +10,10 @@ Date: February 2023
 Note: this code was aggregated from https://github.com/colleenjg/OpenScope_CA_Analysis.
 """
 
-from util import gen_util, logger_util
+from credassign.util import gen_util, logger_util
 
-from analysis import behav_analys, misc_analys, roi_analys, seq_analys
-from paper_fig_util import helper_fcts
+from credassign.analysis import behav_analys, misc_analys, roi_analys, seq_analys
+from credassign.paper_fig_util import helper_fcts
 
 
 logger = logger_util.get_module_logger(name=__name__)

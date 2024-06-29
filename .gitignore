@@ -1,12 +1,15 @@
 # ignore all subdirectories, except specified ones
 /*/ 
 
-!/analysis/
-!/paper_fig_util/
-!/paper_figures/
-!/plot_fcts/
-!/roi_tracking/
-!/util/
+!/credassign/
+
+/credassign/*/
+!/credassign/analysis/
+!/credassign/paper_fig_util/
+!/credassign/paper_figures/
+!/credassign/plot_fcts/
+!/credassign/roi_tracking/
+!/credassign/util/
 !/.binder/
 
 .ipynb_checkpoints

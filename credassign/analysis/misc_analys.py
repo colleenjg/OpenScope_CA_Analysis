@@ -15,7 +15,7 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from util import gen_util, math_util, sess_util
+from credassign.util import gen_util, math_util, sess_util
 
 
 #############################################

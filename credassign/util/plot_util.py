@@ -17,7 +17,7 @@ from matplotlib import pyplot as plt
 import matplotlib.cm as mpl_cm
 import numpy as np
 
-from util import gen_util, logger_util, math_util
+from credassign.util import gen_util, logger_util, math_util
 
 
 logger = logger_util.get_module_logger(name=__name__)

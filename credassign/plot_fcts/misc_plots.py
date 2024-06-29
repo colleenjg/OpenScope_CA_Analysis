@@ -12,8 +12,8 @@ Note: this code was aggregated from https://github.com/colleenjg/OpenScope_CA_An
 
 import numpy as np
 
-from util import gen_util, plot_util
-from plot_fcts import plot_helper_fcts, seq_plots
+from credassign.util import gen_util, plot_util
+from credassign.plot_fcts import plot_helper_fcts, seq_plots
 
 
 TAB = "    "

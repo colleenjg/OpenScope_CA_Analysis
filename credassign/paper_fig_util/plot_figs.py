@@ -12,9 +12,9 @@ Note: this code was aggregated from https://github.com/colleenjg/OpenScope_CA_An
 
 import pandas as pd
 
-from util import plot_util
-from paper_fig_util import helper_fcts
-from plot_fcts import behav_plots, misc_plots, seq_plots, roi_plots
+from credassign.util import plot_util
+from credassign.paper_fig_util import helper_fcts
+from credassign.plot_fcts import behav_plots, misc_plots, seq_plots, roi_plots
 
 
 #############################################

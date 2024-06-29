@@ -15,8 +15,8 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.patches as mpatches
 
-from util import gen_util, logger_util, plot_util
-from plot_fcts import plot_helper_fcts
+from credassign.util import gen_util, logger_util, plot_util
+from credassign.plot_fcts import plot_helper_fcts
 
 
 TAB = "    "

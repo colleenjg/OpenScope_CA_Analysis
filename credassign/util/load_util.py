@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 import pynwb
 
-from util import gen_util, logger_util
+from credassign.util import gen_util, logger_util
 
 
 logger = logger_util.get_module_logger(name=__name__)
