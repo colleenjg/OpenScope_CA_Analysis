@@ -14,6 +14,8 @@ Once the conda-based environment manager is installed, use `osca.yml` to create 
 
 Alternatively, if you prefer to use a different environment manager, install required packages specified in `requirements.txt`. 
 
+Another option is to simply install the analysis code from the `minimal` branch using `pip install git+https://github.com/colleenjg/openscope_ca_analysis.git@minimal` and import it using `import credassign`.
+
 This code is written in `Python 3`, and has been tested with `Python 3.8`.
 
 ## 3. Use
