@@ -3,7 +3,7 @@ dandi
 pynwb
 joblib
 jupyter
-matplotlib>3.6.*,!=3.7.0 # label bug
+matplotlib>3.7.0
 numpy
 opencv-python
 pandas
@@ -14,4 +14,3 @@ tqdm
 astropy
 pyglm
 git+https://github.com/colleenjg/util.git@osca_mult
-
