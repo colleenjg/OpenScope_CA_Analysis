@@ -1070,6 +1070,11 @@ def get_ex_traces_df(sessions, analyspar, stimpar, basepar, n_ex=6,
         for column, value in retained_roi_data[i].items():
             retained_traces_df.at[row_idx, column] = value
 
+    # avoid a pandas squeezing bug
+    retained_traces_df["roi_ns"] = [
+        np.asarray(vals).reshape(-1) for vals in retained_traces_df["roi_ns"]
+        ]
+
     # select a few ROIs per line/plane/session
     columns = retained_traces_df.columns.tolist()
     columns = [column.replace("roi_trace", "trace") for column in columns]
