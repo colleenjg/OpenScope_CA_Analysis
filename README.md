@@ -10,12 +10,12 @@ This branch provides a **minimal** example, with minimal dependencies. It can be
 ## 2. Installation
 The repo can be installed by running `pip install git+https://github.com/colleenjg/openscope_ca_analysis.git@minimal`.
 
-Alternatively, the repo can be cloned and used with an environment that meets the requirements specified in `requirements.txt`.
+Alternatively, the repo can be cloned and and installed in an environment.
 
 This code is written in `Python 3`, and has been tested with `Python 3.8`.
 
 ## 3. Use
-If installed, the codebase can be imported by running  
+Once installed, the codebase can be imported by running  
 `import credassign`
 
 

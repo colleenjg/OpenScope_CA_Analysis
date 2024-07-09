@@ -23,6 +23,12 @@ import pynwb
 
 from credassign.util import gen_util, logger_util
 
+for package in ["core", "hdmf-common", "hdmf-experimental"]:
+    warnings.filterwarnings(
+        "ignore", category=UserWarning, 
+        message=f"Ignoring cached namespace '{package}'"
+        )
+
 
 logger = logger_util.get_module_logger(name=__name__)
 
