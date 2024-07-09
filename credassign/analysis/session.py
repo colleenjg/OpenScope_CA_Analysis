@@ -282,6 +282,25 @@ class Session(object):
 
     #############################################
     @property
+    def roi_positions(self):
+        """
+        self._roi_positions
+
+        Median position (height x width) for each ROI, in pixels.
+        """
+
+        if not hasattr(self, "_roi_positions"):
+            roi_positions = np.empty((len(self.roi_masks), 2))
+            for r, roi_mask in enumerate(self.roi_masks):
+                for i in [0, 1]:
+                    roi_positions[r, i] = np.median(np.where(roi_mask)[i])
+            self._roi_positions = roi_positions
+        
+        return self._roi_positions
+
+
+    #############################################
+    @property
     def only_tracked_rois(self):
         """
         self.only_tracked_rois()
@@ -312,6 +331,25 @@ class Session(object):
         
         return self._tracked_rois
 
+
+    #############################################
+    @property
+    def all_stim_timestamps(self):
+        if not hasattr(self, "_all_stim_timestamps"):
+            self._all_stim_timestamps, self._all_twop_timestamps = \
+                load_util.get_frame_timestamps_nwb(self.sess_files)
+        
+        return self._all_stim_timestamps
+
+
+    #############################################
+    @property
+    def all_twop_timestamps(self):
+        if not hasattr(self, "_all_twop_timestamps"):
+            self._all_stim_timestamps, self._all_twop_timestamps = \
+                load_util.get_frame_timestamps_nwb(self.sess_files)
+        
+        return self._all_twop_timestamps
 
     #############################################
     def _load_stim_df(self, full_table=True):
@@ -721,11 +759,55 @@ class Session(object):
 
 
     #############################################
-    def _init_roi_facts_df(self):
+    def load_roi_traces(self, roi_ns=None, frame_ns=None, fluorescence="dff"):
+        """
+        self.load_roi_traces()
+
+        Loads processed ROI traces for specified ROIs and frames.
+
+        To use different traces (e.g., denoised traces), add them to the 
+        session, then modify this function by adding loading code for the 
+        added fluorescence types. 
+        
+        Ensure that the trace data that is returned is restricted to the 
+        specified ROIs and frames.
+
+        For example:
+
+        elif fluorescence == "denoised":
+            if not hasattr(self, "denoised"):
+                raise RuntimeError("Denoised traces not found.")
+
+            roi_traces = self.denoised # ROIs x frames
+
+            if roi_ns is not None:
+                roi_traces = roi_traces[roi_ns]
+
+            if frame_ns is not None:
+                roi_traces = roi_traces[:, frame_ns]
+        """
+
+        if fluorescence == "dff":
+            roi_traces = load_util.load_roi_traces_nwb(
+                            self.sess_files, roi_ns=roi_ns, frame_ns=frame_ns,
+                            )
+        else:
+            raise NotImplementedError(f"Loading ROI traces for {fluorescence} "
+                "fluorescence datatype is not implemented.")
+
+        return roi_traces
+
+
+    #############################################
+    def _init_roi_facts_df(self, fluorescence="dff"):
         """
         self._init_roi_facts_df()
 
         Initializes the ROIs factors dataframe.
+
+        Optional args:
+            - fluorescence (str): type of fluorescence data to set attributes for
+                                  default: "dff"
 
         Attributes:
             - roi_facts_df (pd DataFrame): multi-level dataframe containing ROI 
@@ -742,7 +824,7 @@ class Session(object):
         if not hasattr(self, "roi_facts_df"):
             
             col_index = pd.MultiIndex.from_product(
-                [["roi_traces"], ["dff"]], names=["datatype", "fluorescence"])
+                [["roi_traces"], [fluorescence]], names=["datatype", "fluorescence"])
             row_index = pd.MultiIndex.from_product(
                 [[f"sub_stand_rob", f"div_IQR_5_95"], range(self._nrois)], 
                 names=["factors", "ROIs"])
@@ -752,12 +834,16 @@ class Session(object):
  
 
     ############################################
-    def _set_roi_attributes(self):
+    def _set_roi_attributes(self, fluorescence="dff"):
         """
         self._set_roi_attributes()
 
         Loads the processed trace information, and updates self.roi_facts_df
         for the requested fluorescence data.
+
+        Optional args:
+            - fluorescence (str): type of fluorescence data to set attributes for
+                                  default: "dff"
 
         Calls:
             - self._init_roi_facts_df()
@@ -768,14 +854,14 @@ class Session(object):
         if not hasattr(self, "_nrois"):
             raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
                 "attributes correctly.")
-
-        if hasattr(self, "roi_facts_df"):
-            return
         
-        self._init_roi_facts_df()
+        if hasattr(self, "roi_facts_df"):
+            if fluorescence in self.roi_facts_df["roi_traces"].columns:
+                return
+        else:
+            self._init_roi_facts_df(fluorescence=fluorescence)
 
-        roi_traces = load_util.load_roi_traces_nwb(self.sess_files)
-
+        roi_traces = self.load_roi_traces(fluorescence=fluorescence)
         
         # obtain scaling facts while filtering All-NaN warning.
         with logger_util.TempWarningFilter("All-NaN", RuntimeWarning):
@@ -789,7 +875,7 @@ class Session(object):
                 )
             divval = qs[1] - qs[0]
 
-            self.roi_facts_df[("roi_traces", "dff")] = \
+            self.roi_facts_df[("roi_traces", fluorescence)] = \
                 np.asarray([subval, divval]).reshape(-1)
 
         if self.only_tracked_rois:
@@ -797,7 +883,7 @@ class Session(object):
 
 
     #############################################
-    def _get_roi_facts(self):
+    def _get_roi_facts(self, fluorescence="dff"):
         """
         self._get_roi_facts()
 
@@ -819,9 +905,9 @@ class Session(object):
                     - "ROIs"        : ROI index
         """
 
-        self._set_roi_attributes()
+        self._set_roi_attributes(fluorescence=fluorescence)
         
-        specific_roi_facts = self.roi_facts_df.copy(deep=True)
+        specific_roi_facts = self.roi_facts_df.copy(deep=True)[[("roi_traces", fluorescence), ]]
                 
         return specific_roi_facts
 
@@ -1342,8 +1428,7 @@ class Session(object):
         """
         self.get_roi_masks()
 
-        Returns ROI masks, optionally removing bad ROIs (too noisy or 
-        containing NaNs, Infs).
+        Returns ROI masks.
 
         Optional args:
             - raw_masks (bool): if True, raw masks (unporcessed and not 
@@ -1368,6 +1453,27 @@ class Session(object):
 
         return roi_masks
 
+
+    #############################################
+    def get_roi_positions(self):
+        """
+        self.get_roi_positions()
+
+        Returns ROI positions (median) in pixels.
+
+        Returns:
+            - roi_positions (2D array): ROI positions (median) in pixels 
+                                        (height x width), structured as 
+                                        ROI x 2
+        """
+
+        roi_positions = self.roi_positions.copy()
+
+        if self.only_tracked_rois:
+            roi_positions = roi_positions[self.tracked_rois]
+        
+        return roi_positions
+    
 
     #############################################
     def get_registered_roi_masks(self, targ_sess_idx=0):
@@ -1435,6 +1541,36 @@ class Session(object):
 
 
     #############################################
+    def get_registered_roi_positions(self, targ_sess_idx=0):
+        """
+        self.get_registered_roi_positions()
+
+        Returns ROI median positions (hei x wei), registered across tracked 
+        sessions.
+
+        Optional args:
+            - targ_sess_idx (int): session that the registration transform 
+                                   should be targetted to
+                                   default: 0
+
+        Returns:
+            - registered_roi_positions (2D array): 
+                ROI median positions (hei x wei), registered across tracked 
+                sessions, structured as ROI x 2
+        """
+
+        registered_roi_mask = self.get_registered_roi_masks(targ_sess_idx)
+
+        registered_roi_positions = np.empty((len(registered_roi_mask), 2))
+        for r, roi_mask in enumerate(registered_roi_mask):
+            for i in [0, 1]:
+                registered_roi_positions[r, i] = np.median(np.where(roi_mask)[i])
+
+
+        return registered_roi_positions
+
+
+    #############################################
     def get_nrois(self):
         """
         self.get_nrois()
@@ -1459,7 +1595,7 @@ class Session(object):
         
 
     #############################################
-    def get_active_rois(self, stimtype=None):
+    def get_active_rois(self, stimtype=None, fluorescence="dff"):
         """
         self.active_rois()
 
@@ -1471,6 +1607,9 @@ class Session(object):
                               transients ("visflow", "gabors" or None). 
                               If None, the entire session is checked.
                               default: None
+            - fluorescence (str): type of fluorescence data to use 
+                                  ("dff" or another implemented type)
+                                  default: "dff"
 
         Returns:
             - active_roi_indices (list): indices of active ROIs 
@@ -1485,7 +1624,7 @@ class Session(object):
 
         win = [1, 5]
         
-        full_data = self.get_roi_traces(None)
+        full_data = self.get_roi_traces(None, fluorescence=fluorescence)
 
         full_data_sm = scsig.medfilt(
             gen_util.reshape_df_data(
@@ -1506,7 +1645,7 @@ class Session(object):
                 twop_fr.extend(
                     [row["start_frame_twop"][0], row["stop_frame_twop"][0]
                     ])
-            stim_data = self.get_roi_traces(twop_fr)
+            stim_data = self.get_roi_traces(twop_fr, fluorescence=fluorescence)
             stim_data_sm = scsig.medfilt(stim_data, win)
 
         # count how many calcium transients occur in the data of interest for
@@ -1521,7 +1660,7 @@ class Session(object):
 
 
     #############################################
-    def get_roi_traces_by_ns(self, ns):
+    def get_roi_traces_by_ns(self, ns, fluorescence="dff"):
         """
         self.get_roi_traces_by_ns(ns)
 
@@ -1530,6 +1669,11 @@ class Session(object):
 
         Required args:
             - ns (array-like): ROI indices
+
+        Optional args:
+            - fluorescence (str): type of fluorescence data to use 
+                                  ("dff" or another implemented type)
+                                  default: "dff"
 
         Returns:
             - traces (1 or 2D array): full traces for all ROIs or a single ROI, 
@@ -1540,14 +1684,13 @@ class Session(object):
             raise RuntimeError("Run 'self.load_roi_info()' to set ROI "
                 "attributes correctly.")
 
-        # read the data points into the return array
-        traces = load_util.load_roi_traces_nwb(self.sess_files, roi_ns=ns)
+        traces = self.load_roi_traces(roi_ns=ns, fluorescence=fluorescence)
  
         return traces
 
 
     #############################################
-    def get_single_roi_trace(self, n):
+    def get_single_roi_trace(self, n, fluorescence="dff"):
         """
         self.get_single_roi_trace(n)
 
@@ -1556,6 +1699,11 @@ class Session(object):
 
         Required args:
             - n (int): ROI index
+
+        Optional args:
+            - fluorescence (str): type of fluorescence data to use 
+                                  ("dff" or another implemented type)
+                                  default: "dff"
 
         Returns:
             - trace (1D array): full ROI trace
@@ -1568,13 +1716,14 @@ class Session(object):
         if n >= self._nrois:
             raise ValueError(f"ROI {n} does not exist.")
 
-        trace = self.get_roi_traces_by_ns(int(n))
+        trace = self.get_roi_traces_by_ns(int(n), fluorescence=fluorescence)
 
         return trace
 
 
     #############################################
-    def get_roi_traces(self, frames=None, scale=False):
+    def get_roi_traces(self, frames=None, scale=False, fluorescence="dff", 
+                       as_array=False):
         """
         self.get_roi_traces()
 
@@ -1591,7 +1740,18 @@ class Session(object):
             - scale (bool)      : if True, each ROIs is scaled 
                                   based on full data array
                                   default: False
+            - fluorescence (str): type of fluorescence data to use 
+                                  ("dff" or another implemented type)
+                                  default: "dff"
+            - as_array (bool)   : if True, the ROI traces are returned as a
+                                  2D array. Otherwise, they are returned as a
+                                  hierarchical dataframe.
+
         Returns:
+            if as_array:
+            - traces (2D array): ROI trace data for the frames of interest,
+                                 structured as ROI x frames
+            else:
             - roi_data_df (pd DataFrame): dataframe containing ROI trace data  
                                           for the frames of interest, organized 
                                           by:
@@ -1623,9 +1783,9 @@ class Session(object):
         if self.only_tracked_rois:
             roi_ids = self.tracked_rois
 
-        traces = load_util.load_roi_traces_nwb(
-            self.sess_files, roi_ns=roi_ids, frame_ns=frames
-            )
+        traces = self.load_roi_traces(
+            roi_ns=roi_ids, frame_ns=frames, fluorescence=fluorescence
+        )
 
         if roi_ids is None:
             roi_ids = np.arange(self._nrois)
@@ -1633,7 +1793,7 @@ class Session(object):
             frames = np.arange(self.tot_twop_fr)
 
         if scale:
-            factors = self._get_roi_facts()
+            factors = self._get_roi_facts(fluorescence=fluorescence)
 
             factor_names = factors.index.unique(level="factors")
             sub_names =  list(filter(lambda x: "sub" in x, factor_names))
@@ -1648,18 +1808,22 @@ class Session(object):
                 factors.loc[div_names[0]].loc[roi_ids].values
                 )
 
-        # initialize the return dataframe
-        index_cols = pd.MultiIndex.from_product(
-            [["roi_traces"], [scale_str], ["dff"]], 
-            names=["datatype", "scaled", "fluorescence"])
-        index_rows = pd.MultiIndex.from_product(
-            [roi_ids, *[range(dim) for dim in frames.shape]], 
-            names=["ROIs", "frames"])
-        
-        roi_data_df = pd.DataFrame(
-            traces.reshape(-1), index=index_rows, columns=index_cols)
+        if as_array:
+            return traces
+    
+        else:
+            # initialize the return dataframe
+            index_cols = pd.MultiIndex.from_product(
+                [["roi_traces"], [scale_str], [fluorescence]], 
+                names=["datatype", "scaled", "fluorescence"])
+            index_rows = pd.MultiIndex.from_product(
+                [roi_ids, *[range(dim) for dim in frames.shape]], 
+                names=["ROIs", "frames"])
+            
+            roi_data_df = pd.DataFrame(
+                traces.reshape(-1), index=index_rows, columns=index_cols)
 
-        return roi_data_df
+            return roi_data_df
 
 
     #############################################
@@ -1751,7 +1915,8 @@ class Session(object):
 
 
     #############################################
-    def get_roi_seqs(self, twop_fr_seqs, padding=(0,0), scale=False):
+    def get_roi_seqs(self, twop_fr_seqs, padding=(0,0), scale=False, 
+                     fluorescence="dff"):
         """
         self.get_roi_seqs(twop_fr_seqs)
 
@@ -1776,6 +1941,9 @@ class Session(object):
             - scale (bool)             : if True, each ROIs is scaled 
                                          based on full data array
                                          default: False
+            - fluorescence (str)       : type of fluorescence data to use
+                                         ("dff" or another implemented type)
+                                         default: "dff" 
 
         Returns:
             - roi_data_df (pd DataFrame): dataframe containing ROI trace data  
@@ -1847,7 +2015,9 @@ class Session(object):
                 frames_flat = frames_flat[: last_idx]
 
 
-        traces_flat = self.get_roi_traces(frames_flat.astype(int), scale=scale)
+        traces_flat = self.get_roi_traces(
+            frames_flat.astype(int), scale=scale, fluorescence=fluorescence
+            )
 
         index_rows = pd.MultiIndex.from_product(
             [traces_flat.index.unique("ROIs").tolist(), 
@@ -2181,7 +2351,7 @@ class Stim(object):
                             gabfr="any", gabk="any", 
                             gab_ori="any", visflow_size="any", 
                             visflow_dir="any", pupil=False, run=False, 
-                            scale=False, roi_stats=False):
+                            scale=False, roi_stats=False, fluorescence="dff"):
         """
         self.get_stim_beh_sub_df(pre, post)
 
@@ -2224,6 +2394,8 @@ class Stim(object):
                                           provided instead of values for each 
                                           ROI
                                           default: False
+            - fluorescence (str)        : type of fluorescence data to use
+                                          ("dff" or another implemented type)
 
         Returns:
             - sub_df (pd DataFrame): extended stimulus dataframe containing
@@ -2263,7 +2435,8 @@ class Stim(object):
         # add ROI data
         logger.info("Adding ROI data to dataframe...")
         roi_data = self.get_roi_data(
-            twop_fr, pre, post, scale=scale)["roi_traces"]
+            twop_fr, pre, post, scale=scale, fluorescence=fluorescence
+            )["roi_traces"]
         targ = [len(roi_data.index.unique(dim)) for dim in roi_data.index.names]
         roi_data = math_util.mean_med(
             roi_data.to_numpy().reshape(targ), 
@@ -3368,7 +3541,7 @@ class Stim(object):
     #############################################
     def get_roi_data(self, twop_ref_fr, pre, post, integ=False, baseline=None, 
                      stats="mean", transients=False, scale=False, pad=(0, 0), 
-                     smooth=False):
+                     smooth=False, fluorescence="dff"):
         """
         self.get_roi_data(twop_ref_fr, pre, post)
 
@@ -3404,6 +3577,8 @@ class Stim(object):
             - smooth (bool or int): if not False, specifies the window length 
                                     to use in smoothing 
                                     default: False
+            - fluorescence (str)  : type of fluorescence data, e.g., "dff"
+                                    default: "dff"
         
         Returns:
             - roi_data_df (pd DataFrame): dataframe containing ROI trace data  
@@ -3444,8 +3619,10 @@ class Stim(object):
                 frame_n_df, squeeze_rows=False, squeeze_cols=True
                 )
 
-        # get dF/F: ROI x seq x fr
-        roi_data_df = self.sess.get_roi_seqs(frame_ns, scale=scale)
+        # get traces: ROI x seq x fr
+        roi_data_df = self.sess.get_roi_seqs(
+            frame_ns, scale=scale, fluorescence=fluorescence
+            )
 
         if transients:
             keep_rois = self.sess.get_active_rois(stimtype=None)
@@ -3513,7 +3690,7 @@ class Stim(object):
     def get_roi_stats_df(self, twop_ref_fr, pre, post, byroi=True, 
                          integ=False, ret_arr=False, stats="mean", error="std", 
                          baseline=None, transients=False, scale=False, 
-                         smooth=False):
+                         smooth=False, fluorescence="dff"):
         """
         self.get_roi_stats_df(twop_ref_fr, pre, post)
 
@@ -3554,6 +3731,8 @@ class Stim(object):
             - smooth (bool or int): if not False, specifies the window length 
                                     to use in smoothing 
                                     default: False
+            - fluorescence (str)  : type of fluorescence data, e.g., "dff"
+                                    default: "dff"
 
         Returns:
             - stats_df (pd DataFrame): dataframe containing run velocity 
@@ -3577,7 +3756,9 @@ class Stim(object):
         
         roi_data_df = self.get_roi_data(
             twop_ref_fr, pre, post, integ, baseline=baseline, stats=stats, 
-            transients=transients, scale=scale, smooth=smooth)
+            transients=transients, scale=scale, smooth=smooth, 
+            fluorescence=fluorescence
+            )
             
         # order in which to take statistics on data
         dims = ["sequences", "ROIs"]
